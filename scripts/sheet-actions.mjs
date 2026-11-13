@@ -1186,7 +1186,7 @@ export function actionButton(actor, key, def) {
      * The guide's turn structure assumes the two people in a fight are doing
      * nothing else, and `performAction` has always refused them - but a tile
      * that looks pressable and then refuses is worse than one that says no in
-     * advance, which is the rule this file has applied to the Eclipse since it
+     * advance, which is the rule the sheet's tiles have applied to the Eclipse since they
      * was written. Direct Murder is the exception because it is no longer only
      * Direct Murder: during an incident it opens that incident's own actions.
      */
@@ -1411,7 +1411,7 @@ function costOf(actor, key, def) {
      * The killer's own night still skips the action step (D3) - but that is now
      * `tamperPriceSkip`, the same list `chargeTamper` reads (through `tamperQuote`,
      * which also knows a critical Finishing blow's free attempt), rather than a
-     * separate `isCleaner` test in this file that had to be kept in step by hand.
+     * separate `isCleaner` test in sheet.mjs (before E54) that had to be kept in step by hand.
      * What comes back is the step that will really pay, so a Tamper about to cost
      * a Sanity mark no longer reads "1 action".
      */

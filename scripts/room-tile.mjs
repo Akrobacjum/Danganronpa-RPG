@@ -111,7 +111,7 @@ export function settledPosition(tokenDoc) {
 export function viewerRoom(actor = viewerActor()) {
     const empty = state => ({ state, room: null, scene: null, tokenDoc: null });
     if (trialSlot()) return empty("trial");
-    // The viewer's mode (sheet.mjs `sheetMode`'s `tile`, E45 C1; the owner's A8): an NPC not in the class is no
+    // The viewer's mode (sheet-mode.mjs `sheetMode`'s `tile`, E45 C1; the owner's A8): an NPC not in the class is no
     // student of this screen, and its room is not shown as one.
     if (!actor || !sheetMode(actor).tile) return empty(game.user.isGM ? "none" : "noActor");
     const place = locateActor(actor);

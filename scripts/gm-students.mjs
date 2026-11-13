@@ -221,7 +221,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
 /*
  * THE ROLE (E47-C8, 09.11.2026; the owner's 09.11 ask). Student, Monokuma or Not in the class, as the sheet's own
  * `sheetMode` reads the two flags (a Monokuma first: a character carrying both is a Monokuma). The select acts when it
- * is changed, never on Apply, through the sheet header's roads (sheet.mjs `injectClassControls`), which are a GM's
+ * is changed, never on Apply, through the sheet header's roads (sheet-header.mjs `injectClassControls`), which are a GM's
  * alone - each refuses a player itself (`game.user.isGM`), and a player's own write of either flag is put back by the
  * GMs' audit (sheet-audit.mjs `GM_FLAGS`, E24 fix G1):
  *   to Monokuma           monokuma.mjs `markFromSheet` - a player's character is asked first, Cancel the default;
@@ -391,7 +391,7 @@ function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOf
      * ITEMS ON EVERY ROW (E47-C8; the owner's 09.11 ask: "no single Items button that then asks which student - each
      * row its own Items button beside the name"). The round trip the footer's Items made (D-F5-2): this window closes,
      * the hub runs to its own Close, the table comes back. The Level Up is the sheet's GM button's road
-     * (`openAdvancementFor`, sheet.mjs `injectAdvanceButton`), a window of its own, so the same round trip.
+     * (`openAdvancementFor`, sheet-header.mjs `injectAdvanceButton`), a window of its own, so the same round trip.
      */
     wireAliveRow(dialog, "data-drpg-items", actor => roads.openItemManager(actor), { onHandOff, reopen });
     // The sheet is a window of its own that does not end in an answer, so the table stays where it is (E6), beside it.

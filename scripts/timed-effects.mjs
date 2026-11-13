@@ -224,7 +224,7 @@ export function timedLine(row) {
 }
 
 /**
- * The sheet's badges of `actor`'s timed effects on this browser, beside the armed Calls (sheet.mjs `pendingStack`; the
+ * The sheet's badges of `actor`'s timed effects on this browser, beside the armed Calls (sheet-header.mjs `pendingStack`; the
  * owner's asks of 12.11.2026): `{ short, what, until }` - a name of one or two words on the badge, what it does and what
  * ends it in the tooltip.
  */

@@ -214,7 +214,7 @@ export function crisisSituational(actor, key, state = murderState(), held = acto
  * their four choices, and taking it spent their one free choice (`thirdActed`) on a roll
  * none of the four is - the grid's TP13, red at ac5ae66 (e32run/g5f). The guide gives the newcomer
  * that one choice and nothing else; the sheet's item button already treated a third as
- * outside the fight (sheet.mjs `inCrisis`). The panel and the GM's judgement
+ * outside the fight (sheet-inventory.mjs `inCrisis`). The panel and the GM's judgement
  * (`crisisRefusal`) both ask this.
  */
 function forSide(def, side) {

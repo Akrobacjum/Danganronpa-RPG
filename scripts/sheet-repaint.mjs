@@ -42,7 +42,7 @@ import { actionButton, callLockNote, callButton, monokumaPool, monocubTiles } fr
  *
  * WHY THE MARK WENT (E45 C2, 08.11.2026; audit S03-07, a bug seen at the table:
  * lost renders, frozen pips). The mark was laid before overflow.mjs and
- * resource-guard.mjs cut the write in their own `preUpdateActor` (this file's
+ * resource-guard.mjs cut the write in their own `preUpdateActor` (sheet.mjs's
  * hook was registered first), so a write they emptied updated nothing and
  * rendered nothing, and the mark ate the next render of anything: an item found
  * by Search did not appear. And `preUpdateActor` fires only on the writer's
@@ -70,7 +70,7 @@ import { actionButton, callLockNote, callButton, monokumaPool, monocubTiles } fr
  * `system.resources` holds five things here: hitPoints, stress, hope, actions
  * and armor. Only the first three are drawn by something that can be repainted
  * without a render - the two bars in the sidebar and the Hope diamonds in the
- * header. Actions are drawn by this file's own action panel and again by the
+ * header. Actions are drawn by the sheet's own action panel (sheet-actions.mjs `injectActionPanel`) and again by the
  * player's status strip; armor by the system's template. Skipping a render for
  * one of those would leave a number on screen that is no longer true, which is
  * the failure this whole apparatus exists to avoid, so they are left alone and
@@ -320,7 +320,7 @@ function refreshMonocubTiles(actor, element) {
  *
  * See the SETTLING block in danganronpa.css for the measurement behind this.
  * Short version: Daggerheart puts `transition: all 0.3s` on the sidebar's
- * resource inputs, and everything this file does to a freshly rendered sheet
+ * resource inputs, and everything the sheet's family (sheet.mjs `SHEET_STEPS`) does to a freshly rendered sheet
  * changes their layout - so every redraw animated the whole left column for
  * 300ms. The work is the same; it just stops being a journey.
  *

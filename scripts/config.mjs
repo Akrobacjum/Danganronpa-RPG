@@ -245,7 +245,7 @@ export const FLAGS = {
      * Level Up and in no incident's cast (E24 C3a, 08.11.2026; audit S03-36, the
      * owner's Q-E24-5). `studentActors` leaves it out, and with it everything that
      * reads the one roster. A GM's flag: written only by a GM's toggle on the
-     * sheet's header (sheet.mjs `injectClassControls`), never set by itself, and a
+     * sheet's header (sheet-header.mjs `injectClassControls`), never set by itself, and a
      * player's write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
      * Who is a student is the table's to know, so it holds no secret.
      */
@@ -514,7 +514,7 @@ export function staleStamp(at, now) {
 /**
  * The character sheet's size, in one place (UI-13). Daggerheart opens it at
  * its own default; `minHeight` is what the Hope Calls panel needs under the
- * Legacy theme (grown once, upwards only - sheet.mjs `growForCalls`), and
+ * Legacy theme (grown once, upwards only - sheet-fit.mjs `growForCalls`), and
  * `glass` is the size the Stained Glass theme draws the sheet for, scaled by
  * the interface slider (settings.mjs `scaleWindow`).
  */
@@ -614,7 +614,7 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * TIER 0'S ONE IS A SINGLE USE, NOT A DURABILITY (the owner's amend of
  * 25.09.2026; E13 C8): a tier 0 tool or weapon is spent by the first roll it
  * is used in, whatever the roll (use-items.mjs `rollSpends`), and the sheet
- * draws it no track (sheet.mjs `wearMarkup`). The number stays 1 because the
+ * draws it no track (sheet-item.mjs `wearMarkup`). The number stays 1 because the
  * spending goes through `wearItem` like any wear - one point, and the point
  * that fills it breaks it - so a Reroll gives it back as it gives a wear back,
  * and the Rot, which never takes the last point, still passes it by.

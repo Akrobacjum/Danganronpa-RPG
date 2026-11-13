@@ -135,7 +135,7 @@ body.drpg-theme-stained-glass {
     /* The two reserves (E24 C1a, 08.11.2026; the owner's D5, Q-E24-4): Health and Sanity each in a hue that means no
        state of the game - not the GM's red, Despair's pink, Eclipse's violet or Hope's gold - so a bar says how much is
        left and nothing else. The plate, the bar, the field and the pips read them through `--drpg-bar-fill`, set on
-       the block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`).
+       the block sheet-sidebar.mjs `paintReserves` marks (`[data-drpg-reserve]`).
        Since 1.2.102 (E96 C1; the owner's H102-K1, 09.11.2026) Health is a vermilion, a red as a player expects of it
        and not the GM's (#ff5566), and Sanity a teal: the violet of 1.2.101 read as Danganronpa's blood, a physical
        wound. R1444 holds them apart from every state's colour, R3104 reads the two values. */
@@ -4772,7 +4772,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-advance-button > i 
     font-size: 17px !important;
     line-height: 1;
 }
-/* A button with words (E49 B2, S03-31; sheet.mjs `headerButton`'s `caption`: Level Up, Give / take) keeps the square's
+/* A button with words (E49 B2, S03-31; sheet-header.mjs `headerButton`'s `caption`: Level Up, Give / take) keeps the square's
    height and grows sideways to its words: at the 34 px square Chromium drew "LEVEGIVE /", the two captions over each
    other and the icons pushed out. */
 body.drpg-theme-stained-glass .application.sheet.actor .drpg-advance-button:has(.drpg-header-caption) {

@@ -654,7 +654,7 @@ export function glassSelectorOf(elementId) {
     if (set === "ACTIONS") return `.drpg-action-button[data-drpg-action="${key}"] .drpg-action-icon`;
     if (set === "HOPE_CALLS" || set === "DESPAIR_CALLS") return `.drpg-call-button[data-drpg-call="${key}"] .drpg-action-icon`;
     if (set === "CRISIS_ACTIONS") return `.drpg-choice:has(> input[value="${key}"]) > i.${KEY_ICONS[elementId]}`;
-    // The Monocub's tiles carry no key but their icon (sheet.mjs `monocubTiles`); E72 C5 adds Redeem and Ask for Hope.
+    // The Monocub's tiles carry no key but their icon (sheet-actions.mjs `monocubTiles`); E72 C5 adds Redeem and Ask for Hope.
     if (set === "MONOCUB") return `.drpg-action-button:not([data-drpg-action], [data-drpg-call]) .drpg-action-icon.${KEY_ICONS[elementId]}`;
     if (set === "gm") return `.drpg-gmp-button[data-drpg-run="${key}"] > i`;
     return null;
@@ -687,7 +687,7 @@ export const FACE_RULES = [
        gear, the corner Look launcher's gear with its sound waves. */
     ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"],
     /* E93 (the owner's ask of 12.11.2026): a room action's timed effect on the sheet, a white chip beside the armed Calls
-       (sheet.mjs `pendingStack`); its fa-hourglass-half has no glass drawing, and Stained Glass's hourglass is the projects'. */
+       (sheet-header.mjs `pendingStack`); its fa-hourglass-half has no glass drawing, and Stained Glass's hourglass is the projects'. */
     ["a timed effect's badge beside the Hope Calls (its fa-hourglass-half has no glass drawing)", ".drpg-pending-call.drpg-timed-badge > i.fa-hourglass-half", "timed-effect"]
 ];
 

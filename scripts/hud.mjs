@@ -1478,7 +1478,7 @@ export function objectionOnHud(root = document) {
  * @returns {HTMLButtonElement|null|false}  `false` only when `given.unless` is the key of what would be drawn
  */
 export function objectionControl(actor = viewerActor(), given = {}) {
-    // A living student of the class (sheet.mjs `sheetMode`'s `objection`, E45 C1): no Monokuma, Monocub, NPC or the dead.
+    // A living student of the class (sheet-mode.mjs `sheetMode`'s `objection`, E45 C1): no Monokuma, Monocub, NPC or the dead.
     if (!actor || actor.type !== "character" || !sheetMode(actor).objection) return null;
     // E70 C5: nor a student on the trial's list of the dead (a death nobody has found, TR30), whose voice the trial holds.
     if (isMutedDead(actor)) return null;

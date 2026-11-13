@@ -641,7 +641,7 @@ function wireNoteGate(dialog, call) {
 }
 
 /**
- * What the buyer of a Call holds now, as the sheet reads it before the windows (sheet.mjs `runCall`): a Hope Call's
+ * What the buyer of a Call holds now, as the sheet reads it before the windows (sheet-actions.mjs `runCall`): a Hope Call's
  * buyer's Hope, a Despair Call's Monokuma's spendable pool. Null with no buyer (a caller that hands `held` alone).
  * E51 fix round FG7, for `confirmCall`'s live price line.
  */
@@ -662,8 +662,8 @@ async function heldReader(actor, kind) {
 
 /**
  * Whether a Call waits for a GM's yes (E72): a row a GM rules (`needsGm`: Experience, Ultimate), or a tile whose every
- * choice is one (Talent). The one reader of it for the tile's red (sheet.mjs `callButton`), the window's Send on the
- * GM's road (`confirmCall`) and the road that asks the choice in that window (sheet.mjs `runCall`).
+ * choice is one (Talent). The one reader of it for the tile's red (sheet-actions.mjs `callButton`), the window's Send on the
+ * GM's road (`confirmCall`) and the road that asks the choice in that window (sheet-actions.mjs `runCall`).
  */
 export function callAsksGm(call, kind = "hope") {
     const table = kind === "hope" ? HOPE_CALLS : DESPAIR_CALLS;

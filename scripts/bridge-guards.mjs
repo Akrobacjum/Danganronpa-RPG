@@ -1438,7 +1438,7 @@ export function playersOnly(why) {
 
 /*
  * A SPECTATOR ACTS NOT (E92 Q-E92-7, 12.11.2026; the owner's "zgadzam sie, zlecaj"). A Spectator's character takes no
- * student's action through the bridge: its sheet draws no action (sheet.mjs `sheetMode`), but its player's console can
+ * student's action through the bridge: its sheet draws no action (sheet-mode.mjs `sheetMode`), but its player's console can
  * still ask the primary, and `owns` passes an owner. Every row a student's character asks through names one of these
  * two, right after `knownSender` (tier 0's census holds every player row of the four tables to it, or to a reason it
  * needs none):

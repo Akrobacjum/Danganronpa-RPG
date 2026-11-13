@@ -191,7 +191,7 @@ export function callWindowClass(call, kind, step) {
 
 /**
  * A window of this Call open now, either step, raised; or null (E51 fix round FG7). The sheet asks it at the press
- * (sheet.mjs `runCall`), so a second press while the first purchase's picker or confirmation stands opens nothing.
+ * (sheet-actions.mjs `runCall`), so a second press while the first purchase's picker or confirmation stands opens nothing.
  */
 export function callWindowOpen(call, kind) {
     for (const step of ["pick", "confirm"]) {

@@ -404,7 +404,7 @@ export function monokumasWithoutPool() {
  * ON THE SHEET, NOT IN THE ACTORS DIRECTORY (E24 C3a, 08.11.2026; the owner's answer to Q-E24-5, STAGE.md "Amend 08.11"
  * A2: "warto mark as monokuma tez przeniesc"). The two entries sat on the directory's right-click menu
  * (`getActorContextOptions`, registered by `registerMonokuma`, which is gone with them); they are the sheet header's GM
- * controls now, beside "Not in the class" (sheet.mjs `injectClassControls`), each drawn in the state it changes, for a
+ * controls now, beside "Not in the class" (sheet-header.mjs `injectClassControls`), each drawn in the state it changes, for a
  * `character` and a GM only. The ask moved with them unchanged, under the name of the place it is asked from.
  */
 

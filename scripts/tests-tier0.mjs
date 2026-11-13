@@ -8081,7 +8081,7 @@ const REGRESSIONS = [
 
     ["R3803 - a Monocub's tile is greyed by its row's blocks with their sentence, and a free move says Free (E72 C9; S18-62)", async () => {
         /*
-         * E72 C9, 12.11.2026; audit S18-62. sheet.mjs `abilityButton` dimmed a Monocub's tile on its price alone and said
+         * E72 C9, 12.11.2026; audit S18-62. sheet-actions.mjs `abilityButton` dimmed a Monocub's tile on its price alone and said
          * "0 Hope, 0 actions" for a free one. Read off the source: the tile asks monocub.mjs `cubBlockSaid(actor, def)`,
          * dims on it as on the price, puts its sentence in the tooltip, and says the grid's own `DRPG.Action.costFree` for a
          * row that costs nothing and `DRPG.Action.costActions` for one with no Hope. Red at f22a7e8: none of it.
@@ -15271,7 +15271,7 @@ const REGRESSIONS = [
          * H81 fix C3 (21.10.2026; the review's H81-C3-R1). Foundry's `region.teleportTokens` is handed no option of the
          * module's, and whether v14 writes `teleport` or a displace into its update is not read (LIVE-H81-03), so the
          * three callers - call-world.mjs `gatherEveryone` and `teleportInto`, cleanup.mjs's body - mark their tokens on
-         * the writer's browser, and sheet.mjs `noteStepStart` and `onTunnelStep` read the mark. Read off the source with
+         * the writer's browser, and sheet-sidebar.mjs `noteStepStart` and `onTunnelStep` read the mark. Read off the source with
          * comments blanked: each `.teleportTokens(` of the module's files, by file, and whether its line is the marked
          * form; a new caller fails here until it is marked. Tier 2 "H81 C3 drag" drives `teleportInto` with a teleport
          * that writes no option. Red at 32de17e: no caller marked, no `isPlacing` read.
@@ -15431,7 +15431,7 @@ const REGRESSIONS = [
             tunnel: /tunnelEndAt\(scene, end, end\?\.level \?\? null, \{ taken \}\)/.test(fnSource(gmSrc, "tunnelRowFor"))
                 && /if \(at\[0\]\.room === at\[1\]\.room\) return \{ refused: TUNNEL_REFUSALS\.oneRoom \};/.test(fnSource(gmSrc, "tunnelRowFor")),
             goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}, \{ hush \}\)/.test(fnSource(sheetBy(code), "goThrough"))
-                // H81-13: a token moved onto an end takes the button's road (sheet.mjs `onTunnelStep`).
+                // H81-13: a token moved onto an end takes the button's road (sheet-sidebar.mjs `onTunnelStep`).
                 && /if \(step\) await goThrough\(actor, \{ passage: \{ id: step\.id, sceneId: scene\.id \} \}, null, mastermind, \{ hush: \["cannotNow"\] \}\);/.test(fnSource(sheetBy(code), "onTunnelStep"))
                 && /M\.tunnelVerdict\(actor, passage, token,/.test(cross) && /M\.settleCrossingOnGm\(actor, verdict\.to\)/.test(cross)
                 && /M\.refundCrossingOnGm\(actor, paid\.cost\)/.test(cross)
@@ -17757,7 +17757,7 @@ const REGRESSIONS = [
                 `the ${lang} handbooks' Class Trial says what E70 part 1's code does not do, or an old sentence is back (each claim: [the code, ...its sentences]; stale: each old sentence found)`);
         }
     }],
-    ["R1038 - the trial's dead as the GMs hold them, and nobody living (E70 fix p1-G1; the review's SEC-1, SEC-2, BEH-1, E70P1-R03): voice.mjs `settleTrialVoices` waits for every student's writes to be judged and lists them through `flagsHeldNow`, and `deadForTrial` reads no incident; vote.mjs `trialParticipants` reads the Monocub's flag as held; trial.mjs `presentDialog`, `presentBullet` and the Present row of sheet.mjs `addPresentButton` refuse a student on the trial's list, and `registerTrial` raises no card of a listed student's player and has the primary refuse it; the voice tile repaints when the clock, the floor or the trial's record changes", async () => {
+    ["R1038 - the trial's dead as the GMs hold them, and nobody living (E70 fix p1-G1; the review's SEC-1, SEC-2, BEH-1, E70P1-R03): voice.mjs `settleTrialVoices` waits for every student's writes to be judged and lists them through `flagsHeldNow`, and `deadForTrial` reads no incident; vote.mjs `trialParticipants` reads the Monocub's flag as held; trial.mjs `presentDialog`, `presentBullet` and the Present row of sheet-inventory.mjs `addPresentButton` refuse a student on the trial's list, and `registerTrial` raises no card of a listed student's player and has the primary refuse it; the voice tile repaints when the clock, the floor or the trial's record changes", async () => {
         /*
          * E70 fix p1-G1, 28.10.2026. Read in the module's files, comments blanked. The harms: a dead player's console
          * that unset its own `deceased` taking itself off the list and its microphone back before the audit's put-back
@@ -18349,7 +18349,7 @@ const REGRESSIONS = [
             files: Object.fromEntries(files.map(file => [file, { imports: true, calls: true, byHand: false }]))
         }), "[projects.mjs exports projectLabel, reading current and start; per reader: imports it from projects.mjs, calls it, still writes current/start by hand]");
     }],
-    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and the GM's road (drpg-gm-route; its kit slot `gmRoute` since E21 C5a); each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
+    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet-actions.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and the GM's road (drpg-gm-route; its kit slot `gmRoute` since E21 C5a); each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
         /*
          * E51 C2, 30.10.2026; audit S17-48. The Call windows were built in seven places, each with its own classes:
          * the pickers (`pickText`, `pickMotive`, `choose`) under one module `let pendingHeader` that `pickTarget` set and
@@ -20000,10 +20000,10 @@ const REGRESSIONS = [
                 + "T20's and T28's modes]");
     }],
 
-    ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {
+    ["R1162 - no tile grows by a renamed word (E66-24): sheet-fit.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {
         /*
          * E66 C5, 01.11.2026; E66-24, the plan's risk "longer names may overflow a tile". A tile's type is sized by the
-         * longest unbreakable word any tile carries (sheet.mjs `LONGEST_TILE_WORD`, read at import from the English labels
+         * longest unbreakable word any tile carries (sheet-fit.mjs `LONGEST_TILE_WORD`, read at import from the English labels
          * of ACTIONS, HOPE_CALLS, DESPAIR_CALLS and MONOCUB.abilities), and the crisis menu and the clean-up window lay their
          * buttons out for the words they had. Measured at E66's Base (501d13eb, probe longest.mjs): the tiles' longest word
          * "Contribution" (12) in both languages, the crisis labels' "Self-defence" (12), the clean-up's "Misleading" (10).
@@ -21265,7 +21265,7 @@ const REGRESSIONS = [
         ok(returns.length === 1 && returns[0] < reopens[0], "the GM panel's handler does not return on RAISED before it opens the panel again");
         ok(/answer = await item\.run\(\)/.test(panel), "the GM panel's handler does not keep what the tile's run answered");
     }],
-    ["R1319 - D176: one approval, one Monocub ability and one call-off window at a time on a browser (E44 C2c; E44-10): calls.mjs `askHopeCallApproval` answers null before any window while its own is open and passes `once`; every `callWindow(` call of monocub.mjs `cubAbilityDialog` and of sheet.mjs `runCall` passes `once`", async () => {
+    ["R1319 - D176: one approval, one Monocub ability and one call-off window at a time on a browser (E44 C2c; E44-10): calls.mjs `askHopeCallApproval` answers null before any window while its own is open and passes `once`; every `callWindow(` call of monocub.mjs `cubAbilityDialog` and of sheet-actions.mjs `runCall` passes `once`", async () => {
         /*
          * E44 C2c, 04.11.2026; D176 (S/stages/AUDIT-DEFERRED-31.10.md, from E51 fix FG7's G2): "the GM's approval window
          * (a stand-in call) and the Confusion and call-off windows carry no `once`". Read from the source; E44-T4 drives
@@ -21791,7 +21791,7 @@ const REGRESSIONS = [
         "[what the sweep does not read; the fields its turn line does not print; the controls it does not name; what the harness's turn functions do not hold; "
             + "the turns the harness cannot fire; the control switches the harness does not answer]");
     }],
-    ["R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet.mjs `paintReserves` adds (`paintResourceBars` until E24 C1a), and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs", async () => {
+    ["R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet-sidebar.mjs `paintReserves` adds (`paintResourceBars` until E24 C1a), and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs", async () => {
         /*
          * E24 C0, 08.11.2026. jsdom lays nothing out, so how the sheet's parts look - the biography's type, the bars'
          * colours, the inventory's counters, the narrow column - is read in Chromium on the style harness, before a table.
@@ -21943,7 +21943,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(rows), JSON.stringify({ breakdown: want, wounded: want, dead: want }),
             "{each icon: [own: an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: paths of whole-pixel rects only; palette: every colour one of the item icons'; inkAndOne: the ink and exactly one other]}");
     }],
-    ["R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(` or `?.(`, `.isOwner`, a user's `.isGM` or `?.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one", async () => {
+    ["R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(` or `?.(`, `.isOwner`, a user's `.isGM` or `?.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet-mode.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one", async () => {
         /* E45 C1, 08.11.2026. Read off the sources, comments and string literals stripped, cut at each top-level
            declaration (a function, a const or let); the imports before the first are not read. Red on E24's tip: 46 lines
            in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none.
@@ -24422,7 +24422,7 @@ const REGRESSIONS = [
          * `"auto"`, or an argument holding neither key (roll-dialog.mjs's `top`), decides nothing. A function that gives a
          * number must call one of the family's functions (FAMILY) - or be listed in KIT, the one place outside the family
          * that states a size: ui-kit.mjs's table of the kit's widths, which a cut of ui-kit.mjs the plan does not list
-         * would move (its row says why). Red on 32f5093f, where sheet.mjs `holdActionsTab` and `growForCalls` worked out the
+         * would move (its row says why). Red on 32f5093f, where sheet-fit.mjs `holdActionsTab` and `growForCalls` worked out the
          * sheet's height themselves; green since Q-E54-7 gave that arithmetic to settings.mjs `actionsTabHeight` and `callsHeight`.
          */
         const sources = await otherSources();
@@ -24454,7 +24454,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({ itself, stale }), JSON.stringify({ itself: [], stale: [] }),
             "{itself: the functions that give a window a number of their own for its width or height; stale: a listed site that gives none}");
     }],
-    ["R4804 - the sheet's two heights are the numbers they were (E54, Q-E54-7): settings.mjs `actionsTabHeight` and `callsHeight` answer what sheet.mjs `holdActionsTab` and `growForCalls` worked out inline on 32f5093f, over a grid of window heights, tab shortfalls and screen heights - fractions, a screen shorter than the margin and zero among them", () => {
+    ["R4804 - the sheet's two heights are the numbers they were (E54, Q-E54-7): settings.mjs `actionsTabHeight` and `callsHeight` answer what sheet-fit.mjs `holdActionsTab` and `growForCalls` worked out inline on 32f5093f, over a grid of window heights, tab shortfalls and screen heights - fractions, a screen shorter than the margin and zero among them", () => {
         /*
          * E54 Q-E54-7, 13.11.2026. The two formulas are copied from 32f5093f's sheet.mjs as they stood
          * (`Math.min(Math.ceil(now + short + 2), Math.max(0, innerHeight - 48))` and
