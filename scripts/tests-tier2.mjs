@@ -72242,8 +72242,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     override: true, quiet: true, ...data });
                 const tools = { category: "tool", goal: undefined };
                 const stashed = { location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } };
-                const kit = await make("kit"), control = await make("control kit"), spent = await make("spent kit"), tool = await make("tool", tools);
+                // The broken tool first (E91 C8, D090): a quiet arrival into pockets with one working piece of Gear stowed and
+                // an empty hand readies that piece (inventory.mjs `keepGearShape`), so the broken one, made second, readied the
+                // tool and the dead's Ready below had nothing to refuse ("the tool is readied", 1.2.110's first CI run, 43352869429).
+                // A working tool arriving beside a broken one has nothing it can ready: both stay stowed, as until E91.
                 const broken = await make("broken", { ...tools, extraFlags: { [INV.ITEM_FLAGS.broken]: true } });
+                const kit = await make("kit"), control = await make("control kit"), spent = await make("spent kit"), tool = await make("tool", tools);
                 const kept = await make("kept", stashed), taken = await make("taken", stashed);
                 must(kit && control && spent && tool && broken && kept && taken && INV.isStashed(kept) && INV.isStashed(taken),
                     "the fixture's items were not made, or not put in the stash - this would measure nothing");
