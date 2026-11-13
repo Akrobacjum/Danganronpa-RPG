@@ -19000,6 +19000,146 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a crossing with nothing to pay with ([what was written back, a throw]: as a Monocub, as no Monocub)");
     }],
 
+    ["1.2.113 a Monocub's 'Go through' a tunnel and its door moves in an Eclipse cost nothing - on the primary GM's own roads, a Monocub with the Free Move unused and no action goes through a tunnel and back and keeps its Free Move; in an Eclipse it goes through counted nothing and walks one door past the allowance unrefused; a living character with the same purse pays the first crossing with its Free Move and is refused the second, and in the Eclipse is counted and put back (movement.mjs `crossesFree`, E72 C10)", async () => {
+        /*
+         * 1.2.113, 13.11.2026 (the owner's ask (a)). A Monocub's crossing is free (E72 C10: no Move, no action and no
+         * Eclipse count): `chargeRoute`, the charge of a door's route, read it, and the veto (`crossingVerdict`) did; the
+         * price of a tunnel's 'Go through', taken on the primary (`settleCrossingOnGm`), and the primary's Eclipse sightings of
+         * a door move (`eclipseSighting`) did not. On scenes of the suite's own, two characters of the suite's own, each
+         * owned by a player: a Monocub (dead, the flag on) and a living one, each with the Free Move unused, no Sprint, no
+         * Burst and no action, the movement cost on. (a) Daily Life: a tunnel between two rooms made and given in a GM-store
+         * world of the suite's own, 'Go through' and back on the primary (passages-gm.mjs `crossTunnel`); read per crossing
+         * the answer, the Free Move used and the actions left. (b) An Eclipse: the same tunnel once, read the answer and the
+         * count. (c) An Eclipse, a row of rooms that touch, the allowance walked and one door more, each a player's move as
+         * the primary hears it (`SENT_BACK`, as E17-T4): read the room it stands in and the count. Red at a43e865e: the
+         * Monocub's first crossing took its Free Move and the second was refused for no budget; in the Eclipse its tunnel
+         * was counted, and its door move past the allowance put back.
+         */
+        needs(env.primaryGm(), "the tunnel's price and the Eclipse's sightings are the primary GM's");
+        needs(world.atLeast("playerAccounts", 1), "the door moves are a player's");
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const M = await import("./movement.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./gm-store.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const ACT = await import("./actions.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const clock = getClock() ?? {};
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const made = [], actors = [], scenes = [];
+        const onMessage = message => { made.push(message.id); };
+        const purse = { "system.resources.actions.value": 0, [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0 };
+        const make = async (name, flags) => {
+            const actor = await Actor.create({ name: `SUITE M113b ${name}`, type: "character", ownership: { [player.id]: 3 }, flags: { [MODULE_ID]: flags } });
+            actors.push(actor);
+            await actor.update(purse);
+            return actor;
+        };
+        const scene = async (name, rooms) => {
+            const made = await Scene.create({ name: `SUITE M113b ${name}`, width: 400 * rooms.length, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            scenes.push(made);
+            await made.createEmbeddedDocuments("Region", rooms.map((room, i) => ({ name: room, shapes: [{ type: "rectangle", x: 400 * i, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] })));
+            return made;
+        };
+        const placed = async (where, actor, x) => {
+            const [token] = await where.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x, y: 100, width: 1, height: 1 }]);
+            return token;
+        };
+        const answerOf = answer => (answer?.refused ? B.reasonOf(answer.refused) : answer?.crossed ? "crossed" : stableJson(answer));
+        let read = null;
+        try {
+            if (!charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            if (clock.phase !== "dailyLife" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            Hooks.on("createChatMessage", onMessage);
+            const cub = await make("cub", { [FLAGS.deceased]: true, [FLAGS.monocub]: true });
+            const living = await make("living", {});
+            await settle();
+            must(!M.isCorpse(cub) && !M.isCorpse(living), "the Monocub reads as a corpse - this would measure nothing");
+            const ROW = ["SUITE M113b T0", "SUITE M113b T1", "SUITE M113b T2"];
+            const tunnelScene = await scene("tunnel", ROW);
+            read = await G.withGmStoreWorld(`suite-m113b-${foundry.utils.randomID(8)}`, async () => {
+                // The tunnel joins the first room and the third, which do not touch, so only the tunnel takes a token across.
+                const id = await P.createPassage({ sceneId: tunnelScene.id, shape: "tunnel", ends: [{ x: 150, y: 150 }, { x: 950, y: 150 }] }, { scene: tunnelScene });
+                must(typeof id === "string", "the tunnel was not made - this would measure nothing");
+                const out = { daily: {}, eclipse: {}, doors: {} };
+                const tokens = {};
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    must(await P.grantPassage(id, actor.id), `the tunnel was not given to the ${key} - this would measure nothing`);
+                    tokens[key] = await placed(tunnelScene, actor, 100);
+                }
+                await settle();
+                // (a) Daily Life: through and back
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    out.daily[key] = [];
+                    for (let i = 0; i < 2; i++) {
+                        const answer = await P.crossTunnel({ actorId: actor.id, passageId: id }, { asker: player });
+                        await settle();
+                        out.daily[key].push([answerOf(answer), M.roomOfToken(tokens[key]), Boolean(actor.getFlag(MODULE_ID, FLAGS.freeMoveUsed)), ACT.actionsLeft(actor)]);
+                    }
+                }
+                // (b) an Eclipse: the tunnel once
+                await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "sendBack");
+                const allowance = E.eclipseAllowance();
+                must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    await S.eclipseMoveStore.drop(actor.id);
+                    const answer = await P.crossTunnel({ actorId: actor.id, passageId: id }, { asker: player });
+                    await settle();
+                    out.eclipse[key] = [answerOf(answer), E.movesUsed(actor)];
+                    await S.eclipseMoveStore.drop(actor.id);
+                }
+                // (c) an Eclipse: the allowance walked through doors, and one door more
+                const DOORS = Array.from({ length: allowance + 2 }, (_, i) => `SUITE M113b D${i}`);
+                const doorScene = await scene("doors", DOORS);
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    const token = await placed(doorScene, actor, 100);
+                    await settle();
+                    let y = 100;
+                    const steps = [];
+                    for (let i = 1; i <= allowance + 1; i++) {
+                        const to = { x: 400 * i + 100, y: (y += 7) };
+                        await token.update(to, { ...PLACE, [M.SENT_BACK]: player.id });
+                        await settle();
+                        await until(() => token.x !== to.x || token.y !== to.y || M.standingOf(token)?.lawful !== false, 1200);
+                        await settle();
+                        steps.push([M.roomOfToken(token), E.movesUsed(actor)]);
+                    }
+                    out.doors[key] = steps.at(-1);
+                    await S.eclipseMoveStore.drop(actor.id);
+                }
+                out.allowance = allowance;
+                return out;
+            });
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const actor of actors) await S.eclipseMoveStore.drop(actor.id).catch(() => {});
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            for (const where of scenes) await where.delete().catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            await setClock(clock);
+            await settle();
+        }
+        const A = read?.allowance;
+        equal(stableJson(read), stableJson({
+            daily: { cub: [["crossed", "SUITE M113b T2", false, 0], ["crossed", "SUITE M113b T0", false, 0]],
+                living: [["crossed", "SUITE M113b T2", true, 0], ["noBudget", "SUITE M113b T2", true, 0]] },
+            eclipse: { cub: ["crossed", 0], living: ["crossed", 1] },
+            doors: { cub: [`SUITE M113b D${A + 1}`, 0], living: [`SUITE M113b D${A}`, A] },
+            allowance: A
+        }), "{daily: per character, each crossing as [the answer, the room it stands in, the Free Move used, the actions left]; eclipse: [the tunnel's answer, the count]; doors: [the room it stands in after the allowance and one door more, the count]}");
+    }],
+
     ["a Monocub's owner is sent every room the class found under the Monocub's own row, not who found which, and not the Mastermind's (E72 C10)", async () => {
         /*
          * E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11. A Monocub's player saw only the rooms its own

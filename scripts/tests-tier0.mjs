@@ -23420,6 +23420,39 @@ const REGRESSIONS = [
         }), JSON.stringify({ hooks: ["drawTile", "refreshTile", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),
         "{hooks: body-tile.mjs's hook names; registered: updateToken hands followBody its four; guards: [the GM test, the mover test, isCorpse, each before the Tile write; a write]; exported: movement.mjs exports isCorpse; module: module.mjs registers it}");
     }],
+    ["R5790 - a Monocub's crossing is free on every road by one rule (1.2.113; E72 C10): movement.mjs `crossesFree` is asked by the veto (`crossingVerdict`), the charge of a door's route (`chargeRoute`), the price of a tunnel's 'Go through' on the primary (`settleCrossingOnGm`, before the Eclipse's count and `takeMove`) and the primary's Eclipse sighting (`eclipseSighting`); `takeMove` is called in movement.mjs only after it, and the flag is read for a crossing's price nowhere else", async () => {
+        /*
+         * 1.2.113, 13.11.2026 (the owner's ask (a)). Tier 2 "1.2.113 a Monocub's 'Go through' ..." at a43e865e: a Monocub's
+         * tunnel took its Free Move, then was refused for no budget; in an Eclipse it was counted, and its door move past the
+         * allowance put back - `chargeRoute` and the veto read the Monocub's flag, the tunnel's price and the sighting did
+         * not. Read off the served movement.mjs, comments taken out: each function that calls `crossesFree(`, the offset of
+         * that call in `settleCrossingOnGm` against its `isEclipse()` and `takeMove(`, and each function that calls
+         * `isMonocubActor(` (the rule itself, and the murder room's veto in `restrictedFrom`, which is no price). The reader
+         * is shown a planted text first. Red at a43e865e: no `crossesFree`.
+         */
+        const callers = (text, name) => {
+            const re = new RegExp(`(?<!function\\s+)(?<![\\w.$])${name}\\s*\\(`, "g");
+            return [...new Set([...text.matchAll(re)].map(m => [...text.slice(0, m.index).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].at(-1)?.[1] ?? null))].sort();
+        };
+        equal(JSON.stringify(callers("function a() { crossesFree(x); }\nfunction crossesFree(y) {}\nfunction b() { o.crossesFree(); crossesFreeX(); }\nfunction c() { crossesFree(z); }", "crossesFree")),
+            JSON.stringify(["a", "c"]), "the reader of calls does not find exactly the two planted for it (a member call and a longer name aside)");
+        const sources = await moduleSources();
+        must(sources.has("movement.mjs"), "movement.mjs is not served - this would measure nothing");
+        const code = stripComments(sources.get("movement.mjs"));
+        const settle = topLevelFunction(code, "settleCrossingOnGm") ?? "";
+        must(settle, "settleCrossingOnGm is not found - this would measure nothing");
+        const at = re => settle.search(re);
+        equal(JSON.stringify({
+            free: callers(code, "crossesFree"),
+            first: at(/crossesFree\(actor\)/) >= 0 && at(/crossesFree\(actor\)/) < at(/isEclipse\(\)/) && at(/isEclipse\(\)/) < at(/takeMove\(/),
+            flag: callers(code, "isMonocubActor")
+        }), JSON.stringify({
+            free: ["chargeRoute", "crossingVerdict", "eclipseSighting", "settleCrossingOnGm"],
+            first: true,
+            flag: ["crossesFree", "restrictedFrom"]
+        }), "{free: the functions that ask crossesFree; first: settleCrossingOnGm asks it before the Eclipse's count and takeMove; flag: the functions that read the Monocub's flag}");
+    }],
+
     ["R3404 - the Class Trial's end takes the bodies, after its sentence, and nothing else takes them all (E63 C2; the owner's 11.11.2026 on E95 Q2 and Q8): clock.mjs `reconcilePhase`'s branch out of the trial calls body-tile.mjs `removeBodyTiles(null)` after `executeAtExit`, and its retry of a failed sentence removes the executed's by id alone; every other removal of every body is the season reset's, with `held: false`", async () => {
         /*
          * E63 C2, 11.11.2026; STAGE E63 item 7. Read off the served sources with their comments taken out: the offsets in
