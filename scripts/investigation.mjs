@@ -25,7 +25,7 @@
 
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL,
-    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
+    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, itemIcon } from "./config.mjs";
 import { SETTINGS, isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
@@ -33,7 +33,7 @@ import {
     shownBand, bandOptions, removeRemnant,
     traceContextLine, traceLabel, authorOptions
 } from "./remnants.mjs";
-import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
+import { bulletsOf, isTruthBullet, secretOf, truthBulletData, BULLET_CATEGORY } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
@@ -53,7 +53,18 @@ import { roomRegions } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
-const ICON = "icons/svg/hazard.svg";
+/*
+ * THE PICTURE A PLAN STARTS WITH (1.2.113; the owner, 13.11.2026: "let the module choose the already available Truth
+ * Bullet glyph by default"): the module's Truth Bullet drawing, `icons/item-truthBullet.svg` (config.mjs `itemIcon` of
+ * the bullet's category; tools/item-icons.mjs draws it). Until 1.2.113 it was Foundry's `icons/svg/hazard.svg`. A planned
+ * Remnant, a planned Final Truth and a Key slot draw it in their empty picture field, and a plan with no picture places
+ * its Remnant with it (`placeIncident`, `placePlannedFinal`, `createKeyRemnant`), so the finder's Truth Bullet carries it
+ * (observe.mjs `createFind` copies the trace's picture); a planned Truth Bullet has no picture field and is given with it
+ * already (truth-bullets.mjs `createTruthBullet` -> inventory.mjs `grantItem`). Never written into the plan itself. One
+ * drawing for every type: the module ships no Truth Bullet glyph per type (`TRUTH_BULLET_TYPES` holds no picture, and
+ * icons/ one `item-truthBullet.svg`; the `remnant-*.svg` are the actions' marks on the map, not a Truth Bullet's).
+ */
+const PLANNED_GLYPH = itemIcon(BULLET_CATEGORY);
 
 /** The five difficulty steps, named where the scale itself is defined. */
 const SCALE_LABELS = KEY_REMNANTS.scaleLabels;
@@ -906,7 +917,7 @@ function keyPlanExtras(i, shows, aria) {
     const field = (key, html) => `<label class="drpg-key-plan-field"><span class="notes">${esc(L(key))}</span>${html}</label>`;
     return field("DRPG.Investigation.visibility", `<select name="keyvis:${i}"${aria("DRPG.Investigation.visibility")}>${vis}</select>`)
         + field("DRPG.Remnant.authorLabel", `<select name="keyauthor:${i}"${aria("DRPG.Remnant.authorLabel")}>${authorOptions(shows.author || null, studentActors())}</select>`)
-        + `<div class="drpg-key-plan-field"><span class="notes">${esc(L("DRPG.CaseMap.field.img"))}</span><img src="${esc(img || ICON)}" alt="" title="${
+        + `<div class="drpg-key-plan-field"><span class="notes">${esc(L("DRPG.CaseMap.field.img"))}</span><img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${
             esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="key-${i}" data-drpg-portrait-field="keypicture:${i}" /><input type="hidden" name="keypicture:${i}" value="${
             esc(img)}" data-drpg-drawn="${esc(img)}" /></div>`;
 }
@@ -1294,15 +1305,15 @@ async function createKeyRemnant(row, scene) {
            while the clue sat in the ledger. `createFind` in observe.mjs has always done this
            correctly and says why: two names for one object is a false contradiction the table
            has to spend the trial resolving. Same call, same fields, same reason. */
-        if (token && (row.name || row.text || row.analysis || row.img)) {
+        if (token) {
             await setRemnantPublic(token, {
                 ...(row.name ? { name: row.name } : {}),
                 ...(row.text ? { playerText: row.text } : {}),
                 // What the finder reads once they analyse it (21.09) - kept back
                 // until then like any trace's, however self-evident the kind.
                 ...(row.analysis ? { analyzedText: row.analysis } : {}),
-                // and the slot's planned picture (E104), as the Table writes it
-                ...(row.img ? { img: row.img } : {})
+                // and the slot's planned picture (E104), as the Table writes it; with none, the Truth Bullet's (1.2.113)
+                img: row.img || PLANNED_GLYPH
             });
         }
         return token;
@@ -1823,7 +1834,7 @@ function findableKind(key) {
  */
 function traceShows(data) {
     return {
-        img: data.public?.img || ICON,
+        img: data.public?.img || PLANNED_GLYPH,
         name: data.public?.name || "",
         text: data.public?.playerText || "",
         analysis: data.public?.analyzedText || "",
@@ -2681,7 +2692,7 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.Investigation.finalNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
-            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
                 esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
@@ -2718,7 +2729,7 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.Investigation.keyNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
-            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
                 esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
@@ -3001,7 +3012,7 @@ export function wireKeyLimitOverride(root) {
  */
 function wireCase(dialog) {
     const root = dialog.element;
-    wirePortraitPickers(root, { defaultImg: ICON });
+    wirePortraitPickers(root, { defaultImg: PLANNED_GLYPH });
 
     // `win` and `app` (E21 C2a): the bar may widen the window, and a press puts it back on the screen (C1b).
     wireKitTabs(root, { win: root, app: dialog });
@@ -3144,7 +3155,7 @@ export async function placeIncident(chapter, id) {
     // every field it plans (E104); with no room planned, New Remnant asks for one instead of starting on the first
     const token = await openNewTrace({ room: row.room, sceneId: row.scene, type, name: row.label, text: row.text, tied: row.tie ?? "",
         author: row.author || "", vis: row.vis, reinforced: row.reinforced === true, analysis: row.analysis || "", note: row.note || "",
-        img: row.img || "", askRoom: !row.room });
+        img: row.img || PLANNED_GLYPH, askRoom: !row.room });
     if (token) await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     return token;
 }
@@ -3316,7 +3327,7 @@ async function placePlannedFinal(chapter, id, row) {
     const token = await placeFinalRemnant({ room, scene, visibility: row.vis ?? "evident", note: row.note ?? "", name: row.label ?? "",
         text: row.text ?? "", analysis: row.analysis ?? "", author: row.author ?? "" });
     if (!token) return null;
-    if (row.img) await setRemnantPublic(token, { img: row.img });
+    await setRemnantPublic(token, { img: row.img || PLANNED_GLYPH });
     await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn", { room }));
     return token;

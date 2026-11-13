@@ -29805,6 +29805,117 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "{the editor's fields in order; the row after the close; the Give window's tab and fields; the given Truth Bullet: name, real type, visibility, GM note; the plan marked given}");
     }],
 
+    ["planned kinds draw the Truth Bullet glyph by default: a planned Remnant's, a planned Final Truth's and a Key slot's picture field, left empty, shows the module's Truth Bullet drawing (config.mjs `itemIcon(\"truthBullet\")`), the plan keeps its picture empty, the placed Final Truth and a realized Key slot carry it as their Remnant's picture, and a planned Truth Bullet given with no picture carries it (1.2.113; the owner, 13.11.2026: \"let the module choose the already available Truth Bullet glyph by default\")", async () => {
+        /*
+         * investigation.mjs `PLANNED_GLYPH`: `schemaEditor`'s planned Remnant and Final Truth, `keyPlanExtras` (a Key slot
+         * not yet placed, on the Table), `traceShows` (the Traces tab's row of a placed trace with no picture) and the
+         * pickers' starting folder. Fixture plans in the chapter running, none with a picture: their nodes opened on the
+         * Map and the picture read, then closed (every close writes the node), and the rows read back; the first Key slot
+         * not yet placed read on the Table with its picture emptied for the test; the Final Truth placed from its plan
+         * (`placePlannedFinal`, which writes no picture it was not given) and its Traces row drawn (`caseTraceRows`); the
+         * planned Truth Bullet given through its window and the item's picture read; the Key slot realized
+         * (case-realize.mjs `runRealization` -> `createKeyRemnant`) and its Remnant's picture read. The Remnants, the
+         * bullet, the rows, the slot and the case's marks are put back. Red at ceb9e9c8: every picture field drew
+         * Foundry's `icons/svg/hazard.svg`, and a plan with no picture placed its Remnant with the question mark
+         * (remnants.mjs `defaultPublic`), which Observe copies onto the finder's Truth Bullet.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { itemIcon } = await import("./config.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        const { workingScene } = await import("./utils.mjs");
+        const R = await import("./case-realize.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const glyph = itemIcon("truthBullet");
+        const plan = I.keyPlan();
+        const chapter = plan.chapter;
+        const slot = plan.entries.findIndex(e => !e.tokenId);
+        must(slot >= 0, "every Key slot of the chapter is placed - nothing to read");
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give it to - this would measure nothing");
+        const scene = workingScene();
+        const room = allRooms(scene)[0] ?? null;
+        must(room, "the working scene has no room - the Final Truth could not be placed");
+        const ids = { incident: "incident-suiteglyph", final: "final-suiteglyph", bullet: "bullet-suiteglyph" };
+        const key = `${chapter}:${slot}`;
+        const slotBefore = foundry.utils.deepClone(keyPlanStore.get(key) ?? null);
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const bulletsBefore = new Set(TB.bulletsOf(student).map(i => i.uuid));
+        const fresh = () => TB.bulletsOf(student).filter(i => !bulletsBefore.has(i.uuid));
+        const seen = {};
+        let win = null, token = null, keyToken = null;
+        try {
+            await S.setCaseNode(chapter, ids.incident, { kind: "incident", label: "SUITE glyph remnant" });
+            await S.setCaseNode(chapter, ids.final, { kind: "final", label: "SUITE glyph truth", room, scene: scene?.id ?? null });
+            await S.setCaseNode(chapter, ids.bullet, { kind: "bullet", label: "SUITE glyph bullet", recipient: student.id, tell: false });
+            if (slotBefore?.img) await keyPlanStore.patch(key, { img: "" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            seen.preview = {};
+            for (const kind of ["incident", "final"]) {
+                const id = ids[kind];
+                root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+                await until(() => root?.querySelector(`img[data-drpg-portrait="${id}"]`), 3000).catch(() => {});
+                seen.preview[kind] = root?.querySelector(`img[data-drpg-portrait="${id}"]`)?.getAttribute("src") ?? null;
+                root?.querySelector(".drpg-case-edit:not([hidden]) [data-drpg-case-close]")?.click();
+                await wait(300);
+            }
+            await win.close();
+            win = await drawnCaseWindow({ view: "table" });
+            seen.preview.key = win.app?.element?.querySelector(`img[data-drpg-portrait="key-${slot}"]`)?.getAttribute("src") ?? null;
+            await win.close();
+            win = null;
+            await gmStoresIdle();
+            seen.stored = Object.fromEntries(["incident", "final"].map(kind => [kind, S.caseNodeOf(S.caseRows(chapter).rows[ids[kind]])?.img ?? null]));
+            seen.stored.key = I.keyPlan().entries[slot]?.img ?? null;
+            token = await I.placeIncident(chapter, ids.final);
+            const data = token ? remnants.remnantData(token) : null;
+            const host = document.createElement("table");
+            host.innerHTML = data ? I.caseTraceRows([{ token, data, scene: token.parent }], new Map()) : "";
+            seen.placed = data ? { img: data.public?.img || null, row: host.querySelector("img[data-drpg-portrait]")?.getAttribute("src") ?? null } : null;
+            const giving = I.placeIncident(chapter, ids.bullet).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            giveWindow()?.element?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([giving, wait(5000)]);
+            await gmStoresIdle();
+            seen.given = fresh()[0]?.img ?? null;
+            await R.runRealization(chapter, [{ slot, room, sceneId: scene?.id ?? null }]);
+            const placedSlot = I.keyPlan().entries[slot];
+            keyToken = placedSlot?.tokenId ? game.scenes.get(placedSlot.sceneId)?.tokens?.get(placedSlot.tokenId) ?? null : null;
+            seen.key = keyToken ? remnants.remnantData(keyToken)?.public?.img ?? null : null;
+        } finally {
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const t of [token, keyToken]) {
+                if (!t) continue;
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                await t.delete().catch(() => {});
+            }
+            for (const item of fresh()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.setCaseMeta(chapter, { run: metaBefore.run, made: metaBefore.made }).catch(() => {});
+            for (const id of Object.values(ids)) await S.dropCaseNode(chapter, id).catch(() => {});
+            await keyPlanStore.drop(key).catch(() => {});
+            if (slotBefore) await keyPlanStore.patch(key, slotBefore).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            preview: { incident: glyph, final: glyph, key: glyph },
+            stored: { incident: "", final: "", key: "" },
+            placed: { img: glyph, row: glyph },
+            given: glyph,
+            key: glyph
+        }), "{the empty picture field of a planned Remnant, a planned Final Truth and a Key slot; the three plans' pictures after the close; the placed Final Truth's own picture and its Traces row's; the given planned Truth Bullet's picture; the realized Key slot's Remnant's picture}");
+    }],
+
     ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~01:05: the case plans its Autopsy on a node of its own
