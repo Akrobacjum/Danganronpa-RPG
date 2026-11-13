@@ -16,7 +16,7 @@ import {
     TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
-import { SETTINGS, isMutedDead, myMastermindLair } from "./settings.mjs";
+import { SETTINGS, isMutedDead, myMastermindLair, actionsTabHeight, callsHeight } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft, nextCrossingPrice } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
@@ -6139,8 +6139,7 @@ function holdActionsTab(app, element) {
             const short = tab.scrollHeight - tab.clientHeight;
             if (short <= 0) return;
             const now = root.getBoundingClientRect().height;
-            const room = Math.max(0, window.innerHeight - 48);
-            const want = Math.min(Math.ceil(now + short + 2), room);
+            const want = actionsTabHeight(now, short, window.innerHeight);
             if (want > now + 0.5) app.setPosition({ height: want });
         } catch {
             // Cosmetic. A tab that scrolls still works.
@@ -6167,9 +6166,8 @@ function growForCalls(app) {
         const height = app.position?.height;
         if (typeof height !== "number" || height >= SHEET_MIN_HEIGHT) return;
         // Never past the window: a sheet taller than the screen is worse than a
-        // sheet that scrolls.
-        const room = Math.max(0, window.innerHeight - 40);
-        app.setPosition({ height: Math.min(SHEET_MIN_HEIGHT, room) });
+        // sheet that scrolls (settings.mjs `callsHeight`).
+        app.setPosition({ height: callsHeight(window.innerHeight) });
     } catch {
         // Cosmetic. A sheet that opens at its old size still works.
     }

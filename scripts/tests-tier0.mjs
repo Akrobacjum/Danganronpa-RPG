@@ -5,8 +5,8 @@
  * tests.mjs; the tools are in tests-kit.mjs.
  */
 
-import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC, REMNANT_TYPES, OBSERVE_TYPE_ALIAS, INFILTRATE } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC, REMNANT_TYPES, OBSERVE_TYPE_ALIAS, INFILTRATE, SHEET_SIZE } from "./config.mjs";
+import { SETTINGS, actionsTabHeight, callsHeight } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
@@ -25181,8 +25181,8 @@ const REGRESSIONS = [
          * `"auto"`, or an argument holding neither key (roll-dialog.mjs's `top`), decides nothing. A function that gives a
          * number must call one of the family's functions (FAMILY) - or be listed in KIT, the one place outside the family
          * that states a size: ui-kit.mjs's table of the kit's widths, which a cut of ui-kit.mjs the plan does not list
-         * would move (its row says why). Red on 32f5093f: sheet.mjs `holdActionsTab` and `growForCalls` work out the
-         * sheet's height themselves (the plan's Q-E54-7, whose default is that the arithmetic be the windows' family's).
+         * would move (its row says why). Red on 32f5093f, where sheet.mjs `holdActionsTab` and `growForCalls` worked out the
+         * sheet's height themselves; green since Q-E54-7 gave that arithmetic to settings.mjs `actionsTabHeight` and `callsHeight`.
          */
         const sources = await otherSources();
         const FAMILY = ["scaledBox", "windowWidthFor", "actionsTabHeight", "callsHeight"];
@@ -25212,7 +25212,32 @@ const REGRESSIONS = [
         const stale = Object.keys(KIT).filter(key => !decided[key]);
         equal(JSON.stringify({ itself, stale }), JSON.stringify({ itself: [], stale: [] }),
             "{itself: the functions that give a window a number of their own for its width or height; stale: a listed site that gives none}");
-    }, expectedRed("E54", "Q-E54-7: sheet.mjs holdActionsTab and growForCalls work out the sheet's height themselves until the arithmetic is the windows' family's")],
+    }],
+    ["R4804 - the sheet's two heights are the numbers they were (E54, Q-E54-7): settings.mjs `actionsTabHeight` and `callsHeight` answer what sheet.mjs `holdActionsTab` and `growForCalls` worked out inline on 32f5093f, over a grid of window heights, tab shortfalls and screen heights - fractions, a screen shorter than the margin and zero among them", () => {
+        /*
+         * E54 Q-E54-7, 13.11.2026. The two formulas are copied from 32f5093f's sheet.mjs as they stood
+         * (`Math.min(Math.ceil(now + short + 2), Math.max(0, innerHeight - 48))` and
+         * `Math.min(SHEET_SIZE.minHeight, Math.max(0, innerHeight - 40))`), so a change to the family's numbers is
+         * read here as a change of behaviour, not passed as a move.
+         */
+        const SCREENS = [0, 20, 40, 47.5, 48, 600, 768, 899.5, 1080, 1440, 2160];
+        const differ = [];
+        let read = 0;
+        for (const vh of SCREENS) {
+            for (const now of [0, 300, 642, 642.4, 800, 1159.6]) {
+                for (const short of [1, 0.3, 12, 140, 900]) {
+                    read++;
+                    const was = Math.min(Math.ceil(now + short + 2), Math.max(0, vh - 48));
+                    if (actionsTabHeight(now, short, vh) !== was) differ.push(`actionsTabHeight(${now}, ${short}, ${vh})`);
+                }
+            }
+            read++;
+            const was = Math.min(SHEET_SIZE.minHeight, Math.max(0, vh - 40));
+            if (callsHeight(vh) !== was) differ.push(`callsHeight(${vh})`);
+        }
+        must(read > 300, `only ${read} reading(s)`);
+        equal(JSON.stringify(differ), "[]", "the inputs where the family's answer is not the old inline arithmetic's");
+    }],
 ];
 
 
