@@ -327,7 +327,7 @@ Spent from the character sheet, whispered to the player. A Call that changes a r
 
 | Call | Cost | Effect | Needs the GM |
 |---|---|---|---|
-| Support | 1 | Give another player advantage on one roll; same room | no |
+| Support | 1 | Give another player advantage on one roll; same room; the card names who spent it | no |
 | Talent | 1 | One tile, two Calls: the player picks Experience (add an experience to a roll it genuinely applies to) or Ultimate (advantage on a roll the Ultimate genuinely applies to); each keeps its own rules, and one armed before the update still works | yes |
 | Contribution | 2 | +1 progress to a project being worked on in your room; on a murder plan it also rolls to Hide the Traces, like working on it | no |
 | Sprint | 2 | One more room crossing this time of day, free | no |

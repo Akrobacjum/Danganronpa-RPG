@@ -290,8 +290,11 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     if (from && from !== actor.id && !quiet) {
         // "Another student spent Hope on you" was said for Monokuma's Obstacle
         // too, and for a Monocub's Meddle - whose author must stay unnamed.
+        // A student's Hope Call names the student who spent it (the owner's rule #9,
+        // 13.11.2026): both stand in one room, so the beneficiary could see it done.
+        const buyer = kind === "hope" ? game.actors.get(String(from)) ?? null : null;
         const voice = kind === "despair" ? "DRPG.Calls.armedByMonokuma"
-            : kind === "hope" ? "DRPG.Calls.armedForYou"
+            : kind === "hope" ? (buyer ? "DRPG.Calls.armedForYouBy" : "DRPG.Calls.armedForYou")
             : "DRPG.Calls.armedByNobody";
         // Veiled for that one (E06 C10, 28.09.2026; audit S09-10): its list named the target to
         // every console at the moment a Monocub rolled Confusion in the room, and the roll does not
@@ -301,7 +304,8 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
         })}<p>${
             // The accusative: "nałożył na twój następny rzut {what}", "rzut ma {what}", "rzut niesie {what}" (`grantWords`).
             game.i18n.format(voice, {
-                what: grantWords(grants, "acc")
+                what: grantWords(grants, "acc"),
+                name: foundry.utils.escapeHTML(buyer?.name ?? "")
             })
         }</p>`, voice === "DRPG.Calls.armedByNobody" ? { veiled: true } : {});
     }

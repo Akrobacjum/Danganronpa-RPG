@@ -22993,7 +22993,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             asked: [killer, `<h3>${esc(game.i18n.format("DRPG.Items.useTitle", { item: items.odd.name }))}</h3>`],
             sent: [killer, game.i18n.localize("DRPG.Items.creativeSent")],
             ruled: [killer, used(items.odd)],
-            support: [victim, game.i18n.format("DRPG.Calls.armedForYou", { what: grant("advantage") })],
+            // Names the bystander who spent the Hope (the owner's rule #9, 13.11.2026; "Another student" until then), in the card's words alone.
+            support: [victim, game.i18n.format("DRPG.Calls.armedForYouBy", { name: esc(bystander.name), what: grant("advantage") })],
             obstacle: [killer, game.i18n.format("DRPG.Calls.armedByMonokuma", { what: grant("disadvantage") })],
             drink: [bystander, used(items.drink)],
             snap: [bystander, broke(items.snap)],
@@ -95545,6 +95546,215 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             inside: [[B, true], true], left: [null, "doorLocked"], unused: null, inUse: [B, true], seal: [true, true, "roomSealed"],
             reroll: [null, 1], rerollUsed: [[B, true], 1] }),
             "{open: [opened, the picker's room after, the pass, the picker's walk in, another's]; copy: [the room in the owner's copy, its scene, whether another player's copy holds it]; inside, left: [the pass, the picker's walk in] after the crossing in and out; unused, inUse: the pass after a new time of day; seal: [opened, the picker's walk, another's]; reroll, rerollUsed: [the pass, lines] after a Reroll of 10 before and after the entry} - the pick's pass");
+    }],
+    ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
+         * message of the character's with the GMs' record of it (`recordFor`). The harness's scene draws no doors, so the
+         * rooms' doors are Room Setup's word (`ROOM_FLAGS.neighbours`): the character's room A, where a second student `near`
+         * stands; the door's room B, where a third, `other`, stands; C beyond B; one apart. Each step reads what each of the
+         * two was sent, by the card's text. The knock is asked as the walker's veto asks it (`door.knock`), at B's barricade,
+         * which `other` puts up with `near` beside them in B. Put back: the records, the messages, the flags, the barricades,
+         * the pass, the Remnants, the tokens.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const P = await import("./lockpick-gm.mjs");
+        const { esc } = await import("./utils.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        const { player, actor } = await playerInRoom();
+        const scene = canvas.scene;
+        // Who reads a card is read off its packet (`wordsSent`): each of the three students has a player of their own.
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a) && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        const near = others[0], other = others.find(a => near && !readers(a).some(id => readers(near).includes(id)));
+        must(near && other, "no two living students of two other players with a token on the scene on screen - this would measure nothing");
+        const tokens = [actor, near, other].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 4, `the scene on screen has ${rooms.length} rooms - too few for A, B, C and one apart`);
+        const [A, B, C, far] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B], [far]: [] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { requestId: `PVD1${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+        };
+        const rollOf = async (key, total, withHope = true) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, withHope });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const lock = async on => { for (const piece of roomRegions(scene, B)) { if (on) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true); else await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.locked); } };
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const fmt = (key, data = {}) => esc(game.i18n.format(key, { name: actor.name, ...data }));
+        const TEXTS = {
+            shut: () => fmt("DRPG.Infiltrate.shut.seenBy", { room: A }),
+            tried: () => fmt("DRPG.Infiltrate.force.triedBy", { room: B }),
+            forced: () => fmt("DRPG.Infiltrate.force.forcedBy", { room: B }),
+            picking: () => fmt("DRPG.Infiltrate.pick.seenBy", { room: B }),
+            knock: () => esc(game.i18n.localize("DRPG.Infiltrate.shut.knock"))
+        };
+        // What `who`'s player was sent since the last read, each card named by its text; "?" a card none of them is.
+        let packets = [];
+        const marks = new Map();
+        const sent = who => {
+            const all = packets.filter(w => w.to.some(id => readers(who).includes(id)));
+            const fresh = all.slice(marks.get(who.id) ?? 0);
+            marks.set(who.id, all.length);
+            return fresh.map(w => Object.entries(TEXTS).find(([, text]) => w.html.includes(text()))?.[0] ?? "?");
+        };
+        const step = async run => { sent(near); sent(other); sent(actor); const answer = await run(); return [answer, sent(near), sent(other)]; };
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) keep(piece, M.ROOM_FLAGS.locked);
+            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
+            await tokens[1].update(M.positionIn(A, tokens[1]), PLACE);
+            await tokens[2].update(M.positionIn(B, tokens[2]), PLACE);
+            await settle();
+            read.shut = await step(async () => ask({ action: "door.shut", rollId: await rollOf("shut", 14) }));
+            await D.endBarricade(D.barricadeKey(scene.id, A));
+            await lock(true);
+            read.forceHope = await step(async () => ask({ action: "door.force", room: B, rollId: await rollOf("force", 17, true) }));
+            read.forceDespair = await step(async () => ask({ action: "door.force", room: B, rollId: await rollOf("force", 17, false) }));
+            read.pickHidden = await step(async () => ask({ action: "door.pick", room: B, rollId: await rollOf("pick", 15), coverRollId: await rollOf("pickCover", 16) }));
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            read.pickSeen = await step(async () => ask({ action: "door.pick", room: B, rollId: await rollOf("pick", 14), coverRollId: await rollOf("pickCover", 10) }));
+            await lock(false);
+            // The knock: `near` joins `other` in B, `other` barricades it, the character in A tries B's door.
+            await tokens[1].update(M.positionIn(B, tokens[1]), PLACE);
+            await settle();
+            read.barricaded = Boolean((await D.shutDoor({ actor: other, total: 14 }))?.room);
+            const knock = await step(async () => {
+                const at = told.length;
+                await G.judge(BRIDGE_ACTIONS, { action: "door.knock", requestId: `PVD1${foundry.utils.randomID(8)}`, actorId: actor.id, room: B },
+                    game.user.id, { send: (to, reply) => told.push(reply) });
+                await settle();
+                return told.length - at;
+            });
+            read.knock = [...knock, sent(actor)];
+          });
+        } finally {
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            for (const room of [A, B]) await D.endBarricade(D.barricadeKey(scene.id, room));
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            await M.setRoomBroken(scene, B, false);
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, near.id, other.id].includes(m.speaker?.actor))) await m.delete();
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ shut: ["done", ["shut"], []], forceHope: ["done", ["tried"], []], forceDespair: ["done", ["tried"], ["tried"]],
+            pickHidden: ["done", ["picking"], []], pickSeen: ["done", ["picking"], ["picking"]], barricaded: true,
+            knock: [0, ["knock"], ["knock"], []] }),
+            "{step: [answer, the cards of the student beside the character, of the student in the room beyond]; barricaded: B's put up; knock: [packets answered, near's, the author's, the walker's]} - who sees a door worked, and who hears a knock");
+    }],
+    ["PV-DOORS-T2 - a Support's card names the student who spent the Hope, on the GM's road and on a player's, and Monokuma's and a Monocub's stay unnamed (scripts/call-effects.mjs `armCall`, bridge-runs-records.mjs `handleArm`, `tellBeneficiary`; the owner's rule #9, 13.11.2026): a Support a GM arms from a student and one a player buys through `call.arm` each send the beneficiary armedForYouBy with the buyer's name; an Obstacle from Monokuma sends armedByMonokuma and a Meddle armedByNobody, neither with the buyer's name", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026. Two players' characters: the beneficiary and the buyer, whose player asks
+         * `call.arm` as their browser does (`G.judge`), with 3 Hope written by a GM and put back. The armed Calls are put
+         * back by the beneficiary's flag as it was, and every card to the beneficiary is deleted.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const E = await import("./call-effects.mjs");
+        const { esc } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const pairs = game.users.filter(u => !u.isGM && u.active).flatMap(u => game.actors
+            .filter(a => a.type === "character" && a.testUserPermission(u, "OWNER") && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a))
+            .map(a => ({ user: u, actor: a })));
+        const buyerOf = pairs.find(p => pairs.some(q => q.user.id !== p.user.id && !p.actor.testUserPermission(q.user, "OWNER")));
+        must(buyerOf, "no two connected players each with a living student - this would measure nothing");
+        const targetOf = pairs.find(q => q.user.id !== buyerOf.user.id && !buyerOf.actor.testUserPermission(q.user, "OWNER"));
+        const target = targetOf.actor;
+        const buyer = buyerOf.actor;
+        const flagWas = foundry.utils.deepClone(target.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
+        const hopeWas = buyer.system.resources.hope.value;
+        const seenIds = new Set(game.messages.map(m => m.id));
+        // Who reads a card is read off its packet (`wordsSent`): the beneficiary's player.
+        const reader = targetOf.user.id;
+        let packets = [], seen = 0;
+        const cards = () => {
+            const all = packets.filter(w => w.to.includes(reader));
+            const fresh = all.slice(seen);
+            seen = all.length;
+            return fresh.map(w => w.html);
+        };
+        const grant = key => E.grantWords ? E.grantWords(key, "acc") : game.i18n.localize(`DRPG.Calls.grants.${key}`);
+        const reset = async () => {
+            if (flagWas === null) await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            else await target.setFlag(MODULE_ID, FLAGS.pendingCall, flagWas);
+            await settle();
+        };
+        const named = list => list.map(text => [text.includes(esc(buyer.name)),
+            ["armedForYouBy", "armedForYou", "armedByMonokuma", "armedByNobody"].find(key => {
+                const keyText = game.i18n.format(`DRPG.Calls.${key}`, { name: esc(buyer.name), what: "\u0000" }).split("\u0000")[0];
+                return keyText && text.includes(keyText);
+            }) ?? "?"]);
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            await reset();
+            cards();
+            await E.armCall(target, { key: "support", kind: "hope", grants: "advantage", from: buyer.id });
+            await settle();
+            read.gm = named(cards());
+            await reset();
+            await trustedWrite(buyer, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            const nonce = `PVD2${foundry.utils.randomID(6)}`, replies = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `PVD2${nonce}`, actorId: target.id,
+                call: { key: "support", kind: "hope", grants: "advantage", from: buyer.id, nonce } }, buyerOf.user.id, { send: (to, reply) => replies.push(reply) });
+            await settle();
+            await wait(50);
+            read.player = [replies.find(r => r?.action === "bridge.done" || r?.action === "bridge.refused")?.action ?? null, ...named(cards())];
+            await reset();
+            await E.armCall(target, { key: "obstacle", kind: "despair", grants: "disadvantage", from: "monokuma" });
+            await settle();
+            read.monokuma = named(cards());
+            await reset();
+            await E.armCall(target, { key: "meddle", grants: "advantage", from: buyer.id });
+            await settle();
+            read.meddle = named(cards());
+          });
+        } finally {
+            await reset();
+            await trustedWrite(buyer, { "system.resources.hope.value": hopeWas }, { reason: "gmRuling" });
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && m.speaker?.actor === target.id)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gm: [[true, "armedForYouBy"]], player: ["bridge.done", [true, "armedForYouBy"]],
+            monokuma: [[false, "armedByMonokuma"]], meddle: [[false, "armedByNobody"]] }),
+            "{road: [[the buyer's name on the card, the sentence]]} - who a Call's card names");
     }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*

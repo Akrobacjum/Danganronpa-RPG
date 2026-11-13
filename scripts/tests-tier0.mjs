@@ -19529,7 +19529,7 @@ const REGRESSIONS = [
             + "the allow rows by reason]");
     }],
 
-    ["R1158 - every fragment inserted into a sentence stands in the case its host needs (E66-16): `Calls.grants` the accusative in `armedByMonokuma`, `armedForYou`, `armedByNobody`, `grantsGen` the genitive in `armed`, `grantsNom` the nominative in `pendingTooltip` and `waitsNextRoll` (a list by `listOf`), through call-effects.mjs `grantWords`; `Price.label.*` the nominative after a colon or in brackets (`Price.refunded`, `Trial.objectionRefunded`, `Trial.objectionRefundLost`, `Cleanup.refundUnheld`), Hope alone in `Price.refundLost`; the reserves in `Murder.youLose` and `theyLose`; every host renders with every fragment it takes in English and Polish; the accusative is read by a template key only in bridge-runs-records.mjs `tellBeneficiary`, the nominative in roll-dialog.mjs and sheet.mjs (E66 C3; S18-38, I4, E66-16)", async () => {
+    ["R1158 - every fragment inserted into a sentence stands in the case its host needs (E66-16): `Calls.grants` the accusative in `armedByMonokuma`, `armedForYou`, `armedForYouBy`, `armedByNobody`, `grantsGen` the genitive in `armed`, `grantsNom` the nominative in `pendingTooltip` and `waitsNextRoll` (a list by `listOf`), through call-effects.mjs `grantWords`; `Price.label.*` the nominative after a colon or in brackets (`Price.refunded`, `Trial.objectionRefunded`, `Trial.objectionRefundLost`, `Cleanup.refundUnheld`), Hope alone in `Price.refundLost`; the reserves in `Murder.youLose` and `theyLose`; every host renders with every fragment it takes in English and Polish; the accusative is read by a template key only in bridge-runs-records.mjs `tellBeneficiary`, the nominative in roll-dialog.mjs and sheet.mjs (E66 C3; S18-38, I4, E66-16)", async () => {
         /*
          * E66 C3, 01.11.2026; S18-38 (I4), E66-16. `DRPG.Calls.grants.*` are Polish accusatives ("przewagę", "stałą premię
          * albo karę") and were put into `Calls.armed`, "może teraz użyć {what}", which wants the genitive, and after the
@@ -19591,7 +19591,7 @@ const REGRESSIONS = [
         const KINDS = Object.keys(files.en.DRPG.Calls.grants).filter(k => typeof files.en.DRPG.Calls.grants[k] === "string");
         must(KINDS.length >= 6, "lang/en.json carries fewer than six grants - this would measure little");
         const words = (kind, kase) => (typeof CE.grantWords === "function" ? CE.grantWords(kind, kase) : game.i18n.localize(`DRPG.Calls.grants.${kind}`));
-        const HOSTS = { acc: ["DRPG.Calls.armedByMonokuma", "DRPG.Calls.armedForYou", "DRPG.Calls.armedByNobody"], gen: ["DRPG.Calls.armed"],
+        const HOSTS = { acc: ["DRPG.Calls.armedByMonokuma", "DRPG.Calls.armedForYou", "DRPG.Calls.armedForYouBy", "DRPG.Calls.armedByNobody"], gen: ["DRPG.Calls.armed"],
             nom: ["DRPG.Calls.pendingTooltip", "DRPG.Calls.waitsNextRoll"] };
         const own = game.i18n.translations;
         const was = S.setPageLanguage("en");

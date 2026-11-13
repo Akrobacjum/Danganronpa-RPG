@@ -3441,7 +3441,7 @@
         "yourDoor": "Somebody forced the door of {room}. Its lock stays broken until it is repaired."
       },
       "pick": {
-        "prompt": "Pick a lock out of {room}: Hand {n} opens it for you alone, until you leave the room beyond; {clean} or more and the owner never knows. Shadow {cover} or more and nobody sees who it was.",
+        "prompt": "Pick a lock out of {room}: Hand {n} opens it for you alone, until you leave the room beyond; {clean} or more and the owner never knows. Shadow {cover} or more and nobody in the room beyond sees who it was; the people in your own room always do.",
         "coverTitle": "Pick the Lock - does anyone see?",
         "opened": "The lock gives. You may walk into {room} until you leave it again; it stays locked for everyone else.",
         "held": "The lock to {room} holds.",
@@ -3472,6 +3472,7 @@
       },
       "shut": {
         "knock": "Someone tries the door and cannot get in.",
+        "seenBy": "{name} barricades {room} from inside.",
         "done": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends."
       },
       "tail": {
@@ -3758,6 +3759,7 @@
       "armedTitle": "A Call was made for you",
       "waitsNextRoll": "Armed after this window opened: {what}. It is not part of this roll - it waits for your next one.",
       "armedForYou": "Another student spent Hope on you: your next roll has {what}. It applies by itself.",
+      "armedForYouBy": "{name} spends Hope on you: your next roll has {what}. It applies by itself.",
       "armedByMonokuma": "Monokuma has {what} on your next roll. It applies by itself.",
       "armedByNobody": "Your next roll carries {what}. It applies by itself.",
       "newRuleTitle": "New Killing Game Rule",

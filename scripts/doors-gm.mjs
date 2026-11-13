@@ -23,16 +23,23 @@
  * `setRoomBroken`, the flag a breach writes), a seal is lifted for the rest of its time of day (call-world.mjs
  * `liftSeal`, no Despair back). Never in a Class Trial, never into the trial hall, never by a Chained character. On a
  * pass and on a miss with Despair (DA30), the students in the rooms next to either room hear "A banging from: {room}", no name
- * (DA43 = 1), and those in the two rooms are told who forced which door; a bedroom's owner is told their door was
- * forced, wherever they are.
+ * (DA43 = 1), and those in the two rooms are told who forced which door; on a miss with Hope only the character's own room
+ * is told who tried (the owner's rule #8, 13.11.2026). A bedroom's owner is told their door was forced, wherever they are.
  *
  * PICK THE LOCK (E74 C4; DA9, DA29, DA30, DA31 = 2). At a door to a neighbouring room held by a lock (a GM's or a bedroom's)
  * or a seal, never a barricade: Hand at `INFILTRATE.pick.dc` (15) opens it, a critical too, and the picker holds a pass to
  * that room until they leave it (lockpick-gm.mjs; DA9 as the plan has it, the owner's "Wole zgodnie z planem" of
  * 12.11.2026, which replaced the walk-through at once this file did before). The lock stays locked for everyone else. The owner of a bedroom is warned on an open below `clean` (18) and on a miss with Despair
- * (DA30); the Shadow cover below its threshold (16) lets the two rooms see who it was.
+ * (DA30). The character's own room always sees who it was (the owner's rule #8, 13.11.2026); the Shadow cover below its
+ * threshold (16) lets the room beyond see it too.
  *
- * BUILT SINCE (E74, 12.11.2026): the "Someone tries to get in" card to a barricade's author (`knockDoor`), the doors'
+ * WHO SEES A DOOR WORKED (the owner's rules #8 and #9, 13.11.2026: a player learns what their character could know in the
+ * fiction, when they could know it). The students standing in the character's own room get a card naming the character for
+ * every door action done there - a barricade put up, a force, a pick; the cover and the noise rules decide only the room
+ * beyond and the neighbours. A knock at a barricade is heard, with no name, by everyone in the room behind it.
+ *
+ * BUILT SINCE (E74, 12.11.2026): the "Someone tries to get in" card (`knockDoor`; to the barricade's author alone until the
+ * owner's rule #9, to everyone in the room behind it since), the doors'
  * Remnants (`leaveDoorTrace`, `pickTrace`), Repair the Lock (below), Keep Watch (watch-gm.mjs).
  */
 
@@ -97,6 +104,8 @@ export async function shutDoor({ actor, total = 0, user = null }) {
         authorId: actor.id, strength, at: Date.now(), userId: user?.id ?? null });
     await setRoomBarricaded(place.scene, place.room, true);
     await leaveDoorTrace(actor, "subtle", "shut", place.room);
+    // The room the character stands in sees who barricades it (the owner's rule #8, 13.11.2026); nobody outside is told.
+    await tellRooms(place.scene, [place.room], game.i18n.format("DRPG.Infiltrate.shut.seenBy", { name: actor.name, room: place.room }), new Set([actor.id]));
     log(`${actor.name} barricaded ${place.room} (strength ${strength}).`);
     return { room: place.room, strength };
 }
@@ -110,8 +119,11 @@ async function whatHolds(actor, scene, room) {
         seal: isSealed(room) };
 }
 
-/** Whisper `text` to the owners of every living student standing in one of `rooms` on `scene` but `skip`'s. */
-async function tellRooms(scene, rooms, text, skip = new Set()) {
+/**
+ * Whisper `text` to the owners of every living student standing in one of `rooms` on `scene` but `skip`'s, and to `also`'s
+ * when it was not among them. Answers how many students were told.
+ */
+async function tellRooms(scene, rooms, text, skip = new Set(), { also = null } = {}) {
     const { roomOfToken } = await import("./movement.mjs");
     const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
     const told = new Set();
@@ -121,6 +133,10 @@ async function tellRooms(scene, rooms, text, skip = new Set()) {
         if (student.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(student) || !rooms.includes(roomOfToken(token))) continue;
         told.add(student.id);
         await whisperToOwnerOnly(student, `<p>${esc(text)}</p>`);
+    }
+    if (also && !told.has(also.id) && !skip.has(also.id)) {
+        told.add(also.id);
+        await whisperToOwnerOnly(also, `<p>${esc(text)}</p>`);
     }
     return told.size;
 }
@@ -150,14 +166,17 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
         if (holds.lock) await M.setRoomBroken(place.scene, room, true);
         if (holds.seal) await (await import("./call-world.mjs")).liftSeal(room);
     }
+    // Who sees it (the owner's rule #8, 13.11.2026): the character's own room always, by name; the room beyond, by name, and
+    // the rooms next to either, as a banging with no name, only when it was loud - a pass, or a miss with Despair (DA30).
     let heard = 0;
-    if (forced || !withHope) {
+    const loud = forced || !withHope;
+    if (loud) {
         const near = [...new Set([...M.neighbouringRooms(place.scene, place.room), ...M.neighbouringRooms(place.scene, room)])]
             .filter(r => r !== place.room && r !== room);
         heard = await tellRooms(place.scene, near, game.i18n.format("DRPG.Infiltrate.force.banging", { room }), new Set([actor.id]));
-        await tellRooms(place.scene, [place.room, room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
-            { name: actor.name, room }), new Set([actor.id]));
     }
+    await tellRooms(place.scene, loud ? [place.room, room] : [place.room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
+        { name: actor.name, room }), new Set([actor.id]));
     // Every attempt leaves a Remnant: evident where it was heard (a pass, a miss with Despair), subtle otherwise.
     if (held.length) await leaveDoorTrace(actor, forced || !withHope ? "evident" : "subtle", "force", room);
     const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
@@ -197,8 +216,10 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
     }
     const seen = !(coverCritical || (Number(coverTotal) || 0) >= rule.cover.threshold);
     // `tell` false: a Reroll's replay (infiltrate-reroll.mjs), whose cover the two rooms were told of by the first throw.
-    if (tell && seen && lockish) {
-        await tellRooms(place.scene, [place.room, room], game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room }), new Set([actor.id]));
+    // The character's own room sees who it is whatever the cover (the owner's rule #8, 13.11.2026); the cover hides the
+    // picker from the room beyond alone.
+    if (tell && lockish) {
+        await tellRooms(place.scene, seen ? [place.room, room] : [place.room], game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room }), new Set([actor.id]));
     }
     // Every attempt at a lock leaves a Remnant by its band (DA30); a Reroll's replay leaves none of its own.
     if (tell && lockish) await leaveDoorTrace(actor, pickTrace({ opened, total: sum, isCritical, withHope }), "pick", room);
@@ -283,14 +304,14 @@ export async function dropLockRepairs(scene, room) {
     return n;
 }
 
-/** When each barricade's author was last told of somebody at the door, by key: one card a quarter minute. */
+/** When the room behind each barricade was last told of somebody at the door, by key: one card a quarter minute. */
 const knocked = new Map();
 const KNOCK_MS = 15000;
 
 /**
  * SOMEONE TRIES TO GET IN (E74; the plan's C2 card). A walk in through a door refused at a barricade, on the walker's own
- * browser by the veto, which asks this of the primary (bridge `door.knock`): the barricade's author's owners are told that
- * somebody tries the door - no name. Judged here: the room barricaded as the GMs hold it, next to the room the GMs read the
+ * browser by the veto, which asks this of the primary (bridge `door.knock`): everyone in the room behind the barricade is
+ * told that somebody tries the door - no name (the owner's rule #9, 13.11.2026; its author alone until then). Judged here: the room barricaded as the GMs hold it, next to the room the GMs read the
  * walker in; one card a barricade a quarter minute. Answers `{ refused }` or `{ told }`.
  */
 export async function knockDoor({ actor, room }) {
@@ -305,9 +326,11 @@ export async function knockDoor({ actor, room }) {
     knocked.set(key, now);
     const author = game.actors.get(row.authorId ?? "");
     if (!author || author.id === actor.id) return { told: false };
-    const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
-    await whisperToOwnerOnly(author, `<p>${esc(game.i18n.localize("DRPG.Infiltrate.shut.knock"))}</p>`);
-    return { told: true };
+    // Heard by everyone in the room behind the barricade (the owner's rule #9, 13.11.2026), its author among them; the
+    // author is told even where the GMs read their token as not standing there (a hidden one), as before. No name.
+    const text = game.i18n.localize("DRPG.Infiltrate.shut.knock");
+    const heard = await tellRooms(place.scene, [room], text, new Set([actor.id]), { also: author });
+    return { told: heard > 0 };
 }
 
 /**

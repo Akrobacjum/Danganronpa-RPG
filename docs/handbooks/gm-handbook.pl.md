@@ -327,7 +327,7 @@ Wydawane z arkusza postaci, szeptem do gracza. Call, który zmienia rzut - Suppo
 
 | Call | Koszt | Efekt | Potrzebuje GMa |
 |---|---|---|---|
-| Support | 1 | Daj innemu graczowi przewagę na jeden rzut; ten sam pokój | nie |
+| Support | 1 | Daj innemu graczowi przewagę na jeden rzut; ten sam pokój; karta podaje, kto go wydał | nie |
 | Talent | 1 | Jeden kafelek, dwa Calle: gracz wybiera Experience (dodaj doświadczenie do rzutu, do którego naprawdę się stosuje) albo Ultimate (przewaga na rzut, do którego Ultimate naprawdę się stosuje); każdy zachowuje swoje zasady, a uzbrojony przed aktualizacją nadal działa | tak |
 | Contribution | 2 | +1 postępu do projektu, nad którym pracuje się w twoim pokoju; przy planie morderstwa rzuca też na Hide the Traces, jak praca nad nim | nie |
 | Sprint | 2 | Jedno dodatkowe przejście między pokojami w tej porze dnia, za darmo | nie |
