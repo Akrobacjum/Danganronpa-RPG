@@ -168,3 +168,28 @@ unchanged; green after. Not covered: the few ms between the end of the day's boa
 Runs (this branch, 12.11.2026): `npm run quick` green; tiers 0-1 in full 1325 tests, 1310 passed, 0 failed, 16 skipped,
 0 red, 413.8 s (a first full run had R3145 red: the body announcement's hook name spelt here a second time - taken out);
 00-boot 33/33.
+
+## What is left of a first open, after the warming (13.11.2026; the coordinator's ask to measure the next windows)
+
+Probe 80 (new, `audit/harness/probes/80-open-profile.mjs`; the 0x decade of the probes is full): each window opened twice, 12 s after the boot (the warming
+done), each open under V8's sampling profiler in its client's own process, the self time summed by function and also
+charged to the nearest function of scripts/ above it. Read 13.11.2026 on this branch, one run of nine windows and one of
+three; the profiler slows the opens about threefold, so its ms are samples, not wall time.
+
+| Window | opens, 1st / 2nd (ms, under the profiler) | V8 `(program)` 1st / 2nd | the largest first-only share, by module function |
+| --- | --- | --- | --- |
+| Room setup (Bedrooms) | 1051-1055 / 810-823 | 0-0.4 / 0.2 | `dialogContent` utils.mjs +60, `nameControls` a11y.mjs +41, `animateWindowIn` +18, `field` room-setup.mjs +16 (samples): jsdom's DOM inside them; the sort's first `localeCompare` +11 |
+| Investigation | 207-221 / 198-233 | 0-0.4 / 0 | none over 6 ms |
+| Students | 98-186 / 89-107 | 0 / 0 | none over 6.2 ms |
+| Season checklist, GM panel, Look, Projects, Sound (player), Observe | within 0-40 ms of each other | 0-0.2 | none over 7 ms in the module's code |
+
+What it says: compiling the module's code on a first call is not a cost here (`(program)` under half a millisecond in
+every first open, V8 being the same engine a browser runs). What a first open pays more is inside jsdom (its selector and
+style caches, filled on first use) and, once a page, the browser's locale data: in Chromium the first `Intl` use of a
+fresh page (a number's `toLocaleString`, a `localeCompare`) took 7.6-14.4 ms and every later one under 1 ms (5 pages
+each). Foundry sorts its sidebar's directories and formats the chat's times before any window of the module opens, so at
+a table that load is most likely paid at boot: not confirmed, and worth about 10 ms if not, so it is not warmed here.
+
+So nothing further is fixed in this round: the first-open costs this line can measure are the ones the warming (above)
+already moves, and what is left is jsdom's or a single locale load. The rest is the table's reading,
+`game.drpg.openTimes()` (LIVE-PERF-OPEN-01).

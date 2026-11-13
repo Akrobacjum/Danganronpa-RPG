@@ -169,6 +169,7 @@ belongs to.
 | 07 | probes/07-apimap.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
 | 08 | probes/08-capture-windows.mjs | probe | probe | E44 | a tool (probes/README.md): the module's windows as the harness draws them, into audit/windows/ for the style harness and the mockups; the number is not reused for a scenario |
 | 09 | probes/09-open-cost.mjs | probe | probe | perf-open | a tool (probes/README.md): each window of probe 08's list that needs no seed opened three times on its client, the time from its opener's call to its first render, to set a window's first open against its later ones (headless: the module's work on jsdom, no layout, paint or fetch); the number is not reused for a scenario |
+| 80 | probes/80-open-profile.mjs | probe | probe | perf-open | a tool (probes/README.md): a window's first and second open each under V8's sampling profiler in its client's process, the functions whose self time the first exceeds most, and the same charged to the nearest function of scripts/; the number is not reused for a scenario |
 | 10 | scenarios/10-murder.mjs | ci | exists | <=1.2.50 | the crime pipeline on three live clients; the death's and the weapon's tie reaching an identified copy at the body's discovery (E09 C4, fix r1-G1) |
 | 11 | scenarios/11-killer-secrecy.mjs | ci | exists | <=1.2.50 | a bystander cannot read the killer or the accomplice |
 | 12 | scenarios/12-social.mjs | ci | exists | <=1.2.50 | private rolls, inventory limits, movement and Search between clients |
