@@ -117,7 +117,7 @@ A darkened time of day (see the overflow, chapter 6) can pull the crossings down
 
 ### Full-screen moments
 
-A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off.
+A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off. If you join or reload within 10 minutes of one, it plays for you once.
 
 - **The Class Trial's entry.** The screen closes on **CLASS TRIAL** and opens onto the trial.
 - **The Class Trial's end.** The screen closes on **TRIAL ADJOURNED** and opens onto the school.

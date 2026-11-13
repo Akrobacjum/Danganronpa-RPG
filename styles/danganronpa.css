@@ -1499,6 +1499,15 @@ body.drpg-hide-system-fear #resource-fear {
     outline-offset: 2px;
     border-radius: 3px;
 }
+/* A FOCUSED PANEL WEARS THE SAME RING (gaps-111, 13.11.2026; 1.2.105's Known gaps: "A focused panel has no focus ring of
+   the module's own"). E48 K4 made the clock, the Despair rail, the status strip and the Projects tray focusable
+   (explain.mjs PANELS, R3463) and left their ring to the browser: Chromium's `outline: auto`, whose faintest tenth of
+   pixels read 1.14-1.54:1 on the ground under them (the glass harness, 1366x768, both themes). The controls' ring above,
+   on the panel's box: no `border-radius` here, each panel keeps its own corner. Read by R4933; its contrast in the commit. */
+:is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 2px;
+}
 
 /* ==========================================================================
    PLAYER-LOCKED FIELDS
@@ -5243,7 +5252,16 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    dot on the ink box once picked; Foundry's own mark (`::after`) off, as the glass took it off in E96 C1. Measured in
    Chromium (`node audit/style-sweep.mjs --selected`): before, "native mark"; after, the mark on its box in
    S/stages/E68/STATUS.md E68-C12. */
-body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"] {
+/* EVERY RADIO ON A MODULE WINDOW, ITS DOT PINNED TO THE MIDDLE (gaps-radio, R4650; the owner's table on 1.2.109,
+   13.11.2026). The ring above stood in a choice row only; every other radio on a module window (the zone picker's
+   Mode, a Logic Dive question's truth, a project's tray icon, a new item's picture, Level Up's who, a season reset's
+   cast) was Foundry's own - 29 of them in the committed captures: the Logic Dive editor 10, Level Up's who 6, the
+   Rest's pick 3, the season reset 3, the zone picker 3, Palm's Frisk 2, the voice's mode 2 (audit/radio-sweep.mjs with
+   421f2395's sheets, 13.11.2026) - and the dot rode the box's flow
+   (`place-content: center`), which a rule that positions the mark undoes: with a stand-in for core's (`::before`
+   absolutely positioned) it stood 3 px up and left of the middle of the 16 px ring. Now the ring is every radio's on a
+   module window, and its dot is laid across the box (`inset: 0`, `margin: auto` with its own size), as the glass's. */
+body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"] {
     appearance: none;
     -webkit-appearance: none;
     flex: none;
@@ -5254,22 +5272,34 @@ body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"] {
     padding: 0;
     display: inline-grid;
     place-content: center;
+    position: relative;
+    vertical-align: middle;
     border: 2px solid var(--drpg-bone);
     border-radius: 50%;
+    clip-path: none;
     background: var(--drpg-ink);
+    cursor: pointer;
 }
-body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]::after { content: none; }
-body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]::before {
+body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]::after { content: none; }
+body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]::before {
     content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: var(--drpg-attention);
     transform: scale(0);
+    transform-origin: center;
+    translate: none;
+    rotate: none;
+    scale: none;
 }
-body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked { border-color: var(--drpg-attention); }
-body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked::before { transform: scale(1); }
-body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-visible { outline: 2px solid var(--drpg-bone); outline-offset: 1px; }
+body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]:checked { border-color: var(--drpg-attention); }
+body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]:checked::before { transform: scale(1); }
+body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]:disabled { border-style: dashed; cursor: not-allowed; }
+body:not(.drpg-theme-stained-glass) :is(.drpg-choice, .drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]:focus-visible { outline: 2px solid var(--drpg-bone); outline-offset: 1px; }
 
 .drpg-choice > i {
     flex: 0 0 1.1rem;
@@ -14649,9 +14679,12 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
    Same three tokens as everywhere else - Ink under, Bone over, one rule
    colour - applied to the controls rather than to the window, because the
    window itself already takes the dialog ground from the block above.
+   A radio is not a field (gaps-radio, R4651): it wore this rule's 2 px corner, border and ground with `!important` in
+   the Projects window and the item tables, over the round radio every module window draws (above, "EVERY RADIO ON A
+   MODULE WINDOW"); measured in Chromium, a new item's picture choices at 2 px (audit/radio-sweep.mjs).
    ========================================================================== */
 
-body.drpg-theme-monokuma-legacy .drpg-projects :is(input, select, textarea),
+body.drpg-theme-monokuma-legacy .drpg-projects :is(input:not([type="radio"]), select, textarea),
 body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], select, textarea) {
     background: rgba(var(--drpg-ink-rgb), 0.55) !important;
     background-image: none !important;
@@ -14660,7 +14693,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
     color: var(--drpg-bone) !important;
 }
 
-body.drpg-theme-monokuma-legacy .drpg-projects :is(input, select, textarea):focus-visible,
+body.drpg-theme-monokuma-legacy .drpg-projects :is(input:not([type="radio"]), select, textarea):focus-visible,
 body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], select, textarea):focus-visible {
     outline: 2px solid var(--drpg-attention);
     outline-offset: 1px;

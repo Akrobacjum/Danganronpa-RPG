@@ -746,7 +746,7 @@
         "rooms": "Pokoje",
         "kind": "Rodzaj",
         "shape": "Kształt",
-        "origin": "Pochodzenie",
+        "origin": "Źródło",
         "knows": "Kto zna",
         "start": "Na start sezonu",
         "startHint": "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu tajnego przejścia teraz.",
@@ -3166,7 +3166,7 @@
         "other": "Ujawniono typy {n} Truth Bulletów."
       },
       "optNextChapter": "Przejdź do rozdziału {to} (z {from})",
-      "lastChapter": "Rozdział {n} jest ostatnim w sezonie. Zresetuj sezon z Between sessions zamiast przechodzić do rozdziału {next}.",
+      "lastChapter": "Rozdział {n} jest ostatnim w sezonie. Naciśnij „Zresetuj sezon” w oknie „Ustawienia sezonu” (panel GM-a, Między sesjami) zamiast przechodzić do rozdziału {next}.",
       "optNextSession": "Licz to jako sesję {to} (z {from})",
       "optNextMorning": "Otwórz następny rozdział rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami",
       "moved": "Zegar wskazuje teraz rozdział {chapter}, sesję {session}.",

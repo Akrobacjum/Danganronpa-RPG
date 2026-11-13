@@ -19638,6 +19638,143 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ on: true, offListed: false, offCounted: true }),
             `{on: listed while on the page; offListed: still listed as on screen after removal; offCounted: counted among the closed} - the reports: ${JSON.stringify({ on, off })}`);
     }],
+    ["R4930 - game.drpg.a11y() lists every disclosure on the module's surfaces, an action window's Details among them, with its name and its state (gaps-111, 1.2.105's Known gaps: \"`game.drpg.a11y()` does not list Details yet\"): a11y.mjs `a11yReport` says each `aria-expanded` control standing in the page - Details open and shut - and holds each to its region: there, named, and out of reach while shut", async () => {
+        /*
+         * gaps-111, 13.11.2026. The report listed only the controls with no name; a disclosure - a button that opens a
+         * region (`aria-expanded`, `aria-controls`) - was named, so it never appeared, and whether its region could be
+         * read by a screen reader was asked by nothing. Here: two action windows of the test's own (`.drpg-panel`), each
+         * with Details as action-menus.mjs `detailsHtml` draws it, one shut and one open, and a third toggle whose region
+         * is not on the page; swept, read, removed. Red at 346798b7: no line for any of them.
+         */
+        const A = await import("./a11y.mjs");
+        const { detailsHtml } = await import("./action-menus.mjs");
+        const host = document.createElement("section");
+        host.className = "drpg-panel";
+        host.id = `r4930-${Date.now().toString(36)}`;
+        host.innerHTML = `${detailsHtml("<p>Thresholds</p>")}${detailsHtml("<p>Thresholds</p>")}`
+            + `<button type="button" class="r4930-orphan" aria-expanded="false" aria-controls="r4930-nowhere">More</button>`;
+        const [shut, open] = host.querySelectorAll(".drpg-action-details-toggle");
+        const boxOf = toggle => host.querySelector(`#${toggle.getAttribute("aria-controls")}`);
+        shut.setAttribute("aria-expanded", "false");
+        boxOf(shut).setAttribute("inert", "");
+        open.setAttribute("aria-expanded", "true");
+        boxOf(open).removeAttribute("inert");
+        const name = game.i18n.localize("DRPG.Kit.details");
+        let report = "";
+        try {
+            document.body.append(host);
+            A.nameControls(host);
+            report = A.a11yReport();
+        } finally { host.remove(); }
+        const line = toggle => report.split("\n").find(l => l.includes(`#${toggle.id}`))?.trim() ?? null;
+        const read = {
+            shut: line(shut), open: line(open),
+            orphan: report.split("\n").find(l => l.includes("r4930-nowhere"))?.trim() ?? null,
+            gone: A.a11yReport().includes(host.id)
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            shut: `"${name}" #${shut.id}: shut, its region #${shut.getAttribute("aria-controls")} named and out of reach, in ${host.id}`,
+            open: `"${name}" #${open.id}: open, its region #${open.getAttribute("aria-controls")} named, in ${host.id}`,
+            orphan: `"More" (button.r4930-orphan): shut, its region #r4930-nowhere NOT on the page, in ${host.id}`,
+            gone: false
+        }), "{each disclosure's line in a11yReport, shut, open, and one whose region is missing; any line once the window is gone}");
+    }],
+    ["R4932 - under Stained Glass the sheet's and the status strip's Hope and Action marks are E48 batch 5's drawings (gaps-111; 1.2.105's Known gaps, the owner's \"E48 akcept\" of 12.11): a held Hope slot wears the diamond and an empty one the empty diamond, a held action the dot and a free one the empty dot, on the sheet's header and on the strip alike", async () => {
+        /*
+         * gaps-111, 13.11.2026. 1.2.105's Known gaps: "under Stained Glass the sheet's Hope and Action marks are still drawn
+         * by stained-glass.css's own stars and squares, so the new diamond and dot show only where a rule reads the
+         * variable (the wear pips)". The owner took E48 batch 5's drawings on 12.11 (recorded in 1.2.107). The strip wears
+         * the sheet's marks (stained-glass.css, "THE PLAYER'S STATUS STRIP GETS THE SAME MARKS AS THE SHEET", 07.09, and
+         * the owner's 11.09 on a corner that did not match), so both change together. Read: the sheets' cascade on a body
+         * of its own under the glass, which variable each mark's `::before` mask names. Red at efbe35a3: the stars
+         * (--drpg-pix-star, --drpg-pix-star-outline, Hope on the sheet both --drpg-pix-star) and no mask on an action pip.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        const pip = (cls, held) => `<span class="drpg-status-pip ${cls}${held ? " filled" : ""}"></span>`;
+        body.innerHTML = `<div class="application sheet actor"><div class="character-header-sheet"><div class="character-row">`
+            + `<div class="drpg-actions"><h4>Actions</h4><span class="drpg-action-pip filled"><i class="fa-solid fa-circle"></i></span><span class="drpg-action-pip"><i class="fa-regular fa-circle"></i></span></div>`
+            + `<div class="hope-section"><h4>Hope</h4><div class="hope-values"><span class="hope-value"><i class="fa-solid fa-diamond"></i></span><span class="hope-value"><i class="fa-regular fa-circle"></i></span></div></div>`
+            + `</div></div></div><div id="drpg-player-status"><div class="drpg-status"><div class="drpg-status-field is-actions"><span class="drpg-status-pips">${pip("drpg-action-pip", true)}${pip("drpg-action-pip", false)}</span></div>`
+            + `<div class="drpg-status-field is-hope"><span class="drpg-status-pips">${pip("drpg-status-hope-pip", true)}${pip("drpg-status-hope-pip", false)}</span></div></div></div>`;
+        const MASK = ["mask", "-webkit-mask", "mask-image", "-webkit-mask-image"];
+        const wears = el => /var\((--drpg-pix-[a-z-]+)\)/.exec(C.winner(el, MASK, "::before")?.value ?? "")?.[1] ?? null;
+        const two = sel => [...body.querySelectorAll(sel)].map(wears);
+        const read = {
+            sheetHope: two(".character-header-sheet .hope-value"), sheetActions: two(".character-header-sheet .drpg-action-pip"),
+            stripHope: two("#drpg-player-status .drpg-status-hope-pip"), stripActions: two("#drpg-player-status .drpg-action-pip")
+        };
+        const HOPE = ["--drpg-pix-diamond", "--drpg-pix-diamond-empty"], DOT = ["--drpg-pix-dot", "--drpg-pix-dot-empty"];
+        equal(stableJson(read), stableJson({ sheetHope: HOPE, sheetActions: DOT, stripHope: HOPE, stripActions: DOT }),
+            "{the mask variable each mark's ::before wears under Stained Glass: [held, empty], on the sheet and on the strip}");
+    }],
+    ["R4933 - a focused panel wears the module's own focus ring in both themes (gaps-111; 1.2.105's Known gaps: \"A focused panel has no focus ring of the module's own\"): the four panels a keyboard can focus since E48 K4 (explain.mjs PANELS: the clock, the Despair rail, the status strip, the Projects tray) each have a rule of the module's sheets that names `:focus-visible` on it and draws a solid outline", async () => {
+        /*
+         * gaps-111, 13.11.2026. E48 K4 made the four panels focusable (`tabindex="0"`, R3463) and left their ring to the
+         * browser: Chromium's `outline: auto`, read on the glass harness at 1366x768 in both themes, whose faintest tenth
+         * of pixels stood at 1.14-1.54:1 on the ground under them (the commit's numbers). Read as R3561 reads a state: every
+         * selector of every rule of the module's sheets that names `:focus-visible`, the state taken out and the rest
+         * matched against the panel, and the outline it declares. Red at 1b1daa92: no rule for any of the four.
+         */
+        const C = await styleCascade();
+        const shell = document.implementation.createHTMLDocument("R4933");
+        const page = shell.body;
+        page.innerHTML = `<div id="ui-top"><div id="drpg-hud" tabindex="0"></div><div id="drpg-despair" tabindex="0"></div></div>`
+            + `<div id="drpg-player-status" tabindex="0"></div><section id="countdowns" tabindex="0"></section>`;
+        const split = text => { const out = []; let depth = 0, part = ""; for (const ch of text) { if (ch === "(" || ch === "[") depth++; if (ch === ")" || ch === "]") depth--; if (ch === "," && !depth) { out.push(part.trim()); part = ""; } else part += ch; } if (part.trim()) out.push(part.trim()); return out; };
+        const ring = el => {
+            const found = C.rules.filter(rule => split(rule.selector).some(sel => {
+                if (!sel.includes(":focus-visible")) return false;
+                const rest = sel.replaceAll(":focus-visible", "").trim();
+                try { return el.matches(rest); } catch { return false; }
+            })).flatMap(rule => rule.decls.filter(d => d.property === "outline" || d.property === "outline-style").map(d => d.value.trim()));
+            return found.some(v => /\bsolid\b/.test(v)) ? "solid" : found.length ? found.join(" | ") : "none";
+        };
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const PANELS = ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns"];
+        const seen = {}, want = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            page.className = cls;
+            for (const sel of PANELS) { seen[`${theme} ${sel}`] = ring(page.querySelector(sel)); want[`${theme} ${sel}`] = "solid"; }
+        }
+        equal(stableJson(seen), stableJson(want), "{theme panel: the outline a :focus-visible rule of the module's sheets declares on it - solid, or none}");
+    }],
+    ["R4934 - a browser that loads within 10 minutes of a sequence's event plays it once, and after 10 minutes nothing (gaps-111; the owner's answer to Q-E61-1 and Q-E94-4, 13.11.2026: \"Przez 10 minut\"): sequence.mjs `lateSequence` picks, from the clock and the chat this browser holds, the newest event under 10 minutes old - the trial's entry, the verdict's cut-in, the start-of-day board - that this browser has not played, and only from what this browser would have seen live", async () => {
+        /*
+         * gaps-111, 13.11.2026. Until now a browser that loaded after the event played nothing (the plan's Q-E61-1 default,
+         * sequence.mjs's header). The owner chose 10 minutes. Read here on the pure picker, on stand-ins of the clock and of
+         * chat messages, at a fixed `now`: each event alone at 9 and at 11 minutes; the newest of three; one this browser
+         * played already (the browser's own record, `played`); a verdict card this user cannot see; a player's card with the
+         * verdict's flags; a new day written by a correction (no `dayBoard`); an event stamped a minute ahead of this
+         * browser's server time (the writer's skew: it is new, and plays). Red at 7695476c: no `lateSequence`.
+         */
+        const Q = await import("./sequence.mjs");
+        must(typeof Q.lateSequence === "function", "sequence.mjs exports no lateSequence - the late play is not built");
+        const NOW = 1_800_000_000_000, MIN = 60_000;
+        const trial = ago => ({ phase: "classTrial", timeOfDayStartedAt: NOW - ago * MIN, day: 4, season: 1, session: 2 });
+        const day = (ago, board = 5) => ({ phase: "dailyLife", timeOfDay: "morning", day: 5, dayBoard: board, dayStartedAt: NOW - ago * MIN, timeOfDayStartedAt: NOW - ago * MIN, season: 1, session: 2 });
+        const card = (ago, { gm = true, visible = true, at = 77 } = {}) => ({ author: { isGM: gm }, visible, timestamp: NOW - ago * MIN,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "verdictAt" ? at : undefined) });
+        const pick = (args) => { const r = Q.lateSequence({ now: NOW, played: {}, messages: [], ...args }); return r ? `${r.kind} ${r.key}` : null; };
+        const read = {
+            trial9: pick({ clock: trial(9) }), trial11: pick({ clock: trial(11) }),
+            day9: pick({ clock: day(9) }), day11: pick({ clock: day(11) }), dayCorrection: pick({ clock: day(2, null) }),
+            verdict9: pick({ clock: day(30), messages: [card(9)] }), verdict11: pick({ clock: day(30), messages: [card(11)] }),
+            hidden: pick({ clock: day(30), messages: [card(1, { visible: false })] }), playerCard: pick({ clock: day(30), messages: [card(1, { gm: false })] }),
+            newest: pick({ clock: trial(6), messages: [card(2)] }),
+            playedAlready: pick({ clock: trial(3), played: { [`trialEntry\u0000${Q.trialEntryKey(trial(3))}`]: NOW - 3 * MIN } }),
+            future: pick({ clock: trial(-1) })
+        };
+        equal(stableJson(read), stableJson({
+            trial9: `trialEntry ${Q.trialEntryKey(trial(9))}`, trial11: null,
+            day9: "dayStart day:1:5:2", day11: null, dayCorrection: null,
+            verdict9: "verdictCut verdict:77", verdict11: null, hidden: null, playerCard: null,
+            newest: "verdictCut verdict:77", playedAlready: null, future: `trialEntry ${Q.trialEntryKey(trial(-1))}`
+        }), "{case: what a browser loading now plays late - kind and key, or null}");
+        equal(Q.LATE_PLAY_MS, 10 * MIN, "the window is the owner's 10 minutes");
+    }],
     ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
         /*
          * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground
@@ -42168,7 +42305,7 @@ const INVARIANTS = [
             cap: "calc(360px * var(--drpg-legacy-scale, 1))" }),
             "under Monokuma Legacy: {content: [display, flex-direction, align-items]; name: [flex, min-width, white-space, text-overflow]; tools: flex; cap: the tray's max-width}");
     }],
-    ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the star's outline in Bone Dim at 40 %, a held one the solid star; the table's strip leaves \"Still to act\" out while an incident runs, and keeps it in Daily Life and, since E100, in a Class Trial", async () => {
+    ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the empty diamond in Bone Dim at 40 %, a held one the diamond (E48 batch 5's, since gaps-111: the star and its outline until then); the table's strip leaves \"Still to act\" out while an incident runs, and keeps it in Daily Life and, since E100, in a Class Trial", async () => {
         /*
          * E23 C3a, 07.11.2026. S10-63: the slots were 0.72rem (11.5 px), the contained star drew at 7-8 px, an empty one the
          * same star at the slot's 0.45 over bone at 0.3. S12-54 (the owner's Q-E23-3, hidden): the GM's strip read "Still
@@ -42195,8 +42332,8 @@ const INVARIANTS = [
         const MASK = ["mask", "-webkit-mask", "mask-image", "-webkit-mask-image"];
         const slot = el => { const [lo, hi] = [band(value(el, "width")), band(value(el, "height"))].map(b => (Array.isArray(b) && b[0] >= 12 && b[1] <= 16 ? "12-16" : b)); return [lo, hi]; };
         const look = {
-            held: { slot: slot(held), mask: /--drpg-pix-star\)/.test(value(held, MASK, "::before") ?? "") },
-            empty: { slot: slot(empty), mask: /--drpg-pix-star-outline\)/.test(value(empty, MASK, "::before") ?? ""), colour: value(empty, ["background-color", "background"], "::before"),
+            held: { slot: slot(held), mask: /--drpg-pix-diamond\)/.test(value(held, MASK, "::before") ?? "") },
+            empty: { slot: slot(empty), mask: /--drpg-pix-diamond-empty\)/.test(value(empty, MASK, "::before") ?? ""), colour: value(empty, ["background-color", "background"], "::before"),
                 opacity: value(empty, "opacity", "::before"), slotOpacity: value(empty, "opacity") }
         };
         const PS = await import("./player-status.mjs");
@@ -42834,8 +42971,9 @@ const INVARIANTS = [
         };
         const rails = classes => ["scene-controls", "sidebar-tabs"].flatMap(id => ["rest", "active"].map(state => rail(classes, id, state)));
         const SURFACES = [["div", "drpg-panel"], ["section", "drpg-popup"], ["div", "drpg-messenger"], ["div", "application sheet actor"]];
-        /* not `border-radius`: the theme's sweep of square corners (`:not(.drpg-despair-pip)...`, "the shlif") wins it on
-           every surface, with the same 0 the definition states */
+        /* not `border-radius`: the theme's sweep of square corners (`:not(.drpg-despair-pip)...`, "the shlif") wins it for
+           the checkbox on every surface, with the same 0 the definition states; the radio's 50% is R4650's (gaps-radio:
+           the sweep passes a radio by, `:not([type="radio"])`) */
         const BOX = ["appearance", "width", "height", "margin", "border", "background", "clip-path", "accent-color", "display"];
         const MARK = ["content", "width", "height", "background-color", "mask", "transform"];
         const control = ([tag, classes], type, checked) => {
@@ -42861,7 +42999,9 @@ const INVARIANTS = [
             ["var(--drpg-eye)", "var(--drpg-eye-light)", "var(--drpg-eye)", "var(--drpg-eye-light)"],
             ["var(--drpg-sg-bone-dim)", "var(--drpg-glass-accent)", "var(--drpg-sg-bone-dim)", "var(--drpg-glass-accent)"],
             { sameValues: true, rulesForTheBox: 1, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" },
-            { sameValues: true, rulesForTheBox: 1, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" }
+            /* the radio's box is the one definition and, since gaps-radio (R4650, the owner's 13.11.2026: a radio is round),
+               the radio's own shape - `clip-path: none` beside its round corner - stated alike on every surface */
+            { sameValues: true, rulesForTheBox: 2, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" }
         ]), "[the GM's scene rail and the right rail, at rest and active, under Monokuma Legacy and under Stained Glass; "
             + "the checkbox and the radio under the glass: the same values on a panel, a notice, the messenger and the sheet, unchecked and checked; how many rules win the box; its appearance and width; the mark's transform unchecked and checked]");
     }],
@@ -43384,6 +43524,88 @@ const INVARIANTS = [
         equal(stableJson(nested), "[]", "endless animations inside an at-rule or a nested rule (R1410 does not build them)");
         equal(found.length - nested.length, r1410, `top-level endless declarations (${found.length - nested.length}) against the cascade's rules that run one, R1410's set (${r1410})`);
         equal(stableJson(scripts), "[]", "scripts that start an endless animation of their own");
+    }],
+    ["R4650 - a radio is round and its dot is pinned to the middle, in both themes (gaps-radio, the owner's table on 1.2.109): on a module window (`.drpg-panel`), a radio in a plain label and one in a choice row draw their own box (`appearance: none`), `border-radius` 50% with no clip path, and a `::before` laid absolutely across the box (`inset: 0`, `margin: auto`, round: as wide as it is high), so no rule that moves a mark in the flow can push it to a corner and no `translate`, `rotate` or `scale` of another rule moves it; under the glass a checkbox stays square, under Legacy it is Foundry's (no module rule states its corner)", async () => {
+        /*
+         * The owner, 13.11.2026, on 1.2.109: under Stained Glass a radio is a dark square box with a pink border and the
+         * checked one's dot stuck in its top-left corner (the zone picker's Mode). The glass gave every control one box,
+         * square with shaved corners (E23 C5b), the radio's dot a square laid in the box's flow by `place-content:
+         * center`; Legacy drew its own round radio in a choice row only (E68 C12) and left every other radio to
+         * Foundry, whose control at a table is a square with a mark in a corner (that note's words). Measured in Chromium
+         * on the style harness (audit/radio-sweep.mjs, 30 captures of 15 windows, PL and EN, dsf 1 and 2): on the module's
+         * sheets alone the glass dot was centred, and with a stand-in for core's mark (`::before` absolutely positioned) it
+         * stood 4.87 px up and left of the middle of a 22 px box - the owner's picture; Legacy had 52 radios Foundry's.
+         * Read here by the sheets' cascade (`styleCascade`), on a body of its own per theme. Red at 421f2395.
+         * The dot's `translate`, `rotate` and `scale`, and its width against its height, since REVIEW-111's L3
+         * (13.11.2026): the comments promised both and the test read neither. Planted at 30e65075 - the glass's
+         * `translate: none` as `2px 2px`, then its dot's `height` one px over its width - each turned this red.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-panel drpg-ui"><section class="window-content"><fieldset class="drpg-zone-modes">`
+                + `<label class="drpg-zone-mode-pick"><input type="radio" name="mode" value="straw" checked> Straw Poll</label></fieldset>`
+                + `<div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="a"><span>A</span></label></div>`
+                + `<label><input type="checkbox" name="secret"> Secret</label></section></div>`;
+            const [plain, row, box] = body.querySelectorAll("input");
+            const v = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value.trim() ?? null;
+            const radio = el => [v(el, ["appearance", "-webkit-appearance"]), v(el, "border-radius"), v(el, "clip-path"), v(el, "position"),
+                v(el, ["inset"], "::before"), v(el, ["margin"], "::before"), v(el, ["position"], "::before"), v(el, "border-radius", "::before"),
+                v(el, "translate", "::before"), v(el, "rotate", "::before"), v(el, "scale", "::before"),
+                v(el, "width", "::before") !== null && v(el, "width", "::before") === v(el, "height", "::before")];
+            read[theme.replace("drpg-theme-", "")] = { plain: radio(plain), row: radio(row), checkbox: v(box, "border-radius") };
+        }
+        const round = ["none", "50%", "none", "relative", "0", "auto", "absolute", "50%", "none", "none", "none", true];
+        equal(stableJson(read), stableJson({
+            "stained-glass": { plain: round, row: round, checkbox: "0" },
+            "monokuma-legacy": { plain: round, row: round, checkbox: null }
+        }), "{theme: {radio in a label / in a choice row: [appearance, border-radius, clip-path, position, ::before inset, margin, position, border-radius, translate, rotate, scale, width === height], the checkbox's border-radius}}");
+    }],
+    ["R4651 - under Monokuma Legacy a radio in the Projects window and the item tables keeps the round ring (gaps-radio): danganronpa.css's field rule for `.drpg-projects` no longer reaches a radio, so its corner, border and ground are the radio's, while a text field there keeps the field's", async () => {
+        /*
+         * gaps-radio, 13.11.2026. R4650's ring reached every radio on a module window, but in `.drpg-projects` (the
+         * Projects window, the item tables) the fields' rule - `:is(input, select, textarea)` with `!important` - still
+         * gave a radio its 2 px corner, its line and its ground: a new item's picture choices read 2 px in Chromium
+         * (audit/radio-sweep.mjs). Read here by the sheets' cascade on a body of its own. Red before the fix: 2px.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-monokuma-legacy";
+        html.append(body);
+        body.innerHTML = `<div class="application drpg-panel drpg-projects drpg-window-tables"><section class="window-content">`
+            + `<label class="drpg-choice drpg-glyph-choice"><input type="radio" name="newImgChoice" value="file"></label>`
+            + `<input type="text" name="name"></section></div>`;
+        const [radio, text] = body.querySelectorAll("input");
+        const v = (el, names) => C.winner(el, [names].flat())?.value.trim() ?? null;
+        equal(JSON.stringify([v(radio, "border-radius"), v(radio, ["border", "border-width", "border-style", "border-color"]), v(text, "border-radius")]),
+            JSON.stringify(["50%", "2px solid var(--drpg-bone)", "2px"]),
+            "[the radio's border-radius, its border, the text field's border-radius]");
+    }],
+    ["R4656 - under Stained Glass a checkbox or a radio stands in the middle of its label's line, not on its baseline (gaps-radio, the review's M1 of 13.11.2026): on a module window the control states `vertical-align: middle` and `align-self: center`, in a plain label, a flex label that lines its items up on their baselines (`.drpg-inline-check`) and a choice row", async () => {
+        /*
+         * docs/dev/e93/REVIEW-111.md's M1 (13.11.2026), a reader's claim the sweep then measured: the glass draws both
+         * controls as `inline-grid` with no box in flow (the mark is a pseudo-element laid absolutely), so the box's
+         * baseline is its bottom edge and a control in a plain label - `<label><input> words</label>` - sits on the text's
+         * baseline, above the words. Measured in Chromium on the style harness (audit/radio-sweep.mjs, the committed
+         * captures, 1366x768, dsf 1 and 2): Reset the season's three radios and thirty checkboxes stood 4.50 px above the
+         * centre of their label's line; no other window's control, and none under Legacy, whose radio states `middle`.
+         * Reset the season's labels are `.drpg-inline-check`, flex with `align-items: baseline`, where `vertical-align` does
+         * nothing and the control's baseline is again its bottom edge; so the control centres itself as a flex item too.
+         * Read here by the sheets' cascade on a body of its own. Red at f0666a1b: neither stated.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass";
+        html.append(body);
+        body.innerHTML = `<div class="application drpg-panel drpg-ui"><section class="window-content">`
+            + `<label class="drpg-inline-check"><input type="checkbox" name="wipe.clock"> The clock</label><label><input type="radio" name="castTo" value="stay"> Stay</label>`
+            + `<div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="a"><span>A</span></label></div></section></div>`;
+        const read = [...body.querySelectorAll("input")].map(el => [C.winner(el, ["vertical-align"])?.value.trim() ?? null, C.winner(el, ["align-self"])?.value.trim() ?? null]);
+        equal(JSON.stringify(read), JSON.stringify([["middle", "center"], ["middle", "center"], ["middle", "center"]]),
+            "[[vertical-align, align-self] of a checkbox in a flex label, a radio in a plain label, a radio in a choice row]");
     }],
     ["R1432 - reduced motion stops Foundry's pause caption too (E23 fix G3, E23-30; the end review's goal m1, Open 113): with `body.drpg-reduced-motion` a rule of the module's sheets wins the caption's animation with none, under both themes, over a stand-in for core's endless `pulse`; without the class the stand-in still wins", async () => {
         /*
@@ -52251,6 +52473,42 @@ const INVARIANTS = [
             if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
         }
     }],
+    ["R4655 - a change of theme redraws the room's outline quietly, not as an arrival (fog-reveal.mjs `recolourRoomOutline`; gaps, 1.2.105's known gap \"a theme switch draws the room outline as an arrival\"): the outline drawn again for the other theme carries no room name and stands in place of the old one", async () => {
+        /*
+         * 1.2.105's notes, Known gaps ("Tables and the map"): a theme switch draws the room outline as an arrival. The two
+         * themes draw different borders, so `recolourRoomOutline` draws the standing outline again when the theme moved -
+         * through `flashOutline` with no `quiet`, so it played as the player walking in: the old outline faded under the
+         * new, the hop, and the room's name over it. Every other redraw that is no arrival (a wall, a door, a passage row, a
+         * room reshaped) is quiet (E49 B4, D147). Drawn on a stand-in room into a container of the suite's own, as R3430
+         * draws it; the theme read as the other one for the redraw (`glassNow`). The real standing outline, if any, is
+         * drawn again quietly after. Red at 7ed09b68: the redrawn outline carries the room's name.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const body = document.body.classList, hadGlass = body.contains("drpg-theme-stained-glass");
+        const was = FR.roomOutline;
+        const fx = new PIXI.Container();
+        const region = { name: "R4655 Room", parent: null, shapes: [{ x: 200, y: 200, width: 400, height: 300 }] };
+        const named = s => Boolean(s?.group?.children?.some(c => c?.text === region.name));
+        let read = null;
+        try {
+            if (!hadGlass) body.add("drpg-theme-stained-glass");
+            FR.flashOutline(fx, region, { x: 0, y: 0 });
+            const first = FR.roomOutline;
+            must(first?.group?.parent === fx, "no outline was drawn on the stand-in room - this reads nothing");
+            const arrived = named(first);
+            FR.recolourRoomOutline({ standing: first, colourNow: () => first.colour, glassNow: () => !first.glass });
+            const second = FR.roomOutline;
+            read = [arrived, second !== first && second?.room === region.name, named(second), Boolean(first.group?.destroyed)];
+        } finally {
+            if (!hadGlass) body.remove("drpg-theme-stained-glass");
+            if (FR.roomOutline?.fx === fx) FR.fadeRoomOutline({ now: true });
+            for (const c of [...fx.children]) { clearTimeout(c.drpgFlashTimer); if (!c.destroyed) c.destroy({ children: true }); }
+            fx.destroy();
+            if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, true, false, true]),
+            "[the first draw named the room, the theme's redraw stands in its place, the redraw names the room, the old outline is gone at once]");
+    }],
     ["R3431 - a room the class found is a flash on a GM's map, not the outline that stands (E49 B4; S07-31): `flashOutline` with `standing: false` leaves the standing outline where it is, takes itself down once its name has faded, and fog.mjs's repaint draws a found room so unless one of this viewer's tokens stands in it", async () => {
         /*
          * E49 B4 (11.11.2026; audit S07-31). On a GM's browser `repaintFog` played the discovery of a room the class found
@@ -53880,6 +54138,62 @@ const INVARIANTS = [
         read.writes = w.seen.filter(s => s.includes("R3712"));
         equal(stableJson(read), stableJson({ moved: "hour", hint: "top", again: null, still: null, off: null, trial: "E61", trialHint: null, writes: [] }),
             "[evening to night heard; the direction handed; the same clock again; reduced motion; the switch off; the trial's entry's owner; no direction for it; the world written]");
+    }],
+    ["R4653 - a season's last chapter sends the GM to where Reset the season is (gaps, 1.2.105's known gap \"Season's end\"): End of chapter's warning (`DRPG.Chapter.lastChapter`) names, in each language, the button by its label (`DRPG.Season.resetButton`), the window it stands in by its title (`DRPG.Season.title`) and the GM panel's section that window's tile is in (`DRPG.Panel.section.between`)", async () => {
+        /*
+         * 1.2.105's notes, Known gaps, "Season's end": the warning still said "Reset the season from Between sessions" and
+         * "Zresetuj sezon z Between sessions" (English inside the Polish text as well), while Reset the season stands at the
+         * foot of Season setup (season-setup.mjs, `result === "reset"`), a tile of the GM panel's Between sessions (the GM
+         * handbook's table of the panel). Read off both language files: the button's label, the window's title and the
+         * section's name, each the one that language's interface shows. Red at 8e472522: neither names Season setup, and
+         * the Polish names the section in English.
+         */
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const warning = json.DRPG?.Chapter?.lastChapter ?? null;
+            const title = json.DRPG?.Season?.title ?? null, button = json.DRPG?.Season?.resetButton ?? null, section = json.DRPG?.Panel?.section?.between ?? null;
+            must(warning && title && button && section, `lang/${lang}.json lacks a key this reads - this reads nothing`);
+            read[lang] = [warning.includes(button), warning.includes(title), warning.includes(section), warning.includes("{n}") && warning.includes("{next}")];
+        }
+        equal(stableJson(read), stableJson({ en: [true, true, true, true], pl: [true, true, true, true] }),
+            "{language: [names Reset the season's label, Season setup's title, the section's name, keeps {n} and {next}]}");
+    }],
+    ["R4652 - a body announced while the Investigation's entry flashes cuts its flashes, so one screen never holds more than three onsets in a second (scripts/transitions.mjs `onBodyAnnounced`; gaps, 1.2.109's known gap \"Two flash sequences on one screen\")", async () => {
+        /*
+         * 1.2.109's notes, Known gaps: `onBodyAnnounced` added its four flicker timers without clearing the Investigation's,
+         * so a body announced in the first seconds of the Investigation's entry put both on one screen - onsets at 0, 0,
+         * 360, 450, 900 and 900 ms, read from the code, not run; R3710 read each table alone. The rule both tables are
+         * held to is three onsets in any second (E62-3, `flashRate`). A change of the clock cuts the running one's flashes
+         * (`onClockHeard`, "CUT, NOT QUEUED"); the announcement now does the same. Read with the page's timers stood in for
+         * (what is scheduled and still pending, by its delay), the Investigation heard and a body announced at once.
+         * Red at 06d7b5b1: ten onsets pending, six in the first second.
+         */
+        const T = await import("./transitions.mjs");
+        const S = await import("./sequence.mjs");
+        const G = await import("./glass.mjs");
+        const c = phase => ({ day: 3, timeOfDay: "morning", phase, eclipse: false });
+        const live = new Map();
+        let next = 0, read = null;
+        const realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+        try {
+            T.onClockHeard(c("dailyLife"), { on: false, still: true });
+            globalThis.setTimeout = (fn, ms) => { const id = `drpg-r4652-${++next}`; live.set(id, Number(ms) || 0); return id; };
+            globalThis.clearTimeout = id => { live.delete(id); };
+            const heard = T.onClockHeard(c("investigation"), { on: true, still: false });
+            const played = T.onBodyAnnounced({ chapter: 1 }, { on: true, still: false });
+            const onsets = [...live.values()].sort((a, b) => a - b);
+            read = [heard?.kind ?? null, played, onsets, T.flashRate(onsets)];
+        } finally {
+            globalThis.setTimeout = realSet;
+            globalThis.clearTimeout = realClear;
+            S.holdEscape(0, null);
+            T.onClockHeard(c("dailyLife"), { on: false, still: true });
+            G.hintTurn(null);
+            document.body.classList.remove("drpg-flicker");
+        }
+        equal(JSON.stringify(read), JSON.stringify(["investigation", [0, 450, 900, 1350], [0, 450, 900, 1350], 3]),
+            "[the transition heard, the discovery's onsets played, the onsets left pending (ms), the most of them in any second]");
     }],
     ["R3713 - Escape ends a transition here, and the body's flicker plays from the announcement alone (scripts/sequence.mjs `holdEscape`, scripts/transitions.mjs `onBodyAnnounced`; E62 C4, C8, the owner's 10.10 and its 14:10 answer, E95 fix RV-12): while a transition is held Escape is taken and its skip runs once, the next Escape is not taken; the announcement lights the flicker on this page and puts it out, a rehearsal's payload and reduced motion play none; and the Sound window has the row \"Pane flash\", varied, in both languages", async () => {
         /* E62 C2, C4, C8, 12.11.2026. Red at d03c509: sequence.mjs exports no holdEscape, transitions.mjs does not exist. */

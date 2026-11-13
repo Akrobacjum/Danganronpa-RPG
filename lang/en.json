@@ -2959,7 +2959,7 @@
         "other": "Revealed {n} Truth Bullet types."
       },
       "optNextChapter": "Move to chapter {to} (from {from})",
-      "lastChapter": "Chapter {n} is the last of a season. Reset the season from Between sessions rather than moving on to chapter {next}.",
+      "lastChapter": "Chapter {n} is the last of a season. Press Reset the season in Season setup (GM panel, Between sessions) rather than moving on to chapter {next}.",
       "optNextSession": "Count this as session {to} (from {from})",
       "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",

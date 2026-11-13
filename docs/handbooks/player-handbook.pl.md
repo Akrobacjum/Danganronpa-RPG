@@ -117,7 +117,7 @@ Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabra
 
 ### Chwile na cały ekran
 
-Kilka chwil wypełnia na kilka sekund każdy ekran (od 1.2.109). Esc pomija jedną; przy ograniczonym ruchu widzisz nieruchomą klatkę; GM może je wyłączyć.
+Kilka chwil wypełnia na kilka sekund każdy ekran (od 1.2.109). Esc pomija jedną; przy ograniczonym ruchu widzisz nieruchomą klatkę; GM może je wyłączyć. Jeśli dołączysz albo odświeżysz stronę w ciągu 10 minut od jednej z nich, zobaczysz ją raz.
 
 - **Wejście do Class Trial.** Ekran zamyka się na **CLASS TRIAL** i otwiera na rozprawę.
 - **Koniec Class Trial.** Ekran zamyka się na **KONIEC ROZPRAWY** i otwiera na szkołę.
