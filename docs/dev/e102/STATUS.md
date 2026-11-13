@@ -73,17 +73,17 @@ difference is E102's. R-REGISTRY.md is generated and conflicts wherever two line
 
 | Finding | What was done | Commit |
 | --- | --- | --- |
-| C1 a tooltip lost with every check green | the census credits a conditional tooltip only with its condition named in a row; the family tests read where a key lands (scripts/tests-tips.mjs `tipPlacement`, 12 planted pairs); scenario 94 draws probe 08's windows and holds 53 keys on their drawn controls. Red on the reviewer's mutant in the census and R4751; scenario 94 red on a planted one at Play | 73819933, 19222d15 |
+| C1 a tooltip lost with every check green | the census credits a conditional tooltip only with its condition named in a row; the family tests read where a key lands (scripts/tests-tips.mjs `tipPlacement`, 12 planted pairs); scenario 95 draws probe 08's windows and holds 53 keys on their drawn controls. Red on the reviewer's mutant in the census and R4751; scenario 95 red on a planted one at Play | 73819933, 19222d15 |
 | C2 the main-copy guard is off in CI | ci.yml left alone (the owner's call); the census prints in capitals that the guard did not run, and says why | 73819933 |
 | C3 "none needed" hiding help in code | 12 rows "help in code: ..." with held { fn, pattern }, read by the gate | 671d7b96 |
 | C4 the C6 rows at release | timing: C6 lands before E102 ships (its rows go red once E102 is marked shipped) | - |
 | C5, C6 an empty data-tooltip; the tiles' form | ui-kit.mjs `setTip`, used by the six code-made sites; the room and voice tiles in data-tooltip-text, so both headers hold as written | 6b11f879, R4764 |
 | C7 R4760's count | each disabled-at-times site counted, Play included | b8a22cda |
-| C8 R4763's recorded half | drawn in scenario 94 (drawn in tier 1 it writes the notice history; measured) | b8a22cda |
+| C8 R4763's recorded half | drawn in scenario 95 (drawn in tier 1 it writes the notice history; measured) | b8a22cda |
 | C9 builders credited with options they ignore | a builder is credited only through its attrs; a tab through its section's tooltip | 73819933 |
 | C10 check.mjs's plant count | no count named | 73819933 |
 
-R numbers: R4750-R4754 (C1-C5), R4760 on (review fixes, C6-C8); scenario 94 (tooltips-drawn), the number to confirm.
+R numbers: R4750-R4754 (C1-C5), R4760 on (review fixes, C6-C8); scenario 95 (tooltips-drawn; 94 is claude/e72's).
 
 ## Tier 2
 

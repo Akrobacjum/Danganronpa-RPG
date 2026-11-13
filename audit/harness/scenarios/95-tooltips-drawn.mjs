@@ -1,7 +1,7 @@
 /**
  * E102's tooltips as the windows draw them (REVIEW-E102-code C1, claude/e93 de7aff40; 13.11.2026).
  * ---------------------------------------------------------------------------
- *     node cluster.mjs scenarios/94-tooltips-drawn.mjs        (from audit/harness)
+ *     node cluster.mjs scenarios/95-tooltips-drawn.mjs        (from audit/harness)
  *
  * The family tests (R4751-R4754, R4761) read where a key sits in its function's source (scripts/tests-tips.mjs). This
  * scenario draws: it opens every window probe 08 opens (probes/08-capture-windows.mjs `WINDOWS`, through its own

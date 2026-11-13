@@ -14,7 +14,7 @@
  *   - "dataset": `setTip(<element>, "<key>"` (ui-kit.mjs `setTip`);
  *   - "helper": `tipText("<key>"` handed to one of HELPERS, a local function named here with the attribute it writes
  *     from that argument, each read in its own file by `helperWrites`.
- * WHAT IT IS NOT: a drawn window. It reads source; scenario 94-tooltips-drawn draws the windows the harness can open and
+ * WHAT IT IS NOT: a drawn window. It reads source; scenario 95-tooltips-drawn draws the windows the harness can open and
  * reads each control's tooltip there.
  */
 

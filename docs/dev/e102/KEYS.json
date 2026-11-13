@@ -699,8 +699,8 @@
   },
   "noteForTheGmsTooltip": {
    "key": "DRPG.Tips.Case.noteForTheGmsTooltip",
-   "en": "A solution's words reach the players in the case summary; a planned Incident Remnant's become what its finder reads",
-   "pl": "Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy, a planowanego Incident Remnantu do tego, kto go znajdzie",
+   "en": "Your words on this node. A solution's words reach the players in the case summary.",
+   "pl": "Twoje słowa o tym węźle. Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy.",
    "sites": [
     "investigation:2454"
    ]
@@ -849,6 +849,15 @@
    "sites": [
     "case-map:493"
    ]
+  },
+  "finderTextTooltip": {
+   "key": "DRPG.Tips.Case.finderTextTooltip",
+   "en": "What a student reads when they find this Remnant; New Remnant opens with it",
+   "pl": "To, co przeczyta uczeń, który znajdzie ten Remnant; z tym tekstem otworzy się Nowy Remnant",
+   "sites": [
+    "investigation:2454"
+   ],
+   "c7": true
   }
  },
  "Gm": {
