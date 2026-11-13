@@ -1494,12 +1494,12 @@ export const diceLookStore = defineGmStore({
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the
  * others filed under `archive` when the clock left them. A row is a chapter's already, so
- * nothing is filed when the chapter ends (investigation.mjs `keyPlan`), and a stamp per
+ * nothing is filed when the chapter ends (key-remnants.mjs `keyPlan`), and a stamp per
  * field lets a GM writing one slot and another GM another both keep theirs (`setKeyPlan`
  * writes only what it changes). No `exists`: a row outlives the trace it names, as the
  * world key's entries did - a chapter's plan stays until a reset's cut takes it. A reset
  * that keeps the plan (E05 fix r1-G5, M3) keeps ONE chapter's rows, not every chapter's:
- * investigation.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
+ * key-remnants.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)
  * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
  * no season stamped on it, so any chapter left standing would otherwise have read as planned
@@ -1507,7 +1507,7 @@ export const diceLookStore = defineGmStore({
  * until E09 C7, the case rows since). No old key: the first
  * rows come out of the world by `liftKeyPlan`. Beside a chapter's slots, one case row since
  * E09 C6, `${chapter}:case`: `{ keys }`, the closed case's Key Remnant count
- * (investigation.mjs `recordCaseKeys`), which no slot reader takes - kept under the
+ * (key-remnants.mjs `recordCaseKeys`), which no slot reader takes - kept under the
  * chapter the case opened in, and dropped by a reset that keeps the plan, since E09 fix
  * r1-G3.
  */

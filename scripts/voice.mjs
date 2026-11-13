@@ -1502,7 +1502,7 @@ export async function settleTrialVoices({ release = false } = {}) {
 
 /**
  * Ask the primary GM to settle the trial's voices (the GMs' row "trial.enter"), or settle them here on the primary:
- * the shape investigation.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.
+ * the shape key-remnants.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.
  */
 export async function askTrialVoices() {
     if (!game.user?.isGM) return null;

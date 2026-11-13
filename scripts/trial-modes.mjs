@@ -334,7 +334,7 @@ export async function endClosingForVote() {
  * MONOKUMA'S REVEAL (E70 C9, 28.10.2026; S18-71; TR5 = 1, TR28 = 1; amend 4 (f), (h), 5 (c); Q-p2-2)
  *
  * A Key Remnant nobody found was lost to the trial for good, and the table paid 3 Despair a Monokuma for it at the
- * trial's opening (investigation.mjs `chargeForUnfoundKeys`). The guide's Monokuma shows it: "trafia do kazdego
+ * trial's opening (key-remnants.mjs `chargeForUnfoundKeys`). The guide's Monokuma shows it: "trafia do kazdego
  * uczestnika jak znaleziony, ze znanym typem i tekstem dla gracza, a odczyt dalej przez Analyze" (TR5 = 1). So each
  * participant (vote.mjs `trialParticipants`: no Monocub, nobody dead) is handed a copy as a find would hand it - typed
  * Key, the players' text, not read (the owner's Q-p2-2 of 27.10: Analyze at its usual cost, and E16's one filter keeps
@@ -353,7 +353,7 @@ export function revealLeft(record) {
     return Math.max(paid - revealed, 0);
 }
 
-/** `game.drpg.missingKeys()`: this chapter's Key Remnants nobody found and the Reveal has not shown (investigation.mjs `missingKeyRows`), on a GM. */
+/** `game.drpg.missingKeys()`: this chapter's Key Remnants nobody found and the Reveal has not shown (key-remnants.mjs `missingKeyRows`), on a GM. */
 export function missingKeys() {
     return missingKeyRows();
 }

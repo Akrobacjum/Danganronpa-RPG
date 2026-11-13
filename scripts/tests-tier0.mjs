@@ -20960,7 +20960,7 @@ const REGRESSIONS = [
          * helper's answer. Red at C1a: ten declarations read a trace's token directly - bridge-guards.mjs
          * `remnantSourceOf`, cleanup.mjs `findRemnantToken` and `undoLastCleanup`, diagnostics.mjs
          * `diagnoseTruthBullets` (the flag), gm-stores.mjs `gmStoreHealth` (the flag), handover.mjs
-         * `markBodyDisturbed`, investigation.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs
+         * `markBodyDisturbed`, key-remnants.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs
          * `traceKept`, trial-modes.mjs `revealInStep`. Mutant c1b-m1 (gmStoreHealth back on `scene.tokens`) reads red.
          */
         const sources = await moduleSources();
