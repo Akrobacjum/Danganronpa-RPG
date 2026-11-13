@@ -5224,8 +5224,8 @@ body.drpg-bare-glass #drpg-curtain-frost {
 }
 body.drpg-bare-glass :is(#drpg-curtain > canvas.sg, .curtain-glow) { filter: grayscale(1) brightness(0.62); }
 /* the room tile's and the voice tile's art grey with their pane's batch (the storyboard: batch 4 and batch 5) */
-body:is(.drpg-bare-glass, .drpg-bare-b4) .drpg-room-tile-art,
-body:is(.drpg-bare-glass, .drpg-bare-b5) .drpg-voice-tile-face { filter: grayscale(1) brightness(0.75); }
+body:is(.drpg-bare-glass, .drpg-bare-b4) :is(.drpg-room-tile-art, #drpg-room-art),
+body:is(.drpg-bare-glass, .drpg-bare-b5) :is(.drpg-voice-tile-art, #drpg-voice-art) { filter: grayscale(1) brightness(0.75); }
 body.drpg-bare-glass #drpg-curtain > canvas.pulse { opacity: 0; }
 body:is(.drpg-bare-glass, .drpg-bare-seams) #drpg-curtain > canvas.seamline { filter: brightness(0.42); }
 
