@@ -3656,6 +3656,17 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
 .drpg-window-alive th.drpg-data-col-open { width: 5rem; min-width: 5rem; max-width: 5rem; overflow-wrap: anywhere; }
 .drpg-window-alive td.drpg-data-col-open > button + button { margin-left: 4px; }
 .drpg-window-alive td.drpg-data-col-open > [data-drpg-items-slot] { visibility: hidden; }
+/* THE ROW'S BUTTONS WRAP THEIR WORDS (fit-110, 13.11.2026). The glass keeps a panel button on one line (stained-glass.css,
+   `.drpg-panel button` and its `:not()`s, 0,7,2), so "A character dies" held the Do column at 196 px and Level Up's at
+   116, and at 1280x800 the table stood 1205 px in the 1169 px body, its last column cut (style-sweep `--fit`, students:
+   red since E49 A3, 980f974a and 0720cc4e). The two buttons fill their cell and break between words; (0,7,4) over the
+   glass's rule. */
+body .application.drpg-window-alive table.drpg-data-table td > button.drpg-mini-button.drpg-mini-button[type="button"]:is([data-drpg-kill], [data-drpg-levelup]) {
+    width: 100%;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: normal;
+}
 /* A student who is not a Monocub, in the three Monocub columns that stand in every table since E49 A3 (gm-students.mjs
    `aliveTableHtml`): a "-" in the help line's ink, centred, so the column reads empty and not missing. */
 .drpg-window-alive td > .drpg-alive-none { display: block; text-align: center; color: var(--drpg-kit-help-ink); }
@@ -4017,6 +4028,17 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel:is(.drpg-win
     grid-auto-flow: row dense;
     gap: 2px 16px;
     align-content: start;
+}
+/* ON A PHONE (fit-110, 13.11.2026). The sections' list is 15rem and never shrinks, and the rows' column took `flex: 1 1 0`:
+   a basis of nothing never wraps, so at 390x844 the rows stood in the 88 px the list left, two columns of 36 px, and
+   the controls ran past the body - the theme's select at 312..342 and the scale's stepper at 260..417 of a 340 px body
+   (style-sweep `--fit`, drpg-settings-player, look-player: 4 readings red since E49 A1b, b9b03fe2). The column now
+   asks for 18rem before it grows, so it goes under the list where both do not fit beside each other, and the rows go
+   to one column where their column is under 30rem. At the desk the window states its width and both stand beside
+   each other as before. */
+body .application:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-variant-columns > .drpg-settings-main { flex-basis: 18rem; container-type: inline-size; }
+@container (max-width: 30rem) {
+    :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-rows { grid-template-columns: minmax(0, 1fr); }
 }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-row { min-width: 0; padding: 3px 0 5px; border-bottom: 1px solid var(--drpg-kit-line); }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-row.is-off { opacity: 0.5; }
