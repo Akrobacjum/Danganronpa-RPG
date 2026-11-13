@@ -1945,6 +1945,8 @@
     },
     "Tips": {
       "Actions": {
+        "maskRevealTooltip": "Ofiara i pokój znów widzą twój token i twoje imię, a mikrofon wraca.",
+        "maskStayTooltip": "Zostań za „?” do końca pory dnia. Ujawnij się zostaje na twoim kaflu głosu.",
         "difficultyTooltip": "Najniższy wynik, który rzut ucznia musi osiągnąć",
         "statisticTooltip": "Statystyka, na którą rzuca uczeń",
         "refuseTooltip": "Odrzuca akcję. Uczeń zachowuje akcję.",
@@ -2090,8 +2092,6 @@
         "aStudentSNameStartTooltip": "Zna je znowu po każdym resecie sezonu, ale nie teraz"
       },
       "More": {
-        "maskRevealTooltip": "Ofiara i pokój znów widzą twój token i twoje imię, a mikrofon wraca.",
-        "maskStayTooltip": "Zostań za „?” do końca pory dnia. Ujawnij się zostaje na twoim kaflu głosu.",
         "volumeTooltip": "Jak głośno słyszysz tę osobę, tylko u siebie, i wyłącza jej wyciszenie; inni słyszą ją jak wcześniej",
         "changeTheKeyTooltip": "Otwiera sterowanie Foundry, gdzie ustawiasz klawisz mówienia"
       }

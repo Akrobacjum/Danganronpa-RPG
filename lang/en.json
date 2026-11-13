@@ -1860,6 +1860,8 @@
     },
     "Tips": {
       "Actions": {
+        "maskRevealTooltip": "The victim and the room see your token and your name again, and your microphone comes back.",
+        "maskStayTooltip": "Stay behind the \"?\" until the time of day ends. Reveal yourself stays on your voice tile.",
         "difficultyTooltip": "The lowest total the student's roll needs",
         "statisticTooltip": "The statistic the student rolls against",
         "refuseTooltip": "Turns the action down. The student keeps their action.",
@@ -2003,8 +2005,6 @@
         "aStudentSNameStartTooltip": "Known again after each season reset, not now"
       },
       "More": {
-        "maskRevealTooltip": "The victim and the room see your token and your name again, and your microphone comes back.",
-        "maskStayTooltip": "Stay behind the \"?\" until the time of day ends. Reveal yourself stays on your voice tile.",
         "volumeTooltip": "How loud this person is for you alone, and unmutes them; the others hear them as before",
         "changeTheKeyTooltip": "Opens Foundry's controls, where you set the push-to-talk key"
       }

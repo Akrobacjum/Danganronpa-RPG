@@ -12,8 +12,10 @@
  *     (gm-stores.mjs `maskStore`), never in a flag or a world setting, and written back at the end (`restorePatch`).
  *     A GM's browser, and a Spectator's (the coordinator's default: a Spectator sees through it, as it sees secret
  *     projects), draws the character's own name over the "?" (`drawMaskName`), from the documents it already holds.
- *   - THE MICROPHONE. The killer's account is blocked by C6's block with one more reason (voice.mjs `settleTrialVoices`,
- *     `maskMutedIds`): the trial's own BROADCAST_AUDIO write, given back exactly as found.
+ *   - THE VOICE. The killer is sent to a silent room of their own (voice.mjs `maskedRow`; the coordinator's answer of
+ *     13.11: a name in the victim's voice list would defeat the mask), so they neither speak to the room nor hear it and
+ *     no list there names them; and their account is blocked by C6's block with one more reason (`settleTrialVoices`,
+ *     `maskMutedIds`), given back exactly as found. The owner may revise the silent room (LIVE-E69-05).
  *   - THE CAST. Every copy but the killers' holds `killerId` and `killerTurnId` null while the mask stands (incident-store.mjs
  *     `castCopyFor`, the rule a trap's victim already had); the victim's first whisper says "someone" (murder-rules.mjs).
  *   - THE SHEET. Another player's browser closes the sheet of a character whose token is masked (anonymity.mjs), read
@@ -25,9 +27,9 @@
  * WHEN IT ENDS: the reveal, or a new time of day (`drpgTimeOfDayChanged`), whichever comes first; the season's reset cuts
  * the store. The incident's own end does not end it (a default, docs/dev/e69/STATUS.md).
  *
- * WHAT IT CANNOT HIDE (Foundry's and LiveKit's limits, recorded by 30-security's note): a token document keeps its `actorId`, so a console can
- * still read `game.actors.get(token.actorId).name`; and LiveKit lists the killer among the room's participants under
- * their user (the voice tile's list names them). LIVE-E69-05 reads both at a table.
+ * WHAT IT CANNOT HIDE (Foundry's limit, recorded by 30-security's note): a token document keeps its `actorId`, so a
+ * console can still read `game.actors.get(token.actorId).name` (it needs a console, not the interface). LIVE-E69-05 reads it at a
+ * table.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -136,8 +138,10 @@ export async function maskKiller(state) {
     const tokens = tokensOf(killer).map(({ scene, token }) => ({ sceneId: scene.id, tokenId: token.id, look: lookOf(token) }));
     await maskStore.patch(killer.id, { killerId: killer.id, victimId: state.victimId ?? null, userIds: ownersOf(killer),
         mark: await markNow(), tokens, at: Date.now() });
-    // The microphone first, then the face: nobody hears the voice that goes with the "?".
+    // The voice first, then the face: the killer goes to a silent room of their own (voice.mjs `maskedRow`) and their
+    // microphone is blocked, before anybody sees the "?".
     await settleBlock();
+    await placeVoicesNow();
     for (const { scene, token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => error(`Could not mask a token of ${killer.name}`, err));
     await retell();
     await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.card"))}</p>` });
@@ -147,16 +151,18 @@ export async function maskKiller(state) {
 
 /** End `killerId`'s mask (`why` for the log): every token's look put back, the block lifted, the cast sent again. */
 export async function endMask(killerId, why = "end") {
+    if (!game.user?.isGM) return false;
     const row = maskStore.get(killerId);
     if (!row) return false;
     await maskStore.drop(killerId);
     const { forcedDeletion } = await import("./utils.mjs");
     for (const { sceneId, tokenId, look } of row.tokens ?? []) {
-        const token = game.scenes.get(sceneId)?.tokens?.get(tokenId);
+        const token = game.scenes.get(sceneId)?.tokens?.find(t => t.id === tokenId);
         if (!token || !look) continue;
         await token.update(restorePatch(look, forcedDeletion())).catch(err => error("Could not give a masked token its look back", err));
     }
     await settleBlock();
+    await placeVoicesNow();
     await retell();
     const killer = game.actors.get(killerId);
     if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` });
@@ -185,6 +191,15 @@ async function settleBlock() {
     return settleTrialVoices();
 }
 
+/** The voice pass at once, on the primary (voice.mjs `scheduleReconcile`). */
+async function placeVoicesNow() {
+    try {
+        (await import("./voice.mjs")).scheduleReconcile({ immediate: true });
+    } catch (err) {
+        error("Could not place the voices again", err);
+    }
+}
+
 async function retell() {
     try {
         const { retellCast } = await import("./incident-store.mjs");
@@ -209,9 +224,9 @@ export async function askReveal({ actor = myMask() } = {}) {
         title: game.i18n.localize("DRPG.Mask.askTitle"),
         body: `<p>${esc(game.i18n.localize("DRPG.Mask.ask"))}</p>`,
         footer: {
-            primary: { action: "reveal", label: game.i18n.localize("DRPG.Mask.reveal"), tooltip: tipText("DRPG.Tips.More.maskRevealTooltip"),
+            primary: { action: "reveal", label: game.i18n.localize("DRPG.Mask.reveal"), tooltip: tipText("DRPG.Tips.Actions.maskRevealTooltip"),
                 callback: () => "reveal" },
-            secondary: [{ action: "stay", label: game.i18n.localize("DRPG.Mask.stay"), tooltip: tipText("DRPG.Tips.More.maskStayTooltip"),
+            secondary: [{ action: "stay", label: game.i18n.localize("DRPG.Mask.stay"), tooltip: tipText("DRPG.Tips.Actions.maskStayTooltip"),
                 callback: () => "stay" }]
         },
         rejectClose: false
@@ -250,15 +265,26 @@ export function registerMasks() {
         if (isPrimaryGm()) masksAtNewTimeOfDay().catch(err => error("The masks could not end with the time of day", err));
     });
     import("./spectator.mjs").then(m => { spectatorViewerOf = () => Boolean(m.spectatorViewer?.()); }).catch(() => {});
-    Hooks.on("refreshToken", token => drawMaskName(token));
-    if (game.user?.isGM) return;
-    const ask = () => { if (myMask()) askReveal().catch(err => error("Could not ask whether to reveal", err)); };
-    Hooks.on("updateToken", (token, changes) => {
-        if (changes?.flags?.[MODULE_ID] && Object.hasOwn(changes.flags[MODULE_ID], MASK_FLAG)) {
-            if (!isMaskedToken(token)) askedFor = null;
-            else ask();
-            Hooks.callAll("drpgMaskChanged");
-        }
+    Hooks.on("refreshToken", token => {
+        drawMaskName(token);
+        if (!game.user?.isGM) noticeOwnMask();
     });
-    ask();
+    if (game.user?.isGM) return;
+    noticeOwnMask();
+}
+
+/* The mask this browser last saw on its own character (an actor id, or null), so a redraw that changes nothing is quiet. */
+let ownMaskSeen = null;
+
+/**
+ * The killer's browser notices its own mask go up or come down on a token's redraw (Foundry redraws a token whose
+ * document changed): asked once whether to reveal, and the voice tile's button repainted (`drpgMaskChanged`).
+ */
+function noticeOwnMask() {
+    const mine = myMask()?.id ?? null;
+    if (mine === ownMaskSeen) return;
+    ownMaskSeen = mine;
+    if (!mine) askedFor = null;
+    else askReveal().catch(err => error("Could not ask whether to reveal", err));
+    Hooks.callAll("drpgMaskChanged");
 }

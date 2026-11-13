@@ -26604,7 +26604,7 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
-    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 32 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
@@ -26638,7 +26638,10 @@ const INVARIANTS = [
             ["DRPG.Tips.Actions.frameStudentTooltip","action-tamper.mjs","chooseTamper"],
             ["DRPG.Tips.Actions.nothingMatchesRefuseTooltip","observe.mjs","askWhichRemnant"],
             ["DRPG.Tips.Actions.indirectMurderWindowTooltip","projects-ui.mjs","openProjectDialog"],
-            ["DRPG.Tips.Actions.doItCostTooltip","rest.mjs","choosePicks"]
+            ["DRPG.Tips.Actions.doItCostTooltip","rest.mjs","choosePicks"],
+            // E69 C8 (13.11.2026): the killer's question behind the "?" (mask-gm.mjs), its two buttons.
+            ["DRPG.Tips.Actions.maskRevealTooltip","mask-gm.mjs","askReveal"],
+            ["DRPG.Tips.Actions.maskStayTooltip","mask-gm.mjs","askReveal"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -26646,7 +26649,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 32, "lang/en.json has not the family's 32 keys under DRPG.Tips.Actions");
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Actions");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -43302,7 +43305,7 @@ const INVARIANTS = [
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
-                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
+                "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "mask-gm.mjs askReveal", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
@@ -55822,6 +55825,32 @@ const INVARIANTS = [
         T.paintReveal(tile, { masked: null });
         equal(stableJson([Boolean(drawn), label === game.i18n.localize("DRPG.Mask.reveal"), pressed, controls.querySelectorAll(".drpg-voice-reveal").length]),
             stableJson([true, true, ["R6031ACTOR000000"], 0]), "[drawn, its name, a press asks to reveal, gone once not masked]");
+    }],
+    ["R6032 - a killer behind a \"?\" is in a silent room of their own, out of the victim's channel (scripts/voice.mjs `maskedRow`, `placeVoices`' `masks`; E69 C8, the coordinator's answer of 13.11): an account whose character is masked is sent its own silent room and marked masked, its microphone held as masked there, and is no witness; the victim and everyone else are placed as before; with no mask handed in nobody moves", async () => {
+        /* E69 C8, 13.11.2026. Plain objects, nothing written, as R6020. Red with this test on the C8 tree before the silent room: no `maskedRow`. */
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        ok(typeof V.maskedRow === "function", "voice.mjs has no maskedRow: a masked killer stays in the victim's channel");
+        if (typeof V.maskedRow !== "function") return;
+        const school = { id: "R6032SCHOOL00000", name: "R6032 School" };
+        const account = id => ({ id, name: id, active: true, isGM: false });
+        const actor = id => ({ id, name: id, type: "character", getFlag: () => undefined });
+        const A = { killer: actor("R6032AKILLER0000"), victim: actor("R6032AVICTIM0000") };
+        const U = { killer: account("R6032UKILLER0000"), victim: account("R6032UVICTIM0000") };
+        const label = (target, userId) => (target === VC.silentRoomFor(userId) ? "silent" : target === V.liveKitRoomFor(school.id, "Kitchen") ? "Kitchen" : `?${target}`);
+        const place = async masks => {
+            const placed = await V.placeVoices({
+                actors: Object.values(A), eclipse: false, trial: false,
+                death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                locate: () => ({ scene: school, room: "Kitchen" }),
+                userOf: a => U[Object.keys(A).find(n => A[n].id === a.id)], dead: () => false, monokumaOf: () => false, masks
+            });
+            return Object.fromEntries(Object.keys(A).map(k => { const row = placed.byUser.get(U[k].id); return [k, [label(row?.target ?? null, U[k].id), Boolean(row?.masked)]]; }));
+        };
+        const hold = V.micHold({ user: U.killer, room: VC.silentRoomFor(U.killer.id), external: false, connected: false, actors: [], trial: null, listening: null, masked: true });
+        equal(stableJson({ masked: await place(new Set([A.killer.id])), none: await place(new Set()), hold: [hold?.reason ?? null, hold?.held ?? null] }),
+            stableJson({ masked: { killer: ["silent", true], victim: ["Kitchen", false] }, none: { killer: ["Kitchen", false], victim: ["Kitchen", false] }, hold: ["masked", true] }),
+            "{masked | none: per account [the room it is sent, marked masked]; hold: the killer's microphone in its silent room} - the mask's voice rule");
     }],
     ["R3757 - a GM's room action is drawn only on a payment of its whole price (E93 C3, C6; the coordinator's fix of 12.11.2026, from E93's watched gap): the GM's price is one action, two under Toll; a payment's size is what its one write took down, a Burst's covering any price; a ticket of one action does not cover two, one of two and a Burst's do", async () => {
         /*

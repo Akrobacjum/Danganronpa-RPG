@@ -118,7 +118,7 @@ function onRenderSheet(app, element) {
         const actor = app?.document;
         // A KILLER BEHIND A "?" (E69 C8; mask-gm.mjs): another player's browser closes the sheet, whatever this world's
         // anonymity says, read off the token flag it holds. A GM and a Spectator see through the mask.
-        if (actor?.type === "character" && maskedSheetClosed(actor, game.user)) {
+        if (maskedSheetClosed(actor, game.user)) {
             if (root) root.style.display = "none";
             app?.close?.({ force: true, animate: false })?.catch?.(() => {});
             return;

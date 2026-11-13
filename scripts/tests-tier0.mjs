@@ -6447,6 +6447,8 @@ const REGRESSIONS = [
             // E69 C6, C7 (13.11.2026): an eavesdrop begun and Echoes read on the primary (eavesdrop-gm.mjs, echoes-gm.mjs),
             // whose runs pass their `{ refused }` on.
             startEavesdrop: "refused", echoesFor: "refused", echoesRefusal: "returns",
+            // E69 C8 (13.11.2026): a killer's reveal on the primary (mask-gm.mjs), whose run passes its `{ refused }` on.
+            revealMask: "refused",
             // E74 C2: a barricade put up on the primary (doors-gm.mjs), its refusals by `shutRefusal`.
             shutDoor: "refused", shutRefusal: "why",
             // E74 C3: a door forced on the primary (doors-gm.mjs), whose run passes its `{ refused }` on.
@@ -10724,7 +10726,8 @@ const REGRESSIONS = [
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
-        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["listen", "lock", "mic", "sound", "team"], [], ["no-such-sprite"]]),
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["listen", "lock", "mic", "query", "sound", "team"], [], ["no-such-sprite"]]),
+            // E69 C8 (13.11.2026): Reveal yourself wears Legacy's query mark, `query` (an intended change).
             // E69 C6 (13.11.2026): Stop listening and a GM's eavesdroppers wear Legacy's ear, `listen` (an intended change).
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],
@@ -22873,7 +22876,9 @@ const REGRESSIONS = [
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"line": 6},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).
-            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
+            "eavesdrop-gm.mjs": {"card": 1},
+            // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
+            "mask-gm.mjs": {"card": 2}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},

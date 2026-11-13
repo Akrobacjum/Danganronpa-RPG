@@ -283,7 +283,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_MASK_REVEAL]: {
         label: "DRPG.Bridge.what.mask.reveal",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id }),
         run: handleMaskReveal,
         // The asker's "?" goes when the token's look comes back; nothing is said.

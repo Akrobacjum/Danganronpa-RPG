@@ -867,8 +867,10 @@ export async function voiceTargets() {
     const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
     // Listen's eavesdrops that stand (E69 C6; eavesdrop-gm.mjs, which ends on the primary the ones that do not).
     const listens = eclipse || trial ? new Map() : await (await import("./eavesdrop-gm.mjs")).listensInForce();
+    // The killers behind a "?" (E69 C8; mask-gm.mjs): each in a silent room of their own while the mask stands.
+    const masks = new Set(Object.keys(maskStore.entries() ?? {}));
     const { rows, byUser, claims, waits, held } = await placeVoices({
-        listens,
+        listens, masks,
         actors: game.actors.filter(a => a.type === "character" && !watchesForTheDead(a)), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
         locate: gaps.locate,
@@ -944,7 +946,7 @@ export function contestedOf(claims) {
  */
 export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null,
     userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma, users = [],
-    listens = new Map() } = {}) {
+    listens = new Map(), masks = new Set() } = {}) {
     // Nobody's death is asked in an Eclipse or the trial (`voiceClaim`; R117), so nor are the facts of one.
     const asked = !eclipse && !trial;
     const facts = asked ? death ?? await deathFacts() : null;
@@ -1011,6 +1013,11 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         const heard = listeningRow(row, listens);
         if (heard !== row) byUser.set(userId, heard);
     }
+    // THE KILLER BEHIND A "?" (E69 C8; mask-gm.mjs): one more rule, after the eavesdrop's (`maskedRow`).
+    for (const [userId, row] of byUser) {
+        const hidden = maskedRow(row, masks);
+        if (hidden !== row) byUser.set(userId, hidden);
+    }
 
     const waits = new Map();
     const held = new Set();
@@ -1029,7 +1036,7 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
     const cast = facts?.cast ?? new Set();
     // Never a Spectator (E92 C2): it watches, and is nobody's witness.
     // Nor a listener at a door (E69 C6): they hear the room and are not in it.
-    const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma && !row.listening
+    const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma && !row.listening && !row.masked
         && !isSpectator(row.actor) && !dead(row.actor) && !cast.has(row.actor.id));
     for (const [index, row] of rows.entries()) {
         if (!row.fallen || row.gone !== false || !row.target || !row.user?.active) continue;
@@ -1061,6 +1068,20 @@ export function listeningRow(row, listens = new Map()) {
     if ((row.scene?.id ?? null) !== listen.sceneId || row.room !== listen.from) return row;
     return { ...row, target: liveKitRoomFor(listen.sceneId, listen.into), listening: { from: listen.from, into: listen.into },
         kept: false, why: `listening at the door of ${listen.into}, from ${listen.from}` };
+}
+
+/**
+ * THE KILLER BEHIND A "?", THE RULE (E69 C8, 13.11.2026; the coordinator's answer of 13.11: a name in the victim's voice
+ * list would defeat the mask). An account whose voice character is a killer the GMs hold masked (`masks`, killer actor
+ * ids) is sent to a silent room of its own (voice-client.mjs `silentRoomFor`, the word its browser leaves voice on, as
+ * in an Eclipse): it neither speaks to the room nor hears it, and no list in the room names it. Outside an Eclipse and
+ * the trial only (`placeVoices` is not asked them there); the account goes back to its token's room when the mask
+ * ends. Pure (R6032).
+ */
+export function maskedRow(row, masks = new Set()) {
+    if (!row?.actor || !row.user || row.user.isGM || !masks.has(row.actor.id)) return row;
+    return { ...row, room: null, target: silentRoomFor(row.user.id), claim: CLAIM.inRoom, masked: true, kept: false, keep: false,
+        why: "behind a \"?\" after a murder's opening - a silent room of its own" };
 }
 
 /**
@@ -1239,6 +1260,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
     // but in the Spectators' room, once the primary has sent it there (E92 C6): a line, not held.
     if (spectatorAccount(user, { actors })) return room === SPECTATOR_ROOM ? { reason: "spectatorTalk", held: false } : { reason: "spectator", held: true };
+    // Behind a "?" after a murder's opening (E69 C8): HELD - out of voice in a silent room of its own, named before the
+    // Eclipse's reading of that same silent room, until the reveal or the end of the time of day.
+    if (masked) return { reason: "masked", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
     // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
     if (!connected && !eclipse) return { reason: "offline", held: false };
@@ -1256,8 +1280,6 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
     // browser in the room it listens into.
     if (listening && room === listening) return { reason: "listening", held: true };
-    // Behind a "?" after a murder's opening (E69 C8): HELD, until the reveal or the end of the time of day.
-    if (masked) return { reason: "masked", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
