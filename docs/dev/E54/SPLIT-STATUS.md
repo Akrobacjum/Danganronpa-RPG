@@ -127,18 +127,18 @@ between two declarations moved to the same file is ("decide its file"), and a de
 is named (`stay`). A bare statement moves when a target names it by the text it starts with (`statements`): the
 season registry's rows, which R1254 holds to the file of the functions they name.
 
-| Manifest | What moves | Into | On 421f2395, throwaway worktree, the scripts as committed |
+| Manifest | What moves | Into | On 421f2395, throwaway worktree, the scripts as committed (84816bc0) |
 | --- | --- | --- | --- |
-| tools/e54/windows.json (the plan's W1) | `windowWidthFor`, `eachPane` | windows.mjs (97 lines; utils.mjs 1421 -> 1335) | moved-only 8/8 green (moved 85, cuts 56 of 56 identical); repoint 18 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
-| tools/e54/key-remnants.json (K1, F4) | "THE PLAN" through `same`, `randomPointIn`, `createKeyRemnant` .. `placeKeyRow`, and the season registry's `keyPlan` row; `openNewTrace` stays (`stay`) | key-remnants.mjs (1248; investigation.mjs 3239 -> 2011) | moved-only 8/8 green (moved 1150, promoted 7, cuts 86 of 86 identical); repoint 33 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
-| tools/e54/cleanup-reshape.json (P1, F5) | the veiled `whisperToOwner`, the receipt store (`RECEIPT_FIELDS` .. `recreationDataFor`), `findRemnantToken`, the reshape road (`askTransform` .. `askTransformChange`), in that order | cleanup-reshape.mjs (804; cleanup.mjs 3665 -> 2877) | moved-only 8/8 green (moved 733, promoted 7, cuts 81 of 82 identical, the 82nd listed); repoint 24 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
-| tools/e54/chapter.json (D1, D2) | "THE BODY IS FOUND" (`faintPrepCandidates` .. `openBodyDiscoveryDialog`); "DEATH" (`livingStudents` .. `chooseFirst`) with the registry's `deaths` and `bodyFound` rows; body.mjs first (`targetsOrder` says why) | body.mjs (952), death.mjs (758); chapter.mjs 2717 -> 1044 | moved-only 8/8 green (moved 1560, promoted 3, cuts 70 of 70 identical); repoint 74 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
+| tools/e54/windows.json (the plan's W1) | `windowWidthFor`, `eachPane` | windows.mjs (97 lines; utils.mjs 1421 -> 1335) | moved-only 8/8 green (moved 85, cuts 56 of 56 identical); repoint 15 rewrites; quick green (lint, check 17 parts, gate 37/37); tiers 0-1 1305 passed, 0 failed, 16 skipped (skip-baseline's rows), 0 red |
+| tools/e54/key-remnants.json (K1, F4) | "THE PLAN" through `same`, `randomPointIn`, `createKeyRemnant` .. `placeKeyRow`, and the season registry's `keyPlan` row; `openNewTrace` stays (`stay`) | key-remnants.mjs (1248; investigation.mjs 3239 -> 2011) | moved-only 8/8 green (moved 1150, promoted 7, cuts 86 of 86 identical); repoint 31 rewrites; quick green (lint, check 17 parts, gate 37/37); tiers 0-1 1305 passed, 0 failed, 16 skipped (skip-baseline's rows), 0 red |
+| tools/e54/cleanup-reshape.json (P1, F5) | the veiled `whisperToOwner`, the receipt store (`RECEIPT_FIELDS` .. `recreationDataFor`), `findRemnantToken`, the reshape road (`askTransform` .. `askTransformChange`), in that order | cleanup-reshape.mjs (804; cleanup.mjs 3665 -> 2877) | moved-only 8/8 green (moved 733, promoted 7, cuts 81 of 82 identical, the 82nd listed); repoint 24 rewrites; quick green (lint, check 17 parts, gate 37/37); tiers 0-1 1305 passed, 0 failed, 16 skipped (skip-baseline's rows), 0 red |
+| tools/e54/chapter.json (D1, D2) | "THE BODY IS FOUND" (`faintPrepCandidates` .. `openBodyDiscoveryDialog`); "DEATH" (`livingStudents` .. `chooseFirst`) with the registry's `deaths` and `bodyFound` rows; body.mjs first (`targetsOrder` says why) | body.mjs (952), death.mjs (758); chapter.mjs 2717 -> 1044 | moved-only 8/8 green (moved 1560, promoted 3, cuts 70 of 70 identical); repoint 72 rewrites; quick green (lint, check 17 parts, gate 37/37); tiers 0-1 1305 passed, 0 failed, 16 skipped (skip-baseline's rows), 0 red |
 | tools/e54/windows-settings.json (W3, F2) | the settings half of the window size | - | refused, as F2 says: `scaleMemo` reads `layoutHeight`, `scaleWindow` reads `settingsRegistered`, `layoutHeight` and `sliderScale`, which settings.mjs keeps. Not a pure move until W2 hands `scaleWindow` its readers; after W1 windows.mjs exists, and appending to a file is not written in split.mjs |
 | tools/e54/remnants-migrate.json (F3) | `migrateRemnants` .. `seedPublicIfMissing` | - | refused, as F3 says: 25 reads of the ten names the plan lists (`REMNANT_FLAGS` 6, `isNeutralName` 4, `keyOf` 4, `setRemnantSecret` 4, `traceLabel` 2, `TINTS`, `defaultPublic`, `neutralTraceNames`, `oldTokenTie`, `traceTokensOn`), which remnants.mjs keeps. Into migrate.mjs itself it would refuse sooner: the file exists. The owner's default of Q-E54-3 (leave them) stands on this |
 
 The sheet, made again by the scripts as committed (they grew for the cuts below): moved-only 8/8 green, repoint 46
 rewrites; its tree differs from the one proven above in two lists of files, which now read the whole family
-(R1038, R1110); quick and tiers 0-1 running on this tree (13.11.2026), not yet measured.
+(R1038, R1110); quick green; tiers 0-1 1305 passed, 0 failed, 16 skipped, 0 red.
 
 Main itself, the same tiers 0-1, the same day: 1305 passed, 0 failed, 16 skipped, 0 red (the repoint stage's section).
 
@@ -173,10 +173,11 @@ for byte, so those proofs stand.
 
 ### On other lines (13.11.2026)
 
-With the scripts one commit before 84816bc0, on each of the 36 lines committed to since 12.11, merged into main, each
-cut on a fresh copy of the merge: windows, key-remnants, cleanup-reshape and chapter split and repoint (`--dry`) on
-every one; the sheet on all but e72 and e100, refused as above; windows-settings and remnants-migrate refuse on every
-one. Being run again with 84816bc0's repoint, whose counts differ; not yet measured.
+With the scripts as committed (84816bc0), on each of the 36 lines committed to since 12.11, merged into main, each cut
+on a fresh copy of the merge: windows, key-remnants, cleanup-reshape and chapter split, and repoint (`--dry`) applies,
+on every one - 15, 31, 24 and 72 rewrites on 32 lines; windows 16 and chapter 74 on e72, cleanup 28 on e64, chapter
+73 on e64 and e64-inv (a line's own readers more). The sheet splits and repoints (46; 47 on e64) on all but e72 and
+e100, refused as above. windows-settings and remnants-migrate refuse on every line.
 
 ### Not done here
 
