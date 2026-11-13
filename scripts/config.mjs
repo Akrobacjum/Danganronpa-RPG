@@ -1421,10 +1421,13 @@ export const KEY_REMNANTS = {
  *   an Objection   1 action, else 1 Hope, else 1 Sanity
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
- *   Tamper         1 action, else 1 Sanity. No Hope step, deliberately: an
- *                  Objection buys a moment of the trial's attention, and this
- *                  buys the destruction of evidence - Hope is the wrong currency
- *                  for it, and Tamper was the one action already priced twice.
+ *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
+ *                  killer's own Stage 6 reaches the Sanity step: anyone else's
+ *                  Tamper costs 1 action and no Sanity, and with no action left
+ *                  there is no Tamper (cleanup.mjs `tamperPriceSkip`). No Hope
+ *                  step, deliberately: an Objection buys a moment of the trial's
+ *                  attention, and this buys the destruction of evidence - Hope is
+ *                  the wrong currency for it.
  *
  * ARRAY ORDER IS PAYMENT ORDER, and `steps[0].amount` is also the action cost
  * the tile shows, so `ACTIONS.<key>.cost` and this table must agree - there is a
@@ -1824,12 +1827,13 @@ export const ACTIONS = {
      * unreachable, and made planting a false trail a privilege of the one
      * person who least needs to be believed.
      *
-     * ONE PRICE ON BOTH ROADS, AND IT IS A CHAIN (T-1, Dawid 17.09). An attempt
-     * costs 1 action, and only with no action left 1 Sanity - see
-     * `PRICE_CHAINS.tamper`. It used to cost an action AND a Sanity mark on this
-     * tile (the paragraph here said otherwise from 29.08 until T-1, and the code
-     * charged both), which made Tamper the one action priced twice. The killer on
-     * their own night pays no action, so for them the chain starts at the Sanity.
+     * ONE ACTION, NO SANITY (E64, 12.11.2026; the owner's answer: "Tamper kosztuje
+     * 1 akcje, domyslnie bez Sanity"). An attempt costs 1 action, and with no
+     * action left there is no Tamper: cleanup.mjs `tamperPriceSkip` skips the
+     * Sanity step of `PRICE_CHAINS.tamper` for everyone but the killer on their own
+     * night, who pays no action, so for them the chain starts at the Sanity (D3).
+     * From T-1 (Dawid 17.09) until 1.2.105 the chain went on to 1 Sanity with no
+     * action left; before T-1 this tile charged an action AND a Sanity mark.
      * Both roads end in `attemptCleanup` / `attemptStageSix` with a flag saying
      * which door they came through - see `viaAction` in cleanup.mjs.
      */
@@ -1882,10 +1886,13 @@ export const ACTIONS = {
         icon: "fa-shoe-prints",
         traits: [],
         cost: 0,
+        // "A free crossing", not "Sprint" (1.2.112): a Dash and a Facilities room action bank theirs in the same counter
+        // as a Sprint (actions.mjs `grantFreeMoves`), and a crossing takes whichever is there (`takeMove`).
         hint: "Moving inside a room is free. Each time of day, your first crossing into another room uses your Free "
-            + "Move; each crossing after that costs an action, or one of the extra crossings you bought with Sprint.",
+            + "Move; each crossing after that takes a free crossing if you hold one (Sprint, Dash, Facilities), or "
+            + "an action.",
         description: "Moving inside your room is free. Each time of day, crossing into another room uses your Free "
-            + "Move, then Sprint crossings, then actions; with none left, the crossing is undone. An Overflow can "
+            + "Move, then your free crossings, then actions; with none left, the crossing is undone. An Overflow can "
             + "block the Free Move, and the GMs can turn the charge off.",
         instruction: "Drag your token. Crossing into another room is what counts - the cost "
             + "is applied when you arrive."

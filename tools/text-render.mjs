@@ -573,7 +573,11 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // 1.2.112, 13.11.2026: the owner's decision through the coordinator - Secure a Trace leaves its Remnant at the scene,
     // Reinforced on every hit, so the hint drops "take ... with you" and "Reinforced on a critical" from B01a's after.
     ["DRPG.Config.CRISIS_ACTIONS.secureTrace.hint", Object.freeze({ by: "1.2.112", date: "13.11.2026", page: "1.2.112 rule fixes",
-        card: "Secure a Trace", text: "Secure a Trace zostawia Reinforced Remnant przy kazdym trafieniu" })]
+        card: "Secure a Trace", text: "Secure a Trace zostawia Reinforced Remnant przy kazdym trafieniu" })],
+    // 1.2.112, 13.11.2026: the owner's text fix - a Dash and Facilities bank their crossings beside a Sprint's, so the
+    // Move's hint and description say "a free crossing" where B01a's afters named Sprint alone.
+    ...["DRPG.Config.ACTIONS.move.hint", "DRPG.Config.ACTIONS.move.description"].map(key => [key, Object.freeze({ by: "1.2.112",
+        date: "13.11.2026", page: "1.2.112 rule fixes", card: "Move", text: "darmowe przejscie z Dasha i Facilities, nie tylko Sprint" })])
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

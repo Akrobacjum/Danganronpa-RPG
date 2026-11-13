@@ -3985,7 +3985,7 @@
       "free": "Free",
       "freeAvailable": "Your Free Move for this time of day is still there.",
       "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
-      "nextSprint": "Free Move used. The next room takes a Sprint, and your actions stay.",
+      "nextSprint": "Free Move used. The next room takes a free crossing, and your actions stay.",
       "nextBurst": "Free Move used. The next room takes your Burst, and your actions stay.",
       "entered": "You enter {room}.",
       "leftRooms": "Left the room.",

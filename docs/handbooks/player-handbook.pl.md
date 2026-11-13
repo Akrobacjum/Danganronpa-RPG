@@ -140,10 +140,10 @@ Szkoła narysowana jest jako pokoje. Wszystko - ruch, Search, Listen, to, kto ci
 | Pierwsze przejście do połączonego pokoju o tej porze dnia | twój **Free Move** |
 | Każde kolejne przejście | **1 akcja** za każde |
 | Po schodach w górę lub w dół do innego pokoju | przejście jak każde inne; zmiana piętra na klatce schodowej to ruch wewnątrz własnego pokoju |
-| Przejście kupione Hope Callem Sprint | za darmo |
-| Przejście, gdy nie masz już Free Move ani Sprint, a masz Burst | twój **Burst**, zanim pójdzie akcja |
+| Przejście, gdy masz darmowe przejście (kupione Hope Callem Sprint, wybiegane Dashem albo dane przez akcję pokoju z Facilities) | to darmowe przejście |
+| Przejście, gdy nie masz już Free Move ani darmowego przejścia, a masz Burst | twój **Burst**, zanim pójdzie akcja |
 
-Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Opis akcji Move mówi, co zabierze następny pokój - Free Move, Sprint, twój Burst albo akcję. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
+Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Opis akcji Move mówi, co zabierze następny pokój - Free Move, darmowe przejście, twój Burst albo akcję. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
 
 Zawraca cię:
 

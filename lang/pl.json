@@ -4296,7 +4296,7 @@
       "free": "Za darmo",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
-      "nextSprint": "Free Move zużyty. Następny pokój zabierze Sprint, a akcje zostaną.",
+      "nextSprint": "Free Move zużyty. Następny pokój zabierze darmowe przejście, a akcje zostaną.",
       "nextBurst": "Free Move zużyty. Następny pokój zabierze twój Burst, a akcje zostaną.",
       "entered": "Wchodzisz do: {room}.",
       "leftRooms": "Opuszczasz pokój.",
@@ -7080,8 +7080,8 @@
         },
         "move": {
           "label": "Move",
-          "hint": "W obrębie pokoju ruszasz się za darmo. Pierwsze przejście do innego pokoju o danej porze dnia zużywa twój Free Move, a za każde kolejne płacisz przejściem kupionym wcześniej Callem Sprint albo akcją.",
-          "description": "Ruch po pokoju jest darmowy. O każdej porze dnia pierwsze przejście do innego pokoju zużywa Free Move, a każde kolejne kosztuje przejście kupione Callem Sprint albo akcję; bez nich token wraca na miejsce. Overflow może zablokować Free Move, a GM-owie - wyłączyć opłaty za ruch.",
+          "hint": "W obrębie pokoju ruszasz się za darmo. Pierwsze przejście do innego pokoju o danej porze dnia zużywa twój Free Move, a każde kolejne zabiera darmowe przejście, jeśli je masz (Sprint, Dash, Facilities), albo akcję.",
+          "description": "Ruch po pokoju jest darmowy. O każdej porze dnia pierwsze przejście do innego pokoju zużywa Free Move, potem twoje darmowe przejścia, potem akcje; bez nich token wraca na miejsce. Overflow może zablokować Free Move, a GM-owie - wyłączyć opłaty za ruch.",
           "instruction": "Przeciągnij token. Liczy się przejście do innego pokoju - koszt naliczany jest, gdy dotrzesz."
         },
         "sabotage": {

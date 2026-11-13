@@ -281,6 +281,8 @@ The ten tiles on the sheet, in the order they are drawn:
 | Foreign to most people | 16 | 2 | Subtle |
 | Demands very niche expertise | 19 | 3 | Hidden |
 
+**A Dynamic Action never stands in for looting.** A player who wants to find or take something in a room is sent to Search, which spends one of the room's search tokens and draws from its tables: refuse the card and say so.
+
 **Rest** (`REST`). A **Long Rest** costs **2 actions**, picks 2 of the three options, **once per session**. A **Short Rest** costs **1 action**, picks 1, **once per time of day**. Each works <ins>only in a room flagged for it</ins> (Room Setup > Rests); the guide puts the Long Rest in the bedrooms, so flag those. Both are counted within the chapter: a new chapter starts them afresh, even on the same day, time of day and session.
 
 | Option | Long Rest | Short Rest |
@@ -537,7 +539,7 @@ The Season checklist's rooms row names a scene with rooms that is not ready; `ga
 
 ### 9.3 Movement and charging
 
-`scripts/movement.mjs`. Moving inside a room is free. Crossing into a connected room spends the time of day's **Free Move**, then **1 action** per crossing (a banked Sprint is spent first). The crossing is vetoed before it is written, so a token that cannot pay snaps back with a red card. The move card says only which room the character entered and what the crossing cost; the room's words and picture are on the room tile. The crossing also fires the trap watcher.
+`scripts/movement.mjs`. Moving inside a room is free. Crossing into a connected room spends the time of day's **Free Move**, then **1 action** per crossing (a banked free crossing - a Sprint's, a Dash's or a Facilities room action's - is spent first, then a banked Burst). The crossing is vetoed before it is written, so a token that cannot pay snaps back with a red card. The move card says only which room the character entered and what the crossing cost; the room's words and picture are on the room tile. The crossing also fires the trap watcher.
 
 Some refusals apply whatever the *Crossing rooms costs a Move* setting says:
 

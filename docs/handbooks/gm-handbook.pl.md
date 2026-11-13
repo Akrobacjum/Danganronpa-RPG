@@ -281,6 +281,8 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 | Obce większości ludzi | 16 | 2 | Subtle |
 | Wymaga bardzo niszowej wiedzy | 19 | 3 | Hidden |
 
+**Dynamic Action nigdy nie zastępuje przeszukania.** Gracza, który chce coś w pokoju znaleźć albo zabrać, odsyłasz do Search, które zużywa jeden z Search Tokenów pokoju i losuje z jego tabel: odmów karty i powiedz mu to.
+
 **Rest** (`REST`). **Long Rest** kosztuje **2 akcje**, wybiera 2 z trzech opcji, **raz na sesję**. **Short Rest** kosztuje **1 akcję**, wybiera 1, **raz na porę dnia**. Każdy działa <ins>tylko w pokoju z taką flagą</ins> (Ustawienia pokoi > Odpoczynki); podręcznik umieszcza Long Rest w sypialniach, więc oflaguj je. Oba liczą się w obrębie rozdziału: nowy rozdział zaczyna je od nowa, nawet w tym samym dniu, porze dnia i sesji.
 
 | Opcja | Long Rest | Short Rest |
@@ -537,7 +539,7 @@ Wiersz pokoi Listy kontrolnej sezonu wymienia scenę z pokojami, która nie jest
 
 ### 9.3 Ruch i naliczanie
 
-`scripts/movement.mjs`. Ruch wewnątrz pokoju jest darmowy. Przejście do połączonego pokoju wydaje **Free Move** tej pory dnia, potem **1 akcję** za przejście (najpierw wydaje się zbankowany Sprint). Przejście jest odrzucane przed zapisem, więc token, którego nie stać, wraca na miejsce z czerwoną kartą. Karta ruchu mówi tylko, do którego pokoju postać weszła i ile kosztowało przejście; słowa i zdjęcie pokoju są na kafelku pokoju. Przejście uruchamia też strażnika pułapek.
+`scripts/movement.mjs`. Ruch wewnątrz pokoju jest darmowy. Przejście do połączonego pokoju wydaje **Free Move** tej pory dnia, potem **1 akcję** za przejście (najpierw wydaje się zbankowane darmowe przejście - ze Sprintu, z Dasha albo z akcji pokoju z Facilities - potem zbankowany Burst). Przejście jest odrzucane przed zapisem, więc token, którego nie stać, wraca na miejsce z czerwoną kartą. Karta ruchu mówi tylko, do którego pokoju postać weszła i ile kosztowało przejście; słowa i zdjęcie pokoju są na kafelku pokoju. Przejście uruchamia też strażnika pułapek.
 
 Niektóre odmowy działają niezależnie od ustawienia *przejście między pokojami kosztuje Move*:
 

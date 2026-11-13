@@ -140,10 +140,10 @@ The school is drawn as rooms. Everything - movement, Search, Listen, who can hea
 | First crossing into a connected room this time of day | your **Free Move** |
 | Every further crossing | **1 action** each |
 | Up or down the stairs into another room | a crossing like any other; changing floor inside a stairwell is moving inside your own room |
-| A crossing bought with the Sprint Hope Call | free |
-| A crossing with no Free Move and no Sprint left, while you hold a Burst | your **Burst**, before an action |
+| A crossing while you hold a free crossing (bought with the Sprint Hope Call, run with a Dash, or given by a Facilities room action) | that free crossing |
+| A crossing with no Free Move and no free crossing left, while you hold a Burst | your **Burst**, before an action |
 
-Drag your token; the cost is applied when you arrive. The Move briefing says what the next room takes - the Free Move, a Sprint, your Burst or an action. A crossing that you cannot pay for is refused and the token goes back.
+Drag your token; the cost is applied when you arrive. The Move briefing says what the next room takes - the Free Move, a free crossing, your Burst or an action. A crossing that you cannot pay for is refused and the token goes back.
 
 You are turned back by:
 
