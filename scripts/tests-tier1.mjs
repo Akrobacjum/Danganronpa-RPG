@@ -32548,6 +32548,40 @@ const INVARIANTS = [
         ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
     }],
 
+    ["R4474 - the wrong verdict's card goes to the Monocubs of the case it judged (scripts/monocub.mjs `wrongVerdictTouches`, verdict.mjs `remindOnWrongVerdict`, `readSentence`; the E101 line's review of 1.2.110, V4, 13.11.2026): a death of this season's chapter since the verdict before this one, not an execution, and a crime witness marked since it, are told; the first case's dead and witness at the chapter's second trial, last season's dead of the same chapter number and the executed are not; a mark from before the field (no `sinceVerdict`) reads as before", async () => {
+        /*
+         * The review's V4. E72 C7 told "the case's own dead" by `death.chapter === clock.chapter` alone, with no season and
+         * no verdict: at a chapter's second trial the first case's Monocub was told too, and after a reset that keeps the
+         * Monocubs, last season's dead of the same chapter number. Pure readings on rows of the suite's own, so tier 1 changes
+         * nothing; the verdict's own wiring read in source (the step keeps the verdict before it in its record, since the
+         * sentence step writes this verdict's stamp first). Red at 12a7e309: no `wrongVerdictTouches`.
+         */
+        const M = await import("./monocub.mjs");
+        must(typeof M.wrongVerdictTouches === "function", "monocub.mjs exports no wrongVerdictTouches");
+        const now = { chapter: 3, epoch: "E2", before: 1000 };
+        const first = { chapter: 3, epoch: "E2", before: null };
+        const death = (extra = {}) => ({ death: { chapter: 3, epoch: "E2", ...extra } });
+        const witness = (extra = {}) => ({ death: null, witness: { chapter: 3, epoch: "E2", ...extra } });
+        const read = {
+            thisCase: M.wrongVerdictTouches(death({ sinceVerdict: 1000 }), now),
+            firstCaseAtSecond: M.wrongVerdictTouches(death({ sinceVerdict: null }), now),
+            firstCaseAtFirst: M.wrongVerdictTouches(death({ sinceVerdict: null }), first),
+            lastSeason: M.wrongVerdictTouches(death({ sinceVerdict: 1000, epoch: "E1" }), now),
+            executed: M.wrongVerdictTouches(death({ sinceVerdict: 1000, cause: "executed" }), now),
+            otherChapter: M.wrongVerdictTouches(death({ sinceVerdict: 1000, chapter: 2 }), now),
+            witnessThis: M.wrongVerdictTouches(witness({ sinceVerdict: 1000 }), now),
+            witnessFirst: M.wrongVerdictTouches(witness({ sinceVerdict: null }), now),
+            witnessLastSeason: M.wrongVerdictTouches(witness({ sinceVerdict: 1000, epoch: "E1" }), now),
+            witnessOld: M.wrongVerdictTouches({ death: null, witness: 3 }, first),
+            nobody: M.wrongVerdictTouches({ death: null, witness: null }, now)
+        };
+        const src = stripComments((await moduleSources()).get("verdict.mjs") ?? "");
+        must(src.length > 5000, "verdict.mjs was not read");
+        read.wired = [/wrongVerdictTouches\(/.test(fnSource(src, "remindOnWrongVerdict")), /verdictBefore/.test(fnSource(src, "readSentence"))];
+        equal(stableJson(read), stableJson({ thisCase: true, firstCaseAtSecond: false, firstCaseAtFirst: true, lastSeason: false, executed: false,
+            otherChapter: false, witnessThis: true, witnessFirst: false, witnessLastSeason: false, witnessOld: true, nobody: false, wired: [true, true] }),
+            "{who the wrong verdict's card reaches: this case's dead; the first case's at the second trial, at its own; last season's; the executed; another chapter's; a witness of this case, of the first, of last season, an old mark; nobody; wired: [the step asks it, the sentence keeps the verdict before]}");
+    }],
     ["R3815 - the Final Trial's verdict settles the Ghost Bets: a step finalBets after the card and before the pick is cleared, the bet won only on the executed Mastermind (E72, the coordinator's bug of 12.11)", async () => {
         /*
          * E72, 12.11.2026; the coordinator's note of 12.11 ("the Final Trial runs no 'bets' step, so a Ghost Bet there stays
@@ -51721,6 +51755,15 @@ const INVARIANTS = [
         }), stableJson({ before: ["absolute", false], after: [true, "-1", "\"\""], row: "inline-flex", onButton: [] }),
             "[the button's ::before: [position, a glyph's mask]; its ::after: [the flag's mask, its order, its content]; the button's display; pixel-icons.css's glyph rules on a button's or an attribute's ::before]");
     }],
+    ["R4404 - Wide project windows is on by default (scripts/settings.mjs, the client setting `wideProjectWindows`; scripts/projects-ui.mjs `projectWindowWidth`; the owner, 13.11.2026: \"Wide project windows w ustawieniach gracza - niech bedzie domyslnie zaznaczone\"): the setting is registered with the default true, and the width reads wide when the setting cannot be read", async () => {
+        /* 13.11.2026. Red at 1ff4bc77: the default was false, and so was the fallback (E47-C6's "off by default"). */
+        const def = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.wideProjectWindows}`);
+        must(def, "the setting is not registered - this reads nothing");
+        const src = stripComments((await moduleSources()).get("projects-ui.mjs") ?? "");
+        const width = fnSource(src, "projectWindowWidth");
+        equal(stableJson({ default: def.default, scope: def.scope, fallback: /catch\s*\{\s*wide = true;\s*\}/.test(width) }),
+            stableJson({ default: true, scope: "client", fallback: true }), "[the registered default; each browser its own; the width when the setting cannot be read]");
+    }],
     ["R3726 - no file the module serves holds a merge's conflict marker (scripts, styles, lang): a line that is seven <, = or > alone or before a space is none of the module's own; one found 12.11.2026 in styles/danganronpa.css, left by the merge of the 1.2.107 line, dropped the rule after it (Monokuma Legacy's notifications)", async () => {
         /* 12.11.2026. Red at 7bbbd3c: styles/danganronpa.css line 18324 was "=======". */
         const sources = await moduleSources(), css = String(await moduleStyles() ?? "");
@@ -53353,7 +53396,8 @@ const INVARIANTS = [
         const read = {
             minDc: CLEANUP.minDc ?? null,
             lift,
-            cleanupDc: /return atLeastFloor\(base - tool - freshSceneBonus\(\)\)/.test(body("cleanupDc")),
+            // The roller handed in since the 1.2.110 review's V3 (13.11.2026): on a GM the fresh scene is the bodies its player may know.
+            cleanupDc: /return atLeastFloor\(base - tool - freshSceneBonus\(\{ actor \}\)\)/.test(body("cleanupDc")),
             verdict: [/atLeastFloor\(base - relief\)/.test(body("cleanupVerdict")), /Math\.max\(0, base - relief\)/.test(body("cleanupVerdict"))],
             window: [/atLeastFloor\(listed - relief\)/.test(body("attemptCleanup")), /atLeastFloor\(base - relief\)/.test(body("attemptCleanup")), /Math\.max\(0, (listed|base) - relief\)/.test(body("attemptCleanup"))],
             hidden: Cl.cleanupDc("hidden", null) >= 8
@@ -53645,8 +53689,10 @@ const INVARIANTS = [
     ["R3962 - a Loaded Die that did not hold gives its Call back on both roads (E64, D052; the owner's default, confirmed 12.11.2026): call-effects.mjs `giveBackLoadedDie` arms the entry again on a GM under a new nonce, keeping its `by`, and whispers \"loadedDieBack\"; action-pipeline.mjs `throwDice` calls it for a roll this browser threw whose die did not hold, and roll-draw.mjs `throwDrawn` for a drawn roll whose die did not hold, after its spend, and records and answers `loaded` as held", async () => {
         /*
          * E64, 12.11.2026. The GM's own road is measured in tier 2 ("E64 D052 - ..."): red before this commit. The drawn road
-         * runs only on a primary GM answering a player's packet, which tier 2 does not build, so it is read here off the
-         * source; what it reads, `loadedDieHeld`, is E16-T35's. Each field is a reading of the text, not of a run.
+         * runs only on a primary GM answering a player's packet, read here off the source; what it reads, `loadedDieHeld`,
+         * is E16-T35's. Each field is a reading of the text, not of a run. Tier 2 does draw it ("a Loaded Die bought and
+         * armed ..."), and on 1.2.110's first CI run (43352869429) found the faces read bare off a 2.12 config, where no
+         * die held: `drawnFilled` holds the fill before the read.
          */
         const sources = await moduleSources();
         const ce = stripComments(sources.get("call-effects.mjs") ?? "");
@@ -53665,8 +53711,10 @@ const INVARIANTS = [
             told: /DRPG\.Calls\.loadedDieBack/.test(give),
             thrownRoad: /free && !drawn && !loaded/.test(thrown) && /giveBackLoadedDie\(actor, armed\)/.test(thrown),
             drawnRoad: /loadedDieHeld\(config\)/.test(drawn) && giveAt > spendAt && spendAt > 0,
+            // The faces filled on 2.12 before they are read (1.2.110's first CI run: read bare, no drawn die held).
+            drawnFilled: drawn.indexOf("fillRollFacts(config)") > 0 && drawn.indexOf("fillRollFacts(config)") < drawn.indexOf("loadedDieHeld(config)"),
             drawnRecords: /loaded: dieHeld, at:/.test(drawn) && /stash, loaded: dieHeld, roll:/.test(drawn)
-        }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnRecords: true }),
+        }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnFilled: true, drawnRecords: true }),
         "a Loaded Die that did not hold is not given back on one of its roads");
     }],
     ["R3963 - the DA39 migration's row is read off the sheet alone (E64; the owner's DRPG-D1 of 12.11.2026): level-up.mjs `da39Row` takes old Health and Sanity picks as the maxima above STARTING's 4 and 6, less the rises DA39 already gave (`da39Rises`), never below 0; owes Head, Body and Leg points since the season's stamp their DA39 rise, less those given; hands out one point per old pick; a sheet with no stamp owes no rise; `offerList` keeps an offer's `only: \"trait\"` and nothing else under that name", async () => {

@@ -57,7 +57,7 @@ import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, loadedAtOf, loadedDieHeld, standAsideFor } from "./forced-roll.mjs";
-import { adoptMarks } from "./roll-marks.mjs";
+import { adoptMarks, fillRollFacts } from "./roll-marks.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
 import { overflowFacilityDie, overflowFacilityToll, overflowFacilityStates } from "./overflow.mjs";
@@ -1639,6 +1639,12 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     // Loaded is not held (E64, D052): a dice method on this GM that draws no uniform sample shows an honest face
     // (forced-roll.mjs `loadedDieHeld`), and the Call it was bought for is armed again for the next roll
     // (call-effects.mjs `giveBackLoadedDie`). The roller is answered `loaded` as it held, so no "freeCritUsed" is told.
+    // The faces it reads are put on `config.roll` first, where 2.10 wrote them and 2.12 does not (roll-marks.mjs
+    // `fillRollFacts`, as action-pipeline.mjs `throwDice` fills its result): read bare, every drawn Loaded Die on 2.12
+    // read as not held - recorded `loaded: false` and its Call armed again under a new nonce, the die at 12 all the same
+    // (tier 2 "a Loaded Die bought and armed ...": [[12,3,false,true],[3,5,false,true]] at 12a7e309 with
+    // that test as this fix reads it; CI run 43352869429).
+    if (loads) fillRollFacts(config);
     const dieHeld = loads && loadedDieHeld(config);
     if (loads && !dieHeld) await giveBackLoadedDie(actor, applied.find(call => call?.grants === "critical" && call.nonce === loaded));
     await keepRecord({

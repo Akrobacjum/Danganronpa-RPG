@@ -3008,6 +3008,37 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         && Boolean(heard.card) && heard.card.includes("Botan Kage"), JSON.stringify({ rooms, listened, armed, heard }));
 
     /*
+     * 7n'. A TAMPER'S NUMBER TELLS NO BODY THE ROLLER MAY NOT KNOW (the E101 line's review of 1.2.110, V3, 13.11.2026).
+     * E64 C1a gave the fresh scene's -3 to an unfound body of this chapter; a GM counted its whole deaths store and a
+     * player's browser its own copy, so a hit between the two numbers told the player a body lies unfound. Here a death of
+     * this chapter the GMs keep and p1 may not know (Botan's, no row naming p1): p1's own browser reads its default (no
+     * arguments) and the GM scores Aiko's threshold; the two must be one number. Read only where the fresh scene can stand
+     * on the body alone (no incident, no body found, a phase with a fresh scene). Red at 12a7e309: the GM 9, p1 12.
+     */
+    const freshPlant = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { CLEANUP } = await import("${repoUrl}/scripts/config.mjs");
+        const { murderState } = await import("${repoUrl}/scripts/murder.mjs");
+        const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        const clock = (await import("${repoUrl}/scripts/clock.mjs")).getClock() ?? {};
+        const p1 = game.users.find(u => !u.isGM && game.actors.get("${ids.aiko}").testUserPermission(u, "OWNER"));
+        const open = !murderState()?.active && !bodyDiscovery() && !(CLEANUP.freshScene?.until ?? []).includes(clock.phase)
+            && !game.actors.get("${ids.botan}").testUserPermission(p1, "OWNER");
+        if (open) await S.deathStore.patch("${ids.botan}", { chapter: clock.chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+        return { open };`, { timeout: 30000 });
+    await settle(800);
+    const freshOnP1 = await p1.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        return { bonus: C.freshSceneBonus(), dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")) };`);
+    const freshOnGm = await gm.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const read = { dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")), whole: C.freshSceneBonus() };
+        await S.deathStore.drop("${ids.botan}");
+        return read;`, { timeout: 30000 });
+    await settle(300);
+    check("SECURITY: a Tamper's threshold on the GM is the one its roller's own browser shows - no body the roller may not know lowers it",
+        freshPlant.open && freshOnGm.whole > 0 && freshOnP1.bonus === 0 && freshOnP1.dc === freshOnGm.dc,
+        JSON.stringify({ freshPlant, freshOnP1, freshOnGm }));
+
+    /*
      * 7o. A CONSOLE'S STARTING SHEET (E29 C2, 05.10.2026; audit S03-45, its code part). Setting
      * a student up writes the maxima, Health, Sanity and Hope and stamps the season's baseline;
      * putting a sheet back to that baseline writes the traits and the advance counter. Both are on

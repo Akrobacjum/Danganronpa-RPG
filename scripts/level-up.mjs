@@ -292,8 +292,8 @@ export function offersFor(userId) {
     for (const actor of game.actors ?? []) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = offerStore.newest(actor.id);
-        // What the owner's picker needs and nothing more: not when, nor which one waited for the class.
-        const list = offerList(held[actor.id]).map(({ id, kind, extra }) => ({ id, kind, extra }));
+        // What the owner's picker needs and nothing more: not when, nor which one waited for the class (`ownerCopyOf`).
+        const list = ownerCopyOf(held[actor.id]);
         if (list.length) offers[actor.id] = { offers: list };
     }
     return { offers, stamps };
@@ -319,6 +319,17 @@ export async function retellOffers() {
     return sent;
 }
 
+/**
+ * The offers as an owner's browser holds them, from a row of the GMs' (or the copy the primary sent): what the owner's
+ * picker needs and nothing more - the id, the kind, the extra picks, and a statistics-only offer's mark (`only: "trait"`,
+ * the DA39 migration's; the E101 line's review of 1.2.110, V2, 13.11.2026: until then the copy kept `{ id, kind, extra }`
+ * alone, the player's picker drew every option and the GM refused all but a statistic). Not when, nor which one waited
+ * for the class. `offersFor` sends it, `receiveOffers` keeps it; exported for tier 2's "E64 DA39 migration".
+ */
+export function ownerCopyOf(row) {
+    return offerList(row).map(({ id, kind, extra, only }) => ({ id, kind, extra, ...(only === "trait" ? { only } : {}) }));
+}
+
 /** Owner: take the set the primary sent where it is newer (`offerCopy`), and redraw. */
 export async function receiveOffers(offers, stamps) {
     const before = readOffers();
@@ -326,7 +337,7 @@ export async function receiveOffers(offers, stamps) {
     for (const [actorId, row] of Object.entries(offers ?? {})) {
         // Bounded here as well: only a character this user owns, only a real kind.
         if (!game.actors.get(actorId)?.isOwner) continue;
-        const list = offerList(row).map(({ id, kind, extra }) => ({ id, kind, extra }));
+        const list = ownerCopyOf(row);
         if (list.length) mine[actorId] = { offers: list };
     }
     if (!await offerCopy.receive(mine, stamps)) return false;
@@ -596,7 +607,7 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
         // A prompt the game waits on: kept above the sheet the player compares it with (stacking.mjs; E23 C5a).
         prompt: true,
         // The GM's window says for whom it is; a player's own picker is their own character's.
-        body: buildContent(picks, experiences, why, asPlayer ? null : actor.name, { only: asPlayer ? offer.only ?? null : null }),
+        body: asPlayer ? playerPickerBody(actor, offer) : buildContent(picks, experiences, why, actor.name),
         footer: {
             primary: {
                 action: "apply",
@@ -651,6 +662,16 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
 /* ==========================================================================
  * FORM
  * ========================================================================== */
+
+/**
+ * A player's own picker for one offer (N-2): the offer's picks (`LEVEL_UP[kind].picks` and its extra), its kind's
+ * reason, and only the options the offer allows (`only`, V2 of the 1.2.110 review). `openAdvancement` draws it for a
+ * player; exported for tier 2's "E64 DA39 migration", which reads it from the GM for the owner's copy.
+ */
+export function playerPickerBody(actor, offer) {
+    const picks = (LEVEL_UP[offer?.kind]?.picks ?? 0) + wholeCount(offer?.extra);
+    return buildContent(picks, listExperiences(actor), [`DRPG.Advance.reason.${offer?.kind}`], null, { only: offer?.only ?? null });
+}
 
 /**
  * The window's markup (E10 C9, 1.2.71; audit S03-19).

@@ -10087,12 +10087,17 @@ const SCENARIOS = [
          * Read: the faces, the record's `used.loaded`, and whether the Call is still armed. C12a
          * loaded the die already; until C12b the GM left the Call armed. Since E15 C5 (D16) the die
          * loaded is Hope or Fear at random and the record names it (`used.at`): the faces are read
-         * loaded die first, so a loaded draw reads 12 and the script's first face whichever it was.
+         * loaded die first, so a loaded draw reads 12 and the script's first face whichever it was. Since E64 (D052) a
+         * Loaded Die that did not hold is armed again under a new nonce (call-effects.mjs `giveBackLoadedDie`), so
+         * "still armed" reads any Free Critical this test did not find armed, under whatever nonce. On 1.2.110's
+         * candidate (CI run 43352869429, suite 7/8) the drawn road read the faces off a 2.12 config bare
+         * (roll-draw.mjs `throwDrawn`): the loaded draw came up 12 and was recorded not loaded, its Call armed again.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
         const E = await import("./call-effects.mjs");
         const before = new Set(E.armedCallsShown(theirs).map(c => c.nonce));
+        const freshCriticals = () => E.armedCallsShown(theirs).filter(c => c.grants === "critical" && !before.has(c.nonce)).map(c => c.nonce);
         await E.armCall(theirs, { key: "freeCrit", kind: "hope", grants: "critical" });
         const nonce = E.armedCallsShown(theirs).find(c => c.grants === "critical" && !before.has(c.nonce))?.nonce ?? null;
         must(nonce, "the Loaded Die was not armed - this would measure nothing");
@@ -10102,13 +10107,13 @@ const SCENARIOS = [
                 const F = await drawnForPlayer(player, theirs, { faces: { hope: 3, fear: 5 }, edit: p => ({ ...p, loaded: mark, calls: [mark] }) });
                 try {
                     const faces = F.record?.used?.at === "fear" ? [F.record.fear, F.record.hope] : [F.record?.hope ?? null, F.record?.fear ?? null];
-                    read.push([...faces, F.record?.used?.loaded ?? null, E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
+                    read.push([...faces, F.record?.used?.loaded ?? null, freshCriticals().length > 0]);
                 } finally {
                     await F.putBack();
                 }
             }
         } finally {
-            if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.consumeCallsByNonce(theirs, [nonce]);
+            if (freshCriticals().length) await E.consumeCallsByNonce(theirs, freshCriticals());
         }
         equal(stableJson(read), stableJson([[12, 3, true, false], [3, 5, false, false]]),
             "the GM did not load an armed Loaded Die, loaded one nothing armed, or left the one it loaded armed (per draw: the loaded die or Hope, the other, loaded, still armed)");
@@ -18591,7 +18596,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "edge's progress, actions, Hope]})");
     }],
 
-    ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in a Seal's code and words (E72 C10)", async () => {
+    ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in the neutral code and words, not a Seal's (E72 C10; the 1.2.110 review's V1)", async () => {
         /*
          * E72 C10, 12.11.2026; the owner's amendments of 28.10, 04.11 and 06.11; Q-E72-5's default. A Monocub paid for a
          * crossing like a living student, and walked into a murder's room. movement.mjs `crossingVerdict` lets a Monocub
@@ -18643,10 +18648,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeWas);
             await back();
         }
-        const sealed = { code: "roomSealed", text: game.i18n.format("DRPG.Calls.sealedBlocked", { room }) };
-        equal(stableJson([read.free, read.murderRoom?.code ?? read.murderRoom, read.murderRoom?.text ?? null, read.byGm]),
-            stableJson([true, sealed.code, sealed.text, true]),
-            "a Monocub paid for a crossing, or walked into a murder's room, or was told something a Seal does not say, or a GM's move was refused ([free step, the murder room's code and words, a GM's move])");
+        /* Not a Seal's words since the 1.2.110 review's V1 (13.11.2026, changed on purpose): Seals are the world setting
+           `sealedRooms`, which every browser holds, so "sealed" for a room that list does not hold named the murder's room
+           to the Monocub's player. The refusal is the neutral one (`cannotNow`, "That cannot be done now."), which a
+           crossing also gets for a room not connected, a bedroom without its key and a dead character. Red at 12a7e309:
+           roomSealed and the Seal's sentence. The room is not in the world's Seals here (read). */
+        const neutral = { code: "cannotNow", text: game.i18n.localize("DRPG.Bridge.why.cannotNow") };
+        const call = await import("./call-world.mjs");
+        must(!call.isSealed(room), "the murder's room is sealed in the world as well - this would not tell the two apart");
+        // The refusal's mark keeps the primary's put-back (movement.mjs `ruleOf`), and the line its player's browser says for it is the neutral one.
+        const { sentBackLine } = await import("./movement-audit.mjs");
+        equal(stableJson([read.free, read.murderRoom?.code ?? read.murderRoom, read.murderRoom?.text ?? null, read.murderRoom?.rule ?? null,
+            sentBackLine({ code: read.murderRoom?.code }), read.byGm]),
+            stableJson([true, neutral.code, neutral.text, "murderRoom", neutral.text, true]),
+            "a Monocub paid for a crossing, or walked into a murder's room, or was told something no public fact explains, or a GM's move was refused ([free step, the murder room's code and words, its put-back mark, the put-back's line on the player, a GM's move])");
     }],
 
     ["a Monocub's owner is sent every room the class found under the Monocub's own row, not who found which, and not the Mastermind's (E72 C10)", async () => {
@@ -44739,6 +44754,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * Everything is put back.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 2), "Present's copies go to the other participants, two connected players' students");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the Share of (0) is asked of two students stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM, which posts the card and mints the copies - this would measure nothing");
         const T = await import("./truth-bullets.mjs");
@@ -44790,12 +44807,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                there (5), and the row a console sends is refused on the primary with a closed reason - no copy for O. NOT red
                at 2fc865ac (measured): handover.mjs `verify` asks inventory.mjs `transferRefusal` mode "give", which refuses
                in a Class Trial ("that waits until the Class Trial is over", cannotNow) - the review's road was closed
-               already; this holds it closed. */
+               already; this holds it closed. Since E64 (D001) a give asks frisk.mjs `personActionRefusal`, which reads the
+               room before the trial: P and O in two rooms were refused as not there ("notThere", 1.2.110's first CI run,
+               43352869429, suite 6/8), a refusal that says nothing of the trial. So P and O stand alone together in one
+               room (`aloneTogether`) for this step, and the trial is what refuses. */
             const shareSent = [];
-            await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
-                { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
-            await sheetAuditIdle();
-            await settle();
+            const stood = await aloneTogether(P.actor, O.actor, { asked: true });
+            try {
+                await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
+                    { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
+                await sheetAuditIdle();
+                await settle();
+            } finally {
+                await stood.back();
+            }
             read.share = [shareSent, O.actor.items.filter(ofTrace).length];
 
             /* (1) Without the analysis. */
@@ -54835,11 +54860,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * as scenario 30 refuses one, and the rewind runs as reroll.mjs `settleCrisis` runs it, into a miss with Hope.
          * `settleCrisis` comes after the Reroll's payment, which writes the Hope from the GMs' value (fix r2-H5) and so
          * takes off a forged Hope heard before it: this one is heard between the payment and the rewind. Then a
-         * clean-up attempted at 3 Sanity marks is charged on the GM; the console lowers the Sanity maximum to 1,
-         * refused the same way, and the clean-up's Reroll takes the attempt back. Read: the Hope, the Health marks and
-         * the Sanity marks, each on the sheet and in the GMs' mark. At e253b3a (06.10.2026, e29run/r2h23red): [[4, 4,
-         * 1, 1], [1, 1]] - the most Hope (6) less the use's 2, not the GMs' 3 less it; and 1 Health mark and 1 Sanity
-         * mark where the maxima the GMs hold put back 4 and 3.
+         * clean-up attempted at 3 Sanity marks is charged on the GM (in the killer's own Stage 6 since E64, below); the
+         * console lowers the Sanity maximum to 1, refused the same way, and the clean-up's Reroll takes the attempt back.
+         * Read: the Hope, the Health marks and the Sanity marks, each on the sheet and in the GMs' mark. At e253b3a
+         * (06.10.2026, e29run/r2h23red): [[4, 4, 1, 1], [1, 1]] - the most Hope (6) less the use's 2, not the GMs' 3 less
+         * it; and 1 Health mark and 1 Sanity mark where the maxima the GMs hold put back 4 and 3.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
         needs(world.atLeast("sceneOnScreen"), "the clean-up's trace is placed on the scene on screen");
@@ -54910,12 +54935,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await trustedWrite(killer, was, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
+        /* The clean-up in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity since
+           E64 (R3959: an ordinary Tamper costs an action and no Sanity). On the Tamper tile's road, where it ran until
+           this fix, the attempt took none: "the fixture's attempt took no Sanity - this would measure nothing: 3 marks" (1.2.110's first
+           CI run, 43352869429, suite 7/8). The clean-up's take-back is the same `undoLastCleanup` on either road. */
+        await inOwnStageSix(killer, victim, async () => {
         const F = await cleanupFixture(killer, "SUITE E29 H23 a trace scrubbed and rerolled");
         try {
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
             await killer.update({ [SANITY]: 3 });
             await auditFromScratch(killer);
-            await F.scrub(0, { price: null });
+            await F.scrub(0, { viaAction: false, price: null });
             await settle();
             must(sheet(SANITY) > 3, `the fixture's attempt took no Sanity - this would measure nothing: ${sheet(SANITY)} marks`);
             refuseBack();
@@ -54924,7 +54954,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(forged?.verdict === "putBack" && sheet(SANITY_MAX) === 1 && marked("stress").max === most.stress,
                 `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
                     stableJson([forged?.verdict ?? null, sheet(SANITY_MAX), marked("stress")])}`);
-            await F.scrub(30, { undo: true });
+            await F.scrub(30, { viaAction: false, undo: true });
             await settle();
             await allowBack();
             cleanup = [sheet(SANITY), marked("stress").value ?? null];
@@ -54934,6 +54964,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (sheet(SANITY_MAX) !== was[SANITY_MAX]) await trustedWrite(killer, { [SANITY_MAX]: was[SANITY_MAX] }, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
+        });
+        await trustedWrite(killer, was, { reason: "gmRuling" });
+        await sheetAuditIdle();
         equal(stableJson([crisis, cleanup]), stableJson([[1, 1, 4, 4], [3, 3]]),
             "a Reroll's take-back read a Hope or a maximum a player's console wrote that the GMs' audit had not put back "
             + "(the crisis's Hope and Health marks, the clean-up's Sanity marks; each on the sheet and in the GMs' mark)");
@@ -72872,8 +72905,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     override: true, quiet: true, ...data });
                 const tools = { category: "tool", goal: undefined };
                 const stashed = { location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } };
-                const kit = await make("kit"), control = await make("control kit"), spent = await make("spent kit"), tool = await make("tool", tools);
+                // The broken tool first (E91 C8, D090): a quiet arrival into pockets with one working piece of Gear stowed and
+                // an empty hand readies that piece (inventory.mjs `keepGearShape`), so the broken one, made second, readied the
+                // tool and the dead's Ready below had nothing to refuse ("the tool is readied", 1.2.110's first CI run, 43352869429).
+                // A working tool arriving beside a broken one has nothing it can ready: both stay stowed, as until E91.
                 const broken = await make("broken", { ...tools, extraFlags: { [INV.ITEM_FLAGS.broken]: true } });
+                const kit = await make("kit"), control = await make("control kit"), spent = await make("spent kit"), tool = await make("tool", tools);
                 const kept = await make("kept", stashed), taken = await make("taken", stashed);
                 must(kit && control && spent && tool && broken && kept && taken && INV.isStashed(kept) && INV.isStashed(taken),
                     "the fixture's items were not made, or not put in the stash - this would measure nothing");
@@ -93833,6 +93870,52 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "size, the recorded GM's size]; [a project of 3 for a tool raised to Tier 3, then the same recorded as the GM's: crossed, the tool still broken]; "
             + `the GMs told why): ${stableJson(read)}`);
     }],
+    ["1.2.110 V3 - a Tamper's fresh scene counts on the GM only the unfound bodies its roller's player may know, as that player's own copy does (scripts/cleanup.mjs `freshSceneBonus`, `cleanupDc`; incident-store.mjs `knowsOfDeath`; the E101 line's review of 1.2.110, V3, 13.11.2026): with a body of this chapter in the GMs' deaths that one player may know (its row names them) and another may not, the GM's threshold for the first takes the -3 and for the second does not, which is what the second player's own browser reads (it holds no row of that body); with no roller the GMs' whole store counts", async () => {
+        /*
+         * The review's V3. E64 C1a gave the fresh scene's -3 to an unfound body of this chapter, read on a GM from the GMs'
+         * whole deaths store and on a player from that player's copy (gm-stores.mjs `deathCopy`, built by incident-store.mjs
+         * `deathsFor` with `knowsOfDeath`). A player who may not know of the body saw the higher number while the GM scored the
+         * lower, so a roll between the two came back a hit and told them a body lies unfound. Here, on the GM: a row of the
+         * deaths store for one fixture student, this chapter, naming a second student's player as knowing it; a third student's
+         * player names no row. Read through the scoring's own road, `cleanupDc(visibility, actor)`, for the knower and the
+         * other, and what the other's copy would hold (`deathsFor`). No incident runs and no body is found (read). The row is
+         * dropped after. Red at 12a7e309: both thresholds took the -3.
+         */
+        const C = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { deathsFor } = await import("./incident-store.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const [dead, knower, other] = cast(3);
+        const ownerOf = actor => game.users.find(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+        const [knowerUser, otherUser] = [ownerOf(knower), ownerOf(other)];
+        must(knowerUser && otherUser && knowerUser.id !== otherUser.id && !dead.testUserPermission?.(otherUser, "OWNER"),
+            "two fixture students with players of their own, neither owning the dead - this would measure nothing");
+        must(!murderState()?.active && !bodyDiscovery(), "an incident runs or a body is found - the fresh scene would not stand on the body alone");
+        must(!(CLEANUP.freshScene?.until ?? []).includes(getClock().phase), "the clock stands in a phase with no fresh scene - this would measure nothing");
+        const bonus = Number(CLEANUP.freshScene?.bonus) || 0;
+        must(bonus > 0 && (CLEANUP.freshScene?.onlyWith ?? []).includes("unfoundBody"), "the rule gives no fresh scene for an unfound body - this would measure nothing");
+        const visibility = "subtle";
+        const had = deathStore.has(dead.id);
+        must(!had, "the fixture student is already dead in the GMs' store");
+        const read = {};
+        try {
+            await deathStore.patch(dead.id, { chapter: getClock().chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [knowerUser.id] });
+            await settle();
+            read.thresholds = [C.cleanupDc(visibility, knower), C.cleanupDc(visibility, other)];
+            read.bonus = [C.freshSceneBonus({ actor: knower }), C.freshSceneBonus({ actor: other }), C.freshSceneBonus()];
+            read.otherCopy = Object.keys(deathsFor(otherUser.id).deaths).includes(dead.id);
+            read.otherOwnReading = C.freshSceneBonus({ deaths: deathsFor(otherUser.id).deaths });
+        } finally {
+            if (deathStore.has(dead.id)) await deathStore.drop(dead.id);
+            await settle();
+        }
+        const full = C.atLeastFloor(CLEANUP.dc[visibility] - (CLEANUP.toolTierReducesDc ? C.cleaningTier(other) : 0));
+        must(C.cleaningTier(knower) === C.cleaningTier(other), "the two fixture students hold cleaning tools of different tiers - their thresholds would differ anyway");
+        equal(stableJson(read), stableJson({ thresholds: [C.atLeastFloor(full - bonus), full], bonus: [bonus, 0, bonus], otherCopy: false, otherOwnReading: 0 }),
+            "{thresholds: [the knower's, the other's]; bonus: [the knower's, the other's, with no roller]; otherCopy: the body in the other's copy; otherOwnReading: the other's copy's reading} - the GM's fresh scene follows what the roller may know");
+    }],
     ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima and each change is the GM's to confirm: a pick taken back hands out a statistic point on an offer limited to statistics, a past Head, Body or Leg point gets its rise, a change left unticked stays; the world is asked once; a pick of another option on that offer is refused", async () => {
         /*
          * E64, the owner's DRPG-D1 of 12.11.2026 ("Rekompensujemy by lvl upy byly spojne"; "Akceptuje nowe E64"; "Co do
@@ -93892,6 +93975,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.sheet = [s.hitPoints.max, s.hitPoints.value, s.stress.max, s.stress.value];
             const offer = L.standingOffers(student).at(-1) ?? null;
             read.offer = offer ? [L.offerPicks(offer), offer.only ?? null] : null;
+            /* The player's side (the E101 line's review of 1.2.110, V2, 13.11.2026): the copy the primary sends the owner
+               (`offersFor`), as the owner's browser keeps it (`ownerCopyOf`, the road `receiveOffers` takes), and the picker
+               that browser draws from it (`playerPickerBody`, the body `openAdvancement` draws for a player). Until the review
+               the copy kept `{ id, kind, extra }` alone, so the player's picker offered every option. Red at 12a7e309: no
+               `ownerCopyOf` or `playerPickerBody`, and the copy sent without `only`. */
+            const sent = offer ? L.offersFor(ownerOf(student)?.id)?.offers?.[student.id]?.offers ?? [] : [];
+            const kept = typeof L.ownerCopyOf === "function" ? L.ownerCopyOf({ offers: sent }).find(o => o.id === offer?.id) ?? null : null;
+            const picker = document.createElement("div");
+            if (kept && typeof L.playerPickerBody === "function") picker.innerHTML = L.playerPickerBody(student, kept);
+            read.player = [sent.find(o => o.id === offer?.id)?.only ?? null, kept?.only ?? null,
+                [...new Set([...picker.querySelectorAll('select[name$=".option"] option')].map(o => o.value))]];
             read.done = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
             read.askedAgain = typeof L.startDa39Migration === "function" ? await L.startDa39Migration() : "none";
             const out = offer ? await handleAdvancement({ actorId: student.id, offerId: offer.id,
@@ -93907,10 +94001,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ row: [2, 1, 1, 1, 3, 5, 7],
             boxes: ["hpOld.0", "hpOld.1", "sanOld.0", "rise-knowledge.0", "rise-strength.0"],
-            sheet: [6, 6, 7, 0], offer: [2, "trait"], done: true, askedAgain: null, refused: "that offer is for statistics only" }),
+            sheet: [6, 6, 7, 0], offer: [2, "trait"], player: ["trait", "trait", ["trait"]], done: true, askedAgain: null, refused: "that offer is for statistics only" }),
             "[the plan's row: old Health picks, old Sanity picks, Health and Sanity rises owed to past points, the points handed out, the new maxima]; "
             + "the window's boxes for the student; [the sheet after every box but the second Health pick: Health max, its marks, Sanity max, its marks]; "
-            + "[the offer's picks, what it is limited to]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
+            + "[the offer's picks, what it is limited to]; [the owner's copy as sent, as kept, the options its picker draws]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
     }],
 ];
 

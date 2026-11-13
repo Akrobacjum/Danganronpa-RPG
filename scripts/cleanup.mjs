@@ -67,7 +67,7 @@ import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
-import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
+import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";
 import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark, deathStore } from "./gm-stores.mjs";
 import { readMine } from "./gm-store.mjs";
 import {
@@ -378,7 +378,7 @@ export function cleanupDc(visibility, actor) {
     const base = CLEANUP.dc[visibility];
     if (base === undefined) return null;
     const tool = CLEANUP.toolTierReducesDc ? cleaningTier(actor) : 0;
-    return atLeastFloor(base - tool - freshSceneBonus());
+    return atLeastFloor(base - tool - freshSceneBonus({ actor }));
 }
 
 /**
@@ -405,7 +405,7 @@ export function atLeastFloor(n) {
  * lower than the one in the handbook. A discount nobody is told about is not a
  * discount, it is a bug they will report.
  */
-export function freshSceneBonus({ clock, found, incident, deaths } = {}) {
+export function freshSceneBonus({ clock, found, incident, deaths, actor = null } = {}) {
     const rule = CLEANUP.freshScene;
     if (!rule?.bonus) return 0;
     try {
@@ -429,7 +429,7 @@ export function freshSceneBonus({ clock, found, incident, deaths } = {}) {
         if (!need.length) return rule.bonus;
         const running = incident === undefined ? Boolean(murderState()?.active) : Boolean(incident);
         if (need.includes("incident") && running) return rule.bonus;
-        if (need.includes("unfoundBody") && unfoundBodyIn(now.chapter, deaths)) return rule.bonus;
+        if (need.includes("unfoundBody") && unfoundBodyIn(now.chapter, deaths, actor)) return rule.bonus;
         return 0;
     } catch {
         // No clock is not a fresh scene. Failing towards the harder number is
@@ -442,9 +442,20 @@ export function freshSceneBonus({ clock, found, incident, deaths } = {}) {
  * A body of this chapter nobody has found (E64 C1a): a row of the deaths `{ actorId: { chapter, ... } }` - the GMs'
  * store on a GM, this user's copy on a player (settings.mjs `pendingDeath` reads them the same way) - whose chapter is
  * the clock's. `deaths` stands in for the world in a test.
+ *
+ * ON A GM, THE BODIES THE ROLLER MAY KNOW (the E101 line's review of 1.2.110, V3, 13.11.2026). A player's copy holds only
+ * the deaths that user may know (incident-store.mjs `deathsFor`, by `knowsOfDeath`), so a GM that counted its whole store
+ * gave the -3 for a body the roller's player may not know: the window showed the higher number, the GM scored the lower,
+ * and a roll between the two came back a hit that told the player a body lies unfound. With `actor` - the roller, which
+ * `cleanupDc` hands in - a GM counts only the rows one of that character's players may know, by the same rule the copy is
+ * built by, so both browsers read one number. A character no player owns (a GM's own) reads the whole store, as before.
  */
-function unfoundBodyIn(chapter, deaths) {
-    const rows = deaths ?? (game.user?.isGM ? deathStore.entries() : readMine("deaths")) ?? {};
+function unfoundBodyIn(chapter, deaths, actor = null) {
+    let rows = deaths ?? (game.user?.isGM ? deathStore.entries() : readMine("deaths")) ?? {};
+    if (deaths === undefined && game.user?.isGM && actor) {
+        const players = (game.users ?? []).filter(user => !user.isGM && actor.testUserPermission?.(user, "OWNER"));
+        if (players.length) rows = Object.fromEntries(Object.entries(rows).filter(([id, row]) => players.some(user => knowsOfDeath(user, id, row))));
+    }
     return Object.values(rows).some(row => row && typeof row === "object" && (row.chapter ?? 1) === (chapter ?? 1));
 }
 

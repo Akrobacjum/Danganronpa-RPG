@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.109, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.110, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -276,7 +276,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 | Desperate | 8 |
 
 - A project lives in a room. Only somebody standing there can work on it.
-- **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room or the wording first. **Wide project windows**, in this module's section of Foundry's settings, opens Propose a project wider on your screen (your browser alone; off by default).
+- **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room or the wording first. **Wide project windows**, in this module's section of Foundry's settings, opens Propose a project wider on your screen (your browser alone; on by default).
 - **Description** (since 1.2.99). A proposal needs one, at most 1000 characters: what the project is, in your words. Choosing a project of a set kind (below) writes the kind's name in the field, and you may change it. The GM reads it on the card and may change it before approving; after that only the GMs change it. Everyone who knows the project reads it on its token's card.
 - A project demands one statistic, given when it is made, and every roll on it takes that one - yours, and a saboteur's. A project made without one - an old one - has you propose one before its first roll; the GM approves or changes it on a card, and it stays the project's.
 - A **Tool held ready** gives advantage and takes its tier off every threshold on the roll.

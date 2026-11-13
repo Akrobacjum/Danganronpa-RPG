@@ -97,6 +97,24 @@ export function caseOpen(death, clock, record, epoch) {
     return !verdict;
 }
 
+/**
+ * WHOM THE WRONG VERDICT'S CARD REACHES (the E101 line's review of 1.2.110, V4, 13.11.2026). E72 C7 told every Monocub
+ * whose death's chapter was the clock's, with no season and no verdict: at a chapter's second trial the first case's
+ * Monocub was told too, and after a reset that keeps the Monocubs last season's dead of the same chapter number. Now a
+ * Monocub is told when its death's case is the one judged (`caseOpen`, against the chapter's verdict before this one,
+ * `before`, and the season `epoch`), or when it was marked a crime witness this chapter of this season since that verdict
+ * (the mark's `sinceVerdict`, written by `setSilenced`; a mark from before the field reads as before). Pure: `death` is the
+ * Monocub's death record, `witness` its row's mark. verdict.mjs `remindOnWrongVerdict` asks it; tier 1 R4474.
+ */
+export function wrongVerdictTouches({ death = null, witness = null } = {}, { chapter, epoch, before = null } = {}) {
+    if (caseOpen(death, { chapter }, { chapter, lastVerdictAt: before ?? null }, epoch)) return true;
+    const mark = typeof witness === "number" ? { chapter: witness } : witness;
+    if (!mark || typeof mark !== "object" || mark.chapter !== chapter) return false;
+    if (mark.epoch !== undefined && mark.epoch !== null && mark.epoch !== epoch) return false;
+    if (Object.hasOwn(mark, "sinceVerdict")) return !before || (mark.sinceVerdict ?? null) === before;
+    return true;
+}
+
 /** Every Monocub in the world. */
 export function monocubActors() {
     return game.actors.filter(a => a.type === "character" && isMonocub(a));
@@ -493,8 +511,13 @@ export async function setSilenced(actor, silenced) {
     if (!game.user.isGM || !actor) return null;
 
     const was = isCrimeSilenced(actor);
-    // The chapter and its season (E11 fix r2-H2), as a death's record names them: `isCrimeSilenced`.
-    await patchCubRow(actor.id, { witness: silenced ? { chapter: getClock().chapter, epoch: seasonEpoch() } : null });
+    // The chapter and its season (E11 fix r2-H2), as a death's record names them: `isCrimeSilenced`. And the chapter's
+    // verdict before it, as a death's row names it (chapter.mjs `verdictBefore`), so the wrong verdict's card can tell a
+    // witness of this case from one of the chapter's earlier case (`wrongVerdictTouches`; the 1.2.110 review's V4).
+    const chapter = getClock().chapter;
+    const record = getSetting(SETTINGS.trialProgress) ?? {};
+    const sinceVerdict = record.chapter === chapter ? (record.lastVerdictAt ?? null) : null;
+    await patchCubRow(actor.id, { witness: silenced ? { chapter, epoch: seasonEpoch(), sinceVerdict } : null });
 
     // Only on a real change: the dialog writes every row it was shown, and a
     // whisper repeating a silence that was already in force is noise.
