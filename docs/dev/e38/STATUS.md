@@ -32,14 +32,12 @@ C4 (the coordinator's ask of 13.11, for 1.2.113, renamed from 1.2.114 by the own
    the author's own copy, not a server copy, so a player whose author GM is also away still waits. No new reader; the
    author GM still sees the stub. Verified: 98 B2 reads the words, the author GM a dash.
 
-   **Owner, please note (default taken, owner to confirm):** this reverses a behaviour secret.mjs documented as a
-   deliberate trade ("WORDS AFTER A RETURN": "there is no server-side copy to catch up from ... a player reading
-   [yesterday's private narration] is the game") and that an existing test asserted (73-notice-history R2 read the
-   card back as "sent to another browser"). The coordinator asked for this fix, so it was built and 73 R2 updated to
-   the new behaviour (C5a). What changes for a player: a card a GM whispered to them alone, which they missed by being
-   offline, now reaches them on return instead of showing "sent to another browser". If the owner wants the old trade
-   kept, revert C5, C5a and R5001 and restore 73 R2. The fix does not expose anything to anyone who was not already a
-   reader, and does not change what the GM or any bystander sees.
+   **The owner's answer (13.11.2026, about 16:00, through the coordinator): keep the new behaviour** - a private
+   card reaches an offline player on return. This reverses what secret.mjs had documented as a deliberate trade
+   ("WORDS AFTER A RETURN") and what 73-notice-history R2 asserted (the card came back "sent to another browser");
+   73 R2 reads the new behaviour since C5a, and secret.mjs's two comments ("WHAT IT COSTS" and "WORDS AFTER A
+   RETURN") were brought in line with the code afterwards. Still no server copy: a player whose card's GMs are all
+   away waits until one who holds it is back.
 
 ## Test results
 
@@ -102,8 +100,13 @@ Not measured by this line (no counter in reach); the session's own usage is the 
 
 ## CI
 
-- C1-C3 pushed earlier: run 43401864794 green (de4b9621).
-- C4-C5a (the two fixes): CI is running on this push (the earlier STATUS push carried [skip ci] on its head, which
-  suppressed the whole push; this commit re-runs CI on the full chain). Result recorded here when it lands.
-
-- CI re-run triggered on this commit for the two fixes.
+- C1-C3: run 43401864794 on de4b9621, every job green.
+- C4-C5a: the STATUS push after them carried a CI-suppress directive in its title, which GitHub reads off the push's
+  head, so no run started; 3871ab0c re-ran it. Run 43443577608 on 3871ab0c: lint, check and gate green, all eight
+  scenario buckets green (97 in b3, 98 in b2, 73 in b5, 72 and 62 in b6, 61 in b1, 30 in b2), suite shards 2-8 green;
+  suite 1/8 was cancelled from outside 14 min into its 115-min limit, with no failing test in its log, so the verdict
+  failed on a missing shard, not on a test. The next push (the owner's answer and secret.mjs's comments) runs CI again
+  without the directive, for a whole run on the final head.
+- Tiers 0-1 locally after the comment change: 1405 passed, 1 failed, 16 skipped - the failure R3712 (the curtain's
+  transition on a clock change, transitions.mjs, untouched here) passes 3 of 3 alone: a timing flake under load (that
+  whole run took 523 s, against 465-492 s for the two before it).

@@ -56,7 +56,11 @@
  * see that sentence: there is no server-side copy to catch up from. Before this,
  * every GM saw every whisper forever. That is the trade, and it is the right way
  * round - a second GM reading yesterday's private narration is a convenience; a
- * player reading it is the game.
+ * player reading it is the game. A PLAYER who was away is given the words on return
+ * by a GM that holds them (below, "WORDS AFTER A RETURN"): since E38 that includes
+ * the GM that posted a card to players alone, which keeps its own words for them
+ * (`authorHold`; the owner's answer of 13.11.2026: keep it). Still no server copy -
+ * a player whose card's GMs are all away waits until one who holds it is back.
  */
 
 import { MODULE_ID, TIMING } from "./config.mjs";
@@ -816,7 +820,9 @@ function writtenByGm(message) {
  * (`readersOf`) only when a GM wrote the card, since a player's own card's whisper list is its author's
  * to widen after the fact. A player is given the words as a player is sent them (`wordsFor`: without
  * the GMs' prose), by an addressed `secret.card` to the asker alone. A GM answers only from its own
- * store: a card whose readers had no GM among them, or whose GMs were all away, stays without words and
+ * store, which since E38 holds a card a GM posted to players alone as well - its author keeps the words for
+ * them, hidden from its own reads (`authorHold`, in `post`; the owner's answer of 13.11.2026). A card no GM
+ * holds - a player's own card to another player, or one whose GMs are all away - stays without words and
  * says so (`elsewhereHtml`). Each GM connected answers; the first answer of each card asked raises its
  * notice (`cardOnReturn`), the next ones find the words here and are passed over (`onSecretPacket`).
  *
