@@ -54770,7 +54770,9 @@ const INVARIANTS = [
             body.classList.remove("drpg-flicker");
             T.onClockHeard(c("morning", "dailyLife"), { on: false, still: true });
         }
-        read.writes = w.seen.filter(x => x.includes("R3727"));
+        // Not the primary's beat, which ticks every 60 s whatever the test does (scenario 01's BEAT_LEAF, tests-kit.mjs
+        // DUMP_RULES): shard 1/8 at b67ceef7 caught "setting danganronpa-rpg.gmClockBeat" landing during this test.
+        read.writes = w.seen.filter(x => x.includes("R3727") && !x.includes(".gmClockBeat"));
         equal(stableJson(read), stableJson({ first: "investigation", second: "hour", hint: "top", lit: 1, escTaken: true, writes: [] }),
             "[the first heard; the second heard; the direction handed last; flickers lit; Escape taken while the second is held; the world written]");
     }],

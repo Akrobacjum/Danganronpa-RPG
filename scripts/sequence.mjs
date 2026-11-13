@@ -89,7 +89,7 @@ export const LATE_PLAY_MS = 10 * 60 * 1000;
 /* This browser's own record of the sequences it started, `{ id: when }` (server time), so a reload inside the 10 minutes
    plays nothing twice. The browser's storage, never the world's; anything older than the window is dropped as it is
    written, and a browser whose storage cannot be read plays as if it had played nothing. */
-const PLAYED_KEY = "drpg-sequences-played";
+export const PLAYED_KEY = "drpg-sequences-played";
 function playedRecord() {
     try {
         const record = JSON.parse(globalThis.localStorage?.getItem(PLAYED_KEY) ?? "{}");
