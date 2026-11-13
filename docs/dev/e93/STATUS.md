@@ -155,6 +155,14 @@ PL.
 `eclipseCrossing`, `durability`, `removeState`, `projectProgress`, `ultimateBoost` (last: its Call is approved on a GM's
 card, the largest of them). Progress is kept in "This round's changes" above.
 
+## The Room Setup tab's Polish name (the coordinator's ask of 13.11.2026, found by E101)
+
+Asked: give the Room Setup tab "Facilities" a Polish name per docs/glossary.json. **Not changed**: the glossary's entry
+"facilities" (stage E93) is "Facilities" in Polish too - "A tile name in English in Polish, as the other tiles (D33a)" - and
+the tab names the same thing as the tile and its window ("Facilities: {room}", "{action} w Facilities"); a Polish tab name
+would give one thing two names in Polish. Default kept: English, as E101 found it. If the owner wants a Polish name for
+the tab alone, it is one key (lang/pl.json `DRPG.Vault.tabFacilities`) and a glossary note.
+
 ## Not built in this round (said, not hidden)
 
 The effects that need a mechanism the module does not have: an item's durability, a state removed, temporary +X to a
