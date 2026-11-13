@@ -27,7 +27,8 @@ import { MODULE_ID, REMNANT_VISIBILITY } from "./config.mjs";
 
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
-export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident", "autopsy"]);
+/* E104: and "final", a planned Final Truth Remnant: the Final Truth form's fields, kept until it is placed from its node */
+export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident", "autopsy", "final"]);
 /* THE PLANNED AUTOPSY (the owner, 13.11.2026: "Dodajmy tez opcje zaplanowania autopsy truth bullet zamiast wysylania go od
    razu. Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa"): one row a
    chapter, kind "autopsy", under this id - its name (`label`), the players' words (`text`) and the GM's note (`note`).
@@ -120,14 +121,16 @@ export function caseModes() {
 
 const TIES = Object.freeze(["", "tied", "untied"]);
 function incidentFields(raw) {
-    const on = raw.kind === "incident";
+    // a planned Remnant's and a planned Final Truth's (E104); the Final Truth is tied and reinforced by its kind
+    const on = raw.kind === "incident" || raw.kind === "final";
+    const own = raw.kind === "incident";
     const str = v => (on ? (typeof v === "string" ? v : "") : null);
     return {
         scene: on ? (typeof raw.scene === "string" && raw.scene ? raw.scene : null) : null,
         author: str(raw.author),
         vis: on ? (REMNANT_VISIBILITY.includes(raw.vis) ? raw.vis : "evident") : null,
-        tie: on ? (TIES.includes(raw.tie) ? raw.tie : ((PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") === "incident" ? "tied" : "")) : null,
-        reinforced: on ? raw.reinforced === true : null,
+        tie: own ? (TIES.includes(raw.tie) ? raw.tie : ((PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") === "incident" ? "tied" : "")) : null,
+        reinforced: own ? raw.reinforced === true : null,
         analysis: str(raw.analysis),
         img: str(raw.img)
     };
@@ -162,7 +165,7 @@ export function caseNodeOf(raw) {
         // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
         type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
         // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; a planned Remnant's (E104) too
-        note: ["autopsy", "incident"].includes(raw.kind) ? (typeof raw.note === "string" ? raw.note : "") : null,
+        note: ["autopsy", "incident", "final"].includes(raw.kind) ? (typeof raw.note === "string" ? raw.note : "") : null,
         /* E104 (the owner, 13.11.2026: "niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry kazdemu
            zaplanowanemu remnantowi"): a planned Remnant holds every field New Remnant asks (investigation.mjs
            `openNewTrace`) and the Table's picture - its room's scene, who left it, its band (with its type, its Observe
@@ -261,6 +264,20 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
                 tied: node.tie === "tied", faint: node.type === "faint", room: node.room, chapter, foundAt: null, incident: id, text: node.text,
                 scene: node.scene, author: node.author, vis: node.vis, tie: node.tie, reinforced: node.reinforced, analysis: node.analysis,
                 note: node.note, img: node.img, needs: node.room ? [] : ["room"] });
+            continue;
+        }
+        /* A PLANNED FINAL TRUTH (E104) is evidence as a planned Remnant is: placed, its Remnant (`trace`); not yet, a planned
+           node holding the Final Truth form's fields, needing a room to be placed by */
+        if (node.kind === "final") {
+            if (node.trace && traceKeys.has(node.trace)) {
+                alias.set(id, node.trace);
+                const t = nodes.find(n => n.id === node.trace);
+                if (t) t.finalPlan = id;
+                continue;
+            }
+            nodes.push({ id, kind: "final", evidence: true, planned: true, slot: null, trace: null, type: "final", label: node.label, tied: true,
+                faint: false, room: node.room, chapter, foundAt: null, finalPlan: id, text: node.text, scene: node.scene, author: node.author,
+                vis: node.vis, analysis: node.analysis, note: node.note, img: node.img, needs: node.room ? [] : ["room"] });
             continue;
         }
         // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)

@@ -54,3 +54,28 @@ kazdemu zaplanowanemu remnantowi/bulletowi. Upewnijmy sie ze gm moze zaplanowac 
 - **D5. Every Key slot not placed and with no room is named "incomplete"**, five on a fresh chapter: the real roads
   cannot place a slot without a room.
 
+## C3. A planned Final Truth
+
+- A case row of its own, kind `final` (case-schema.mjs CASE_KINDS), added from the Map's tools (**Add planned Final
+  Truth**). It holds the Final Truth form's fields in its order and words (`caseFinalPanel`: room on its scene,
+  visibility, who left it, name, words, analysis, the GM's note) and the Table's picture. It is tied and reinforced by
+  its kind, so neither is planned.
+- On the Map a planned evidence node with the Final Truth's face; once placed, its Remnant's node, marked with the plan
+  (`finalPlan`). The GM panel's waiting list names it beside the planned Remnants.
+- **Place** (`placeIncident` -> `placePlannedFinal`) puts it on the map by the form's own road (mastermind.mjs
+  `placeFinalRemnant`) with every field, then its picture; the row then points at the Remnant.
+- **Incomplete:** with no room it `needs` one; Place asks in a window ("- pick a room -" first, Cancel places nothing).
+- Tests: R5332 (tier 1: the kind, its id, the row read, the planned node and its face, `needs`, the placed alias); tier
+  2 "planned Final Truth holds every field: ..." (the editor's order, the row after the close, the placed Remnant's
+  fields, the link, the roomless question). Both red at 06d6393d. R3373 reads the new kind; R3661 the Map's five add
+  buttons. Fixed on the way: a8c5ee1's Table test read the Final Truths through `remnantsOn`, whose refs have no
+  `delete`; its clean-up would have thrown had it ever had one to remove.
+- GM handbook EN/PL: one sentence.
+
+### Defaults taken, owner to confirm
+
+- **D6. Place puts a planned Final Truth on the map at once**, as the form's Save does, with no window of its own; a
+  planned Remnant's Place opens New Remnant because that is its real road.
+- **D7. Several planned Final Truths may stand in one chapter**, as the form may place more than one; the reminder
+  "a Final Truth placed this chapter" is unchanged.
+

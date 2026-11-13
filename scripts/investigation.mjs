@@ -2548,7 +2548,7 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
     }
     /* A PLANNED REMNANT'S FIELDS TOO (13.11.2026): it is evidence on the map, so until then it drew none, and its room,
        its type and its Place on the map were reached only from the GM panel's list (E97 C12's editor, never drawn). */
-    for (const node of graph.nodes) if (!node.evidence || (node.planned && ["incident", "autopsy"].includes(node.kind))) add(node.id, schemaEditor(graph, node));
+    for (const node of graph.nodes) if (!node.evidence || (node.planned && ["incident", "autopsy", "final"].includes(node.kind))) add(node.id, schemaEditor(graph, node));
     const slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]));
     caseKeyCells({ plan, status, placed, limit }).forEach((c, i) => {
         const id = slotNode.get(i);
@@ -2614,6 +2614,32 @@ function schemaEditor(graph, node) {
             editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyTextPlaceholder"))}">${esc(node.text)}</textarea>`),
             editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2">${esc(node.note ?? "")}</textarea>`)
+        ].join("");
+    }
+    if (node.kind === "final") {
+        /* A PLANNED FINAL TRUTH (E104; the owner, 13.11.2026: "kazdy rodzaj i kazdy szczegol"): the Final Truth form's
+           fields, in its order and words (`caseFinalPanel`: room, visibility, who left it, name, words, analysis, the GM's
+           note), and the Table's picture; kept until its Place puts it on the map (`placeIncident`). */
+        const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (node.vis ?? "evident") ? " selected" : ""}>${
+            esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
+        const img = node.img || "";
+        return [
+            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}" data-drpg-scene-drawn="${esc(node.scene ?? "")}"><option value="">${
+                esc(L("DRPG.Mastermind.finalPickRoom"))}</option>${placeRoomOptions({ room: node.room, sceneId: node.scene })}</select>`),
+            editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}">${vis}</select>`),
+            editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}">${authorOptions(node.author || null, studentActors())}</select>`),
+            editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+                esc(L("DRPG.Remnant.finalSubject"))}" />`),
+            editRow(L("DRPG.Investigation.traceText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
+                esc(L("DRPG.Investigation.notePlaceholder"))}">${esc(node.text)}</textarea>`),
+            editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2" placeholder="${
+                esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
+            editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
+                esc(L("DRPG.Investigation.finalNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+                esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
+            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
+                esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
         ].join("");
     }
     if (node.kind === "incident") {
@@ -3046,7 +3072,7 @@ function wireMap(dialog, reading, refresh) {
         onCheck: () => { reading.overview = true; refresh(); },
         onPlace: ref => {
             const [chapter, id] = ref.split(":");
-            placeIncident(Number(chapter), id).then(() => refresh(), fail("place an Incident Remnant"));
+            placeIncident(Number(chapter), id).then(() => refresh(), fail("place a planned Remnant"));
         }
     });
     if (reading.focus) {
@@ -3062,6 +3088,7 @@ function wireMap(dialog, reading, refresh) {
 export async function placeIncident(chapter, id) {
     if (!game.user?.isGM) return null;
     const row = caseNodeOf(caseRows(chapter).rows[id]);
+    if (row?.kind === "final") return placePlannedFinal(chapter, id, row);
     if (row?.kind !== "incident") return null;
     // the plan's type (13.11.2026); an Incident Remnant is tied to the murder, any other as the GM says in the window
     const type = row.type ?? "incident";
@@ -3201,6 +3228,41 @@ export async function runDashboardButton(action) {
 // the window they pressed Save on. Same order its old home kept.
 // On the scene of the option picked (E12 fix r1-G2): the placement used to look the room's
 // name up on the school first, so a GM who picked the Annex's Kitchen got the school's.
+/**
+ * A PLANNED FINAL TRUTH PUT ON THE MAP (E104): by the Final Truth form's own road (mastermind.mjs `placeFinalRemnant`),
+ * with every field the plan holds - its room on its scene, visibility, who left it, name, words, analysis and the GM's
+ * note - then its picture, as the Table writes it; the plan's row then points at it. With no room planned it asks for
+ * one ("- pick a room -" first, which places nothing) instead of guessing. Answers the token, or null.
+ */
+async function placePlannedFinal(chapter, id, row) {
+    let room = row.room, scene = row.scene ? game.scenes.get(row.scene) ?? null : null;
+    if (!room) {
+        const L = key => game.i18n.localize(key);
+        const answer = await drpgWindow({
+            title: L("DRPG.CaseMap.finalAskRoomTitle"),
+            classes: ["drpg-panel", "drpg-window-final-room"],
+            body: `<form><label>${esc(L("DRPG.Investigation.room"))}<select name="room"><option value="">${esc(L("DRPG.Mastermind.finalPickRoom"))}</option>${
+                placeRoomOptions()}</select></label></form>`,
+            footer: { primary: { action: "place", label: L("DRPG.Investigation.finalAskPlace"), callback: (e, b, d) => {
+                const select = d.element.querySelector('[name="room"]');
+                return { room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
+            } }, close: { role: "cancel", action: "cancel" } },
+            rejectClose: false
+        });
+        if (!answer?.room) return null;
+        room = answer.room;
+        scene = game.scenes.get(answer.sceneId) ?? null;
+    }
+    const { placeFinalRemnant } = await import("./mastermind.mjs");
+    const token = await placeFinalRemnant({ room, scene, visibility: row.vis ?? "evident", note: row.note ?? "", name: row.label ?? "",
+        text: row.text ?? "", analysis: row.analysis ?? "", author: row.author ?? "" });
+    if (!token) return null;
+    if (row.img) await setRemnantPublic(token, { img: row.img });
+    await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
+    ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn", { room }));
+    return token;
+}
+
 /**
  * A FINAL TRUTH REMNANT LEFT WITH ITS ROOM PICKED (13.11.2026). Save places it; a close that was not Save writes the
  * window's text (`saveDrawnForm`) but does not place a token on the map unasked: where the form's Final Truth Remnant

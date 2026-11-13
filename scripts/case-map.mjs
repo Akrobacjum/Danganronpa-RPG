@@ -59,6 +59,7 @@ export function kindLabel(node) {
             // numbered where the chapter plans more than one (13.11.2026)
             return node.of > 1 && Number.isInteger(node.n) ? F("DRPG.CaseMap.autopsyNth", { label, n: node.n }) : label;
         }
+        if (node.planned && node.kind === "final") return REMNANT_TYPES.final?.label ?? L("DRPG.CaseMap.kind.remnant");
         if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES[node.type ?? "incident"]?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
         return REMNANT_TYPES[node.type]?.label ?? REMNANT_TYPES[node.kind]?.label ?? L("DRPG.CaseMap.kind.remnant");
     }
@@ -354,7 +355,7 @@ export function caseToolsHtml({ sort = "kind", sorts = [] } = {}) {
     const b = (attr, value, key, extra = "") => `<button type="button" ${attr}="${esc(value)}"${extra}>${esc(L(key))}</button>`;
     return `<div class="drpg-case-tools" role="toolbar" aria-label="${esc(L("DRPG.CaseMap.toolsLabel"))}">`
         + `<div class="drpg-case-tools-row">${b("data-drpg-case-add", "deduction", "DRPG.CaseMap.addDeduction")}${b("data-drpg-case-add", "counter", "DRPG.CaseMap.addCounter")}`
-        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}${b("data-drpg-case-add", "incident", "DRPG.CaseMap.addIncident")}</div>`
+        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}${b("data-drpg-case-add", "incident", "DRPG.CaseMap.addIncident")}${b("data-drpg-case-add", "final", "DRPG.CaseMap.addFinal")}</div>`
         /* the order's picker named by `aria-label` and its title, not a visible label: with one, the row was 1005 px under
            the glass at 1366x768, over the 972 px it has, and took a second row from the graph (the E97 fix's sweep) */
         + `<select class="drpg-case-sort" data-drpg-case-sort aria-label="${esc(L("DRPG.CaseMap.sortLabel"))}" title="${esc(L("DRPG.CaseMap.sortLabel"))}">`
@@ -500,7 +501,8 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
  */
 export function incidentAsksHtml(chapter) {
     if (!game.user?.isGM) return "";
-    const rows = Object.entries(caseRows(chapter).rows).map(([id, raw]) => [id, caseNodeOf(raw)]).filter(([, n]) => n?.kind === "incident");
+    // a planned Final Truth waits here too (E104)
+    const rows = Object.entries(caseRows(chapter).rows).map(([id, raw]) => [id, caseNodeOf(raw)]).filter(([, n]) => n?.kind === "incident" || n?.kind === "final");
     if (!rows.length) return "";
     const placed = n => {
         if (!n.trace) return false;

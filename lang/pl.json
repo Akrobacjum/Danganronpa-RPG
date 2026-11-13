@@ -8009,7 +8009,8 @@
         "deduction": "Nowy wniosek",
         "counter": "Nowa kontra",
         "solution": "Rozwiązanie",
-        "incident": "Nowy Remnant"
+        "incident": "Nowy Remnant",
+        "final": "Final Truth Remnant"
       },
       "reachYes": "{held}/{of}: uczniowie mogą do tego dojść",
       "reachNo": "{held}/{of}: jeszcze nie",
@@ -8038,6 +8039,8 @@
       "needs": {"room": "pokój"},
       "pickRoom": "- wybierz pokój -",
       "addIncident": "Dodaj zaplanowany Remnant",
+      "addFinal": "Dodaj zaplanowany Final Truth",
+      "finalAskRoomTitle": "Gdzie ma stanąć Final Truth Remnant?",
       "placeOnMap": "Postaw na mapie",
       "showOnMap": "Pokaż",
       "waitingNone": "Każdy Remnant z planu sprawy jest na mapie.",

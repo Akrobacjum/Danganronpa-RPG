@@ -9117,6 +9117,36 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R5332 - a planned Final Truth is a case row of its own (E104; the owner, 13.11.2026: \"kazdy rodzaj i kazdy szczegol\"): kind final, its id named for it, holding the Final Truth form's fields (room's scene, visibility, who left it, analysis, note, picture; tied and reinforced by its kind, so neither is planned); on the Map a planned node with the Final Truth's face, needing a room where it has none, and once placed its Remnant's node, marked with the plan", async () => {
+        /*
+         * E104 C3. case-schema.mjs CASE_KINDS, `newCaseNodeId`, `caseNodeOf` (`incidentFields`), `graphOf`'s planned
+         * Final Truth; case-map.mjs `kindLabel`. The editor and Place are tier 2's "planned Final Truth holds every field
+         * ...". Red at 06d6393d: no kind "final" in the schema.
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        const row = { kind: "final", label: "R5332", room: "Hall", scene: "S1", vis: "hidden", author: "A1", analysis: "lab", note: "gm", img: "x.webp", tie: "untied", reinforced: true };
+        const read = S.caseNodeOf(row);
+        const planned = S.graphOf({ chapter: 1, rows: { "final-a": row, "final-b": { kind: "final" } } });
+        const placed = S.graphOf({ chapter: 1, rows: { "final-a": { ...row, trace: "S1.T9" } }, traces: [{ key: "S1.T9", type: "final", name: "the truth" }] });
+        const node = (g, id) => g.nodes.find(n => n.id === id) ?? null;
+        const a = node(planned, "final-a");
+        equal(stableJson({
+            kind: S.CASE_KINDS.includes("final"),
+            id: S.newCaseNodeId("final", () => "x").startsWith("final-"),
+            read: read ? { scene: read.scene, vis: read.vis, author: read.author, analysis: read.analysis, note: read.note, img: read.img, tie: read.tie, reinforced: read.reinforced, type: read.type } : null,
+            planned: a ? { kind: a.kind, planned: a.planned, evidence: a.evidence, tied: a.tied, room: a.room, vis: a.vis, needs: a.needs, face: M.kindLabel(a) } : null,
+            bare: node(planned, "final-b")?.needs ?? null,
+            placed: [node(placed, "final-a"), node(placed, "S1.T9")?.finalPlan ?? null]
+        }), stableJson({
+            kind: true, id: true,
+            read: { scene: "S1", vis: "hidden", author: "A1", analysis: "lab", note: "gm", img: "x.webp", tie: null, reinforced: null, type: null },
+            planned: { kind: "final", planned: true, evidence: true, tied: true, room: "Hall", vis: "hidden", needs: [], face: REMNANT_TYPES.final.label },
+            bare: ["room"],
+            placed: [null, "final-a"]
+        }), "{final among the kinds; its id; a row read; its planned node; a roomless one's needs; once placed: no planned node, its Remnant's node marked}");
+    }],
     ["R5331 - a Key slot not yet placed carries what it plans besides its room - its room's scene, its visibility, who left it, its picture - onto the Map's node, and one with no room needs a room (E104; the owner, 13.11.2026: \"lokalizacje, trudnosc i wszystkie parametry\")", async () => {
         /*
          * E104 C2. case-schema.mjs `graphOf`'s planned Key slot node and its `needs`, `checkCase`'s "incomplete". The

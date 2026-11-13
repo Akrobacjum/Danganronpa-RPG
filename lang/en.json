@@ -6207,7 +6207,8 @@
         "deduction": "New deduction",
         "counter": "New counter",
         "solution": "Solution",
-        "incident": "New Remnant"
+        "incident": "New Remnant",
+        "final": "Final Truth Remnant"
       },
       "reachYes": "{held}/{of}: the students can reach it",
       "reachNo": "{held}/{of}: not yet",
@@ -6236,6 +6237,8 @@
       "needs": {"room": "room"},
       "pickRoom": "- pick a room -",
       "addIncident": "Add planned Remnant",
+      "addFinal": "Add planned Final Truth",
+      "finalAskRoomTitle": "Where does the Final Truth Remnant go?",
       "placeOnMap": "Place on the map",
       "showOnMap": "Show",
       "waitingNone": "Every Remnant the case plans is on the map.",
