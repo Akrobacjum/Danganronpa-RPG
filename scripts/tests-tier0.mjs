@@ -21300,7 +21300,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await moduleSources());
         const items = stripComments(sources.get("gm-items.mjs") ?? "");
-        const dialog = fnSource(items, "giveTruthBulletDialog");
+        // The window's give stands in `giveBulletNow` since fix-113c (1.2.113), which `giveToEveryone` runs once a student.
+        const dialog = ["giveTruthBulletDialog", "giveBulletNow", "giveToEveryone"].map(name => fnSource(items, name)).join("\n");
         ok(/\brequestGiveBullet\s*\(/.test(dialog), "the GM's Give window does not ask the primary (requestGiveBullet)");
         ok(!/(?<![\w.])giveBullet\s*\(/.test(dialog), "the GM's Give window still makes its bullet on its own browser (giveBullet)");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");

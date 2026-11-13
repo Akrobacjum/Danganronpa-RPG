@@ -6669,6 +6669,7 @@
         "remnant": "Remnant"
       },
       "state": {
+        "sent": "Sent",
         "held": "Found",
         "onMap": "On the map",
         "planned": "Planned"

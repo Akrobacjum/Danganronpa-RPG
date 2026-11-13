@@ -8482,6 +8482,7 @@
         "remnant": "Remnant"
       },
       "state": {
+        "sent": "Wysłany",
         "held": "U graczy",
         "onMap": "Na mapie",
         "planned": "W planie"
