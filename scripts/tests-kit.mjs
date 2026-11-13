@@ -1636,6 +1636,52 @@ function voteText(sources, family = VOTE_FAMILY) {
 }
 
 /**
+ * The chapter's family (E54): chapter.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/chapter.json): body.mjs, death.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of chapter.mjs's text reads the family through `chapterText`
+ * (or `chapterFetch`, or `chapterBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const CHAPTER_FAMILY = Object.freeze(["chapter.mjs", "body.mjs", "death.mjs"]);
+
+/** The line `chapterText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const CHAPTER_FAMILY_END = "const CHAPTER_FAMILY_END = {};";
+
+/**
+ * The chapter's family's texts, raw, in CHAPTER_FAMILY's order, joined by the line `const CHAPTER_FAMILY_END = {};` (E54):
+ * what a read of chapter.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function chapterText(sources, family = CHAPTER_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the chapter's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${CHAPTER_FAMILY_END}\n`);
+}
+
+/** `chapterText` of the family as this browser is served it: what a `fetch` of chapter.mjs's URL read while it was one file. */
+async function chapterFetch(family = CHAPTER_FAMILY) {
+    return chapterText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the chapter's family: texts joined as `chapterText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function chapterBy(reader, family = CHAPTER_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the chapter's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${CHAPTER_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the chapter's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the chapter's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
  * The cleanup's family (E54): cleanup.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/cleanup-reshape.json): cleanup-reshape.mjs.
  * Written by tools/e54/repoint.mjs from that manifest. A reader of cleanup.mjs's text reads the family through `cleanupText`
@@ -2863,7 +2909,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, CLEANUP_FAMILY, cleanupText, cleanupFetch, cleanupBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, SETTINGS_FAMILY, settingsText, settingsFetch, settingsBy, UTILS_FAMILY, utilsText, utilsFetch, utilsBy, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, CHAPTER_FAMILY, chapterText, chapterFetch, chapterBy, CLEANUP_FAMILY, cleanupText, cleanupFetch, cleanupBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, SETTINGS_FAMILY, settingsText, settingsFetch, settingsBy, UTILS_FAMILY, utilsText, utilsFetch, utilsBy, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
