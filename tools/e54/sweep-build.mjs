@@ -241,7 +241,12 @@ for (const p of lines.values()) {
     for (const file of p.files) neu = rewriteLine(neu, file, path.basename(p.lands));
     for (const [file, to] of p.bare ?? []) neu = neu.replace(new RegExp(`(?<![\\w-])${esc(file)}`), to);
     if (neu === p.text) { problems.push(`${p.rel}:${p.line}: no rewrite came out (${p.why.join("; ")})`); continue; }
-    const cutTree = cuts.find(c => c.cut === p.cut).tree;
+    /* The row is the cut's whose file the line names; the file it lands in is the cut's that moves the line. They differ
+       when a line one cut moves names another cut's file (settings.mjs's scaling, moved by W3, names sheet.mjs, E54):
+       read the landing file in the tree that has it - the named cut's when it does, else the cut that writes it. */
+    const named = cuts.find(c => c.cut === p.cut);
+    const cutTree = fs.existsSync(path.join(named.tree, p.lands)) ? named.tree
+        : cuts.find(c => [...c.holder.values()].some(f => `scripts/${f}` === p.lands))?.tree ?? named.tree;
     const there = read(cutTree, p.lands);
     if (!there.includes(p.text)) { problems.push(`${p.rel}:${p.line}: the line is not in ${p.lands} of the ${p.cut} cut's tree`); continue; }
     // the changed fragment: the common head and tail taken off, then widened to whole words until it stands once

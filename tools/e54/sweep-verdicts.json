@@ -188,6 +188,34 @@
       "why": "the three were utils.mjs's",
       "from": "this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and not in",
       "to": "utils.mjs's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). In windows.mjs and not in"
+    },
+    {
+      "file": "scripts/glass.mjs",
+      "line": "Kept here because two passes have to agree on it: the measuring pass inflates a rail's",
+      "verdict": "true",
+      "why": "\"here\" is the one constant both passes read, not the file: MAX_TILT moves to glass-geometry.mjs with the cut and the measuring pass (glass.mjs `railRule`, `railOverhang`) imports it from there (E54 G5)"
+    },
+    {
+      "file": "scripts/settings.mjs",
+      "line": "* at this file's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read this file's own",
+      "verdict": "false",
+      "why": "W2's comment moves to window-scale.mjs with `registerWindows` (E54 W3); \"this file\" was settings.mjs",
+      "from": "at this file's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read this file's own",
+      "to": "at settings.mjs's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read settings.mjs's own"
+    },
+    {
+      "file": "scripts/settings.mjs",
+      "line": "* `sliderScale`, `layoutHeight` and `settingsRegistered` - which held the window's size to this file: moved out, the",
+      "verdict": "false",
+      "why": "as the line above: the size was held to settings.mjs",
+      "from": "held the window's size to this file:",
+      "to": "held the window's size to settings.mjs:"
+    },
+    {
+      "file": "audit/glass-sweep.mjs",
+      "line": "// glass.mjs's cut (`cutStrips`) moves to glass-geometry.mjs in E54's cut: either file may hold the branch, and",
+      "verdict": "true",
+      "why": "history: it says where `cutStrips` stood before E54 cut it out (bf036b2a), which stays so after the cut"
     }
   ]
 }

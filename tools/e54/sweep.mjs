@@ -71,6 +71,18 @@ for (const row of rows) {
         const found = everyFile().map(f => [f, times(textOf(f), row.old)]).filter(([, k]) => k);
         const total = found.reduce((s, [, k]) => s + k, 0);
         if (total === 1) { where = found[0][0]; n = 1; }
+        else if (total > 1 && row.line && (() => {
+            /* Not in its file and more than once elsewhere: the row of a line another cut moves (W3's rows name sheet.mjs's
+               lines that the sheet cut moves into sheet-fit.mjs, E54), swept on a tree where that cut has not run - the one
+               line anywhere that is still the base's whole line. */
+            const at = found.flatMap(([f]) => textOf(f).split("\n").map((l, i) => (l === row.line ? [f, i] : null)).filter(Boolean));
+            if (at.length !== 1 || times(textOf(at[0][0]).split("\n")[at[0][1]], row.old) !== 1) return false;
+            const L = textOf(at[0][0]).split("\n");
+            L[at[0][1]] = L[at[0][1]].replace(row.old, row.new);
+            texts.set(at[0][0], L.join("\n"));
+            applied.push({ row, where: at[0][0], byLine: true });
+            return true;
+        })()) continue;
         else { refused.push(`${row.base} (${row.file}): its text is found ${total} time(s)${total ? ` (${found.map(([f, k]) => `${f} ${k}`).join(", ")})` : ""}, not once - the line changed; read it and write its row again`); continue; }
     }
     if (n !== 1 && row.line) {

@@ -1,0 +1,131 @@
+{
+  "about": "The comment sweep's rows for the windows-settings cut (docs/dev/E54/COMMENT-SWEEP.md), built by tools/e54/sweep-build.mjs from 55a6efc0 and applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line at the base (base), the file it stands in after the cut (file), the changed fragment of it there (old), what the fragment reads instead (new), and the whole line at the base (line): sweep.mjs applies a fragment that stands once in the file, or else the one that stands in a line equal to `line`, and refuses the row otherwise.",
+  "rows": [
+    {
+      "base": "scripts/config.mjs:519",
+      "file": "scripts/config.mjs",
+      "old": "(settings.mjs",
+      "new": "(window-scale.mjs",
+      "line": " * the interface slider (settings.mjs `scaleWindow`).",
+      "why": "`scaleWindow` goes to window-scale.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:4607",
+      "file": "scripts/window-scale.mjs",
+      "old": "at this file's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read this file's",
+      "new": "at settings.mjs's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read settings.mjs's",
+      "line": " * at this file's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read this file's own",
+      "why": "W2's comment moves to window-scale.mjs with `registerWindows` (E54 W3); \"this file\" was settings.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:4608",
+      "file": "scripts/window-scale.mjs",
+      "old": "to this file:",
+      "new": "to settings.mjs:",
+      "line": " * `sliderScale`, `layoutHeight` and `settingsRegistered` - which held the window's size to this file: moved out, the",
+      "why": "as the line above: the size was held to settings.mjs"
+    },
+    {
+      "base": "scripts/sheet.mjs:6063",
+      "file": "scripts/sheet-fit.mjs",
+      "old": "(settings.mjs",
+      "new": "(window-scale.mjs",
+      "line": "        // sheet that scrolls (settings.mjs `callsHeight`).",
+      "why": "`callsHeight` goes to window-scale.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:21570",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "reads settings.mjs",
+      "new": "reads window-scale.mjs",
+      "line": "    [\"R1356 - the fit sweep's reach (audit/style-sweep.mjs `--fit`; E21 C1c, E21-03, E21-13, E21-14): probe 08 keeps every tabbed window once per tab, opens the player's action windows (Observe, Search, Analyze, Tamper, Rest, Projects, Palm), the notice history with 250 notices and the room's description window; the sweep reads every captured window, the kit gallery, the sheet stand-in and the glass harness's A8 frames at 1920x1080, 1366x768, 1280x800 and 1024x768, a player's at 390x844, and names its four controls; the style harness places a window and the sheet stand-in reads settings.mjs `sheetBox`\", async () => {",
+      "why": "sheetBox -> window-scale.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:24343",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "init by settings.mjs `registerWindows(readers)`",
+      "new": "init by window-scale.mjs `registerWindows(readers)`",
+      "line": "    [\"R4800 - the windows' size is registered at init by settings.mjs `registerWindows(readers)` (E54 W2; the plan's F2): the two render hooks of `scaleWindow` stand inside it and nowhere else at the top of the file, module.mjs calls it once under `safely(` before `registerSettings()`, and `scaleWindow` and `scaleMemo` read the slider, the layout height and the registration through the readers it was handed, not settings.mjs's own `sliderScale`, `layoutHeight` and `settingsRegistered`\", async () => {",
+      "why": "registerWindows -> window-scale.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:24346",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "of settings.mjs),",
+      "new": "of window-scale.mjs),",
+      "line": "         * foot of settings.mjs), and `scaleWindow` read three of settings.mjs's own readers, so the code could not leave the",
+      "why": "names `scaleWindow`, which goes to window-scale.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:24405",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "- settings.mjs `scaledBox` (through `scaleWindow`), utils.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), settings.mjs",
+      "new": "- window-scale.mjs `scaledBox` (through `scaleWindow`), utils.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), window-scale.mjs",
+      "line": "    [\"R4803 - one place decides a module window's size (E54 W6, the plan's done line): every `setPosition` of scripts/ that gives a window a width or a height of a number takes it from a function of the windows' family - settings.mjs `scaledBox` (through `scaleWindow`), utils.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), settings.mjs `actionsTabHeight` and `callsHeight` (the sheet's, Q-E54-7) - or is ui-kit.mjs `settleKitWidth`'s stated width of the kit (`kitWidth`, WINDOW_WIDTHS: the owner's question, listed); `height: \\\"auto\\\"` and a `top` alone decide no size\", async () => {",
+      "why": "scaledBox -> window-scale.mjs; actionsTabHeight -> window-scale.mjs, callsHeight -> window-scale.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:24413",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "to settings.mjs",
+      "new": "to window-scale.mjs",
+      "line": "         * sheet's height themselves; green since Q-E54-7 gave that arithmetic to settings.mjs `actionsTabHeight` and `callsHeight`.",
+      "why": "`actionsTabHeight` goes to window-scale.mjs; `callsHeight` goes to window-scale.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:24444",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "Q-E54-7): settings.mjs",
+      "new": "Q-E54-7): window-scale.mjs",
+      "line": "    [\"R4804 - the sheet's two heights are the numbers they were (E54, Q-E54-7): settings.mjs `actionsTabHeight` and `callsHeight` answer what sheet.mjs `holdActionsTab` and `growForCalls` worked out inline on 32f5093f, over a grid of window heights, tab shortfalls and screen heights - fractions, a screen shorter than the margin and zero among them\", () => {",
+      "why": "actionsTabHeight -> window-scale.mjs, callsHeight -> window-scale.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:31559",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "handed (settings.mjs `registerWindows`;",
+      "new": "handed (window-scale.mjs `registerWindows`;",
+      "line": "            // the registration they were handed (settings.mjs `registerWindows`; R4800) - idle twice over in a module that stopped.",
+      "why": "`registerWindows` goes to window-scale.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:40147",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "S12-09): settings.mjs",
+      "new": "S12-09): window-scale.mjs",
+      "line": "    [\"R1367 - the Stop on the sheet stays in view (E21 C5a; E21-06, audit S01-06, S12-09): settings.mjs `scaleWindow` keys its memo on the slider and the layout height (`scaleMemo`), so the same window asked again at another height is sized again and at the same numbers is not; the screen's resize asks every open sheet again (`rescaleSheets`, from `watchScreen`); the sheet's min-height is bounded by the screen; and the Stop is sticky at the bottom-left of what scrolls, in both themes\", async () => {",
+      "why": "scaleWindow -> window-scale.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:50974",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "band (scripts/settings.mjs `sheetBandFoot`,",
+      "new": "band (scripts/window-scale.mjs `sheetBandFoot`,",
+      "line": "    [\"R3508 - a character sheet opens below the curtain's band (scripts/settings.mjs `sheetBandFoot`, `scaleWindow`; E49 B leftover, S03-30): on its first render a character's sheet stands its top 8 px under the lowest of Despair's pools and the Event panel, its height cut to the screen under it; a later render moves nothing, and with no band drawn the sheet keeps Foundry's place\", async () => {",
+      "why": "sheetBandFoot -> window-scale.mjs, scaleWindow -> window-scale.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:53973",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "hold settings.mjs's",
+      "new": "hold window-scale.mjs's",
+      "line": "         * module's init: `renderApplicationV2` and `renderApplication` each hold settings.mjs's `scaleWindow` exactly once,",
+      "why": "`scaleWindow` goes to window-scale.mjs"
+    },
+    {
+      "base": "scripts/ui-kit.mjs:1320",
+      "file": "scripts/ui-kit.mjs",
+      "old": "W1). settings.mjs",
+      "new": "W1). window-scale.mjs",
+      "line": " * The stated width, written once more after Foundry's own render hooks (E21 W1). settings.mjs `scaleWindow` runs on every",
+      "why": "`scaleWindow` goes to window-scale.mjs"
+    }
+  ]
+}

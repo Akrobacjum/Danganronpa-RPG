@@ -1,0 +1,97 @@
+{
+  "about": "The comment sweep's rows for the glass cut (docs/dev/E54/COMMENT-SWEEP.md), built by tools/e54/sweep-build.mjs from 55a6efc0 and applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line at the base (base), the file it stands in after the cut (file), the changed fragment of it there (old), what the fragment reads instead (new), and the whole line at the base (line): sweep.mjs applies a fragment that stands once in the file, or else the one that stands in a line equal to `line`, and refuses the row otherwise.",
+  "rows": [
+    {
+      "base": "audit/glass-golden.mjs:7",
+      "file": "audit/glass-golden.mjs",
+      "old": "(glass.mjs",
+      "new": "(glass-geometry.mjs",
+      "line": " * The glass cut's partitions (glass.mjs `windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands`)",
+      "why": "`windowShapes` goes to glass-geometry.mjs; `stackShapes` goes to glass-geometry.mjs; `deskShapes` goes to glass-geometry.mjs; `curtainShapes` goes to glass-geometry.mjs; `meetBands` goes to glass-geometry.mjs"
+    },
+    {
+      "base": "audit/glass-sweep.mjs:374",
+      "file": "audit/glass-sweep.mjs",
+      "old": "side (glass.mjs `settleVoice`),",
+      "new": "side (glass-blocks.mjs `settleVoice`),",
+      "line": "/* E96 C4 (09.11.2026; R3122): the tile came down to the middle of the side (glass.mjs `settleVoice`), and its x is the",
+      "why": "`settleVoice` goes to glass-blocks.mjs"
+    },
+    {
+      "base": "scripts/glass-close.mjs:10",
+      "file": "scripts/glass-close.mjs",
+      "old": "is (glass.mjs `split`,",
+      "new": "is (glass-geometry.mjs `split`,",
+      "line": " *   lines as the curtain's cut is (glass.mjs `split`, the same half-plane clip): the hole is cut into convex pieces",
+      "why": "`split` goes to glass-geometry.mjs"
+    },
+    {
+      "base": "scripts/glass-close.mjs:34",
+      "file": "scripts/glass-close.mjs",
+      "old": "0] (glass.mjs `split`).",
+      "new": "0] (glass-geometry.mjs `split`).",
+      "line": "/** A convex polygon split by the line through (px, py) with normal (nx, ny): [side >= 0, side < 0] (glass.mjs `split`). */",
+      "why": "`split` goes to glass-geometry.mjs"
+    },
+    {
+      "base": "scripts/glass-close.mjs:53",
+      "file": "scripts/glass-close.mjs",
+      "old": "overlap (glass.mjs `overlaps`).",
+      "new": "overlap (glass-geometry.mjs `overlaps`).",
+      "line": "/** Separating axes on convex polygons; a shared edge is not an overlap (glass.mjs `overlaps`). */",
+      "why": "`overlaps` goes to glass-geometry.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:3100",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "cross (glass.mjs `deskShapes`,",
+      "new": "cross (glass-geometry.mjs `deskShapes`,",
+      "line": "    [\"R1421 - on a short desk the clock's pane and the notice tile's meet and do not cross (glass.mjs `deskShapes`, E23 fix G2; E23-31, Open 30 and 90): the blocks Chromium measured at 1366x560 cut with no two panes overlapping, every block on its own pane and no edge gap, the notice tile's pane where it was\", async () => {",
+      "why": "deskShapes -> glass-geometry.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:3206",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "tilted (glass.mjs `blockTurns`,",
+      "new": "tilted (glass-blocks.mjs `blockTurns`,",
+      "line": "    [\"R1382 - the corner's buttons stay tilted (glass.mjs `blockTurns`, E23 C1d; E23-10, the owner's 14.10): a launcher of the corner's union takes its turn by a rule on its id, so a button re-created between two passes over the same cut - as messenger-app.mjs `renderLauncher` makes a new one on every message - wears the turn the first pass wrote; the rule holds under Stained Glass only; the GM's red button draws no light strip at its sides (its border colour transparent, no Bone in its shadow or ground); and the sweep's turn line reads the launchers' tilt\", async () => {",
+      "why": "blockTurns -> glass-blocks.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42971",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "tail (glass.mjs `buildColumn`,",
+      "new": "tail (glass-geometry.mjs `buildColumn`,",
+      "line": "    [\"R3121 - the voice tile beside Foundry's tab rail keeps its buttons on its own pane, and its pane is the tray column's tail (glass.mjs `buildColumn`, E96 C3; the owner on 1.2.101's top right, H102): for a GM at 2000x1072, 1920x1080 and 1366x768 with the right column pinned off the wall, every corner of the microphone and the speaker on the voice pane, the voice pane meeting the pane over it (the tray's, or since E96 C4 the one between them) along the seam, and the tile settled where E96 C4 settles it\", async () => {",
+      "why": "buildColumn -> glass-geometry.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43026",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "(glass.mjs `settleVoice`, `buildColumn`,",
+      "new": "(glass-blocks.mjs `settleVoice`, glass-geometry.mjs `buildColumn`,",
+      "line": "    [\"R3122 - the voice tile as before 1.2.100, lower (glass.mjs `settleVoice`, `buildColumn`, `cutStrips`, E96 C4; the owner on C3's picture, H102): for a GM at 2000x1072, 1920x1080 and 1366x768, without Foundry's tab rail at the wall and with it, the tile's turned box is centred on the screen's height (or stands as high as the tray's five rows let it, where the centre is higher than that), its size as before, its top right corner at the wall or at the rail's band, both buttons' corners on its pane with the microphone in the pane's top right corner, no point of the screen bare from the tile's middle to the wall between the tray's pane and the tile's pane's foot, and the cut's self-check clean\", async () => {",
+      "why": "settleVoice -> glass-blocks.mjs, buildColumn -> glass-geometry.mjs, cutStrips -> glass-geometry.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:51582",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "sizes (glass.mjs `cutSectors`:",
+      "new": "sizes (glass-geometry.mjs `cutSectors`:",
+      "line": "         * in pixels, and the standing cut is built of fixed pixel sizes (glass.mjs `cutSectors`: a step of 230-290 px),",
+      "why": "`cutSectors` goes to glass-geometry.mjs"
+    },
+    {
+      "base": "styles/narrow.css:33",
+      "file": "styles/narrow.css",
+      "old": "stack (glass.mjs `stackShapes`),",
+      "new": "stack (glass-geometry.mjs `stackShapes`),",
+      "line": "   board open under the stack (glass.mjs `stackShapes`), the ceiling is the room the board leaves:",
+      "why": "`stackShapes` goes to glass-geometry.mjs"
+    }
+  ]
+}
