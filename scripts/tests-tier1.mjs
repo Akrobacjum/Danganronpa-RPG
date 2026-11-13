@@ -52973,8 +52973,10 @@ const INVARIANTS = [
     ["R3962 - a Loaded Die that did not hold gives its Call back on both roads (E64, D052; the owner's default, confirmed 12.11.2026): call-effects.mjs `giveBackLoadedDie` arms the entry again on a GM under a new nonce, keeping its `by`, and whispers \"loadedDieBack\"; action-pipeline.mjs `throwDice` calls it for a roll this browser threw whose die did not hold, and roll-draw.mjs `throwDrawn` for a drawn roll whose die did not hold, after its spend, and records and answers `loaded` as held", async () => {
         /*
          * E64, 12.11.2026. The GM's own road is measured in tier 2 ("E64 D052 - ..."): red before this commit. The drawn road
-         * runs only on a primary GM answering a player's packet, which tier 2 does not build, so it is read here off the
-         * source; what it reads, `loadedDieHeld`, is E16-T35's. Each field is a reading of the text, not of a run.
+         * runs only on a primary GM answering a player's packet, read here off the source; what it reads, `loadedDieHeld`,
+         * is E16-T35's. Each field is a reading of the text, not of a run. Tier 2 does draw it ("a Loaded Die bought and
+         * armed ..."), and on 1.2.110's first CI run (43352869429) found the faces read bare off a 2.12 config, where no
+         * die held: `drawnFilled` holds the fill before the read.
          */
         const sources = await moduleSources();
         const ce = stripComments(sources.get("call-effects.mjs") ?? "");
@@ -52993,8 +52995,10 @@ const INVARIANTS = [
             told: /DRPG\.Calls\.loadedDieBack/.test(give),
             thrownRoad: /free && !drawn && !loaded/.test(thrown) && /giveBackLoadedDie\(actor, armed\)/.test(thrown),
             drawnRoad: /loadedDieHeld\(config\)/.test(drawn) && giveAt > spendAt && spendAt > 0,
+            // The faces filled on 2.12 before they are read (1.2.110's first CI run: read bare, no drawn die held).
+            drawnFilled: drawn.indexOf("fillRollFacts(config)") > 0 && drawn.indexOf("fillRollFacts(config)") < drawn.indexOf("loadedDieHeld(config)"),
             drawnRecords: /loaded: dieHeld, at:/.test(drawn) && /stash, loaded: dieHeld, roll:/.test(drawn)
-        }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnRecords: true }),
+        }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnFilled: true, drawnRecords: true }),
         "a Loaded Die that did not hold is not given back on one of its roads");
     }],
     ["R3963 - the DA39 migration's row is read off the sheet alone (E64; the owner's DRPG-D1 of 12.11.2026): level-up.mjs `da39Row` takes old Health and Sanity picks as the maxima above STARTING's 4 and 6, less the rises DA39 already gave (`da39Rises`), never below 0; owes Head, Body and Leg points since the season's stamp their DA39 rise, less those given; hands out one point per old pick; a sheet with no stamp owes no rise; `offerList` keeps an offer's `only: \"trait\"` and nothing else under that name", async () => {

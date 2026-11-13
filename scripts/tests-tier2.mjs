@@ -10015,12 +10015,17 @@ const SCENARIOS = [
          * Read: the faces, the record's `used.loaded`, and whether the Call is still armed. C12a
          * loaded the die already; until C12b the GM left the Call armed. Since E15 C5 (D16) the die
          * loaded is Hope or Fear at random and the record names it (`used.at`): the faces are read
-         * loaded die first, so a loaded draw reads 12 and the script's first face whichever it was.
+         * loaded die first, so a loaded draw reads 12 and the script's first face whichever it was. Since E64 (D052) a
+         * Loaded Die that did not hold is armed again under a new nonce (call-effects.mjs `giveBackLoadedDie`), so
+         * "still armed" reads any Free Critical this test did not find armed, under whatever nonce. On 1.2.110's
+         * candidate (CI run 43352869429, suite 7/8) the drawn road read the faces off a 2.12 config bare
+         * (roll-draw.mjs `throwDrawn`): the loaded draw came up 12 and was recorded not loaded, its Call armed again.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
         const E = await import("./call-effects.mjs");
         const before = new Set(E.armedCallsShown(theirs).map(c => c.nonce));
+        const freshCriticals = () => E.armedCallsShown(theirs).filter(c => c.grants === "critical" && !before.has(c.nonce)).map(c => c.nonce);
         await E.armCall(theirs, { key: "freeCrit", kind: "hope", grants: "critical" });
         const nonce = E.armedCallsShown(theirs).find(c => c.grants === "critical" && !before.has(c.nonce))?.nonce ?? null;
         must(nonce, "the Loaded Die was not armed - this would measure nothing");
@@ -10030,13 +10035,13 @@ const SCENARIOS = [
                 const F = await drawnForPlayer(player, theirs, { faces: { hope: 3, fear: 5 }, edit: p => ({ ...p, loaded: mark, calls: [mark] }) });
                 try {
                     const faces = F.record?.used?.at === "fear" ? [F.record.fear, F.record.hope] : [F.record?.hope ?? null, F.record?.fear ?? null];
-                    read.push([...faces, F.record?.used?.loaded ?? null, E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
+                    read.push([...faces, F.record?.used?.loaded ?? null, freshCriticals().length > 0]);
                 } finally {
                     await F.putBack();
                 }
             }
         } finally {
-            if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.consumeCallsByNonce(theirs, [nonce]);
+            if (freshCriticals().length) await E.consumeCallsByNonce(theirs, freshCriticals());
         }
         equal(stableJson(read), stableJson([[12, 3, true, false], [3, 5, false, false]]),
             "the GM did not load an armed Loaded Die, loaded one nothing armed, or left the one it loaded armed (per draw: the loaded die or Hope, the other, loaded, still armed)");
