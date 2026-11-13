@@ -157,3 +157,56 @@ correctly. Nothing plants the all-OBSERVER old map of R3, so the suite cannot se
 - The 1.2.110 notes and diff: fervent-sagan-gme4vt has not moved past 421f2395.
 - e93's commits after 1f5f4ecb (393da19a, 81e19f0d, bfed7ead), except the scripts diff of 9f052871.
 - Daggerheart's countdown UI, and how it draws an OBSERVER row: not available here.
+
+---
+
+# 1.2.110: a read of the release (421f2395..12a7e309)
+
+The coordinator's task of 13.11.2026, second half: once the 1.2.110 line (fervent-sagan-gme4vt) moved past 421f2395,
+a read-only adversarial review of its notes and diff. It moved to 12a7e309 (d872ca7c: 1.2.110 ships E64, E72 and E91;
+12a7e309 the local gate's record). 179 commits, 140 files, +12581 -1723.
+
+**How.** Three readers, one per area: E72 (the Monocub, the dead's voice, the Call windows); E64 (the rules, Level
+Up and its migration, E64-inv); E91 with E99 round 7, gaps-61, gaps-108, the owner's fixes on the line, and the notes'
+countable claims. Each read the repository's rules first and ran only git, grep, sed and python counts: no harness, no
+browser, no table. Their full texts are in this session's scratchpad (rev110-e72.md, rev110-e64.md, rev110-e91.md),
+not in the repository. **Verified here** means the failing path was traced again in the code at 12a7e309 by this line,
+not only by the reader. **Reader's** means it was not.
+
+## Findings, most severe first
+
+| # | Sev. | Where (12a7e309) | What | Verified |
+| --- | --- | --- | --- | --- |
+| V1 | medium | movement.mjs `restrictedFrom` (~1957-1962); call-world.mjs `isSealed` (61) | A Monocub refused a running murder's room is told `roomSealed`, "so it reads as a Seal". But Seals are the world setting `sealedRooms` (scope world, every browser holds it). A `roomSealed` refusal for a room that setting does not list tells the Monocub's player that a murder is running there. | verified here: the code and the setting's scope |
+| V2 | medium | level-up.mjs `offersFor` (296), `receiveOffers` (329), the picker (599) | The DA39 migration's offer is statistics-only (`only: "trait"`) in the GMs' store, but the copy sent to the owner keeps only `{ id, kind, extra }`, so the player's picker draws every option. An experience pick is refused on the GM ("that offer is for statistics only", told as `badRequest`) and the same window comes back. The tier-2 "E64 DA39 migration" test reads the GMs' store, not the player's copy. | verified here: both copies drop `only` |
+| V3 | medium | cleanup.mjs `freshSceneBonus` (405-439), `unfoundBodyIn` (446) | The fresh-scene -3 now depends on GM-only facts: a body of this chapter in the GMs' `deathStore` (a player reads only their own copy). A player who does not know of that body sees the higher number in the Tamper window, while the GM scores the lower one, so a roll between the two comes back a hit and tells them a body lies unfound this chapter. At 1.2.109 the discount read only public facts. R3950 passes its arguments explicitly, so the default reading on a player is not measured. | verified here: the reads; the inference is reasoned, not run |
+| V4 | medium-low | verdict.mjs `remindOnWrongVerdict` (906-909) | "The case's dead" are any Monocub with `death.chapter === clock.chapter`, with no season or `sinceVerdict` check. With two murders in a chapter, the first case's Monocub gets the second case's card; after a reset that keeps Monocubs, last season's same-chapter dead do too. The card names nobody, so the harm is a Monocub told to hold back for a case it does not know. | verified here |
+| R1 | low-medium | monocub.mjs (1455, 774) | `askOpen` is cleared only by a GM answering the card: a deleted card or a flushed chat leaves Ask for Hope blocked for that Monocub, with no road back. | reader's |
+| R2 | low | roll-draw.mjs (964-969); cleanup.mjs (3041-3066) | Tamper refused for lack of an action holds only on the player's browser: `paysFor("cleanup")` still takes Sanity, so a Sanity mark earns a roll ticket, and on the GM `chargeUnclaimed` finds no action and scores it - a Tamper for 1 Sanity. Whether the sheet audit accepts that write is suspected. | reader's |
+| R3 | low | monocub.mjs `refundCubHopeNow` (730-733) | Tinker's purse refund is not capped at the maximum: a Bribe accepted between the spend and the refund can leave the sheet over its maximum. | reader's (a race) |
+| R4 | low | monocub.mjs `settleBets` (1793-1815), revive (119-190), `answerHopeAsk` (1465) | A revived student keeps `bet`, `order`, `askOpen` and the purse; `settleBets` pays every row with a bet; `answerHopeAsk` checks neither `isMonocub` nor `askOpen`. | reader's |
+| R5 | low | monocub.mjs `postBounty` (1712-1733) | No lock between the check, `oweDespair` and the write: two posts on one student owe twice and keep one Bounty. | reader's (needs two at once) |
+| R6 | low | monocub.mjs readers `cubRowOf`, `cubCapRefusal`, `orderOpen`, `workersNow`; gm-stores.mjs `cubFogSection` | They read the new stores without waiting for hydration (`patchCubRow` and the roll guard do wait), so with two GMs just after a reload a once-a-day rule or a cap could pass twice. The same shape as this file's R1 on S17-31. | reader's, suspected |
+| R7 | low | murder-rules.mjs `crisisDefense` (259) | The defender's statistic is read off the document, not as the GMs hold it: a console raise not yet put back counts (at most +1). | reader's |
+| R8 | low | level-up.mjs (1398-1413); character.mjs (205), season-wipe.mjs (472-475) | The migration writes the sheet before it records the offer, so a throw between them loses the points; a reset does not clear `da39Rises`; every Head, Body or Leg point above the stamp is read as owing a rise (a GM's hand edit too; the GM's tick limits it). | reader's |
+| R9 | low | movement.mjs (1348) | D059: crossing rows written before 1.2.110 carry no `mark`, so a free Move taken just before the update is not refunded. | reader's |
+| R10 | low | mastermind.mjs (298), passages-gm.mjs (1078); sheet.mjs (155) | The lair's lock and seal check neither the phase nor whether the Mastermind is dead; their buttons show on every sheet the Mastermind's player owns (refused on the others, no leak). | reader's |
+| R11 | low | trial-floor.mjs (187), trial-floor-ui.mjs (1452), gm-panel.mjs (296-300, 876) | In an ordinary trial End the chapter is offered only after the case summary card is sent; a GM who skips it ends the chapter only from Edit campaign (pinned by R3918; the notes call it an unconfirmed default). A comment still says "as before". | reader's |
+| R12 | low | day-summary.mjs (131) | A Morning Eclipse opened at Night hides the Night's summary; ended with "End without advancing" and moved on by hand, no board plays it. | reader's |
+| T1 | low (test) | R3984 (tests-tier1.mjs ~40900); R3801; R3804 (tests-tier0.mjs 8066) | R3984 passes if the cascade reads no rule (as this line's P3 on R4109-R4112); nothing runs `liftCubWitness`, and R3801's regex misses string-key writes; R3804's regex misses a first argument with parentheses. | reader's |
+| N1 | low (notes) | notes line 71; lines 5-16, 247-249; comments in config.mjs 3339, monocub.mjs 852, 1425 | The five new stores are called "world settings", but settings.mjs registers them `scope: "client"` (the GM store's own storage); the range is counted to a290cc9b, not the release's tip; the gate sentence names 1.2.109's record where the tree holds 1.2.110's; Redeem is "one action" in two comments (free since cca805ca). | reader's (measured) |
+
+**No D2 hole was found in the new bridge rows.** monocub.answer, bribe.offer, bribe.answer, mastermind.lairLock and
+passage.lairSeal each ask knownSender, notSpectator and an ownership guard. Their runs judge the GMs' record: the
+invitation open, the payer living and owned, the offer read from the record, the lair from the Mastermind store. D078's
+co-owners widen no guard (`ownsActor` already took any owner). D053's refund comes only on a refusal, and every
+refusal comes before a write. V1 and V3 are what a player can read from a refusal or a result, not a missing guard.
+
+**The notes' counts hold** (the E91 reader, measured): 177 commits and 16 merges to a290cc9b, 167 to 8fc3e798, the
+per-branch counts; lang 5289 English and 6322 Polish keys (5141 at 1.2.109), no English key without a Polish twin; the
+five new bridge actions; the known leaks 9 -> 10; module.json the version alone; the gate's "47 scripts; sockets 15,
+rolls 6, scenes 39" reproduced. Not checked: the quoted run counts and timings, and the red-first claims, which only a
+run can confirm.
+
+**Not read in depth:** E64's D008 and D003, the E64-inv screen-fit readings, the chi-square figures (not recomputed:
+nothing was run).
