@@ -131,7 +131,7 @@ export function touchesTracks(changes) {
  * Whether an update's `changes` set or delete the module's flag `key`: by its name, by `-=key`, or by the module's
  * whole flags deleted (`-=<module>`). Pure.
  */
-export function namesFlag(changes, key) {
+function namesFlag(changes, key) {
     const flags = changes?.flags;
     if (!flags || typeof flags !== "object") return false;
     if (`-=${MODULE_ID}` in flags) return true;

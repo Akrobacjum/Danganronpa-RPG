@@ -488,7 +488,7 @@ export async function resetAllActions({ keepGrants = false } = {}) {
  * starting sheet has been restored. Then each student's stamps (season-wipe.mjs `wipeStudent`'s `actions` part).
  * Search tokens need no step of their own beyond the `searchTokens` group: an empty store reads as a full room.
  */
-export async function clearSeasonActions(ctx) {
+async function clearSeasonActions(ctx) {
     await resetAllActions();
     await ctx.everyStudent("actions");
     // The GM room actions closed this time of day (E93 C1): a list of another mark is none already, so this only

@@ -433,7 +433,7 @@ export function clockAfter(clock = getClock()) {
  * misclick is noticed at once; after five minutes the table has played on what the boundary gave, and putting the
  * snapshot back would take that play away too. Not measured at a table.
  */
-export const TAKE_BACK_MS = 5 * 60_000;
+const TAKE_BACK_MS = 5 * 60_000;
 
 /**
  * The boundary into `to` of `clock`'s season and chapter, as a string: the season, the chapter, the session, the day
@@ -461,7 +461,7 @@ export async function boundarySnapshot() {
  * and each level a snapshot of every character's budget on the world's clock. Only levels younger than `TAKE_BACK_MS`
  * are kept, so in play it is how many times the GM pressed Next within five minutes (E17 fix p2-G2).
  */
-export const TAKE_BACK_DEPTH = 4;
+const TAKE_BACK_DEPTH = 4;
 
 /**
  * THE TAKE-BACK'S MEMORY, FROM THE GMS' STORE (E17 fix ci-2, 26.10.2026): `boundaryMemory`'s record, the GMs' store

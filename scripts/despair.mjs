@@ -503,13 +503,13 @@ export async function zeroAllDespair() {
  * (`zeroAllDespair`, on the primary since E37 C7), then every student's Hope back to the start (season-setup.mjs
  * `wipeStudent`'s `despair` part).
  */
-export async function clearSeasonDespair(ctx) {
+async function clearSeasonDespair(ctx) {
     await zeroAllDespair();
     await ctx.everyStudent("despair");
 }
 
 /** What the reset window counts of the Despair: the pools holding any (season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonDespair() {
+function tallySeasonDespair() {
     let held = 0;
     try {
         held = Object.values(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {}).filter(v => Number(v) > 0).length;

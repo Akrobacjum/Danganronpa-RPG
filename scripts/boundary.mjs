@@ -235,7 +235,7 @@ function placementTable(rows) {
 export const READY_KEY = "readyRound";
 
 /** What a round is for: an Eclipse's start, its end, or the panel's "Next time of day". */
-export const READY_KINDS = Object.freeze(["eclipseStart", "eclipseEnd", "next"]);
+const READY_KINDS = Object.freeze(["eclipseStart", "eclipseEnd", "next"]);
 
 const GM_CLASS = "drpg-ready-gm";
 const PLAYER_CLASS = "drpg-ready-player";

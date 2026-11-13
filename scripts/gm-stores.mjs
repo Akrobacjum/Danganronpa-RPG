@@ -46,7 +46,7 @@ const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
  * world's items, `Scene.<id>...` by the scene. A row whose actor was deleted in this
  * world reads as another world's and is left in the old key, where it was.
  */
-export function uuidInThisWorld(uuid) {
+function uuidInThisWorld(uuid) {
     const [kind, id] = String(uuid ?? "").split(".");
     if (kind === "Actor") return Boolean(game.actors?.has(id));
     if (kind === "Item") return Boolean(game.items?.has(id));
@@ -1677,7 +1677,7 @@ export const discoveryStore = defineGmStore({
  * rows on this browser (`discoveryMine`) are taken in weak on every load (`claim`):
  * the only copy of the ledger outside the GMs', which the primary's rebuild asks for.
  */
-export function fogCombine(held, offered, { cut = 0 } = {}) {
+function fogCombine(held, offered, { cut = 0 } = {}) {
     if (sectionProblem(offered?.value)) return null;
     const before = mergeSections(held?.value ?? null, null, discoveryStore.spec);
     const merged = mergeSections(before, offered.value, discoveryStore.spec);

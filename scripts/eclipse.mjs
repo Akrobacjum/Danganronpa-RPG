@@ -1380,7 +1380,7 @@ export async function liftEclipseMoves() {
 }
 
 /** Every crossing this GM's browser holds, of any Eclipse, taken away (the season reset). */
-export async function clearEclipseMoves() {
+async function clearEclipseMoves() {
     if (!game.user.isGM) return;
     if (isPrimaryGm()) await eclipseMoveStore.clear();
     else await eclipseMoveStore.dropMany(Object.keys(eclipseMoveStore.entries()));
@@ -1391,7 +1391,7 @@ export async function clearEclipseMoves() {
  * crossings are a GM store since E05: the reset's cut takes them on every GM and every owner's copy, and this clears
  * what this browser holds. Each is named for its Eclipse, so none would count in the new season.
  */
-export async function clearSeasonEclipseMoves() {
+async function clearSeasonEclipseMoves() {
     await clearEclipseMoves();
 }
 

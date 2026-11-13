@@ -1204,7 +1204,7 @@ export async function clearSeasonRemnants() {
 }
 
 /** What the reset window counts of the traces: the trace tokens on every scene (season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonRemnants() {
+function tallySeasonRemnants() {
     const n = game.scenes.reduce((sum, scene) => sum + scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).length, 0);
     return [plural("DRPG.Season.resetRemnants", { n })];
 }

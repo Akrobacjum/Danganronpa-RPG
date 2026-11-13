@@ -319,7 +319,7 @@ export async function clearMastermind() {
 }
 
 /** The season reset's Mastermind group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): `clearMastermind`. */
-export async function clearSeasonMastermind() {
+async function clearSeasonMastermind() {
     await clearMastermind();
 }
 

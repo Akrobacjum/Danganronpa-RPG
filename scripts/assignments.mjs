@@ -190,7 +190,7 @@ export async function pruneAssignments() {
  * for ("Every student has a Monokuma watching", `explicitPool`). Until 1.2.97 no group of the reset named the map and it
  * rode into every new season. The reset is the primary GM's, which writes it.
  */
-export async function clearSeasonAssignments() {
+async function clearSeasonAssignments() {
     if (!game.user.isGM) throw new Error("only a GM's browser writes Despair Flow's assignments");
     await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, {});
 }
