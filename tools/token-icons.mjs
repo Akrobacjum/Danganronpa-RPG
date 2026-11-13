@@ -21,6 +21,16 @@
  * Writes icons/remnant-*.svg. The fill is pure white on purpose: Foundry
  * multiplies the texture by the token's tint, so the document's neutral grey
  * (and any future per-type colour) decides the hue, not the file.
+ *
+ * AND icons/project-<key>.svg, one per glyph a GM can choose for a project
+ * (config.mjs PROJECT_GLYPHS, read from there, not listed here): the drawing
+ * the tray paints for that glyph (`var(--drpg-pix-<key>)`, projects-tray.mjs),
+ * as the project's token wears it on the map (the owner's choice of 13.11.2026:
+ * a project's token wears its chosen glyph, public or secret; projects-map.mjs
+ * `projectTokenIcon`). The same first match as the Remnants' files: the drawing
+ * on :root, which is Monokuma Legacy's - a token's texture is one file for every
+ * browser, whatever its theme, and 11 of the 21 glyphs are drawn otherwise under
+ * Stained Glass (read 13.11.2026: pixel-icons.css holds each twice).
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -94,4 +104,8 @@ await mkdir(outDir, { recursive: true });
 for (const [key, source] of Object.entries(SOURCES)) {
     await writeFile(join(outDir, `remnant-${key}.svg`), tokenSvg(dataUriFor(source)), "utf8");
 }
-console.log(`Wrote ${Object.keys(SOURCES).length} token icons into icons/`);
+const { PROJECT_GLYPHS } = await import(new URL("../scripts/config.mjs", import.meta.url).href);
+for (const key of Object.keys(PROJECT_GLYPHS)) {
+    await writeFile(join(outDir, `project-${key}.svg`), tokenSvg(dataUriFor({ var: `--drpg-pix-${key}` })), "utf8");
+}
+console.log(`Wrote ${Object.keys(SOURCES).length} token icons and ${Object.keys(PROJECT_GLYPHS).length} project token icons into icons/`);

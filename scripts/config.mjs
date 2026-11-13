@@ -2830,7 +2830,9 @@ export const PROJECT_SCALE = {
 export const PROJECT_TOKEN = {
     /** Grid squares, square. */
     size: 2,
-    /** Neutral, and it has to be: this document reaches every browser.
+    /** The picture of a project with no glyph (projects-map.mjs `projectTokenIcon`). Every project token wore it until
+        13.11.2026, neutral because the document reaches every browser; since then a project's token wears its chosen
+        glyph (PROJECT_GLYPHS below, icons/project-<key>.svg), the owner's choice B, its cost accepted and written down.
         THE HAMMER, NOT FOUNDRY'S HAZARD SIGN (22.09, Dawid, on 1.2.52: "zamiast trojkata
         ostrzegawczego powinien byc mlotek widoczny po otworzeniu ekranu tokena projektu").
         It is the project card's own glyph, as the module's white token icon the project

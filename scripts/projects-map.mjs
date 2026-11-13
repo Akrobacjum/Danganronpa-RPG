@@ -15,8 +15,10 @@
  * feature. A Token document reaches EVERY browser on the scene, whatever its
  * ownership - Foundry uses ownership for control, not for sight, and the
  * `hidden` flag says "GM only", which cannot express "these three players". So
- * the token carries a neutral name, a neutral image and one countdown id, and
- * nothing else. The id adds nothing a console does not already hold: the
+ * the token carries a neutral name, one countdown id and, since 13.11.2026, the
+ * picture of the project's chosen glyph (`projectTokenIcon`, below: the owner's
+ * choice, accepted as a trade-off - the glyph a world setting already gives every
+ * browser), and nothing else. The id adds nothing a console does not already hold: the
  * Countdowns setting it points into - the name, the progress and the ownership
  * map - is a world setting every browser holds, so a secret project is hidden
  * from the interface, not from the console (audit S09-05; the killer and the
@@ -30,7 +32,7 @@
  * have stood in its room, and stays visible afterwards, because knowledge does.
  */
 
-import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
+import { MODULE_ID, PROJECT_TOKEN, isProjectGlyph } from "./config.mjs";
 import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange }
     from "./projects.mjs";
 import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
@@ -227,6 +229,33 @@ function tintFor(countdownId) {
     return isComplete(row) ? PROJECT_TOKEN.doneTint : PROJECT_TOKEN.workingTint;
 }
 
+/*
+ * THE PICTURE IS THE PROJECT'S GLYPH (the owner's choice B, 13.11.2026). Every project token wore the neutral hammer
+ * from 22.09 (PROJECT_TOKEN.icon), so the map said "a project" and never which; the owner chose the glyph a GM picks
+ * for the project (config.mjs PROJECT_GLYPHS, the drawing the tray paints for its row) for every project, public and
+ * secret, and accepted what that costs: a token document reaches every browser on its scene, so its texture tells
+ * any console the project's kind, secret ones included - the glyph that projectMeta, a world setting every browser
+ * holds, already gave it (docs/dev/project-token-icon/STATUS.md, the GM handbook's note on what lives only in the
+ * GMs' browsers). Who SEES the token is still `knowsProject` through visibility.mjs. The file is the glyph's, one per
+ * key, written by tools/token-icons.mjs from the same sprite the tray paints (icons/project-<key>.svg, white, tinted by
+ * the document as the hammer was). A project with no glyph - one made before glyphs, or in Daggerheart's own window -
+ * keeps the hammer.
+ */
+const GLYPH_ICON_PREFIX = `modules/${MODULE_ID}/icons/project-`;
+
+/** The picture a project's token wears: its glyph's file, or the hammer for a project with none. */
+export function projectTokenIcon(countdownId) {
+    const glyph = metaFor(countdownId).glyph;
+    return isProjectGlyph(glyph) ? `${GLYPH_ICON_PREFIX}${glyph}.svg` : PROJECT_TOKEN.icon;
+}
+
+/** Is `src` one of the pictures this module puts on a project token (the hammer, a glyph's, the old hazard sign)? */
+function isModuleProjectIcon(src) {
+    const path = String(src ?? "");
+    return path === PROJECT_TOKEN.icon || path === PROJECT_TOKEN.oldIcon
+        || (path.startsWith(GLYPH_ICON_PREFIX) && isProjectGlyph(path.slice(GLYPH_ICON_PREFIX.length).replace(/\.svg$/, "")));
+}
+
 /** The live token document for a project, if its scene still has one. */
 export function projectTokenOf(countdownId) {
     const ref = tokenRefOf(countdownId);
@@ -279,7 +308,7 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
             width: PROJECT_TOKEN.size,
             height: PROJECT_TOKEN.size,
             texture: {
-                src: PROJECT_TOKEN.icon,
+                src: projectTokenIcon(countdownId),
                 tint: tintFor(countdownId)
             },
             alpha: PROJECT_TOKEN.alpha,
@@ -444,8 +473,8 @@ export function warnProjectDuplicates(duplicates) {
 }
 
 /**
- * The tint follows the bar. Cheap enough to call on every project change, and
- * it writes only when the colour would actually differ. Answers whether it wrote.
+ * The tint follows the bar, and the picture the glyph. Cheap enough to call on every project change, and
+ * it writes only when the colour or the picture would actually differ. Answers whether it wrote.
  * The opacity follows `PROJECT_TOKEN.alpha` the same way (E44 C8b).
  */
 export async function refreshProjectToken(countdownId) {
@@ -459,9 +488,12 @@ export async function refreshProjectToken(countdownId) {
        every scene draw, for as long as it has existed (found 22.09). The Color prints
        as its hex, which is what `want` is. */
     if (String(token.texture?.tint ?? "") !== want) changes["texture.tint"] = want;
-    /* A token placed before 1.2.53 wears Foundry's hazard sign; only that exact default
-       moves, as the actor above does. */
-    if (token.texture?.src === PROJECT_TOKEN.oldIcon) changes["texture.src"] = PROJECT_TOKEN.icon;
+    /* THE PICTURE FOLLOWS THE GLYPH (13.11.2026): a token wearing one of the module's own pictures - the hammer, a
+       glyph's, or the hazard sign a token placed before 1.2.53 still wears - is moved to its project's
+       (`projectTokenIcon`) on the next sync, and so when a GM changes the glyph, whose change ends in this sync. A
+       picture a GM put on the token is the GM's, and stays, as only the hazard's exact default moved before. */
+    const icon = projectTokenIcon(countdownId);
+    if (token.texture?.src !== icon && isModuleProjectIcon(token.texture?.src)) changes["texture.src"] = icon;
     /* A token placed before 1.2.99 stands at 0.7, which the owner turned to full opacity (E44 C8b, 04.11.2026;
        config.mjs PROJECT_TOKEN.alpha); the sync brings it up as it brings the tint - a GM's own alpha on it as well. */
     if (token.alpha !== PROJECT_TOKEN.alpha) changes.alpha = PROJECT_TOKEN.alpha;
