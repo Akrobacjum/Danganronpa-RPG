@@ -569,7 +569,11 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // E64, 12.11.2026: the owner's answer through the coordinator - Tamper costs one action and no Sanity, so the tile's hint
     // drops "or Sanity once you have no action left" from B01a's approved after.
     ["DRPG.Config.ACTIONS.tamper.hint", Object.freeze({ by: "E64", date: "12.11.2026", page: "E64 review", card: "Tamper",
-        text: "limit znika, Tamper kosztuje 1 akcje, domyslnie bez Sanity - Zgoda" })]
+        text: "limit znika, Tamper kosztuje 1 akcje, domyslnie bez Sanity - Zgoda" })],
+    // 1.2.112, 13.11.2026: the owner's decision through the coordinator - Secure a Trace leaves its Remnant at the scene,
+    // Reinforced on every hit, so the hint drops "take ... with you" and "Reinforced on a critical" from B01a's after.
+    ["DRPG.Config.CRISIS_ACTIONS.secureTrace.hint", Object.freeze({ by: "1.2.112", date: "13.11.2026", page: "1.2.112 rule fixes",
+        card: "Secure a Trace", text: "Secure a Trace zostawia Reinforced Remnant przy kazdym trafieniu" })]
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

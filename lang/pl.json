@@ -3923,7 +3923,8 @@
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
       "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów.",
-      "insomnia": "Insomnia: o tej porze dnia nie ma Short Rest."
+      "insomnia": "Insomnia: o tej porze dnia nie ma Short Rest.",
+      "reliefNoBreath": "Relief kosztuje więcej Hope, niż daje Breath, więc w tym odpoczynku Breath nie ma."
     },
     "Calls": {
       "resolveNext": "Następny rzut zapyta, której statystyki użyć.",
@@ -7501,8 +7502,8 @@
         },
         "secureTrace": {
           "label": "Secure a Trace",
-          "hint": "Przy trafieniu zabezpieczasz Remnant powiązany ze zbrodnią: z Hope jest Evident, z Despair Subtle, a przy krytyku Obvious i Reinforced; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie jest Reinforced już z Hope, a krytyk zostawia dwa.",
-          "short": "Przy trafieniu zabierasz ze sobą Remnant powiązany ze zbrodnią.",
+          "hint": "Przy trafieniu zostawiasz na miejscu Remnant powiązany ze zbrodnią, zawsze Reinforced: z Hope jest Evident, z Despair Subtle, a przy krytyku Obvious; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie krytyk zostawia dwa.",
+          "short": "Przy trafieniu zostawiasz na miejscu Reinforced Remnant powiązany ze zbrodnią.",
           "failure": "Bez Remnantu, ale przewaga przy następnej próbie. Tylko przy porażce z Hope."
         },
         "selfDefence": {

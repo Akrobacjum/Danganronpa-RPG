@@ -1783,7 +1783,8 @@ async function coverOf(actor, mark, credit, gains, moves, stamp, user, seen) {
  * and not yet taken back; each gain is within its pick (all marks for a long rest, half rounded up
  * for a short; Breath 2 or 1 Hope) and no more picks than the kind allows. A Relief's free rest
  * (`ref` "relief") moves no stamp and is paid by that Call's price instead of the room and the
- * action. Answers what it covers, or null - and then its stamp goes back too.
+ * action, and covers no Hope: its Breath is refused (rest.mjs `BREATH_REFUSED`, 1.2.112). Answers
+ * what it covers, or null - and then its stamp goes back too.
  */
 async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     const { restStamp, roomAllows } = await import("./rest.mjs");
@@ -1805,7 +1806,7 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!rules) return null;
     const full = kind === "long";
     const marks = key => moves[key]?.base ?? 0;
-    const allowed = { hope: full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
+    const allowed = { hope: relief ? 0 : full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
         stress: full ? marks("stress") : Math.ceil(marks("stress") / 2) };
     const picked = Object.keys(gains);
     if (picked.length > rules.picks || picked.some(key => !(gains[key] <= (allowed[key] ?? 0)))) return null;

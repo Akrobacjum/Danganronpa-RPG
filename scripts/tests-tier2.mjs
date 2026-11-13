@@ -46850,6 +46850,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["Secure a Trace leaves a Reinforced Remnant at the scene on every hit, and Leave a Clue's Hope stays plain", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: Secure a Trace was Leave a Clue at 15 instead of 12 - the same
+         * Remnants, Reinforced on a critical alone - so the harder roll bought nothing. Every hit of it leaves its Remnant
+         * Reinforced now (config.mjs `alwaysReinforced`, murder-rules.mjs `applyRemnant`). A direct murder between two
+         * students with players: Secure a Trace made with Hope, with Despair and as a critical, then Leave a Clue made with
+         * Hope, the control (a reading that saw every incident trace Reinforced would pass the first three). Read: each
+         * action's new traces as [visibility, Reinforced, tied to the crime]. Until 1.2.112 the Hope and the Despair hit
+         * read false.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const traces = () => game.scenes.contents.flatMap(s => R.remnantsOn(s));
+        const placed = [];
+        const read = {};
+        const act = async (key, total, isCritical, withHope) => {
+            await turnFor(M, victim, key);
+            const before = new Set(traces().map(t => t.key));
+            await M.resolveCrisisAction({ actorId: victim.id, key, total, isCritical, withHope });
+            await settle();
+            const fresh = traces().filter(t => !before.has(t.key));
+            placed.push(...fresh);
+            return fresh.map(t => R.remnantData(t)).map(d => [d?.visibility ?? null, d?.reinforced ?? null, d?.tiedToCrime ?? null]);
+        };
+        try {
+            await fightOpen(M, killer, victim);
+            read.hope = await act("secureTrace", 30, false, true);
+            read.despair = await act("secureTrace", 30, false, false);
+            read.critical = await act("secureTrace", 30, true, true);
+            read.clue = await act("leaveClue", 30, false, true);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const t of placed) {
+                await R.dropRemnantSecret(t.document ?? t).catch(() => {});
+                await t.document?.delete?.().catch(() => {});
+            }
+        }
+        equal(stableJson(read), stableJson({ hope: [["evident", true, true]], despair: [["subtle", true, true]],
+            critical: [["obvious", true, true]], clue: [["evident", false, true]] }),
+            "a hit of Secure a Trace left a Remnant that is not Reinforced, at another visibility or not tied to the crime, or Leave a Clue's "
+            + "Hope hit became Reinforced with it (each action's new traces: [visibility, Reinforced, tied to the crime])");
+    }],
+
     ["no player's packet holds the fight's last turns", async () => {
         /*
          * E32+E07 C17, 03.10.2026; audit S04-29. The last turns (`recent`) name who acted, what
@@ -53836,6 +53883,91 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a Rest in a room not marked for one kept its Hope or its stamp, or was not recorded as one put-back");
     }],
 
+    ["Relief's rest offers Breath greyed with the reason, and a Breath picked past it gives no Hope", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: Relief costs 4 Hope and its Short Rest let Breath be picked, which
+         * gives 1 - three Hope lost for nothing. Relief's rest window (rest.mjs `choosePicks`) shows Breath disabled with
+         * the reason (DRPG.Rest.reliefNoBreath), and `applyRest` refuses a Breath that got past it, as it refuses one under
+         * the Despair darkening. A student at 2 Hope: Relief's rest (`takeRest`'s `free`, the Call's road) with Breath
+         * ticked on the drawn form whatever it says; then an ordinary Short Rest's window, closed unanswered, the control
+         * (a reading that greyed Breath everywhere would pass the first). Read: Breath disabled, its row's tooltip, what
+         * the rest said it gave and the Hope after; the control's Breath disabled. Until 1.2.112 Breath was offered and
+         * gave 1 Hope.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student to rest");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(!overflowBlocksHope(), "the Despair darkening holds Hope down - Breath would be greyed for that reason, and this would measure nothing");
+        const [student] = livingStudents();
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(student, [HOPE, "system.resources.hitPoints.value", "system.resources.stress.value"]);
+        const reason = game.i18n.localize("DRPG.Rest.reliefNoBreath");
+        const breathOf = element => element.querySelector('[name="pick"][value="breath"]');
+        let read = null;
+        try {
+            await trustedWrite(student, { [HOPE]: 2 }, { reason: "gmRuling" });
+            let rested = null;
+            const relief = await withFormAnswered(element => {
+                const box = breathOf(element);
+                if (box) box.checked = true;
+                return true;
+            }, async () => { rested = await takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }); });
+            const ordinary = await withFormAnswered(() => false, () => takeRest(student, "short", { ignoreRoom: true, ignoreLimit: true, quiet: true }));
+            const box = relief[0] ? breathOf(relief[0]) : null;
+            read = { offered: box ? [box.disabled, box.closest("label")?.getAttribute("title") === reason] : null,
+                applied: (rested?.applied ?? []).map(line => line.includes(reason)), hope: student.system.resources.hope.value,
+                ordinary: ordinary[0] ? breathOf(ordinary[0])?.disabled ?? null : null };
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ offered: [true, true], applied: [true], hope: 2, ordinary: false }),
+            "Relief's rest offered Breath, or greyed it without the reason, a Breath picked past it gave Hope or did not say why not, "
+            + "or an ordinary Short Rest greyed it too (Breath [disabled, its reason], each line said the reason, Hope after, the ordinary rest's Breath disabled)");
+    }],
+
+    ["a Relief rest's Hope is put back and its Meal stands", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: the GMs' side refuses Breath on a Relief's rest, as the roller's
+         * `applyRest` does (the test above). The GMs' audit (sheet-audit.mjs `restCovers`, `ref` "relief") covered a Relief
+         * rest's 1 Hope as any Short Rest's. A student at 5 Hope and 2 Sanity marked: Relief's 4 Hope paid, then its rest
+         * written with 1 Hope back (Breath); then the same from the start with its Sanity cleared instead (Meal), each as
+         * the player's write the primary hears. Read: the two rests' verdicts and the Hope and Sanity after. Until 1.2.112
+         * both stood, Hope 2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const r = student.system.resources;
+        const cost = HOPE_CALLS.relief.cost;
+        must(Number(r?.hope?.max) >= cost + 1 && Number(r?.stress?.max) >= 2, "the student's Hope or Sanity is too small for a Relief and a Meal");
+        const HOPE = "system.resources.hope.value", STRESS = "system.resources.stress.value";
+        const putBack = sheetAsFound(student, [HOPE, STRESS]);
+        let read = null;
+        try {
+            const relief = async rest => {
+                await student.update({ [HOPE]: cost + 1, [STRESS]: 2 });
+                await auditFromScratch(student);
+                await asPlayerWrite(student, { [HOPE]: 1 }, player(student), { reason: "call" });
+                const verdict = await asPlayerWrite(student, rest, player(student), { reason: "rest", ref: "relief" });
+                await sheetAuditIdle();
+                return verdict?.verdict ?? null;
+            };
+            const breath = await relief({ [HOPE]: 2 });
+            const hope = foundry.utils.getProperty(student._source, HOPE);
+            const meal = await relief({ [STRESS]: 1 });
+            read = [breath, hope, meal, foundry.utils.getProperty(student._source, STRESS)];
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson(["putBack", 1, "stands", 1]),
+            "a Relief rest's Hope stood, or its Meal was put back ([Breath's verdict, Hope after, Meal's verdict, Sanity after])");
+    }],
+
     ["a Daggerheart roll message with Hope covers one Hope through the relay, once", async () => {
         /* The relay's verdict (relay-guard.mjs `judgeRelay`, the live world) on a player's own student:
            +1 Hope after a duality roll with Hope that the player wrote about it passes; the same +1
@@ -55918,7 +56050,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * back (`refundPrice`), Despair turned into Hope (despair.mjs `convertDespairToHope`), an item's effect a GM
          * grants (use-items.mjs `grantItemEffect`), a Despair Call's Hope (call-effects.mjs, Fuel a Monocub), a Hope Call
          * a GM buys on the sheet (calls.mjs `spendHopeCall`, a Sprint at 2) and a rest a GM gives (rest.mjs `takeRest`,
-         * Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
+         * Breath; paid with an action since 1.2.112, when a Relief's free rest stopped giving Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
          * Hope, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red) each road wrote from the
          * console's 5, on the sheet and in the mark alike: the Objection left 4 (1 since), the refund, the conversion, the
          * ruling, the Call and the rest 6 (3 since), the Sprint 3 (0 since).
@@ -55964,7 +56096,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.fuel = await inWindow(() => applyCall(null, "fuelTheCub", "despair", { target: student }));
             read.sprint = await inWindow(() => spendHopeCall(student, "sprint"));
             Dialog.wait = async () => ["breath"];
-            read.rest = await inWindow(() => takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }));
+            // A rest paid with an action: a Relief's free rest gives no Breath since 1.2.112 (rest.mjs `BREATH_REFUSED`).
+            await trustedWrite(student, { [ACTS]: 1 }, { reason: "gmRuling" });
+            read.rest = await inWindow(() => takeRest(student, "short", { ignoreRoom: true, ignoreLimit: true, quiet: true }));
             read.failedCall = await inConsoleWindow(student, player(student), { honest: { [HOPE]: 4 }, forged: { [HOPE]: 5 }, paths: [HOPE], during: true },
                 forge => {
                     Dialog.wait = async () => {

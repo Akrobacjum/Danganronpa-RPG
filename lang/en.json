@@ -3657,7 +3657,8 @@
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
       "noRegions": "This scene has no room regions. Draw them on the Regions layer first.",
-      "insomnia": "Insomnia: no Short Rest this time of day."
+      "insomnia": "Insomnia: no Short Rest this time of day.",
+      "reliefNoBreath": "Relief costs more Hope than Breath gives, so this rest offers no Breath."
     },
     "Calls": {
       "resolveNext": "Your next roll will ask you which statistic to use.",

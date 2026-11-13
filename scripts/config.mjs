@@ -3866,13 +3866,20 @@ export const CRISIS_ACTIONS = {
     secureTrace: {
         side: "victim", label: "Secure a Trace", icon: "fa-hand-holding",
         threshold: 15, traits: ["hand", "leg", "shadow"],
-        hint: "On a hit, you secure a Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and "
-            + "Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and "
-            + "a critical leaves two.",
+        hint: "On a hit, you leave a Reinforced Remnant tied to the crime at the scene: Evident with Hope, Subtle with "
+            + "Despair, Obvious on a critical, and your turn goes on. In an indirect murder, a critical leaves two.",
         // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
-        short: "On a hit, take a Remnant tied to the crime with you.",
+        short: "On a hit, leave a Reinforced Remnant tied to the crime at the scene.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
-        criticalReinforced: true,
+        /*
+         * REINFORCED ON EVERY HIT (1.2.112; the owner's decision of 13.11.2026). Until then this entry was Leave a
+         * Clue's at 15 instead of 12 - the same Remnants, Reinforced on a critical alone - so the harder roll bought
+         * nothing. What it buys now is a trace the killer cannot wipe in Stage 6, whatever the band: murder-rules.mjs
+         * `applyRemnant` reads `alwaysReinforced` beside `criticalReinforced` and the indirect table's `reinforced`.
+         * The Remnant is left at the scene, as every incident Remnant is; nothing goes into the victim's hands.
+         * Tier 2's "Secure a Trace leaves a Reinforced Remnant at the scene on every hit ..." reads it.
+         */
+        alwaysReinforced: true,
         // G-17, as on Leave a clue.
         criticalKeepsTurn: true,
         failure: "No Remnant, but advantage on the next attempt. Only on a Hope failure.",

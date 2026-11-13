@@ -26839,7 +26839,7 @@ const INVARIANTS = [
             difficulty: [/\bbeat\b/i.test(T(en).Actions?.difficultyTooltip ?? "beat"), /przebi/i.test(T(pl).Actions?.difficultyTooltip ?? "przebić")],
             anyRoom: [/any room/i.test(T(en).Actions?.room2Tooltip ?? ""), /dowoln/i.test(T(pl).Actions?.room2Tooltip ?? "")],
             frisk: /Zobaczą|miałeś/.test(T(pl).Actions?.letThemLookTooltip ?? "Zobaczą"),
-            rest: [/choosePicks\(kind,\s*rules\.picks,\s*cost\)/.test(rest), /plural\("DRPG\.Tips\.Actions\.doItCostTooltip",\s*\{\s*n:\s*cost\s*\}\)/.test(rest),
+            rest: [/choosePicks\(kind,\s*rules\.picks,\s*cost[,)]/.test(rest), /plural\("DRPG\.Tips\.Actions\.doItCostTooltip",\s*\{\s*n:\s*cost\s*\}\)/.test(rest),
                 cost && typeof cost === "object" ? Object.keys(cost).sort() : null, costPl && typeof costPl === "object" ? Object.keys(costPl).sort() : null],
             escape: /window with the Remnants/i.test(T(en).Trial?.openTheRemnantTableTooltip ?? "window with the Remnants"),
             gone: ["Actions.whichRemnantEraseATooltip", "Trial.endAndMoveTheTooltip", "Trial.endWithoutAdvancingTooltip", "Trial.endTheMurderTooltip"]

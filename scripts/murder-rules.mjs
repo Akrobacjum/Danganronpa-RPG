@@ -2453,7 +2453,8 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
     if (!visibility) return null;
 
     const override = indirectOverride(def, side);
-    const forced = reinforced
+    // `alwaysReinforced`: Secure a Trace's every hit (config.mjs, 1.2.112).
+    const forced = reinforced || Boolean(def.alwaysReinforced)
         || Boolean(def.criticalReinforced && band === "critical")
         || Boolean(override?.reinforced?.[band]);
     // "Ofiara pozostawia 2 Reinforced Incident Remnants" - the one place in the
