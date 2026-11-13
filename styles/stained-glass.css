@@ -3873,11 +3873,13 @@ body.drpg-theme-stained-glass #countdowns::before {
     background-color: transparent;
 }
 
-/* HOPE IS A STAR, NOT A DIAMOND, AND NOT A DOT.
-   Daggerheart draws the Hope track with `fa-diamond`, and `fa-diamond` is the one glyph
-   the pixel sprite has no entry for, so it stayed Font Awesome: at pip size a filled
-   diamond reads as a dot. It takes the star the audit settled on. The declarations
-   mirror the generated sheet's own, since this glyph is missing from it. */
+/* A DAGGERHEART `fa-diamond` INSIDE A MODULE HOST, MASKED (A113-C4-4, 13.11.2026: this header said "Hope is a star,
+   not a diamond", which gaps-111 (1b1daa92) overturned - under the glass Hope is batch 5's diamond, drawn by the slot's
+   `::before` further down, R4932). The rule draws nothing on Daggerheart 2.12.8: its only two `fa-diamond` places,
+   the character sheet's header.hbs:67 and the Party sheet's party-members.hbs:73, are both
+   `.hope-section .hope-value > i`, which the rule "ONE STAR PER SLOT" below hides (`display: none !important`);
+   measured in Chromium on 13.11.2026 with module.json's stylesheets inside a drpg- host - the mask computes, the icon
+   is not shown. Left as it stands: a later Daggerheart that drew `fa-diamond` outside a Hope slot would get the star. */
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-diamond,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-diamond:is(i, span) {
     /* NO `display` HERE, deliberately. The generated sheet sets `display: inline-block` on
