@@ -1200,7 +1200,7 @@ function askForCast(primary = primaryGmId()) {
  * THE DEATHS A PLAYER MAY KNOW (E05 C10; audit S06-11)
  * --------------------------------------------------------------------------
  * A killing in an incident is the GMs' until the body is found or a GM makes
- * it known (chapter.mjs `killCharacter`, `publishDeath`), and a player's
+ * it known (death.mjs `killCharacter`, `publishDeath`), and a player's
  * browser reads the deaths it may know from a copy (gm-stores.mjs
  * `deathCopy`): their own character's, and the incident's they were in. Sent
  * by the GM that wrote the row, and on the player's ask - at load, and when a
@@ -1677,7 +1677,7 @@ export function blackenedIds(chapter = getClock()?.chapter ?? null) {
  * counts nowhere until the discovery or a GM's hand makes it known. So a row names its
  * victims (`recordBlackened`), and the trial counts a killer for a death the table knows;
  * the register itself stays whole for the discovery's rule of two witnesses
- * (chapter.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.
+ * (body.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.
  */
 export function trialBlackenedIds() {
     return blackenedIds().filter(id => countsAtTrial(blackenedStore.get(id), untoldDeath));

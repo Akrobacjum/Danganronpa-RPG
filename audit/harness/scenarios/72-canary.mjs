@@ -677,7 +677,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         return t?.id ?? null;`, { timeout: 60000 });
     await gm.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 600, y: 1300 });
         await canvas.scene.tokens.get("TOKDAICHI0000000").update({ x: 650, y: 1500 }); return true;`, { timeout: 60000 });
-    /* The promotion is asked after the card and the hold since E11 C4 (chapter.mjs `runDiscovery`), so the
+    /* The promotion is asked after the card and the hold since E11 C4 (body.mjs `runDiscovery`), so the
        hold alone no longer says the dialog was answered: both are waited for. */
     const found = await settled("discovery", () => gm.eval(`const b = game.settings.get("${MOD}", "bodyFound"); return b?.room && globalThis.__promoted !== null ? { room: b.room, promoted: globalThis.__promoted } : null;`));
     check("gm: Aiko and Daichi find Botan in Dorm B, and the promotion dialog lists the Faint Prep trace",

@@ -47,7 +47,7 @@ const gridOf = scene => scene?.grid?.size ?? globalThis.canvas?.grid?.size ?? 10
  * Whether a death leaves a body on the map: any record (E63 C0, 11.11.2026; the owner on E95 Q2 "Trial tez, ale kafel
  * smierci po trialu znika" and Q3 "gdy postac umiera"). Until E63 an execution and a death in the Class Trial left none
  * (E95 Q2 (a)); now the executed's tile is laid by the sentence and taken with every other at the trial's end (clock.mjs
- * `reconcilePhase`). The discovery keeps its own rule (chapter.mjs `bodiesToDiscover`: an execution is no body to find).
+ * `reconcilePhase`). The discovery keeps its own rule (body.mjs `bodiesToDiscover`: an execution is no body to find).
  */
 export function isBodyDeath(record) {
     return Boolean(record);
@@ -179,7 +179,7 @@ function floorFieldsOf(level) {
 /**
  * LEAVE THE BODY (E95 C2, 10.11.2026; E63 C0, 11.11.2026: the owner's "gdy postac umiera ... Nie gdy zostaje
  * Monocubem"). Lays `actor`'s body on the map as a tile where their token stands, and answers the tile document, or null.
- * GM only, on the GM's browser that made the death the table's: chapter.mjs `markDeceased`, the one function every public
+ * GM only, on the GM's browser that made the death the table's: death.mjs `markDeceased`, the one function every public
  * death passes (`killCharacter` in public, `publishDeath` of a kept death, the Players window's "dead"), handing the
  * record it has just written - and migrate.mjs's clause for a 1.2.104 world (E63 C3), which hands none. A death the GMs
  * keep lays nothing until it is made known (QUESTIONS E63 Q1); becoming a Monocub lays nothing. No bridge action and no
@@ -233,7 +233,7 @@ let heldTiles = null;
  * runs at real tables, and from E63 every trial's end takes every body tile (clock.mjs `reconcilePhase`). tests.mjs
  * hands the ids of every body tile the world holds before tier 2 (`ids`), and null after it: in between, a removal of
  * every body on this browser (`removeBodyTiles` with no actor) leaves those, unless it is asked with `held: false` (the
- * season reset's own deaths group, chapter.mjs `clearSeasonDeaths`, which at a table does take every body). A removal
+ * season reset's own deaths group, death.mjs `clearSeasonDeaths`, which at a table does take every body). A removal
  * of one student's tiles (a revive) is not fenced. Answers the set held, or null.
  */
 export function holdBodyTiles(ids = null) {
@@ -250,8 +250,8 @@ export function heldBodyTiles() {
  * Remove the body tiles of `actorId` from every scene, or every body tile when it is null, and answer how many (E95
  * C2; QUESTIONS Q7, Q8; E63 C2: and at every Class Trial's end, clock.mjs `reconcilePhase`). GM only. With no actor, a
  * tile `holdBodyTiles` holds stays unless `held` is false (the suite's fence, above). `only`, a set of tile ids, narrows it to those (E95 fix RV-1: tier 2 runs the reset's
- * deaths entry on its own tiles alone, so a GM's suite at a table deletes no body the table holds). A revive takes the student's (chapter.mjs `reviveCharacter`: a student back alive
- * has no body), the season reset's deaths group every one (chapter.mjs `clearSeasonDeaths`), a body whose student is
+ * deaths entry on its own tiles alone, so a GM's suite at a table deletes no body the table holds). A revive takes the student's (death.mjs `reviveCharacter`: a student back alive
+ * has no body), the season reset's deaths group every one (death.mjs `clearSeasonDeaths`), a body whose student is
  * gone from the world included. Stopping being a Monocub keeps the tile: the student is still dead. A tile with no
  * body flag is never touched.
  */

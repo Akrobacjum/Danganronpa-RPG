@@ -723,7 +723,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     /* Out first: the discovery's gather brought every token to the body's room, and a step inside a room enters
        none - so the walks in measured nothing until they started outside it (12.10.2026: mutants e13c0-m10 and m11,
        which make the body or the executed findable again, stayed green). And what every browser was told: with
-       m10 the walk reaches a discovery and chapter.mjs's second guard (`announcedAlready`) refuses it with a
+       m10 the walk reaches a discovery and body.mjs's second guard (`announcedAlready`) refuses it with a
        warning on the GM and no card, so the cards and stamps alone cannot see it; today nobody is told anything. */
     const told0 = {};
     for (const c of clients) told0[c.who] = await c.eval(`return globalThis.__notifications.length;`);

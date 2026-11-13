@@ -760,7 +760,7 @@ export async function armedCallsHeld(actor) {
  * `rotEverything`, fix r2-H19), a GM's ruling on an item used (use-items.mjs `grantItemEffect`, H19) and an
  * Objection's evidence (trial.mjs `seizeFloor`, H20); the object a tie of a trace to the crime names
  * (bridge-guards.mjs `guardTieTraceHolder`, H21); and through this list itself a Reroll's plant (reroll.mjs
- * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22); and through
+ * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (death.mjs `bulletsHeldBy`, H22); and through
  * `itemAsHeld` the count a Reroll gives a used item's charge back to (murder-rules.mjs `undoLastCrisis`, H23).
  */
 export async function itemsAsHeld(actor) {
@@ -903,7 +903,7 @@ export function creationRefusal(actor, itemId) {
  * undecided row of an item the GMs held that a player deleted (`itemFindings`: flagged, the change `items.<id>` to
  * null, the GMs' copy kept as `data`; a row of the card of changes made with no GM watching alike), while the item is
  * still off the sheet - the copy `decideNow`'s Undo makes again under its id - read as an item (`itemLike`, with the
- * uuid it had). For a road that takes such an item for good (chapter.mjs `keepBulletDeletions`). Empty on a browser
+ * uuid it had). For a road that takes such an item for good (death.mjs `keepBulletDeletions`). Empty on a browser
  * that holds no rows.
  */
 export function deletedHeldBy(actor) {

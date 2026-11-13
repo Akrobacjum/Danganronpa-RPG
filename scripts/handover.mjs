@@ -465,7 +465,7 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
        those words at rest (the first's were covered by its trace's reveal, below). A body the
        table does not know is dead gets the item's move alone, which the owner chose (Q2); the
        bullet is owed by the death's row in the GMs' store and given by the publication
-       (chapter.mjs `publishDeath`), dated when and where the item was taken. The taker knows
+       (death.mjs `publishDeath`), dated when and where the item was taken. The taker knows
        what they took; the GMs have the row. */
     for (const { held, name } of got) {
         const loot = await lootRecord(taker, held, name, trace);
@@ -633,7 +633,7 @@ export function owedLoot(row) {
 /**
  * THE PUBLICATION GIVES WHAT A LOOT BEFORE IT OWED (E05 fix r2-F0b): each taker the Truth Bullet
  * of what they took, as a loot of a published body mints it, with the loot's own stamp and room.
- * Run by chapter.mjs `publishDeath` with the row it drops; a taker no longer in the world is
+ * Run by death.mjs `publishDeath` with the row it drops; a taker no longer in the world is
  * passed over. Answers how many were given.
  */
 export async function payOwedLoot(body, owed = []) {

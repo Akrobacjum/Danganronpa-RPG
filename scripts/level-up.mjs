@@ -1061,7 +1061,7 @@ async function tellPlayer(actor, reasons, summary, taken) {
  * waits for the class's next correct verdict and is picked with that survivor's
  * Standard, 1 + 3 picks in one window and one write; or for the Final Trial's verdict,
  * when the season's secrets are out anyway (the owner's Q7, option b). It lapses at a
- * kill (chapter.mjs `killCharacter`) and a season reset (the "advancement" group).
+ * kill (death.mjs `killCharacter`) and a season reset (the "advancement" group).
  *
  * A picker the GM closes spends nothing: the Standard is lost as it always was, and the
  * row stays for the next batch rather than going with a misclick.

@@ -486,7 +486,7 @@ export const blackenedStore = defineGmStore({
  * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). `loot` is split, a stamp per
  * record (E05 fix r2-G3): it was one list, and two GMs each adding a loot kept only the
  * later write - see handover.mjs `oweLootBullet`. Written by the kill
- * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's
+ * (death.mjs `killCharacter`), dropped by the publication, a revival or the reset's
  * "deaths" group; a dropped row's tombstone is what a player's copy weighs its loss
  * against. No old key: a death before 1.2.64 was published at the kill.
  */
@@ -738,7 +738,7 @@ export const offerStore = defineGmStore({
  * would otherwise be one row, and the second verdict's would take the first's place. Written
  * by a wrong verdict (level-up.mjs `deferAdvancement`), applied and dropped by the class's
  * next correct verdict or the Final Trial's (`runAdvancementBatch`, the owner's Q7), dropped
- * by a kill (chapter.mjs `killCharacter`) and cut by the reset's "advancement" group - the
+ * by a kill (death.mjs `killCharacter`) and cut by the reset's "advancement" group - the
  * two ways it lapses. No player copy and no old key: a 1.2.63 world applied it at once.
  */
 export const deferredOfferStore = defineGmStore({

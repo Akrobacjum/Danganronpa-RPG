@@ -97,7 +97,7 @@ export function forceDrawnBy(row) {
 
 /**
  * Whether `asker` (a user) knows that `target` is dead: a death published is the table's, everybody's (settings.mjs
- * `isDeceased` - publishing drops the GMs' row of it, chapter.mjs `publishDeath`); one the GMs keep is known to those
+ * `isDeceased` - publishing drops the GMs' row of it, death.mjs `publishDeath`); one the GMs keep is known to those
  * its row names (incident-store.mjs `knowsOfDeath`). A Frisk never touches a known body (the A11 design's resolved 20;
  * E80 fix r1-G1, the review's rc2-1), as handover.mjs `lootBody` reads the same two.
  */
@@ -180,7 +180,7 @@ export function knownDeath(user, target) {
 }
 
 /**
- * The students who see what happens in `room` on `scene`, as the GMs read them: chapter.mjs `witnessesOf`, the rule a
+ * The students who see what happens in `room` on `scene`, as the GMs read them: body.mjs `witnessesOf`, the rule a
  * walk-in on a body counts its witnesses by - a student's character (no Monokuma), on a token the GMs have not hidden,
  * alive for the GMs or a Monocub, standing where the witness judge reads it (movement.mjs `lawfulRoomOf`), one a
  * student however many tokens - less the ids of `except` (the two the event is about). A Monocub sees (`monocubs`),
