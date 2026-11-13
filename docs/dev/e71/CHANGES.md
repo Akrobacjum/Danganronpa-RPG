@@ -951,7 +951,7 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.en.md | `line 497 (### Remnants)` | analysed,, colour | analyzed,, color | EN1/DB9 and D33e: American spelling (glossary neighbor, behavior, color, analyze, canceled ...; scope handbooks); the window's name "Room setup" (glossary window-room-setup, D31, scope handbooks). |
 | player-handbook.en.md | `line 505 (### Remnants)` | analysed. | analyzed. | EN1/DB9 and D33e: American spelling (glossary neighbor, behavior, color, analyze, canceled ...; scope handbooks); the window's name "Room setup" (glossary window-room-setup, D31, scope handbooks). |
 
-## glossary (handbooks) (9)
+## glossary (handbooks) (11)
 
 | File | Key / section | Before | After | Why |
 | --- | --- | --- | --- | --- |
@@ -964,6 +964,8 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.en.md | `line 173 (### Search Tokens)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
 | player-handbook.en.md | `line 191 (### Search - Eye, 1 action)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
 | player-brochure.en.md | `line 12 (## Each time of day (Morning, Noon, Afternoon, Evening, Night))` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| gm-handbook.pl.md | `line 580 (### 9.6 Tajne przejścia)` | ma Pochodzenie Projekt | ma w kolumnie Źródło: Projekt | the Passages table's origin head is "Źródło" since gaps-radio 7ed09b68 (the coordinator's handoff, 13.11) |
+| gm-handbook.pl.md | `line 583 (### 9.6 Tajne przejścia)` | a Pochodzenie: GM albo Tajne drzwi | a Źródło: GM albo Tajne drzwi | the Passages table's origin head is "Źródło" since gaps-radio 7ed09b68 (the coordinator's handoff, 13.11) |
 
 ## brochure (8)
 
