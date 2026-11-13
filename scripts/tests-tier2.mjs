@@ -42038,6 +42038,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const stamp = Date.now() % 100000;
         const placed = [];
         const made = [];
+        /* AN ACTION FOR EACH ATTEMPT (after the 1.2.110 lows' E64 F3, 7b9add03, which E70-T14 met first): each attempt
+           here goes by the action's road with the Sanity step named, which that road refuses, so the GM takes an action
+           (cleanup.mjs `chargeUnclaimed`); with none left the attempt is refused now instead of scored. The student's own
+           actions ran out before the fifth attempt, the erase road's: "the decline on the erase road was refused" (no card
+           was raised, so no attempt to decline) alone at 58e0fd06 in three runs of three and at 19d11cc7, and in shard 5/8
+           of the 1.2.111 tree; first red at eb78391b (the v110-lows merge), green at its first parent. Put back as they
+           were in the finally. */
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const actionsHad = who.system.resources.actions.value;
+        const oneAction = () => trustedWrite(who, { "system.resources.actions.value": Math.max(1, who.system.resources.actions.value) }, { reason: "gmRuling" });
 
         const fixture = async () => {
             const token = await remnants.placeRemnant({
@@ -42058,12 +42068,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return token;
         };
 
-        const tamper = (token, name, text) => cleanup.resolveCleanup({
+        const tamper = async (token, name, text) => (await oneAction(), cleanup.resolveCleanup({
             actorId: who.id, tokenId: token.id, total: 30,
             isCritical: false, withHope: true, viaAction: true,
             mode: "transform", price: "stress",
             change: { name, text }
-        });
+        }));
 
         try {
             // ---- a success proposes, and writes nothing -------------------
@@ -42157,6 +42167,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // A critical on the erase road bought an erase; the rewrite was the
             // upgrade on top. Declining the story used to leave the trace standing.
             const fifth = await fixture();
+            await oneAction();
             await cleanup.resolveCleanup({
                 actorId: who.id, tokenId: fifth.id, total: 30,
                 isCritical: true, withHope: true, viaAction: true, mode: "erase",
@@ -42178,6 +42189,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const token of placed) {
                 try { await token.delete(); } catch { /* already gone */ }
             }
+            await trustedWrite(who, { "system.resources.actions.value": actionsHad }, { reason: "gmRuling" }).catch(() => {});
             await settle();
         }
     }],
