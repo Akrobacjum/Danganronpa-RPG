@@ -51409,6 +51409,58 @@ const INVARIANTS = [
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
     }],
+    ["R5100 - the state's invariants are read in one place (E40 C2): state-check.mjs `stateProblems` finds nothing on a clean snapshot, a world secret by world-secrets.mjs's rule, a `passage*` or `frisk*` module flag on an actor, a token's delta, a region and a wall, and a clock with a phase of no `PHASES` key or a day of 0; `checkState()` reads this GM's world with no problem, says nothing quiet, and answers null on a player's browser", async () => {
+        /*
+         * E40 C2, 13.11.2026; plan E40 item 2 and its A10/A11 amendments. Read on fixtures (pure; this writes nothing),
+         * then on the suite's world as found. Red before C2: no scripts/state-check.mjs. The fixture's world secret is
+         * the one R9's planted card reads (a ChatMessage `summary` flag), so the rule is world-secrets.mjs's, not this
+         * file's.
+         */
+        needs(world.atLeast("livingStudents", 1), "a world with students for the check to read");
+        const S = await import("./state-check.mjs");
+        const { WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        const MOD = MODULE_ID;
+        const clock = { phase: "dailyLife", chapter: 1, day: 1, session: 1 };
+        const clean = () => ({ settings: {}, actors: [{ id: "R5100ACTOR000001", flags: { [MOD]: { advances: 1 } } }], users: [], tokens: [],
+            messages: [], items: [], scenes: [], regions: [], walls: [] });
+        const codes = (snapshot, c = clock) => S.stateProblems(snapshot, c).map(p => `${p.code}:${p.doc}:${p.path}`).sort();
+        const secretFlag = (WORLD_SECRET_RULES.flags?.ChatMessage ?? [])[0] ?? null;
+        must(secretFlag, "world-secrets.mjs names no ChatMessage flag to plant - this would measure nothing");
+        const planted = clean();
+        planted.messages.push({ id: "R5100MESSAGE0001", flags: { [MOD]: { [secretFlag.split(".")[0]]: secretFlag.includes(".") ? { [secretFlag.split(".").slice(1).join(".")]: 1 } : "x" } } });
+        planted.actors.push({ id: "R5100ACTOR000002", flags: { [MOD]: { passageSeen: true } } });
+        planted.tokens.push({ id: "SCENE.R5100TOKEN0001", flags: {}, delta: { flags: { [MOD]: { friskAsked: 1 } } } });
+        planted.regions.push({ id: "SCENE.R5100REGION001", flags: { [MOD]: { room: true, passageEnd: "x" } } });
+        planted.walls.push({ id: "SCENE.R5100WALL00001", flags: { [MOD]: { friskWall: 1 } } });
+        const read = {
+            clean: codes(clean()),
+            planted: codes(planted),
+            badClock: codes(clean(), { phase: "lunch", chapter: 1, day: 0, session: 1 }),
+            keys: ["passage", "passageEnd", "friskAsk", "Frisk", "aPassage", "room"].map(S.isPassageOrFriskKey)
+        };
+        const said = [];
+        const warn = console.warn;
+        console.warn = (...args) => { said.push(args.join(" ")); };
+        let here, quiet, player;
+        try {
+            here = S.checkState({ quiet: true });
+            quiet = said.length;
+            player = S.checkState({ gm: false });
+        } finally {
+            console.warn = warn;
+        }
+        equal(stableJson(read), stableJson({
+            clean: [],
+            planted: [`passageFrisk:Actor:flags.${MOD}.passageSeen`, `passageFrisk:Region:flags.${MOD}.passageEnd`,
+                `passageFrisk:Token:delta.flags.${MOD}.friskAsked`, `passageFrisk:Wall:flags.${MOD}.friskWall`,
+                ...S.stateProblems({ ...clean(), messages: planted.messages }, clock).map(p => `${p.code}:${p.doc}:${p.path}`)].sort(),
+            badClock: ["clock:setting:day", "clock:setting:phase"],
+            keys: [true, true, true, true, false, false]
+        }), "the state's problems on the fixtures ([code:doc:path] sorted: a clean snapshot, one planted with a secret and four passage or Frisk flags, a clock of no phase and day 0; and which keys read as a passage's or a Frisk's)");
+        ok(read.planted.some(c => c.startsWith("worldSecret:ChatMessage:")), "the planted message's secret flag is not read as a world secret - the world-secrets rule is not reached");
+        equal(stableJson([here?.ok ?? null, here?.problems?.length ?? null, quiet, player]), stableJson([true, 0, 0, null]),
+            `this GM's world as found has state problems, a quiet check said something, or a player's run read the world (ok, problems, said, player): ${stableJson(here?.problems ?? null)}`);
+    }],
 ];
 
 /**
