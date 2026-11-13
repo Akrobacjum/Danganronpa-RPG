@@ -29160,6 +29160,84 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "{the editor's fields in order; the row after the close; the roomless plan named on the Map; New Remnant's fields from Place; New Remnant's room for the roomless plan}");
     }],
 
+    ["planned Key slot holds every field: a Key slot not yet placed plans its room on its scene, its visibility, who left it and its picture on the Table, kept when the window closes; Place's window starts on the planned visibility; the realization places it with every one (E104; the owner, 13.11.2026: \"lokalizacje, trudnosc i wszystkie parametry\")", async () => {
+        /*
+         * E104 C2. investigation.mjs `caseKeyCells` (`keyPlanExtras`), `readCaseFields`' Key rows with the room's scene,
+         * `saveKeyPlan`, `placeKeyRow`, case-realize.mjs `runRealization`. The first slot of the chapter running not yet
+         * placed: on the Table its planned room set to the first offered (with its scene), Subtle, the first student,
+         * a picture and a name; the window closed by its X (every close writes the Table, a8c5ee1); the slot read back.
+         * Place's window read and closed. Then a realization of that slot: the Remnant's visibility, who left it, its
+         * room and picture read. The Remnant, the slot's row and the case's marks are put back. Red at 01cdf687: the slot
+         * had no visibility, author or picture to plan, and the realization placed every Key "evident".
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./case-realize.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const plan = I.keyPlan();
+        const chapter = plan.chapter;
+        const slot = plan.entries.findIndex(e => !e.tokenId);
+        must(slot >= 0, "every Key slot of the chapter is placed - nothing to plan");
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to name as who left it - this would measure nothing");
+        const key = `${chapter}:${slot}`;
+        const before = foundry.utils.deepClone(keyPlanStore.get(key) ?? null);
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const placeWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-keyplace"));
+        const seen = {};
+        let win = null, token = null, expected = null;
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            const room = win.field(`keyroom:${slot}`);
+            must(room && win.field(`keyvis:${slot}`) && win.field(`keyauthor:${slot}`) && win.field(`keyimg:${slot}`),
+                "the Table draws no visibility, author or picture for an unplaced Key slot");
+            const option = [...room.options].find(o => o.value);
+            must(option, "no room is offered - this would measure nothing");
+            expected = { room: option.value, scene: option.dataset.scene || null };
+            room.value = option.value;
+            win.field(`keyvis:${slot}`).value = "subtle";
+            win.field(`keyauthor:${slot}`).value = student.id;
+            win.field(`keyimg:${slot}`).value = "icons/svg/book.svg";
+            win.field(`keyname:${slot}`).value = "SUITE e104 key";
+            await win.app.close();
+            await Promise.race([win.answer, wait(5000)]);
+            win = null;
+            await until(() => I.keyPlan().entries[slot]?.vis === "subtle", 4000).catch(() => {});
+            const entry = I.keyPlan().entries[slot];
+            seen.stored = { room: entry.room, scene: entry.scene, vis: entry.vis, author: entry.author, img: entry.img, name: entry.name };
+            const opened = I.placeKeyRow(null, slot).catch(() => null);
+            await until(() => placeWindow()?.element, 4000).catch(() => {});
+            const f = placeWindow()?.element?.querySelector("form");
+            seen.place = f ? { room: f.room.value, vis: f.vis.value } : null;
+            await placeWindow()?.close();
+            await Promise.race([opened, wait(3000)]);
+            await R.runRealization(chapter, [{ slot, room: expected.room, sceneId: expected.scene }]);
+            const placed = I.keyPlan().entries[slot];
+            token = placed?.tokenId ? game.scenes.get(placed.sceneId)?.tokens?.get(placed.tokenId) ?? null : null;
+            const data = token ? remnants.remnantData(token) : null;
+            seen.realized = data ? { vis: data.visibility, author: data.sourceActor ?? null, room: data.room, img: data.public?.img ?? null, scene: token.parent?.id ?? null } : null;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            placeWindow()?.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await keyPlanStore.drop(key).catch(() => {});
+            if (before) await keyPlanStore.patch(key, before).catch(() => {});
+            await S.setCaseMeta(chapter, { run: metaBefore.run, made: metaBefore.made }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            stored: { ...expected, vis: "subtle", author: student.id, img: "icons/svg/book.svg", name: "SUITE e104 key" },
+            place: { room: expected?.room ?? null, vis: "subtle" },
+            realized: { vis: "subtle", author: student.id, room: expected?.room ?? null, img: "icons/svg/book.svg", scene: expected?.scene ?? null }
+        }), "{the slot read back after the window's close; Place's window: room and visibility; the realized Remnant: visibility, who left it, room, picture, scene}");
+    }],
+
     ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~01:05: the case plans its Autopsy on a node of its own

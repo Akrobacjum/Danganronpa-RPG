@@ -64,7 +64,10 @@ const SCALE_LABELS = KEY_REMNANTS.scaleLabels;
 
 /** A plan row's fields, in the order a row is written. */
 // `room` (13.11.2026): where a slot not on the map is to go, the realization's and Place's first choice
-const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId", "room"];
+/* E104 (the owner, 13.11.2026: "lokalizacje, trudnosc i wszystkie parametry"): the planned room's `scene`, its band `vis`
+   (with the Key column, its Observe DC), who left it (`author`) and its picture (`img`), which Place and the realization
+   pass on (`placeKeyRow`, case-realize.mjs `runRealization`). `sceneId` stays the placed token's. */
+const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId", "room", "scene", "vis", "author", "img"];
 const planKey = (chapter, slot) => `${chapter}:${slot}`;
 /** A chapter's case row (E09 C6, `recordCaseKeys`): beside its slots, and not one of them. */
 const caseKey = chapter => `${chapter}:case`;
@@ -159,7 +162,8 @@ export function keyPlan() {
             return {
                 scale: row.scale ?? KEY_REMNANTS.scale[slot] ?? "standard",
                 name: row.name ?? "", text: row.text ?? "", analysis: row.analysis ?? "", note: row.note ?? "",
-                tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null, room: row.room ?? ""
+                tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null, room: row.room ?? "",
+                scene: row.scene || null, vis: REMNANT_VISIBILITY.includes(row.vis) ? row.vis : "evident", author: row.author ?? "", img: row.img ?? ""
             };
         })
     };
@@ -810,7 +814,7 @@ async function saveKeyPlan(plan, rows) {
         if (!Object.keys(take).length) continue;
         const [tokenId, sceneId] = ("token" in take ? take.token : now.token)?.split("|") ?? [];
         const entry = { scale: row.scale };
-        for (const field of ["name", "text", "analysis", "note", "room"]) if (field in take) entry[field] = take[field];
+        for (const field of ["name", "text", "analysis", "note", "room", "scene", "vis", "author", "img"]) if (field in take) entry[field] = take[field];
         if ("token" in take) Object.assign(entry, { tokenId: tokenId || null, sceneId: sceneId || null });
         /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
            Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
@@ -878,8 +882,27 @@ function keyRowShows(entry, placed) {
         analysis: (pub ? pub.analyzedText : entry.analysis) ?? "",
         note: entry.note ?? "",
         token: here ? `${here.token.id}|${here.scene.id}` : "",
-        room: entry.room ?? ""
+        room: entry.room ?? "",
+        // E104: what a slot not yet placed plans besides its room
+        scene: entry.scene ?? null, vis: entry.vis ?? "evident", author: entry.author ?? "", img: entry.img ?? ""
     };
+}
+
+/**
+ * A KEY SLOT NOT YET PLACED PLANS WHAT ITS PLACE ASKS AND WHAT THE REMNANT CARRIES (E104; the owner, 13.11.2026:
+ * "lokalizacje, trudnosc i wszystkie parametry"): its visibility (with the Key column, how hard it is to find; the Place
+ * window's own field and words), who left it (New Remnant's field) and its picture (the Table's). Beside its planned
+ * room, in the slot's status cell, on the Table and in the slot's node on the Map.
+ */
+function keyPlanExtras(i, shows, aria) {
+    const L = key => game.i18n.localize(key);
+    const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (shows.vis ?? "evident") ? " selected" : ""}>${
+        esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
+    const img = shows.img || "";
+    return `<select name="keyvis:${i}"${aria("DRPG.Investigation.visibility")}>${vis}</select>
+                <select name="keyauthor:${i}"${aria("DRPG.Remnant.authorLabel")}>${authorOptions(shows.author || null, studentActors())}</select>
+                <img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="key-${i}"
+                     data-drpg-portrait-field="keyimg:${i}" /><input type="hidden" name="keyimg:${i}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`;
 }
 
 /** How a refusal names a Key Remnant row: the tab, and which planned clue. */
@@ -1265,13 +1288,15 @@ async function createKeyRemnant(row, scene) {
            while the clue sat in the ledger. `createFind` in observe.mjs has always done this
            correctly and says why: two names for one object is a false contradiction the table
            has to spend the trial resolving. Same call, same fields, same reason. */
-        if (token && (row.name || row.text || row.analysis)) {
+        if (token && (row.name || row.text || row.analysis || row.img)) {
             await setRemnantPublic(token, {
                 ...(row.name ? { name: row.name } : {}),
                 ...(row.text ? { playerText: row.text } : {}),
                 // What the finder reads once they analyse it (21.09) - kept back
                 // until then like any trace's, however self-evident the kind.
-                ...(row.analysis ? { analyzedText: row.analysis } : {})
+                ...(row.analysis ? { analyzedText: row.analysis } : {}),
+                // and the slot's planned picture (E104), as the Table writes it
+                ...(row.img ? { img: row.img } : {})
             });
         }
         return token;
@@ -1407,7 +1432,8 @@ export async function placeInSlot(plan, scene, result) {
 
     const token = await createKeyRemnant({
         createIn: result.room, visibility: result.visibility,
-        name: result.name, text: result.text, analysis: result.analysis, note: result.note, scale, author: result.author ?? ""
+        name: result.name, text: result.text, analysis: result.analysis, note: result.note, scale, author: result.author ?? "",
+        img: result.img ?? ""
     }, scene);
     if (!token) return null;
 
@@ -1449,13 +1475,19 @@ export async function placeKeyRow(root, slot) {
         return null;
     }
     const { allRooms } = await import("./movement.mjs");
-    const scene = workingScene();
+    const drawn = keyPlan().entries[slot] ?? {};
+    /* THE PLANNED SCENE, VISIBILITY, AUTHOR AND PICTURE (E104): the slot's room select as typed carries its scene, else the
+       plan's; a scene that no longer exists or no longer holds the room falls back to the working scene, as before */
+    const typedField = field => root?.querySelector(`[name="${CSS.escape(`${field}:${slot}`)}"]`) ?? null;
+    const typedScene = typedField("keyroom")?.selectedOptions?.[0]?.dataset.scene || "";
+    const plannedScene = game.scenes.get(typedScene || drawn.scene || "") ?? null;
+    const scene = plannedScene ?? workingScene();
     const rooms = allRooms(scene);
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Investigation.noRooms"));
         return null;
     }
-    const drawn = keyPlan().entries[slot] ?? {};
+    const plannedVis = typedField("keyvis")?.value || drawn.vis || "evident";
     /* THE PLANNED ROOM FIRST (13.11.2026): the row's picker as the GM left it, else the plan's; one the scene no longer
        has is said in one line, and the window starts on its first room, as before. */
     const typedRoom = root?.querySelector(`[name="${CSS.escape(`keyroom:${slot}`)}"]`)?.value ?? "";
@@ -1469,7 +1501,7 @@ export async function placeKeyRow(root, slot) {
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${rooms.map(r => `<option value="${esc(r)}"${r === planned ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
-                <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
+                <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === plannedVis ? " selected" : ""}>${
                     esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("")}</select></label>
         </form>`,
         footer: {
@@ -1494,7 +1526,8 @@ export async function placeKeyRow(root, slot) {
     }
     const typed = field => root?.querySelector(`[name="${CSS.escape(`${field}:${slot}`)}"]`)?.value.trim() ?? "";
     return placeInSlot(plan, scene, { ...result, slot,
-        name: typed("keyname"), text: typed("keytext"), analysis: typed("keyanalysis"), note: typed("note") });
+        name: typed("keyname"), text: typed("keytext"), analysis: typed("keyanalysis"), note: typed("note"),
+        author: typedField("keyauthor") ? typed("keyauthor") : drawn.author ?? "", img: typedField("keyimg") ? typed("keyimg") : drawn.img ?? "" });
 }
 
 /* ==========================================================================
@@ -2126,8 +2159,9 @@ function caseKeyCells({ plan, status, placed, limit }) {
                     ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
                     ${picker}
                 </select>
-                ${here ? "" : `<select name="keyroom:${i}"${aria("DRPG.Investigation.plannedRoom")}><option value="">${
-                    esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room })}</select>`}
+                ${here ? "" : `<select name="keyroom:${i}"${aria("DRPG.Investigation.plannedRoom")} data-drpg-scene-drawn="${esc(shows.scene ?? "")}"><option value="">${
+                    esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room, sceneId: shows.scene })}</select>`}
+                ${here ? "" : keyPlanExtras(i, shows, aria)}
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
                     overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}`
@@ -2685,9 +2719,7 @@ function readSchemaForm(form) {
             if (!sameValue(value, drawn)) node.text[field] = { value, drawn };
             /* a room picked carries its scene (E104): the option's `data-scene`, against the scene the row was drawn
                with (`data-drpg-scene-drawn`), so a plan names where its room is, not only what it is called */
-            if (field === "room" && el.tagName === "SELECT" && el.dataset.drpgSceneDrawn !== undefined) {
-                node.text.scene = { value: el.selectedOptions?.[0]?.dataset.scene || null, drawn: el.dataset.drpgSceneDrawn || null };
-            }
+            if (field === "room" && el.tagName === "SELECT") Object.assign(node.text, roomScene(el));
         }
     }
     const out = [];
@@ -2797,6 +2829,13 @@ function readDashboardForm(d) {
  * (`saveOpenNode`) reads its editor here, so a field of the Table that a node does not hold is never read as empty and
  * written by a node's close (perf-open's review for 1.2.111, section 2; 13.11.2026).
  */
+/* A planned room's scene (E104): a room select changed carries the picked option's scene, against the one it was drawn
+   with (`data-drpg-scene-drawn`), as `{ scene: { value, drawn } }`; nothing where the room was not changed. */
+function roomScene(select) {
+    if (!select || select.dataset?.drpgSceneDrawn === undefined || !isDirty(select)) return {};
+    return { scene: { value: select.selectedOptions?.[0]?.dataset.scene || null, drawn: select.dataset.drpgSceneDrawn || null } };
+}
+
 function readCaseFields(form) {
     const traces = allTraces();
     const plan = keyPlan();
@@ -2839,10 +2878,11 @@ function readCaseFields(form) {
         schema: readSchemaForm(form),
         keyRows: plan.entries.map((entry, i) => ({
             slot: i, scale: entry.scale,
-            fields: changed([
+            fields: { ...changed([
                 ["name", `keyname:${i}`], ["text", `keytext:${i}`], ["analysis", `keyanalysis:${i}`],
-                ["note", `note:${i}`], ["token", `token:${i}`], ["room", `keyroom:${i}`]
-            ])
+                ["note", `note:${i}`], ["token", `token:${i}`], ["room", `keyroom:${i}`],
+                ["vis", `keyvis:${i}`], ["author", `keyauthor:${i}`], ["img", `keyimg:${i}`]
+            ]), ...roomScene(q(`keyroom:${i}`)) }
         }))
     };
 }

@@ -30,3 +30,27 @@ kazdemu zaplanowanemu remnantowi/bulletowi. Upewnijmy sie ze gm moze zaplanowac 
 - **D2. The picture** is planned too (the Table's field), though New Remnant does not ask it; it is written after
   placing.
 - **D3. Place still opens New Remnant** filled in from the plan, so the GM confirms before a token goes on the map.
+
+## C2. A Key slot not yet placed plans its scene, visibility, author and picture
+
+- The slot's status cell (on the Table, and in the slot's node on the Map) holds, beside its planned room, the
+  visibility (the Place window's own field: how hard it is to find, with the Key column the Observe DC), who left it
+  (New Remnant's field) and the picture (the Table's). The room select carries its scene. investigation.mjs
+  `PLAN_FIELDS` scene, vis, author, img; `keyPlanExtras`; `readCaseFields`' Key rows (`roomScene`).
+- **Place** (`placeKeyRow`) opens on the planned scene where it still holds the room (else the working scene, as
+  before), starts its visibility on the planned one, and passes the author and the picture.
+- **The realization** (case-realize.mjs `runRealization`) places each slot with its planned visibility, author and
+  picture; until now every Key went "evident" and named nobody. The preview starts each room on its planned scene.
+- **Incomplete:** a slot with no room `needs` a room (`graphOf`); the consistency check says so, and Place and the
+  realization's preview ask for the room as before.
+- Tests: R5331 (tier 1: the slot node's fields and `needs`, the problem); tier 2 "planned Key slot holds every field:
+  ..." (the Table's fields kept at the window's close, Place's window, the realized Remnant's visibility, author, room,
+  picture and scene; the slot and the case's marks put back). Both red at 01cdf687. R2067 reads the new field names.
+- GM handbook EN/PL: two sentences in the realization paragraph.
+
+### Defaults taken, owner to confirm
+
+- **D4. A slot's planned visibility starts at Evident**, the Place window's own default.
+- **D5. Every Key slot not placed and with no room is named "incomplete"**, five on a fresh chapter: the real roads
+  cannot place a slot without a room.
+

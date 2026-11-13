@@ -9117,6 +9117,26 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R5331 - a Key slot not yet placed carries what it plans besides its room - its room's scene, its visibility, who left it, its picture - onto the Map's node, and one with no room needs a room (E104; the owner, 13.11.2026: \"lokalizacje, trudnosc i wszystkie parametry\")", async () => {
+        /*
+         * E104 C2. case-schema.mjs `graphOf`'s planned Key slot node and its `needs`, `checkCase`'s "incomplete". The
+         * Table's fields, Place and the realization are tier 2's "planned Key slot holds every field ...". Red at
+         * 01cdf687: the slot's node carried its room alone and needed nothing.
+         */
+        const S = await import("./case-schema.mjs");
+        const graph = S.graphOf({ chapter: 1, slots: [{ slot: 0, room: "Hall", scene: "S1", vis: "subtle", author: "A1", img: "x.webp" }, { slot: 1 }] });
+        const node = id => graph.nodes.find(n => n.id === id) ?? null;
+        const pick = n => n ? { room: n.room, scene: n.scene, vis: n.vis, author: n.author, img: n.img, needs: n.needs ?? null } : null;
+        equal(stableJson({
+            planned: pick(node("key:0")),
+            bare: pick(node("key:1")),
+            problems: S.checkCase(graph).filter(p => p.code === "incomplete").map(p => [p.node, p.ref])
+        }), stableJson({
+            planned: { room: "Hall", scene: "S1", vis: "subtle", author: "A1", img: "x.webp", needs: [] },
+            bare: { room: null, scene: null, vis: null, author: "", img: "", needs: ["room"] },
+            problems: [["key:1", "room"]]
+        }), "{a planned slot's node; a slot with nothing planned; the incomplete problems}");
+    }],
     ["R5330 - a planned Remnant holds every field New Remnant asks (E104; the owner, 13.11.2026: \"niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry kazdemu zaplanowanemu remnantowi\"): its room's scene, who left it, its band, the tie (tied where an Incident's is unwritten, open for the other types), reinforced, the analysis, the GM's note and the picture; none on another kind; the Map's planned node carries them, and one with no room needs a room, which the consistency check says in words", async () => {
         /*
          * E104 C1. case-schema.mjs `caseNodeOf` (`incidentFields`), `graphOf`'s planned Remnant node and its `needs`,
@@ -48629,7 +48649,7 @@ const INVARIANTS = [
             keys: { kit: true, cols: ["scale", "name", "text", "analysis", "note", "status"],
                 heads: ["DRPG.Investigation.difficulty", "DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.keyNoteLabel", "DRPG.Investigation.keyStatus"].map(L) },
             // keyroom (13.11.2026): a slot's planned room, beside Place while it is not on the map
-            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "keyroom:0", "place:0"]
+            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "keyroom:0", "keyvis:0", "keyauthor:0", "keyimg:0", "place:0"]
         }), "{who: WHO HAS WHAT on the drawn dashboard [a dataTable, its columns' keys, its heads' words, each head a number head, the Breakdown head's tooltip]; traces, keys: "
             + "the Traces tab's and the planner's tables [a dataTable, columns, heads]; traceNames, keyNames: their fields' names (a trace's row key as K)}");
     }],
