@@ -153,7 +153,11 @@ changed (the owner's note is about the animation); the at-rest cut is not.
 
 ## Defaults taken, owner to confirm
 
-- Q-E61-1: a client that loads or reloads after the event plays nothing (the bus's `heard` is read at ready; a card in the log is not created again).
+- Q-E61-1: ~~a client that loads or reloads after the event plays nothing (the bus's `heard` is read at ready; a card in the log is not created again).~~
+  **Answered by the owner, 13.11.2026: "Przez 10 minut".** A browser that loads within 10 minutes of the event plays the newest one it
+  missed, once per event per browser; after 10 minutes, nothing. Built on claude/gaps-111 for 1.2.111 (sequence.mjs `lateSequence`,
+  `catchUpSequences`, `LATE_PLAY_MS`; R4934, scenario 96). The end-of-day board is not played late (its rows need the ended day's
+  start, which the new clock does not hold).
 - Q-E61-2: the table's switch off: the sounds still play. Esc: a sound already started plays out.
 - Q-E61-3: two sentenced: two portraits side by side, one stamp each.
 - Q-E61-4: the Final Trial's verdict gets no cut-in in E61.

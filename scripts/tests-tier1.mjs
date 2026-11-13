@@ -19080,6 +19080,40 @@ const INVARIANTS = [
         }
         equal(stableJson(seen), stableJson(want), "{theme panel: the outline a :focus-visible rule of the module's sheets declares on it - solid, or none}");
     }],
+    ["R4934 - a browser that loads within 10 minutes of a sequence's event plays it once, and after 10 minutes nothing (gaps-111; the owner's answer to Q-E61-1 and Q-E94-4, 13.11.2026: \"Przez 10 minut\"): sequence.mjs `lateSequence` picks, from the clock and the chat this browser holds, the newest event under 10 minutes old - the trial's entry, the verdict's cut-in, the start-of-day board - that this browser has not played, and only from what this browser would have seen live", async () => {
+        /*
+         * gaps-111, 13.11.2026. Until now a browser that loaded after the event played nothing (the plan's Q-E61-1 default,
+         * sequence.mjs's header). The owner chose 10 minutes. Read here on the pure picker, on stand-ins of the clock and of
+         * chat messages, at a fixed `now`: each event alone at 9 and at 11 minutes; the newest of three; one this browser
+         * played already (the browser's own record, `played`); a verdict card this user cannot see; a player's card with the
+         * verdict's flags; a new day written by a correction (no `dayBoard`); an event stamped a minute ahead of this
+         * browser's server time (the writer's skew: it is new, and plays). Red at 7695476c: no `lateSequence`.
+         */
+        const Q = await import("./sequence.mjs");
+        must(typeof Q.lateSequence === "function", "sequence.mjs exports no lateSequence - the late play is not built");
+        const NOW = 1_800_000_000_000, MIN = 60_000;
+        const trial = ago => ({ phase: "classTrial", timeOfDayStartedAt: NOW - ago * MIN, day: 4, season: 1, session: 2 });
+        const day = (ago, board = 5) => ({ phase: "dailyLife", timeOfDay: "morning", day: 5, dayBoard: board, dayStartedAt: NOW - ago * MIN, timeOfDayStartedAt: NOW - ago * MIN, season: 1, session: 2 });
+        const card = (ago, { gm = true, visible = true, at = 77 } = {}) => ({ author: { isGM: gm }, visible, timestamp: NOW - ago * MIN,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "verdictAt" ? at : undefined) });
+        const pick = (args) => { const r = Q.lateSequence({ now: NOW, played: {}, messages: [], ...args }); return r ? `${r.kind} ${r.key}` : null; };
+        const read = {
+            trial9: pick({ clock: trial(9) }), trial11: pick({ clock: trial(11) }),
+            day9: pick({ clock: day(9) }), day11: pick({ clock: day(11) }), dayCorrection: pick({ clock: day(2, null) }),
+            verdict9: pick({ clock: day(30), messages: [card(9)] }), verdict11: pick({ clock: day(30), messages: [card(11)] }),
+            hidden: pick({ clock: day(30), messages: [card(1, { visible: false })] }), playerCard: pick({ clock: day(30), messages: [card(1, { gm: false })] }),
+            newest: pick({ clock: trial(6), messages: [card(2)] }),
+            playedAlready: pick({ clock: trial(3), played: { [`trialEntry\u0000${Q.trialEntryKey(trial(3))}`]: NOW - 3 * MIN } }),
+            future: pick({ clock: trial(-1) })
+        };
+        equal(stableJson(read), stableJson({
+            trial9: `trialEntry ${Q.trialEntryKey(trial(9))}`, trial11: null,
+            day9: "dayStart day:1:5:2", day11: null, dayCorrection: null,
+            verdict9: "verdictCut verdict:77", verdict11: null, hidden: null, playerCard: null,
+            newest: "verdictCut verdict:77", playedAlready: null, future: `trialEntry ${Q.trialEntryKey(trial(-1))}`
+        }), "{case: what a browser loading now plays late - kind and key, or null}");
+        equal(Q.LATE_PLAY_MS, 10 * MIN, "the window is the owner's 10 minutes");
+    }],
     ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
         /*
          * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground
