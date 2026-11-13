@@ -29,6 +29,16 @@ the pilot's). Started 13.11.2026 from d7566926 on `claude/e40-item4-c`. R number
 | R315 | (c) | The verdict window's footer, select and `read` as built; tier 2's three named verdict-window tests drive what they do | marked |
 | R316 | (c) | A census of the lock's writes, an order inside `carryOutSentence`, words the card must not name; tier 2 drives the card and a verdict stopped | marked |
 | R317 | (c) | Orders inside `runAdvancementBatch` and `verdictLevelUps`; tier 2's two named Level Up tests drive both | marked |
+| R318 | (c) | Readers' shape: one write in the queue, numbers read held, each refusal before the latch or the send; tier 2's three named Level Up tests drive what they refuse and stamp | marked |
+| R355 | (c) | The same shape for a Level Up's experience and the reset's restore; a reset is not the suite's to run (M10), tier 2's two named tests drive its halves | marked |
+| R377 | (c) | `resetSeason` is a reset (M10); an order and a compare's shape inside it. Scenario 65's U drives it | marked |
+| R436 | (c) | A census of `gatherEveryone`'s callers and arguments, who names `returnTheLiving` and `setTrialExit`, and orders whose outcome is a stop half way | marked |
+| R583 | (c) | One writer and one reader of the hall's flag, counted over every module file | marked |
+| R591 | (c) | Censuses of the Objection's roads (listeners, declarations, branches, callers, data readers, static imports) | marked |
+| R1035 | (c) | A census of the writers of `permissions.BROADCAST_AUDIO`, a deletion's spelling, orders in `reconcilePhase`, a bridge row's and a store's shape | marked |
+| R1192 | (c) | A census of the one roster and of every function walking the students by death and the Monocub flag | marked |
+| R1259 | (c) | A census of two settings' writes, each on its one road | marked |
+| R2054 | (c) | Where the bar is drawn and which kit boxes eight window sites use: markup and its builders | marked |
 
 ## Mutants (rule 3)
 
@@ -65,5 +75,20 @@ trace, so on a world with no untied trace of this chapter the tie would show now
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | R29, R30, R42, R43, R44, R45, R56, R67, R68, R70, R5150 | ok | 19 parts green | 0 problems | tier 0: 7 passed; tier 2: 3 ok (with R55) | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (406.2 s): R5150 the one more |
 | 2 | R58, R74, R178, R221, R315, R316, R317 | ok | 19 parts green | 0 problems | tier 0: 8 passed; tier 2: R58's ok | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (416.9 s) |
+| 3 | R318, R355, R377, R436, R583, R591, R1035, R1192, R1259, R2054 | ok | 19 parts green | 0 problems | tier 0: 11 passed; tier 2: the five driven tests of slice C (R55's with them) ok together | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (414.5 s) |
 
 Baseline at d7566926, read here before any change: 1419 ran, 1404 passed, 0 failed, 16 skipped, 0 red (433.9 s).
+
+## Summary
+
+27 tests read (R55 the pilot's): (a) 2 - R68, R70; (b) + (c) 4 - R29, R56, R58, R67, each driven in tier 2 with its
+tier-0 test trimmed to what it still reads as text; (c) 21 - the rest; and R5150, split out of R70, a new text guard and the one new number. No
+tier-0 test was deleted: each converted one kept an order or a shape the new test does not hold (rule 1 (b)). New
+tier-2 tests: four, under slice C's line beside R55's. No new test passed a mutant it was written for.
+
+For the owner (defaults taken, not decided here): exports that would let a text guard be driven - calls.mjs
+`hopeCallBarred` (R42), trial.mjs `seizeFloor` (R45), season-setup.mjs `wireSetupSteps` (R74), mastermind.mjs
+`mastermindHopeBox` (R5150). R43's entry refill is driveable without an export but drives the whole entry into a trial;
+left as a text guard. R30, R315-R318 and R355 read shapes whose behaviour named tier-2 tests already drive; kept, not
+deleted, as rule 1 asks a new test for a deletion.
+

@@ -12220,6 +12220,7 @@ const REGRESSIONS = [
             + "name enterTrialScene or leaveTrialScene, or write the clock; setClock writes it; who calls enterTrialScene and leaveTrialScene; who activates a scene in trial-scene.mjs]");
     }],
     ["R436 - the gather after the trial has one door: End the trial asks for a room and cannot skip it, closeTrial holds the choice for its one write, and only leaveTrialScene gathers, after the hall is hidden, reading held", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of every call of `gatherEveryone` with its arguments, who may call `returnTheLiving` and `setTrialExit`, and orders inside `leaveTrialScene`, `stageHall` and `closeTrial` whose outcome is a stop half way; the reader is shown a fixture first. Tier 2's "End the trial moves the living to the GM's room" moves the tokens. */
         /*
          * E13 C3b, 12.10.2026; the owner's answer f of 09.10 and items 3 and 6 of 10.10, plan-E13 3.2 and the ledger's
          * Af, O3 and O6. Until this commit End the trial moved no token: the table went back to the school (C3) with
@@ -12638,6 +12639,7 @@ const REGRESSIONS = [
     }],
 
     ["R355 - a Level Up's experience is written down in the write that adds it, as a GM's flag, and the reset reads it as the GMs hold it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the same shape for a Level Up's experience: written down in its one write from the list the GMs hold, a GM's flag, and the reset's restore reading held in one write; a reset is not the suite's to run (the plan's M10), and tier 2's "a reset takes a Level Up's experience and keeps the GM's" and "a player's write of the Level Up's experiences is put back ..." drive its halves. */
         /*
          * E11 C11, 1.2.73; audit S03-21, D12 option 1, the owner's Q1 (a); the plan's 1b.2 and E10 C8's owed (3).
          * Until 1.2.73 the season reset restored the values of the experiences the season began with and kept every
@@ -12901,6 +12903,7 @@ const REGRESSIONS = [
     }],
 
     ["R318 - a Level Up reads the sheet the GMs hold, writes it once, and refuses a pick the sheet cannot take", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): readers' shape across level-up.mjs, bridge-runs-acts.mjs and character.mjs: one write in the student's queue, numbers read as the GMs hold them and never off the prepared sheet, and each refusal before the latch or the send; tier 2's "a Level Up pick the sheet cannot take is refused and told ...", "an experience to raise with none named is refused ..." and "a season's starting sheet is stamped as the GMs hold it ..." drive what they refuse and stamp. */
         /*
          * E10 C8, 1.2.71; audit S03-23, S03-22; ledger G3 (the plan's "a Level Up reads the held sheet", a kept guard
          * of E29 r2-H24/H25) and the plan's 1b.2 rows of `applyAdvancement`, `handleAdvancement` and
@@ -13730,6 +13733,7 @@ const REGRESSIONS = [
     }],
 
     ["R377 - the reset is the primary GM's when its window closes, takes its word exactly, names a cast it could not place and pans each player to their token", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): season-wipe.mjs `resetSeason` is a reset, which is not the suite's to run (the plan's M10), and `placeCastStep` and the typed word's compare sit inside it; what is read is an order (the primary asked again between the window and the plan, the pan after the moves) and a compare's shape. Scenario 65's U drives it on five browsers. */
         /*
          * E11 fix r2-H4, 1.2.73; round 2's sec S4 and COR2-8, the goal's census K4 and D3 / S06-49 (b). Until
          * then `resetSeason` asked `isPrimaryGm()` once, before its window: a GM with a lower id arriving while
@@ -14857,6 +14861,7 @@ const REGRESSIONS = [
     }],
 
     ["R583 - the trial hall's facts for the room tile have one writer and one reader: setHallRoom, a GM's, writes the hall's flag it is handed, its picture through safeRoomImage, called by the Scenes tab's Apply alone; hallRoom reads the flag and judges the picture again; the room tile reads the facts only through hallRoom, and the flag's name is named in trial-scene.mjs and the tile's repaint alone", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): one writer and one reader of the hall's flag, counted over every module file (the writer's one caller, the flag's one read and one literal, the files naming it), with five planted faults the reader must see first. */
         /*
          * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026). The hall's name, picture and words are a flag of
          * the hall scene every browser holds (trial-scene.mjs `HALL_ROOM_FLAG`), so what a console writes there is
@@ -15134,6 +15139,7 @@ const REGRESSIONS = [
         + "the still word's top and right with the ticker off and under reduced motion (the module's switch or the system's, one class since E23 C5c), the rules of the word under a media query of the system's (none); the least width of a face shown in the row, Legacy and Stained Glass]");
     }],
     ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): censuses of the Objection's roads: the files that hear LiveKit's speakers, where three functions are declared, which branch of `objectOnPrimary` reads the packet's target, who calls it, which functions read a bullet's data, and hud.mjs's static imports; tier 2's named tests drive the road on the primary GM. */
         /*
          * E79 C16 (1.2.79), the source half of the owner's 17.10 rule; R590 is the record's behaviour and tier 2's
          * named tests the road on the primary GM. What this holds:
@@ -17586,6 +17592,7 @@ const REGRESSIONS = [
             "the sentence is carried out somewhere other than the trial's end, the verdict still executes, or a road out of the trial asks for it too late or not at all (read: cut, [vote.mjs's killers, mastermind.mjs's], steps, reconcile, close, reset)");
     }],
     ["R1035 - the dead's microphones are the trial's alone (E70 C5, S18-78, S18-87; amend 6, answer 3 (b)): `permissions.BROADCAST_AUDIO` is written only by voice-tile.mjs `toggleBlock` (a GM's hand) and voice.mjs `blockForTrial` and `restoreTrialBlock`, the restore removes a key that was absent with `forcedDeletion()` and never `-=`; settings.mjs `isMutedDead` reads the trial's list and the phase; vote.mjs `trialParticipants` replaces `eligibleVoters` and asks `isMutedDead` and the Monocub flag; clock.mjs `reconcilePhase` settles the voices after the trial's record is blanked at the entry and before the sentence at the exit; gm-bridge.mjs \"trial.enter\" is a GM's request that carries nothing; gm-stores.mjs `trialMuteStore` is synced between the GMs and emptied by a reset", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the writers of `permissions.BROADCAST_AUDIO` (shown a clean twin and a planted writer first), the restore's spelling of a deletion, and orders inside clock.mjs `reconcilePhase`, the bridge row's shape and the store's declaration. */
         /*
          * E70 C5, 28.10.2026; E70-18, E70-20, E70-21. The harm: the module turning somebody's microphone off where the
          * owner did not ask for it, keeping it off after the trial, or putting back over a GM's own block; and a list
@@ -20051,6 +20058,7 @@ const REGRESSIONS = [
             `[each grid's longest word within its Base length, English and Polish; LONGEST_TILE_WORD built from the four tables, split at spaces; the tiles' longest word] - the words: ${JSON.stringify(words)}`);
     }],
     ["R1192 - one cast (E37 C2, E37-08; S10-45): monokuma.mjs `actingStudents({ dead })` is the roster of the students who spend a budget, and the GM's strip, the panel's Next line, the Eclipse's placement and its whispers and the trial's ballots and size read it; no other module function walks the students filtering by death and the Monocub flag but those that ask another question", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over every module file: the one roster (`actingStudents`) and its readers, and no other function that walks the students filtering by death and the Monocub flag but those listed with another question. It reads names, not data flow. */
         /*
          * E37 C2, 01.11.2026; E37-08, audit S10-45. The students who still spend a budget - the living, and the dead back
          * as a Monocub - were spelled four ways: monokuma.mjs `actingStudents()` (the panel's Next line and its table),
@@ -20890,6 +20898,7 @@ const REGRESSIONS = [
             "resetInStep does not write the table's entry patch, or trialProgress does not build its blank from the table");
     }],
     ["R1259 - E42's two records are the primary's to write (E42 fix FG4; the end review's S-M4): every write of the world setting `chapterEnd` in the module is in chapter.mjs, inside a step of the end's queue `chapterEnds` - in the step's own body, or in a function every road to which runs through one - at least 4, measured at 86aa7ac1; every write of `seasonReset` is in season-wipe.mjs, inside `wipeSeason`'s record writer behind its `isPrimaryGm()`, at least 1, measured there", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the writes of two world settings, each on its one road (the chapter's end in its queue, the reset's record behind the primary's gate); the reader is shown a planted write first. */
         /*
          * E42 fix FG4, 03.11.2026; the end review's S-M4. E42 C2 and C4 made two world settings every browser reads,
          * each written by the primary GM alone - the chapter's end in its queue (`chapterEnds`, so one end runs at a time
@@ -22479,6 +22488,7 @@ const REGRESSIONS = [
     /* ---- E47 C1 (09.11.2026) ---- */
 
     ["R2054 - the slots E70 and E73 fill (E47 C1; E47-04, S18-89): trial-floor-ui.mjs `trialSignature` reads no mode and reads the floor's family (R1026 kept), the GM's bar (`trialBar`) is drawn inside the console's live region (`.drpg-trial-console`) and never in its footer (`trialButtons`, `trialFooter`, `consoleFooter`); and the window sites of the console, the vote and the verdict that E21 homed in E47 are on the kit's boxes (`box(\"warning\")`, `box(\"info\")`), no `drpg-warning` left in them", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): where the GM's bar is drawn (the console's live region, never its footer), what the signature reads, and which kit boxes eight window sites use: a census of markup and its builders, with a planted bar in the footer shown first. */
         /*
          * E47 C1, 09.11.2026. The bar's buttons are the ones that depend on the floor's mode (E70 C1); in the live region
          * they follow every second, in the footer they would move with the mode and bring the reopening back. Read in the
