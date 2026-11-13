@@ -3818,6 +3818,17 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(.drp
     gap: 0.25em 0.6em;
 }
 
+/* THE TOP BLOCK CENTRED ON THE PANEL'S WIDTH, NOT ON A PARAGRAPH'S MEASURE (13.11.2026; the owner at a 1.2.112 table, the GM
+   Panel at about 692 px: the clock's row, Next time of day, the students line and the version line centred near x 280
+   while the Next box, the section heads and the tiles span the panel, centre about 346). The rows were centred, but in
+   their own box: each is a `p`, and stained-glass.css caps every paragraph of a window at a measure (`max-width: 74ch`,
+   "A MEASURE FOR THE WIDE WINDOWS" and the prose rung's rule), so under the glass each stood 74ch wide at the panel's
+   left. Measured in Chromium (audit/windows/gm-panel.html redrawn as 1.2.112's `buildPanelContent`, 692 px, panel
+   centre 346): the clock's row, the advance and the students line at 321 (607 px boxes), the version line at 281 (528
+   px); Monokuma Legacy caps nothing and stood at 346. A measure is for running text; these are single centred lines,
+   so they take the panel's width in both themes. R5721. */
+body .application.drpg-window-panel .drpg-gm-panel :is(.drpg-gmp-standing > p, p.drpg-gmp-version) { max-width: none; }
+
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
    section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass
    pins every span in the panel to its floor size. */
