@@ -70,7 +70,11 @@ export function find(tree) {
     const holdString = (s, kind) => (strings.get(s) ?? strings.set(s, new Set()).get(s)).add(kind === "module" || kind === "api" ? "module" : "test");
     for (const f of tree.code) {
         const kind = f.kind === "module" ? (base(f.rel) === "api.mjs" ? "api" : "module") : "test";
-        const nsVars = new Map();                  // local name -> module base
+        /* local name -> every module base it is bound to in this file: one name (`V`, `m`) is bound to different modules
+           in different functions of one file (tier 2 has dozens), so a member read marks each of them - read too much,
+           never too little, as a list of the dead wants. */
+        const nsVars = new Map();
+        const bindNs = (name, b) => (nsVars.get(name) ?? nsVars.set(name, new Set()).get(name)).add(b);
         const importSource = n => (n?.type === "ImportExpression" && n.source.type === "Literal" ? base(n.source.value) : null);
         const unwrap = n => (n?.type === "AwaitExpression" ? n.argument : n);
         walk(f.ast, (n, parent) => {
@@ -78,7 +82,7 @@ export function find(tree) {
                 const b = base(n.source.value);
                 for (const s of n.specifiers) {
                     if (s.type === "ImportSpecifier") mark(b, s.imported.name ?? s.imported.value, `${kind}:${f.rel}`);
-                    else if (s.type === "ImportNamespaceSpecifier") nsVars.set(s.local.name, b);
+                    else if (s.type === "ImportNamespaceSpecifier") bindNs(s.local.name, b);
                     else mark(b, "default", `${kind}:${f.rel}`);
                 }
             } else if (n.type === "ExportNamedDeclaration" && n.source) {
@@ -87,7 +91,7 @@ export function find(tree) {
                 for (const s of n.specifiers) { const o = origin(maps, base(n.source.value), s.local.name ?? s.local.value); if (o) facades.add(`${o[0]}|${o[1]}`); }
             } else if (n.type === "VariableDeclarator") {
                 const b = importSource(unwrap(n.init));
-                if (b && n.id.type === "Identifier") nsVars.set(n.id.name, b);
+                if (b && n.id.type === "Identifier") bindNs(n.id.name, b);
                 if (b && n.id.type === "ObjectPattern") for (const p of n.id.properties) if (p.key?.type === "Identifier") mark(b, p.key.name, `${kind}:${f.rel}`);
             } else if (n.type === "MemberExpression" && !n.computed && n.property.type === "Identifier") {
                 const obj = n.object.type === "AwaitExpression" ? n.object.argument : n.object;
@@ -99,7 +103,7 @@ export function find(tree) {
         });
         // A namespace variable's member reads (`m.a`), after every declaration of one is known.
         if (nsVars.size) walk(f.ast, n => {
-            if (n.type === "MemberExpression" && !n.computed && n.object.type === "Identifier" && nsVars.has(n.object.name)) mark(nsVars.get(n.object.name), n.property.name, `${kind}:${f.rel}`);
+            if (n.type === "MemberExpression" && !n.computed && n.object.type === "Identifier" && nsVars.has(n.object.name)) for (const b of nsVars.get(n.object.name)) mark(b, n.property.name, `${kind}:${f.rel}`);
         });
     }
     // Uses in the declaring file itself.
@@ -136,11 +140,11 @@ export const NAMED = ["consumeCall", "readiedItem", "vaultRoomOwnedBy", "MAX_EXT
 export const PLANT = {
     "scripts/x.mjs": "export function readStatic() {}\nexport function readDynamic() {}\nexport function readNamespace() {}\nexport function onlyOwn() {}\nexport const deadOne = 1;\nexport const byString = 2;\nexport function testOnly() {}\nonlyOwn();\ntestOnly();\nexport * from \"./y.mjs\";\n",
     "scripts/f.mjs": "export { facadeOnly } from \"./y.mjs\";\n",
-    "scripts/y.mjs": "export function viaStar() {}\nexport function deadToo() {}\nexport function facadeOnly() {}\n",
+    "scripts/y.mjs": "export function viaStar() {}\nexport function deadToo() {}\nexport function facadeOnly() {}\nexport function reboundRead() {}\n",
     "scripts/z.mjs": "import { readStatic, viaStar } from \"./x.mjs\";\nconst { readDynamic } = await import(\"./x.mjs\");\nimport * as X from \"./x.mjs\";\nX.readNamespace();\nconst table = { k: \"byString\" };\n",
-    "scripts/tests-a.mjs": "import { testOnly } from \"./x.mjs\";\n"
+    "scripts/tests-a.mjs": "import { testOnly } from \"./x.mjs\";\nasync function one() { const V = await import(\"./y.mjs\"); V.reboundRead(); }\nasync function two() { const V = await import(\"./x.mjs\"); V.readStatic(); }\n"
 };
-export const PLANT_WANTS = { readStatic: "module", readDynamic: "module", readNamespace: "module", viaStar: "module", onlyOwn: "own", deadOne: "dead", deadToo: "dead", byString: "unsure", testOnly: "test", facadeOnly: "dead" };
+export const PLANT_WANTS = { readStatic: "module", readDynamic: "module", readNamespace: "module", viaStar: "module", onlyOwn: "own", deadOne: "dead", deadToo: "dead", byString: "unsure", testOnly: "test", facadeOnly: "dead", reboundRead: "test" };
 
 export function selfCheck(espree) {
     const rows = find(readTree("/fixture", { files: PLANT, espree })).rows;

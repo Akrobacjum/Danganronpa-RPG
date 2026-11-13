@@ -70,7 +70,7 @@ function lineTips() {
         const ahead = Number(git("rev-list", "--count", `origin/main..${r}`));
         if (!ahead) continue;
         const files = git("diff", "--name-only", base, r, "--", "scripts", "lang").split("\n").filter(Boolean);
-        if (files.length) out.push({ ref: r, sha: git("rev-parse", "--short", r), ahead, files: files.length });
+        if (files.length) out.push({ ref: r, sha: git("rev-parse", "--short", r), base: git("rev-parse", "--short", base), ahead, files: files.length });
     }
     return out;
 }
@@ -100,15 +100,14 @@ function markdown(main, checks, tips) {
     L.push("", "Self-checks (each finder on its planted fixture, exactly its planted findings wanted): " + Object.entries(checks).map(([k, v]) => `${k} ${v.ok ? "held" : "FAILED"}`).join(", ") + ".");
     if (c.failures.length) L.push("", "Files that did not parse: " + c.failures.join("; "));
     if (tips) {
-        L.push("", "## How the lists move on the open lines", "", "Each remote line whose tip is ahead of origin/main and changes scripts/ or lang/, read whole in a detached worktree. +N items the tip adds to a list, -N items it takes off, against origin/main.", "");
+        L.push("", "## How the lists move on the open lines", "", "Each remote line whose tip is ahead of origin/main and changes scripts/ or lang/, read whole in a detached worktree, against its own merge base with origin/main (read the same way): +N items the line adds to a list, -N items it takes off. Against origin/main instead, every line on the 1.2.108 base would also show what main changed since (about -10 dead exports and -56 test-only on each), which is not the line's.", "");
         const names = Object.keys(ids(c));
-        L.push(`| Line (tip, commits ahead) | ${names.join(" | ")} |`, `| --- | ${names.map(() => "---").join(" | ")} |`);
-        const base = ids(c);
+        L.push(`| Line (tip, base, commits ahead) | ${names.join(" | ")} |`, `| --- | ${names.map(() => "---").join(" | ")} |`);
         for (const t of tips) {
-            if (t.error) { L.push(`| \`${t.ref.replace(/^origin\/claude\//, "")}\` (${t.sha}) | ${names.map(() => "not read").join(" | ")} |`); continue; }
-            const mine = ids(t.m);
+            if (t.error || !t.b) { L.push(`| \`${t.ref.replace(/^origin\/claude\//, "")}\` (${t.sha}) | ${names.map(() => "not read").join(" | ")} |`); continue; }
+            const base = ids(t.b), mine = ids(t.m);
             const cell = n => { const add = [...mine[n]].filter(x => !base[n].has(x)).length, gone = [...base[n]].filter(x => !mine[n].has(x)).length; return add || gone ? `+${add} -${gone}` : "0"; };
-            L.push(`| \`${t.ref.replace(/^origin\/claude\//, "")}\` (${t.sha}, ${t.ahead}) | ${names.map(cell).join(" | ")} |`);
+            L.push(`| \`${t.ref.replace(/^origin\/claude\//, "")}\` (${t.sha}, ${t.base}, ${t.ahead}) | ${names.map(cell).join(" | ")} |`);
         }
     }
     L.push("", "## (a) Comment citations of a name nothing declares", "", "Grouped by name. Many are Foundry's, Daggerheart's, LiveKit's or a browser's names, which this tree cannot resolve: a reading decides each, this list does not.", "", "| Name | Sites |", "| --- | --- |");
@@ -154,8 +153,13 @@ if (opt("--json")) fs.writeFileSync(opt("--json"), JSON.stringify(main, (k, v) =
 let tips = null;
 if (argv.includes("--lines")) {
     tips = [];
+    const bases = new Map();
     for (const t of lineTips()) {
-        try { tips.push({ ...t, m: measureRef(t.ref) }); console.log(`e56: read ${t.ref} (${t.sha})`); }
+        try {
+            if (!bases.has(t.base)) { bases.set(t.base, measureRef(t.base)); console.log(`e56: read base ${t.base}`); }
+            tips.push({ ...t, m: measureRef(t.ref), b: bases.get(t.base) });
+            console.log(`e56: read ${t.ref} (${t.sha}, base ${t.base})`);
+        }
         catch (err) { tips.push({ ...t, error: String(err.message).split("\n")[0] }); console.log(`e56: ${t.ref} not read (${String(err.message).split("\n")[0]})`); }
     }
 }
