@@ -35,7 +35,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, announce, plural, workingScene,
+    dialogContent, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
@@ -46,7 +46,7 @@ import {
 } from "./rooms.mjs";
 import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
-    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom
+    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom, writeRoomLock
 } from "./vault-store.mjs";
 
 /* ==========================================================================
@@ -101,7 +101,12 @@ function recountTokenCells(root, scene) {
  * coordinates, so Apply reads the same form it always did and never learns
  * which way the table was laid out.
  */
-function fogMatrixRows(rooms, students, known) {
+function fogMatrixRows(rooms, students, known, mastermindId = null) {
+    /* THE MASTERMIND'S COLUMN (E91 C4; the owner's deferred item D067): the ledger keeps no row of their walks (fog.mjs
+       `recordDiscovery`) and every reader that asks for them counts every room as known (`myDiscoveredRooms`), so their
+       boxes are drawn ticked and disabled, the reason as the tooltip - drawn empty, a GM's tick wrote cells nobody reads.
+       A disabled box is never changed, so `readRoomSetupForm` sends nothing for it. */
+    const why = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.fogMastermind"));
     // A row a room for the kit's `dataTable` (E46-C2a): the room's cell under `name`, a student's under their id.
     return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
@@ -110,8 +115,8 @@ function fogMatrixRows(rooms, students, known) {
         return Object.fromEntries([["name", `<strong>${escRoom}</strong>`], ...students.map(actor => [actor.id,
             `<input type="checkbox"
                 aria-label="${escRoom} - ${foundry.utils.escapeHTML(actor.name)}"
-                name="fog:${escRoom}:${actor.id}" ${
-                known.get(actor.id)?.has(room) ? "checked" : ""} />`])]);
+                name="fog:${escRoom}:${actor.id}" ${actor.id === mastermindId ? `checked disabled data-tooltip="${why}"`
+                : known.get(actor.id)?.has(room) ? "checked" : ""} />`])]);
     });
 }
 
@@ -775,6 +780,8 @@ function wireFogButtons(root) {
             ev.preventDefault();
             const value = button.dataset.drpgFogAll === "discover";
             for (const box of root.querySelectorAll('input[type="checkbox"][name^="fog:"]')) {
+                // The Mastermind's column is shut (E91 C4, `fogMatrixRows`): every room stays known to them.
+                if (box.disabled) continue;
                 box.checked = value;
             }
         });
@@ -1058,21 +1065,9 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         // only one of them survives a mid-season change to the lock itself.
         await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.lockedAtStart}`]: row.lockedAtStart });
 
-        if (wasLocked !== row.locked) {
-            await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: row.locked });
-            // Only unlocking is announced. A GM locking a door mid-session is
-            // often the point the players finding out is meant to come from
-            // walking into it and reading "Drzwi są zamknięte." themselves -
-            // the same reasoning `toggleFinalTrialFlag` in mastermind.mjs
-            // applies to starting versus ending. Unlocking has no such
-            // in-fiction moment of its own, so it says so out loud.
-            if (wasLocked && !row.locked) {
-                await announce({
-                    content: `<p>${game.i18n.format("DRPG.Vault.unlockedAnnounce",
-                        { room: foundry.utils.escapeHTML(row.room) })}</p>`
-                });
-            }
-        }
+        // The one writer of a room's lock, and its card when it opens (vault-store.mjs `writeRoomLock`; E91 C4, D038):
+        // the Mastermind's own lair is locked through it too, so it is this lock.
+        if (wasLocked !== row.locked) await writeRoomLock(scene, row.room, row.locked);
 
         changed.add(row.room);
     }
@@ -1226,7 +1221,8 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const maxTokens = SearchTokens.max;
 
     const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
-    const fogRows = fogMatrixRows(rooms, students, known);
+    const { mastermindActor } = await import("./mastermind.mjs");
+    const fogRows = fogMatrixRows(rooms, students, known, mastermindActor()?.id ?? null);
     const stashRows = stashMatrixRows(rooms, students, scene);
     const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
 

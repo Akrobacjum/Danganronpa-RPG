@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.108";
+    --drpg-css-version: "1.2.110";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -3818,6 +3818,12 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    gap of one in a wall, or which way a one-way tunnel goes. In the dim ink of 'the way is shut', not in italics, since
    it is an instruction and not a state. Chosen, not measured: the harness lays nothing out. */
 .drpg-passage-note { font-size: 0.9em; color: var(--drpg-dim); }
+/* The Mastermind's own room above the list (E91 C4, C5; D038; sheet.mjs `lairBlock`): its name, whether the door is
+   locked in the dim ink of 'the way is shut', and Lock or Unlock; a passage at that door gets a Seal beside its Show.
+   Drawn on the Mastermind's player's browser alone. Chosen, not measured: the harness lays nothing out. */
+.drpg-lair-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; }
+.drpg-lair-state { font-size: 0.9em; color: var(--drpg-dim); }
+.drpg-lair-lock, .drpg-passage-seal { white-space: nowrap; }
 /* Which way a tunnel goes, under its Shape in the GMs' Passages tab (H81-02; passages-tab.mjs `wayPicker`): the column's
    width at most, so a long room name does not widen the table (R606's sum). Chosen; in a Chromium mock-up with this
    stylesheet alone (20.10.2026, the stage's shots) its words wrap inside the 110 px column, five lines for "Only from Gym
@@ -4337,6 +4343,18 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     margin-top: 6px;
     font-style: italic;
     color: var(--drpg-crimson);
+}
+
+/* Part B under the tiles (E72 C14, C19): the purse, a Bribe waiting, a Bounty, the Monocub's own Ghost Bet - words in
+   the sheet's bone, at the module's small size, as the silenced note beside them sets its own. */
+.drpg-monocub-purse,
+.drpg-monocub-offer,
+.drpg-monocub-bounty,
+.drpg-monocub-bet {
+    margin-top: 6px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.35;
+    color: var(--drpg-bone);
 }
 
 /* THE DEAD'S AND AN NPC'S SHEET (E24 C3a, 08.11.2026; E24-18, E24-20). sheet.mjs `markSheetState` puts the
@@ -5154,6 +5172,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
 .drpg-variant-columns > .drpg-variant-ask { flex: 1.1 1 18rem; min-width: 0; padding-right: 6px; }
 .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: none; }
+/* A Call window shows every row's line (12.11.2026; the owner's standing rule "nie chowajmy w oknach akcji wyboru statystyki
+   ani opisu akcji NIGDY", relayed by the coordinator): there it is the row's description and price, which the rule above
+   would fold away under an unpicked row (call-pickers.mjs `callWindow`'s action layout, R3818). R3822 reads the cascade. */
+:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: block; }
 .drpg-variant-columns :is(.drpg-variant-ask, .drpg-variant-ask > form, .drpg-variant-brief > .drpg-briefing-block) > :first-child {
     margin-top: 0;
 }
@@ -6032,6 +6054,19 @@ body.drpg-theme-stained-glass #drpg-popups {
    table is LIVE-E10-03: the harness draws no stacking. */
 #drpg-evidence.is-raised {
     z-index: 99989;
+}
+/* A CENTRE CARD'S ROWS COME IN ONE AFTER ANOTHER (E62 C5, 1.2.109; MK-R2's summary card: rows 160 ms apart from 150 ms,
+   about a second for six). `--drpg-row` is each row's place, written by day-summary.mjs. None under reduced motion. */
+@keyframes drpg-sum-row-in {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: none; }
+}
+.drpg-popup-centre .drpg-sum-row {
+    animation: drpg-sum-row-in 220ms ease-out both;
+    animation-delay: calc(150ms + var(--drpg-row, 0) * 160ms);
+}
+body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
+    animation: none;
 }
 #drpg-evidence .drpg-popup {
     pointer-events: auto;
@@ -9218,9 +9253,11 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     mask-image: var(--drpg-pix-listen);
 }
 
+/* The hammer, not the plain T (gaps-108, R3987; the owner's yes on the review page, 12.11.2026): legacy:hammer, the
+   glass drawing in both themes. The Remnant card's project glyph keeps `--drpg-pix-project`. */
 .drpg-action-button[data-drpg-action="project"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-pix-project);
-    mask-image: var(--drpg-pix-project);
+    -webkit-mask-image: var(--drpg-pix-hammer);
+    mask-image: var(--drpg-pix-hammer);
 }
 
 .drpg-action-button[data-drpg-action="sabotage"] .drpg-action-icon {
@@ -9522,7 +9559,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     content: none !important;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9536,11 +9574,21 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     image-rendering: pixelated;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon::before {
     content: none !important;
 }
 
-.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon {
+/* E72 (12.11.2026): Talent, Experience and Ultimate as one tile, wears Ultimate's star; the frame is the rule above. */
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-ultimate);
+    mask-image: var(--drpg-pix-ultimate);
+}
+
+/* E72 C15: the Hope Call Bribe shares Contribution's frame; its own mask is the rule after Contribution's. */
+.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9554,8 +9602,22 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     image-rendering: pixelated;
 }
 
-.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon::before {
     content: none !important;
+}
+
+/* The Bribe's drawing: two banknotes (the inventory's row 74), on :root since its legacy row (E72 C15). */
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-bribe);
+    mask-image: var(--drpg-pix-bribe);
+}
+
+/* The Bounty's drawing: a wanted poster with a coin (the inventory's row 75), on :root since its legacy row (E72 C16). */
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-bounty);
+    mask-image: var(--drpg-pix-bounty);
 }
 
 .drpg-call-button[data-drpg-call="reroll"] .drpg-action-icon {
@@ -9982,6 +10044,11 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
 .drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-horn); }
 .drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-gavel); }
 .drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-heartcrack); }
+/* E72 C9: a Monocub's Redeem, waiting - the ticket its tile wears. */
+.drpg-event[data-kind="redeemHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-redeem); }
+/* Part B's two cards for a Monocub's own player (E72 C19): the Bribe's tile glyph and the Ghost Bet's, both on :root. */
+.drpg-event[data-kind="bribeHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-bribe); }
+.drpg-event[data-kind="betHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-ghost-bet); }
 
 /* --- the Event panel, in both themes --------------------------------------
    `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
@@ -10154,6 +10221,10 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 .drpg-event[data-kind="assembly"] { --acc: var(--drpg-gold-antique); }
 .drpg-event[data-kind="trial"] { --acc: var(--drpg-crimson); }
 .drpg-event[data-kind="overflow"] { --acc: var(--drpg-crimson); }
+/* Redeem gives back Hope, and Hope's colour means Hope alone (E48 K1). */
+.drpg-event[data-kind="redeemHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="bribeHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="betHope"] { --acc: var(--drpg-gold); }
 
 /* ==========================================================================
    STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS
@@ -15424,7 +15495,8 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-summary-dialog, .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
-#chat-popout {
+#chat-popout,
+#drpg-sequence .drpg-seq-day {
     border: 1px solid var(--drpg-window-edge);
     box-shadow: 0 8px 28px rgba(var(--drpg-shadow-rgb), 0.55);
 }
@@ -16332,8 +16404,8 @@ i.drpg-pix-foot {
 }
 
 #drpg-gm-launcher i::before {
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
 }
 
 .application .window-header .header-control[data-action="close"]::before {
@@ -17033,9 +17105,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-flask);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-equip i {
-    -webkit-mask-image: var(--drpg-pix-fist);
-    mask-image: var(--drpg-pix-fist);
+    -webkit-mask-image: var(--drpg-pix-hold-ready);
+    mask-image: var(--drpg-pix-hold-ready);
 }
 
 .drpg-row-discard i {
@@ -17063,9 +17136,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-share);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-handover i.fa-hand-holding {
-    -webkit-mask-image: var(--drpg-pix-give);
-    mask-image: var(--drpg-pix-give);
+    -webkit-mask-image: var(--drpg-pix-hand-over);
+    mask-image: var(--drpg-pix-hand-over);
 }
 
 .drpg-row-present i {
@@ -18083,6 +18157,267 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
     bottom: auto;
 }
 
+
+/* ===================================================================
+   THE SEQUENCES (E61 C1-C5, sequence.mjs; the owner's approved mockups MK-R1 and MK-R2 of 05.11)
+   --------------------------------------------------------------------------
+   One host over the whole screen while a sequence plays, under the notice tile (raised over it for the span: the tile
+   stays on top, MK-R1) and over every window; Foundry tools and Map tools hidden for the span and back as they stood.
+   The mockups are drawn on a 1600 x 900 table screen; `--drpg-seq-u` is one of its pixels on this screen, so every
+   length below is the mockup's number times it. The Legacy look is the rule; Stained Glass sets its own tokens
+   (stained-glass.css, THE SEQUENCES). A size alone is written in a clamp(): its container is the viewport, as the
+   pause caption's is (R60), with an 11 px floor for a small screen.
+   ========================================================================== */
+#drpg-sequence {
+    --drpg-seq-u: min(calc(100vw / 1600), calc(100vh / 900));
+    --drpg-seq-band: var(--drpg-eye);
+    --drpg-seq-dark: var(--drpg-ink);
+    --drpg-seq-light: var(--drpg-bone);
+    --drpg-seq-mark: var(--drpg-bone);
+    --drpg-seq-band-ink: var(--drpg-bone);
+    --drpg-seq-font: var(--drpg-font-ui);
+    --drpg-seq-weight: 800;
+    --drpg-seq-case: uppercase;
+    /* Legacy's face is wide (Bahnschrift, its fallbacks wider): its title and stamp stand smaller than the glass's */
+    --drpg-seq-title-size: 88;
+    --drpg-seq-stamp-size: 58;
+    --drpg-seq-stamp-long: 34;
+    --drpg-seq-text-size: 20;
+    position: fixed;
+    inset: 0;
+    z-index: 99980;
+    overflow: hidden;
+    pointer-events: auto;
+    contain: strict;
+}
+body[data-drpg-sequence] #drpg-popups { z-index: 99990; }
+body[data-drpg-sequence] .drpg-foundry-window { visibility: hidden; }
+/* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8) */
+body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art) {
+    opacity: 0;
+    transition: opacity var(--drpg-t-beat) var(--drpg-ease-leave);
+}
+#drpg-sequence .drpg-seq-glass,
+#drpg-sequence .drpg-seq-pulse { position: absolute; inset: 0; }
+#drpg-sequence .drpg-seq-piece { position: absolute; }
+#drpg-sequence .drpg-seq-pulse { background: color-mix(in srgb, var(--drpg-seq-light) 10%, transparent); opacity: 0; }
+#drpg-sequence .drpg-seq-lid { position: absolute; left: 0; width: 100%; height: 50%; background: var(--drpg-seq-dark); }
+#drpg-sequence .drpg-seq-lid.is-top { top: 0; border-bottom: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
+#drpg-sequence .drpg-seq-lid.is-bottom { top: 50%; border-top: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
+#drpg-sequence .drpg-seq-title {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(1180 * var(--drpg-seq-u));
+    margin-left: calc(-590 * var(--drpg-seq-u));
+    margin-top: calc(-120 * var(--drpg-seq-u));
+    transform: rotate(-3deg);
+    text-align: center;
+}
+#drpg-sequence .drpg-seq-title-band {
+    background: var(--drpg-seq-band);
+    clip-path: var(--drpg-seq-band-cut, none);
+    padding: calc(34 * var(--drpg-seq-u)) 0 calc(30 * var(--drpg-seq-u));
+    font: var(--drpg-seq-weight) calc(var(--drpg-seq-title-size) * var(--drpg-seq-u)) / 1 var(--drpg-seq-font);
+    text-transform: var(--drpg-seq-case);
+    color: var(--drpg-seq-band-ink);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+#drpg-sequence .drpg-seq-title-sub {
+    margin-top: calc(18 * var(--drpg-seq-u));
+    font: calc(28 * var(--drpg-seq-u)) var(--drpg-seq-font);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--drpg-seq-light);
+    text-shadow: 0 calc(2 * var(--drpg-seq-u)) 0 var(--drpg-seq-dark), 0 0 calc(10 * var(--drpg-seq-u)) var(--drpg-seq-dark);
+}
+/* E61-B, the verdict's cut-in: frame 5 is the board as it stands (sequence.mjs `verdictBoardElement`) */
+#drpg-sequence .drpg-seq-verdict { position: absolute; inset: 0; }
+#drpg-sequence .drpg-seq-vband {
+    position: absolute;
+    left: calc(-40 * var(--drpg-seq-u));
+    top: calc(150 * var(--drpg-seq-u));
+    width: calc(100% + 80 * var(--drpg-seq-u));
+    height: calc(600 * var(--drpg-seq-u));
+    background: var(--drpg-seq-band);
+    clip-path: polygon(0 12%, 100% 0, 100% 88%, 0 100%);
+}
+#drpg-sequence .drpg-seq-people {
+    position: absolute;
+    right: calc(160 * var(--drpg-seq-u));
+    top: calc(190 * var(--drpg-seq-u));
+    display: flex;
+    gap: calc(40 * var(--drpg-seq-u));
+}
+#drpg-sequence .drpg-seq-person { position: relative; width: calc(330 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-person { width: calc(260 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-portrait {
+    position: relative;
+    height: calc(430 * var(--drpg-seq-u));
+    transform: rotate(3deg);
+    background: var(--drpg-seq-dark);
+    border: calc(6 * var(--drpg-seq-u)) solid var(--drpg-seq-light);
+}
+#drpg-sequence .drpg-seq-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; display: block; border: 0; }
+#drpg-sequence .drpg-seq-initial {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font: var(--drpg-seq-weight) calc(200 * var(--drpg-seq-u)) / 1 var(--drpg-seq-font);
+    color: var(--drpg-seq-light);
+    opacity: 0.5;
+}
+#drpg-sequence .drpg-seq-stamp {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 118%;
+    margin-left: -59%;
+    transform: translateY(-50%) rotate(-14deg);
+    text-align: center;
+    border: calc(10 * var(--drpg-seq-u)) solid var(--drpg-seq-mark);
+    color: var(--drpg-seq-mark);
+    background: color-mix(in srgb, var(--drpg-seq-dark) 92%, transparent);
+    font: var(--drpg-seq-weight) calc(var(--drpg-seq-stamp-size) * var(--drpg-seq-u)) / 1.15 var(--drpg-seq-font);
+    text-transform: var(--drpg-seq-case);
+    letter-spacing: 0.04em;
+    padding: calc(40 * var(--drpg-seq-u)) 0;
+    white-space: nowrap;
+}
+#drpg-sequence .drpg-seq-verdict.is-innocent .drpg-seq-stamp { font-size: clamp(11px, calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)), 999px); }
+#drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-stamp { font-size: clamp(11px, calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)), 999px); }
+#drpg-sequence .drpg-seq-name {
+    position: relative;
+    margin: calc(-30 * var(--drpg-seq-u)) 0 0 calc(-100 * var(--drpg-seq-u));
+    width: max-content;
+    max-width: calc(100% + 100 * var(--drpg-seq-u));
+    padding: calc(8 * var(--drpg-seq-u)) calc(18 * var(--drpg-seq-u));
+    background: var(--drpg-seq-dark);
+    color: var(--drpg-seq-light);
+    font: calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+}
+#drpg-sequence .drpg-seq-name.is-long { font-size: clamp(11px, calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)), 999px); }
+#drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-name {
+    margin-left: 0;
+    max-width: 100%;
+    font-size: clamp(11px, calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)), 999px);
+}
+#drpg-sequence .drpg-seq-votes {
+    position: absolute;
+    left: calc(150 * var(--drpg-seq-u));
+    top: calc(300 * var(--drpg-seq-u));
+    width: calc(560 * var(--drpg-seq-u));
+}
+#drpg-sequence .drpg-seq-votes h4 {
+    margin: 0 0 calc(10 * var(--drpg-seq-u));
+    border: 0;
+    font: 700 calc(26 * var(--drpg-seq-u)) var(--drpg-seq-font);
+    color: var(--drpg-seq-band-ink);
+    letter-spacing: 0.08em;
+}
+#drpg-sequence .drpg-seq-vrow {
+    display: flex;
+    align-items: center;
+    gap: calc(14 * var(--drpg-seq-u));
+    height: calc(54 * var(--drpg-seq-u));
+    margin-bottom: calc(12 * var(--drpg-seq-u));
+    padding: 0 calc(14 * var(--drpg-seq-u));
+    background: var(--drpg-seq-dark);
+    color: var(--drpg-seq-light);
+    font: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)) var(--drpg-seq-font);
+}
+#drpg-sequence .drpg-seq-vname { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#drpg-sequence .drpg-seq-vbar { flex: 0 0 calc(200 * var(--drpg-seq-u)); height: calc(18 * var(--drpg-seq-u)); position: relative; }
+#drpg-sequence .drpg-seq-vbar i { position: absolute; inset: 0; background: var(--drpg-seq-light); transform-origin: 0 50%; }
+#drpg-sequence .drpg-seq-vbar b { position: absolute; top: calc(-10 * var(--drpg-seq-u)); bottom: calc(-10 * var(--drpg-seq-u)); width: calc(4 * var(--drpg-seq-u)); background: var(--drpg-seq-mark); }
+#drpg-sequence .drpg-seq-vrow em { font-style: normal; color: var(--drpg-seq-mark); width: calc(30 * var(--drpg-seq-u)); text-align: right; }
+#drpg-sequence .drpg-seq-sentence {
+    position: absolute;
+    left: calc(140 * var(--drpg-seq-u));
+    top: calc(600 * var(--drpg-seq-u));
+    transform: rotate(-4deg);
+    padding: calc(6 * var(--drpg-seq-u)) calc(18 * var(--drpg-seq-u));
+    background: var(--drpg-seq-dark);
+    color: var(--drpg-seq-mark);
+    font: calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font);
+}
+#drpg-sequence .drpg-seq-verdict:not(.is-guilty) { --drpg-seq-mark: var(--drpg-seq-light); }
+
+
+/* THE FLICKER UNDER MONOKUMA LEGACY (E62 C2, C4; transitions.mjs `flicker`): no curtain, so the four frames MK-R3 names
+   light instead - the clock, the status, Despair's bar and the notice tile. */
+body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #drpg-despair, #drpg-notices-corner) { filter: brightness(1.7); }
+
+
+/* THE START-OF-DAY BOARD (E94 C2; sequence.mjs `dayStartElement`; MK-R2 #4): a panel in the middle of the screen over the
+   curtain's turn, the cast in a row of portraits, the dead greyed in their place with their name and "we remember",
+   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself.
+   ITS FRAME IS A WINDOW'S (12.11.2026; the owner's report at a real table on 1.2.109: the frame was pink). The edge was
+   three units of `--drpg-seq-band`, the trial's band colour - Despair's pink under the glass, red here - on a panel
+   that is no part of the trial. It takes the module's ordinary window frame now: its selector stands in the list of
+   the module's windows above (the one-pixel `--drpg-window-edge` and the drop shadow), and in stained-glass.css's
+   rule of the windows' glass (6. LIQUID GLASS ON THE WINDOWS) - the same declarations, no copy of them;
+   `--drpg-seq-band` stays the trial's band and the "spilling" mood word's. R4402 reads both themes. */
+#drpg-sequence.drpg-sequence-dayStart { pointer-events: none; }
+#drpg-sequence .drpg-seq-day {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(calc(1400 * var(--drpg-seq-u)), calc(100vw - 32px));
+    transform: translate(-50%, -50%);
+    display: grid;
+    gap: calc(14 * var(--drpg-seq-u));
+    padding: calc(28 * var(--drpg-seq-u)) calc(36 * var(--drpg-seq-u));
+    background: color-mix(in srgb, var(--drpg-seq-dark) 94%, transparent);
+    color: var(--drpg-seq-light);
+    text-align: center;
+}
+#drpg-sequence .drpg-seq-day-title {
+    margin: 0;
+    border: 0;
+    font: var(--drpg-seq-weight) calc(72 * var(--drpg-seq-u)) / 1 var(--drpg-seq-font);
+    text-transform: var(--drpg-seq-case);
+    color: var(--drpg-seq-light);
+}
+#drpg-sequence .drpg-seq-day-sub { font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.1em; text-transform: uppercase; }
+#drpg-sequence .drpg-seq-cast { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(16 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-who { display: grid; justify-items: center; gap: calc(4 * var(--drpg-seq-u)); width: calc(150 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-face {
+    width: calc(96 * var(--drpg-seq-u));
+    height: calc(120 * var(--drpg-seq-u));
+    border: calc(3 * var(--drpg-seq-u)) solid var(--drpg-seq-light);
+    background: var(--drpg-seq-dark);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    font: var(--drpg-seq-weight) calc(48 * var(--drpg-seq-u)) var(--drpg-seq-font);
+}
+#drpg-sequence .drpg-seq-face img { width: 100%; height: 100%; object-fit: cover; border: 0; }
+#drpg-sequence .drpg-seq-who b { font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) / 1.2 var(--drpg-seq-font); overflow-wrap: break-word; }
+#drpg-sequence .drpg-seq-who i { font: italic calc((var(--drpg-seq-text-size) - 4) * var(--drpg-seq-u)) var(--drpg-seq-font); opacity: 0.8; }
+#drpg-sequence .drpg-seq-who.is-dead .drpg-seq-face { filter: grayscale(1); opacity: 0.5; }
+#drpg-sequence .drpg-seq-who.is-dead b { opacity: 0.6; }
+#drpg-sequence .drpg-seq-announce { display: grid; gap: calc(4 * var(--drpg-seq-u)); font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); }
+#drpg-sequence .drpg-seq-announce small { font-size: 0.7em; letter-spacing: 0.12em; opacity: 0.8; }
+/* E94 C3, C4: the end-of-day board - the day's rows (this browser's own), what the school saw, Hope and Despair counted up,
+   and the school's mood as a word; the same frame as the start-of-day board's */
+/* The owner on the end board (12.11): more room between the chapter line and the rest - 22 units on the grid's 14 */
+#drpg-sequence .drpg-seq-dayend .drpg-seq-day-sub { margin-bottom: calc(22 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-dayend-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(320 * var(--drpg-seq-u)), 1fr)); gap: calc(24 * var(--drpg-seq-u)); text-align: left; }
+#drpg-sequence .drpg-seq-dayend h3 { margin: 0 0 calc(8 * var(--drpg-seq-u)); border: 0; font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.12em; opacity: 0.8; color: var(--drpg-seq-light); }
+#drpg-sequence .drpg-seq-dayend ol { margin: 0; padding: 0; list-style: none; display: grid; gap: calc(6 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-row { font: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)) / 1.25 var(--drpg-seq-font); overflow-wrap: break-word; }
+#drpg-sequence .drpg-seq-row span { opacity: 0.7; }
+#drpg-sequence .drpg-seq-row em { font-style: normal; border: calc(1 * var(--drpg-seq-u)) solid currentColor; padding: 0 calc(4 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-tally { margin: calc(8 * var(--drpg-seq-u)) 0 0; font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) var(--drpg-seq-font); opacity: 0.85; }
+#drpg-sequence .drpg-seq-mood { display: grid; gap: calc(4 * var(--drpg-seq-u)); font: var(--drpg-seq-weight) calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font); text-transform: var(--drpg-seq-case); }
+#drpg-sequence .drpg-seq-mood small { font-size: 0.55em; letter-spacing: 0.12em; opacity: 0.8; }
+#drpg-sequence .drpg-seq-mood[data-drpg-mood="spilling"] { color: var(--drpg-seq-band); }
 /* ==========================================================================
    E105 FT, BATCH 3 - FOUNDRY'S AND DAGGERHEART'S CHROME IN THE MODULE'S DRESS, BOTH THEMES
    --------------------------------------------------------------------------

@@ -235,9 +235,37 @@ function regionalVoiceOn() {
 const SELF_CHECK_MS = 45000;
 let selfCheckTimer = null;
 
+/*
+ * THE TIMER'S RUN HELD FOR A READING (CI run 513 on 4dfac3a9, 12.11.2026, suite 1/8, 01-runtests A2). R812 reads
+ * what the Room's own `disconnected` does: after a leave this browser asked for (CLIENT_INITIATED) it waits 50 ms,
+ * the Room left disconnected, and wants no card. This timer runs on its own phase, from `ready`, and a run inside
+ * those 50 ms sees a Room that is not live with nobody moving it - a drop, by its own rule above - and shows the
+ * card: that row read 1 card and a reconnect told where 0 and nothing were wanted. Lined up on purpose (12.11.2026,
+ * the harness inside a Class Trial: a probe that watched which reads came from `selfCheck` and made the leave land
+ * 10 ms before its next run): the suite's own R812 failed 2 runs of 2 on that row alone, with exactly that reading,
+ * and 2 of 2 passed with this hold; a copy of its body not lined up passed 5 of 5. About 50 ms in 45 s, so one run of
+ * R812 in some 900, and shard 1 runs it four times (A1, A2, A3, C); none of the 159 shard-1 jobs of CI runs 327-512
+ * had failed on it. Run 513's own reading is in its results file, which this machine could not fetch.
+ * So the timer calls `selfCheckTick`, which does nothing while a test holds it (`holdSelfCheck`); `selfCheck()`
+ * called by name is not held. The table's own self-check is unchanged: nothing but a test holds it.
+ */
+let selfCheckHeld = false;
+
+/** Hold (true) or let go (false) the timer's runs of the self-check; answers whether they were held before. */
+export function holdSelfCheck(held) {
+    const was = selfCheckHeld;
+    selfCheckHeld = Boolean(held);
+    return was;
+}
+
+/** One run of the timer: the self-check, unless a test holds it (above). */
+export function selfCheckTick() {
+    return selfCheckHeld ? null : selfCheck();
+}
+
 function startSelfCheck() {
     if (selfCheckTimer) clearInterval(selfCheckTimer);
-    selfCheckTimer = setInterval(selfCheck, SELF_CHECK_MS);
+    selfCheckTimer = setInterval(selfCheckTick, SELF_CHECK_MS);
 }
 
 export function selfCheck() {
@@ -425,12 +453,36 @@ export function externalAV() {
 export const ROOM_PREFIX = "drpg-";
 
 /**
- * The dead channel (E19 C3; S11-26, D8, the owner's A9 of 11.10): one room for every student whose death is not
- * public, from the first of its triggers on (voice.mjs `deathVoiceGone`). One of ours by the prefix, so
- * `landedCorrectly` reads it as a breakout; a room `liveKitRoomFor` names carries a scene id, a slug and a hash
- * after the prefix, and an Eclipse room `eclipse-`, so none is named the same. `micHold` reads it off `desiredRoom()` for the tile's "deadAlone".
+ * The dead's own room (E72 C8, 12.11.2026; audit S18-53, the plan's A9, the coordinator's decision of 12.11): one room
+ * per account, for a student dead outside the trial from the first of its triggers on (voice.mjs `deathVoiceGone`),
+ * whether the death is public or kept secret. Nobody else is sent it, so nobody hears the dead and the dead hear
+ * nobody, and no document is written for it: the trial's block (`BROADCAST_AUDIO`, E70) stays the trial's.
+ *
+ * ONE PER ACCOUNT, NOT ONE FOR ALL (E19 C3 had `DEAD_ROOM`, `drpg-dead`, for every death kept secret, and sent a
+ * public one to the main room): in the shared room two dead players heard each other, so the first learnt of a second
+ * death nobody had found; in the main room every living player heard a public death. One of ours by the prefix, so
+ * `landedCorrectly` reads it as a breakout; a room `liveKitRoomFor` names carries a scene id, a slug and a hash after
+ * the prefix, and an Eclipse room `eclipse-`, so none is named the same. `micHold` reads it off `desiredRoom()` for
+ * the tile's "deadAlone".
+ *
+ * @param {string} userId
+ * @returns {string}
  */
-export const DEAD_ROOM = `${ROOM_PREFIX}dead`;
+export function deadRoomFor(userId) {
+    return `${ROOM_PREFIX}dead-${userId}`;
+}
+
+/** Whether `room` is a dead account's own room (`deadRoomFor`), whoever's. */
+export function isDeadRoom(room) {
+    return typeof room === "string" && room.startsWith(`${ROOM_PREFIX}dead-`);
+}
+
+/**
+ * The Spectators' room (E92 C6; the owner's 04.11 amend: "Spectators have their own LiveKit room where they talk among
+ * themselves"): where a Spectator's account goes while its "Spectator talk" switch is on (voice.mjs `placeVoices`),
+ * the one room its microphone opens in. One of ours by the prefix, named as no scene's room is.
+ */
+export const SPECTATOR_ROOM = `${ROOM_PREFIX}spectators`;
 
 /**
  * Where a player's voice goes in an Eclipse: nowhere (E19 C4, 19.10.2026; the owner's answer of 25.09, audit S11-11).

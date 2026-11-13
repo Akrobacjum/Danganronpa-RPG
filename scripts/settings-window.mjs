@@ -88,7 +88,7 @@ export const GAME_SECTIONS = Object.freeze([
     section("game", "audio", "fa-headset", ["musicEnabled", "voiceEnabled", "voiceTile", "liveKitInFoundry", "sfxVary"]),
     section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "hideSystemFear"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),
-    section("game", "gm", "fa-map-location-dot", ["regionFog", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield"]),
+    section("game", "gm", "fa-map-location-dot", ["regionFog", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield", "sequences"]),
     section("game", "foundry", "fa-plug", ["enforceIsoWelcome", "enforceDhWelcome"])
 ]);
 export const SETTINGS_SECTIONS = Object.freeze([...CLIENT_SECTIONS, ...GAME_SECTIONS]);

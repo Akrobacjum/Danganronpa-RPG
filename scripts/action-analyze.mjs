@@ -401,12 +401,20 @@ async function locatePassage(actor, def, roll, request = "", charge = null) {
     const rollId = rollInHand(actor)?.messageId ?? null;
     await whisperToOwner(actor, `${rollHead(def, roll)}<p>${game.i18n.localize("DRPG.Analyze.passageSent")}</p>`, rollCardFlags(def, roll));
 
-    await requestPassageFind({
+    const res = await requestPassageFind({
         actorId: actor.id,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         rollId
     });
+    /* A REFUSAL GIVES THE PRICE BACK (E91 C2; the owner's deferred item D053), as a Find Stash's does (E16 fix e1-G2):
+       every refusal of `resolvePassageSearch` comes before the throw is read. A player's is the bridge's refusal; a GM's
+       own answers false (bridge-asks.mjs `requestPassageFind`), said already in both. A wait that ends with no answer is
+       no refusal: what the GMs did is not known here, and the price stays. No fact of a search on the roll. */
+    if (res.ok ? res.value === false : Boolean(res.refused)) {
+        if (charge) await refundPrice(actor, charge);
+        return null;
+    }
 
     // Not `gmRuled`: a Reroll replays it from a threshold (reroll.mjs `settleAnalyze`), on the GMs' fact
     // that this roll was a Find Passage (passages-gm.mjs `noteFindFact`).

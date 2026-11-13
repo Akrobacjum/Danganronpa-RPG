@@ -193,7 +193,9 @@ export function secretRowsFrom({ map = passageMapStore, season, access = passage
  * read by the flag monokuma.mjs `isMonokuma` reads - this leaf imports no file beyond its own (R560).
  */
 export function studentIdsOf(actors = game.actors) {
-    return [...(actors ?? game.actors ?? [])].filter(a => a?.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.monokuma)).map(a => a.id);
+    // No Spectator either (E92 C1): it finds no passage and is shown none.
+    return [...(actors ?? game.actors ?? [])].filter(a => a?.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.monokuma)
+        && !a.getFlag?.(MODULE_ID, FLAGS.spectator)).map(a => a.id);
 }
 
 /** The secret passages this browser may know: on a GM's the GMs' open rows, on a player's its copy. */

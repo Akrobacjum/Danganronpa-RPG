@@ -296,7 +296,8 @@ const PANEL_SECTIONS = [
             // confession, a one-chapter season - still has its door: the part apart at the bottom of Edit campaign
             // (gm-campaign.mjs `openClockDialog`; and of Season setup's Edit campaign block since E49 A1e), in a
             // warning frame, asking first. After a verdict the Next line
-            // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and the trial console's button stays.
+            // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and so does the trial console's footer, at that
+            // step only since E99 round 7 (the owner, 12.11.2026).
             // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
             // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).
             // RESET THE SEASON IS NO TILE SINCE E49 A1d (the owner, 11.11.2026: "Chcialbym wrzucic season reset w set

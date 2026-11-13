@@ -1287,7 +1287,8 @@ export function sabotageRepairScale(roll, score, relief) {
         ? PROJECT_SCALE.desperate.progress
         : score >= complex - relief
             ? PROJECT_SCALE.complex.progress
-            : PROJECT_SCALE.trivial.progress;
+            // The simple repair, its own number since E64 (S02-75): `ACTIONS.sabotage.simpleRepair`.
+            : ACTIONS.sabotage.simpleRepair;
 }
 
     // Sabotage always leaves a trace, success or not.

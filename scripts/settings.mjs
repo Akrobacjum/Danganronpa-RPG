@@ -90,6 +90,21 @@ export const SETTINGS = {
     gmConfusions: "gmConfusions",
     mineConfusions: "mineConfusions",
     /**
+     * THE MONOCUBS' RECORD (E72 C2, 12.11.2026; audit S18-51, S18-57): a GM store (gm-stores.mjs `cubStore`), a row per
+     * Monocub - the crime witness's mark `{ chapter, epoch }` today, the invitation, the caps and the log as part A adds
+     * them - and each owner's copy of their own characters' rows (`cubCopy`), read by monocub.mjs `cubRowOf`. Until
+     * E72 the witness's mark was the actor flag `silencedChapter`, which every browser holds: who saw the crime. The
+     * clause `liftCubWitness` (migrate.mjs) moves a world's marks, and world-secrets.mjs holds the flag empty.
+     */
+    gmCubs: "gmCubs",
+    mineCubs: "mineCubs",
+    /** The Monocubs' moves on each student this day (E72 C4): a GM store (gm-stores.mjs `cubTargetStore`), no copy. */
+    gmCubTargets: "gmCubTargets",
+    /** Who worked on each project this time of day (E72 C13): a GM store (gm-stores.mjs `projectWorkStore`), no copy. */
+    gmProjectWork: "gmProjectWork",
+    /** The open Bounties (E72 C16): a GM store (gm-stores.mjs `bountyStore`); the Monocubs' owners read them in their copy. */
+    gmBounties: "gmBounties",
+    /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
      * keepBullets, known, loot }` (`loot` since E05 fix r2-F0b: the Truth Bullets a
@@ -165,6 +180,10 @@ export const SETTINGS = {
     uiScale: "uiScale",
     /** This browser's own "reduced motion", independent of what the system says. */
     reducedMotion: "reducedMotion",
+    /** The table's switch for the full-screen sequences (E61 C1, sequence.mjs): the trial's entry, the verdict's cut-in, and the later stages' boards. */
+    sequences: "sequences",
+    /** A GM's morning line for the next day, on that GM's browser until the day starts (E94 C1; clock.mjs `advanceTimeOfDay`). */
+    morningLineDraft: "morningLineDraft",
     /** This client's own high contrast, on top of whatever `prefers-contrast` says. */
     highContrast: "highContrast",
     /** The state's name running as an outline behind the clock. */
@@ -526,6 +545,8 @@ export const SETTINGS = {
     gmDiceLooks: "gmDiceLooks",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
+    /** Whether this world's past +1 Health and +1 Sanity Level Up picks were brought under DA39 (E64; level-up.mjs `offerDa39Migration`). */
+    levelUpsMigrated: "levelUpsMigrated",
     /** Whether this browser's GM was told where to start on a world with no season yet (E20 C4, S01-61; season-setup.mjs `offerStartHere`). */
     startHereShown: "startHereShown",
     /** The handbook this browser last had open, read again after an F5 (E51 C8, E51-46; handbooks.mjs `openingBook`). */
@@ -1034,9 +1055,9 @@ const TABLE_SETTINGS = [
     SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
     SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
-    SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
+    SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -1100,6 +1121,39 @@ export const DEFAULT_CLOCK = {
      * from "What you did" after it. The pauses are `pausedTotalMs` now.
      */
     timeOfDayStartedAt: null,
+    /**
+     * WHEN THIS DAY BEGAN, as `serverNow()` (E94 C3), or null until the day first moves: clock.mjs `setClock` stamps it
+     * on any change of `day`, and the end-of-day board reads the day's own rows from it (sequence.mjs `dayEndReads`,
+     * which reads null as not known). Named here with the two below (E94 fix ci-1, 12.11.2026; CI run 43287328954 on
+     * b30f9444, suites 2/8, 3/8, 4/8, 7/8, 8/8) because a field this object does not name is one no write of a whole
+     * clock can take away: `setClock` spreads its patch over the clock it read, and tier 2's restore hands it the clock
+     * `getClock` recorded - these defaults under what was stored - so a field absent from both stayed. Five tests that
+     * move the day left "restore left: world:danganronpa-rpg.clock.dayStartedAt (none) -> <stamp>" and
+     * "clock.mood (none) -> calm"; named here, the restore writes null back, which the world dump reads as none.
+     */
+    dayStartedAt: null,
+    /**
+     * THE SCHOOL'S MOOD, one of sequence.mjs `MOOD_BANDS`, or null (E94 C4): worked out on the advancing GM at the day's
+     * roll-over and written as the word alone (clock.mjs `advanceTimeOfDay`, sequence.mjs `dayStartPatch`; never its
+     * numbers - world-secrets.mjs, the clock's row).
+     */
+    mood: null,
+    /**
+     * THE GM'S MORNING LINE, or null (E94 C1): the draft (`morningLineDraft`, a client setting) folded in by the
+     * Night-to-Morning advance and shown on the start-of-day board; cleared by the next move of the clock
+     * (`dayStartPatch`).
+     */
+    morningLine: null,
+    /**
+     * THE DAY'S BOARDS' STAMP, or null (12.11.2026; the owner's report at a real table on 1.2.109 and their rule of that
+     * day): the day a real roll-over moved the clock to - Next time of day, the Morning Eclipse's end (clock.mjs
+     * `advanceTimeOfDay` through sequence.mjs `dayStartPatch`) - or the chapter end's next morning (chapter.mjs), and
+     * nothing else's. The end-of-day and start-of-day boards play on a new day that carries it (transitions.mjs
+     * `boardsFor`); a write that moves the day without naming it takes it away (clock.mjs `setClock`), so Edit campaign's
+     * correction is silent. Named here so tier 2's restore of a whole clock writes it back (see `dayStartedAt`). Public:
+     * a day number, on the HUD already.
+     */
+    dayBoard: null,
     /**
      * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
      * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
@@ -1445,16 +1499,17 @@ export function registerSettings() {
     });
 
     /* WIDE PROJECT WINDOWS (E47-C6, 09.11.2026; the owner's O4 of the E47-M mockup round, "Moze jako ustawienie w panelu
-       ustawien?", and its scope, "Kazdy dla siebie": each person's own). Off by default: Create a project, Edit project
-       and Propose a project open at the width they had; on, at the kit's `wide` (projects-ui.mjs `projectWindowWidth`).
-       Read when a window opens, so no onChange. */
+       ustawien?", and its scope, "Kazdy dla siebie": each person's own). On by default since 1.2.110 (the owner, 13.11.2026:
+       "Wide project windows w ustawieniach gracza - niech bedzie domyslnie zaznaczone"; R4404): Create a project, Edit
+       project and Propose a project open at the kit's `wide` (projects-ui.mjs `projectWindowWidth`); off, at the width
+       they had. A browser that saved its own choice keeps it. Read when a window opens, so no onChange. */
     game.settings.register(MODULE_ID, SETTINGS.wideProjectWindows, {
         name: "DRPG.Settings.wideProjectWindows.name",
         hint: "DRPG.Settings.wideProjectWindows.hint",
         scope: "client",
         config: false,
         type: Boolean,
-        default: false
+        default: true
     });
 
     /* ---- the language of this layer, per browser. English by default, and
@@ -1562,6 +1617,27 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* The table's switch for the sequences (E61 C1; SB-R1 of 05.11: "a world setting lets the GM switch the sequences off
+       for the whole table, on by default"). Read by sequence.mjs at each event, so a change holds from the next one. */
+    game.settings.register(MODULE_ID, SETTINGS.sequences, {
+        name: "DRPG.Settings.sequences.name",
+        hint: "DRPG.Settings.sequences.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: true
+    });
+
+    /* A GM's morning line for the next day (E94 C1; the plan's default: written in Edit campaign). Per browser and out of
+       the settings window: it stays on the GM's machine, in no world data, until the Night's advance folds it into the
+       clock's one write at the day's start (clock.mjs `advanceTimeOfDay`), and is emptied there. */
+    game.settings.register(MODULE_ID, SETTINGS.morningLineDraft, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     game.settings.register(MODULE_ID, SETTINGS.reducedMotion, {
@@ -2129,6 +2205,15 @@ export function registerSettings() {
     /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
        by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
        the relay warning above. */
+    /* THE DA39 MIGRATION, ONCE PER WORLD (E64; the owner's DRPG-D1 of 12.11.2026, "Rekompensujemy by lvl upy byly
+       spojne"). Set by the primary GM when the pass is applied, or when it finds nothing to do (level-up.mjs
+       `offerDa39Migration`); a world flag, not a GM's own, so a second GM's load asks nothing again. */
+    game.settings.register(MODULE_ID, SETTINGS.levelUpsMigrated, {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false
+    });
     game.settings.register(MODULE_ID, SETTINGS.rollDrawWarned, {
         scope: "client",
         config: false,
@@ -2189,7 +2274,8 @@ export function registerSettings() {
     /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
        "log" until a table has shown that "sendBack" puts nobody back wrongly. E17 kept "log" (session 0's "tylko log"
        for the table of 26.10.2026), and since E17 C1 the rules' refusals are put back in either mode; the
-       default after a table's session is E82's. */
+       default after a table's session is the owner's to choose: no stage holds it (E82, named here until E64 C8, is
+       not a row of tools/stages.json; the orphan D193, 12.11.2026). */
     game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
         name: "DRPG.Settings.moveAudit.name",
         hint: "DRPG.Settings.moveAudit.hint",
@@ -2818,6 +2904,43 @@ export function registerSettings() {
         default: {},
         onChange: onConfusionsChange
     });
+    // The Monocubs' record (E72 C2): the GMs' store and each owner's copy. The sheet's badge and the Students window
+    // read the witness's mark, and the flag's own `updateActor` redrew them until the mark left the actor.
+    game.settings.register(MODULE_ID, SETTINGS.gmCubs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onCubsChange
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineCubs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onCubsChange
+    });
+    // The Monocubs' moves on each student this day (E72 C4): the GMs' store alone; nothing redraws from it.
+    game.settings.register(MODULE_ID, SETTINGS.gmCubTargets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The open Bounties (E72 C16): the GMs' store; the Monocubs' owners are sent them with their copy.
+    game.settings.register(MODULE_ID, SETTINGS.gmBounties, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Who worked on each project this time of day (E72 C13): the GMs' store alone; nothing redraws from it.
+    game.settings.register(MODULE_ID, SETTINGS.gmProjectWork, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
     // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is
     // told to voice, the traps and the Players window by `drpgDeathsChanged`, which the
@@ -2997,6 +3120,12 @@ function onStoreChange(kind) {
 /* A Confusion armed or spent on this browser's store or copy: the sheets, whose badges list it. */
 function onConfusionsChange() {
     import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+}
+
+/* The Monocubs' record changed on this browser (E72 C2): the sheets, and the hook the Students window listens on. */
+function onCubsChange() {
+    import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+    Hooks.callAll("drpgCubsChanged");
 }
 
 /* A death kept by the GMs changed on this browser: the sheets, the HUD and the map

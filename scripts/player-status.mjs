@@ -26,6 +26,7 @@ import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, actingStudents } from "./monokuma.mjs";
 import { sheetMode, moveSlots, moveFeetHtml, moveLegend } from "./sheet.mjs";
+import { isMonocub, purseOf } from "./monocub.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural, markLanguage } from "./utils.mjs";
@@ -525,7 +526,8 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
         // A plainly dead student reaches none of these rows since E17 C8: the
         // strip is their state alone (`showsDeathOnly`, above).
         safeRow(() => {
-            const held = hopeHeld(actor);
+            // A Monocub's purse counts (E72 C14; DC37): the Hope it can spend is the sheet's and the purse's.
+            const held = hopeHeld(actor) + (isMonocub(actor) ? purseOf(actor) : 0);
             const hopeMax = Number(actor.system?.resources?.hope?.max ?? held);
             return marks("is-hope", game.i18n.localize("DAGGERHEART.GENERAL.hope") || "Hope",
                 pips("drpg-status-pip drpg-status-hope-pip", held, hopeMax,

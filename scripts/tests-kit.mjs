@@ -569,6 +569,11 @@ const env = Object.freeze({
     desk: () => probe("env.desk", !narrowScreen(), "a stacked screen, narrower than BREAKPOINTS.narrow"),
     canvas: () => probe("env.canvas", canvasAvailable(), "no canvas renderer here"),
     systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
+    /* Daggerheart's MoveContext (E76b, 12.11.2026): the config 2.12's `actor.rollTrait` builds its roll from
+       (game.system.api.data.actions.MoveContext, daggerheart.mjs:137-145, 2.12.8). Up to 2.10.x there is none, and a
+       test of what the module carries through it skips there; the harness runs 2.12.8's copy since E76 C3c. */
+    moveContext: () => probe("env.moveContext", typeof game.system?.api?.data?.actions?.MoveContext === "function",
+        "this Daggerheart builds no MoveContext (before 2.12)"),
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
     unprepared: () => probe("env.unprepared", sourceUnprepared(), "Foundry prepares a character's data here, so a test cannot stand in for the preparation"),
     markdown: () => probe("env.markdown", Boolean(globalThis.showdown?.Converter), "no Markdown converter here"),
@@ -1659,7 +1664,7 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
     let actions = 0, withIds = 0, byGuardClaim = 0, inWords = 0;
     const source = fn => String(fn ?? "");
     const exported = new Set(Object.values(guards).filter(value => typeof value === "function"));
-    const FACTORIES = ["owns", "ownsActorAt", "gmOnly", "playersOnly", "canSeeProject", "inRange"];
+    const FACTORIES = ["owns", "ownsActorAt", "notSpectator", "gmOnly", "playersOnly", "canSeeProject", "inRange"];
     // Past the parameter list: every guard takes `sender`, and only a body can be said to read it.
     const readsSender = fn => /\bsender\b/.test(source(fn).replace(/^[^)]*\)/, ""));
     const readsField = (fn, field) => new RegExp(`\\bpayload\\??\\.${field}\\b`).test(source(fn));
@@ -2065,7 +2070,7 @@ const STANDING = [
     "openSoundDialog", "openInvestigationDashboard", "manageClassTrial",
     "openProjectManager", "openRoomSetupDialog", "openVaultInspector",
     "openItemTables", "openSeasonSetup", "openSeasonChecklist", "openMastermindDialog",
-    "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
+    "openRulesManager", "openGmTeamDialog",
     "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
     "openFailureLog", "openClockDialog", "openIncidentTracker",
     "openObjectionLog", "resetSeason"

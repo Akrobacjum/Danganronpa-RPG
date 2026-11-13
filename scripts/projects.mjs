@@ -24,10 +24,10 @@
  */
 
 import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph, projectDescriptionProblem } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind, getClock, seasonEpoch } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
-import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
+import { projectSecretStore, rerollBookmarkStore, projectWorkStore } from "./gm-stores.mjs";
 /* `discoveredFor` is the per-character record of which rooms somebody has
    actually stood in - the public half of `knowsProject` below. Imported at the
    top and not dynamically: the import graph was checked in both directions
@@ -36,6 +36,7 @@ import { discoveredFor, myDiscoveredRooms, roomsStoodInNow } from "./fog.mjs";
 // What a private card's meta says on this browser (H84 fix G3, `proposedBy`). secret.mjs reaches nothing that imports
 // this file (read 27.10.2026: its imports are bridge-guards, utils, rooms, config, settings and gm-store), so no cycle (R161).
 import { cardMeta } from "./secret.mjs";
+import { spectatorUserIds } from "./spectator.mjs";
 // Already reached through fog.mjs, which imports it: the edge adds no cycle (R161).
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
@@ -142,6 +143,8 @@ export function knowsProject(countdownId, user = game.user) {
     if (!canSee(countdownId, user)) return false;
     // In on a secret one: you are one of the people who made it.
     if (isSecret(countdownId)) return true;
+    // A Spectator knows every project, in every room (E92, the owner's DRPG-D1 of 12.11.2026).
+    if (user && spectatorUserIds().has(user.id)) return true;
 
     const room = roomOf(countdownId);
     if (!room) return true;
@@ -241,6 +244,7 @@ export async function tellDescription(countdownId) {
     const words = secretsOf(countdownId).description;
     if (typeof words !== "string" || !words) return 0;
     const told = { ...(secretsOf(countdownId).descriptionTold ?? {}) };
+    // Not to a Spectator (E92, the coordinator's 12.11: "secret projects stay secret (GMs' half untouched)"): it sees the name and progress.
     const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
     if (!readers.length) return 0;
     const name = rawCountdown(countdownId)?.name ?? "?";
@@ -668,8 +672,40 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
  * R977 counts the ones still outside.
  * ========================================================================== */
 
-/** Who a change is by: `kind` one of these (E72 adds "monocub"), the user, the character. */
-const CHANGE_KINDS = Object.freeze(["gm", "player", "call", "reroll", "system"]);
+/** Who a change is by: `kind` one of these ("monocub" since E72 C13: a Monocub's Tinker), the user, the character. */
+const CHANGE_KINDS = Object.freeze(["gm", "player", "call", "reroll", "system", "monocub"]);
+
+/*
+ * WHO WORKED ON IT THIS TIME OF DAY (E72 C13, 12.11.2026; the owner's DC23, DC24). A Monocub's Tinker reaches a project
+ * only while a living student worked on it this time of day, and that is read off the GMs' row of each project
+ * (gm-stores.mjs `projectWorkStore`), written here, after the one entry's step, for a change that moved the bar forward
+ * on a character's own work: a player's Work on Project, a Call (a Contribution) or a Reroll that adds it again. A GM's
+ * own change and a Monocub's Tinker are no student's work. A row of another time of day counts nothing.
+ */
+const WORK_KINDS = new Set(["player", "call", "reroll"]);
+
+/** The time of day a project's work is counted under: the clock's chapter, season, day and time of day. */
+function workSlotNow() {
+    const clock = getClock() ?? {};
+    return { chapter: clock.chapter ?? null, epoch: seasonEpoch(), day: clock.day ?? null, timeOfDay: clock.timeOfDay ?? null };
+}
+
+/** GM: `actorId` worked on `countdownId` now (E72 C13). */
+async function noteProjectWork(countdownId, actorId) {
+    const slot = workSlotNow();
+    const held = projectWorkStore.get(countdownId);
+    const same = held && ["chapter", "epoch", "day", "timeOfDay"].every(key => held[key] === slot[key]);
+    const actorIds = [...new Set([...(same ? held.actorIds ?? [] : []), actorId])];
+    await projectWorkStore.patch(countdownId, { ...slot, actorIds });
+}
+
+/** GM: the characters who worked on `countdownId` this time of day (E72 C13), as the GMs' row holds them. */
+export function workersNow(countdownId) {
+    const held = projectWorkStore.get(countdownId);
+    const slot = workSlotNow();
+    if (!held || !["chapter", "epoch", "day", "timeOfDay"].every(key => held[key] === slot[key])) return [];
+    return [...(held.actorIds ?? [])];
+}
 
 /**
  * WHAT A COMPLETION DOES, A ROW PER META KEY (the owner, 11.10: "`onCrossed`/`onUncrossed` w
@@ -919,12 +955,15 @@ export const COMPLETION_EFFECTS = [
          */
         key: "repairsItem",
         has: meta => meta.target?.preset === "repairItem" && typeof meta.target.itemId === "string",
-        onCrossed: ({ id, name, meta }) => {
+        onCrossed: ctx => {
+            const { id, name, meta } = ctx;
             let made = null;
             const builder = game.actors.get(meta.by ?? "") ?? null;
             return {
                 apply: async () => {
-                    made = await (await import("./inventory.mjs")).repairItem(builder, meta.target.itemId, { ref: id });
+                    // Held to the item's tier as it is now, or to the size the GM picked (E64, D034, D039).
+                    made = await (await import("./inventory.mjs")).repairItem(builder, meta.target.itemId, { ref: id, size: ctx.target,
+                        sizedByGm: meta.target.sizedByGm ?? null });
                     if (made?.was) await setProjectMeta(id, { target: { ...meta.target, was: made.was } });
                 },
                 remove: true,
@@ -1104,6 +1143,14 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
         return res.ok ? (res.value ?? null) : null;
     }
     const { result, after } = step;
+    // A student's own work on it this time of day (E72 C13), once the bar moved forward: a GM store of its own key.
+    if (result?.changed && !result.removed && clean.delta > 0 && WORK_KINDS.has(who.kind) && who.actorId) {
+        try {
+            await noteProjectWork(countdownId, who.actorId);
+        } catch (err) {
+            error(`Could not note who worked on the project ${countdownId}`, err);
+        }
+    }
     // Outside the queue: the next change is under way while these post (no step awaits a window or a reply).
     for (const run of after) {
         try {
@@ -1610,12 +1657,16 @@ export async function createProject({
 /**
  * A preset's target as the GMs keep it (E15 part 2 C2, C5): `{ preset, room }`, and for the owner's three of 15.10 what
  * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`) -,
- * strings alone.
+ * strings alone; and a Repair an item's size where the GM picked another than its tier's in the approval window
+ * (`sizedByGm`, a whole number of progress; E64, D039), which the completion holds instead of the tier's (inventory.mjs
+ * `repairItem`, D034). Absent where the window kept the tier's size.
  */
 function presetTargetOf(presetTarget) {
     const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId"]
         .filter(key => typeof presetTarget[key] === "string" && presetTarget[key]).map(key => [key, presetTarget[key]]));
-    return { preset: String(presetTarget.preset), room: presetTarget.room ?? null, ...ids };
+    const size = Number(presetTarget.sizedByGm);
+    const sized = presetTarget.preset === "repairItem" && Number.isInteger(size) && size > 0 ? { sizedByGm: size } : {};
+    return { preset: String(presetTarget.preset), room: presetTarget.room ?? null, ...ids, ...sized };
 }
 
 /**
@@ -2303,6 +2354,26 @@ export async function resealSecretProjects() {
 
     if (fixed) log(`Re-sealed ${fixed} secret project(s) that were visible to players.`);
     return fixed;
+}
+
+/**
+ * THE SPECTATORS' SIGHT, AFTER A ROLE CHANGED (E92, the owner's DRPG-D1 of 12.11.2026: a Spectator sees every project,
+ * the secret ones too - their name and progress; the GMs' half, the words among it, stays theirs). Called by monokuma.mjs
+ * `setSpectator` once the flag is written, on a GM. `gone` are the users who stopped playing a Spectator with it: each is
+ * taken off every secret project it does not build (an `unshare`, the entry's own), since a Spectator's observer entry is
+ * not told from a share in the map - so a student who watched and comes back loses the secret projects it was let in on
+ * before (the GM shares them again). Then every secret project is resealed, which puts the Spectators in (`ownershipMap`).
+ */
+export async function seeAsSpectators(gone = []) {
+    if (!game.user?.isGM) return 0;
+    const secret = allProjects().filter(project => isSecret(project.id));
+    for (const project of secret) {
+        for (const userId of gone) {
+            if (builderIds(project.id).includes(userId)) continue;
+            await applyProjectChange(project.id, { unshare: userId }, { by: { kind: "system" } });
+        }
+    }
+    return resealSecretProjects();
 }
 
 /* ==========================================================================
