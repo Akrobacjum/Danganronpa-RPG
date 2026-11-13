@@ -318,6 +318,22 @@ function coverBlocks(ctx) {
     });
 }
 
+/* THE CURTAIN UNDER THE WINDOWS, THE TITLE OVER THEM (E105, the owner's ask of 13.11.2026: "zamkniecie kurtyny niech
+   bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach"). The trial's edges draw in two layers of their own,
+   each fixed over the screen and stacked by danganronpa.css (THE SEQUENCES): the curtain's - the panes, the closed
+   curtain, the lids - under Foundry's window layer and over the board and the interface, so an open window, and one
+   opened while it plays, stands over the closing curtain and takes its clicks; and the title's - the band with its
+   background and the chapter's line - over every window. The host is no box of its own there (`display: contents`): a
+   fixed box is a stacking context, and its children could not stand on both sides of the windows. Until E105 the host
+   was one layer at 99980 and its children with it, over every window. The other sequences - the verdict's cut-in, the
+   day's boards - close no curtain and keep the one host. */
+function seqLayer(cls) {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.setAttribute("aria-hidden", "true");
+    return el;
+}
+
 /**
  * The entry's frames. Under Stained Glass with a curtain painted, the panes stand where they are and the hole they
  * leave fills with new panes of the curtain's kind, each sliding out at its own size from behind an edge it shares with
@@ -332,6 +348,9 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
     const chapter = clock?.chapter ?? null;
     host.dataset.drpgSequenceLook = glass ? "glass" : "lids";
     const title = titleBand(chapter, kind);
+    // the curtain's layer under the windows, the title's over them (above); the fades in and out are the curtain's
+    const curtain = seqLayer("drpg-seq-curtain"), top = seqLayer("drpg-seq-top");
+    host.append(curtain, top);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
         const closed = closedCanvas(glass.closed);
@@ -341,12 +360,12 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
         ctx.undo(() => glass.release?.());
         if (still) {
             glass.hold?.(0);
-            host.append(closed);
+            curtain.append(closed);
         } else {
             glass.hold?.(T.handIn);
-            anim(host, [{ opacity: 0 }, { opacity: 1 }], { duration: T.handIn, easing: "linear" });
+            anim(curtain, [{ opacity: 0 }, { opacity: 1 }], { duration: T.handIn, easing: "linear" });
             at(T.end - T.hand, () => {
-                anim(host, [{ opacity: 1 }, { opacity: 0 }], { duration: T.hand, easing: "linear", fill: "forwards" });
+                anim(curtain, [{ opacity: 1 }, { opacity: 0 }], { duration: T.hand, easing: "linear", fill: "forwards" });
                 glass.handBack?.(T.hand);
             });
             const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
@@ -355,7 +374,7 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
             open.layer.append(growOut.canvas);
             closed.hidden = true;
             open.layer.hidden = true;
-            host.append(close.layer, closed, open.layer);
+            curtain.append(close.layer, closed, open.layer);
             host.drpgEntry = { growIn, growOut, fill: [glass.close.fill, glass.open.fill] };
             glass.close.panes.forEach(p => anim(p.old, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, delay: p.batch * FADE_STEP, easing: "linear" }));
             const t0 = performance.now();
@@ -393,7 +412,7 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
         const lids = ["top", "bottom"].map(side => {
             const lid = document.createElement("div");
             lid.className = `drpg-seq-lid is-${side}`;
-            host.append(lid);
+            curtain.append(lid);
             return lid;
         });
         if (!still) {
@@ -402,9 +421,9 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
         }
     }
     coverBlocks(ctx);
-    if (still) { host.append(title); return; }
+    if (still) { top.append(title); return; }
     at(T.title, () => {
-        host.append(title);
+        top.append(title);
         anim(title, [{ transform: "rotate(-3deg) scale(1.12)", opacity: 0 }, { transform: "rotate(-3deg) scale(1)", opacity: 1 }], { duration: T.titleIn, easing: IN });
     });
     at(T.titleOut, () => anim(title, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "linear" }));

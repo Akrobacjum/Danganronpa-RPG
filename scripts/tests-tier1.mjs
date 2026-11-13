@@ -52886,6 +52886,212 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ oneFirst: "trialExit", oneStill: "trialExit", oneThen: "dayEnd", twoStill: "trialExit", twoThen: "dayEnd", alone: "dayEnd" }),
             "[one run: what plays first, still after 400 ms, then; two runs: what plays 400 ms after the morning was heard, then once the exit was skipped; a new day with no exit]");
     }],
+    ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
+        /*
+         * E105, 13.11.2026. Red at 58e0fd06: the whole sequence was one fixed host at 99980, over every window - the
+         * curtain with the title - so an open window went under the closing curtain. The cascade is the sheets' text
+         * (`styleCascade`), not a layout or a compositor: that the windows are drawn over the curtain and under the title
+         * at a table is LIVE-E105-01. `--z-index-window` is read off this page (Foundry's sheet at a table, none headless:
+         * 100, the harness's counter's start), and Foundry's counter raises a window to the next number above it.
+         */
+        const C = await styleCascade();
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const root = getComputedStyle(document.documentElement), bodyCs = getComputedStyle(document.body);
+        const stated = Number.parseFloat(root.getPropertyValue("--z-index-window") || bodyCs.getPropertyValue("--z-index-window"));
+        const base = Number.isFinite(stated) ? stated : 100;
+        const num = v => {
+            if (v == null) return null;
+            const s = String(v).trim()
+                .replace(/var\(\s*--z-index-window\s*(?:,\s*[\d.]+\s*)?\)/g, String(base))
+                .replace(/var\(\s*--z-index-app\s*(?:,\s*([\d.]+)\s*)?\)/g, (_, f) => f ?? "30");
+            const e = /^calc\((.*)\)$/.exec(s)?.[1] ?? s;
+            const parts = e.trim().split(/\s+([+-])\s+/);
+            if (!parts.every((p, i) => (i % 2 ? /^[+-]$/.test(p) : /^-?\d+(\.\d+)?$/.test(p)))) return NaN;
+            let n = Number(parts[0]);
+            for (let i = 1; i < parts.length; i += 2) n = parts[i] === "+" ? n + Number(parts[i + 1]) : n - Number(parts[i + 1]);
+            return n;
+        };
+        const v = (el, names) => C.winner(el, names)?.value ?? null;
+        const stage = (theme, stacked, kind, look) => {
+            const body = document.createElement("body");
+            body.className = `${theme}${stacked ? " drpg-stacked" : ""}`;
+            body.setAttribute("data-drpg-sequence", kind);
+            const host = body.appendChild(Object.assign(document.createElement("div"), { id: "drpg-sequence", className: `drpg-sequence drpg-sequence-${kind}` }));
+            host.dataset.drpgSequence = kind;
+            if (look) host.dataset.drpgSequenceLook = look;
+            const curtain = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-curtain" }));
+            const top = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-top" }));
+            top.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title" }));
+            const popups = body.appendChild(Object.assign(document.createElement("div"), { id: "drpg-popups" }));
+            popups.appendChild(Object.assign(document.createElement("div"), { className: "drpg-popup" }));
+            return { host, curtain, top, popups };
+        };
+        const read = {};
+        for (const [theme, name] of [["drpg-theme-monokuma-legacy", "legacy"], ["drpg-theme-stained-glass", "glass"]]) {
+            for (const stacked of [false, true]) {
+                const where = `${name}${stacked ? "-stacked" : ""}`;
+                const edges = [];
+                for (const kind of ["trialEntry", "trialExit"]) for (const look of ["glass", "lids"]) {
+                    const s = stage(theme, stacked, kind, look);
+                    edges.push(stableJson({
+                        host: v(s.host, ["display"]),
+                        curtain: [v(s.curtain, ["position"]), num(v(s.curtain, ["z-index"])), v(s.curtain, ["pointer-events"])],
+                        top: [v(s.top, ["position"]), num(v(s.top, ["z-index"])), v(s.top, ["pointer-events"])],
+                        popups: num(v(s.popups, ["z-index"]))
+                    }));
+                }
+                read[where] = { edges: [...new Set(edges)].map(x => JSON.parse(x)) };
+                read[where].others = [...new Set(["verdictCut", "dayStart", "dayEnd"].map(kind => {
+                    const s = stage(theme, stacked, kind, null);
+                    return stableJson({ host: [v(s.host, ["display"]) === "contents", num(v(s.host, ["z-index"]))], popups: num(v(s.popups, ["z-index"])) });
+                }))].map(x => JSON.parse(x));
+            }
+        }
+        // every other z-index the sheets state under Foundry's window layer stands under the curtain
+        const curtainZ = base - 2;
+        read.under = C.rules.filter(rule => !/data-drpg-sequence|#drpg-sequence/.test(rule.selector))
+            .flatMap(rule => rule.decls.filter(d => d.property === "z-index").map(d => [rule.file, rule.selector, num(d.value)]))
+            .filter(([, , n]) => Number.isFinite(n) && n < base + 1 && n >= curtainZ)
+            .map(([file, sel, n]) => `${file} ${sel}: ${n}`);
+        // the windows open on this page, each between the two layers (Foundry's counter; the shim's headless)
+        const open = [...(foundry.applications?.instances?.values?.() ?? [])].map(app => app?.element).filter(el => el?.isConnected);
+        read.windows = open.filter(el => { const z = Number.parseInt(el.style.zIndex || getComputedStyle(el).zIndex, 10); return !(z > curtainZ && z < 99980); }).map(el => el.id || el.className);
+        const edge = (popups) => ({ host: "contents", curtain: ["fixed", base - 2, "auto"], top: ["fixed", 99980, "none"], popups });
+        const others = [{ host: [false, 99980], popups: 99990 }];
+        equal(stableJson(read), stableJson({
+            legacy: { edges: [edge(99990)], others }, "legacy-stacked": { edges: [edge(99990)], others },
+            glass: { edges: [edge(base - 1)], others }, "glass-stacked": { edges: [edge(base - 1)], others },
+            under: [], windows: []
+        }), `[each theme, desk and stacked: the trial's edges, glass and lids alike - the host's display, the curtain layer [position, z-index, pointer-events], the title layer the same, the notice stack's z-index with a card; the cut-in and the boards - [the host no box, its z-index] and the notice stack's; z-indexes the sheets state from the curtain's ${curtainZ} up to the first window's ${base + 1}; open windows not between the layers] (--z-index-window read ${Number.isFinite(stated) ? stated : "nowhere: 100"}; ${open.length} window(s) open)`);
+    }],
+    ["R5381 - the trial's edges draw the curtain and the title in two layers, the curtain's fades on its own layer (scripts/sequence.mjs `drawTrialEntry`; the owner's ask of 13.11.2026): the entry with the glass in motion, the entry with the lids in motion and still, and the exit with the lids, each hold in the host exactly the curtain layer then the title layer, both hidden from a screen reader; the panes, the closed curtain and the lids stand in the curtain layer, the title (CLASS TRIAL, TRIAL ADJOURNED) in the title layer alone, at its frame in motion and at once when still; the glass's fade in over `handIn` and out over `hand` are the curtain layer's, never the host's (the title has a fade of its own); the verdict's cut-in and the day's boards draw in the one host, with neither layer", async () => {
+        /*
+         * E105, 13.11.2026. Red at 58e0fd06: the panes, the lids and the title were the host's own children, and the host
+         * itself faded in and out. jsdom lays nothing out and plays no animation: `Element.prototype.animate` is wrapped
+         * for the run (a stand-in where jsdom has none) and the targets of the calls are read, not what was drawn.
+         */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const T = S.SEQUENCE_TIMES.trialEntry, stamp = `R5381:${Date.now()}`, read = {};
+        const own = Object.getOwnPropertyDescriptor(Element.prototype, "animate");
+        const calls = [];
+        Object.defineProperty(Element.prototype, "animate", { configurable: true, writable: true, value: function (frames, opts) {
+            calls.push([this, frames, opts]);
+            return own?.value ? own.value.call(this, frames, opts) : { cancel() {}, finished: Promise.resolve(), currentTime: 0 };
+        } });
+        const stand = () => ({ W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] }, hold() {}, handBack() {}, release() {} });
+        const layers = () => {
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            const kids = [...(host?.children ?? [])];
+            const cls = el => [...el.classList].find(c => c.startsWith("drpg-seq-")) ?? el.localName;
+            return {
+                kids: kids.map(cls),
+                hidden: kids.map(el => el.getAttribute("aria-hidden")),
+                curtain: [...(host?.querySelector(":scope > .drpg-seq-curtain")?.children ?? [])].map(el => `${cls(el)}${el.classList.contains("is-close") ? ".is-close" : el.classList.contains("is-open") ? ".is-open" : ""}`),
+                top: [...(host?.querySelector(":scope > .drpg-seq-top")?.children ?? [])].map(cls),
+                titleInCurtain: Boolean(host?.querySelector(".drpg-seq-curtain .drpg-seq-title")),
+                band: host?.querySelector(".drpg-seq-top .drpg-seq-title-band")?.textContent ?? null
+            };
+        };
+        const fades = (host, ms, from, to) => calls.filter(([, f, o]) => f?.[0]?.opacity === from && f?.[1]?.opacity === to && o?.duration === ms && f.length === 2)
+            .map(([el]) => (el === host ? "host" : [...el.classList].find(c => c.startsWith("drpg-seq-")) ?? el.localName));
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            // the entry with the glass, in motion: the layers at the start and once the title is in, and the fades
+            read.glass = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}g` }, { pieces: stand() }) };
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            read.glass.start = layers();
+            await wait(T.title + 150);
+            read.glass.titled = layers();
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + 1500);
+            read.glass.fadeIn = fades(host, T.handIn, 0, 1);
+            read.glass.fadeOut = fades(host, T.hand, 1, 0);
+            // the lids, in motion and still, and the exit
+            body.classList.remove("drpg-theme-stained-glass");
+            read.lids = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}l` }) };
+            read.lids.start = layers();
+            await wait(T.title + 150);
+            read.lids.titled = layers();
+            S.endSequence("cut");
+            body.classList.add("drpg-reduced-motion");
+            read.still = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}s` }), ...layers() };
+            S.endSequence("cut");
+            read.exit = { mode: await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 4, trialEndedAt: `${stamp}x` }, { on: true }), ...layers() };
+            S.endSequence("cut");
+            // a sequence that closes no curtain draws in the one host
+            read.one = S.playSequence("dayStart", `${stamp}d`, ctx => ctx.host.append(Object.assign(document.createElement("div"), { className: "drpg-seq-day" })), { on: true }) && layers().kids;
+        } finally {
+            S.endSequence("cut");
+            if (own) Object.defineProperty(Element.prototype, "animate", own); else delete Element.prototype.animate;
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        const two = ["drpg-seq-curtain", "drpg-seq-top"], hid = ["true", "true"];
+        const entry = game.i18n.localize("DRPG.Sequence.trialTitle"), exit = game.i18n.localize("DRPG.Sequence.exitTitle");
+        const lids = ["drpg-seq-lid", "drpg-seq-lid"];
+        equal(stableJson(read), stableJson({
+            glass: {
+                mode: "motion",
+                start: { kids: two, hidden: hid, curtain: ["drpg-seq-glass.is-close", "drpg-seq-closed", "drpg-seq-glass.is-open"], top: [], titleInCurtain: false, band: null },
+                titled: { kids: two, hidden: hid, curtain: ["drpg-seq-closed", "drpg-seq-glass.is-open"], top: ["drpg-seq-title"], titleInCurtain: false, band: entry },
+                fadeIn: ["drpg-seq-curtain"], fadeOut: ["drpg-seq-curtain"]
+            },
+            lids: {
+                mode: "motion",
+                start: { kids: two, hidden: hid, curtain: lids, top: [], titleInCurtain: false, band: null },
+                titled: { kids: two, hidden: hid, curtain: lids, top: ["drpg-seq-title"], titleInCurtain: false, band: entry }
+            },
+            still: { mode: "still", kids: two, hidden: hid, curtain: lids, top: ["drpg-seq-title"], titleInCurtain: false, band: entry },
+            exit: { mode: "still", kids: two, hidden: hid, curtain: lids, top: ["drpg-seq-title"], titleInCurtain: false, band: exit },
+            one: ["drpg-seq-day"]
+        }), "[the entry with the glass in motion: what played; at its start and once titled - the host's children, their aria-hidden, the curtain layer's children, the title layer's, a title in the curtain layer, the band's words; the fades in and out over handIn and hand; the lids in motion the same; still; the exit (still: reduced motion stays on); a day's board's host children]");
+    }],
+    ["R5382 - over the windows the title's grounds are whole (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026, \"napis i jego tlo na otwartych oknach\"; the stage's shots of 13.11.2026): read through the module's cascade in both themes, in the title layer of the trial's edges the band's ground and the chapter line's dark shard are opaque - neither mixes with transparent - so a window's words under them do not read through; outside the trial's edges (the verdict's cut-in, a host with no look) the band keeps the sequences' band token", async () => {
+        /*
+         * E105, 13.11.2026. Red at 6ea64bac: the band under Stained Glass is the Despair pink at 95 % and the line's shard
+         * the dark at 90 % in both themes, chosen to stand on the closed curtain; once the title stood over the windows the
+         * stage's shots (glass harness, 1366x768 and 393x852, deviceScaleFactor 2) showed a window's title and words
+         * through both. The custom properties are resolved up the tree by the cascade's text, not by a browser.
+         */
+        const C = await styleCascade();
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const resolve = (el, value, depth = 0) => String(value ?? "").replace(/var\(\s*(--[\w-]+)\s*(?:,([^()]*))?\)/g, (all, name) => {
+            if (depth > 6) return all;
+            for (let at = el; at; at = at.parentElement) {
+                const w = C.winner(at, [name])?.value;
+                if (w != null) return resolve(at, w, depth + 1);
+            }
+            return all;
+        });
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme;
+            body.setAttribute("data-drpg-sequence", "trialEntry");
+            const host = body.appendChild(Object.assign(document.createElement("div"), { id: "drpg-sequence", className: "drpg-sequence drpg-sequence-trialEntry" }));
+            host.dataset.drpgSequenceLook = "glass";
+            host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-curtain" }));
+            const title = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-top" }))
+                .appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title" }));
+            const band = title.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-band" }));
+            const sub = title.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-sub" }));
+            const ground = el => resolve(el, C.winner(el, ["background", "background-color"])?.value);
+            const cut = document.createElement("body");
+            cut.className = theme;
+            const other = cut.appendChild(Object.assign(document.createElement("div"), { id: "drpg-sequence" }))
+                .appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-band" }));
+            return {
+                band: /transparent/.test(ground(band)) || ground(band) === "",
+                sub: /transparent/.test(ground(sub)) || ground(sub) === "",
+                bandToken: /--drpg-seq-band/.test(C.winner(band, ["background", "background-color"])?.value ?? ""),
+                cut: /--drpg-seq-band/.test(C.winner(other, ["background", "background-color"])?.value ?? "")
+            };
+        };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }),
+            stableJson({ legacy: { band: false, sub: false, bandToken: true, cut: true }, glass: { band: false, sub: false, bandToken: true, cut: true } }),
+            "[each theme, the title layer: the band's ground see-through or missing; the line's shard the same; the band drawn from the band token; outside the edges the band token]");
+    }],
     ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
         /*
          * E61 C5, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. The messages are stand-ins with `author` and

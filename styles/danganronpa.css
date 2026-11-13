@@ -18174,6 +18174,8 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
    --------------------------------------------------------------------------
    One host over the whole screen while a sequence plays, under the notice tile (raised over it for the span: the tile
    stays on top, MK-R1) and over every window; Foundry tools and Map tools hidden for the span and back as they stood.
+   The trial's entry and exit, which close the curtain, stand in two layers instead (E105, below: the curtain under the
+   open windows, the title over them).
    The mockups are drawn on a 1600 x 900 table screen; `--drpg-seq-u` is one of its pixels on this screen, so every
    length below is the mockup's number times it. The Legacy look is the rule; Stained Glass sets its own tokens
    (stained-glass.css, THE SEQUENCES). A size alone is written in a clamp(): its container is the viewport, as the
@@ -18203,6 +18205,44 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
 }
 body[data-drpg-sequence] #drpg-popups { z-index: 99990; }
 body[data-drpg-sequence] .drpg-foundry-window { visibility: hidden; }
+/* THE CLOSING CURTAIN UNDER THE OPEN WINDOWS, THE TITLE OVER THEM (E105, 13.11.2026; the owner's ask: "zamkniecie
+   kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach"). The trial's entry and exit
+   (sequence.mjs `drawTrialEntry`, the host with `data-drpg-sequence-look`) draw in two fixed layers, and the host is no
+   box of its own: a fixed box is a stacking context, so while it was one, everything in it stood at its 99980 over every
+   window. The curtain's layer - the panes, the closed curtain, the lids - stands two under Foundry's window layer
+   (`--z-index-window`, 100: the windows are raised from it, the first to 101) and over everything the module's sheets put
+   under that layer - the board, the live curtain at 1, the interface's columns at `--z-index-app` (30), the corner's
+   buttons and the expanded sidebar at 70 and 71 - and takes the clicks it covers; an open window, and one opened while it
+   plays, stands over it and takes its own. The title's layer - the band, its background and the chapter's line - stands
+   where the host stood, over every window, and lets the clicks through to the window under it. The notice stack stays
+   over the curtain: under Stained Glass one under the window layer, under the windows as it always stands there (E44
+   C8c), under Monokuma Legacy at 99990 over them (above). No backdrop blur is in either layer: a window's own glass
+   frosts the curtain under it, and nothing frosts a window. R5380 reads it from the sheets' text; the drawing in
+   Chromium is the stage's shots (docs/dev/e105/STATUS.md), at a table LIVE-E105-01. */
+#drpg-sequence[data-drpg-sequence-look] { display: contents; }
+#drpg-sequence > :is(.drpg-seq-curtain, .drpg-seq-top) {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    contain: strict;
+}
+#drpg-sequence > .drpg-seq-curtain {
+    z-index: calc(var(--z-index-window, 100) - 2);
+    pointer-events: auto;
+}
+#drpg-sequence > .drpg-seq-top {
+    z-index: 99980;
+    pointer-events: none;
+}
+/* Over a window the title's grounds are whole (the stage's shots, 13.11.2026, glass harness at 1366x768 and 393x852): the
+   chapter line's shard at 90 % and the glass's band at 95 % (stained-glass.css) were chosen to stand on the closed
+   curtain, and over a window its title and words read through both, across the line. In the title layer the shard is the
+   sequences' dark and the band its own colour, whole; R5382. */
+#drpg-sequence > .drpg-seq-top .drpg-seq-title-sub { background: var(--drpg-seq-dark); }
+body.drpg-theme-stained-glass #drpg-sequence > .drpg-seq-top { --drpg-seq-band: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass:is([data-drpg-sequence="trialEntry"], [data-drpg-sequence="trialExit"]) #drpg-popups {
+    z-index: calc(var(--z-index-window, 100) - 1);
+}
 /* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8); and the
    blocks of the interface with them - the clock, Despair, the event panel, the status, the tray and the corner's
    launchers (the entry's hand-over, 12.11.2026: the seam report's probe read the HUD 20 darker in the host's first frame
