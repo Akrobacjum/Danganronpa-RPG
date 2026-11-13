@@ -49360,6 +49360,10 @@ const INVARIANTS = [
             const [picked, unpicked] = body.querySelectorAll(".drpg-choice-text small");
             read[theme] = [C.winner(picked, "display")?.value ?? null, C.winner(unpicked, "display")?.value ?? null];
         }
+        /* The unpicked row's line is matched by the rule that hides it and by the one that shows it again, so a reading of
+           no rule there means the fixture stopped matching the sheets, not that the line is shown (the r112 review's P3,
+           13.11.2026: `shown` took null as shown). */
+        must(Object.values(read).every(([, unpicked]) => unpicked !== null), `the cascade read no rule for the unpicked row's line - this would measure nothing: ${stableJson(read)}`);
         const shown = v => v !== "none";
         equal(stableJson(Object.fromEntries(Object.entries(read).map(([t, [a, b]]) => [t, [shown(a), shown(b)]]))), stableJson({ glass: [true, true], legacy: [true, true] }),
             `{each theme: [the picked row's line shown, the unpicked row's line shown]} - read ${stableJson(read)}`);
@@ -49384,16 +49388,23 @@ const INVARIANTS = [
                 + `<a class="inventory" data-action="tab" data-group="primary" data-tab="inventory"><span>Inventory</span></a></nav></div></div></section></header></div></div>`;
             const nav = body.querySelector("nav.sheet-tabs"), [chosen, other] = body.querySelectorAll("nav.sheet-tabs > a");
             const w = (el, prop, pseudo = null) => C.winner(el, prop, pseudo)?.value ?? null;
+            // A colour no rule gives reads null on both tabs and would compare unequal to nothing (the r112 review's P3).
+            must(w(chosen, "color") !== null && (theme !== "glass" || w(chosen, "--brush") !== null),
+                `the cascade read no colour or brush for the chosen tab under ${theme} - this would measure nothing`);
             read[theme] = {
                 words: w(chosen, "color") !== w(other, "color"),
                 /* The bar is Bone under the glass (the base sheet's `--drpg-bone` and the theme's `--drpg-sg-bone` are one colour
                    there, read in Chromium: rgb(242, 238, 230)), so a brush of either Bone is the bar's colour. */
                 ground: theme === "glass" ? !/bone/.test(String(w(chosen, "--brush")))
-                    : w(chosen, "background") !== w(other, "background")
+                    : w(chosen, "background") !== w(other, "background"),
+                /* Under the glass the chosen tab against an unchosen one as well, not only against the bar (the r112 review's P3,
+                   13.11.2026): every tab takes the Ink brush, and the chosen one's brush is drawn (`a.active::before`, opacity
+                   1) where an unchosen one's is not - read as both opacities, each from a rule. Legacy: its ground above. */
+                apart: theme !== "glass" ? true : (([a, b]) => a !== null && b !== null && a !== b)([w(chosen, "opacity", "::before"), w(other, "opacity", "::before")])
             };
         }
-        equal(stableJson(read), stableJson({ glass: { words: true, ground: true }, legacy: { words: true, ground: true } }),
-            "{each theme: [the chosen tab's words apart from an unchosen one's; its ground apart (glass: its brush not a Bone, the bar's colour)]}");
+        equal(stableJson(read), stableJson({ glass: { words: true, ground: true, apart: true }, legacy: { words: true, ground: true, apart: true } }),
+            "{each theme: [the chosen tab's words apart from an unchosen one's; its ground apart (glass: its brush not a Bone, the bar's colour); glass: its brush drawn where an unchosen one's is not]}");
     }],
     ["R4112 - nothing in the sheet's left column reaches past its sides (E100; the owner at a table on 1.2.108, 12.11.2026: a sideways scrollbar under the Experience list): under the glass a row's brush behind an Equipped item (and any button) in `.character-sidebar-sheet` stands inside its box (`inset` with no negative side), where elsewhere it overhangs 5 px", async () => {
         /*
@@ -49410,6 +49421,8 @@ const INVARIANTS = [
             + `<div class="shortcut-items-section"><div class="equipment-section"><ul class="items-sidebar-list"><li class="inventory-item inventory-item-compact drpg-equipped-tool">x</li></ul></div></div>`
             + `<button type="button">b</button></aside></div></div>`;
         const li = body.querySelector("li.inventory-item"), button = body.querySelector("aside > button");
+        // The Equipped row's brush is a rule of stained-glass.css: no rule read there is a fixture that stopped matching (the r112 review's P3).
+        must(C.winner(li, "inset", "::before") !== null, "the cascade read no brush inset for the Equipped row - this would measure nothing");
         const sides = el => { const v = C.winner(el, "inset", "::before")?.value ?? ""; return v.split(/\s+/).some(part => part.startsWith("-")); };
         equal(stableJson([sides(li), sides(button)]), stableJson([false, false]), "[a negative side in the brush's inset: the Equipped row's, a button's in the column]");
     }],
