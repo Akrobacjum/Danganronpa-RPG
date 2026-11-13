@@ -4583,6 +4583,7 @@
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "card.claim": "Decyzja GM-a na karcie wysłanej do GM-ów",
+        "bullet.give": "Dowód prawdy przekazany przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",

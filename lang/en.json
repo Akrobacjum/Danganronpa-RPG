@@ -4251,6 +4251,7 @@
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "card.claim": "A GM's ruling on a card sent to the GMs",
+        "bullet.give": "A Truth Bullet a GM gives",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",

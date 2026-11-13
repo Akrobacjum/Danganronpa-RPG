@@ -46,7 +46,7 @@ import {
     ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
-    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH,
+    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
     ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
 } from "./bridge-wire.mjs";
 import {
@@ -67,7 +67,7 @@ import {
     handleReroll, handleAuditDecide, handleKeysCharge, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
     handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
-    handleTrialPresent, handleReshapeRuling, handleObservePick, handleCardClaim, handleCardPost
+    handleTrialPresent, handleReshapeRuling, handleObservePick, handleCardClaim, handleCardPost, handleGiveBullet
 } from "./bridge-runs-records.mjs";
 
 /**
@@ -1531,6 +1531,28 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             messageId: "read on the primary by claimOnPrimary: a card that exists, with no row in the GMs' ruledCardStore, not settled and not held by another click",
             step: "\"take\" before the ruling runs, \"done\" once it was made (the row is written), \"drop\" when it was not; done and drop end only the sender's own claim"
+        }
+    },
+
+    /*
+     * GIVE A TRUTH BULLET, MADE ON THE PRIMARY (E38; E60's Open 50; D153). A give from a Remnant made its copy on
+     * whichever GM opened the window, and an Observe's find makes its on the primary, each in the receiver's finds'
+     * queue (`serialWrite(observeFindKey(...))`) - but that queue is one browser's memory, so a give on a second GM
+     * beside the primary's find of the same trace for the same receiver made two copies (97-two-gms G, at E38 C2:
+     * Chie held 2 on both GMs). The give is carried to the primary now, where the find runs, so the two share one
+     * queue and the second reads the first's copy. A GM's alone (gmOnly): a player cannot give a bullet, and the
+     * payload is the GM's own, carried whole (`as.raw`) as a GM's words are, not a player's claim. `giveBullet`'s
+     * own check (does the receiver hold a copy of the trace already) stands where it was, in that one queue.
+     */
+    [ACTION_BULLET_GIVE]: {
+        label: "DRPG.Bridge.what.bullet.give",
+        guards: [gmOnly("only a GM gives a Truth Bullet")],
+        sanitize: pick({ whoId: as.id, bullet: as.raw }),
+        run: handleGiveBullet,
+        answer: "reply",
+        claims: {
+            whoId: "the receiver, read on the primary by handleGiveBullet; giveBullet makes the copy in that receiver's finds' queue",
+            bullet: "the GM's own bullet payload, carried whole: gmOnly, so it is a GM's words and not a player's claim"
         }
     }
 });

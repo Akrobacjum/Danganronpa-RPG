@@ -1222,10 +1222,12 @@ export const GIVEN_ALREADY = Symbol("drpg.givenAlready");
  * receiver's queue now (utils.mjs `serialWrite` under observe.mjs `observeFindKey`), as Observe's find, Monokuma's
  * Reveal and a hand-over are (tier 0 R1289). A bullet written by hand names no trace and is only queued. Answers the
  * bullet, `GIVEN_ALREADY`, or null when none could be made. Exported for the suite.
- * ON ONE GM'S BROWSER (E60's fix round, FG6; the end review's C-m8, S-m4): the queue is this browser's memory, and the
- * give runs on whichever GM opened the window, while Observe's find and a hand-over run on the primary - a give on a
- * second GM's browser beside the primary's find of the same trace for the same receiver can still make two copies.
- * No road a GM's give could take to the primary exists; the race across GMs is E38's (row 1.2.126).
+ * ON THE PRIMARY GM'S BROWSER SINCE E38 (D153; the queue is one browser's memory): the window carries the give to the
+ * primary (bridge-asks.mjs `requestGiveBullet`, `bullet.give`), where Observe's find and a hand-over run, so the two
+ * share one queue and the second reads the first's copy. Before E38 the give ran on whichever GM opened the window, so
+ * a give on a second GM beside the primary's find of the same trace for the same receiver made two copies (E60's fix
+ * round FG6; the end review's C-m8, S-m4; 97-two-gms G). Called here by the bridge's run on the primary and by the
+ * suite; the window no longer calls it (tier 0 R5000).
  */
 export async function giveBullet(who, payload) {
     const { observeFindKey } = await import("./observe.mjs");
@@ -1300,14 +1302,22 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
         : bulletFromForm(result);
     if (!payload) return false;
 
-    const item = await giveBullet(who, payload);
-
-    if (item === GIVEN_ALREADY) {
+    /* THE GIVE GOES TO THE PRIMARY (E38; D153): the bullet is made in the one receiver's finds' queue, which lives on
+       the primary GM's browser - the same queue Observe's find uses - so a give on a second GM's browser beside the
+       primary's find of the same trace no longer makes a second copy (97-two-gms G). This GM, when it is the primary,
+       still makes it on its own browser (`requestGiveBullet`'s `local`, `onPrimary`). The bridge says why on a refusal,
+       so this reads only the value. */
+    const { requestGiveBullet } = await import("./gm-bridge.mjs");
+    const res = await requestGiveBullet(who, payload);
+    const given = res.value?.given ?? null;
+    if (given === "already") {
         ui.notifications.warn(game.i18n.format("DRPG.TruthBullet.alreadyGiven", { actor: who.name }));
         return false;
     }
-    if (!item) {
-        ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
+    if (given !== "bullet") {
+        // A refusal or no GM the bridge has already said (card.give is not quiet); a local give that made nothing
+        // (res.ok, no value) is the old `!item` path, said here.
+        if (res.ok) ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
         return false;
     }
 

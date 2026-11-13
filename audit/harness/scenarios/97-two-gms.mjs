@@ -250,12 +250,12 @@ export async function run(api) {
     await settle(800);
 
     /* ------------------------------------------------------------------ G */
-    /* D153 across two GMs' browsers (E60's Open 50; plan E38 3.3). A Give from a Remnant runs on the GM whose window it
-       is (gm-items.mjs `giveBullet`), an Observe's find on the primary (observe.mjs `mintFindCopy`); each runs in the
-       receiver's finds' queue, which is that browser's memory. Here both, for Chie and the seeded trace, at the same
-       moment, gm's find and gm2's give. Q-E38-2's default (the plan; default taken, the owner to confirm): the fix, a
-       bridge row carrying the give to the primary, stays with the verification chat, so this records what happens -
-       a note, not a verdict - and checks only that it measured something. */
+    /* D153 across two GMs' browsers (E60's Open 50; plan E38 3.3). An Observe's find runs on the primary (observe.mjs
+       `mintFindCopy`) in the receiver's finds' queue, which is that browser's memory; Give a Truth Bullet ran its give
+       on whichever GM opened the window. Here both, for Chie and the seeded trace, at the same moment: gm's find and
+       gm2's Give, asked as the window asks it (bridge-asks.mjs `requestGiveBullet`, `bullet.give` on the primary,
+       E38 C4). Read at E38 C2, when the window gave on its own browser (gm-items.mjs `giveBullet` on gm2): Chie held
+       2 copies on both GMs. One copy is the rule. */
     phase("G D153: a give and a find on two GMs at once", { flow: "truth-bullets" });
     const TB = `const T = ${imp("truth-bullets.mjs")};
         const copies = () => T.bulletsOf(game.actors.get("${IDS.chie}")).filter(i => T.secretOf(i.uuid)?.remnantId === "${IDS.trace}");`;
@@ -269,19 +269,20 @@ export async function run(api) {
             const out = data ? await O.mintFindCopy(game.actors.get("${IDS.chie}"), { tokenId: "${IDS.trace}", sceneId: "${IDS.annex}", room: null, data },
                 { name: "E38 G found", playerText: "E38 G", tell: false }) : null;
             return { data: Boolean(data), made: Boolean(out?.id) };`, { timeout: 60000 }),
-        gm2.eval(`const G = ${imp("gm-items.mjs")};
+        gm2.eval(`const B = ${imp("gm-bridge.mjs")};
+            if (typeof B.requestGiveBullet !== "function") return "no requestGiveBullet";
             while (Date.now() < ${at}) await new Promise(r => setTimeout(r, 5));
-            const out = await G.giveBullet(game.actors.get("${IDS.chie}"), { name: "E38 G given", realType: "prep", visibility: "evident",
+            const res = await B.requestGiveBullet(game.actors.get("${IDS.chie}"), { name: "E38 G given", realType: "prep", visibility: "evident",
                 playerText: "E38 G", remnantId: "${IDS.trace}", sceneId: "${IDS.annex}" });
-            return out === G.GIVEN_ALREADY ? "given already" : out?.id ? "a bullet" : String(out);`, { timeout: 60000 })
+            return res.ok ? (res.value?.given ?? "no answer") : "refused: " + (res.reason ?? res.refused ?? "?");`, { timeout: 60000 })
     ]);
     await settle(2000);
     const gAfter = await gm.eval(`${TB} return copies().length;`);
     const gAfter2 = await gm2.eval(`${TB} return copies().length;`);
-    note("G: D153 across two GMs - Chie's copies of the seeded trace after gm's find and gm2's give at the same moment (Q-E38-2: the fix stays with the verification chat; one copy is the rule, two the known edge)",
+    note("G: D153 across two GMs - Chie's copies of the seeded trace after gm's find and gm2's give at the same moment",
         J({ before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave }));
-    check("G1: D153 measured - the find ran on gm with the trace's answer key and gm2's give answered, and Chie holds at least one copy on both GMs",
-        gBefore === 0 && gFound?.data === true && typeof gGave === "string" && gAfter >= 1 && gAfter2 === gAfter,
+    check("G1: a find on gm and a Give asked from gm2 at the same moment for Chie and one trace make one copy, held by both GMs, and the Give answers that she holds it already or that it gave it (D153 across two GMs)",
+        gBefore === 0 && gFound?.data === true && ["already", "bullet"].includes(gGave) && gAfter === 1 && gAfter2 === 1,
         J({ gBefore, gFound, gGave, gAfter, gAfter2 }));
     await gm.eval(`${TB} for (const item of copies()) { const uuid = item.uuid; await item.delete().catch(() => {}); await T.dropSecret(uuid).catch(() => {}); }
         return copies().length;`, { timeout: 60000 });

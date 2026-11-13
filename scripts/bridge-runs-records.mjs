@@ -910,6 +910,24 @@ export async function handleCardClaim(payload, sender) {
     return { reply: await claimOnPrimary(payload.messageId, payload.step, sender.id) };
 }
 
+/**
+ * The run of `bullet.give` (E38; D153): Give a Truth Bullet, made on this primary GM so its copy is written in the
+ * one receiver's finds' queue (gm-items.mjs `giveBullet`, the same queue Observe's find uses). Answers how it ended -
+ * `"already"` when the receiver holds a copy of the trace, `"bullet"` with the item's id when one was made - or why
+ * not. The payload is a GM's own (gmOnly); `giveBullet` reads only what `createTruthBullet` reads of it.
+ */
+export async function handleGiveBullet(payload, sender) {
+    const who = game.actors.get(payload.whoId);
+    if (!who) return { refused: "nothing was carried out: the receiver is no actor this GM has" };
+    const bullet = payload.bullet;
+    if (!bullet || typeof bullet !== "object" || !bullet.name) return { refused: "nothing was carried out: the give names no bullet" };
+    const { giveBullet, GIVEN_ALREADY } = await import("./gm-items.mjs");
+    const item = await giveBullet(who, bullet);
+    if (item === GIVEN_ALREADY) return { reply: { given: "already" } };
+    if (!item) return { refused: "nothing was carried out: the bullet could not be made" };
+    return { reply: { given: "bullet", id: item.id } };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 export async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");

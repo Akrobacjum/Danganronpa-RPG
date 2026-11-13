@@ -64,16 +64,16 @@ None named after E38: this line stops here. Not built of the plan is listed abov
 
 ## Live-only parts (not run: no v14 server)
 
-Each is an item of `audit/AUDIT-1.2.42.md` 9.2, in Polish, with its drill. The items' numbers 507-510 follow 506 on
-main at 1.2.109; a merge with another line's items may have to renumber them.
+Each is an item of `audit/AUDIT-1.2.42.md` 9.2, in Polish, with its drill. The items' numbers 508-511 follow 507 on
+main at 1.2.111 (renumbered at the merge of 984d1fb1); a merge with another line's items may have to renumber them.
 
-- LIVE-E38-01 (item 507): the primary GM's F5 during a player's drawn roll ends in one `rolls` record or a message.
-- LIVE-E38-02 (item 508): a room switch while a second GM edits Room Setup loses none of their changes.
-- LIVE-E38-03 (item 509): the migration drill (the planned 64-migration-drill, local-gate) on copies of v1.1.0, 1.2.13
+- LIVE-E38-01 (item 508): the primary GM's F5 during a player's drawn roll ends in one `rolls` record or a message.
+- LIVE-E38-02 (item 509): a room switch while a second GM edits Room Setup loses none of their changes.
+- LIVE-E38-03 (item 510): the migration drill (the planned 64-migration-drill, local-gate) on copies of v1.1.0, 1.2.13
   and the owner's 1.2.56 world (`DRPG_FIXTURES`, outside the repo): E04's ledger migration and E12's room-flag clause,
   the whispered report against the state. Not built as a scenario file: the stage's numbers are 97 and 98, and a
   local-gate scenario cannot be run or tested here.
-- LIVE-E38-04 (item 510): a third account in `audit/live` (GM and two players on a real v14), repeating E70's and E73's
+- LIVE-E38-04 (item 511): a third account in `audit/live` (GM and two players on a real v14), repeating E70's and E73's
   checks with a reload and a change of primary. Not built: `audit/live` needs the sandbox to be tested.
 
 ## Shots
