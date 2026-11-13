@@ -111,6 +111,8 @@ export async function performProject(actor, def, options) {
         title: def.label,
         intro: briefingBlock(actor, "project", def),
         prompt: game.i18n.localize("DRPG.Project.choosePrompt"),
+        // Work and Sabotage roll; Propose leads to the proposal's window, whose button sends it (E100 item 6, R4105).
+        confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
             {
                 value: "work", icon: "fa-hammer",
@@ -123,7 +125,7 @@ export async function performProject(actor, def, options) {
                     : game.i18n.localize("DRPG.Action.noRoomNote")
             },
             {
-                value: "start", icon: "fa-lightbulb", gmRoute: true,
+                value: "start", icon: "fa-lightbulb", gmRoute: true, confirm: game.i18n.localize("DRPG.Action.next"),
                 label: game.i18n.localize("DRPG.Project.startNew"),
                 hint: game.i18n.localize("DRPG.Project.startNewHint")
             },
@@ -937,7 +939,7 @@ async function chooseProject(list, promptKey, actor, def, { disableComplete = fa
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"),
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
                 callback: (e, b, d) => ({ id: d.element.querySelector("[name=project]").value })
             },
             close: "cancel"

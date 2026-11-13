@@ -84,6 +84,9 @@ export async function openAdvancementFor(actor) {
         prompt: game.i18n.format("DRPG.Advance.whichKind", {
             actor: foundry.utils.escapeHTML(actor.name)
         }),
+        /* Grant, not Next (the r112 merge of E100 into E101, 13.11.2026): E100 item 6 gave Level Up's two menus Next, one
+           leading to the other; E101 made them one window (the owner's yes to the GM screens' review), whose press grants
+           - an offer to the player, or the GM's picks. One menu, so no Next; R4105 reads Grant. */
         confirm: game.i18n.localize("DRPG.Advance.grant"),
         extra: whoRows,
         options: [

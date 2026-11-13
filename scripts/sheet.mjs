@@ -3044,10 +3044,10 @@ function injectSafeword(app, element, mode = modeOf(app)) {
      * every open sheet - otherwise the button would keep offering the old word
      * to everyone who has not reopened their character since it changed.
      */
-    // The table's word, and above it what the button is (E49 B2, S03-31: "the safeword shows the table's word alone" -
-    // a word nobody has met reads as a name, not as the Stop).
+    // The table's word alone (E100, 12.11.2026; the owner at a table on 1.2.108: "SAFEWO RD MISIUBOMBO" wrapped across
+    // two lines in the narrow button - only the safeword's own name, as it was before E49 B2 put the caption above it).
+    // What the button is stays in its tooltip and its aria-label.
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
-        <span class="drpg-safeword-caption">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Safeword.title"))}</span>
         <span class="drpg-safeword-word">${foundry.utils.escapeHTML(safeword())}</span>`;
 
     button.addEventListener("click", async event => {
@@ -4756,7 +4756,25 @@ function injectMonocubPanel(tab, actor) {
         panel.append(note);
     }
 
+    // Move's line, on screen (E100, R4107): its window is gone; the owner wants "Free" here, not the whole description.
+    panel.append(monocubMoveNote());
+
     tab.prepend(panel);
+}
+
+/*
+ * MOVE'S DESCRIPTION STAYS ON SCREEN (E100, 12.11.2026; the owner's rule on E100's review: an action's description is
+ * never hidden, folded or collapsed - "nie chowajmy w oknach akcji ... opisu akcji NIGDY"). Item 1 took Move's window
+ * away, the one place its description stood; the tile says the name, the price and "Drag your token", its tooltip the
+ * hint. The description is a line of the Monocub's panel under its tiles, as the silenced note is. R4107.
+ * CUT DOWN THE SAME DAY: the owner, passed on by the coordinator - on the Monocub's panel Move needs only "za darmo",
+ * not the whole description. The line reads `DRPG.Move.free` ("Free" / "Za darmo"), still a line of its own, not folded.
+ */
+export function monocubMoveNote() {
+    const note = document.createElement("p");
+    note.className = "notes drpg-monocub-move";
+    note.textContent = game.i18n.localize("DRPG.Move.free");
+    return note;
 }
 
 /* A Monocub's tiles: the Move, then one tile per row of its table (E33 C10): Confusion today, a second ability a row.
@@ -5706,7 +5724,28 @@ export function actionButton(actor, key, def) {
         fightTile ? "" : `
         <span class="drpg-action-cost">${costLabel}</span>`}${gmMark}`;
 
-    return button;
+    return key === "move" ? stillMoveTile(button) : button;
+}
+
+/*
+ * THE MOVE TILE OPENS NOTHING (E100 item 1, 12.11.2026; the owner on the player-screens review, #2: the Move window had
+ * one button, Got it, and only said "drag your token"). The tile a Monocub's panel draws keeps its price and its
+ * tooltip, and says on its face what to do (`DRPG.Move.dragShort`); it is a `div`, not a button, with no
+ * `data-drpg-action`, so the delegate (`attachActionDelegate`) has nothing to press and the stylesheets' hover, which
+ * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R4100.
+ */
+function stillMoveTile(button) {
+    const tile = document.createElement("div");
+    tile.className = button.className;
+    tile.classList.add("drpg-action-still");
+    for (const [k, v] of Object.entries(button.dataset)) if (k !== "drpgAction") tile.dataset[k] = v;
+    tile.dataset.drpgTile = "move";
+    tile.innerHTML = button.innerHTML;
+    const line = document.createElement("span");
+    line.className = "drpg-action-cost";
+    line.textContent = game.i18n.localize("DRPG.Move.dragShort");
+    tile.append(line);
+    return tile;
 }
 
 /**

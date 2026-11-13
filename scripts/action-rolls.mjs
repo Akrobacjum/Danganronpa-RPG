@@ -29,7 +29,7 @@
  * its name and every name it exported - the 62 that moved are re-exported
  * under the imports - so every importer still imports action-rolls.mjs, and
  * none of the fourteen imports it. What stays is `performAction` with its
- * dispatch (`THROWS_NO_DICE`, `NEEDS_OWN_BRIEFING`) and `currentRoom`; new
+ * dispatch (`THROWS_NO_DICE`) and `currentRoom`; new
  * code goes into the file of its role, not here.
  */
 
@@ -41,7 +41,6 @@ import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { error, activeGmIds } from "./utils.mjs";
-import { briefing } from "./action-briefing.mjs";
 import { performSearch } from "./action-search.mjs";
 import { performProject, performSabotage } from "./action-project.mjs";
 import { performTamper } from "./action-tamper.mjs";
@@ -80,19 +79,13 @@ export { roomOfActor as currentRoom };
 /** The actions `performAction` lets through with no GM connected: none of them throws dice there (E08+E28 C18). */
 const THROWS_NO_DICE = new Set(["move", "rest", "directMurder"]);
 
-/**
- * The one action that still gets a briefing window of its own.
- *
- * Move asks nothing - you drag a token - so there is no window to fold into.
- * Everything else opens one regardless, and a separate briefing in front of it
- * meant two windows to answer one question.
- *
- * This used to be the inverse: a list of the nine actions that DO fold, which
- * had to be edited every time an action gained a dialog and silently gave a
- * second window to any key not on it. Stated the other way round, an action
- * nobody remembered to list gets the folded behaviour by default.
+/*
+ * NO ACTION HAS A BRIEFING WINDOW OF ITS OWN (E100 item 1, 12.11.2026; the owner on the player-screens review, #2).
+ * Move was the last: a window with one button, Got it, that said "drag your token". Every other action carries its
+ * briefing inside the window it opens anyway (`briefingBlock`); Move's sentence stands on the Monocub's Move tile
+ * (sheet.mjs `actionButton`) and in the HUD's Move row (player-status.mjs), and `performAction(actor, "move")` opens
+ * nothing. `NEEDS_OWN_BRIEFING` went with the window.
  */
-const NEEDS_OWN_BRIEFING = new Set(["move"]);
 
 /* ==========================================================================
  * ENTRY POINT
@@ -204,8 +197,8 @@ export async function performAction(actor, actionKey, options = {}) {
         // the next time of day begin only once everyone has placed. Nothing
         // beyond the two free crossings (handled in movement.mjs, not here) is
         // available yet: not an action, not a Call. `actionKey === "move"`
-        // still passes through, since Move does nothing here besides show its
-        // own briefing - the crossing itself is judged by `judgeEclipseCrossing`.
+        // still passes through, since Move does nothing here (it opens no window
+        // since E100 item 1) - the crossing itself is judged by `judgeEclipseCrossing`.
         //
         // Direct Murder is the exception in BOTH directions: the lights are out
         // and everybody is crossing the map, which is the one moment the guide
@@ -284,9 +277,9 @@ export async function performAction(actor, actionKey, options = {}) {
          * word before dispatch.
          *
          * Move is refused here too, even though the crossing itself is judged in
-         * movement.mjs: pressing Move opens a briefing for a crossing that cannot
-         * happen, and a briefing for something impossible is worse than a grey
-         * tile.
+         * movement.mjs: Move opened a briefing for a crossing that cannot happen
+         * (until E100 item 1 took the window away), and the refusal still says why
+         * nothing will move, which a silent answer would not.
          *
          * WHAT THIS DOES NOT COVER, on purpose: `game.drpg.cleanupDialog`,
          * `attemptCleanup` and `attemptStageSix` are their own entry points on the
@@ -307,19 +300,11 @@ export async function performAction(actor, actionKey, options = {}) {
             return null;
         }
 
-        // Only an action with nothing of its own to ask still gets a window
-        // here; every other one carries the briefing inside the window it was
-        // going to open anyway. See `briefingBlock` and NEEDS_OWN_BRIEFING.
-        if (!options.skipBriefing && NEEDS_OWN_BRIEFING.has(actionKey)) {
-            const go = await briefing(actor, actionKey, def);
-            if (!go) return null;
-        }
-
         // A case for every key of ACTIONS (and `dynamic`); a key ACTIONS does not hold was refused above
         // (`DRPG.Action.unknown`), so the switch has no default (E41 C1a: `performGeneric`, the default's
         // performer, ran for nothing and is deleted with `chooseTrait`; R1230).
         switch (actionKey) {
-            case "move": return null;                    // handled by the briefing
+            case "move": return null;                    // a token is dragged: nothing to open (E100 item 1)
             case "dynamic": return performDynamic(actor, options);
             case "search": return performSearch(actor, def, options);
             case "project": return performProject(actor, def, options);
