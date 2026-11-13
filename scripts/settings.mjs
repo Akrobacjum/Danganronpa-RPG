@@ -4463,6 +4463,25 @@ export function scaledBox(want, vw, vh, scale) {
     return size;
 }
 
+/**
+ * The height the glass sheet grows to when its Actions tab is `short` px short of its content and the window is `now`
+ * px tall: two px over what the tab wants, never past a screen `vh` px tall less 48 (sheet.mjs `holdActionsTab`, which
+ * hands it `window.innerHeight`). Pure; the arithmetic is the one holdActionsTab did itself until E54 (Q-E54-7, the
+ * plan's default: one family decides a window's size, R4803).
+ */
+export function actionsTabHeight(now, short, vh) {
+    return Math.min(Math.ceil(now + short + 2), Math.max(0, vh - 48));
+}
+
+/**
+ * The height a sheet opened shorter than the Legacy minimum grows to, once: `SHEET_SIZE.minHeight`, never past a
+ * screen `vh` px tall less 40 (sheet.mjs `growForCalls`, which hands it `window.innerHeight`). Pure; moved here from
+ * growForCalls by E54 (Q-E54-7, R4803), the numbers as they were.
+ */
+export function callsHeight(vh) {
+    return Math.min(SHEET_SIZE.minHeight, Math.max(0, vh - 40));
+}
+
 /** Daggerheart's own size for a character sheet, as the note in `scaleWindow` reads it (850 x 800): Monokuma Legacy
     keeps it. Read from the sheet class at a table; here for `sheetBox`, which has no class to read. */
 const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
