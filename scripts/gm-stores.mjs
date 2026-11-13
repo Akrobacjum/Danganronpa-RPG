@@ -389,7 +389,11 @@ export const INCIDENT_FIGHT = Object.freeze([
  */
 export const CAST_FIELDS = Object.freeze([
     "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
-    ...INCIDENT_FIGHT
+    ...INCIDENT_FIGHT,
+    /* A GM's "Silence now" (E72 C8; the plan's A9 of 11.10): `{ [actorId]: true }` for a dead student whose voice leaves
+       the room before the body is found (voice.mjs `deathVoiceGone`). Split, so two GMs silencing two students both stay;
+       the GMs' alone - in no player's copy (incident-store.mjs `castCopyFor`). */
+    "silencedDead"
 ]);
 
 /**
@@ -416,7 +420,7 @@ export const CAST_FIELDS = Object.freeze([
  */
 export const castStore = defineGmStore({
     name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
-    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent", "openingNotices"], resetGroup: "incident", backup: true, sync: true,
+    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent", "openingNotices", "silencedDead"], resetGroup: "incident", backup: true, sync: true,
     afterRestore: () => import("./murder.mjs").then(m => m.retellCast()),
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {
@@ -785,6 +789,8 @@ export const verdictStore = defineGmStore({
  * (`restoreTrialBlock`); a user a GM blocked by hand before has no row, so nothing of the GM's is ever put back. Synced
  * between the GMs, so a new primary ends the trial's mute the old one began; no player copy, nothing a player reads.
  * Cut by the reset's trial group beside the verdict, after the phase's write has put every grant back.
+ * A SPECTATOR'S BLOCK IS A ROW HERE TOO (E92 C2): the same write in every phase, by `settleTrialVoices`, so the role
+ * given back - or the reset's release - puts back exactly what the block found, by the trial's own rule.
  */
 export const trialMuteStore = defineGmStore({
     name: "trialMute", key: SETTINGS.gmTrialMute,
@@ -1102,6 +1108,71 @@ export const confusionStore = defineGmStore({
  */
 export const confusionCopy = defineGmCopy({
     name: "confusions", key: SETTINGS.mineConfusions, from: "confusions", resetGroup: "actions", fallback: {},
+    combine: offersCombine
+});
+
+/**
+ * THE MONOCUBS' RECORD (E72 C2, 12.11.2026; audit S18-51, S18-57). A row per Monocub: `witness`, the crime witness's
+ * mark `{ chapter, epoch }` (monocub.mjs `setSilenced`, `cubSawIncident`), which was the actor flag `silencedChapter`
+ * until E72 - world data every browser holds, so every console read who had seen the crime. Written by a GM (the
+ * Students window, the incident's watch on the primary), read by `isCrimeSilenced` through `cubRowOf`. Cut by the
+ * reset's "deaths" group, with the deaths a Monocub is made of. A row's later fields are part A's (the invitation,
+ * the caps, Redeem's day, the log).
+ */
+export const cubStore = defineGmStore({
+    name: "cubs", key: SETTINGS.gmCubs,
+    kind: "ledger", resetGroup: "deaths", backup: true, sync: true,
+    afterRestore: () => import("./monocub.mjs").then(m => m.retellCubs()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE MONOCUBS' MOVES ON EACH STUDENT (E72 C4, 12.11.2026; audit S18-59, the owner's DC32 = 2). A row per target
+ * student: `{ chapter, epoch, day, timeOfDay, slot, today }` - the game day and the time of day of its last move, how
+ * many moves it took that time of day (`slot`) and that day (`today`). A move counts once its conditions held and its
+ * price was taken, whether it landed or not. Read and written on the GM by monocub.mjs `cubCapRefusal` and
+ * `noteCubMove`; a row of another day or time of day counts nothing, so nothing has to clear it at the clock's turn.
+ * Cut by the reset's "actions" group, beside the action budgets. No copy: no player reads it.
+ */
+export const cubTargetStore = defineGmStore({
+    name: "cubTargets", key: SETTINGS.gmCubTargets,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE BOUNTIES (E72 C16, 12.11.2026; the owner's DC27 = 2, DC40): `{ targetId: { by, reward, at, targetName } }`, one open
+ * Bounty a student, posted by a GM's Despair Call (monocub.mjs `postBounty`), claimed by the first Monocub whose Confusion
+ * hinders that student (`claimBounty`), lapsing at the next time of day (`lapseBounties`). The GMs' and the Monocubs':
+ * every Monocub's owner's copy carries the open ones (monocub.mjs `cubsFor`), and nobody else's.
+ */
+export const bountyStore = defineGmStore({
+    name: "bounties", key: SETTINGS.gmBounties,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * WHO WORKED ON EACH PROJECT THIS TIME OF DAY (E72 C13, 12.11.2026; the owner's DC23, DC24): `{ projectId: { chapter,
+ * epoch, day, timeOfDay, actorIds } }`, the time of day of the last work on it and the characters who did it then. A
+ * Monocub's Tinker reaches a project only while a living student worked on it this time of day (monocub.mjs
+ * `CUB_TARGETS.project`). Written on the primary by projects.mjs `applyProjectChange` after a change that moved a bar
+ * forward on a player's Work, a Call (a Contribution) or a Reroll, naming its character; a row of another time of day
+ * counts nothing, so nothing clears it at the clock's turn. Cut with the projects at the reset. No copy: no player
+ * reads it.
+ */
+export const projectWorkStore = defineGmStore({
+    name: "projectWork", key: SETTINGS.gmProjectWork,
+    kind: "ledger", resetGroup: "projects", backup: true, sync: true,
+    exists: id => Boolean(game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id])
+});
+
+/**
+ * AN OWNER'S MONOCUB ROWS (E72 C2): `{ actorId: { witness } }` for the characters this user owns, as a GM sent them,
+ * a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's sheet (`cubRowOf`).
+ */
+export const cubCopy = defineGmCopy({
+    name: "cubs", key: SETTINGS.mineCubs, from: "cubs", resetGroup: "deaths", fallback: {},
     combine: offersCombine
 });
 
@@ -1507,7 +1578,79 @@ export function fogSectionFor(user) {
     const all = discoveryStore.section();
     const mine = key => Boolean(game.actors?.get(String(key).split("/")[1] ?? "")?.testUserPermission?.(user, "OWNER"));
     const pickOwn = part => Object.fromEntries(Object.entries(all[part] ?? {}).filter(([key]) => mine(key)));
-    return { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: all.cleared ?? 0 };
+    const own = { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: all.cleared ?? 0 };
+    const cubs = (game.actors?.contents ?? []).filter(actor => actor.type === "character"
+        && actor.getFlag?.(MODULE_ID, FLAGS.monocub) && actor.testUserPermission?.(user, "OWNER"));
+    if (!cubs.length) return own;
+    return mergeSections(own, cubFogSection(all, cubs), discoveryStore.spec);
+}
+
+/*
+ * A MONOCUB SEES WHAT THE CLASS FOUND (E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11). A Monocub's owner is
+ * sent, under each Monocub's own row of each scene, every room any student's row holds found - the Mastermind's row left
+ * out, since the Mastermind knows every room (fog.mjs `ledgerRooms`, the GM's view) - each cell at the newest stamp of the
+ * cells it joins, so a room found later arrives as newer. Who found which room is not sent: the rows are joined before
+ * they leave. Only rooms found (true): a room unticked for one student is not unticked for the Monocub.
+ */
+function cubFogSection(all, cubs) {
+    const mastermindId = mastermindStore.get(RECORD)?.actorId ?? null;
+    const union = new Map();                                        // sceneId -> Map(room -> stamp)
+    for (const [key, cells] of Object.entries(all.e ?? {})) {
+        const [sceneId, actorId] = String(key).split("/");
+        if (!sceneId || !actorId || actorId === mastermindId || !cells || typeof cells !== "object") continue;
+        const stamps = all.t?.[key];
+        const stampOf = room => (typeof stamps === "number" ? stamps : Number(stamps?.[room] ?? stamps?.[""] ?? 0));
+        const rooms = union.get(sceneId) ?? new Map();
+        for (const [room, found] of Object.entries(cells)) {
+            if (found !== true) continue;
+            rooms.set(room, Math.max(rooms.get(room) ?? 0, stampOf(room)));
+        }
+        union.set(sceneId, rooms);
+    }
+    const out = { e: {}, t: {}, d: {}, cleared: all.cleared ?? 0 };
+    for (const cub of cubs) {
+        for (const [sceneId, rooms] of union) {
+            for (const [room, stamp] of rooms) writeFields(out, `${sceneId}/${cub.id}`, { [room]: true }, stamp || 1, discoveryStore.spec);
+        }
+    }
+    return out;
+}
+
+/**
+ * A SPECTATOR'S MAP (E92 C4, 12.11.2026; the owner's E92 goal (4): "it sees the whole map the players have discovered -
+ * the discovery ledger without the Mastermind's row"; the plan's risk R2). Every row of the discovery store's `section`
+ * but the Mastermind's (`mastermindId`, the GMs' pick) folded into ONE row under the Spectator's own id, scene by
+ * scene, so the copy names no other character and nobody's walks - which student found which room, or where the
+ * Mastermind has been, is not in it. A room any of them holds found is found, at the newest stamp of the finds; a room
+ * none holds found keeps its newest untick, so a GM's untick of the last finder reaches the copy. Pure; the section's
+ * watermark is kept, its tombstones are not (they name the characters whose rows went). The copy merges it cell by
+ * cell (`fogCopy`), as a student's own row.
+ */
+export function spectatorFogSection(section, watcherId, { mastermindId = null } = {}) {
+    const out = { e: {}, t: {}, d: {}, cleared: section?.cleared ?? 0 };
+    if (!watcherId) return out;
+    const scenes = new Map();
+    for (const [key, cells] of Object.entries(section?.e ?? {})) {
+        const [sceneId, actorId] = String(key).split("/");
+        if (!sceneId || !actorId || actorId === mastermindId || !cells || typeof cells !== "object") continue;
+        const t = section.t?.[key];
+        const stampOf = room => (typeof t === "number" ? t : t && Object.hasOwn(t, room) ? t[room] : (t?.[""] ?? 0));
+        const rooms = scenes.get(sceneId) ?? new Map();
+        scenes.set(sceneId, rooms);
+        for (const [room, found] of Object.entries(cells)) {
+            if (room === "__proto__" || room === "constructor" || room === "prototype") continue;
+            const v = Boolean(found), s = Number(stampOf(room)) || 0, had = rooms.get(room);
+            if (!had || (v && !had.v)) rooms.set(room, { v, s });
+            else if (v === had.v && s > had.s) had.s = s;
+        }
+    }
+    for (const [sceneId, rooms] of scenes) {
+        if (!rooms.size) continue;
+        const key = `${sceneId}/${watcherId}`;
+        out.e[key] = Object.fromEntries([...rooms].map(([room, c]) => [room, c.v]));
+        out.t[key] = { "": 0, ...Object.fromEntries([...rooms].map(([room, c]) => [room, c.s])) };
+    }
+    return out;
 }
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
@@ -2445,7 +2588,8 @@ export function sameDecision(shown, now) {
  */
 export async function enterCastByHand() {
     if (!game.user?.isGM) return null;
-    const students = (game.actors?.contents ?? []).filter(a => a.type === "character");
+    // No Spectator (E92 C1): it is in nobody's incident.
+    const students = (game.actors?.contents ?? []).filter(a => a.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.spectator));
     const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
     const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;

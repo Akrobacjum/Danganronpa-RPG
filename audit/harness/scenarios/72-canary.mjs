@@ -804,7 +804,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     /* The surviving Blackened's Level Up (E05 C11; audit S03-01, S06-01): until 1.2.64 the wrong
        verdict applied it at once, and p1 read Chie's new maximum Health and `advances`, and a card
        spoken by Chie with the Level Up's sound. The GM's Level Up window, if one opens, is answered
-       with every pick "+1 max Health" (the harness's own default press cannot read that form), so
+       with every pick a point in Body, +1 max Health with it since E64 C6 (the harness's own default press cannot read that form), so
        a verdict that still applied it would show on p1 as a rise; it waits in the GMs' store now. */
     const chieOnP1 = () => p1.eval(`const a = game.actors.get("${IDS.chie}");
         const fresh = game.messages.filter(m => !(globalThis.__verdictFrom ?? new Set()).has(m.id));
@@ -816,7 +816,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const verdict = await gm.eval(`globalThis.__dialogAnswers.push(async function advance(cfg) {
             if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
             const n = ((cfg.content?.innerHTML ?? String(cfg.content ?? "")).match(/name="pick\\.\\d+\\.option"/g) ?? []).length;
-            return Array.from({ length: n }, () => ({ option: "hp" }));
+            return Array.from({ length: n }, () => ({ option: "trait", trait: "strength" }));
         });
         const r = await game.drpg.closeVote();
         try {

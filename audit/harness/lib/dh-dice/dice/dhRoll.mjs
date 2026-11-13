@@ -2,8 +2,8 @@
  * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E33 C2a; the owner's decision P6
  * of 06.10.2026: Daggerheart's dice classes run in the harness, as its GM relay does in dh-relay.mjs).
  *
- * Source: Foundryborne Daggerheart, tag 2.10.5 (commit 6bf4b69f98), module/dice/dhRoll.mjs - the whole file
- * (391 lines). Everything after this comment and the one blank line under it is that file byte for
+ * Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25), module/dice/dhRoll.mjs - the whole file
+ * (467 lines). Everything after this comment and the one blank line under it is that file byte for
  * byte, its imports included. An import that leaves module/dice/ lands on the harness's glue at the
  * same relative path under lib/dh-dice/ (applications/, helpers/, data/), which says it is not
  * Daggerheart's; audit/harness/README.md ("Daggerheart's dice") names the boundary.
@@ -20,11 +20,26 @@ import BaseRoll from './baseRoll.mjs';
 
 export default class DHRoll extends BaseRoll {
     baseTerms = [];
-    constructor(formula, data = {}, options = {}) {
-        super(formula, data, foundry.utils.mergeObject(options, { roll: [] }, { overwrite: false }));
-        options.bonusEffects = this.bonusEffectBuilder();
 
-        if (!this.data || !Object.keys(this.data).length) this.data = options.data;
+    /**
+     * Creates a new Daggerheart roll
+     * @param {string} formula 
+     * @param {object} data 
+     * @param {MoveContext | import('../data/action/_types').MoveContextParams} options 
+     */
+    constructor(formula, data = {}, options = {}) {
+        // @todo: Consider constructing a RollConfig here if its a plain object to guarantee certain properties
+        super(formula, data, foundry.utils.mergeObject(options, { roll: [] }, { overwrite: false }));
+
+        // Calculate bonusEffects if the given options.effects includes ActiveEffect instances
+        // When deserialized or cloned, the effects are plain objects (empty in the dev branch) and bonusEffects is already calculated.
+        // However, when damage automation is on, the options is the same instace as the action one, so the bonusEffects needs to be overwritten.
+        // TODO: make options a new object in createRollInstance, that pre-injects bonusEffectBuilder.
+        if (!options.bonusEffects || this.options.effects?.every(e => e instanceof ActiveEffect)) {
+            options.bonusEffects = this.bonusEffectBuilder();
+        }
+
+        if (!this.data || !Object.keys(this.data).length) this.data = options.data ?? {};
     }
 
     get title() {
@@ -42,8 +57,8 @@ export default class DHRoll extends BaseRoll {
     static DefaultDialog = D20RollDialog;
 
     /**
-     * @param {Partial<RollConfig>} config
-     * @returns {Promise<RollConfig>}
+     * @param {Partial<MoveContext>} config
+     * @returns {Promise<MoveContext>}
      */
     static async build(config = {}, message = {}) {
         const roll = await this.buildConfigure(config, message);
@@ -59,23 +74,18 @@ export default class DHRoll extends BaseRoll {
     }
 
     static createRollInstance(config) {
-        return new this(config.roll.formula, config.data, config);
+        return new this(config.roll.formula, config.getRollData?.(), config);
     }
 
     /** 
-     * @param {Partial<RollConfig>} config 
-     * @returns {Promise<RollConfig>}
+     * @param {Partial<MoveContext>} config 
+     * @returns {Promise<MoveContext>}
      */
     static async buildConfigure(config = {}, message = {}) {
         config.hooks = [...this.getHooks(), ''];
-        config.dialog ??= {};
-        config.damageOptions ??= {};
-
         for (const hook of config.hooks) {
             if (Hooks.call(`${CONFIG.DH.id}.preRoll${hook.capitalize()}`, config, message) === false) return null;
         }
-
-        this.applyKeybindings(config);
 
         this.temporaryModifierBuilder(config);
 
@@ -103,17 +113,47 @@ export default class DHRoll extends BaseRoll {
      */
     static async buildEvaluate(roll, config = {}, message = {}) {
         await roll.evaluate();
-        config.roll = {
+
+        config.roll = foundry.utils.deepClone({
+            ...config.roll,
             ...roll.options.roll,
-            total: roll.total,
-            formula: roll.formula,
-            dice: roll.dice.map(d => ({
-                dice: d.denomination,
-                total: d.total,
-                formula: d.formula,
-                results: d.results
-            }))
-        };
+            breakdown: this.getRollBreakdown(roll, roll.options.roll, config.action)
+        });
+        config.evaluated = roll;
+    }
+
+    static getRollBreakdownBaseTerms() {
+        return [];
+    }
+
+    static getRollBreakdown(roll, optionsData, action) {
+        const baseTerms = this.getRollBreakdownBaseTerms(action);
+        const modifiers = foundry.utils.deepClone(optionsData.modifiers) ?? [];
+
+        const rollBreakdown = [];
+        for (let i = 0; i < roll.terms.length; i++) {
+            if (!roll.terms[i].isDeterministic) continue;
+
+            const termTotal = roll.terms[i].total;
+            if (typeof termTotal === 'number') {
+                const value = (roll.terms[i - 1]?.operator === '-' ? -1 : 1) * termTotal;
+                let label = _loc('DAGGERHEART.GENERAL.customModifier');
+
+                const baseTermsIndex = baseTerms.findIndex(x => x.value === value);
+                const modifierIndex = modifiers.findIndex(x => x.value === value);
+                if (baseTermsIndex !== -1) {
+                    label = baseTerms[baseTermsIndex].label;
+                    baseTerms.splice(baseTermsIndex, 1);
+                } else if (modifierIndex !== -1){
+                    label = modifiers[modifierIndex].label;
+                    modifiers.splice(modifierIndex, 1);
+                }
+
+                rollBreakdown.push({ label, value });
+            }
+        }
+
+        return rollBreakdown;
     }
 
     /** 
@@ -128,26 +168,26 @@ export default class DHRoll extends BaseRoll {
         if (config.skips?.createMessage) {
             await triggerChatRollFx([roll]);
         } else if (!config.source?.message) {
+            config.actionChatMessageHandled ||= config.action?.chatDisplay;
             config.message = await this.toMessage(roll, config);
         }
     }
 
+    /**
+     * @param {DHRoll} roll 
+     * @param {MoveContext} config
+     */
     static async toMessage(roll, config) {
-        const item = config.data.parent?.items?.get?.(config.source.item) ?? null;
-        const actions = item ? [
-            ...item.system.actions,
-            ...(item.system.attack?.id === config.source.action ? [item.system.attack] : [])
-        ] : [];
-        const action = actions.find(x => x.id === config.source.action);
+        config = await game.system.api.data.actions.MoveContext.build(config);
+        const { actor, item, action } = config;
         let actionDescription = null;
         if (action?.chatDisplay) {
             actionDescription = action
                 ? await foundry.applications.ux.TextEditor.implementation.enrichHTML(action.description, {
-                    relativeTo: config.data,
-                    rollData: config.data.getRollData?.() ?? {}
+                    relativeTo: config.actor,
+                    rollData: config.getRollData() // should this use roll.data instead?
                 })
                 : null;
-            config.actionChatMessageHandled = true;
         }
 
         const reloadSetting = game.system.settings.automation.reload;
@@ -157,22 +197,21 @@ export default class DHRoll extends BaseRoll {
             reloadSetting === CONFIG.DH.SETTINGS.reloadChoices.auto.id;
         const reloadResult = useReload ? await action?.handleReload?.() : {};
         
-        const cls = getDocumentClass('ChatMessage'),
-            msgData = {
-                type: this.messageType,
-                user: game.user.id,
-                title: roll.title,
-                speaker: cls.getSpeaker({ actor: roll.data?.parent }),
-                sound: config.mute ? null : CONFIG.sounds.dice,
-                system: { 
-                    ...foundry.utils.deepClone(config), 
-                    actionDescription,
-                    reloadCheckValue: reloadResult.rollValue 
-                },
-                rolls: [roll]
-            };
-
-        config.selectedMessageMode ??= game.settings.get('core', 'messageMode');
+        const cls = getDocumentClass('ChatMessage');
+        const msgData = {
+            type: this.messageType,
+            user: game.user.id,
+            title: roll.title,
+            speaker: cls.getSpeaker({ actor }),
+            sound: config.mute ? null : CONFIG.sounds.dice,
+            system: { 
+                ...foundry.utils.deepClone(config), 
+                actionDescription,
+                reloadCheckValue: reloadResult.rollValue,
+                successConsumed: config.roll?.success
+            },
+            rolls: [roll]
+        };
 
         if (roll._evaluated) {
             const message = await cls.create(msgData, { messageMode: config.selectedMessageMode });
@@ -185,17 +224,55 @@ export default class DHRoll extends BaseRoll {
         } else return msgData;
     }
 
-    // TODO - Possibly remove this completly if actorRoll.renderHTML implementation can take over getting the chatData prepared.
     /** @inheritDoc */
-    async render({ flavor, template = this.constructor.CHAT_TEMPLATE, isPrivate = false, ...options } = {}) {
-        if (!this._evaluated) return;
+    async _prepareChatRenderContext({ flavor, isPrivate = false, ...options } = {}) {
+        // todo: call _prepareChatRenderContext on damage rolls and then include them here
+        // then move the damage types and roll tooltip to damageRoll _prepareChatRenderContext so they can be encapsulated
+        // There are some quirks that have to be solved for this to be possible, for example:
+        // - on damage rolls without d20/duality, this.options.damageTypes is empty, but options.system.message.damage.main.options.damageTypes isn't    
+        let chatData = {};
+        if (isPrivate) {
+            chatData = {
+                user: game.user.id,
+                flavor: null,
+                title: '???',
+                roll: {
+                    total: '??'
+                },
+                hasRoll: true,
+                isPrivate
+            };
+        } else if (options.message) {
+            options.message.system.user = game.user.id;
+            options.message.system.allResourceLabels = getAllResourceLabels();
+            chatData = options.message?.system ?? {};
+        }
 
         const metagamingSettings = game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Metagaming);
         const automationSettings = game.system.settings.automation;
-        const chatData = await this._prepareChatRenderContext({ flavor, isPrivate, ...options });
-        return foundry.applications.handlebars.renderTemplate(template, {
+
+        const rollTooltip = this.options.roll ?
+            await foundry.applications.handlebars.renderTemplate(
+                'systems/daggerheart/templates/ui/tooltip/rollModifiers.hbs',
+                { modifiers: this.options.roll.breakdown }
+            ) : null;
+ 
+        const damageRollTooltip = chatData.damage?.main ? 
+            await foundry.applications.handlebars.renderTemplate(
+                'systems/daggerheart/templates/ui/tooltip/rollModifiers.hbs',
+                { modifiers: chatData.damage.main.options.breakdown }
+            ) : null; 
+
+        return {
             roll: this,
             ...chatData,
+            rollTooltip,
+            damageRollTooltip,
+            damageTypes: chatData.damage?.main?.options?.damageTypes
+                ?.map(damageType => ({
+                    ...CONFIG.DH.GENERAL.damageTypes[damageType]
+                }))
+                .filter(Boolean),
             targetData: chatData.hasTarget ? {
                 currentTargets: chatData._getCurrentTargets(),
                 selectedTargetsData: chatData._getSelectedTargetsData()
@@ -207,32 +284,7 @@ export default class DHRoll extends BaseRoll {
             appliesEffects: chatData.appliesEffects,
             metagamingSettings,
             automationSettings
-        });
-    }
-
-    /** @inheritDoc */
-    async _prepareChatRenderContext({ flavor, isPrivate = false, ...options } = {}) {
-        if (isPrivate) {
-            return {
-                user: game.user.id,
-                flavor: null,
-                title: '???',
-                roll: {
-                    total: '??'
-                },
-                hasRoll: true,
-                isPrivate
-            };
-        } else {
-            options.message.system.user = game.user.id;
-            options.message.system.allResourceLabels = getAllResourceLabels();
-            return options.message.system;
         }
-    }
-
-    static applyKeybindings(config) {
-        if (config.event)
-            config.dialog.configure ??= !(config.event.shiftKey || config.event.altKey || config.event.ctrlKey);
     }
 
     static getHooks(hooks) {
@@ -260,7 +312,7 @@ export default class DHRoll extends BaseRoll {
         }
     }
 
-    applyBaseBonus() {
+    getRollBonuses() {
         return [];
     }
 
@@ -281,7 +333,7 @@ export default class DHRoll extends BaseRoll {
         return Object.values(this.options.bonusEffects).reduce((acc, effect) => {
             if (!effect.selected) return acc;
             return acc + effect.changes.reduce((acc, change) => {
-                if (!change.key.includes(path)) return acc;
+                if (!change.key?.includes(path)) return acc;
                 const changeValue = game.system.api.documents.DhActiveEffect.getChangeValue(
                     this.data,
                     change,
@@ -293,19 +345,41 @@ export default class DHRoll extends BaseRoll {
         }, 0);
     }
 
+    getBonusBreakdown() {
+        const changeKeys = this.getActionChangeKeys();
+        const effectBreakdown = Object.values(this.options.bonusEffects)
+            .filter(effect => effect.selected)
+            .map(effect => {
+                const totalValue = effect.changes.reduce((acc, change) => {
+                    if (!changeKeys.some(key => change.key?.includes(key))) return acc;
+                    const changeValue = game.system.api.documents.DhActiveEffect.getChangeValue(
+                        this.data,
+                        change,
+                        effect.origEffect
+                    );
+                    
+                    return Number.isNumeric(changeValue) ? acc + Number.parseInt(changeValue) : acc; 
+                }, 0);
+
+                return { label: effect.origEffect.name, value: totalValue };
+            }
+            );
+
+        return [...effectBreakdown];
+    }
+
     /**
      * Grabs all instances of ActiveEffect.change values from the toggleable bonusEffects of the roll 
      * that match a given change.key partial path.
      * @param {string} path The full or partial effect.change key 
-     * @param {string} label The label to give the modifiers
      * @returns {[{ label: string, value: any} ]}
      */
-    getBonus(path, label) {
+    getBonus(path) {
         const modifiers = [];
         for (const effect of Object.values(this.options.bonusEffects)) {
             if (!effect.selected) continue;
             for (const change of effect.changes) {
-                if (!change.key.includes(path)) continue;
+                if (!change.key?.includes(path)) continue;
                 
                 // TODO: We should handle override and all other modes. It'll have to be done in a different way
                 // as we cannot just go through each change and sum them up. We'll have to get the total value with
@@ -317,8 +391,8 @@ export default class DHRoll extends BaseRoll {
                     change,
                     effect.origEffect
                 );
-                const typedValue = change.type === 'add' ? changeValue : -changeValue;
-                modifiers.push({ label: label, value: typedValue });
+                const typedValue = change.type === 'add' ? changeValue : (Number.isNumeric(changeValue) ? -changeValue : `-1 * (${changeValue})`);
+                modifiers.push({ label: effect.name, value: typedValue });
             }
         }
 
@@ -332,7 +406,7 @@ export default class DHRoll extends BaseRoll {
     constructFormula(config) {
         this.terms = Roll.parse(this.options.roll.formula, config.data);
 
-        this.options.roll.modifiers = this.applyBaseBonus();
+        this.options.roll.modifiers = this.getRollBonuses();
         this.addModifiers();
 
         if (this.options.extraFormula) {
@@ -362,6 +436,7 @@ export default class DHRoll extends BaseRoll {
         return modifierTotal;
     }
 
+    /** @param {MoveContext} config */
     static temporaryModifierBuilder(config) {
         return {};
     }
@@ -371,19 +446,16 @@ export default class DHRoll extends BaseRoll {
         return (
             // todo: improve safety. When used improperly, effects is a list of data, not active effects
             // it can be worked around provisionarily by using getActionRelevantEffects()
-            this.options.effects?.reduce((acc, effect) => {
-                const item = this.options.data.parent?.items?.get?.(this.options.source.item) ?? null;
-                const actions = item ? [
-                    ...item.system.actions,
-                    ...(item.system.attack?.id === this.options.source.action ? [item.system.attack] : [])
-                ] : [];
-                const action = actions.find(x => x.id === this.options.source.action);
+            (this.options.effects ?? []).reduce((acc, effect) => {
+                if (!(effect instanceof ActiveEffect)) return acc;
 
-                const isConditionalBlocked = action &&
-                    (effect.system.conditionals ?? []).some(x => x.constructor.metadata.phase === 'roll' && !x.test(action.getRollData()));
+                const action = this.options.action;
+                const rollData = this.options.getRollData?.() ?? action?.getRollData();
+                const conditionalsPassed = rollData && effect.system?.testConditionals?.(rollData, { phase: 'roll' });
+
                 // Some old v13 messages don't have system data and will cause errors here during roll construction otherwise. TODO. See if message.roll.options.effects can be saved/instantiated as actual ActiveEffects, then this can be removed.
                 if (
-                    !isConditionalBlocked && 
+                    conditionalsPassed && 
                     (effect.system.changes ?? []).some(x => changeKeys.some(key => x.key?.includes(key)))
                 ) {
                     acc[effect.id] = {
@@ -397,10 +469,14 @@ export default class DHRoll extends BaseRoll {
                 }
 
                 return acc;
-            }, {}) ?? []
+            }, {})
         );
     }
 
+    /** 
+     * Returns the change keys associated with this roll class.
+     * @returns {string[]} 
+     */
     getActionChangeKeys() {
         return [];
     }

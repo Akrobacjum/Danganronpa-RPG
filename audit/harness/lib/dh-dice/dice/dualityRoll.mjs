@@ -2,8 +2,8 @@
  * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E33 C2a; the owner's decision P6
  * of 06.10.2026: Daggerheart's dice classes run in the harness, as its GM relay does in dh-relay.mjs).
  *
- * Source: Foundryborne Daggerheart, tag 2.10.5 (commit 6bf4b69f98), module/dice/dualityRoll.mjs - the whole file
- * (356 lines). Everything after this comment and the one blank line under it is that file byte for
+ * Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25), module/dice/dualityRoll.mjs - the whole file
+ * (300 lines). Everything after this comment and the one blank line under it is that file byte for
  * byte, its imports included. An import that leaves module/dice/ lands on the harness's glue at the
  * same relative path under lib/dh-dice/ (applications/, helpers/, data/), which says it is not
  * Daggerheart's; audit/harness/README.md ("Daggerheart's dice") names the boundary.
@@ -184,76 +184,35 @@ export default class DualityRoll extends D20Roll {
             );
     }
 
-    applyBaseBonus() {
-        const modifiers = super.applyBaseBonus();
+    getRollBonuses() {
+        const modifiers = super.getRollBonuses();
 
         if (this.options.roll.trait && this.data.traits?.[this.options.roll.trait])
             modifiers.unshift({
-                label:
+                label: _loc(
                     this.options.roll.type === CONFIG.DH.GENERAL.rollTypes.spellcast.id
                         ? 'DAGGERHEART.CONFIG.RollTypes.spellcast.name'
-                        : `DAGGERHEART.CONFIG.Traits.${this.options.roll.trait}.name`,
+                        : `DAGGERHEART.CONFIG.Traits.${this.options.roll.trait}.name`),
                 value: this.data.traits[this.options.roll.trait].value
             });
 
         const weapons = ['primaryWeapon', 'secondaryWeapon'];
         weapons.forEach(w => {
             if (this.options.source.item && this.options.source.item === this.data[w]?.id)
-                modifiers.push(...this.getBonus(`roll.${w}`, 'Weapon Bonus'));
+                modifiers.push(...this.getBonus(`roll.${w}`));
         });
 
         return modifiers;
     }
 
-    static async buildConfigure(config = {}, message = {}) {
-        config.dialog ??= {};
-        config.guaranteedCritical = config.data?.parent?.appliedEffects.reduce((a, c) => {
-            const change = c.system.changes.find(ch => ch.key === 'system.rules.roll.guaranteedCritical');
-            if (change) a = true;
-            return a;
-        }, false);
-
-        if (config.guaranteedCritical) {
-            config.dialog.configure = false;
-        }
-
-        return super.buildConfigure(config, message);
-    }
-
+    /** @inheritdoc */
     getActionChangeKeys() {
-        const changeKeys = new Set(['system.bonuses.roll']);
-        return changeKeys;
+        return ['system.bonuses.roll'];
     }
 
     /** @inheritdoc */
     static async buildEvaluate(roll, config = {}, message = {}) {
         await super.buildEvaluate(roll, config, message);
-        config.roll.hope = {
-            dice: roll.dHope.denomination,
-            value: this.guaranteedCritical ? 0 : roll.dHope.total,
-            rerolled: {
-                any: roll.dHope.results.some(x => x.rerolled),
-                rerolls: roll.dHope.results.filter(x => x.rerolled)
-            }
-        };
-        config.roll.fear = {
-            dice: roll.dFear.denomination,
-            value: this.guaranteedCritical ? 0 : roll.dFear.total,
-            rerolled: {
-                any: roll.dFear.results.some(x => x.rerolled),
-                rerolls: roll.dFear.results.filter(x => x.rerolled)
-            }
-        };
-        config.roll.rally = {
-            dice: roll.dRally?.denomination,
-            value: roll.dRally?.total
-        };
-        config.roll.result = {
-            duality: roll.withHope ? 1 : roll.withFear ? -1 : 0,
-            total: this.guaranteedCritical ? 0 : roll.dHope.total + roll.dFear.total,
-            label: roll.totalLabel
-        };
-
         if (roll._rallyIndex && roll.data?.parent)
             roll.data.parent.deleteEmbeddedDocuments('ActiveEffect', [roll._rallyIndex]);
     }
@@ -278,7 +237,7 @@ export default class DualityRoll extends D20Roll {
         );
         if (dualityUpdates?.length) updates.push(...dualityUpdates);
 
-        if (config.roll.result.duality === -1 && config.actionType === 'action') {
+        if (config.evaluated?.withFear && config.actionType === 'action') {
             const fearUpdates = await game.system.registeredTriggers.runTrigger(
                 CONFIG.DH.TRIGGER.triggers.fearRoll.id,
                 roll.data?.parent,
@@ -303,25 +262,10 @@ export default class DualityRoll extends D20Roll {
         let updates = [];
         if (!actor) return;
 
-        if (config.rerolledRoll) {
-            if (config.roll.result.duality != config.rerolledRoll.result.duality) {
-                const hope =
-                    (config.roll.isCritical || config.roll.result.duality === 1 ? 1 : 0) -
-                    (config.rerolledRoll.isCritical || config.rerolledRoll.result.duality === 1 ? 1 : 0);
-                const stress = (config.roll.isCritical ? 1 : 0) - (config.rerolledRoll.isCritical ? 1 : 0);
-                const fear =
-                    (config.roll.result.duality === -1 ? 1 : 0) - (config.rerolledRoll.result.duality === -1 ? 1 : 0);
-
-                if (hope !== 0) updates.push({ key: 'hope', value: hope, enabled: true });
-                if (stress !== 0) updates.push({ key: 'stress', value: -1 * stress, enabled: true });
-                if (fear !== 0) updates.push({ key: 'fear', value: fear, enabled: true });
-            }
-        } else {
-            if (config.roll.isCritical || config.roll.result.duality === 1)
-                updates.push({ key: 'hope', value: 1, enabled: true });
-            if (config.roll.isCritical) updates.push({ key: 'stress', value: -1, enabled: true });
-            if (config.roll.result.duality === -1) updates.push({ key: 'fear', value: 1, enabled: true });
-        }
+        if (config.evaluated?.isCritical || config.evaluated?.withHope)
+            updates.push({ key: 'hope', value: 1, enabled: true });
+        if (config.evaluated?.isCritical) updates.push({ key: 'stress', value: -1, enabled: true });
+        if (config.evaluated?.withFear) updates.push({ key: 'fear', value: 1, enabled: true });
 
         if (updates.length) {
             // const target = actor.system.partner ?? actor;
@@ -336,7 +280,7 @@ export default class DualityRoll extends D20Roll {
         if (countdownAutomation && config.actionType !== 'reaction' && !config.skips?.updateCountdowns) {
             const { updateCountdowns } = game.system.api.applications.ui.DhCountdowns;
 
-            if (config.roll.result.duality === -1) {
+            if (config.evaluated?.withFear) {
                 await updateCountdowns(
                     CONFIG.DH.GENERAL.countdownProgressionTypes.actionRoll.id,
                     CONFIG.DH.GENERAL.countdownProgressionTypes.fear.id

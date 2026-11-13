@@ -30,7 +30,7 @@ import { SETTINGS, isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
-    confirmClearFaint, shownBand, bandOptions, removeRemnant,
+    shownBand, bandOptions, removeRemnant,
     traceContextLine, traceLabel, authorOptions
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
@@ -41,7 +41,7 @@ import {
     plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
-import { WIDE } from "./ui-columns.mjs";
+import { WIDE, columnsHtml } from "./ui-columns.mjs";
 import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_NODE, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
@@ -986,6 +986,9 @@ export function randomPointIn(region, scene) {
 }
 
 
+/* New Remnant's width (E64-inv round 2): its two columns at 1366x768 in both themes, measured in Chromium (the fit pass). */
+const NEW_TRACE_WIDTH = 900;
+
 /**
  * Put a trace of any kind on the map, by hand (N-4, Dawid 21.09).
  *
@@ -1050,16 +1053,27 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.newTraceTitle"),
         classes: ["drpg-panel", "drpg-window-newtrace"],
+        /* TWO COLUMNS (E64-inv round 2, 12.11.2026; the coordinator's ask after the Investigation review): in one column
+           of the kit's default width the window scrolled 61 px under Stained Glass at 1366x768 (audit/style-sweep.mjs
+           `--fit`, STILL `new-trace`). Where and what the trace is on the left, what a student reads on the right
+           (ui-columns.mjs `columnsHtml`), in a stated width the kit holds under the screen. */
+        width: NEW_TRACE_WIDTH,
         body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceIntro")}</p>
+            ${columnsHtml([`
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceType")}
                 <select name="type">${typeOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
                 <select name="author">${authorOptions(null, studentActors())}</select></label>
-            <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
+            <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${visOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
+                <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+                    `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
+            <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
+                ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>`, `
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="tname" value="${esc(name ?? "")}" maxlength="60"
                        placeholder="${esc(traceLabel(null))}" /></label>
@@ -1075,12 +1089,7 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
                 <input type="text" name="note" value=""
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.keyNotePlaceholder"))}" /></label>
-            <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
-                <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
-                    `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
-            <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
-                ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>`])}
         </form>`,
         footer: {
             primary: {
@@ -1544,7 +1553,10 @@ function evidenceByStudent() {
                 types: bullets.reduce((acc, b) => {
                     acc[b.real] = (acc[b.real] ?? 0) + 1;
                     return acc;
-                }, {})
+                }, {}),
+                // By name (E64-inv): what the Map's list of each student reads (`studentsListHtml`), for the one table.
+                named: bullets.map(b => ({ name: b.item.name, real: secretOf(b.item.uuid).realType ?? null })),
+                items: (actor.items?.contents ?? [...(actor.items ?? [])]).filter(i => !isTruthBullet(i)).map(i => i.name)
             };
         });
 }
@@ -1582,8 +1594,9 @@ function evidenceByStudent() {
  *
  * The twin of `confirmClearFaint` in remnants.mjs, and deliberately the same
  * shape: count first, say the number, take the answer, report what happened.
- * Two permanent clean-ups sitting next to each other in one row must not behave
- * differently - a GM who has pressed one has learnt how the other works.
+ * Neither has a button since E64-inv (End the chapter runs both clean-ups,
+ * chapter.mjs `chapterEndForm`); both stay the confirmed road scenario 62 and
+ * the suite sweep through.
  *
  * The count is the sweep's own answer (chapter.mjs `sweepPlan`, E09 C1), so the
  * confirm cannot promise a number the sweep will not deliver. It was the same
@@ -1595,7 +1608,7 @@ function evidenceByStudent() {
 export async function confirmSweepBullets({ actors = null } = {}) {
     if (!game.user.isGM) return 0;
 
-    // `actors`: the students to count and sweep, every one where unsaid (the suite's, `runDashboardButton`).
+    // `actors`: the students to count and sweep, every one where unsaid (the suite's).
     const { remove, keep } = await sweepPlan({ actors });
     const doomed = remove.length;
     const kept = keep.length;
@@ -1710,10 +1723,10 @@ function tableBody(markup) {
 
 /**
  * WHO HAS WHAT's columns, in the hand table's order: Student; Bullets, Keys held, Not analysed as numbers; Breakdown,
- * the head "Really" with its tooltip (S12-52: it is what the bullets are by the GMs' answer key). Every head of the
- * dashboard's tables is cut at two lines with its whole name in `title` (`lines: 2`; under Legacy's pixel face a one-word
- * head such as "Reinforced" is as wide as the column) - but the Breakdown's, one short word whose tooltip is the
- * sentence, not its name. Exported for R2067.
+ * the head "Really" with its tooltip (S12-52: it is what the bullets are by the GMs' answer key), each bullet by name
+ * since E64-inv; then the other items by name (E64-inv). Every head of the dashboard's tables is cut at two lines with its
+ * whole name in `title` (`lines: 2`; under Legacy's pixel face a one-word head such as "Reinforced" is as wide as the
+ * column) - but the last two, short words, the Breakdown's tooltip the sentence. Exported for R2067.
  */
 export function caseStudentColumns() {
     const L = key => game.i18n.localize(key);
@@ -1722,7 +1735,8 @@ export function caseStudentColumns() {
         { key: "bullets", label: L("DRPG.Investigation.bullets"), num: true, cls: "case-count", lines: 2 },
         { key: "keys", label: L("DRPG.Investigation.keysHeld"), num: true, cls: "case-count", lines: 2 },
         { key: "unidentified", label: L("DRPG.Investigation.unidentified"), num: true, cls: "case-count", lines: 2 },
-        { key: "breakdown", label: L("DRPG.Investigation.breakdown"), cls: "case-breakdown", cellLines: 2 }
+        { key: "breakdown", label: L("DRPG.Investigation.breakdown"), cls: "case-breakdown" },
+        { key: "items", label: L("DRPG.CaseMap.studentItems"), cls: "case-items" }
     ];
 }
 
@@ -1733,12 +1747,18 @@ export function caseStudentColumns() {
  * Exported for R2067.
  */
 export function caseStudentTable(students) {
+    /* ONE VIEW (E64-inv, 12.11.2026; the owner's pick of the Investigation review): the tab drew this table and, under
+       it, the same students again by name (`studentsListHtml`, the Map's list). The names are the table's cells now - a
+       line per Truth Bullet with what it really is, the other items by name - so the counts and the names are one row a
+       student. Not cut at two lines, as the Breakdown's kinds were: a list a GM reads whole. */
+    const line = parts => (parts.length ? parts.join("<br>") : "-");
     const rows = students.map(s => {
-        const breakdown = Object.entries(s.types)
-            .map(([type, n]) => `${esc(TRUTH_BULLET_TYPES[type]?.label ?? type)} (${n})`)
-            .join(", ");
+        const breakdown = (s.named ?? []).map(b => {
+            const kind = b.real ? (TRUTH_BULLET_TYPES[b.real]?.label ?? b.real) : "";
+            return `${esc(b.name)}${kind ? ` <span class="notes">(${esc(kind)})</span>` : ""}`;
+        });
         return { student: esc(s.actor.name), bullets: String(s.total), keys: String(s.keys),
-            unidentified: String(s.unidentified), breakdown: `<span class="notes">${breakdown || "-"}</span>` };
+            unidentified: String(s.unidentified), breakdown: line(breakdown), items: line((s.items ?? []).map(esc)) };
     });
     // The Breakdown head's tooltip ("Really", S12-52) is its column's `tooltip` since E47-KFa (a string replace before it).
     return dataTable({ columns: caseStudentColumns().map(c => (c.cls === "case-breakdown" ? { ...c, tooltip: game.i18n.localize("DRPG.Investigation.breakdownTooltip") } : c)), rows });
@@ -1782,6 +1802,8 @@ function traceShows(data) {
  * option values; `tieTaken` turns one back into the ledger's.
  */
 const TIE_OPTIONS = Object.freeze({ "": "DRPG.Remnant.tieOpen", tied: "DRPG.Remnant.tieTied", untied: "DRPG.Remnant.tieUntied" });
+/* The same three in the Remnants table's narrow column (E64-inv): "?", "Yes", "No" under the column's head, which names the tie. */
+const TIE_SHORT = Object.freeze({ "": "DRPG.Remnant.tieShortOpen", tied: "DRPG.Remnant.tieShortTied", untied: "DRPG.Remnant.tieShortUntied" });
 const tieShown = tie => tie === true ? "tied" : tie === false ? "untied" : "";
 const tieTaken = shown => shown === "tied" ? true : shown === "untied" ? false : null;
 
@@ -1894,17 +1916,22 @@ function caseTraceCells(shown, finders) {
                the code: Observe's list drops a kind with no number). A row
                already of such a kind keeps it in its list, so the select says what the
                trace is and a Save leaves it alone. */
+            /* THE KIND'S OWN WORD IN THE CELL (E64-inv, 12.11.2026): "Prep Remnant" was wider than the 9 % column, cut under
+               Stained Glass and drawn over the next cell under Monokuma Legacy (Chromium, 1366x768 and 1920x1080, both
+               languages). Every option is a Remnant, so the column says the kind alone ("Prep", "Final Truth"); New
+               Remnant's window keeps the whole name. */
             type: `<select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES)
                 .filter(([value]) => findableKind(value) || value === shows.type).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
-                    esc(def.label)}</option>`).join("")}</select>`,
+                    esc(String(def.label).replace(/ Remnant$/, ""))}</option>`).join("")}</select>`,
             /* HOW HARD IT IS TO SPOT, FOR EVERY TRACE (E60 C4a, 03.11.2026; the owner's ask of 28.10, Q-E60-3's
                alternative): the band Observe reads its number from, found or not - a found trace's copies keep
                the band they were made with (remnants.mjs `setRemnantFlags`). */
             vis: `<select name="vis.${key}"${aria("DRPG.Investigation.visibility")}>${bandOptions(shows.vis)}</select>`,
             // the two checkboxes centred by the column's rule (components.css `drpg-data-col-case-check`), not inline
             faint: `<input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} />`,
-            crime: `<select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+            // the tie's short words in the cell (E64-inv, as the kind's above): "- nie rozstrzygnięto -" ran 178 px past it
+            crime: `<select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_SHORT).map(([value, label]) =>
                 `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select>`,
             reinf: `<input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} />`,
             found,
@@ -2284,7 +2311,7 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
             roomOptions: placeRoomOptions(), visOptions: visOptionsFor(null),
             finalRemnants, finalTruthPlacedThisChapter }) },
             { key: "who", label: game.i18n.localize("DRPG.Investigation.whoHasWhat"),
-              html: `<div data-drpg-part="who">${caseStudentTable(students)}</div>${studentsListHtml()}` }
+              html: `<div data-drpg-part="who">${caseStudentTable(students)}</div>` }
         ])}
     </form></div>`;
 }
@@ -3065,39 +3092,18 @@ function wireCaseFilters(dialog, reading, refresh) {
  * that is none of them, else `{ said }`: what the dashboard it reopens says it
  * did, or null.
  *
- * THE TWO CLEAN-UPS SAY WHAT THEY DID IN THE WINDOW (E51 C5, 31.10.2026; audit
- * S05-55). Clear Faint and Sweep confirmed with the count and toasted the result,
- * and the dashboard came back looking as it did before - the toast gone in
- * seconds. Their count is the dashboard's first line now (`openInvestigationDashboard`'s
- * `said`), over the region a redraw rebuilds, until the window closes. A cancelled
- * or empty one says nothing. `tokens` is the suite's (Clear Faint's own fixtures,
- * remnants.mjs `clearFaintRemnants`); exported for it (tier 2 E51-T15). `actors` is
- * the suite's too, Sweep's students (chapter.mjs `sweepTruthBullets`, E51 fix round FG9):
- * a sweep of the world would take every student's bullets.
+ * WHAT A BUTTON DID IS SAID IN THE WINDOW (E51 C5, 31.10.2026; audit S05-55): the realization's answer is the
+ * dashboard's first line (`openInvestigationDashboard`'s `said`), over the region a redraw rebuilds, until the window
+ * closes. Clear Faint and Sweep said theirs the same way until E64-inv took them off the bar (End the chapter runs both).
  */
-export async function runDashboardButton(action, { tokens = null, actors = null } = {}) {
-    // N-4: the one road to a trace the GM is simply stating exists. It sits with
-    // the sweeps rather than on a tab because it is an action, not a view.
+export async function runDashboardButton(action) {
     if (action === "newTrace") {
         await openNewTrace();
         return { said: null };
     }
-    if (action === "clearFaint") {
-        const cleared = await confirmClearFaint({ tokens });
-        return { said: cleared ? plural("DRPG.Panel.faintCleared", { n: cleared }) : null };
-    }
-    if (action === "sweepBullets") {
-        const swept = await confirmSweepBullets({ actors });
-        return { said: swept ? plural("DRPG.Panel.sweptBullets", { n: swept }) : null };
-    }
     if (action === "autopsy") {
         const { issueAutopsyDialog } = await import("./gm-items.mjs");
         await issueAutopsyDialog();
-        return { said: null };
-    }
-    if (action === "log") {
-        const { openObjectionLog } = await import("./trial.mjs");
-        await openObjectionLog();
         return { said: null };
     }
     if (action === "bodyFound") {
@@ -3105,15 +3111,11 @@ export async function runDashboardButton(action, { tokens = null, actors = null 
         await openBodyDiscoveryDialog();
         return { said: null };
     }
-    // E97 C10: the case's realization, its preview first, and its undo (case-realize.mjs; by `import()`: that file reads
-    // this one's planner, so a static import here would close a cycle).
+    // E97 C10: the case's realization, its preview first, its undo inside it (case-realize.mjs; by `import()`: that file
+    // reads this one's planner, so a static import here would close a cycle).
     if (action === "realize") {
         const { openRealization } = await import("./case-realize.mjs");
         return { said: await openRealization() };
-    }
-    if (action === "unrealize") {
-        const { confirmUndoRealization } = await import("./case-realize.mjs");
-        return { said: await confirmUndoRealization() };
     }
     return false;
 }
@@ -3238,9 +3240,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         + `<div class="drpg-case-controls" data-drpg-slot="controls">${said
             ? `<p class="drpg-case-result notes" role="status" title="${esc(said)}">${esc(said)}</p>` : ""}</div></div>${buildCase()}`;
 
-    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the views and the body secondary; Clear Faint and Sweep,
-       which take what cannot be put back, destructive - each asks first (`confirmClearFaint`, `confirmSweepBullets`)
-       and is never the default; Close, which keeps what was typed in an open node (below). */
+    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the windows it opens and the body secondary; Close, which
+       keeps what was typed (below). No destructive button since E64-inv. */
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
@@ -3267,34 +3268,25 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                 callback: (e, b, d) => readDashboardForm(d)
             },
             secondary: [
-            // N-4: the one road to a trace the GM is simply stating exists. Beside
-            // the sweeps rather than on a tab, because it is an action rather than a
-            // view - the same place "clear the Faint traces" lives.
+            // N-4: the one road to a trace the GM is simply stating exists - an action rather than a view, so here and
+            // not on a tab.
             { action: "newTrace", label: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
-            // The Truth Bullet sweep lands here for the same reason as the rest
-            // of this row (Z7): it stopped being a step in the end-of-chapter
-            // window, and a clean-up with no button is a clean-up only somebody
-            // who reads `api.mjs` can run. (Its button, and Clear Faint's, are destructive: below.)
-            // All three used to be tiles in the GM panel, or windows of their
-            // own. They belong here: a GM issues the autopsy, reads the
-            // evidence log or reports a body while looking at the case, not
-            // while deciding which screen to open.
+            // The autopsy and the body moved here from GM panel tiles: a GM issues one or reports the other while
+            // looking at the case, not while deciding which screen to open.
             { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
-            { action: "log", label: game.i18n.localize("DRPG.Trial.logTitle") },
-            // A STATE CHANGE, NOT ONE MORE VIEW (E09 C16, audit S05-29): the six buttons around it
-            // open a window or tidy something; this one starts a case. Its class and icon set it
-            // apart in both themes - one of seven equal buttons is what the audit saw.
+            // A STATE CHANGE, NOT ONE MORE VIEW (E09 C16, audit S05-29): the buttons around it
+            // open a window; this one starts a case. Its class and icon set it apart in both themes.
             { action: "bodyFound", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
                 icon: "fa-solid fa-skull", class: "drpg-state-change" },
-            // E97 C10 (Q-C): the realization's preview, in both views; it writes nothing until its own Run.
+            // E97 C10 (Q-C): the realization's preview, in both views; it writes nothing until its own Run. Its undo is
+            // in that window since E64-inv (case-realize.mjs `realizationFooter`), shown once a run has placed anything.
             { action: "realize", label: game.i18n.localize("DRPG.CaseRealize.preview") }
             ],
-            destructive: [
-                { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
-                { action: "sweepBullets", label: game.i18n.localize("DRPG.Panel.sweepBullets") },
-                // E97 C10: takes back only what nobody found, asked first
-                { action: "unrealize", label: game.i18n.localize("DRPG.CaseRealize.undo") }
-            ],
+            /* NO DESTRUCTIVE ROW, AND NO EVIDENCE LOG (E64-inv, 12.11.2026; the owner's pick of the Investigation review:
+               "Na reszte sie zgadzam"). Clear the Faint Remnants and Collect the Truth Bullets were here and in End the
+               chapter both (chapter.mjs `chapterEndForm`: `faint`, `sweep`), so they are End the chapter's alone; the
+               Class Trial's evidence log is the trial console's (trial-floor-ui.mjs `logButton`); Undo realization went
+               into the realization's preview, behind its own question. R3967 holds the bar to these actions. */
             /* CLOSE, NOT CANCEL (the owner, 13.11.2026: "Nie, ma zapisywac" - the footer's closing word keeps what was
                typed). A word that saves is not a Cancel (docs/glossary.json `cancel-word` withdraws a question,
                `close-word` closes a window with nothing left to answer), so it is the kit's Close. Its action is

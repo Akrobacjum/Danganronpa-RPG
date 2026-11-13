@@ -253,6 +253,75 @@ const REGRESSIONS = [
             [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
     }],
 
+    ["R3865 - no student's action reaches the primary for a Spectator (E92 Q-E92-7; the owner's 12.11.2026 \"zgadzam sie, zlecaj\"): in the four tables (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS) every row a player may send names bridge-guards.mjs's Spectator guard right after knownSender - `notSpectator` on the character its owner question asks about (the same field, or a locate of its own) where it asks one, `senderNotSpectator` where it acts for the account - or stands in this test's list of rows that need none, with the reason; a GM's row (gmOnly first) needs none; the list names no row that is gone or that holds the guard; both refusals map to the closed list's \"spectator\", said in both languages", async () => {
+        /*
+         * E92 Q-E92-7, 12.11.2026. The tables are the module's own objects (tests-kit.mjs `bridgeTables`); a guard is known
+         * by its factory's tag (`made`) or by being the exported function. A census over a fixture first: three rows, two
+         * of them wrong, so a reader that finds nothing is not read as a clean table. Red at 3f47b45: no guard.
+         */
+        const G = await import("./bridge-guards.mjs");
+        must(typeof G.notSpectator === "function" && typeof G.senderNotSpectator === "function",
+            "bridge-guards.mjs has no notSpectator or senderNotSpectator - the census has nothing to look for");
+        /* The rows that need no Spectator guard, each with why: none of them acts for a student's character. */
+        const NEEDS_NONE = {
+            "note.save": "the player's own notebook (a User flag), which a Spectator may keep: no character acts, nothing of the game moves",
+            "ruling.expired": "a card's bookkeeping on the primary: the asker's own ruling card ends, no character acts",
+            "ruling.received": "a card's bookkeeping on the primary: the asker's own ruling card is marked seen, no character acts",
+            "action.friskAnswer": "the answer to a Frisk aimed at the sender's character; a Spectator is no Frisk's target (movement.mjs `othersInRoom` leaves it out), and the Frisk itself is guarded",
+            "searchTokens.returnPlant": "gives back what a guarded take handed out (`guardPlantReturn` holds it to the same user), nothing new",
+            "searchTokens.returnToken": "gives back a token a guarded spend took (`guardTokenReturn` holds it to the same user), nothing new"
+        };
+        const census = tables => {
+            const odd = [], rows = new Set();
+            let guarded = 0, account = 0, gms = 0, exempt = 0;
+            for (const { file, table } of tables) {
+                for (const [action, decl] of Object.entries(table)) {
+                    rows.add(action);
+                    const list = decl.guards ?? [];
+                    if (list[0]?.factory === "gmOnly") { gms++; continue; }
+                    const at = list.indexOf(G.knownSender);
+                    const spect = list.filter(g => g?.factory === "notSpectator" || g === G.senderNotSpectator);
+                    const owner = list.find(g => g?.factory === "owns" || g?.factory === "ownsActorAt");
+                    if (Object.hasOwn(NEEDS_NONE, action)) {
+                        exempt++;
+                        if (spect.length) odd.push(`${file} ${action}: listed as needing no guard, and holds one`);
+                        continue;
+                    }
+                    if (spect.length !== 1) { odd.push(`${file} ${action}: ${spect.length} Spectator guards, not one`); continue; }
+                    const [guard] = spect;
+                    if (at < 0 || list[at + 1] !== guard) odd.push(`${file} ${action}: its Spectator guard is not right after knownSender`);
+                    if (owner) {
+                        if (guard.factory !== "notSpectator") odd.push(`${file} ${action}: asks an owner question but guards the account, not the character`);
+                        else if (owner.factory === "owns" && owner.covers.length && JSON.stringify(owner.covers) !== JSON.stringify(guard.covers)) {
+                            odd.push(`${file} ${action}: the owner question reads ${owner.covers.join()}, the Spectator guard ${guard.covers.join()}`);
+                        }
+                        guarded++;
+                    } else if (guard === G.senderNotSpectator) account++;
+                    else guarded++; // a character a guard of the row's own reads (a trap's, a Search's), named to notSpectator
+                }
+            }
+            for (const action of Object.keys(NEEDS_NONE)) if (!rows.has(action)) odd.push(`${action}: listed as needing no guard, and no table has it`);
+            return { odd, guarded, account, gms, exempt };
+        };
+        const fixture = census([{ file: "fixture.mjs", table: {
+            "fixture.right": { guards: [G.knownSender, G.notSpectator("actorId"), G.owns("actorId", "not theirs")] },
+            "fixture.bare": { guards: [G.knownSender, G.owns("actorId", "not theirs")] },
+            "fixture.late": { guards: [G.knownSender, G.owns("actorId", "not theirs"), G.notSpectator("otherId")] }
+        } }]);
+        equal(JSON.stringify(fixture.odd.filter(line => line.startsWith("fixture.mjs"))), JSON.stringify([
+            "fixture.mjs fixture.bare: 0 Spectator guards, not one",
+            "fixture.mjs fixture.late: its Spectator guard is not right after knownSender",
+            "fixture.mjs fixture.late: the owner question reads actorId, the Spectator guard otherId"
+        ]), "the census does not find exactly the three faults planted in its fixture - it would misread the tables too");
+        const tables = await bridgeTables();
+        const read = census(tables);
+        must(read.guarded >= 40 && read.gms >= 20, `only ${read.guarded} guarded and ${read.gms} GM rows were read - the tables are not where this looks`);
+        log(`R3865: ${read.guarded} rows guard the character, ${read.account} the account, ${read.gms} are a GM's, ${read.exempt} need none`);
+        const codes = ["that character is a Spectator", "the sender plays a Spectator"].map(why => G.reasonOf(why));
+        equal(JSON.stringify({ odd: read.odd, codes, said: [game.i18n.has("DRPG.Bridge.why.spectator")] }),
+            JSON.stringify({ odd: [], codes: ["spectator", "spectator"], said: [true] }),
+            "[the rows whose Spectator guard is missing, misplaced or reads another field; the codes of its two refusals; the code's words]");
+    }],
     ["R1b - no socket handler takes a character on somebody's word", async () => {
         /*
          * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
@@ -1769,11 +1838,9 @@ const REGRESSIONS = [
             openWhoIsAliveDialog: "gm-students",
             openInvestigationDashboard: "investigation",
             manageClassTrial: "trial-floor-ui",
-            // Added in E6, and for the reason the list exists: both used to
-            // close and reopen themselves after every Hope donation, which took
-            // the GM's scroll position and any unapplied ticks with it. They
-            // are live now, and this is what stops that quietly coming back.
-            openMonocubDialog: "monocub",
+            // Added in E6, and for the reason the list exists: it and the Monocubs window (retired by E72 C6, its rows
+            // the Students window's) used to close and reopen themselves after every Hope donation, which took the GM's
+            // scroll position and any unapplied ticks with it. Live now, and this is what stops that quietly coming back.
             openMastermindDialog: "mastermind"
         };
 
@@ -2959,11 +3026,15 @@ const REGRESSIONS = [
 
         // Every GM-side charge is the no-claim fallback, and the only other writer
         // of the Sanity track in a refund path is `handBack`.
+        // Since E64 (f657e7d) the fallback's Sanity is `chargeUnclaimed`'s, and each call of it stands after a missing claim.
         for (const spent of [...cleanup.matchAll(/await spendStress\(actor\)/g)].map(m => m.index)) {
             const before = cleanup.slice(Math.max(0, spent - 260), spent);
-            ok(/validPrice\(|!paidStep|for \(let i = 0/.test(before),
+            ok(/validPrice\(|!paidStep|for \(let i = 0|function chargeUnclaimed\(/.test(before),
                 "a GM-side Sanity charge is back that no missing price claim explains");
         }
+        const unclaimed = [...cleanup.matchAll(/(?<!function )chargeUnclaimed\(/g)].map(m => m.index);
+        ok(unclaimed.length > 0 && unclaimed.every(at => /validPrice\(|!paidStep/.test(cleanup.slice(Math.max(0, at - 160), at))),
+            "chargeUnclaimed is called where no missing price claim explains it");
         ok(/function validPrice\(/.test(cleanup),
             "nothing bounds the step a Tamper packet claims to have paid");
         ok(/async function handBack\(/.test(cleanup),
@@ -3655,7 +3726,9 @@ const REGRESSIONS = [
         ok(!bad.length, `these sizes do not follow the Interface scale: ${bad.join(", ")}`);
         // Counted as well, so nobody satisfies the sweep by deleting the token.
         ok(factored >= 22, `only ${factored} stated sizes carry the factor`);
-        equal(clamped, 2, "the pause caption is no longer the only size with a viewport container");
+        // 2 the pause caption's; 4 since E61 C4-C5 (12.11.2026): the sequences' stamp, name and vote sizes, whose host is
+        // the whole screen (danganronpa.css THE SEQUENCES)
+        equal(clamped, 6, "the pause caption and the sequences are no longer the only sizes with a viewport container");
         ok(rungs >= 140, `only ${rungs} declarations read a rung - 164 of them did, so some have been unwired`);
     }],
 
@@ -3970,8 +4043,9 @@ const REGRESSIONS = [
             "setMonocub does not read what it is about to change");
         ok(/if \(was === Boolean\(value\)\)/.test(set),
             "setMonocub still announces a change it did not make");
-        ok(set.indexOf("unsetFlag") < set.indexOf("was === Boolean(value)"),
-            "the silence flag is now cleared only on a real change - a cub who stopped being "
+        // Since E72 C2 the mark is the GMs' row (`patchCubRow`), not the flag; cleared before the change is asked, as the flag was.
+        ok(set.indexOf("patchCubRow(actor.id, { witness: null })") > -1 && set.indexOf("patchCubRow(actor.id, { witness: null })") < set.indexOf("was === Boolean(value)"),
+            "the silence mark is now cleared only on a real change - a cub who stopped being "
             + "one keeps their silence");
     }],
 
@@ -4516,7 +4590,8 @@ const REGRESSIONS = [
         }
 
         const confirm = bodyOf(calls, "export async function confirmCall", { until: "export async function askHopeCallApproval" });
-        ok(/render: \(event, dialog\) => wireNoteGate\(dialog, call\)/.test(confirm),
+        // Since E72 the gate reads `asksGm` (calls.mjs `callAsksGm`: Talent's window asks its note too), with the box's example.
+        ok(/render: \(event, dialog\) => \{\s*wireNoteGate\(dialog, \{ needsGm: asksGm \}\);/.test(confirm),
             "the gate is never wired to the window");
         ok(!/return null;\s*\}\s*return written;/.test(confirm),
             "the callback still tries to cancel by returning null");
@@ -5721,9 +5796,11 @@ const REGRESSIONS = [
         ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
-        ok(six.indexOf("framingCandidates(actor)") > 0 && six.indexOf("framingCandidates(actor)") < six.indexOf("spendStress("),
+        // The price is `chargeUnclaimed`'s since E64 (f657e7d), `spendStress` before: whichever comes first.
+        const paidAt = Math.min(...["spendStress(", "chargeUnclaimed("].map(k => six.indexOf(k)).filter(at => at >= 0));
+        ok(Number.isFinite(paidAt) && six.indexOf("framingCandidates(actor)") > 0 && six.indexOf("framingCandidates(actor)") < paidAt,
             "a misleading trail is not checked against who may be framed before it is paid for");
-        ok(six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < six.indexOf("spendStress("),
+        ok(Number.isFinite(paidAt) && six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < paidAt,
             "moving the body does not ask where the body is before it is paid for");
         ok(/receipt\.stressAfter - receipt\.stressBefore/.test(cleanup), "a clean-up's undo does not take back what it moved");
         // E09 fix r2-G10: and only what the attempt's own writes moved, never a write that landed while it ran.
@@ -6337,6 +6414,8 @@ const REGRESSIONS = [
             refundLastCrossing: "refused",
             // E80 C3: a Find Passage, judged on the primary (passages-gm.mjs), its reasons by code.
             resolvePassageSearch: "refused",
+            // E91 C4, C5 (D038): the Mastermind's lock and seal, judged on the primary (mastermind.mjs, passages-gm.mjs).
+            lockLair: "refused", sealLairPassage: "refused", presetSideRefusal: "returns",
             // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
             lootDrawRefusal: "returns",
             personActionRefusal: "returns",
@@ -6947,7 +7026,10 @@ const REGRESSIONS = [
             // E06 fix r2-G1: an armed Call's buyer off its actor, and a secret project's repair sealed and renamed.
             ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"],
             // E32 C3: a running incident's fight out of the world half of murderState.
-            ["liftIncidentFight", "liftIncidentFight", "1.2.66"]];
+            ["liftIncidentFight", "liftIncidentFight", "1.2.66"],
+            // E72 C2: the crime witness's mark off its actor, into the GMs' Monocub record; since the version E72 ships in,
+            // 1.2.110 (the coordinator's, 12.11.2026; the line planned 1.2.117).
+            ["liftCubWitness", "liftCubWitness", "1.2.110"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -7865,23 +7947,349 @@ const REGRESSIONS = [
 
         const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
         must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
-        equal(JSON.stringify(Object.keys(all).filter(action => action.startsWith("monocub.")).sort()), JSON.stringify(["monocub.ability"]),
-            "the bridge's monocub.* declarations are not exactly monocub.ability (monocub.meddle retired by E33 C10)");
+        // E72 C6 adds the invitation's answer, which is no ability: the abilities stay on one declaration.
+        equal(JSON.stringify(Object.keys(all).filter(action => action.startsWith("monocub.")).sort()), JSON.stringify(["monocub.ability", "monocub.answer"]),
+            "the bridge's monocub.* declarations are not exactly monocub.ability and monocub.answer (monocub.meddle retired by E33 C10)");
         const fields = all["monocub.ability"]?.sanitize?.fields ?? {};
         equal(JSON.stringify([fields.key ?? null, fields.choice ?? null, Object.keys(fields).filter(f => ["total", "isCritical", "withHope", "roll", "rollId"].includes(f))]),
             JSON.stringify(["text", "text", []]),
             "monocub.ability does not take key and choice as text, or its packet carries a result or a roll the GM would read");
 
         const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
-        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cubAbilityOnGm(" });
+        // Since E72 C1 the GM asks every condition (`cubAbilityRefusalOnGm`, locks included) and then takes the price;
+        // the executor pays nothing. Changed on purpose: until E72 the run asked no lock (CALL-16), because the price
+        // had been paid on the Monocub's browser before it. R3800 holds the order of the price on the GM.
+        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cubAbilityRefusalOnGm(" });
+        const onGm = bodyOf(src, "export async function cubAbilityRefusalOnGm(", { until: "export async function cubAbilityOnGm(" });
         const run = bodyOf(src, "export async function cubAbilityOnGm(", { until: "export async function cubAbilityDialog(" });
-        ok(!/abilities\.meddle|CUB_\w+\.meddle|"meddle"/.test(`${executor}\n${run}`),
+        ok(!/abilities\.meddle|CUB_\w+\.meddle|"meddle"/.test(`${executor}\n${onGm}\n${run}`),
             "the executor or the GM-side run names the Meddle row - rows are data and behaviour is named, or a second ability is a branch");
-        ok(/\blockRefusal\(/.test(executor) && executor.indexOf("lockRefusal(") < executor.indexOf("spendAction("),
-            "the executor does not ask the row's locks before anything is paid");
-        ok(!/\blockRefusal\(|CUB_LOCKS/.test(run), "the GM-side run asks a lock - CALL-16: a Meddle paid a moment before an Eclipse opened would lose its Hope for good");
-        ok(/CUB_TARGETS\[row\.target\]\.refuses\(/.test(run) && /CUB_RESOLVERS\[row\.resolve\]\(/.test(run) && /CUB_ROLLS\[row\.roll\]\(/.test(run),
+        ok(/\blockRefusal\(/.test(executor) && executor.indexOf("lockRefusal(") < executor.indexOf("requestCubAbility("),
+            "the executor does not ask the row's locks before it asks the GM");
+        ok(/CUB_LOCKS\[/.test(onGm) && /\bcubAbilityRefusalOnGm\(/.test(run), "the GM-side run does not ask the row's locks before it pays (E72 C1)");
+        ok(/CUB_TARGETS\[row\.target\]\.refuses\(/.test(onGm) && /CUB_RESOLVERS\[row\.resolve\]\(/.test(run) && /CUB_ROLLS\[row\.roll\]\(/.test(run),
             "the GM-side run does not ask the row's target rule again, throw the row's roll and score with the row's resolver");
+    }],
+
+    ["R3800 - a Monocub's ability is paid on the GM after its conditions: the executor writes no price, the GM-side run asks every condition before it spends the action and writes the Hope, one Monocub at a time (E72 C1; S18-50, DC13)", async () => {
+        /*
+         * E72 C1, 12.11.2026; audit S18-50, the owner's DC13 and D39. Until E72 `performCubAbility` spent the action
+         * (`spendAction`) and wrote the Hope with the reason "price" on the Monocub's browser before it asked the GM, and
+         * the GM refused with no refund. Read off the source: the executor neither spends nor writes; the GM-side run
+         * (`cubAbilityOnGm`) asks `cubAbilityRefusalOnGm` before its `spendAction(` and its Hope's `trustedWrite(`, and
+         * both before the row's dice; the refusal asks the price against the sheet (actions and Hope); and the run is
+         * one per Monocub (`serialWrite`), so two packets sent together do not both read one Hope. Red at f22a7e8: the
+         * executor spends, the run has no price at all. Mutants it kills: the refusal moved after the payment; the
+         * executor paying again; the serial key dropped.
+         */
+        const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cub" });
+        const onGm = bodyOf(src, "export async function cubAbilityRefusalOnGm(", { until: "export async function cubAbilityOnGm(" });
+        const run = bodyOf(src, "export async function cubAbilityOnGm(", { until: "export async function cubAbilityDialog(" });
+        must(executor.length > 200 && run.length > 200, "monocub.mjs has no performCubAbility or cubAbilityOnGm - this would measure nothing");
+        const at = text => run.indexOf(text);
+        const read = {
+            executorPays: /\bspendAction\(|\btrustedWrite\(/.test(executor),
+            // Since E72 C14 the Hope is taken by `spendCubHope` (the purse first) and asked of `cubHopeTotal`: changed on purpose.
+            refusalFirst: at("cubAbilityRefusalOnGm(") > -1 && at("cubAbilityRefusalOnGm(") < at("spendAction(") && at("spendAction(") < at("spendCubHope("),
+            priceBeforeDice: at("spendCubHope(") > -1 && at("spendCubHope(") < at("CUB_ROLLS["),
+            // Since E72 C17 the price is `priceOf`'s (a move to order costs its `executionCost`): changed on purpose.
+            priceAsked: /const price = priceOf\(actor, row\)/.test(onGm) && /actionsLeft\(actor\)\s*<\s*price\.cost/.test(onGm) && /cubHopeTotal\(actor\)\s*<\s*price\.hopeCost/.test(onGm),
+            serial: /serialWrite\(`drpg-cub-ability:\$\{actorId\}`/.test(run)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ executorPays: false, refusalFirst: true, priceBeforeDice: true, priceAsked: true, serial: true }),
+            "a Monocub's ability is not paid on the GM after its conditions, one Monocub at a time");
+    }],
+
+    ["R3801 - the crime witness's mark is written in no actor flag: nothing in scripts/ sets the flag silencedChapter, the lift alone unsets it, and world-secrets.mjs holds it out of an actor's flags (E72 C2; S18-51)", async () => {
+        /*
+         * E72 C2, 12.11.2026; audit S18-51. The mark was `actor.setFlag(MODULE_ID, FLAGS.silencedChapter, ...)` in
+         * monocub.mjs `setSilenced`, world data every browser holds. Read off the source of every module file but the
+         * suite's: no write of the flag (`setFlag`, an update naming it), and its one unset in monocub.mjs's
+         * `liftCubWitness`; and WORLD_SECRET_RULES' Actor flags name it. Red at f22a7e8: `setSilenced` sets it and
+         * `setMonocub` unsets it; the rule names it not. Mutant it kills: the flag written again beside the row.
+         */
+        const sources = new Map(await otherSources());
+        const sets = [], unsets = [];
+        for (const [file, text] of sources) {
+            const src = stripComments(text);
+            for (const m of src.matchAll(/\bsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.silencedChapter|\.silencedChapter\}?`?\s*\]?\s*:/g)) sets.push(`${file}@${m.index}`);
+            for (const m of src.matchAll(/unsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.silencedChapter/g)) {
+                const lift = bodyOf(src, "export async function liftCubWitness(", { until: "\n}\n" });
+                unsets.push(file === "monocub.mjs" && lift.includes(src.slice(m.index, m.index + 60)) ? "lift" : `${file}@${m.index}`);
+            }
+        }
+        must(sources.size > 100, `the suite read ${sources.size} module files - this would measure nothing`);
+        const { WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        equal(JSON.stringify([sets, unsets, (WORLD_SECRET_RULES.flags?.Actor ?? []).includes("silencedChapter")]), JSON.stringify([[], ["lift"], true]),
+            "the crime witness's mark is still written in an actor flag, unset outside its lift, or not held out of world data ([sets, unsets, the rule])");
+    }],
+
+    ["R3802 - a walk-in finds a body where the body lies: checkBodyFound asks body-tile.mjs bodyPlaceOf of each body, not the victim's token, and hands the discovery that actor (E72 C3; Q-E72-3)", async () => {
+        /*
+         * E72 C3, 12.11.2026; the plan's Q-E72-3 (default taken: read `bodyPlaceOf`, as Frisk's gate does). Since E63 a
+         * death lays a body tile where the token stood, and the token can walk on; `checkBodyFound` read the room of the
+         * victim's token (`bodyHere`, a token of `scene.tokens`), so two students walking into the room of the tile found
+         * nothing, and two walking into the room the token went to found the body there. Read off chapter.mjs's source:
+         * the function asks `bodyPlaceOf(` with the GMs' flags (`held: flagsHeldNow`), compares its scene and room, skips
+         * a hidden place, and hands `runDiscovery` the actor found. Red at f22a7e8: no `bodyPlaceOf` in it. Measured off
+         * the source only: a tier-2 walk onto a tile whose token has left is not written here (the owner's Q-E72-3 is
+         * the default's, to confirm).
+         */
+        const src = stripComments(new Map(await otherSources()).get("chapter.mjs") ?? "");
+        const fn = bodyOf(src, "async function checkBodyFound(", { until: "\n}\n" });
+        must(fn.length > 500, "chapter.mjs has no checkBodyFound - this would measure nothing");
+        const read = {
+            place: /bodyPlaceOf\(\s*\w+\s*,\s*\{\s*held:\s*flagsHeldNow\s*\}\s*\)/.test(fn),
+            sceneAndRoom: /place\.scene\?\.id\s*===\s*scene\?\.id/.test(fn) && /place\.room\s*===\s*room/.test(fn) && /!place\.hidden/.test(fn),
+            noTokenScan: !/bodies\.has\(t\.actor\.id\)\s*&&\s*!t\.hidden\s*&&\s*roomOfToken\(t\)\s*===\s*room/.test(fn),
+            victim: /runDiscovery\(\{\s*room,\s*victim:\s*bodyHere,/.test(fn)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ place: true, sceneAndRoom: true, noTokenScan: true, victim: true }),
+            "checkBodyFound does not find the body where bodyPlaceOf says it lies");
+    }],
+
+    ["R3803 - a Monocub's tile is greyed by its row's blocks with their sentence, and a free move says Free (E72 C9; S18-62)", async () => {
+        /*
+         * E72 C9, 12.11.2026; audit S18-62. sheet.mjs `abilityButton` dimmed a Monocub's tile on its price alone and said
+         * "0 Hope, 0 actions" for a free one. Read off the source: the tile asks monocub.mjs `cubBlockSaid(actor, def)`,
+         * dims on it as on the price, puts its sentence in the tooltip, and says the grid's own `DRPG.Action.costFree` for a
+         * row that costs nothing and `DRPG.Action.costActions` for one with no Hope. Red at f22a7e8: none of it.
+         */
+        const src = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const fn = bodyOf(src, "function abilityButton(", { until: "\n}\n" });
+        must(fn.length > 300, "sheet.mjs has no abilityButton - this would measure nothing");
+        const read = [/cubBlockSaid\(actor, def\)/.test(fn), /affordable && !shut/.test(fn), /game\.i18n\.localize\(shut\)/.test(fn), /"DRPG\.Action\.costFree"/.test(fn) && /"DRPG\.Action\.costActions"/.test(fn)];
+        equal(JSON.stringify(read), JSON.stringify([true, true, true, true]), "the Monocub's tile does not read its blocks, dim on them, say them, or say Free ([asks, dims, says, free])");
+    }],
+
+    ["R3804 - one road makes a Monocub: the player's acceptance of the invitation; the old Monocubs window is gone and game.drpg.monocubDialog opens the Students window (E72 C6; S18-61, DC17)", async () => {
+        /*
+         * E72 C6, 12.11.2026; audit S18-61, the owner's DC17. Three roads made a Monocub with no word from its player: the
+         * Students window's Invite button, its State list, and the old Monocubs window (monocub.mjs `openMonocubDialog`,
+         * `setMonocub(actor, row.cub)`). The first two invite since C6; the third is retired. Read off the source of every
+         * module file but the suite's: every call that sets the flag on (`setMonocub(` with anything but false) stands in
+         * monocub.mjs `answerMonocubOffer`; monocub.mjs defines no `openMonocubDialog`; api.mjs's `monocubDialog` opens the
+         * Students window. Red at f22a7e8: the old window and its call, the Invite button's and the State list's.
+         */
+        const sources = new Map(await otherSources());
+        must(sources.size > 100, `the suite read ${sources.size} module files - this would measure nothing`);
+        const on = [];
+        for (const [file, text] of sources) {
+            const src = stripComments(text);
+            const tops = [...src.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            for (const m of src.matchAll(/\bsetMonocub\(\s*[\w.]+\s*(?:,\s*([^,)]+))?/g)) {
+                if (/^false\b/.test((m[1] ?? "").trim())) continue;
+                const fn = tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)";
+                if (fn === "setMonocub") continue;
+                on.push(`${file}#${fn}`);
+            }
+        }
+        const monocub = stripComments(sources.get("monocub.mjs") ?? "");
+        const api = stripComments(sources.get("api.mjs") ?? "");
+        equal(JSON.stringify([on.sort(), /function openMonocubDialog\(/.test(monocub), /monocubDialog:\s*\(\)\s*=>\s*import\("\.\/gm-panel\.mjs"\)\.then\(m => m\.openWhoIsAliveDialog\(\)\)/.test(api)]),
+            JSON.stringify([["monocub.mjs#answerMonocubOffer"], false, true]),
+            "a Monocub is made somewhere but the invitation's acceptance, the old window stands, or monocubDialog opens something else ([the calls that set the flag on, the old window, the API's door])");
+    }],
+
+    ["R3805 - the Event panel says Redeem is waiting to a Monocub's own player: a card of its own in renderEvents' list, redrawn when the Monocubs' copy or a Hope changes, with its glyph and its words in both languages (E72 C9; S18-62, DC35)", async () => {
+        /*
+         * E72 C9, 12.11.2026; audit S18-62, the plan's C9 ("Redeem waiting" in Events for the owner). A Monocub's Redeem
+         * comes back once a day, and nothing outside the sheet's tile said so. Read off the source: events.mjs builds a
+         * `redeemCard` and renderEvents' list draws it; hud.mjs redraws the panel on `drpgCubsChanged` (the owner's copy
+         * of the Monocubs' record, where Redeem's day is) and on a Hope of a Monocub changing; danganronpa.css gives the
+         * card the Redeem glyph, declared on pixel-icons.css's :root for both themes; lang/en.json and lang/pl.json hold its title, its line and its ticker word. What the card
+         * says, and to whom, is tier 2's. Red at f837c2f: none of it.
+         */
+        const sources = new Map(await otherSources());
+        const events = stripComments(sources.get("events.mjs") ?? "");
+        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => ""));
+        const icons = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => "");
+        must(events.length > 5000 && hud.length > 5000 && css.length > 5000 && icons.length > 5000, "events.mjs, hud.mjs, danganronpa.css or pixel-icons.css not read - this would measure nothing");
+        // The glyph on :root, for both themes: until the legacy row (tools/glyphs.json), Stained Glass alone declared it and Monokuma Legacy drew a square.
+        const rootBlock = bodyOf(icons, ":root {", { until: "\n}\n" });
+        const render = bodyOf(events, "export function renderEvents(", { until: "\n}\n" });
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const keys = ["redeemTitle", "redeemMeta"].map(k => [en.DRPG?.Events?.[k], pl.DRPG?.Events?.[k]])
+            .concat([[en.DRPG?.Events?.ticker?.redeemHope, pl.DRPG?.Events?.ticker?.redeemHope]]);
+        // Drawn through the Monocub's one card since the C19 fix (12.11.2026; `cubCard`, R3824).
+        const cubCard = bodyOf(events, "export function cubCard(", { until: "\n}\n" });
+        const read = [/export function redeemCard\(/.test(events), /\bcubCard\(\)/.test(render) && /\bredeemCard\(user\)/.test(cubCard),
+            /Hooks\.on\("drpgCubsChanged",[^;]*renderEvents\(\)/.test(hud),
+            /\.drpg-event\[data-kind="redeemHope"\] \.drpg-event-glyph \{ --drpg-glyph: var\(--drpg-pix-redeem\); \}/.test(css)
+                && /\.drpg-event\[data-kind="redeemHope"\] \{ --acc:/.test(css) && /--drpg-pix-redeem:/.test(rootBlock),
+            keys.every(pair => pair.every(v => typeof v === "string" && v.length > 0))];
+        equal(JSON.stringify(read), JSON.stringify([true, true, true, true, true]),
+            "the Event panel has no Redeem card, does not draw it, is not redrawn for it, has no glyph for it, or lacks its words ([builder, drawn, redrawn, glyph and accent, words])");
+    }],
+
+    ["R3823 - the Event panel tells a Monocub's own player of part B (E72 C19; the owner's option A of 12.11): a card while a Bribe waits for its answer and a card while its Ghost Bet stands, each in renderEvents' list, redrawn with the Monocubs' copy, with its glyph on :root for both themes, its accent and its words in both languages; a GM's screen draws neither", async () => {
+        /*
+         * E72 C19, 12.11.2026; the owner's answer A to the coordinator's question (the Events card for part B: the
+         * Monocub's own player only). events.mjs `bribeWaitCard` (the first open offer's payer, as the sheet's panel lists
+         * it, monocub.mjs `cubPanelLines`) and `betCard` (whom the bet names); hud.mjs redraws on `drpgCubsChanged`
+         * (R3805's); danganronpa.css gives the kinds the Bribe's and the Ghost Bet's glyphs, declared on pixel-icons.css's
+         * :root (the Ghost Bet's legacy row put there by this commit, tools/glyphs.json). Read off the source; a GM user
+         * asked for both answers none. Red at 848b449: none of it.
+         */
+        const sources = new Map(await otherSources());
+        const events = stripComments(sources.get("events.mjs") ?? "");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => ""));
+        const icons = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => "");
+        must(events.length > 5000 && css.length > 5000 && icons.length > 5000, "events.mjs, danganronpa.css or pixel-icons.css not read - this would measure nothing");
+        const rootBlock = bodyOf(icons, ":root {", { until: "\n}\n" });
+        const render = bodyOf(events, "export function renderEvents(", { until: "\n}\n" });
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const E = await import("./events.mjs");
+        const gm = { id: "R3823GM", isGM: true };
+        const card = (kind, glyph) => new RegExp(`\\.drpg-event\\[data-kind="${kind}"\\] \\.drpg-event-glyph \\{ --drpg-glyph: var\\(--drpg-pix-${glyph}\\); \\}`).test(css)
+            && new RegExp(`\\.drpg-event\\[data-kind="${kind}"\\] \\{ --acc:`).test(css) && new RegExp(`--drpg-pix-${glyph}:`).test(rootBlock);
+        const words = keys => keys.every(k => [en, pl].every(l => typeof k.split(".").reduce((o, x) => o?.[x], l.DRPG?.Events) === "string"));
+        equal(JSON.stringify({
+            built: [/export function bribeWaitCard\(/.test(events), /export function betCard\(/.test(events)],
+            // Through the Monocub's one card since the C19 fix (`cubCard`, R3824).
+            drawn: [/\bcubCard\(\)/.test(render) && /\bbribeWaitCard\(user\)/.test(bodyOf(events, "export function cubCard(", { until: "\n}\n" })),
+                /\bcubCard\(\)/.test(render) && /\bbetCard\(user\)/.test(bodyOf(events, "export function cubCard(", { until: "\n}\n" }))],
+            looks: [card("bribeHope", "bribe"), card("betHope", "ghost-bet")],
+            words: [words(["bribeWaitTitle", "bribeWaitMeta", "ticker.bribeHope"]), words(["betTitle", "betMeta", "ticker.betHope"])],
+            gm: [typeof E.bribeWaitCard === "function" ? E.bribeWaitCard(gm) : "none", typeof E.betCard === "function" ? E.betCard(gm) : "none"]
+        }), JSON.stringify({ built: [true, true], drawn: [true, true], looks: [true, true], words: [true, true], gm: [null, null] }),
+            "the Event panel does not tell a Monocub of part B ([builders, drawn in the list, glyph on :root and accent, words EN/PL, a GM's screen draws none])");
+    }],
+
+    ["R3807 - the handbooks and the brochure tell the Monocub as it plays since E72: each player text quotes the Monocub Rule as lang says it and names the four tiles, Redeem and Ask for Hope among them; each GM handbook names the invitation's button as lang does and says no tile pays before the GM's side carries the move out (E72 C12; S18-63)", async () => {
+        /*
+         * E72 C12, 12.11.2026; audit S18-63. Part A changed what a Monocub is - invited and bound by the Monocub Rule (C6), four
+         * tiles (C5, C9), paid on the GM after the conditions (C1), every room the class found (C10) - and the player's texts
+         * still said "after your trial ... Move and Confusion", the GM's "Invite them from Students ... exactly two things". Read
+         * off the six files the module serves: each player handbook and brochure quotes `DRPG.Monocub.rule` of its own language
+         * and names Redeem and Ask for Hope; each GM handbook names `DRPG.Monocub.invite` of its language and says the price is
+         * taken after the checks (EN "takes the action and the Hope only then", PL "dopiero potem bierze akcję i Hope"). Red at
+         * 97d09e1: none of the six.
+         */
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const words = (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())).DRPG.Monocub;
+            const doc = async name => fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.${lang}.md`).then(r => (r.ok ? lfText(r) : ""));
+            const [player, brochure, gm] = [await doc("player-handbook"), await doc("player-brochure"), await doc("gm-handbook")];
+            must(player.length > 10000 && brochure.length > 1000 && gm.length > 10000, `the ${lang} handbooks were not read - this would measure nothing`);
+            const tiles = text => text.includes("Redeem") && text.includes("Ask for Hope");
+            const rule = String(words.rule ?? "").replace(/[.]$/, "");
+            const paid = lang === "en" ? "takes the action and the Hope only then" : "dopiero potem bierze akcję i Hope";
+            read[lang] = [player.includes(words.rule) && tiles(player),
+                brochure.includes(lang === "en" ? "Monocub Rule" : "Zasadę Monocuba") && tiles(brochure),
+                gm.includes(`**${words.invite}**`) && gm.includes(rule) && gm.includes(paid)];
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: [true, true, true], pl: [true, true, true] }),
+            "a text tells the Monocub as before E72 ({language: [the player handbook quotes the Rule and names the four tiles, the brochure names the Rule and the tiles, the GM handbook names the invitation's button, quotes the Rule and says the price comes after the checks]})");
+    }],
+
+    ["R3808 - a Monocub's Hope is its sheet's and its purse's together: no function of monocub.mjs reads the sheet's Hope alone but the purse's own four (cubHopeTotal, spendCubHope, refundCubHope, redeemHope) and setMonocub's clean start (E72 C14; DC37)", async () => {
+        /*
+         * E72 C14, 12.11.2026; the owner's DC37 ("a purse in the GM store, spent before the sheet; the 6-Hope limit counts the
+         * sum"). The Hope a Bribe or a Bounty pays a Monocub goes to its purse (`cubStore`'s `purse`), and every threshold
+         * of a Monocub - the price, the full Hope that shuts Redeem and Ask for Hope - counts the sum (`cubHopeTotal`). Read
+         * off monocub.mjs, comments blanked: every top-level function that reads the sheet's Hope (`resourceValue(...,
+         * "hope")` or `resources.hope`) is one of the purse's four. Red at 51df7b4: the hopeFull block, the price's
+         * check, the payment, the Tinker refund and the picker's check read the sheet alone.
+         */
+        const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        must(src.length > 20000, "monocub.mjs was not read - this would measure nothing");
+        const tops = [...src.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+        const readers = new Set();
+        for (const m of src.matchAll(/resourceValue\([^)]*"hope"\)|resources\.hope\b|resources\?\.hope\b/g)) {
+            const fn = tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)";
+            readers.add(fn);
+        }
+        // A read inside a table entry (CUB_BLOCKS) sits after the last function before it, so the table is read by name too.
+        const blocks = bodyOf(src, "export const CUB_BLOCKS", { until: "\n});\n" });
+        equal(JSON.stringify([[...readers].sort(), /resourceValue\([^)]*"hope"\)|resources\.hope\b/.test(blocks)]),
+            // setMonocub writes the sheet's Hope to 0 at the start (a Monocub starts clean, E15 C4), a write and no threshold.
+            // offerBribeOnGm and answerBribeOnGm read the payer's Hope, a living student's (E72 C15), and no Monocub's.
+            // CHANGED ON PURPOSE BY THE E72 FIX ROUND (12.11.2026, review #3): the price and the refund read under the
+            // purse's lock, in spendCubHopeNow and refundCubHopeNow, which spendCubHope and refundCubHope run.
+            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "offerBribeOnGm", "redeemHope", "refundCubHopeNow", "setMonocub", "spendCubHopeNow"], false]),
+            "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
+    }],
+
+    ["R3812 - a student's co-owners (D078): every ownerOf call is one owner on purpose, by the census; no check of \"is the owner\" names one owner but the Mastermind's; a ruling goes to the thread its card is in; the lone finder tells every owner (E91 C6)", async () => {
+        /*
+         * E91 C6, 12.11.2026; the owner's deferred item D078 ("a student's co-owners: rolls, cards, threads, 'is the
+         * owner'") and Q-E91-1's default (the goal's four; the rest recorded per call). utils.mjs `ownerOf` answers ONE
+         * player (the first connected owner, else the first); a check written `ownerOf(actor)?.id === user.id` answered
+         * no for a second owner. Read here, comments blanked, every module file: each file's `ownerOf(` calls are the
+         * census below, each with why one owner is right there; no `ownerOf(...)?.id ===` or `!==` outside the
+         * Mastermind's (actsAsMastermind and the door: one player on purpose, R560); messenger-app.mjs's rulings post to
+         * `rulingThread` (the card's own thread); chapter.mjs `tellLoneFinder` reads `ownerIdsOf`. Rolls and an
+         * incident's audience took every owner at E18 fix e1-G7, and cards go to every owner (`whisperToOwner`). Red
+         * before C6: incident-store.mjs, sfx.mjs, trial-prompt.mjs and chapter.mjs called it, messenger-app.mjs seven
+         * times.
+         */
+        const CENSUS = {
+            // threadOf's fallback: a card no asker owns goes to one thread, the first owner's.
+            "call-gm.mjs": 1,
+            // The Mastermind's player: one on purpose (the door flag twice, the door's packet once; R560).
+            "mastermind.mjs": 3,
+            // rulingThread's fallback: a card in no player's thread goes to the first owner's.
+            "messenger-app.mjs": 1,
+            // A GM's read of the owner's copy (the same for every owner); "a player owns it" at all; the change's author;
+            // the Ask for Hope's card in one thread.
+            "monocub.mjs": 5,
+            // The opening roll is asked of one player.
+            "murder-rules.mjs": 1,
+            // The secrets one account is in on, read for the observer's first owner.
+            "observe.mjs": 1,
+            // The Mastermind (actsAsMastermind, the door's row, roomNamerFor's reading of it): one player on purpose.
+            "passages-gm.mjs": 3,
+            // A character's sound to the one connected owner.
+            "sfx-play.mjs": 1
+        };
+        const sources = await moduleSources();
+        const found = {};
+        const compared = [];
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file) || file === "utils.mjs") continue;
+            const src = stripComments(raw);
+            const n = (src.match(/\bownerOf\(/g) ?? []).length;
+            if (n) found[file] = n;
+            if (/\bownerOf\([^;]*?\)\?\.id\s*[!=]==/.test(src) && !["mastermind.mjs", "passages-gm.mjs"].includes(file)) compared.push(file);
+        }
+        must(Object.keys(found).length > 3, "no module file was read - this would measure nothing");
+        const sorted = o => JSON.stringify(Object.fromEntries(Object.entries(o).sort(([x], [y]) => x.localeCompare(y))));
+        equal(sorted(found), sorted(CENSUS), "an ownerOf call is not in the census (a co-owner left out), or the census names one gone");
+        equal(JSON.stringify(compared), "[]", "a check of 'is the owner' asks ownerOf, which names one owner");
+        const app = stripComments(sources.get("messenger-app.mjs") ?? "");
+        const rulings = ["ruleItemWorksOrItemNoEffectOrItemRefuse", "ruleDeclineProject", "ruleReply", "ruleSearchMiss", "ruleObserveMiss", "ruleDecline",
+            "ruleDeclineMurder"].map(name => [name, /rulingThread\(actor, message\)/.test(fnSource(app, name) ?? "")]);
+        equal(JSON.stringify(rulings.filter(([, ok]) => !ok).map(([name]) => name)), "[]", "a ruling does not go to the thread its card is in");
+        const finder = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "tellLoneFinder") ?? "";
+        ok(/ownerIdsOf\(finder\)/.test(finder), "the lone finder's death is told to one owner");
+    }],
+
+    ["R3809 - the handbooks and the brochure tell part B of the Monocub: the player texts name Tinker, Ghost Bet and the Bribe, the player handbook the purse and the Bounty, the GM handbook all five and the move to order, in English and in Polish (E72 C20; S18-63)", async () => {
+        /*
+         * E72 C20, 12.11.2026; audit S18-63, the plan's C20. Part B gave the Monocub Tinker, a purse, the Bribe a living
+         * student offers it, the GMs' Bounty, a move to order and the Ghost Bet (C13-C18); the texts stopped at part A.
+         * Read off the six files the module serves: each names what its reader meets - the player handbook all of them
+         * (the purse in its language's word), the brochure the tiles and the Bribe, the GM handbook all of them and the
+         * move to order. Red at 4dc8125: none named past Redeem and Ask for Hope.
+         */
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const doc = async name => fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.${lang}.md`).then(r => (r.ok ? lfText(r) : ""));
+            const [player, brochure, gm] = [await doc("player-handbook"), await doc("player-brochure"), await doc("gm-handbook")];
+            must(player.length > 10000 && brochure.length > 1000 && gm.length > 10000, `the ${lang} handbooks were not read - this would measure nothing`);
+            const purse = lang === "en" ? /\bpurse\b/ : /sakiewk/;
+            const order = lang === "en" ? /move to order/ : /na zlecenie/;
+            const has = (text, words) => words.every(word => (word instanceof RegExp ? word.test(text) : text.includes(word)));
+            read[lang] = [has(player, ["Tinker", "Ghost Bet", "Bribe", "Bounty", purse]), has(brochure, ["Tinker", "Ghost Bet", "Bribe"]),
+                has(gm, ["Tinker", "Ghost Bet", "Bribe", "Bounty", purse, order])];
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: [true, true, true], pl: [true, true, true] }),
+            "a text stops at part A of the Monocub ({language: [the player handbook, the brochure, the GM handbook name part B]})");
     }],
 
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
@@ -8184,6 +8592,8 @@ const REGRESSIONS = [
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            // E92 C6: the player's own User document, its "Spectator talk" switch.
+            ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
@@ -8695,6 +9105,8 @@ const REGRESSIONS = [
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#givenCounts", "held (E42 fix FG4; the end review's S-M3): a Level Up row's `advances` before its write and at a Finish (`rowGrew`), read as the GMs hold them (`flagsHeldNow` after `judgedFor`) - a player's own raised value, standing until its put-back lands, no longer reads as the row given; the offers are the GMs' store's (`standingOffers`) [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
+            ["SHEET level-up.mjs#da39RowOf", "judged (E64, the DA39 migration): reads a student's maxima, statistics and flags as the GMs hold them (`numberHeld`, `flagsHeldNow`), on the primary GM; a dead student is read as any other, its row only the GM's to confirm (`offerDa39Migration`)"],
+            ["SHEET level-up.mjs#applyDa39Migration", "judged (E64): the primary only (`isPrimaryGm`), each row read again in one `meansWrite` from `numberHeld` and written by a GM's ruling; nothing of a trial reads it"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
             ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); since E79 C16 an Objection only on a GM's browser, judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
@@ -9515,6 +9927,7 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#deadForTrial", "held (E70 C5; E70 fix p1-G1): on the primary in the record's step, after its deaths store has hydrated and every student's writes are judged (`judgedFor`) - `isDeadForGm` and the Monocub flag read through `flagsHeldNow`, so a dead player's console that unsets its death or sets the Monocub flag leaves the list as it was; an open incident's victim only once the GMs hold the death (no living victim, the review's SEC-1) [1b.2]"],
             ["SHEET voice.mjs#trialVoiceLine", "out of scope as a judgement (E70 fix p1-G3): the viewer's own line of who may speak in the trial, on its own client, where no voice tile is drawn - its voice character as `accountRow` ranks it (the trial's list first) and the Monocub flag from the document, as `micHold` reads them; it moves nothing and judges nobody"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
+            ["SHEET voice.mjs#spectatorAccount", "held (E92 C2): on the primary's settle the Spectator's flag is read through `flagsHeldNow`, after every character's writes are judged (`settleTrialVoices`); elsewhere a display, each client's own microphone line"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
@@ -9808,6 +10221,7 @@ const REGRESSIONS = [
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE day-summary.mjs#keepDayEndCard", "this client's own end-of-day board as one card (E94 C3), drawn by sequence.mjs `dayEndElement` from this browser's own rows, the public cards' text and the names escaped there, under the board's i18n title; kept as a summary (`source: \"summary\"`, R297) in place of the Night's summary it folds (`nightFoldsIntoBoard`), and cleaned at save like every snapshot"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "on a GM, a thread card that asks the GMs (`gmAsk`): the player's words in a card (`cardPreview`), kept as the thread's entry - its message and the conversation it opens - under the thread's player only when a GM's session wrote the card, else under its writer (`cardWriter`; a `thread` flag is the writer's to set, E81 fix r2-H1), an author that is no user of this world dropped (R297), and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage) (2)", "on the thread's player, a message in their own thread that somebody else wrote (`cardWriter`): the other party's words in a card (`cardPreview`), kept as the thread's entry and cleaned at save (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
@@ -9852,6 +10266,8 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestPlant", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
             ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, or here from the waiter's quiet result where the drag's road hushes `cannotNow`, H81 fix C3); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestLairLock", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E91 C4, D038)"],
+            ["NOTDONE gm-bridge.mjs#requestLairSeal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E91 C5, D038)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
             ["NOTDONE gm-bridge.mjs#requestRefundCrossing", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; another GM's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E17 C3)"],
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
@@ -9862,6 +10278,7 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestReadyOpen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a readiness round the primary would not open kept like the rest, as a notDone entry (R297; E37 C3)"],
             ["NOTDONE gm-bridge.mjs#requestReadyEnd", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a readiness round the primary would not end kept like the rest, as a notDone entry (R297; E37 C3)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE monocub.mjs#performCubAbility (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason capReached or capDay, a GM's own ask of a student who has had its share of Monocub moves, E72 C4); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["FLAG popup.mjs#onCreateChatMessage#MESSAGE_FLAG", "the module's marker, which any author can put on their own message; what it lets through is judged at the catch-all's SURFACE row and kept as drawn (R297), cleaned at save (R294)"],
@@ -9873,6 +10290,7 @@ const REGRESSIONS = [
             ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; kept as the entry's title (R293), which the store clips to 200 characters (R292)"],
             ["FLAG notice-history.mjs#noticeSecretStored#rerolled", "a Reroll's mark on a private card it replaced, written by a GM into the card's meta (reroll.mjs `markReplacedCard`), read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `rerolled`, no snapshot change (R295, 73-notice-history G3)"],
             ["FLAG notice-history.mjs#noticeSecretStored#MESSENGER_FLAGS.settled", "a GM's ruling on a private call (gm-bridge.mjs `settleCall`), written into the card's meta, read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `settled`, no snapshot change (R295, 73-notice-history G3)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupCentre", "where the card stands, not what it says: `true` alone, and from a GM's card only (`cardWriter`, as `popupForce`); the card is kept in the history as any card is (E62 C5)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
@@ -10121,6 +10539,7 @@ const REGRESSIONS = [
             ["WHO hud.mjs#objectionControl#viewerActor -> which", "the OBJECTION! button of a player's trial row: the viewer's own student and no other actor (R509); the speaker it is aimed at is the primary GM's, not read here (R591; E79 C16)"],
             ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token and the room its update names; fired on the update that names a route's end, never while a put-back is on its way, which is announced when it lands (R506, scenario 66 W2-W4, N13, 76 D N13); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token - at once for a route of one update since E79 C14, else once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2, N13a); once more, `again`, only where the token rests in another room; a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
+            ["HOOK hud.mjs#registerHud#updateActor -> which", "the Event panel's redraw for the Redeem card on a player's own student's Hope or Monocub flag (E72 C9); it calls `renderEvents` alone and chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
             ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#updateScene -> which", "a repaint when the module's `hallRoom` flag of the linked hall changes (E79 C11); the event chooses no room, `tileView` does (scenario 41 N6)"],
@@ -10252,7 +10671,7 @@ const REGRESSIONS = [
             "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
     }],
 
-    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock", async () => {
+    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock, and since E92 round 3 the Spectator switch's team", async () => {
         /*
          * E78 fix r2-H1, 14.10.2026. The orchestrator on G3's glass harness shots (14.10): the tile's two buttons drew as
          * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
@@ -10265,7 +10684,7 @@ const REGRESSIONS = [
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
-        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound", "team"], [], ["no-such-sprite"]]),
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],
 
@@ -11875,7 +12294,7 @@ const REGRESSIONS = [
             "the watcher's body rule finds an execution, an announced or another season's or chapter's body, a Monocub, an old public death or a death the GMs do not hold, or misses one it should find");
     }],
 
-    ["R348 - the dead are not witnesses - only a Monocub is", async () => {
+    ["R348 - the dead are not witnesses, and since E72 a Monocub neither (DC7: \"never\")", async () => {
         /*
          * E11 C1, 1.2.73; audit S06-14 (S13-02 is the same defect); DC7/DX1. The witnesses of a
          * walk-in were every student's token in the room but a hidden one and a body: a dead student
@@ -11885,6 +12304,11 @@ const REGRESSIONS = [
          * (`pending`): the living, a public death, a death the GMs keep, a Monocub, a hidden token,
          * the body itself, a Monokuma (no student), the living in another room, a token of no
          * character, and a death on the document the GMs do not hold.
+         *
+         * CHANGED ON PURPOSE BY E72 C3 (12.11.2026; the owner's DC7, "never": no dead student finds a body). A Monocub
+         * counted as a witness until E72, so a Monocub and one living student walking in were the two a discovery needs,
+         * and a Monocub alone was the lone finder. Now the Monocub is a dead student like any other here. Red at
+         * f22a7e8: ["living", "monocub", "forged"].
          */
         const { witnessesOf } = await import("./chapter.mjs");
         const { FLAGS } = await import("./config.mjs");
@@ -11903,8 +12327,8 @@ const REGRESSIONS = [
         const held = actor => ({ id: actor.id, getFlag: flagsOf(PEOPLE[actor.id].flag ?? null, PEOPLE[actor.id].monocub ?? false) });
         const witnesses = witnessesOf({ tokens, room: "Gym", bodies: new Set(["body"]), students, held,
             pending: id => PEOPLE[id]?.row ?? null, roomOf: t => t.room });
-        equal(JSON.stringify(witnesses.map(t => t.id)), JSON.stringify(["living", "monocub", "forged"]),
-            "a dead student who is not a Monocub, a hidden token, the body, a Monokuma, somebody elsewhere or no character counts as a witness, or a living student or a Monocub does not");
+        equal(JSON.stringify(witnesses.map(t => t.id)), JSON.stringify(["living", "forged"]),
+            "a dead student (a Monocub among them), a hidden token, the body, a Monokuma, somebody elsewhere or no character counts as a witness, or a living student does not");
     }],
 
     ["R349 - only announceBody writes the stamp of a body found", async () => {
@@ -12201,7 +12625,8 @@ const REGRESSIONS = [
         const G = await import("./bridge-guards.mjs");
         const cast = BRIDGE_ACTIONS["vote.cast"], asked = BRIDGE_ACTIONS["vote.ask"];
         ok(cast && asked, "the bridge has no `vote.cast` or no `vote.ask` - a ballot has no road to the primary but a raw packet");
-        const shape = decl => [decl.guards?.[0] === G.knownSender, decl.guards?.[1]?.factory ?? null, decl.sanitize?.fields ?? null,
+        // The Spectator's guard stands second since E92 Q-E92-7 (R3865: a Spectator's account casts no ballot); the third is the players' own.
+        const shape = decl => [decl.guards?.[0] === G.knownSender && decl.guards?.[1] === G.senderNotSpectator, decl.guards?.[2]?.factory ?? null, decl.sanitize?.fields ?? null,
             decl.answer, Boolean(decl.patient), Boolean(decl.resend), Boolean(decl.quiet)];
         equal(JSON.stringify(shape(cast)), JSON.stringify([true, "playersOnly", { round: "num", choice: "raw" }, "reply", true, true, false]),
             "vote.cast is not a known player's alone, a round and a list, answered by the primary and asked again when a primary arrives");
@@ -12990,7 +13415,7 @@ const REGRESSIONS = [
                     oneWindow: [/The survivors' Level Ups come in one window on your client, \*\*The class's Level Ups\*\*/],
                     closeWindow: [/closing the window does the same, except that a student nobody plays is then given nothing/],
                     secondTrial: [/\(\*\*Open a new trial\*\*\) before opening a second trial, Cancel first and the default/],
-                    finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the Mastermind window's or the trial console's \*\*Final Trial verdict\*\* \|/],
+                    finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the trial console's verdict button, which opens \*\*Final Trial verdict\*\* in a Final Trial \|/],
                     season: [/the season counted one on and the Final Trial flag down/],
                     deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
                     finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - on another GM's the console names whom to ask, and Enter presses nothing there/],
@@ -13028,7 +13453,7 @@ const REGRESSIONS = [
                     oneWindow: [/Level Upy ocalałych przychodzą w jednym oknie na twoim kliencie, \*\*Level Upy klasy\*\*/],
                     closeWindow: [/zamknięcie okna robi to samo, tyle że uczeń, którego nikt nie gra, nie dostaje wtedy nic/],
                     secondTrial: [/\(\*\*Otwórz nowy Class Trial\*\*\), zanim otworzy drugą rozprawę, z Anuluj jako pierwszym i domyślnym przyciskiem/],
-                    finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem \*\*Werdykt Final Trial\*\* w oknie Masterminda albo w konsoli Class Trial \|/],
+                    finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera \*\*Werdykt Final Trial\*\* \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
                     deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/],
                     finishRunner: [/Wykonuje się w przeglądarce GMa, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GMa - w przeglądarce innego GMa konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
@@ -13134,7 +13559,10 @@ const REGRESSIONS = [
             ["truth-bullets.mjs createTruthBullet", /realType === "autopsy" && foundIn === undefined \? seasonEpoch\(\)/.test(fnSource(bullets, "createTruthBullet"))
                 && /\.\.\.\(season !== undefined \? \{ epoch: season \} : \{\}\)/.test(fnSource(bullets, "createTruthBullet"))],
             ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "mintCopy"))],
-            ["monocub.mjs setSilenced", /FLAGS\.silencedChapter, \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
+            // The GMs' row since E72 C2 (`cubStore`'s `witness`), where the flag was.
+            // The chapter read once since the 1.2.110 review's V4 (13.11.2026), the mark carrying the verdict before it too.
+            ["monocub.mjs setSilenced", /const chapter = getClock\(\)\.chapter;/.test(fnSource(monocub, "setSilenced"))
+                && /witness: silenced \? \{ chapter, epoch: seasonEpoch\(\), sinceVerdict \}/.test(fnSource(monocub, "setSilenced"))]
         ];
         equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
             "the autopsy's answer key or the crime-witness mark does not name its season");
@@ -15607,6 +16035,7 @@ const REGRESSIONS = [
             ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
             ["cleanup.mjs#proposeReshape", "gm", null, "`resolveCleanup` runs on a GM: the run of `murder.cleanup`, or a GM's own (`local`); its false is read"],
             ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
+            ["monocub.mjs#postHopeAsk", "gm", null, "an Ask for Hope's card (E72 C5): `CUB_RESOLVERS.askHope` runs on a GM, in `cubAbilityOnGm` (the run of `monocub.ability`, or a GM's own); its false leaves the ask closed"],
             ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
             ["projects.mjs#announceTrapReady (2)", "gm", null, "the same, the manual trap's card"],
             ["projects.mjs#offerRepick", "gm", null, "a refused completion's card (E68 C11; D023): the primary's, in the completion's `after`"],
@@ -17098,7 +17527,9 @@ const REGRESSIONS = [
                 && typeof game.drpg?.reopenDebate === "function",
             topic: /"DRPG\.Floor\.topic"/.test(fnSource(floorUi, "openDebate")),
             budget: /budget: \{ minutesAt16: 270 \}/.test(config) && /minutesAt16\) \|\| 270\) \* size \/ 16/.test(fnSource(floorUi, "trialTime")),
-            noKill: /const VERDICT_STEPS = \{\s*correct: \["sentence", "card", "levelUps", "overflow"\],\s*wrong: \["sentence", "card", "offers", "despair", "rule", "overflow"\]\s*\};/.test(vote),
+            // E72 C7: the wrong verdict's "remind" (a card to the Monocubs; it kills nobody either).
+            // E72 C18 adds the step "bets" after the overflow on either verdict (the Ghost Bets settled; no death): changed on purpose.
+            noKill: /const VERDICT_STEPS = \{\s*(?:\/\/[^\n]*\n\s*)?correct: \["sentence", "card", "levelUps", "overflow", "bets"\],\s*(?:\/\/[^\n]*\n\s*)?wrong: \["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"\]\s*\};/.test(vote),
             atExit: /\bexecuteAtExit\(\)/.test(reconcile) && /\bexecuteAtExit\(\)/.test(fnSource(floorUi, "closeTrial")),
             mutedDead: /\bisMutedDead\(actor\)/.test(fnSource(vote, "trialParticipants")) && fnSource(voice, "settleTrialVoices").length > 0,
             api: ["skipStep", "adjustTime", "overruleObjection", "endMode", "returnToDebate", "advanceFloorNow", "extendFloor", "endFloor"]
@@ -17223,7 +17654,10 @@ const REGRESSIONS = [
         const moved = [en.DRPG?.Floor?.nowMovedOn ?? "", pl.DRPG?.Floor?.nowMovedOn ?? ""];
         equal(JSON.stringify({
             close: /sfx: \{ key: "trialClose", gm: true \}/.test(close),
-            final: /playSfxForUsers\(game\.users\.map\(u => u\.id\), "execution"\)/.test(card),
+            // Since E72 C11 (D102) a Final Trial's execution posts the execution card too, and its sound is the card's own
+            // (the same flag, played as an ordinary trial's card plays it), not a sound alone: one
+            // road, read as a card with "execution" and no branch for the Final. Changed on purpose.
+            final: /sfx: \{ key: "execution", gm: true \}/.test(card) && !/\bfinal\b/.test(card),
             rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) playSfx\("rebuttal"\)/.test(floor),
             hud: /\btrialVoiceLine\(\)/.test(time) && /drpg-voice-tile/.test(time),
             bar: /data-drpg-target/.test(bar) && /overruleTargetId\(floor\)/.test(bar) && /drpgTarget/.test(console_),
@@ -18110,7 +18544,8 @@ const REGRESSIONS = [
             ["gm-students.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
             ["mastermind.mjs", "amount", /\[name=amount\]"\)\?\.value/g],
             ["messenger-app.mjs", "${name}", /\bf\.elements\[key\]\?\.value/g],
-            ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
+            // E72 C6 (12.11.2026): monocub.mjs's row went with the old Monocubs window (`openMonocubDialog`, retired); its
+            // donation field is the Students window's above.
             ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
             // E49 A1e: Season setup's own chapter field went; it draws and reads Edit campaign's (`campaignRows`, `readClockForm`).
@@ -18803,7 +19238,22 @@ const REGRESSIONS = [
                 "Reroll.interruptedGivingBack", "Reroll.interruptedPaying", "Reroll.sabotageRedone", "Rolls.awayHope",
                 // E66 C4: a number put where a digit stood, before Health or Sanity (`{n}`, `{drain}`, `{hp}`, `{stress}`).
                 "Cleanup.freeTonight", "Config.CRISIS_ACTIONS.roleReversal.failure", "Config.CRISIS_ACTIONS.selfDefence.failure",
-                "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure"
+                "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure",
+                // E64: the DA39 migration's change of a maximum, a signed number before Health or Sanity ("+1 Health max").
+                "Advance.da39.health", "Advance.da39.sanity",
+                // E72 C5: Ask for Hope's Give and its settled line, a count before Hope.
+                "Monocub.askGive", "Monocub.askGiven",
+                // E72 C14: the purse's line and its tooltip, a count before Hope.
+                "Monocub.purseLine", "Monocub.purseTip",
+                // E72 C15: a Bribe's price, a count before Hope.
+                "Monocub.bribeAccepted", "Monocub.bribeAcceptedCub", "Monocub.bribeAsk", "Monocub.bribeOffered", "Monocub.bribeOfferedCub",
+                "Config.HOPE_CALLS.bribe.effect",
+                // E72 C16: a Bounty's reward, a count before Hope.
+                "Monocub.bountyPosted", "Monocub.bountyPaid",
+                // E72 C18: a Ghost Bet's value, a count before Hope.
+                "Monocub.betPaid", "Monocub.betStands",
+                // E72 C19: the panel's lines, a count before Hope.
+                "Monocub.panelBet", "Monocub.panelBounty", "Monocub.panelOffer"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -18850,7 +19300,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 37, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 71, S: 37, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -19167,7 +19617,8 @@ const REGRESSIONS = [
                     "Zakończ incydent. Próg to pozostałe Health ofiary razy 7, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 5 akcji na porę dnia.",
                     "Dodaj nowe doświadczenie warte +3"]
             },
-            calls: [], callCount: 7,
+            // 8 since E72 C15: Bribe's "{cost} Hope".
+            calls: [], callCount: 8,
             planted: ["a {nope} b", "T", ""],
             digits: { read: true, flagged: [], stale: [] },
             words: { flagged: [], stale: [] },
@@ -19238,7 +19689,7 @@ const REGRESSIONS = [
         const sources = await moduleSources();
         const src = file => stripComments(sources.get(file) ?? "");
         read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES\)/.test(src("explain.mjs")),
-            /baseActions\(\{ wounded \}\) - dark/.test(src("actions.mjs")),
+            /baseActions\(\{ wounded: costsAction \}\) - dark/.test(src("actions.mjs")), // E64 C1c: Wounded's action is Daily Life's alone
             /game\.i18n\.format\(card\.key, \{[^}]*\bseconds\b[^}]*\}\)/.test(fnSource(src("trial-floor.mjs"), "postFloorCard") ?? ""),
             /"DRPG\.Floor\.holdingDebateOver", \{ seconds: Math\.abs\(left\), step: adjustStep\(floor\) \}/.test(src("trial-floor-ui.mjs")),
             /barLabel\(op, adjustStep\(floor\)\)/.test(fnSource(src("trial-floor-ui.mjs"), "trialBar") ?? "")];
@@ -19246,13 +19697,13 @@ const REGRESSIONS = [
             en: {
                 now: ["up to 1 connected room", "up to 5 connected rooms",
                     "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
-                    "With no Health left you get 1 action instead of 2 actions, until somebody patches you up.",
+                    "With no Health left you get 1 action instead of 2 actions in Daily Life and the Investigation, until somebody patches you up.",
                     "You have 2 actions", "A trap is built as projects. Plan about 7-10 progress in total, roughly 4 to 5 actions.",
                     "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
                     "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
-                    "With no Health left you get 2 actions instead of 3 actions, until somebody patches you up.",
+                    "With no Health left you get 2 actions instead of 3 actions in Daily Life and the Investigation, until somebody patches you up.",
                     "You have 3 actions", "A trap is built as projects. Plan about 9-14 progress in total, roughly 5 to 7 actions.",
                     "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
@@ -19261,13 +19712,13 @@ const REGRESSIONS = [
             pl: {
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
-                    "Gdy nie zostało ci już Health, dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
-                    "Gdy nie zostało ci już Health, dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
@@ -19456,13 +19907,14 @@ const REGRESSIONS = [
         const ANOTHER = {
             "gm-students.mjs#openWhoIsAliveDialog": "the Students window: every student with their state, the dead included, for the GM to change it",
             "monocub.mjs#eligibleForMonocub": "the dead who are not a Monocub yet: who may become one",
-            "monocub.mjs#openMonocubDialog": "the Monocubs' window, drawn over the dead",
             "season-wipe.mjs#placeCast": "the season reset's placement of the tokens, by the GMs' record of who is dead",
             "trial-scene.mjs#leftBehind": "whom the trial's return carries, by the gather's rule as the GMs hold it",
             "voice.mjs#deadForTrial": "the trial's dead, whose microphones are off: the other side of the cast",
             "trial-scene.mjs#standingTwice": "the students the trial's return finds on two scenes, by `leftBehind`'s rule",
             "actions.mjs#clearGrants": "the refill's reach, actor by actor as `resetActionsFor` skips the dead (the table's fact), for the grants a boundary opened again ends",
-            "call-pickers.mjs#pickItem": "whose things Contraband can reach: a body's too, a Monokuma's or a Monocub's not"
+            "call-pickers.mjs#pickItem": "whose things Contraband can reach: a body's too, a Monokuma's or a Monocub's not",
+            // E72 C18: the CUB_TARGETS table stands after `blockOf` in the file, so its `student` rule is read under that name.
+            "monocub.mjs#blockOf": "whom a Ghost Bet may name (CUB_TARGETS.student): any student of the class but the Monocub and another Monocub"
         };
         // `studentActors` with the GMs' `held` too (E24 fix G1: voice.mjs `deadForTrial` reads the roster through it).
         const WALKS = /\bstudentActors\((?:\)|\{ held(?:: \w+)? \}\))|\blivingStudents(?:ForGm)?\(\)|\bgame\.actors\.(?:filter|find|some|map|forEach)\(|\bof game\.actors\b/;
@@ -19948,7 +20400,8 @@ const REGRESSIONS = [
          * the end review's C-m1): the Final Trial's execution and Mastermind's step need its sentence (`VERDICT_NEEDS`).
          */
         const sources = new Map(await otherSources());
-        const FINAL = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "mastermind"];
+        // CHANGED ON PURPOSE (E72, 12.11.2026; the coordinator's bug): the Final's Ghost Bets settled, "finalBets" (R3815).
+        const FINAL = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "finalBets", "mastermind"];
         const parse = text => { try { return JSON.parse(text.replace(/([{,]\s*)(\w+):/g, '$1"$2":')); } catch { return null; } };
         const lang = {};
         for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
@@ -19980,8 +20433,9 @@ const REGRESSIONS = [
         ok(planted !== vote && JSON.stringify(readOf(planted).finalForbidden) === JSON.stringify(["card"]),
             "the reader does not name a Final step keyed \"card\" planted in FINAL_VERDICT_STEPS");
         equal(JSON.stringify(readOf(vote)), JSON.stringify({
-            ordinary: { correct: ["sentence", "card", "levelUps", "overflow"], wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"] },
-            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", finalExecution: "finalSentence", mastermind: "finalSentence" },
+            // E72 C7 (changed on purpose): the wrong verdict's "remind", after its card, before the overflow. E72 C18: "bets" last on both.
+            ordinary: { correct: ["sentence", "card", "levelUps", "overflow", "bets"], wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"] },
+            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card", finalExecution: "finalSentence", mastermind: "finalSentence", finalBets: "finalCard" },
             final: FINAL, finalForbidden: [], unrun: [], unlabelled: [], finalTable: true, runners: []
         }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
             + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "
@@ -20198,9 +20652,11 @@ const REGRESSIONS = [
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
             // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
-            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches.
-            counts: [19, 11, 36], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 36, the clock's entry does not "
+            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
+            // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
+            // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
+            counts: [19, 11, 38], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 38, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -22197,7 +22653,7 @@ const REGRESSIONS = [
             "action-report.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
             "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
-            "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
+            "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
             // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
             "case-summary.mjs": {"message": 1},
@@ -22209,9 +22665,12 @@ const REGRESSIONS = [
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
             "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},
-            "level-up.mjs": {"heading": 1, "line": 2}, "mastermind.mjs": {"message": 1},
+            "level-up.mjs": {"heading": 1, "line": 4}, "mastermind.mjs": {"message": 1},
             "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
-            "monocub.mjs": {"line": 5, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
+            /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
+               Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
+               (E91 C4, D038), every one in a form this census names. */
+            "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
             "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
             "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 5},
@@ -22219,7 +22678,7 @@ const REGRESSIONS = [
             "projects.mjs": {"built": 3, "line": 8, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
             "remnants.mjs": {"built": 1, "card": 1, "heading": 2, "line": 1}, "requirements.mjs": {"built": 1},
             "reroll-receipts.mjs": {"card": 1}, "reroll.mjs": {"heading": 3, "line": 3}, "rest.mjs": {"action": 1},
-            "roll-draw.mjs": {"built": 2, "card": 1, "message": 1}, "room-setup.mjs": {"message": 1},
+            "roll-draw.mjs": {"built": 2, "card": 1, "message": 1},
             "rules.mjs": {"built": 3, "message": 3}, "safeword.mjs": {"built": 3},
             "search-tokens.mjs": {"heading": 1, "line": 1}, "season-wipe.mjs": {"heading": 1},
             "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 9},
@@ -22228,8 +22687,8 @@ const REGRESSIONS = [
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
             "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"message": 1}, "trial.mjs": {"line": 9, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
-            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 2},
-            "verdict.mjs": {"built": 3, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
+            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3, "message": 1},
+            "verdict.mjs": {"built": 3, "line": 1, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
         };
         const card = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/chat-card.mjs`).then(r => r.ok ? lfText(r) : ""));
         const { FACES } = await import("./tests-glyphs.mjs");
@@ -22545,7 +23004,7 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             gateReads: ["gmPlaceOf", "bodyPlaceOf", "gmPlaceOf"], bodyBranch: true, hiddenFromPlace: true, friskImports: true,
-            lootBody: [], lootAsks: true, transferLoot: true, transferReads: ["sameRoom"], greyReads: [], greyAsks: true
+            lootBody: [], lootAsks: true, transferLoot: true, transferReads: [], greyReads: [], greyAsks: true
         }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
     }],
 
@@ -22948,8 +23407,9 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
-                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
-            once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 5, true], ["foundry", "game", 2, true]],
+            // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
+            once: [], others: ["sfxVary", "sequences"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "

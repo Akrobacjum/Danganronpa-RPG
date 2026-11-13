@@ -28,7 +28,7 @@ import {
     guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmBuyerHope,
     guardArmGmYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress,
     guardProjectFrozen, guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf,
-    remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly, playersOnly, canSeeProject, inRange, as, pick, judge,
+    remnantSourceOf, knownSender, notSpectator, senderNotSpectator, owns, ownsActorAt, gmOnly, playersOnly, canSeeProject, inRange, as, pick, judge,
     bridgeRequest
 } from "./bridge-guards.mjs";
 import {
@@ -43,18 +43,18 @@ import {
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
-    ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
+    ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
-    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
+    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
     handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
-    handleRefundCrossing, handlePassageFind, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
+    handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
-    handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
+    handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling
 } from "./bridge-runs-acts.mjs";
 import {
@@ -102,7 +102,7 @@ import {
 export const BRIDGE_ACTIONS = table({
     [ACTION_OBSERVE_TARGET]: {
         label: "DRPG.Bridge.what.observe.target",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, declaration: as.raw, request: as.text }),
         run: handleObserveTarget,
         answer: "reply", patient: true, resend: true,
@@ -110,14 +110,14 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_CLEANUP_TRACES]: {
         label: "DRPG.Bridge.what.cleanup.traces",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, mine: as.bool }),
         run: handleCleanupTraces,
         answer: "reply", resend: true
     },
     [ACTION_OBSERVE_RESOLVE]: {
         label: "DRPG.Bridge.what.observe.resolve",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleObserveResolve,
         // The "got it" only: the run can wait on the GM describing what was found
@@ -133,7 +133,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_ANALYZE_RESOLVE]: {
         label: "DRPG.Bridge.what.analyze.resolve",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleAnalyzeResolve,
         answer: "reply",
@@ -144,7 +144,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, picks: as.raw, offerId: as.id }),
         run: handleAdvancement,
         answer: "ack",
@@ -164,7 +164,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_ADVANCEMENT_ASK]: {
         label: "DRPG.Bridge.what.advancement.ask",
-        guards: [knownSender, playersOnly("a GM asks for nothing here")],
+        guards: [knownSender, senderNotSpectator, playersOnly("a GM asks for nothing here")],
         sanitize: pick({}),
         run: handleAdvancementAsk,
         answer: "none", quiet: true,
@@ -174,7 +174,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_GIVE_ITEM]: handover("DRPG.Bridge.what.handover.item"),
     [ACTION_PASSAGE_SHARE]: {
         label: "DRPG.Bridge.what.passage.share",
-        guards: [knownSender, owns("actorId", "sender does not own the character showing it")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character showing it")],
         sanitize: pick({ actorId: as.id, targetId: as.id, passageId: as.id }),
         run: handlePassageShare,
         answer: "ack",
@@ -185,7 +185,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_PASSAGE_CROSS]: {
         label: "DRPG.Bridge.what.passage.cross",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, passageId: as.id }),
         run: handlePassageCross,
         answer: "reply",
@@ -208,9 +208,35 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         claims: { actorId: "movement.mjs refundLastCrossing gives back only the GMs' own record of that character's newest crossing (gm-stores.mjs `crossingStore`), once, on the primary" }
     },
+    /*
+     * THE MASTERMIND'S DOOR (E91 C4, C5; D038, the owner's "Budujemy" of 12.11.2026). The Mastermind's player locks or
+     * opens their own room with the GM's lock (mastermind.mjs `lockLair`, vault-store.mjs `writeRoomLock`) and seals a
+     * passage at their door with the tab's close (passages-gm.mjs `sealLairPassage`), on the primary. The sender's own
+     * student first; whether that student is the Mastermind and the sender the owner the door names
+     * (`actsAsMastermind`), and the lair, are the GMs' record's, judged in the run; every refusal is "nothing was carried
+     * out", so another player's ask learns nothing of the role. Tier 2 "D038 lair lock" and "D038 lair seal".
+     */
+    [ACTION_LAIR_LOCK]: {
+        label: "DRPG.Bridge.what.mastermind.lairLock",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, lock: as.bool }),
+        run: handleLairLock,
+        // The Mastermind's line says the door is locked or open: a reply, or nothing changed.
+        answer: "reply"
+    },
+    [ACTION_PASSAGE_LAIR_SEAL]: {
+        label: "DRPG.Bridge.what.passage.lairSeal",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, passageId: as.id }),
+        run: handlePassageLairSeal,
+        answer: "reply",
+        claims: {
+            passageId: "passages-gm.mjs sealLairPassage: an open passage of the GMs' records with a side in the lair the GMs' record names (`presetSideRefusal`), for the sender who acts as the Mastermind through the character (`actsAsMastermind`), on the primary"
+        }
+    },
     [ACTION_PASSAGE_FIND]: {
         label: "DRPG.Bridge.what.passage.find",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handlePassageFind,
         answer: "reply",
@@ -222,7 +248,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_PLANT]: {
         label: "DRPG.Bridge.what.action.plant",
-        guards: [knownSender, owns("plannerId", "sender does not own the character planting")],
+        guards: [knownSender, notSpectator("plannerId"), owns("plannerId", "sender does not own the character planting")],
         sanitize: pick({ plannerId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
             unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handlePlant,
@@ -240,7 +266,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_FRISK_UNSEEN]: {
         label: "DRPG.Bridge.what.action.friskUnseen",
-        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        guards: [knownSender, notSpectator("searcherId"), owns("searcherId", "sender does not own the character searching")],
         sanitize: pick({ searcherId: as.id, targetId: as.id, total: as.num, isCritical: as.bool,
             unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handleFriskUnseen,
@@ -256,7 +282,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_FRISK_ASK]: {
         label: "DRPG.Bridge.what.action.friskAsk",
-        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        guards: [knownSender, notSpectator("searcherId"), owns("searcherId", "sender does not own the character searching")],
         sanitize: pick({ searcherId: as.id, targetId: as.id }),
         run: handleFriskAsk,
         // "reply", answered later (`handleFriskAsk`): a person is deciding, so no clock for the "got it" (`patient`), and the
@@ -280,7 +306,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_FRISK_FOLLOW]: {
         label: "DRPG.Bridge.what.action.friskFollow",
-        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        guards: [knownSender, notSpectator("searcherId"), owns("searcherId", "sender does not own the character searching")],
         sanitize: pick({ searcherId: as.id, askId: as.id, rollId: as.id, total: as.num, isCritical: as.bool }),
         run: handleFriskFollow,
         answer: "reply",
@@ -293,7 +319,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_FIND_STASH]: {
         label: "DRPG.Bridge.what.vault.findStash",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFindStash,
         /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-1 = E16R-04 = E16P2-R4): a Class Trial opened
@@ -308,7 +334,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_STEAL]: {
         label: "DRPG.Bridge.what.action.steal",
-        guards: [knownSender, owns("thiefId", "sender does not own the character stealing")],
+        guards: [knownSender, notSpectator("thiefId"), owns("thiefId", "sender does not own the character stealing")],
         sanitize: pick({ thiefId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
             unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handleSteal,
@@ -325,7 +351,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_VAULT_STEAL]: {
         label: "DRPG.Bridge.what.vault.steal",
-        guards: [knownSender, owns("thiefId", "sender does not own the character searching")],
+        guards: [knownSender, notSpectator("thiefId"), owns("thiefId", "sender does not own the character searching")],
         sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool, rollId: as.id }),
         run: handleVaultSteal,
         /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-2 = E16R-03 = E16P2-R2): a Search that takes a
@@ -343,7 +369,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_OPENING_RESULT]: {
         label: "DRPG.Bridge.what.murder.openingResult",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, side: as.raw, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
         run: handleOpeningResult,
         answer: "ack",
@@ -354,7 +380,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_CRISIS]: {
         label: "DRPG.Bridge.what.murder.crisis",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character"), guardCrisisAction, guardCrisisRoll],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character"), guardCrisisAction, guardCrisisRoll],
         // murder.mjs before the guards, as the handler imported it (the plan's W2).
         prepare: () => import("./murder.mjs"),
         sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, undo: as.gmFlag,
@@ -378,14 +404,14 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_PARK_MURDER]: {
         label: "DRPG.Bridge.what.murder.park",
-        guards: [knownSender, owns("killerId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("killerId"), owns("killerId", "sender does not own that character")],
         sanitize: pick({ killerId: as.id, room: as.maybeText, note: as.text, proposed: as.maybeText }),
         run: handleParkMurder,
         answer: "reply"
     },
     [ACTION_BETRAYAL]: {
         label: "DRPG.Bridge.what.murder.betrayal",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, note: as.text, proposed: as.maybeText }),
         run: handleBetrayal,
         // Answered once carried out (E32 C5b): in an Eclipse the asker has paid an action
@@ -394,7 +420,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_CLEANUP]: {
         label: "DRPG.Bridge.what.murder.cleanup",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         // cleanup.mjs before the guards, as the handler imported it.
         prepare: () => import("./cleanup.mjs"),
         sanitize: pick({ actorId: as.id, tokenId: as.id, key: as.text, targetId: as.id, total: as.num, isCritical: as.bool,
@@ -416,17 +442,46 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_CUB_ABILITY]: {
         label: "DRPG.Bridge.what.monocub.ability",
         // `key` and `choice` are claims the guard holds to the table (a row, a Monocub, one of the row's choices).
-        guards: [knownSender, owns("actorId", "sender does not own that Monocub"), guardCubAbility],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that Monocub"), guardCubAbility],
         // No total, critical or roll: the GM throws the row's dice itself (E08+E28 C17; monocub.mjs `cubAbilityOnGm`; R218).
         sanitize: pick({ actorId: as.id, key: as.text, targetId: as.id, choice: as.text }),
         run: handleCubAbility,
         // The roll it threw goes back, for the Monocub's card.
         answer: "reply",
-        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
+        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room, or for Tinker (E72 C13) a public, unfinished, unfrozen project there that a living student worked on this time of day; an id that is neither is refused as a missing one" }
+    },
+    [ACTION_CUB_ANSWER]: {
+        label: "DRPG.Bridge.what.monocub.answer",
+        // E72 C6: the player of a dead student the GMs invited; whether an invitation is open is the GMs' row's (`cubStore`).
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, accept: as.bool }),
+        run: handleCubAnswer,
+        // The player's window says what came of it (a Monocub now, or the invitation closed).
+        answer: "reply"
+    },
+    [ACTION_BRIBE_OFFER]: {
+        label: "DRPG.Bridge.what.bribe.offer",
+        // E72 C15: the payer is the sender's own student; the Monocub is judged in the run (`bribeRefusal`).
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, cubId: as.id }),
+        run: handleBribeOffer,
+        // The payer's Call says it was offered, or nothing was spent.
+        answer: "reply",
+        claims: { cubId: "judged by monocub.mjs bribeRefusal in offerBribeOnGm before anything is written: a Monocub, not the payer" }
+    },
+    [ACTION_BRIBE_ANSWER]: {
+        label: "DRPG.Bridge.what.bribe.answer",
+        // E72 C15: the Monocub's own player; the offer is the GMs' row's (`cubStore`'s `bribes`), never the packet's.
+        guards: [knownSender, notSpectator("cubId"), owns("cubId", "sender does not own that Monocub")],
+        sanitize: pick({ cubId: as.id, bribeId: as.id, accept: as.bool }),
+        run: handleBribeAnswer,
+        // The Monocub's window says what came of it.
+        answer: "reply",
+        claims: { bribeId: "judged by monocub.mjs answerBribeOnGm: an offer open in the GMs' row of that Monocub, never the packet's" }
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         // `cost` and `actorName` are sent and never read: the price comes from HOPE_CALLS
         // here, the name from the character (E02; E31). `nonce` names the purchase a GM's
         // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
@@ -458,7 +513,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_DIFFICULTY]: {
         label: "DRPG.Bridge.what.dynamic.difficulty",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText, proposed: as.maybeText }),
         run: handleDifficulty,
         // Not patient, as the Hope Call's (E18 C2, R840).
@@ -511,7 +566,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRAIT_RULING]: {
         label: "DRPG.Bridge.what.trait.ruling",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardTraitRuling],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character"), guardTraitRuling],
         // E68 C1 (DA18): the player's proposal and their words; the guard holds the one to the list, the other to its length.
         sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText, proposed: as.maybeText, note: as.maybeText }),
         run: handleTraitRuling,
@@ -520,7 +575,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_PROGRESS]: {
         label: "DRPG.Bridge.what.project.progress",
         guards: [
-            knownSender,
+            knownSender, notSpectator("actorId"),
             // Progress taken back - a negative amount - was a Reroll's, paid for by a receipt
             // until E08+E28 C8; it is the GM's own Reroll's now.
             guardUndoIsTheGms,
@@ -560,7 +615,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",
         guards: [
-            knownSender,
+            knownSender, senderNotSpectator,
             // You may only share what you can already see.
             //
             // This used to check that the sender was a real user and nothing else,
@@ -582,7 +637,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_REMNANT]: {
         label: "DRPG.Bridge.what.remnant.place",
-        guards: [knownSender, ownsActorAt(payload => payload?.data?.sourceActor, "sender does not own the character leaving it", ["data"])],
+        guards: [knownSender, notSpectator(payload => payload?.data?.sourceActor, ["data"]), ownsActorAt(payload => payload?.data?.sourceActor, "sender does not own the character leaving it", ["data"])],
         sanitize: pick({ data: as.raw, rollId: as.id }),
         run: handleRemnant,
         // Answered once placed (E31), and as failed when it could not be (E31 review):
@@ -597,7 +652,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_TIE_TRACE]: {
         label: "DRPG.Bridge.what.remnant.tieForItem",
-        guards: [knownSender, guardTieTraceHolder],
+        guards: [knownSender, senderNotSpectator, guardTieTraceHolder],
         sanitize: pick({ identity: as.id }),
         run: handleTieTrace,
         answer: "ack",
@@ -623,7 +678,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_SABOTAGE]: {
         label: "DRPG.Bridge.what.project.sabotage",
         guards: [
-            knownSender,
+            knownSender, notSpectator("actorId"),
             // Freezing somebody's work is aimed at a project you found, not at an
             // id. Seeing it is the condition the picker is built from
             // (`sabotageTargetsIn` lists what this user can see), and it was the one
@@ -689,7 +744,7 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.token.sendBack",
         // `knownSender` is new here (E31): a sender Foundry does not know used to be
         // refused as "sender does not own that token", which was true but not why.
-        guards: [knownSender, ownsActorAt(tokenActorOf, "sender does not own that token", ["sceneId", "tokenId"]), guardSendbackPlace],
+        guards: [knownSender, notSpectator(tokenActorOf, ["sceneId", "tokenId"]), ownsActorAt(tokenActorOf, "sender does not own that token", ["sceneId", "tokenId"]), guardSendbackPlace],
         // `REVERT` before the guard, as the handler imported it: the guard's
         // judgement and the write have nothing but microtasks between them.
         prepare: () => import("./movement.mjs"),
@@ -702,7 +757,7 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.body.loot",
         // You may fill your own pockets and nobody else's. Without this, "move
         // that knife onto whoever I like" was a single socket emit away.
-        guards: [knownSender, owns("takerId", "sender does not own the character doing the taking")],
+        guards: [knownSender, notSpectator("takerId"), owns("takerId", "sender does not own the character doing the taking")],
         // E68 C10: several items under one Take (`itemIds`, the run keeps the ids among them), and the Take's Hand roll
         // with the cover's Shadow roll, thrown only where the taker's browser saw a student watching (`coverRollId`).
         sanitize: pick({ takerId: as.id, bodyId: as.id, itemId: as.id, itemIds: as.raw, rollId: as.id, total: as.num,
@@ -733,7 +788,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [
             // Refused out loud, and before the sender is, as the handler asked it.
             guardArmCharacter,
-            knownSender,
+            knownSender, notSpectator(armBuyerId),
             // The BUYER has to be the sender's own character - never the
             // beneficiary, who is somebody else's by definition for Support and For
             // the Game. Every other handler here checked ownership and this one did
@@ -865,7 +920,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_ECLIPSE_MOVE]: {
         label: "DRPG.Bridge.what.eclipse.move",
         // `knownSender` is new here (E31), as for token.sendBack.
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, to: as.maybeText }),
         run: handleEclipseMove,
         answer: "reply",
@@ -886,7 +941,7 @@ export const BRIDGE_ACTIONS = table({
        C5 it also names the card the roll was reported on, which a Reroll marks. */
     [ACTION_ROLL_BOOKMARK]: {
         label: "DRPG.Bridge.what.roll.bookmark",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardRollAuthor],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character"), guardRollAuthor],
         sanitize: pick({ actorId: as.id, messageId: as.id, actionKey: as.maybeText, trait: as.maybeText, experiences: as.raw, context: as.raw,
             reportMessageId: as.id }),
         run: handleRollBookmark,
@@ -907,7 +962,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_REROLL]: {
         label: "DRPG.Bridge.what.reroll.ask",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         // The character's writes this GM has heard judged first (E29 fix r2-H5), as `call.arm`'s are:
         // the Reroll's checks read the Hope the GMs hold, and its payment asks it again where it pays
         // (reroll.mjs `rerollRefusal`, `makeReroll`).
@@ -1021,7 +1076,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_VOTE_CAST]: {
         label: "DRPG.Bridge.what.vote.cast",
-        guards: [knownSender, playersOnly("a GM casts no ballot")],
+        guards: [knownSender, senderNotSpectator, playersOnly("a GM casts no ballot")],
         sanitize: pick({ round: as.num, choice: as.raw }),
         run: handleBallot,
         answer: "reply", patient: true, resend: true,
@@ -1042,7 +1097,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_VOTE_ASK]: {
         label: "DRPG.Bridge.what.vote.ask",
-        guards: [knownSender, playersOnly("a GM asks for nothing here")],
+        guards: [knownSender, senderNotSpectator, playersOnly("a GM asks for nothing here")],
         sanitize: pick({}),
         run: handleBallotAsk,
         answer: "reply", quiet: true,
@@ -1083,7 +1138,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_OBJECT]: {
         label: "DRPG.Bridge.what.trial.object",
-        guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character objecting")],
         sanitize: pick({ actorId: as.id, targetId: as.id }),
         run: handleTrialObject,
         answer: "reply",
@@ -1098,7 +1153,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_EVIDENCE]: {
         label: "DRPG.Bridge.what.trial.evidence",
-        guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character objecting")],
         // `bare`: the card without the Analyze result (E70 C10; Q-p2-3); a packet without it shows the result, as before.
         sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text, bare: as.bool }),
         run: handleTrialEvidence,
@@ -1117,7 +1172,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_WITHDRAW]: {
         label: "DRPG.Bridge.what.trial.withdraw",
-        guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character objecting")],
         sanitize: pick({ actorId: as.id, messageId: as.id }),
         run: handleTrialWithdraw,
         answer: "ack", quiet: true,
@@ -1183,7 +1238,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_TURN]: {
         label: "DRPG.Bridge.what.trial.turn",
-        guards: [knownSender, owns("actorId", "sender does not own the character speaking")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character speaking")],
         sanitize: pick({ actorId: as.id, kind: as.oneOf("done", "pass", "over"), step: as.num }),
         run: handleTrialTurn,
         answer: "reply",
@@ -1201,7 +1256,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_CLAIM]: {
         label: "DRPG.Bridge.what.trial.claim",
-        guards: [knownSender, owns("actorId", "sender does not own the character volunteering")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character volunteering")],
         sanitize: pick({ actorId: as.id }),
         run: handleTrialClaim,
         answer: "reply"
@@ -1211,11 +1266,12 @@ export const BRIDGE_ACTIONS = table({
      * side-pick window"). The owner of a student taking part, with no token of theirs in the hall, stands in Zone A or
      * Zone B by a pick (trial-zones.mjs `sideOnPrimary`): a zone mode on the floor, the character taking part, no hall
      * token; the pick kept on the floor (`zone.picks`), where every browser's count reads it. "reply": the window says
-     * the side is taken.
+     * the side is taken. A Spectator's character is refused first (`notSpectator`, E92 Q-E92-7, R3865), as on every
+     * row a player sends; put on this row and the thesis's below when main's E73 met E92 in the 1.2.109 line.
      */
     [ACTION_TRIAL_SIDE]: {
         label: "DRPG.Bridge.what.trial.side",
-        guards: [knownSender, owns("actorId", "sender does not own the character picking a side")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character picking a side")],
         sanitize: pick({ actorId: as.id, side: as.oneOf("a", "b") }),
         run: handleTrialSide,
         answer: "reply"
@@ -1227,7 +1283,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_KEYWORD]: {
         label: "DRPG.Bridge.what.trial.keyword",
-        guards: [knownSender, owns("actorId", "sender does not own the speaking character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the speaking character")],
         sanitize: pick({ actorId: as.id, text: as.text }),
         run: handleTrialKeyword,
         answer: "reply"
@@ -1242,7 +1298,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_PRESENT]: {
         label: "DRPG.Bridge.what.trial.present",
-        guards: [knownSender, owns("actorId", "sender does not own the character presenting")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character presenting")],
         // `bare`: without the Analyze result (B2), so a packet that names nothing shows what the presenter knows.
         sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text, bare: as.bool }),
         run: handleTrialPresent,
@@ -1277,7 +1333,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_READY_ANSWER]: {
         label: "DRPG.Bridge.what.ready.answer",
-        guards: [knownSender],
+        guards: [knownSender, senderNotSpectator],
         sanitize: pick({ roundId: as.id, ready: as.bool }),
         run: handleReadyAnswer,
         answer: "reply",
@@ -1343,7 +1399,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
-        guards: [knownSender, guardCardSpeaker, guardCardReaders],
+        guards: [knownSender, senderNotSpectator, guardCardSpeaker, guardCardReaders],
         sanitize: pick({ content: as.text, whisper: as.raw, speaker: as.raw, flags: as.raw, summary: as.raw, veiled: as.bool }),
         run: handleCardPost,
         answer: "reply",
@@ -1377,7 +1433,7 @@ export const BRIDGE_ACTIONS = table({
 function handover(label) {
     return {
         label,
-        guards: [knownSender, owns("fromId", "sender does not own the character giving it away")],
+        guards: [knownSender, notSpectator("fromId"), owns("fromId", "sender does not own the character giving it away")],
         sanitize: pick({ fromId: as.id, toId: as.id, itemId: as.id }),
         run: handleShareBulletOrGiveItem,
         answer: "ack",

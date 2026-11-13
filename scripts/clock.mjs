@@ -156,6 +156,20 @@ export async function setClock(patch = {}) {
             if (patch.pausedTotalMs === undefined) next.pausedTotalMs = 0;
             if (next.pausedAt && patch.pausedAt === undefined) next.pausedAt = next.timeOfDayStartedAt;
         }
+        /* WHEN THE DAY BEGAN (E94 C3): the end-of-day board reads its own rows from it, so the stamp moves with the day -
+           the time of day's own stamp when that moved too, the server's clock otherwise. Public, as the clock is. */
+        if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayStartedAt === undefined) {
+            next.dayStartedAt = next.timeOfDayStartedAt ?? serverNow();
+        }
+        /* AND THE DAY'S BOARDS ARE THE ROLL-OVER'S ALONE (12.11.2026; the owner's rule of that day: never on Edit campaign,
+           a correction). `dayBoard` is the day a real roll-over stamped for its boards (sequence.mjs `dayStartPatch`,
+           chapter.mjs's next morning), and transitions.mjs `boardsFor` plays them only on a new day that carries it. Any
+           other write that moves the day - Edit campaign, the rewind, the season's reset, a console's `setClock` - takes
+           it away, so a day put back and moved forward again by hand cannot find an old stamp that matches. Tier 2
+           "E110 day boards B". */
+        if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayBoard === undefined) {
+            next.dayBoard = null;
+        }
         /* WHEN THE CLOCK WAS LAST WRITTEN (E17 fix p2-G1, 26.10.2026): a moment a GM was at the table, which every GM's
            `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud-elapsed.mjs `readyPatch`); `patch` wins, so a restored
            clock keeps its own. */
@@ -334,10 +348,25 @@ export async function advanceTimeOfDay({
     // of day flashing up between the Eclipse and the new one.
     //
     // Where it goes is `clockAfter`'s, below.
-    const next = await setClock({ ...also, timeOfDay, session, day,
+    /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GM's line - kept on this GM's browser
+       until now (`morningLineDraft`), so it is in no world data before the day starts - and the mood's word, worked out
+       here from the students' Hope, the Monocubs' Hope, the Monokumas' Despair and the Overflow count only a GM holds
+       (sequence.mjs `moodInputs`, `moodBand`), go into this one write; any other move clears the morning line alone
+       (`dayStartPatch`), and the mood stands until the next roll-over writes it again. The line is taken from the draft
+       once it is in. */
+    const seq = await import("./sequence.mjs");
+    let draft = "", mood = null;
+    if (rolledOver) {
+        try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
+        try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; }
+    }
+    // the new day as the boards' stamp (`dayBoard`, 12.11.2026): this roll-over plays the day's boards, a correction does not
+    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day });
+    const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });
     if (next && endGrants) await clearGrants();
+    if (next && rolledOver && draft) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
@@ -650,6 +679,10 @@ async function applyTimeOfDayChange(clock, {
 
     // "Behind Closed Doors" seals a room for one time of day.
     await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
+    // A Bribe still unanswered lapses, unpaid, at the turn (E72 C15; monocub.mjs `settleBribes`).
+    await import("./monocub.mjs").then(m => m.settleBribes()).catch(err => warn("Could not lapse the open Bribes", err));
+    // And an unclaimed Bounty (E72 C16; monocub.mjs `lapseBounties`).
+    await import("./monocub.mjs").then(m => m.lapseBounties()).catch(err => warn("Could not lapse the open Bounties", err));
 
     /*
      * ONE TIME OF DAY OFF MONOKUMA'S DEADLINE.
@@ -691,7 +724,8 @@ async function applyTimeOfDayChange(clock, {
  * everything else in this game.
  */
 async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
-    const wounded = summary.actions.filter(r => r.wounded);
+    // Down an action, not merely Wounded (E64 C1c): in the Class Trial the state takes none.
+    const wounded = summary.actions.filter(r => r.costsAction);
 
     const notes = [];
     if (summary.actions.length) {

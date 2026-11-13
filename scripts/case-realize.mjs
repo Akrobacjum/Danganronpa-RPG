@@ -66,9 +66,28 @@ function previewHtml(lines, plan = null) {
         + `<p class="notes">${esc(L("DRPG.CaseRealize.undoNote"))}</p>`;
 }
 
+/* The preview's width (E64-inv round 2): its table and a footer of three in one row, measured in Chromium (the fit pass). */
+const REALIZE_WIDTH = 720;
+
 /**
- * THE PREVIEW (C10; Q7: Close, the default and Enter's, and "Run realization", a state change never under Enter). It
- * writes nothing; Run hands the rooms picked to `runRealization`. Answers what was said, for the panel's line.
+ * THE PREVIEW'S FOOTER (C10; Q7: Close, the default and Enter's, and "Run realization", a state change never under
+ * Enter). UNDO LIVES HERE (E64-inv, 12.11.2026; the owner's pick of the Investigation review): it was a destructive
+ * button of the Investigation bar, pressed rarely and only after a run; it is this window's, shown only while a run's
+ * marks stand (`made`, the count of `madeOf`), and asks first as before (`confirmUndoRealization`). Pure over its
+ * arguments; exported for R3967.
+ */
+export function realizationFooter({ made = 0, run = null } = {}) {
+    return {
+        close: { role: "close", action: "close" },
+        secondary: [{ action: "run", label: L("DRPG.CaseRealize.run"), class: "drpg-state-change", callback: run }],
+        ...(made > 0 ? { destructive: [{ action: "undo", label: L("DRPG.CaseRealize.undo") }] } : {}),
+        default: "close"
+    };
+}
+
+/**
+ * THE PREVIEW (C10). It writes nothing; Run hands the rooms picked to `runRealization`, Undo goes to its question.
+ * Answers what was said, for the panel's line.
  */
 export async function openRealization({ chapter = keyPlan().chapter } = {}) {
     if (!game.user?.isGM) return null;
@@ -84,18 +103,21 @@ export async function openRealization({ chapter = keyPlan().chapter } = {}) {
     const picks = await drpgWindow({
         title: F("DRPG.CaseRealize.title", { chapter }),
         classes: ["drpg-panel", "drpg-window-case-realize"],
+        /* A stated width (E64-inv round 2, 12.11.2026): at the kit's default its table ran 521 px in a 510 px body under
+           Monokuma Legacy, and with Undo its footer went to two rows and its body scrolled 12 px in Polish under Stained
+           Glass at 1366x768 (audit/style-sweep.mjs `--fit`, STILL `case-realize--made`). */
+        width: REALIZE_WIDTH,
         body: previewHtml(lines, plan),
-        footer: {
-            close: { role: "close", action: "close" },
-            secondary: [{ action: "run", label: L("DRPG.CaseRealize.run"), class: "drpg-state-change",
-                callback: (event, button, dialog) => lines.filter(l => l.action === "create").map(l => {
-                    const select = dialog.element.querySelector(`[name="room:${l.slot}"]`);
-                    return { slot: l.slot, room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
-                }).filter(p => p.room) }],
-            default: "close"
-        },
+        footer: realizationFooter({
+            made: Object.keys(madeOf(chapter)).length,
+            run: (event, button, dialog) => lines.filter(l => l.action === "create").map(l => {
+                const select = dialog.element.querySelector(`[name="room:${l.slot}"]`);
+                return { slot: l.slot, room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
+            }).filter(p => p.room)
+        }),
         rejectClose: false
     });
+    if (picks === "undo") return confirmUndoRealization({ chapter });
     if (!Array.isArray(picks)) return null;
     const ran = await runRealization(chapter, picks);
     return ran ? F("DRPG.CaseRealize.ran", { n: ran.placed }) : L("DRPG.CaseRealize.notRun");
@@ -154,7 +176,7 @@ export async function undoRealization(chapter = keyPlan().chapter) {
     return { removed, kept };
 }
 
-/** Undo, asked first (the panel's footer, destructive): answers what was said. */
+/** Undo, asked first (the preview's footer, destructive, since E64-inv): answers what was said. */
 export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {}) {
     if (!game.user?.isGM) return null;
     const { drpgConfirm } = await import("./ui-kit.mjs");

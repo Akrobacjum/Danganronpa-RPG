@@ -257,6 +257,13 @@ const SEED_FINDINGS = `globalThis.__probe08findings = foundry.utils.deepClone(ga
         { id: "probe08f2", text: "The door was locked from inside", mode: "dive", confirmed: false, at: 2 }] });`;
 const DROP_FINDINGS = `if (globalThis.__probe08findings) await game.settings.set("danganronpa-rpg", "trialProgress", globalThis.__probe08findings);
     delete globalThis.__probe08findings;`;
+/* E64-inv (12.11.2026): the realization preview after a run - its Undo shows only while a run's marks stand
+   (case-realize.mjs `realizationFooter`). A mark written to the case's meta row for the capture, no Remnant placed;
+   taken off before the case is dropped. */
+const SEED_MADE = SEED_CASE + `
+    { const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`); await CS.setCaseMeta(globalThis.__probe08case.ch, { made: { "probe08Scene.probe08Token": { run: "probe08", slot: 0 } }, run: "probe08" }); }`;
+const DROP_MADE = `{ const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`); await CS.setCaseMeta(globalThis.__probe08case.ch, { made: {}, run: null }); }
+    ` + DROP_CASE;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -277,7 +284,12 @@ export const WINDOWS = [
     { id: "investigation--map-autopsy", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="autopsy"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-zone", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="probe08-d3"]', call: "m.openInvestigationDashboard()" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
+    // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
+    { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },
+    { id: "new-trace", module: "investigation.mjs", call: "m.openNewTrace({ room: \"Library\" })" },
     { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
+    // E64-inv (12.11.2026): End the chapter, as this world has it - for the fit pass, which holds it to 1366x768 unscrolled (style-sweep.mjs STILL).
+    { id: "chapter-end", module: "chapter.mjs", call: "m.openChapterEndDialog()" },
     { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E99 C5 placed: the console with the case schema in its middle (the same seeded case as case-trial's).

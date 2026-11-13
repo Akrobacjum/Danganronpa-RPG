@@ -150,15 +150,17 @@ import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 import { box, roleButton } from "./ui-kit.mjs";
+import { readSpectatorsWith } from "./spectator.mjs";
 
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
  * E11 C11 (1.2.73): the Level Up's experiences the season reset deletes - a player who unset it would keep them.
  * `notInClass` since E24 C3a (08.11.2026; R1454, 30-security's forgery): a player who set it on their own student
- * would leave every ballot, Level Up and incident's cast the GMs build from monokuma.mjs `studentActors`.
+ * would leave every ballot, Level Up and incident's cast the GMs build from monokuma.mjs `studentActors`. `spectator`
+ * since E92 C1 (R3851): the same, and its account's microphone held and its token hidden from the other players.
  */
-const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
-    "swungWeapon", "betrayalWindow", "monokuma", "notInClass"].map(key => FLAGS[key]),
+const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "da39Rises", "lootTrace",
+    "swungWeapon", "betrayalWindow", "monokuma", "notInClass", "spectator"].map(key => FLAGS[key]),
     /* The stashes a student has found (vault-store.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
        part 2 C3 (design-notes D10): its owner could write it, no judgement read it (`kindOf` answered null), and
        `stealFromVault` opened a concealed stash on it. Spelt here, not imported: this file reaches nothing that imports
@@ -3302,6 +3304,9 @@ function primaryLeft(user, connected) {
 
 /** On every browser; each hook stands aside unless this is the primary GM. At `init`, so the hydration below is not missed. */
 export function registerSheetAudit() {
+    /* Who is a Spectator, as the GMs hold it, for the roads that give one more than a student (E92 DRPG-D1, scripts/spectator.mjs).
+       Registered at init, before a user is known: on a player's browser `flagsHeldNow` finds no mark and reads the document. */
+    readSpectatorsWith(flagsHeldNow);
     Hooks.on("updateActor", (actor, changes, options, userId) => { onSheetWrite("updateActor", actor, changes, options, userId); });
     Hooks.on("createActiveEffect", (effect, options, userId) => { onSheetWrite("createActiveEffect", effect, {}, options, userId); });
     Hooks.on("updateActiveEffect", (effect, changes, options, userId) => { onSheetWrite("updateActiveEffect", effect, changes, options, userId); });

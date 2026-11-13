@@ -1,0 +1,260 @@
+/*
+ * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E76, 12.11.2026; the owner's yes of 12.11,
+ * relayed by the coordinator; the owner's decision P6 of 06.10.2026: Daggerheart's dice classes run in the harness).
+ *
+ * Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25), module/data/action/move-context.mjs - the whole file
+ * (243 lines). Everything after this comment and the one blank line under it is that file byte for
+ * byte, its imports included. It is here because the dice copied beside it import it, or because 2.12's
+ * `actor.rollTrait` builds its config with it (the harness's actor, client-entry.mjs); an import that
+ * lands outside what is copied lands on the harness's glue at the same relative path under lib/dh-dice/,
+ * which says it is not Daggerheart's; audit/harness/README.md ("Daggerheart's dice") names the boundary.
+ *
+ * Re-copy it on an upgrade; never edit it. A model of this file could be wrong in the module's
+ * favour - the reason it is the file itself.
+ *
+ * MIT License, Copyright (c) 2025 WBHarry. The notice in full: lib/dh-dice/LICENSE.
+ */
+
+import { ResourceUpdateMap } from '../actor/resource-update-map.mjs';
+import { omit, pick } from '../../helpers/functional.mjs';
+import D20Roll from '../../dice/d20Roll.mjs';
+
+/** @import DHBaseAction from './baseAction.mjs'; */
+
+/** 
+ * Action specific state/context for a specific use of an action.
+ */
+export class MoveContext {
+    /**
+     * 
+     * @param {import('./_types').MoveContextParams} data RollConfig data or creation data for one 
+     * @param {object} options  Resolved document types for overrides. 
+     *                          Mostly used to pass the event without mutation or in build() after parsing the source data. 
+     * @param {Event} [options.event]
+     * @param {DhActor} [options.actor]
+     * @param {DhItem} [options.item]
+     * @param {DHBaseAction} [options.action]
+     */
+    constructor(data = {}, { actor, item, action } = {}) {
+        // Store documents and resolve missing ones
+        this.action = action ??= data.action;
+        /** @type {DhActor | null} */
+        this.actor = actor ??= data.actor ?? data.action?.actor ?? data.item?.actor ?? null;
+        /** @type {DhItem | null} */
+        this.item = item ??= data.item ?? data.action?.item;
+        
+        // Redirect to the partner if companion. Ideally we shouldn't do this and keep it on the partner,
+        // but the system as a whole expects the partner to be the main roll.
+        // todo: make it work somehow in the dice
+        const partner = this.actor?.system?.partner;
+        if (partner) {
+            this.companion = this.actor;
+            this.actor = partner;
+        }
+
+        this.message = data.message;
+        this.event ??= data.event;
+
+        // Passthrough certain props. This allows RollConfigs to be recreated
+        this.title = data.title ?? _loc(action?.name);
+        this.headerTitle = data.headerTitle;
+        this.actionType = data.actionType ?? action?.actionType ?? 'action';
+        this.fateType = data.fateType;
+
+        this.selectedMessageMode = data.selectedMessageMode ?? game.settings.get('core', 'messageMode');
+        this.tierLimit = data.tierLimit;
+        this.modifications = data.modifications;
+        this.costs = data.costs ?? [];
+        this.targets = data.targets ?? [];
+        this.countdowns = data.countdowns;
+        /** The list of selected experiences */
+        this.experiences = data.experiences ?? [];
+        this.skips = foundry.utils.mergeObject({
+            resources: false,
+            triggers: false,
+            createMessage: false,
+            updateCountdowns: false,
+            reaction: false
+        }, data.skips ?? {});
+        this.damageOptions = data.damageOptions ?? {};
+        /** If set, skips creation of dedicated toChat messages. Used to prevent duplicates. */
+        this.actionChatMessageHandled = Boolean(data.actionChatMessageHandled ?? false);
+        
+        // Initialize props based on the documents and action
+        this.hasSave = Boolean(action?.hasSave);
+        this.hasDamage = Boolean(action?.hasDamage);
+        this.hasEffect = Boolean(action?.hasEffect);
+        this.hasTarget = data.hasTarget ?? Boolean(action?.hasTarget); // targetField sets it to true, even though the action has it to false
+        this.hasHealing = Boolean(action?.hasHealing);
+        this.onSave = action?.save?.damageMod;
+        this.isDirect = false;
+        this.targetUuid = action?.targetUuid;
+        this.rollType = data.rollType ?? null;
+        /** Evaluated main roll @type {InstanceType<typeof game.system.api.dice.DHRoll>} */
+        this.evaluated = data.evaluated ?? null;
+        this.evaluate = action ? this.hasRoll : null; // todo: determine use and see if action filter is required
+
+        // Set the roll has hasRoll. If roll is explicitly set to null, or hasRoll explicitly set to false, keep as null
+        this.roll = data.roll ?? 
+            (data.hasRoll === false || !action?.hasRoll || this.roll === null ? null : action?.roll ?? {});
+        this.hasRoll = Boolean(this.roll);
+        
+        this.damage = data.damage;
+        
+        this.resourceUpdates = new ResourceUpdateMap(this.actor);
+        this.dialog = {}; // updated when keybindings are applied
+
+        // Create roll data. This should probably not be done here, but the codebase expects it
+        // For now we keep this data minimal to not bloat roll objects.
+        // roll.data exists, so eventually remove this, pass config.getRollData() instead of config.data as roll data, 
+        // and replace roll.options.data in Roll objects with roll.data.
+        // This shouldn't happen until a major release occurs, as it will impact a large amount of code
+        this.data = pick(this.getRollData(), ['experiences', 'traits', 'rules', 'action', 'criticalThreshold']);
+
+        const damage = action?.damage;
+        if (actor && damage) {
+            this.isDirect = damage.main?.direct;
+            const groupAttackTokens = damage.main?.groupAttack
+                ? game.system.api.fields.ActionFields.DamageField.getGroupAttackTokens(
+                    this.actor.id,
+                    this.damage.main.groupAttack
+                )
+                : null;
+            this.damageOptions.groupAttack ??= damage.main?.groupAttack
+                ? {
+                    numAttackers: Math.max(groupAttackTokens.length, 1),
+                    range: this.damage.main.groupAttack
+                }
+                : null;
+        }
+
+        this.source = {
+            actor: actor?.uuid,
+            item: item?.id,
+            action: action?.id,
+            originItem: action?.originItem
+        };
+    }
+
+    /**
+     * @returns {typeof CONFIG.Dice.daggerheart[keyof typeof CONFIG.Dice.daggerheart]}
+     */
+    get rollClass() {
+        return CONFIG.Dice.daggerheart[this.rollType] ?? CONFIG.Dice.daggerheart['DHRoll'];
+    }
+
+    getRollData() {
+        const data = this.action?.getRollData() ?? this.item?.getRollData() ?? this.actor?.getRollData() ?? {};
+        data.experiences = this.companion?.system?.experiences ?? this.actor?.system.experiences ?? {};
+        data.traits ??= {};
+        data.rules ??= {};
+        data.action ??= {
+            actionType: this.actionType, 
+            roll: this.roll
+        };
+        data.scale = this.costs?.length // Right now only return the first scalable cost.
+            ? (this.costs.find(c => c.scalable)?.total ?? 1)
+            : 1;
+
+        return data;
+    }
+
+    async initialize() {
+        this.rollType = this.roll?.lite
+            ? 'DHRoll'
+            : this.fateType
+                ? 'FateRoll'
+                : this.actor?.rollClass?.name ?? (this.roll?.type === 'trait' ? 'DualityRoll' : 'DHRoll');
+
+        this.effects = await this.getActionRelevantEffects();
+
+        this.guaranteedCritical = this.actor?.appliedEffects.reduce((a, c) => {
+            const change = c.system.changes.find(ch => ch.key === 'system.rules.roll.guaranteedCritical');
+            if (change) a = true;
+            return a;
+        }, false);
+        if (this.guaranteedCritical) {
+            this.dialog.configure = false;
+        }
+
+        this.applyKeybindings();
+    }
+
+    /** 
+     * Apply the results of an event's options to data
+     * This occurs during the initialize phase
+     */
+    applyKeybindings(event = this.event) {
+        // Apply configure prop, but only if not set to allow overrides
+        // todo: should this be a thing in skips?
+        this.dialog.configure ??= !event || !(event.shiftKey || event.altKey || event.ctrlKey)
+
+        const keys = {
+            normal: event && (event.shiftKey || event.altKey || event.ctrlKey),
+            advantage: Boolean(event?.altKey),
+            disadvantage: Boolean(event?.ctrlKey)
+        };
+
+        // Determine advantage mode
+        if (this.roll) {
+            const advantage = this.roll.advantage === D20Roll.ADV_MODE.ADVANTAGE || keys.advantage || this.advantage;
+            const disadvantage =
+                this.roll.advantage === D20Roll.ADV_MODE.DISADVANTAGE || keys.disadvantage || this.disadvantage;
+            this.roll.advantage = advantage && !disadvantage
+                ? D20Roll.ADV_MODE.ADVANTAGE :
+                !advantage && disadvantage
+                    ? D20Roll.ADV_MODE.DISADVANTAGE
+                    : D20Roll.ADV_MODE.NORMAL;
+        }
+    }
+
+    /**
+     * Get all potentially applicable effects on the actor for the action's RollDialog
+     * @returns {Promise<DhActiveEffect[]>}
+     */
+    async getActionRelevantEffects() {
+        if (!this.actor) return [];
+
+        // todo: replace this.data reference with this.getRollData(). Because of the way cost is handled rn, we can't do that
+        // Luckily, roll phase conditionals don't require very precise roll data yet, data compare is prep phase
+        const applicableEffects = this.actor.allApplicableEffects({ noTransferArmor: true, noSelfArmor: true });
+        return [...applicableEffects].filter(e => !e.isSuppressed).reduce((acc, effect) => {
+            const conditionalPassed = effect.system.testConditionals(this.data, { 
+                phase: CONFIG.DH.EFFECTS.conditionalPhases.roll.id 
+            });
+            if (conditionalPassed)
+                acc.push(effect);
+
+            return acc;
+        }, []);
+    }
+
+    static async build(data, options = {}) {
+        // If this is already a RollConfig and there are no options, do a passthrough
+        // This allows passing users to pass plain objects to functions that expect a RollConfig.
+        // Do not change this behavior without careful consideration - the code likes to bolt on props and they could be lost
+        // todo: initialize if not already initialized
+        if (data instanceof MoveContext && foundry.utils.isEmpty(options)) {
+            return data;
+        }
+
+        if (data.source) {
+            options.actor ??= data.actor ?? await fromUuid(data.source.actor);
+            options.item ??= data.item ?? options.actor?.items.get(data.source.item);
+            // todo: support action. Currently none of this is needed as getters resolve it, but we might eventually need it
+            // It might be handly to make a getter to resolve actor/item/action from source data, as action has multiple cases
+            // Check actorRoll.mjs for implementation
+        }
+
+        const config = new this(data, options);
+        await config.initialize();
+        return config;
+    }
+
+    toJSON() {
+        // MoveContext is pasted to roll.options. We don't want certain properties to get serialized in the roll
+        // We can't omit "data" yet until we reduce reliance on it
+        return omit(this, ['actor', 'item', 'action', 'effects', 'event', 'evaluated']);
+    }
+}
+

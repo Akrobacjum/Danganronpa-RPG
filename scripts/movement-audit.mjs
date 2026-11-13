@@ -20,7 +20,8 @@
  * with a GM on another scene and with floors, is LIVE-E79-02. E17
  * extends `auditMove` rather than writing a second audit: since E17 C1 the doors' rules put a token back
  * from it too, in either mode (`RULE_CODES`). The default stays "log" for the walls and floors (session 0:
- * "tylko log" at the table of 26.10; the default after it is E82's).
+ * "tylko log" at the table of 26.10). No stage holds the default after it: E82, which this said would, is not a
+ * row of tools/stages.json (read 12.11.2026, E64 C8; the orphan D193), so "log" stays until the owner chooses.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -31,7 +32,7 @@ import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
 import { actsAsMastermind, secretDoorHeldShut } from "./passages-gm.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -330,6 +331,8 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             return { verdict: "refused", rule: refused.code, back: refused.back };
         };
         if (isMonokuma((ctx.held ?? (a => a))(actor))) return exempt("Monokuma");
+        // A Spectator walks through walls, as the GMs hold its flag (E92 C3): its moves are a ghost's, judged by no rule.
+        if (isSpectator((ctx.held ?? (a => a))(actor))) return exempt("Spectator");
         if (!isPlaceScene(scene)) return { verdict: "skip", why: "no rooms" };
         if (!was) return rules({ verdict: "skip", why: "never seen" });
         if (options?.[REVERT] || options?.[SENT_BACK]) {
