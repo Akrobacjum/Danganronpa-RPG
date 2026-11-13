@@ -3725,8 +3725,8 @@ const REGRESSIONS = [
         // Counted as well, so nobody satisfies the sweep by deleting the token.
         ok(factored >= 22, `only ${factored} stated sizes carry the factor`);
         // 2 the pause caption's; 4 since E61 C4-C5 (12.11.2026): the sequences' stamp, name and vote sizes, whose host is
-        // the whole screen (danganronpa.css THE SEQUENCES)
-        equal(clamped, 6, "the pause caption and the sequences are no longer the only sizes with a viewport container");
+        // the whole screen (danganronpa.css THE SEQUENCES); 1 since the trial's exit (12.11.2026): its long title's
+        equal(clamped, 7, "the pause caption and the sequences are no longer the only sizes with a viewport container");
         ok(rungs >= 140, `only ${rungs} declarations read a rung - 164 of them did, so some have been unwired`);
     }],
 
