@@ -13,7 +13,7 @@
  *     minut"). A browser that loads during a trial is not told the phase moved (sync.mjs `heard` is read at ready) and a
  *     card in the log is not created again, so no hook plays the event there. Instead, once at ready, `catchUpSequences`
  *     plays the newest event under 10 minutes old (`LATE_PLAY_MS`) - the trial's entry, the verdict's cut-in, the
- *     start-of-day board - that this browser would have seen live and has not played (`lateSequence`); past 10 minutes,
+ *     start-of-day board, and since 1.2.113 the case summary's board - that this browser would have seen live and has not played (`lateSequence`); past 10 minutes,
  *     nothing, and the end state stands. Once per event per browser: every start is written to this browser's own
  *     record (`localStorage`, `drpg-sequences-played`, kept 10 minutes), which a reload reads; nothing goes to the world.
  *     The end-of-day board is not played late: its rows are the day that ended, whose start the new clock no longer
@@ -72,6 +72,12 @@ export const SEQUENCE_TIMES = Object.freeze({
     /* E94 C3, the end-of-day board: the board rises at 200 ms over 500, the rows one by one 120 ms apart from 700, the
        school's mood at 2000 (no number since the owner's word of 12.11), held to 6000, gone in 420; still, 6 s. */
     dayEnd: Object.freeze({ board: 200, rise: 500, rows: 700, rowStep: 120, mood: 2000, hold: 6000, fade: 420, end: 6450, still: 6000, sound: 0 }),
+    /* The case summary's board (fix-113p, 13.11.2026; the owner's item 451 of 09.11: "like the verdict board"): the start-
+       of-day board's frame and rise, the rows one by one 140 ms apart from 700 (each column's rows after the one before
+       it, at most 24 steps, so a long case does not keep the last row waiting past the hold), the note on a wrong vote at
+       the rows' end, held to 9000 - longer than a day's board, its rows are a case's words - gone in 420; still, 9 s. The
+       sound at once: it is the summary's own, as the card played it until this board. */
+    caseSummary: Object.freeze({ board: 200, rise: 500, rows: 700, rowStep: 140, rowsMax: 24, hold: 9000, fade: 420, end: 9450, still: 9000, sound: 0 }),
     verdictCut: Object.freeze({ band: 250, portrait: 250, portraitIn: 420, votes: 900, rowIn: 320, rowStep: 90, bars: 980, barsIn: 600, stamp: 1700, stampIn: 200, sentence: 1950, sentenceIn: 380, hold: 3500, fade: 180, end: 3700, still: 3000, sound: 1700 })
 });
 
@@ -631,6 +637,95 @@ export function playVerdictCut(message) {
 }
 
 /* ========================================================================== *
+ *  THE CASE SUMMARY'S BOARD (fix-113p, 1.2.113; E99 Q-E99-6/-7/-9 left it to E61, which built none)
+ * ========================================================================== */
+
+/*
+ * The owner's decision of 09.11.2026 (audit item 451): after the verdict, a summary on an animated board like the verdict
+ * board; only what was discovered - no undiscovered Remnant, Truth Bullet or deduction - and the solution only when the
+ * class voted right; the GM presses Show summary and the board plays for everyone (D2). The card Send posts
+ * (case-summary.mjs `showCaseSummary`) stays the record and carries the board's payload under `caseBoard`: the payload
+ * `composeCaseSummary` built on the GM - its allowlist is the one reading of "discovered" - and the card's words are
+ * the same payload drawn, so the flag tells a player's browser nothing the card's text does not. Every browser draws
+ * the board from that flag of a GM's new card, through the engine (one start per card, Escape, still under reduced
+ * motion, the table's switch, late for 10 minutes); the Sound slot "Case summary" plays with the board, no longer with
+ * the card (the card has no `sfx` since). A card from before this board carries no `caseBoard` and plays its sound as
+ * it did.
+ */
+
+/* The payload's roles in its order, case-summary.mjs `SUMMARY_ROLES` copied: that file is a GM window's, fetched at idle
+   (open-cost.mjs), and imported here it was loaded at boot on every browser (R4200). R6050 holds the two equal. */
+export const BOARD_ROLES = Object.freeze(["evidence", "deduction", "counter", "solution"]);
+const SUMMARY_ROLES = BOARD_ROLES;
+
+/**
+ * A card's `caseBoard` flag read back to what the board may draw (pure): `{ at, chapter, correct, nodes, links }` with
+ * each node's role one of `SUMMARY_ROLES` and only its name and words, each link two indices of the kept nodes. A
+ * field, a role or a link the payload does not have is dropped: the flag is a claim the GM's card makes, read as the
+ * payload's shape and nothing more. Null with no flag or no `at`.
+ */
+export function caseBoardOf(flag) {
+    if (!flag || typeof flag !== "object" || !(typeof flag.at === "number" || typeof flag.at === "string") || flag.at === "") return null;
+    const str = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
+    const index = new Map(), nodes = [];
+    (Array.isArray(flag.nodes) ? flag.nodes : []).slice(0, 80).forEach((n, i) => {
+        if (!n || typeof n !== "object" || !SUMMARY_ROLES.includes(n.role)) return;
+        index.set(i, nodes.length);
+        nodes.push({ role: n.role, name: str(n.name, 200), text: str(n.text, 1200) });
+    });
+    const links = (Array.isArray(flag.links) ? flag.links : []).slice(0, 160)
+        .filter(l => l && index.has(l.from) && index.has(l.to) && l.from !== l.to)
+        .map(l => ({ from: index.get(l.from), to: index.get(l.to), kind: l.kind === "refutes" ? "refutes" : "input" }));
+    return { at: flag.at, chapter: Number.isInteger(flag.chapter) ? flag.chapter : null, correct: flag.correct === true, nodes, links };
+}
+
+/** The board of a GM's case summary card, or null (a player's message, a card from before the board, no flag). */
+export function caseSummaryBoard(message) {
+    if (!message?.author?.isGM) return null;
+    return caseBoardOf(message.getFlag?.(MODULE_ID, "caseBoard"));
+}
+
+/** The case summary's board as an element, still: the start-of-day board's frame, one column per role present, each
+ *  entry a row of its name and words, the links in words, and on a wrong vote the line that the solution stays hidden. */
+export function caseSummaryElement(board) {
+    const L = key => game.i18n.localize(key);
+    const el = document.createElement("div");
+    el.className = "drpg-seq-day drpg-seq-case";
+    const cols = SUMMARY_ROLES.map(role => [role, board.nodes.filter(n => n.role === role)]).filter(([, list]) => list.length);
+    const name = i => esc(board.nodes[i]?.name || "-");
+    el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.CaseSummary.title", { chapter: board.chapter ?? "" }))}</h2>
+        <div class="drpg-seq-dayend-cols">${cols.map(([role, list]) => `<section class="drpg-seq-case-col" data-drpg-role="${role}"><h3>${esc(L(`DRPG.CaseSummary.role.${role}`))}</h3>
+            <ol>${list.map(n => `<li class="drpg-seq-row"><strong>${esc(n.name || "-")}</strong>${n.text ? `<span>${esc(n.text)}</span>` : ""}</li>`).join("")}</ol></section>`).join("")}</div>
+        ${board.links.length ? `<ul class="drpg-seq-case-links">${board.links.map(l => `<li>${name(l.from)} ${l.kind === "refutes" ? "&#8856;" : "&#8594;"} ${name(l.to)}</li>`).join("")}</ul>` : ""}
+        ${board.correct ? "" : `<p class="drpg-seq-tally drpg-seq-case-note">${esc(L("DRPG.CaseSummary.noSolution"))}</p>`}`;
+    return el;
+}
+
+export function drawCaseSummary(ctx, board) {
+    const { host, times: T, anim } = ctx;
+    const el = caseSummaryElement(board);
+    host.append(el);
+    anim(el, [{ opacity: 0, transform: "translate(-50%, -50%) translateY(40px)" }, { opacity: 1, transform: "translate(-50%, -50%)" }], { duration: T.rise, delay: T.board });
+    const rows = [...el.querySelectorAll(".drpg-seq-row")];
+    const step = i => T.rows + Math.min(i, T.rowsMax) * T.rowStep;
+    rows.forEach((r, i) => anim(r, [{ opacity: 0, transform: "translateX(-24px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 360, delay: step(i) }));
+    anim(el.querySelector(".drpg-seq-case-links"), [{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay: step(rows.length) });
+    anim(el.querySelector(".drpg-seq-case-note"), [{ opacity: 0, transform: "scale(1.06)" }, { opacity: 1, transform: "scale(1)" }], { duration: 420, delay: step(rows.length) });
+    anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
+}
+
+/**
+ * The board, from a new chat message on this browser: a GM's case summary card with its `caseBoard` (Send in the
+ * summary's preview), created after this client's ready. A player's message with the same flag starts nothing. The
+ * Sound slot "Case summary" is the board's (played with it, alone with the table's switch off, at once when still).
+ */
+export function playCaseSummary(message) {
+    const board = caseSummaryBoard(message);
+    if (!board) return null;
+    return playSequence("caseSummary", `summary:${board.at}`, ctx => drawCaseSummary(ctx, board), { sound: () => playSound("caseSummary") });
+}
+
+/* ========================================================================== *
  *  E94: THE START-OF-DAY BOARD
  * ========================================================================== */
 
@@ -931,7 +1026,7 @@ export function onPhaseChanged(phase, clock = getClock()) {
  * THE EVENT A LATE BROWSER STILL PLAYS (gaps-111; the header's "LATE FOR 10 MINUTES"). From what this browser holds -
  * the clock and the chat it was sent - the newest of: the trial's entry (the clock in a Class Trial, its edge stamped
  * `timeOfDayStartedAt`), a GM's verdict card (its `verdictAt`, at the message's time; one this user cannot see is not
- * theirs, as it never reached them live) and the start-of-day board (a day the real roll-over stamped, `dayBoard`, at
+ * theirs, as it never reached them live), a GM's case summary card (its board, `caseBoard`, at the message's time) and the start-of-day board (a day the real roll-over stamped, `dayBoard`, at
  * `dayStartedAt`; a correction writes no stamp and plays nothing, as live). An event counts while `now` is under
  * `LATE_PLAY_MS` after it - one stamped a little ahead of this browser's server time is the writer's skew, and new - and
  * when `played` (this browser's record) does not hold it. Every connected browser plays these three live, the GMs, the
@@ -951,6 +1046,11 @@ export function lateSequence({ clock = null, messages = [], now = 0, played = {}
         if (at == null) continue;
         found.push({ kind: "verdictCut", key: `verdict:${at}`, at: Number(message.timestamp), message });
     }
+    for (const message of messages ?? []) {
+        if (message?.visible === false) continue;
+        const board = caseSummaryBoard(message);
+        if (board) found.push({ kind: "caseSummary", key: `summary:${board.at}`, at: Number(message.timestamp), message });
+    }
     const fresh = found.filter(e => Number.isFinite(e.at) && now - e.at < LATE_PLAY_MS && !(`${e.kind}\u0000${e.key}` in (played ?? {})));
     return fresh.sort((a, b) => b.at - a.at)[0] ?? null;
 }
@@ -969,6 +1069,7 @@ export async function catchUpSequences({ now = serverNow(), on = sequencesOn() }
     count("sequence.late");
     if (late.kind === "trialEntry") return playTrialEntry(getClock());
     if (late.kind === "verdictCut") return playVerdictCut(late.message);
+    if (late.kind === "caseSummary") return playCaseSummary(late.message);
     if (late.kind === "dayStart" && on) return playDayStart(getClock(), { on });
     return null;
 }
@@ -987,5 +1088,6 @@ export function registerSequences() {
     Hooks.on("drpgPhaseChanged", onPhaseChanged);
     Hooks.on("createChatMessage", message => {
         try { playVerdictCut(message); } catch (err) { console.error(`${MODULE_ID} | the verdict's cut-in failed`, err); }
+        try { playCaseSummary(message); } catch (err) { console.error(`${MODULE_ID} | the case summary's board failed`, err); }
     });
 }

@@ -7154,7 +7154,7 @@ const INVARIANTS = [
                 s => { s.messages.push({ id: "R190MESSAGE00007", flags: { [MOD]: { caseSummary: true, sfx: "caseSummary" } },
                     speaker: { alias: "Case summary", actor: null, token: null, ...(f === "speaker.actor" ? { actor: KILLER } : { token: "R190TOKEN0000001" }) } }); },
                 h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00007" && h.path === f]),
-            ["message caseSummary: only caseSummary, sfx",
+            ["message caseSummary: only caseSummary, caseBoard, sfx",
                 s => { s.messages.push({ id: "R190MESSAGE00008", flags: { [MOD]: { caseSummary: true, sfx: "caseSummary", nodes: ["R190NODE"] } } }); },
                 h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00008" && h.path === `flags.${MOD}.nodes`],
             // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
@@ -8798,8 +8798,10 @@ const INVARIANTS = [
         }), stableJson({ low: 800, reads: [true, true, false, false, false], stamped: true, watched: true, sheet: true, media: false }),
         "{BREAKPOINTS.low; lowScreen at [768, 799, 800, 1080, 0]; applyTheme stamps drpg-low; the watch's shape reads it; the sheets' compact title and footer; a height in a media query}");
     }],
-    ["R3916 - the case summary goes out once a trial and is heard (E99 C7; the plan's Q-E99-9 and Q-E99-7, built in the round of 12.11.2026): trial-progress.mjs `TRIAL_RECORD` has a `summaryShown` row that lives a trial (blank null, the entry writes null), so it is in the blank and in another GM's whitelist; case-summary.mjs reads and writes it, not a row of the GMs' ticks store, and its card carries `sfx: \"caseSummary\"`; config.mjs `SFX_EVENTS.caseSummary` is an incident sound with its label and hint in both languages", async () => {
-        /* Red at aa4a8f6: the mark was the ticks store's `<chapter>:summary` row, once a chapter, and the card had no sound. */
+    ["R3916 - the case summary goes out once a trial and is heard (E99 C7; the plan's Q-E99-9 and Q-E99-7, built in the round of 12.11.2026): trial-progress.mjs `TRIAL_RECORD` has a `summaryShown` row that lives a trial (blank null, the entry writes null), so it is in the blank and in another GM's whitelist; case-summary.mjs reads and writes it, not a row of the GMs' ticks store, and its card carries the board's payload (`caseBoard`), whose board plays the sound (since 1.2.113; before, the card carried `sfx: \"caseSummary\"`); config.mjs `SFX_EVENTS.caseSummary` is an incident sound with its label and hint in both languages", async () => {
+        /* Red at aa4a8f6: the mark was the ticks store's `<chapter>:summary` row, once a chapter, and the card had no sound.
+           Since fix-113p (1.2.113, the owner's item 451) the sound is the board's: the card carries the board's payload
+           (`caseBoard`) and no `sfx`, and sequence.mjs `playCaseSummary` plays the slot (R6051). */
         const T = await import("./trial-progress.mjs");
         const { SFX_EVENTS } = await import("./config.mjs");
         const own = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-summary.mjs`).then(r => (r.ok ? lfText(r) : "")));
@@ -8812,10 +8814,10 @@ const INVARIANTS = [
             row: row ? [row.lives, row.blank?.(), row.atEntry?.({}, {})] : null,
             blank: Object.hasOwn(T.trialProgress(0), "summaryShown"), whitelisted: T.RECORD_FIELDS.includes("summaryShown"),
             reads: /trialProgress\(\)\??\.summaryShown/.test(show), writes: /setTrialProgress\(\{\s*summaryShown:/.test(show),
-            store: /caseTickStore|:summary`/.test(show), sound: /sfx:\s*"caseSummary"/.test(show),
+            store: /caseTickStore|:summary`/.test(show), sound: /caseBoard:/.test(show) && !/sfx:\s*"caseSummary"/.test(show),
             event: SFX_EVENTS.caseSummary ? [SFX_EVENTS.caseSummary.category, Boolean(SFX_EVENTS.caseSummary.label), Boolean(SFX_EVENTS.caseSummary.hint)] : null
         }), stableJson({ row: ["trial", null, null], blank: true, whitelisted: true, reads: true, writes: true, store: false, sound: true, event: ["incident", true, true] }),
-        "{the record's row [lives, blank, at entry]; in the blank; in another GM's whitelist; showCaseSummary reads it, writes it, names no store row; the card's sound; SFX_EVENTS.caseSummary}");
+        "{the record's row [lives, blank, at entry]; in the blank; in another GM's whitelist; showCaseSummary reads it, writes it, names no store row; the card carries the board's payload and no sound (the board's since 1.2.113); SFX_EVENTS.caseSummary}");
         ok(plRow && typeof plRow.label === "string" && plRow.label.length > 3, "the sound's Polish label (config.mjs prose in lang/pl.json) is missing");
     }],
     ["R3917 - Show summary is the trial's next step after the verdict, and reads as sent once it is (E99 next, 12.11.2026; the plan's C7 row, the owner's go-ahead through the coordinator): trial-floor.mjs `TRIAL_NEXT_STEPS` answers `caseSummary` after the verdict while the trial's record says the summary is not out (`summaryShown` null) and no Final Trial runs, and End of chapter once it is out, in a Final Trial, or with a view that carries no record of it (R2050's views); `trialStepView` carries the Final Trial flag; the step has its text and the console its lead in both languages; the console's footer makes Show summary its primary at that step, and once the summary is out the button is greyed and says so", async () => {
@@ -54077,6 +54079,112 @@ const INVARIANTS = [
         equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }),
             stableJson({ legacy: { band: false, sub: false, bandToken: true, cut: true }, glass: { band: false, sub: false, bandToken: true, cut: true } }),
             "[each theme, the title layer: the band's ground see-through or missing; the line's shard the same; the band drawn from the band token; outside the edges the band token]");
+    }],
+    ["R6050 - the case summary's board shows only what the card may say (scripts/sequence.mjs `caseSummaryBoard`, `caseSummaryElement`; the owner's item 451 of 09.11.2026, E99 Q-E99-6/-7/-9 left to E61, built in 1.2.113): from the GM's card, the payload `composeCaseSummary` built - the evidence a student found, the deductions and counters ticked, the solution only on a right vote - and nothing else: an undiscovered Remnant, an unticked deduction and the solution of a wrong vote are on no board; a field or a role the payload does not have is dropped from a card's flag; a player's message, or a GM's with no board, draws nothing", async () => {
+        /*
+         * fix-113p, 13.11.2026. Red at ceb9e9c8: sequence.mjs has no `caseSummaryBoard` - the board did not exist and the
+         * card carried no payload. The graph is a stand-in of case-schema.mjs `graphOf`'s shape, planted with one of each
+         * thing a board must not show; the message a stand-in with `author` and `getFlag`, as R3706's.
+         */
+        const S = await import("./sequence.mjs");
+        const C = await import("./case-summary.mjs");
+        must(typeof S.caseSummaryBoard === "function" && typeof S.caseSummaryElement === "function", "sequence.mjs has no case summary's board (`caseSummaryBoard`, `caseSummaryElement`)");
+        const graph = { chapter: 2, nodes: [
+            { id: "e1", evidence: true, tied: true, label: "R6050 FOUND knife", text: "R6050 found words" },
+            { id: "e2", evidence: true, tied: true, label: "R6050 UNFOUND rope", text: "R6050 unfound words" },
+            { id: "e3", evidence: true, tied: true, planned: true, label: "R6050 PLANNED", text: "" },
+            { id: "d1", kind: "deduction", label: "R6050 TICKED deduction" },
+            { id: "d2", kind: "deduction", label: "R6050 UNTICKED deduction" },
+            { id: "c1", kind: "counter", label: "R6050 TICKED counter" },
+            { id: "s1", kind: "solution", label: "R6050 SOLUTION", text: "R6050 solution words" }
+        ], edges: [{ from: "e1", to: "d1", kind: "input" }, { from: "e2", to: "d2", kind: "input" }, { from: "c1", to: "d1", kind: "refutes" }] };
+        const ticks = { d1: true, c1: true }, found = ["e1"];
+        const msg = (flags, isGM = true) => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const draw = correct => {
+            const board = S.caseSummaryBoard(msg({ caseSummary: true, caseBoard: { at: 7, ...C.composeCaseSummary({ graph, ticks, found, correct }) } }));
+            const el = board ? S.caseSummaryElement(board) : null;
+            return { board, text: el?.textContent ?? "", html: el?.outerHTML ?? "" };
+        };
+        const right = draw(true), wrong = draw(false);
+        const never = ["UNFOUND", "unfound words", "PLANNED", "UNTICKED", "e1", "e2", "d1"];
+        const L = k => game.i18n.localize(k);
+        const forged = S.caseSummaryBoard(msg({ caseBoard: { at: 8, chapter: 2, correct: false, nodes: [{ role: "evidence", name: "R6050 kept", text: "", id: "e9", author: "R6050AUTHOR" }, { role: "secret", name: "R6050 DROPPED" }, "R6050 NOT A NODE", { role: "deduction", name: "R6050 kept too", text: "" }], links: [{ from: 0, to: 5, kind: "input" }, { from: 0, to: 0, kind: "input" }, { from: 0, to: 3, kind: "x" }] } }));
+        const read = {
+            found: [right, wrong].map(d => d.text.includes("R6050 FOUND knife") && d.text.includes("R6050 found words")),
+            ticked: [right, wrong].map(d => d.text.includes("R6050 TICKED deduction") && d.text.includes("R6050 TICKED counter")),
+            solution: [right, wrong].map(d => d.text.includes("R6050 SOLUTION") && d.text.includes("R6050 solution words")),
+            note: [right, wrong].map(d => d.text.includes(L("DRPG.CaseSummary.noSolution"))),
+            never: [right, wrong].map(d => never.filter(w => d.text.includes(w) || d.html.includes(`"${w}"`))),
+            title: right.text.includes(game.i18n.format("DRPG.CaseSummary.title", { chapter: 2 })),
+            roles: stableJson(S.BOARD_ROLES) === stableJson(C.SUMMARY_ROLES),
+            forged: forged ? [forged.nodes.map(n => Object.keys(n).sort().join(",") + ":" + n.name), forged.links] : null,
+            player: S.caseSummaryBoard(msg({ caseBoard: { at: 9, ...C.composeCaseSummary({ graph, ticks, found, correct: true }) } }, false)),
+            none: S.caseSummaryBoard(msg({ caseSummary: true, sfx: "caseSummary" })),
+            noAt: S.caseSummaryBoard(msg({ caseBoard: { ...C.composeCaseSummary({ graph, ticks, found, correct: true }) } }))
+        };
+        equal(stableJson(read), stableJson({
+            found: [true, true], ticked: [true, true], solution: [true, false], note: [false, true], never: [[], []], title: true, roles: true,
+            forged: [["name,role,text:R6050 kept", "name,role,text:R6050 kept too"], [{ from: 0, to: 1, kind: "input" }]], player: null, none: null, noAt: null
+        }), "[found evidence on both boards; ticked deductions and counters on both; the solution on a right vote only; the wrong vote's note; nothing undiscovered, unticked or an id; the title; the board's roles the payload's; a forged flag's extra fields, role and link dropped; a player's message; an old card; a board with no time]");
+    }],
+    ["R6051 - the case summary's board plays on every browser from the GM's card, with the card's sound moved onto it (scripts/sequence.mjs `playCaseSummary`, case-summary.mjs `showCaseSummary`; the owner's item 451 of 09.11.2026, D2: the GM presses Show summary and the board plays for everyone): Send's card carries the payload (`caseBoard`) and no `sfx`, so the chat card stays the record and the sound is the board's; a GM's new card starts the board once (heard twice, once), a player's none; with motion its rows come in one after another, under reduced motion it stands still with every row; Escape ends it here; with the table's switch off nothing is drawn and the sound still plays once; the world's rule lets the card carry `caseBoard`", async () => {
+        /*
+         * fix-113p, 13.11.2026. Red at ceb9e9c8: no `playCaseSummary`, the card's flags `caseSummary` and `sfx` alone (R3916
+         * read the sound on the card). jsdom has no Web Animations: `Element.prototype.animate` is a recorder for the run,
+         * as R3717's; the sound is counted through `playSfx`'s stand-in in the sequence's `sound` option.
+         */
+        const S = await import("./sequence.mjs");
+        const C = await import("./case-summary.mjs");
+        must(typeof S.playCaseSummary === "function" && typeof S.drawCaseSummary === "function", "sequence.mjs plays no case summary's board (`playCaseSummary`, `drawCaseSummary`)");
+        const sources = await moduleSources();
+        const cs = stripComments(sources.get("case-summary.mjs") ?? ""), seq = stripComments(sources.get("sequence.mjs") ?? "");
+        must(cs.length > 1500 && seq.length > 5000, "a source was not read - this reads nothing");
+        const show = fnSource(cs, "showCaseSummary");
+        const reg = fnSource(seq, "registerSequences"), player = fnSource(seq, "playCaseSummary");
+        const { WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        const rule = JSON.stringify(WORLD_SECRET_RULES).includes("\"caseBoard\"");
+        const payload = C.composeCaseSummary({ graph: { chapter: 1, nodes: [
+            { id: "e1", evidence: true, tied: true, label: "R6051 one", text: "" }, { id: "e2", evidence: true, tied: true, label: "R6051 two", text: "" },
+            { id: "d1", kind: "deduction", label: "R6051 three" }] }, ticks: { d1: true }, found: ["e1", "e2"], correct: false });
+        const msg = (at, isGM = true) => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID ? { caseSummary: true, caseBoard: { at, ...payload } }[key] : undefined) });
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion"), had = Object.getOwnPropertyDescriptor(Element.prototype, "animate");
+        const seen = [];
+        const read = {
+            card: [/caseBoard:\s*\{/.test(show), /\.\.\.payload/.test(show), /sfx:\s*"caseSummary"/.test(show)],
+            hooked: /playCaseSummary\(/.test(reg), sound: /playSound\("caseSummary"\)/.test(player), rule
+        };
+        try {
+            Object.defineProperty(Element.prototype, "animate", { configurable: true, writable: true, value: function (frames, opts) { seen.push({ el: this, frames, opts }); return { cancel() {}, finish() {}, finished: Promise.resolve() }; } });
+            body.classList.remove("drpg-reduced-motion");
+            const key = `R6051:${Math.random()}`;
+            const board = S.caseSummaryBoard(msg(key));
+            const first = S.playSequence("caseSummary", key, ctx => S.drawCaseSummary(ctx, board), { on: true });
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            const rows = [...(host?.querySelectorAll(".drpg-seq-row") ?? [])];
+            const delays = rows.map(r => seen.find(c => c.el === r)?.opts.delay ?? null);
+            read.motion = [first, S.sequenceNow()?.kind ?? null, rows.length, delays.every((d, i) => d !== null && (i === 0 || d > delays[i - 1]))];
+            read.twice = S.playSequence("caseSummary", key, ctx => S.drawCaseSummary(ctx, board), { on: true });
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+            read.escaped = [S.sequenceNow(), Boolean(document.getElementById(S.SEQUENCE_HOST_ID))];
+            read.player = S.playCaseSummary(msg(`R6051p:${Math.random()}`, false));
+            seen.length = 0;
+            body.classList.add("drpg-reduced-motion");
+            const still = S.playSequence("caseSummary", `R6051s:${Math.random()}`, ctx => S.drawCaseSummary(ctx, board), { on: true });
+            read.still = [still, seen.length, document.getElementById(S.SEQUENCE_HOST_ID)?.querySelectorAll(".drpg-seq-row").length ?? 0];
+            S.endSequence("cut");
+            let heard = 0;
+            const off = S.playSequence("caseSummary", `R6051o:${Math.random()}`, ctx => S.drawCaseSummary(ctx, board), { on: false, sound: () => { heard++; } });
+            read.off = [off, heard, Boolean(document.getElementById(S.SEQUENCE_HOST_ID))];
+        } finally {
+            S.endSequence("cut");
+            if (had) Object.defineProperty(Element.prototype, "animate", had); else delete Element.prototype.animate;
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson(read), stableJson({
+            card: [true, true, false], hooked: true, sound: true, rule: true,
+            motion: ["motion", "caseSummary", 3, true], twice: null, escaped: [null, false], player: null,
+            still: ["still", 0, 3], off: ["off", 1, false]
+        }), "[Send's card: the board's payload, spread from the composed one, no sfx; the chat hook plays it; its sound is the slot's; the world's rule; motion: mode, kind, rows, one after another; heard twice; after Escape; a player's card; still: mode, animations, rows; the switch off: mode, sounds, a host]");
     }],
     ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
         /*
