@@ -1467,7 +1467,7 @@ export const BRIDGE_ACTIONS = table({
      * each GM's ruling used to run on its own browser against its own copy of the synced
      * attempt store: two GMs - or Approve and Decline on one card - both wrote. The primary
      * reads the proposal off the attempt's row and marks the row ruled in one step
-     * (cleanup.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).
+     * (cleanup-reshape.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).
      * A GM's alone: the card's buttons are drawn for GMs.
      */
     [ACTION_RESHAPE_RULING]: {

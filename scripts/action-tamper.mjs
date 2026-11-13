@@ -74,7 +74,7 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
             // different answer to it. Struck through for the same reason too:
             // there is nothing to relabel if there is nothing here of yours.
             // Red (E22 C5c; A4, audit S02-25): since N-3 a reshape is a GM's to
-            // approve (cleanup.mjs `proposeReshape`), and its hint says so and
+            // approve (cleanup-reshape.mjs `proposeReshape`), and its hint says so and
             // that a refusal gives nothing back. The tile is not red - the other
             // rows resolve by themselves (Q-E21-1 (a)).
             {

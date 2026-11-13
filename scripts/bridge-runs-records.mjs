@@ -891,7 +891,7 @@ export async function handleTrialPresent(payload) {
     return { reply: out?.reply ?? null };
 }
 
-/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
+/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup-reshape.mjs `ruleReshape`), recorded as the asking GM's. */
 export async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
     return { reply: await ruleReshape({ actorId: payload.actorId, tokenId: payload.tokenId, attempt: payload.attempt,

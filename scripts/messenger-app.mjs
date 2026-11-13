@@ -734,7 +734,7 @@ export function wireCallActions(body, message = null) {
      * EVERY BUTTON OF THE CARD IS HELD WHILE ONE CLICK RUNS (E09 C10, 08.10.2026). Only
      * the button pressed used to be, so Approve and then Decline on one card, pressed
      * before the first had answered, were both asked. The rulings themselves refuse a
-     * second one now (cleanup.mjs `claimRuling`); this keeps the second click from
+     * second one now (cleanup-reshape.mjs `claimRuling`); this keeps the second click from
      * being asked at all.
      */
     let busy = false;
