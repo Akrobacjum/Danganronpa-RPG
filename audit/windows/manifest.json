@@ -2103,7 +2103,7 @@
     {
       "id": "ballot",
       "client": "p1",
-      "opener": "vote.mjs new Promise(r => setTimeout(() => r(null), 2500))",
+      "opener": "vote.mjs onBallotOpened (the GM's vote.open to p1)",
       "captured": true,
       "title": "Who did it?",
       "classes": [
@@ -2182,6 +2182,65 @@
         }
       ],
       "file": "use-item-pick.html"
+    },
+    {
+      "id": "level-up-queue",
+      "client": "gm",
+      "opener": "level-up.mjs m.runAdvancementBatch(game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 3), \"standard\", { onGiving: () => { throw new Error(\"probe 08: the window is captured, nothing is given\"); } })",
+      "captured": true,
+      "title": "The class's Level Ups",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-advance-queue",
+        "drpg-ui",
+        "drpg-prompt"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Hand them out",
+          "default": true
+        },
+        {
+          "action": "allPlayers",
+          "label": "All: the players pick",
+          "default": false
+        }
+      ],
+      "file": "level-up-queue.html"
+    },
+    {
+      "id": "rest-pick",
+      "client": "p1",
+      "opener": "rest.mjs m.takeRest(game.actors.find(a => a.type === \"character\" && a.isOwner), \"short\", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true })",
+      "captured": true,
+      "title": "Short Rest",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-rest",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Do it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rest-pick.html"
     }
   ]
 }

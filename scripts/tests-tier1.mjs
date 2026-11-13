@@ -40709,8 +40709,9 @@ const INVARIANTS = [
         };
         const rails = classes => ["scene-controls", "sidebar-tabs"].flatMap(id => ["rest", "active"].map(state => rail(classes, id, state)));
         const SURFACES = [["div", "drpg-panel"], ["section", "drpg-popup"], ["div", "drpg-messenger"], ["div", "application sheet actor"]];
-        /* not `border-radius`: the theme's sweep of square corners (`:not(.drpg-despair-pip)...`, "the shlif") wins it on
-           every surface, with the same 0 the definition states */
+        /* not `border-radius`: the theme's sweep of square corners (`:not(.drpg-despair-pip)...`, "the shlif") wins it for
+           the checkbox on every surface, with the same 0 the definition states; the radio's 50% is R4650's (gaps-radio:
+           the sweep passes a radio by, `:not([type="radio"])`) */
         const BOX = ["appearance", "width", "height", "margin", "border", "background", "clip-path", "accent-color", "display"];
         const MARK = ["content", "width", "height", "background-color", "mask", "transform"];
         const control = ([tag, classes], type, checked) => {
@@ -41262,7 +41263,7 @@ const INVARIANTS = [
         equal(found.length - nested.length, r1410, `top-level endless declarations (${found.length - nested.length}) against the cascade's rules that run one, R1410's set (${r1410})`);
         equal(stableJson(scripts), "[]", "scripts that start an endless animation of their own");
     }],
-    ["R4650 - a radio is round and its dot is pinned to the middle, in both themes (gaps-radio, the owner's table on 1.2.109): on a module window (`.drpg-panel`), a radio in a plain label and one in a choice row draw their own box (`appearance: none`), `border-radius` 50% with no clip path, and a `::before` laid absolutely across the box (`inset: 0`, `margin: auto`, round), so no rule that moves a mark in the flow can push it to a corner; a checkbox stays square", async () => {
+    ["R4650 - a radio is round and its dot is pinned to the middle, in both themes (gaps-radio, the owner's table on 1.2.109): on a module window (`.drpg-panel`), a radio in a plain label and one in a choice row draw their own box (`appearance: none`), `border-radius` 50% with no clip path, and a `::before` laid absolutely across the box (`inset: 0`, `margin: auto`, round: as wide as it is high), so no rule that moves a mark in the flow can push it to a corner and no `translate`, `rotate` or `scale` of another rule moves it; under the glass a checkbox stays square, under Legacy it is Foundry's (no module rule states its corner)", async () => {
         /*
          * The owner, 13.11.2026, on 1.2.109: under Stained Glass a radio is a dark square box with a pink border and the
          * checked one's dot stuck in its top-left corner (the zone picker's Mode). The glass gave every control one box,
@@ -41273,6 +41274,9 @@ const INVARIANTS = [
          * sheets alone the glass dot was centred, and with a stand-in for core's mark (`::before` absolutely positioned) it
          * stood 4.87 px up and left of the middle of a 22 px box - the owner's picture; Legacy had 52 radios Foundry's.
          * Read here by the sheets' cascade (`styleCascade`), on a body of its own per theme. Red at 421f2395.
+         * The dot's `translate`, `rotate` and `scale`, and its width against its height, since REVIEW-111's L3
+         * (13.11.2026): the comments promised both and the test read neither. Planted at 30e65075 - the glass's
+         * `translate: none` as `2px 2px`, then its dot's `height` one px over its width - each turned this red.
          */
         const C = await styleCascade();
         const read = {};
@@ -41287,14 +41291,16 @@ const INVARIANTS = [
             const [plain, row, box] = body.querySelectorAll("input");
             const v = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value.trim() ?? null;
             const radio = el => [v(el, ["appearance", "-webkit-appearance"]), v(el, "border-radius"), v(el, "clip-path"), v(el, "position"),
-                v(el, ["inset"], "::before"), v(el, ["margin"], "::before"), v(el, ["position"], "::before"), v(el, "border-radius", "::before")];
+                v(el, ["inset"], "::before"), v(el, ["margin"], "::before"), v(el, ["position"], "::before"), v(el, "border-radius", "::before"),
+                v(el, "translate", "::before"), v(el, "rotate", "::before"), v(el, "scale", "::before"),
+                v(el, "width", "::before") !== null && v(el, "width", "::before") === v(el, "height", "::before")];
             read[theme.replace("drpg-theme-", "")] = { plain: radio(plain), row: radio(row), checkbox: v(box, "border-radius") };
         }
-        const round = ["none", "50%", "none", "relative", "0", "auto", "absolute", "50%"];
+        const round = ["none", "50%", "none", "relative", "0", "auto", "absolute", "50%", "none", "none", "none", true];
         equal(stableJson(read), stableJson({
             "stained-glass": { plain: round, row: round, checkbox: "0" },
             "monokuma-legacy": { plain: round, row: round, checkbox: null }
-        }), "{theme: {radio in a label / in a choice row: [appearance, border-radius, clip-path, position, ::before inset, margin, position, border-radius], the checkbox's border-radius}}");
+        }), "{theme: {radio in a label / in a choice row: [appearance, border-radius, clip-path, position, ::before inset, margin, position, border-radius, translate, rotate, scale, width === height], the checkbox's border-radius}}");
     }],
     ["R4651 - under Monokuma Legacy a radio in the Projects window and the item tables keeps the round ring (gaps-radio): danganronpa.css's field rule for `.drpg-projects` no longer reaches a radio, so its corner, border and ground are the radio's, while a text field there keeps the field's", async () => {
         /*

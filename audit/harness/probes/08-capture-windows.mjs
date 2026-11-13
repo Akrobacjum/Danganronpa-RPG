@@ -296,7 +296,8 @@ export const WINDOWS = [
     // A1d (this browser's settings; look-gm and look-player open it too, through the gear's `openLookDialog`). The game's
     // settings are a window of their own (`game-settings`), the GM panel's Settings tile. `drpg-settings-player-voice`:
     // p1's window with a voice to set (VOICE_ON: avclient-livekit active, an audio world, two named devices of each kind,
-    // push to talk on a key), every stand-in put back after; the harness has no voice of its own outside 75-voice-tile.
+    // push to talk on a key), its Sound section shown (the voice's, REVIEW-111's L1: drawn on Look, its radios were never read),
+    // every stand-in put back after; the harness has no voice of its own outside 75-voice-tile.
     { id: "drpg-settings", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
     { id: "game-settings", module: "settings-window.mjs", call: "m.openGameSettingsWindow()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
@@ -309,7 +310,7 @@ export const WINDOWS = [
     { id: "sound-player", client: "p1", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "look-player", client: "p1", module: "look.mjs", call: "m.openLookDialog()" },
     { id: "drpg-settings-player", client: "p1", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
-    { id: "drpg-settings-player-voice", client: "p1", module: "settings-window.mjs", before: VOICE_ON, after: VOICE_OFF, call: "m.openSettingsWindow()" },
+    { id: "drpg-settings-player-voice", client: "p1", module: "settings-window.mjs", before: VOICE_ON, after: VOICE_OFF, click: '.drpg-settings-tab[data-drpg-section="sound"]', call: "m.openSettingsWindow()" },
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
     ...ACTION_WINDOWS.map(key => ({ id: `action-${key}`, client: "p1", module: "action-rolls.mjs", call: `m.performAction(${MINE}, ${JSON.stringify(key)})` })),
     { id: "notices-player-250", client: "p1", module: "notice-history-app.mjs", before: NOTICES_250, call: "m.openNotices()" },
@@ -322,9 +323,16 @@ export const WINDOWS = [
        season reset's cast: the GM's own window. Use an item's pick: asked only for a usable whose kind nothing names,
        seeded on p1's student by the GM (`gmSeed`) and taken off after (`gmAfter`). */
     { id: "palm-frisk", client: "p1", module: "palm.mjs", before: PALM_TARGET, click: 'input[name="variant"][value="frisk"]', call: `m.choosePalm(${MINE}, C.ACTIONS.palm, [other], [])` },
-    { id: "ballot", client: "p1", module: "vote.mjs", gmDuring: BALLOT_TO_P1, call: "new Promise(r => setTimeout(() => r(null), 2500))" },
+    { id: "ballot", client: "p1", module: "vote.mjs", opener: "vote.mjs onBallotOpened (the GM's vote.open to p1)", gmDuring: BALLOT_TO_P1, call: "new Promise(r => setTimeout(() => r(null), 2500))" },
     { id: "season-reset", module: "season-wipe.mjs", call: "m.resetSeason()" },
-    { id: "use-item-pick", client: "p1", module: "use-items.mjs", gmSeed: SEED_VIAL, gmAfter: DROP_VIAL, call: `(a => m.useItem(a, a.items.find(i => i.name === "Probe odd vial")))(${MINE})` }
+    { id: "use-item-pick", client: "p1", module: "use-items.mjs", gmSeed: SEED_VIAL, gmAfter: DROP_VIAL, call: `(a => m.useItem(a, a.items.find(i => i.name === "Probe odd vial")))(${MINE})` },
+    /* THE TWO RADIO WINDOWS THE REVIEW FOUND UNREAD (REVIEW-111's M2, 13.11.2026). Level Up's queue (level-up.mjs
+       `askWhoPicks`, not exported): drawn by `runAdvancementBatch` for three students, its `onGiving` throwing, so that
+       each row the closed window would hand its player ends in the batch's catch before any write. The Rest's one pick
+       (rest.mjs `choosePicks`, not exported): a Short Rest is one pick, a radio group; the Relief Call's four switches
+       pass every gate a fresh world could stop it at, and a dismissed window answers `false` before anything is spent. */
+    { id: "level-up-queue", module: "level-up.mjs", call: "m.runAdvancementBatch(game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 3), \"standard\", { onGiving: () => { throw new Error(\"probe 08: the window is captured, nothing is given\"); } })" },
+    { id: "rest-pick", client: "p1", module: "rest.mjs", call: `m.takeRest(${MINE}, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true })` }
 ];
 
 const capture = (repoUrl, w) => `
@@ -460,12 +468,18 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
     for (const w of list) {
         const client = clients[w.client ?? "gm"];
         let got;
-        if (w.gmSeed) await onGm(w.gmSeed);
+        if (w.gmSeed) {
+            try { await onGm(w.gmSeed); } catch (err) {
+                note(`${w.id} gmSeed`, `threw: ${String(err?.message ?? err).slice(0, 300)}`);
+                manifest.push({ id: w.id, client: w.client ?? "gm", opener: w.opener ?? `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }), captured: false, answered: null, threw: `gmSeed: ${String(err?.message ?? err).slice(0, 300)}` });
+                continue;
+            }
+        }
         const during = w.gmDuring ? new Promise(r => setTimeout(r, 400)).then(() => onGm(w.gmDuring)).catch(err => String(err?.message ?? err)) : null;
         try { got = await client.eval(capture(repoUrl, w)); } catch (err) { got = { captured: false, threw: String(err?.message ?? err).slice(0, 400) }; }
         if (during) { const d = await during; if (d !== true) note(`${w.id} gmDuring`, `threw: ${String(d).slice(0, 300)}`); }
         if (w.gmAfter) { try { await onGm(w.gmAfter); } catch (err) { note(`${w.id} gmAfter`, `threw: ${String(err?.message ?? err).slice(0, 300)}`); } }
-        const row = { id: w.id, client: w.client ?? "gm", opener: `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }) };
+        const row = { id: w.id, client: w.client ?? "gm", opener: w.opener ?? `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }) };
         if (got?.captured) {
             keep(w.id, got.html);
             Object.assign(row, { captured: true, title: got.title, classes: got.classes, tag: got.tag, width: got.width, buttons: got.buttons, file: `${w.id}.html` });
