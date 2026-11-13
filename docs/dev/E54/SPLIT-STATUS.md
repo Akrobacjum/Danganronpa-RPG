@@ -119,6 +119,71 @@ it applies on every line where the split applies (46 rewrites; 47 on e64, which 
 where the split refuses (e72, e100, as above). On e101, e101b, e64 and gaps-108 the merge conflicts in a tier file, so
 there the dry run read a file with conflict markers; it applied, which says only that the rules found their sites.
 
-## Not done here
+## The other cuts (the coordinator's (2), 13.11.2026)
 
-The code.md rows for the new files are the coordinator's (Q-E54-8).
+The E54 plan's other cuts, each a manifest for the same two scripts. A cut that moves part of a big file keeps the rest
+in the facade (`"keep": "*"`), so a line that adds a declaration outside the moved sections is no refusal; one it adds
+between two declarations moved to the same file is ("decide its file"), and a declaration that stays there by decision
+is named (`stay`). A bare statement moves when a target names it by the text it starts with (`statements`): the
+season registry's rows, which R1254 holds to the file of the functions they name.
+
+| Manifest | What moves | Into | On 421f2395, throwaway worktree, the scripts as committed |
+| --- | --- | --- | --- |
+| tools/e54/windows.json (the plan's W1) | `windowWidthFor`, `eachPane` | windows.mjs (97 lines; utils.mjs 1421 -> 1335) | moved-only 8/8 green (moved 85, cuts 56 of 56 identical); repoint 18 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
+| tools/e54/key-remnants.json (K1, F4) | "THE PLAN" through `same`, `randomPointIn`, `createKeyRemnant` .. `placeKeyRow`, and the season registry's `keyPlan` row; `openNewTrace` stays (`stay`) | key-remnants.mjs (1248; investigation.mjs 3239 -> 2011) | moved-only 8/8 green (moved 1150, promoted 7, cuts 86 of 86 identical); repoint 33 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
+| tools/e54/cleanup-reshape.json (P1, F5) | the veiled `whisperToOwner`, the receipt store (`RECEIPT_FIELDS` .. `recreationDataFor`), `findRemnantToken`, the reshape road (`askTransform` .. `askTransformChange`), in that order | cleanup-reshape.mjs (804; cleanup.mjs 3665 -> 2877) | moved-only 8/8 green (moved 733, promoted 7, cuts 81 of 82 identical, the 82nd listed); repoint 24 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
+| tools/e54/chapter.json (D1, D2) | "THE BODY IS FOUND" (`faintPrepCandidates` .. `openBodyDiscoveryDialog`); "DEATH" (`livingStudents` .. `chooseFirst`) with the registry's `deaths` and `bodyFound` rows; body.mjs first (`targetsOrder` says why) | body.mjs (952), death.mjs (758); chapter.mjs 2717 -> 1044 | moved-only 8/8 green (moved 1560, promoted 3, cuts 70 of 70 identical); repoint 74 rewrites; quick and tiers 0-1 running on this tree (13.11.2026), not yet measured |
+| tools/e54/windows-settings.json (W3, F2) | the settings half of the window size | - | refused, as F2 says: `scaleMemo` reads `layoutHeight`, `scaleWindow` reads `settingsRegistered`, `layoutHeight` and `sliderScale`, which settings.mjs keeps. Not a pure move until W2 hands `scaleWindow` its readers; after W1 windows.mjs exists, and appending to a file is not written in split.mjs |
+| tools/e54/remnants-migrate.json (F3) | `migrateRemnants` .. `seedPublicIfMissing` | - | refused, as F3 says: 25 reads of the ten names the plan lists (`REMNANT_FLAGS` 6, `isNeutralName` 4, `keyOf` 4, `setRemnantSecret` 4, `traceLabel` 2, `TINTS`, `defaultPublic`, `neutralTraceNames`, `oldTokenTie`, `traceTokensOn`), which remnants.mjs keeps. Into migrate.mjs itself it would refuse sooner: the file exists. The owner's default of Q-E54-3 (leave them) stands on this |
+
+The sheet, made again by the scripts as committed (they grew for the cuts below): moved-only 8/8 green, repoint 46
+rewrites; its tree differs from the one proven above in two lists of files, which now read the whole family
+(R1038, R1110); quick and tiers 0-1 running on this tree (13.11.2026), not yet measured.
+
+Main itself, the same tiers 0-1, the same day: quick and tiers 0-1 running on this tree (13.11.2026), not yet measured.
+
+### What the cuts asked of the two scripts
+
+Each found by a red check, fixed in the script (or the manifest) and run again; none by hand in the tree.
+
+- cleanup-reshape: moved-only `cuts` red twice - `RECEIPT_FIELDS` (an array) ended neither `askTransformChange`'s cut
+  nor `findRemnantToken`'s; the manifest's order puts the store first (its `order` says why).
+- key-remnants: `openNewTrace` stands between the plan and the placing road; the new between-check refused it until
+  the manifest named it in `stay`.
+- key-remnants, chapter: R1254 red - the season registry's rows stayed in the facade while their functions moved;
+  split.mjs moves a named statement now, and repoint follows the owner in R1254's table and in its planted check's
+  expected text.
+- key-remnants: R382 red - rooms.mjs CAMERA_READERS keys `investigation.mjs#openKeyRemnantHere`; repoint finds the
+  registers outside the suite by that spelling. R376 red - a list of files read through a helper (`[...].map(src)`).
+  R2035 red - the file-list rule had rewritten a pair's file in a mixed list; it touches only lists of file names now.
+- chapter: R192 keys rows "chapter.mjs markDeceased flag" (a key followed by more words); R56 cuts
+  `openBodyDiscoveryDialog` until `allBullets`, which stays in the facade (the cut now ends at the family's line,
+  which follows a file only when it is not the family's last: the manifest puts body.mjs first); R436 and R3404 compare
+  readings sorted by file, which the rename reordered (a keyed list sorted before is sorted after); R346 reads
+  chapter.mjs whole in a list of files beside a planted fixture `["chapter.mjs", "<code>"]`.
+- every cut: a list of files a test reads names every file of the family where it named the split file, the planted
+  fixtures left. Before this rule several scans stayed green on the facade alone - cleanup's `FILES` scans beside the
+  action family, R346, R1101, R1254 and R161's lists - the same kind of narrowed reading as R311 and R1476 above.
+- key-remnants, cleanup-reshape, chapter: R3510 red - its census of card sites per file comes from its own classifier,
+  which a rule cannot recompute; each manifest carries the rows measured on its split tree (`rows`), which the script
+  holds to the old row's sums and puts at their sorted place.
+
+After the fixes the sheet's and the window's trees were made again and compared with the ones proven: the same, byte
+for byte, so those proofs stand.
+
+### On other lines (13.11.2026)
+
+Run with the scripts before their last changes: on each of the 36 lines committed to since 12.11, merged into main,
+windows, key-remnants, cleanup-reshape and chapter split and repoint (`--dry`) on every one, and windows-settings and
+remnants-migrate refuse on every one; the sheet as above (e72, e100 refused). Being run again with the scripts as
+committed.
+
+### Not done here
+
+- The splits' results, as the brief says: only the scripts, the manifests and this file.
+- W2 (`registerWindows(readers)`), W4-W6, Q-E54-7 and the glass cut: behaviour commits or later steps of the plan, not
+  pure moves.
+- A comment that names where its code stands moves with the code and says what it said: utils.mjs `windowWidthFor`'s
+  header ("Here and not in the kit because R168 reads it here") is now in windows.mjs. moved-only holds every moved line
+  to its text, so such sentences are for the stage's comment sweep, not for these scripts.
+- The code.md rows for the new files are the coordinator's (Q-E54-8).
