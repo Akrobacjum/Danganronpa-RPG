@@ -1050,13 +1050,14 @@ export function rotationWrites(tables) {
    fast path's `applyRotations` writes the table back onto the old one, out of the page. So a member with an id takes a
    rule on its id, as every other block takes one on its selector, and a button made again wears it the moment it is in
    the tree; `part` keeps it out of the wall's shift (`railOverhang`), which these never took. A member with no id keeps
-   the inline write. R1382. */
-export function blockTurns(b, px, py, turn) {
+   the inline write. R1382. `rectOf` measures a member's box on the page (E54 G4c: `deskPage`'s, handed through the cut,
+   so the cut reads no page itself; R4805). */
+export function blockTurns(b, px, py, turn, rectOf) {
   if (b.fixed) return [{ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }];
   if (!b.el) return [];
   const one = b.els.length === 1;
   return b.els.map(e => {
-    const er = e.getBoundingClientRect(), id = !one && e.id ? "#" + (globalThis.CSS?.escape?.(e.id) ?? e.id) : null;
+    const er = rectOf(e), id = !one && e.id ? "#" + (globalThis.CSS?.escape?.(e.id) ?? e.id) : null;
     return { sel: one ? b.sel : id, el: e, part: Boolean(id), origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn };
   });
 }
@@ -2007,7 +2008,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          element is not measured and may not exist yet. Since E81 C8 popup.mjs builds the tile at
          `ready`, with the history's button in its corner and before the glass is cut, but the rule
          does not lean on that: a tile removed and rebuilt by `container()` turns all the same. */
-      ctx.turns.push(...blockTurns(b, px, py, turn));
+      ctx.turns.push(...blockTurns(b, px, py, turn, ctx.rectOf));
     }
     /* TWO COLUMNS SHARE THE GAP BETWEEN THEM, THEY DO NOT EACH CLAIM IT.
        -----------------------------------------------------------------------
@@ -2849,7 +2850,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        stream, the rails' bands once they are measured, and the needles placed */
     const ctx = { panes, W, H, FW, rnd, railBands: null, needles: [],
       // `deskPage`: the wall the voice tile is settled against; what the cut gives back for the callers to write (E54 G4)
-      wall: page.wall, voice: null, turns: [], open: [] };
+      wall: page.wall, rectOf: page.rectOf, voice: null, turns: [], open: [] };
     ctx.push = (poly, tone, kind, rank) => pushPane(ctx, poly, tone, kind, rank);
 
     /* the voice tile is not a column's member by its midpoint: it is the tray's column's tail */
@@ -3160,7 +3161,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   /* THE DESK'S PAGE (E54 G4, 13.11.2026): what `deskShapes` and `buildColumn` read off the page and the module themselves
      until E54, in the order they read it - the dock's lift (`avLift`), the scene rail's band (`railBox`), the tab rail's
      (`PIN.band`, a copy, the cut marks its end on it, or `railBox`), and the wall the voice tile is settled against
-     (`voiceWall`, off `PIN.rail`). `cutBoxes` sets PIN before it asks. */
+     (`voiceWall`, off `PIN.rail`). `cutBoxes` sets PIN before it asks. And (G4c) the measure of a block's member box,
+     which `blockTurns` takes during the cut, as it did itself before: a function, called at the same moment. */
   function deskPage(host, W) {
     const lift = avLift();
     const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
@@ -3171,6 +3173,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         right: PIN.band ? { ...PIN.band } : railBox(host, cv, W, "#sidebar-tabs", 1, null),
       },
       wall: voiceWall(W),
+      rectOf: e => e.getBoundingClientRect(),   // a block's member, measured where blockTurns measured it (G4c)
     };
   }
   /* The curtain's page: a stacked layout's (`narrowLayout`, then `stackPage`) or the desk's. */

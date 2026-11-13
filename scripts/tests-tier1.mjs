@@ -3241,7 +3241,7 @@ const INVARIANTS = [
         };
         const els = IDS.map(make);
         const turn = "rotate(-0.1396rad)";
-        const table = G.blockTurns({ sel: "#drpg-r1382-messenger, #drpg-r1382-sound, #drpg-r1382-book", el: els[0], els }, 1366, 768, turn);
+        const table = G.blockTurns({ sel: "#drpg-r1382-messenger, #drpg-r1382-sound, #drpg-r1382-book", el: els[0], els }, 1366, 768, turn, e => e.getBoundingClientRect());   // the page's measure, which the cut hands it since E54 G4c
         must(table.length === 3, "the stand-in union gave no table of three - there is nothing to follow");
         const ruleFor = (el, text) => text.split("}").map(r => r.trim()).filter(Boolean).find(r => {
             const sel = r.split("{")[0].trim();
