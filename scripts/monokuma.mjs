@@ -241,6 +241,8 @@ export async function setNotInClass(actor, value = true) {
  */
 export async function setSpectator(actor, value = true) {
     if (!game.user.isGM || !actor) return null;
+    // A dead student's Spectator stays one (E62 C3b fix): read late, spectator-dead.mjs reaches gm-stores.mjs.
+    if (!value && (await import("./spectator-dead.mjs")).isDeadWatcher(actor)) return null;
     // The class's map leaves a Spectator made a student again (E92 C4): its own rows stay, the fold's are unticked first.
     if (!value && isSpectator(actor)) await (await import("./fog.mjs")).forgetSpectatorMap(actor);
     const { spectatorUserIds } = await import("./spectator.mjs");

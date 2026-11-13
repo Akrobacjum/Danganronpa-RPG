@@ -13,6 +13,9 @@
  *   view     p3 drags the watcher into Aiko's room (its own write): Aiko's token stays hidden on p3's browser - the dead
  *            see what a dead student saw, not what the Spectator's token walks into (B);
  *   voice    the primary sends p3 to the Spectators' room (voice.mjs `voiceTargets`, Q-C3b-5);
+ *   monocub  the death made the table's and Chie a Monocub (the coordinator's 7): her Spectator token is her Monocub's and
+ *            where she stands; p3 cannot drag the corpse; Aiko in the corpse's room stays hidden on p3's browser;
+ *            then a Monocub no more, a Spectator back on that token;
  *   revive   the GM revives Chie: p3's browser handed the hook's "return", the watcher and its token gone from every
  *            browser.
  * Everything is put back: Chie alive, the watcher gone, the tokens where they were, the Sound map.
@@ -48,7 +51,7 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
     check("setup: the Death fade mapped for the run, Chie's token read", sfx === "sounds/s94-fade.ogg" && Number.isFinite(start?.x), JSON.stringify({ sfx, start }));
     await settle(800);
 
-    let watcherId = null;
+    let watcherId = null, watcherToken = null;
     try {
         phase("secret");
         const before = await p1.eval(WORLD);
@@ -58,6 +61,7 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
             const record = await C.killCharacter(chie, { secret: true, keepBullets: true });
             return { record: Boolean(record), watcher: D.watcherActorOf(chie)?.id ?? null };`, { timeout: 60000 });
         watcherId = killed?.watcher ?? null;
+        watcherToken = await gm.eval(`return [...canvas.scene.tokens].find(t => t.actorId === "${killed?.watcher ?? ""}")?.id ?? null;`);
         await settle(2000);
         const after = await p1.eval(WORLD);
         const was = new Map(before.actors), wasTok = new Set(before.tokens.map(t => t[0]));
@@ -103,6 +107,35 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
         check("voice: the primary sends p3, dead, to the Spectators' room, as Chie and not as the watcher",
             voice?.target === voice?.spectators && voice.actor === IDS.chie, JSON.stringify(voice));
 
+        phase("monocub");
+        /* The coordinator's 7 (13.11.2026): after the conversion the Monocub's token is the student's place, and the corpse
+           is neither a walker of p3's nor an eye of p3's. The death made the table's and Chie made a Monocub; the GM
+           stands Aiko in the corpse's room (Dorm B) while the Monocub's token stands in Dorm A, and p3 tries to drag the
+           corpse. Then Chie is a Monocub no more, and the revive below takes the Spectator she is given back. */
+        const cubbed = await gm.eval(`const C = ${imp("chapter.mjs")}, MC = ${imp("monocub.mjs")}, M = ${imp("movement.mjs")};
+            const chie = game.actors.get("${IDS.chie}");
+            await C.publishDeath(chie); await MC.setMonocub(chie, true, { quiet: true });
+            const cub = canvas.scene.tokens.get("${watcherToken ?? ""}");
+            await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 350, y: 1400 }, { animate: false });
+            return { cub: cub?.actorId === chie.id, located: M.locateActor(chie)?.tokenDoc?.id ?? null };`, { timeout: 60000 });
+        await settle(1500);
+        const corpseDrag = await p3.eval(`const t = canvas.scene.tokens.get("TOKCHIE000000000"); const was = [t.x, t.y];
+            try { await t.update({ x: 1400, y: 400 }); } catch { /* refused */ }
+            await new Promise(r => setTimeout(r, 600));
+            const now = canvas.scene.tokens.get("TOKCHIE000000000"); return { stayed: now.x === was[0] && now.y === was[1] };`);
+        await settle(1200);
+        const eye = await p3.eval(`const V = ${imp("visibility.mjs")};
+            return V.tokenShownTo(canvas.scene.tokens.get("TOKAIKO000000000"), V.viewerHere());`);
+        check("monocub: Chie's Spectator token becomes her Monocub's and is where she stands; p3 cannot drag the corpse, and Aiko in the corpse's room stays hidden on p3's browser",
+            cubbed?.cub === true && cubbed.located === watcherToken && corpseDrag?.stayed === true && eye === "hide", JSON.stringify({ cubbed, corpseDrag, eye }));
+        const unCub = await gm.eval(`const MC = ${imp("monocub.mjs")}, D = ${imp("spectator-dead.mjs")};
+            const chie = game.actors.get("${IDS.chie}");
+            await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 300, y: 300 }, { animate: false });
+            await MC.setMonocub(chie, false, { quiet: true });
+            return D.watcherActorOf(chie)?.id ?? null;`, { timeout: 60000 });
+        watcherId = unCub ?? watcherId;
+        await settle(1200);
+
         phase("revive");
         await p3.eval(`globalThis.__drpg94 = []; return true;`);
         await gm.eval(`const C = ${imp("chapter.mjs")}; await C.reviveCharacter(game.actors.get("${IDS.chie}"), { quiet: true }); return true;`, { timeout: 60000 });
@@ -120,6 +153,9 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
             if (C.isDeadForGm(chie)) await C.reviveCharacter(chie, { quiet: true, silent: true });
             const w = game.actors.get("${watcherId ?? ""}");
             if (w) { for (const s of game.scenes) for (const t of [...s.tokens].filter(t => t.actorId === w.id)) await t.delete(); await w.delete(); }
+            for (const s of game.scenes) for (const t of [...s.tokens].filter(t => t.actorId === chie.id && t.id !== "TOKCHIE000000000")) await t.delete();
+            if (chie.getFlag("danganronpa-rpg", "monocub")) await chie.unsetFlag("danganronpa-rpg", "monocub");
+            await game.scenes.get("${start?.scene}")?.tokens.get("TOKAIKO000000000")?.update({ x: 300, y: 300 }, { animate: false });
             await game.scenes.get("${start?.scene}")?.tokens.get("TOKCHIE000000000")?.update({ x: ${start?.x ?? 350}, y: ${start?.y ?? 1300} }, { animate: false });
             await ST.setSetting(ST.SETTINGS.sfxMap, globalThis.__drpg94Sfx ?? {}); delete globalThis.__drpg94Sfx;
             return true;`, { timeout: 60000 });

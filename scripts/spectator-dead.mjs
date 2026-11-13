@@ -160,6 +160,15 @@ async function linkPublicly(watcher, student) {
  */
 export async function removeDeadSpectator(student, { silent = false, row = undefined } = {}) {
     if (!game.user?.isGM || !student) return false;
+    /* A MONOCUB REVIVED AS IT STANDS (E62 C3b fix, the coordinator's 7): the token it walks is the Spectator's, given to it
+       (`watcherBecomesMonocub`), and goes with the revive as the Spectator's would; the corpse stays the student's. */
+    for (const { scene, tokenDoc } of tokensOf(student).filter(({ tokenDoc }) => tokenDoc.getFlag?.(MODULE_ID, FLAGS.cubToken))) {
+        try {
+            await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent, studentId: student.id } });
+        } catch (err) {
+            error(`Could not take ${student.name}'s Monocub token off the map`, err);
+        }
+    }
     const watcher = watcherActorOf(student, { row: row === undefined ? deathStore.get(student.id) ?? null : row });
     if (!watcher) return false;
     for (const { scene, tokenDoc } of tokensOf(watcher)) {

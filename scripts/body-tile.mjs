@@ -141,7 +141,7 @@ export function bodyTileOf(actor, { scenes = game.scenes ?? [], held = null } = 
  * no tile there and the greying reads the token's room instead, so a Take beside the token shows open and the gate
  * refuses it on the press. Headless, the harness sends every tile to every client.
  */
-export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = gmPlaceOf, held = null } = {}) {
+export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = a => gmPlaceOf(a, { body: true }), held = null } = {}) {
     const body = bodyTileOf(actor, { scenes, held });
     if (body) {
         const { doc, scene, mark } = body;
@@ -215,7 +215,8 @@ export async function leaveBody(actor, { record: handed = null, at = Date.now() 
     if (!isBodyDeath(record)) return null;
     const deathId = record.deathId ?? null;
     if (bodyTilesOf(actor.id).some(({ mark }) => (mark.deathId ?? null) === deathId)) return null;
-    const place = gmPlaceOf(actor);
+    // Where the body lies (E62 C3b fix): a Monocub's corpse, never the token it walks.
+    const place = gmPlaceOf(actor, { body: true });
     if (!place?.tokenDoc || !place.scene) {
         if (noTokenWarns(record)) ui.notifications?.warn(game.i18n.format("DRPG.Body.noToken", { name: actor.name }));
         return null;

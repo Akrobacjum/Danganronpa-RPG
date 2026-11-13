@@ -30,6 +30,7 @@ import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
+import { isDeadWatcher } from "./spectator-dead.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 
 /**
@@ -184,8 +185,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         return {
             name: esc(a.name),
             open: `${sheetButton(a)}${role === "monokuma" ? keptSlot() : itemsButton(a)}`,
-            role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
-                ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
+            // A dead student's Spectator (E62 C3b fix, the coordinator's 8): its Role is the death's, so words and no select.
+            role: isDeadWatcher(a) ? `<span data-drpg-role-fixed="${a.id}">${L("DRPG.Spectator.deadWatcher")}</span>`
+                : `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
+                    ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
             levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
                 label: n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip") })
         };
@@ -251,6 +254,13 @@ function roleOf(actor) {
 /** Move `actor` to the role `to` through the roads above; see the note above. */
 export async function changeRole(actor, to, roads = {}) {
     if (!actor || !ROLES.includes(to)) return false;
+    /* A DEAD STUDENT'S SPECTATOR KEEPS ITS ROLE (E62 C3b fix, 13.11.2026; the coordinator's 8): made a student, it was a
+       second student with the dead one's name. It goes with the revive or becomes the Monocub (spectator-dead.mjs); the
+       GM is told so. The window draws it no select; this holds a console's call too. */
+    if (isDeadWatcher(actor)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Spectator.deadWatcherRole", { name: actor.name }));
+        return false;
+    }
     const from = roleOf(actor);
     if (from === to) return false;
     const road = { ...ROLE_ROADS, ...roads };

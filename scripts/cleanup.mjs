@@ -74,6 +74,7 @@ import {
     remnantById, sceneOfRemnant
 } from "./remnants.mjs";
 import { locateActor, sameRoom, whilePlacing } from "./movement.mjs";
+import { isCubToken } from "./spectator.mjs";
 import { roomRegions } from "./rooms.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -2564,7 +2565,8 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
 
     // The room's first piece (rooms.mjs, E12 C2a): a Teleport named like the room is no room.
     const region = roomRegions(here.scene, room)[0] ?? null;
-    const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id) ?? null;
+    // The body's own token (E62 C3b fix): a dead student's Spectator or Monocub token is no body to carry.
+    const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id && !isCubToken(t)) ?? null;
 
     /*
      * A BODY THAT DID NOT MOVE LEAVES NO DRAG MARKS (E09 C11, 08.10.2026; audit S05-47). A teleport that threw, or a

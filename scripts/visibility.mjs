@@ -26,7 +26,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { flaggedSpectator, spectatorViewer } from "./spectator.mjs";
+import { flaggedSpectator, spectatorViewer, isMonocubCorpse } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
@@ -946,6 +946,9 @@ function myRooms() {
     for (const token of canvas.tokens?.placeables ?? []) {
         if (!token.isOwner || token.actor?.type !== "character") continue;
         if (watcherIsNoEye && flaggedSpectator(token.actor)) continue;
+        // Nor is a Monocub's corpse beside the token it walks (E62 C3b fix, the coordinator's 7): the body's room is no
+        // room the Monocub stands in.
+        if (isMonocubCorpse(token.document)) continue;
         const room = roomOfToken(token.document);
         if (room) rooms.add(room);
     }

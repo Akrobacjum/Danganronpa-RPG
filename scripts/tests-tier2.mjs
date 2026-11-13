@@ -88328,6 +88328,112 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[a Monocub no more: a Spectator on that token, the student's tokens], the student's tokens after the revive)");
     }],
 
+    ["E62 C3b the Monocub walks its own token - after the conversion the student's place is the Monocub's token wherever it walks (locateActor, gmPlaceOf, placesOf), and the body's is the corpse's (gmPlaceOf with `body`, bodyPlaceOf without a tile); the corpse is no walker of a Monocub's (the coordinator's 7, 13.11.2026)", async () => {
+        /*
+         * E62 C3b fix, 13.11.2026; the coordinator's point 7 on fd25ee16. After `setMonocub(true)` a Monocub has two tokens:
+         * the corpse it died as and the Spectator's token it was given (`FLAGS.cubToken`). A cast student killed at once,
+         * made a Monocub, its Monocub token moved off the body; read: which token each reader lands on, and the leaf's
+         * `isMonocubCorpse` of both. Red at fd25ee16: `locateActor` chose by its old order and could land on the corpse.
+         */
+        needs(env.primaryGm(), "the watcher is made by a GM");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the Spectator is owned by the student's player");
+        const C = await import("./chapter.mjs");
+        const MC = await import("./monocub.mjs");
+        const M = await import("./movement.mjs");
+        const BT = await import("./body-tile.mjs");
+        const SP = await import("./spectator.mjs");
+        const D = await import("./spectator-dead.mjs");
+        const corpse = M.locateActor(student)?.tokenDoc ?? null;
+        must(corpse, `${student.name} has no token on a place scene - this would measure nothing`);
+        const made = [];
+        let read = null;
+        try {
+            must(await C.killCharacter(student, { secret: false, keepBullets: true, silent: true }), `${student.name}'s death was not recorded`);
+            await settle();
+            const watcher = D.watcherActorOf(student);
+            if (watcher) made.push(watcher.id);
+            const cub = watcher ? D.tokensOf(watcher)[0]?.tokenDoc ?? null : null;
+            must(cub, "no Spectator token was made - this would measure nothing");
+            await MC.setMonocub(student, true, { quiet: true });
+            await settle();
+            await cub.update({ x: cub.x + 100 });
+            await settle();
+            const id = place => place?.tokenDoc?.id ?? null;
+            const isCorpse = typeof SP.isMonocubCorpse === "function" ? SP.isMonocubCorpse : () => "none";
+            read = {
+                located: id(M.locateActor(student)) === cub.id, gm: id(M.gmPlaceOf(student)) === cub.id,
+                body: id(M.gmPlaceOf(student, { body: true })) === corpse.id,
+                places: M.placesOf(student).map(p => p.tokenDoc.id === cub.id),
+                bodyPlace: BT.bodyPlaceOf(student, { scenes: [] })?.doc?.id === corpse.id,
+                corpse: isCorpse(corpse), cub: isCorpse(cub)
+            };
+            // A Monocub revived as it stands (a GM's console, or a revive with the flag left on) keeps no second token.
+            await C.reviveCharacter(student, { quiet: true, silent: true });
+            await settle();
+            read.revived = [...game.scenes].flatMap(sc => [...sc.tokens]).filter(t => t.actorId === student.id).map(t => t.id);
+        } finally {
+            await MC.setMonocub(student, false, { quiet: true }).catch(() => {});
+            const back = D.watcherActorOf(student);
+            if (back) made.push(back.id);
+            await C.reviveCharacter(student, { quiet: true, silent: true });
+            await settle();
+            for (const actorId of made) if (game.actors.get(actorId)) await game.actors.get(actorId).delete().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ located: true, gm: true, body: true, places: [true], bodyPlace: true, corpse: true, cub: false, revived: [corpse.id] }),
+            "where a Monocub is ([locateActor, gmPlaceOf on the Monocub's token], [gmPlaceOf for the body, bodyPlaceOf without a tile on the corpse], "
+            + "[placesOf: the Monocub's token alone], [the corpse a Monocub's corpse, the Monocub's token not], the student's tokens after a revive)");
+    }],
+
+    ["E62 C3b a dead student's Spectator keeps its Role - the Students window draws its Role as words, no select, and a Role change asked of it is refused with a notice the GM reads, the flag kept (the coordinator's 8, 13.11.2026)", async () => {
+        /*
+         * E62 C3b fix, 13.11.2026; the coordinator's point 8 on fd25ee16. A dead student's Spectator (spectator-dead.mjs)
+         * is a Spectator's character to the Students window (gm-students.mjs `roleOf`), and its Role select made it a
+         * student - a second student with the dead one's name. A cast student killed at once; the window opened as the
+         * GM panel opens it (`openWhoIsAliveDialog`), its row read; then `changeRole` asked to make it a student, with the
+         * notices counted. Red at fd25ee16: the row drew the select and the change went through.
+         */
+        needs(env.primaryGm(), "the watcher is made by a GM");
+        needs(env.dialogs(), "the window is drawn");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the Spectator is owned by the student's player");
+        const C = await import("./chapter.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const GS = await import("./gm-students.mjs");
+        const D = await import("./spectator-dead.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const warned = [];
+        const ownWarn = ui.notifications.warn;
+        let read = null, watcher = null, answer = null;
+        try {
+            must(await C.killCharacter(student, { secret: false, keepBullets: true, silent: true }), `${student.name}'s death was not recorded`);
+            await settle();
+            watcher = D.watcherActorOf(student);
+            must(watcher, "no Spectator was made - this would measure nothing");
+            answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await wait(600);
+            const el = of()[0]?.element ?? null;
+            must(el, "the Students window was not drawn - this would measure nothing");
+            const select = el.querySelector(`select[data-drpg-role-select="${CSS.escape(watcher.id)}"]`);
+            const words = el.querySelector(`[data-drpg-role-fixed="${CSS.escape(watcher.id)}"]`);
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return ownWarn.call(ui.notifications, message, ...rest); };
+            const moved = await GS.changeRole(watcher, "student");
+            await settle();
+            read = { select: Boolean(select), words: words?.textContent?.trim() === game.i18n.localize("DRPG.Spectator.deadWatcher"), moved,
+                spectator: Boolean(watcher.getFlag(MODULE_ID, FLAGS.spectator)),
+                told: warned.some(m => m === game.i18n.format("DRPG.Spectator.deadWatcherRole", { name: watcher.name })) };
+        } finally {
+            ui.notifications.warn = ownWarn;
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+            await C.reviveCharacter(student, { quiet: true, silent: true });
+            await settle();
+            if (watcher && game.actors.get(watcher.id)) await watcher.delete().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ select: false, words: true, moved: false, spectator: true, told: true }),
+            "a dead student's Spectator in the Students window ([a Role select drawn, its words], [the change made, the flag after, the GM told])");
+    }],
+
     ["E62 C3b a Spectator keeps its images - a GM's Role change to Spectator and back keeps the character's sheet image and token image (the owner's rule on Q-C3b-2, E92's road)", async () => {
         /*
          * E62 C3b, 13.11.2026: "zmiana typu na obserwatora zawsze ma pozostawiac ten sam obraz karty i tokenu". monokuma.mjs

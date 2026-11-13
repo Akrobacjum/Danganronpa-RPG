@@ -3666,6 +3666,8 @@
     },
     "Spectator": {
       "role": "Widz",
+      "deadWatcher": "Widz zmarłego ucznia",
+      "deadWatcherRole": "{name} to Widz zmarłego ucznia. Znika, gdy uczeń zostanie wskrzeszony albo zostanie Monocubem.",
       "marked": "{name} jest teraz Widzem.",
       "unmarked": "{name} nie jest już Widzem.",
       "talk": "Porozmawiaj z Widzami",

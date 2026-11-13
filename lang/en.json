@@ -3396,6 +3396,8 @@
     },
     "Spectator": {
       "role": "Spectator",
+      "deadWatcher": "Dead student's Spectator",
+      "deadWatcherRole": "{name} is a dead student's Spectator. It goes when the student is revived or becomes a Monocub.",
       "marked": "{name} is now a Spectator.",
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",

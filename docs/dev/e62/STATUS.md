@@ -98,3 +98,38 @@ all green. `node tools/check.mjs` 17/17, lint green.
 ## Review shots
 
 Round 1: https://claude.ai/artifact/SwzgVUs65Qej3w7Gwwte76 - seven recordings with frame strips (E62-1, E62-2, E62-3 in both themes, E62-4, the discovery flicker in both themes); the glass harness in headless Chromium, not Foundry. The investigation recording is from after the onset fix (5dce8f1).
+
+## C3b, the dead as Spectators (13.11.2026; built on the e72 line, ships with 1.2.112)
+
+Spec: docs/dev/e62/STORYBOARD-C3.md on the e62-c3 line (e64968c6), the owner's Q-C3b-1..6 and Q-C3b-7 (accepted as
+proposed, 13.11 about 01:35 CET). The curtain's fade and return are another line's: the hook `drpgDeadSpectator` is
+called on the victim's browser and nothing listens yet.
+
+| What | Where |
+| --- | --- |
+| At a death, a GM makes the student's Spectator: a new actor with the student's name, sheet image and token image, owned by the student's players alone, E92's flag, and a token where the body's token stands; the body's token stays the corpse | spectator-dead.mjs, chapter.mjs |
+| The link: the GMs' deaths row (`watcher`) while the death is kept; `FLAGS.watcherOf` on the Spectator once it is public | spectator-dead.mjs, config.mjs |
+| A revive and the season reset take the Spectator away; a Monocub's own token too, for a Monocub revived as it stands | spectator-dead.mjs, chapter.mjs |
+| The Monocub (Q-C3b-7): the Spectator's token is re-linked to the student (`FLAGS.cubToken`) where it stands, the Spectator actor goes, the corpse stays; a Monocub no more gets a Spectator back on that token | spectator-dead.mjs, monocub.mjs |
+| A Monocub's place is its own token, its body's place the corpse (`locateActor`/`gmPlaceOf` with `body`, `placesOf`, `bodyPlaceOf`); the corpse is no walker (the veto and the GMs' judge refuse its move) and no eye (`myRooms`, fog's `isMine`) | movement.mjs, spectator.mjs, body-tile.mjs, cleanup.mjs, visibility.mjs, fog.mjs |
+| The dead's view stays a dead student's: the Spectator's token is no eye of its owner | visibility.mjs |
+| Voice: the silenced dead go to the Spectators' room (Q-C3b-5); the Spectator has no voice row and is never the trial's voice of its account | voice.mjs |
+| The Sound row "Death fade" / "Gaśnięcie" (incident; empty, the death's file), on the victim's browser at a fade that is not silent | config.mjs, sfx-play.mjs, spectator-dead.mjs |
+| The Students window draws a dead student's Spectator's Role as words, and a Role change of it is refused with a notice | gm-students.mjs, monokuma.mjs |
+
+Tests: R4550-R4554 (tier 1); tier 2 "E62 C3b ..." (six); scenario 94-dead-spectator (ci, 10 checks). Each red first on
+the tree before it, as a measured failure, but "a Spectator keeps its images", which holds E92's behaviour (green
+before by design).
+
+### Defaults taken (the coordinator's 13.11: they stand, on the owner's list)
+
+1. The Spectator's token is not Foundry-hidden (that hides it from its owner too): the module hides it from other players
+   as E92 does. The spec said `hidden: true`.
+2. After the publication the link is `FLAGS.watcherOf` on the Spectator; it names a public death only.
+3. The player's own copy of the deaths row is not given the link: nothing on the player's browser needs it.
+4. A9's play-out stays: until the first trigger the dead keep their room's voice, then the Spectators' room; Silence now
+   moves them there at once.
+5. The row's "A character dies" window counts as in play (the fade); the Students window's dropdown, the publication and
+   the season reset are silent.
+6. The module has no Monocub image: the Monocub's token keeps the student's token image.
+7. No migration (Q-C3b-6); voice-client.mjs `deadRoomFor` stays exported, routed to by nothing.
