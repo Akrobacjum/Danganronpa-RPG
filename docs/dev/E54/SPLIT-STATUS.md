@@ -239,6 +239,14 @@ settleVoice's and blockTurns's cuts grew (739 -> 953, 480 -> 31991 characters). 
 promoted declaration's line when only blanks precede it there (glass.mjs indents the cut two spaces); every top-level
 statement of the other cuts' sources starts at column 0, so their output is as before.
 
+### W3's file (a coordinator decision, 13.11.2026)
+
+W3 (tools/e54/windows-settings.json) writes scripts/window-scale.mjs, not windows.mjs: W1 writes windows.mjs from
+utils.mjs and split.mjs refuses a target that exists, so one windows.mjs would need split.mjs to append. The
+coordinator took window-scale.mjs as an internal name, not put to the owner. Rehearsed on claude/e54-behaviour
+648bc56f (W1 split and repoint, then W3 split, repoint and comment sweep): moved-only 8/8 green on both splits;
+quick green; tiers 0-1 1375 passed, 0 failed, 16 skipped, 0 red.
+
 ### Not to land on E54's day
 
 - prep-54's C1 (0271bfb2: tools/comments-lint.mjs, comment-budget.json, `check comments`): the E56 line
@@ -248,10 +256,8 @@ statement of the other cuts' sources starts at column 0, so their output is as b
 ### Not done here
 
 - The splits' results, as the brief says: only the scripts, the manifests and this file.
-- The glass cut's comment-sweep table (tools/e54/sweep-glass.json): tools/e54/sweep.mjs refuses a cut with none, and
-  the comments that name glass.mjs for a moved function are not yet listed.
-- The windows' settings half (windows-settings.json, W3) is not rerun after W2 and Q-E54-7, which add
-  `registerWindows`, `windowReaders`, `windowHeight`, `actionsTabHeight` and `callsHeight` to settings.mjs.
+- The comment sweep's tables of the five earlier cuts are main 421f2395's; built again on E54's day (sweep-glass.json
+  and sweep-windows-settings.json are main 984d1fb1's with the behaviour commits).
 - A comment that names where its code stands moves with the code and says what it said: utils.mjs `windowWidthFor`'s
   header ("Here and not in the kit because R168 reads it here") is now in windows.mjs. moved-only holds every moved line
   to its text, so such sentences are for the stage's comment sweep, not for these scripts.
