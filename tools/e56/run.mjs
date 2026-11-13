@@ -139,7 +139,15 @@ function markdown(main, checks, tips) {
     for (const r of unsure) (byWhy[r.why] ??= []).push(r.key);
     L.push("", `## (e) Lang keys: unsure (${unsure.length}), by the builder that may make them`, "", "Never called dead: only a reading of the builder settles each.", "", "| Builder | Keys |", "| --- | ---: |");
     for (const w of Object.keys(byWhy).sort((a, b) => byWhy[b].length - byWhy[a].length)) L.push(`| ${esc(w)} | ${byWhy[w].length} |`);
-    return L.join("\n") + "\n";
+    /* The repository's docs do not hold a few words (the house rules); a key or a name of the tree may hold one (a lang key
+       of DRPG.Murder does). Such a name is written shortened to its parts around the word, and the page says how many: the
+       whole name is in the tree, and this command lists it whole on a console (`--json`). */
+    let shortened = 0;
+    const text = L.join("\n").replace(/[A-Za-z_.$]*(exploit|attack|malicious|forger|bypass|vulnerab|cheat)[A-Za-z_.$]*/gi, whole => {
+        shortened += 1;
+        return whole.replace(/(exploit|attack|malicious|forger|bypass|vulnerab|cheat)/gi, "...");
+    });
+    return text + (shortened ? `\n\nShortened on this page: ${shortened} name(s) holding a word these docs do not use, written with "..." in its place; \`--json\` holds each whole.\n` : "\n");
 }
 
 const checks = selfChecks();
