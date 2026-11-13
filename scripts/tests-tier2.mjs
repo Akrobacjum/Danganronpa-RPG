@@ -44612,7 +44612,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const scene = where.scene;
         const known = game.i18n.localize("DRPG.Cleanup.authorsCopy");
         const back = game.i18n.localize("DRPG.Reroll.authorsCopyBack");
-        const had = { "system.resources.stress.value": who.system.resources.stress.value, "system.resources.hope.value": who.system.resources.hope.value };
+        const had = { "system.resources.stress.value": who.system.resources.stress.value, "system.resources.hope.value": who.system.resources.hope.value,
+            "system.resources.actions.value": who.system.resources.actions.value };
         const made = [];
         const hook = Hooks.on("createToken", doc => { made.push(doc); });
         const copiesOf = ids => who.items.filter(i => ids.includes(T.secretOf(i.uuid)?.remnantId ?? "")).length;
@@ -44630,6 +44631,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         // `bridge`: the player's packet judged as the primary judges "murder.cleanup" (its result off the GMs' record of the
         // roll), where the resolver's answer does not come back - so its success and its card's line read null.
         const road = async (key, context, packet, { again = false, bridge = false } = {}) => {
+            /* An action for each road (the 1.2.110 review, E64 reader F3, 13.11.2026, changed on purpose): the packet names the
+               Sanity step, which the action's road refuses, so the GM takes an action (`chargeUnclaimed`); with none left the
+               attempt is refused now instead of scored, and the fixture's own actions ran out after three roads. */
+            await trustedWrite(who, { "system.resources.actions.value": Math.max(1, who.system.resources.actions.value) }, { reason: "gmRuling" });
             F = await playerRollBookmark(player, who, "cleanup", { cleanup: key, cleanupKey: key, cleanupPrice: "stress", ...context },
                 bridge ? { record: { total: packet.total, isCritical: packet.isCritical, withHope: packet.withHope } } : {});
             must(F.verdict, `the GMs kept no row of the ${key} roll - this would measure nothing`);
@@ -44662,6 +44667,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             C = await cleanupFixture(who, "SUITE E70-T14 a trace covered");
             must(C.trace, "the fixture's trace was not placed - this would measure nothing");
             const items = who.items.size, mark = C.mark();
+            // An action for the cover as well (the road's charge; the review's F3, above).
+            await trustedWrite(who, { "system.resources.actions.value": Math.max(1, who.system.resources.actions.value) }, { reason: "gmRuling" });
             const covered = await C.scrub(30);
             await settle();
             read.cover = [covered?.removed ?? null, C.since(mark).filter(id => scene.tokens.has(id) && id !== C.trace.id).length, who.items.size - items];

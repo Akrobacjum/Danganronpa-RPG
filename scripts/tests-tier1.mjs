@@ -52918,6 +52918,26 @@ const INVARIANTS = [
             reads: [true, true, true, true]
         }), "the reach per band; landings [Hall on 1, Library on 2, Library on 1, a room on neither list on 2 and 1] as [room, short]; none with no room near; the reads");
     }],
+    ["R4477 - a Tamper the GM could charge nothing for is refused, not scored (scripts/cleanup.mjs `resolveCleanup`, `resolveStageSix`, `chargeUnclaimed`; the E101 line's review of 1.2.110, E64 reader F3, 13.11.2026): on the action's road (`viaAction`), when the packet's price is not one the GMs saw paid and `chargeUnclaimed` finds no action to take, both refuse with \"nothing was carried out\" before the attempt is scored", async () => {
+        /*
+         * The review's F3. E64 made Tamper one action and no Sanity; a packet whose claimed step `validPrice` refuses goes to
+         * `chargeUnclaimed`, which on the action's road takes an action - and with none left answered `{ stress: 0, step:
+         * null }`, and the attempt was scored all the same: a console with no action left still cleaned, for the Sanity mark
+         * its own browser wrote (roll-draw.mjs `paysFor("cleanup")` still names the chain's Sanity step for a draw ticket).
+         * Read in source, cut with the kit: a refusal follows the charge in both roads. A run of the whole road is not here:
+         * it needs a clean-up the GM would otherwise score (a found trace, an incident). Red at 37d96462: no refusal.
+         */
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        must(src.length > 10000, "cleanup.mjs was not read");
+        const refusal = /nothing was carried out: no action was left to pay for it/;
+        const after = (fn, marker) => {
+            const body = fnSource(src, fn);
+            const at = body.search(marker);
+            return at >= 0 && refusal.test(body.slice(at, at + 900));
+        };
+        equal(stableJson({ cleanup: after("resolveCleanup", /const charged = await chargeUnclaimed\(/), stageSix: after("resolveStageSix", /chargeUnclaimed\(/) }),
+            stableJson({ cleanup: true, stageSix: true }), "{the refusal after an unpaid charge in resolveCleanup, in resolveStageSix}");
+    }],
     ["R3958 - Tamper has no cap a time of day: it costs its price and nothing limits how often (E64, the owner's review of 12.11.2026, \"niech kosztuje po prostu akcje, bez jakis dziwnych rozwiazan\"; it replaces 4f3882f's two-a-time-of-day cap): `CLEANUP` has no `tamperPerTimeOfDay`, cleanup.mjs neither declares nor calls `tamperOverLimit`, gm-stores.mjs has no `tamperAttemptStore`, settings.mjs no `gmTamperAttempts`, no `DRPG.Tamper.limitReached` in either language, and `PRICE_CHAINS.tamper` keeps its two steps, 1 action and 1 Sanity (the Sanity is the killer's own Stage 6 alone since R3959)", async () => {
         /*
          * E64, the owner's review of 12.11.2026 (~10:17 Warsaw, through the coordinator). The cap came from the plan's
