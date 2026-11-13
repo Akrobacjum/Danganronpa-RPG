@@ -2423,6 +2423,11 @@ const REGRESSIONS = [
     }],
 
     ["R29 - a body is this chapter's dead, discovered once, and never gathered", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays is one rule every reader asks (checkBodyFound asks
+           `bodiesToDiscover`, whose cases R347 drives on fakes, and the rule's two exclusions named in it) and the one
+           queue both announcements wait in, whose outcome is a race of two discovery checks. "Never gathered" is driven in
+           tier 2's "the body's gather leaves the dead where they lie and walks the living and a Monocub (E40 item 4: R29's
+           rule, driven; was R29)", which the gather's line here read as text until E40. */
         /*
          * FIVE CARDS FOR ONE BODY, AND A CORPSE CARRIED INTO THE ASSEMBLY (16.09).
          *
@@ -2434,7 +2439,6 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
-        const world = stripComments(sources.get("call-world.mjs") ?? "");
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         // Since E11 C1 (1.2.73) the body rule is `bodiesToDiscover`, which checkBodyFound asks and R347 holds case by case.
@@ -2446,11 +2450,13 @@ const REGRESSIONS = [
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the automatic discovery check no longer waits in the discovery queue");
-        const gather = fnSource(world, "gatherEveryone");
-        ok(/(?:isDeceased|isDeadForGm)\(/.test(gather), "gatherEveryone moves the dead again");
     }],
 
     ["R30 - a verdict is locked before it does anything", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order inside verdict.mjs `applyVerdict` - the one refusal of both verdicts asked, then the lock written,
+           before anything else - whose outcome is a race of two verdicts; the refusal itself is driven in tier 2's E41-T2
+           (a verdict asked again, and asked while the first one's card is on its way, refused). Since E70 C4 no verdict
+           executes, so the kill this order is measured to is carryOutSentence's, read after applyVerdict in voteText. */
         /*
          * F2, and the review that followed it. The lock used to be written after every Level Up
          * window and the Blackened's rule had closed, so a second verdict could start in the
@@ -2740,6 +2746,10 @@ const REGRESSIONS = [
     }],
 
     ["R42 - the trial gate sits below the guards that outrank it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order of refusals inside action-rolls.mjs `performAction` and movement.mjs `crossingVerdict` (which
+           sentence a dead or fighting student is told in a trial) and a branch calls.mjs `hopeCallBarred` deliberately
+           does not have; `hopeCallBarred` is not exported, so driving the Hope half would need an export of
+           hopeCallBarred. The tile and the press per phase are driven in tier 2's E40-T3. */
         /*
          * ORDER IS THE RULE HERE, not the presence of a line (T-1). A trial gate
          * placed beside the Eclipse refusal would tell somebody in a fight, and a
@@ -2799,6 +2809,10 @@ const REGRESSIONS = [
     }],
 
     ["R43 - the trial's budget follows the phase, not the window", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the rule is "only there": one caller of actions.mjs `openTrialBudget` (clock.mjs `reconcilePhase`'s entry),
+           reached only on a write that moves the phase, and no door into the trial paying it again - a census of callers.
+           Driving the entry's refill would drive the whole entry (the record blanked, the hall activated, the Key fee);
+           not converted in this slice. */
         /*
          * MORE THAN ONE ROAD INTO A CLASS TRIAL, and only one of them has a window
          * (T-1). `openDebate` calls `startFloor`, which moves the phase itself, so a
@@ -2833,6 +2847,9 @@ const REGRESSIONS = [
     }],
 
     ["R44 - one admission rule, two questions, and every reader asks it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): one rule every reader must ask - trial-floor.mjs `floorRefusal` and `targetRefusal`, asked by openObjection,
+           the primary's objectOnPrimary, the button's preview and the window - and a call nothing may make (`hasGm(`) in
+           the action family; a census of the readers, not an outcome. */
         /*
          * THE RULE USED TO EXIST TWICE (T-1). trial.mjs carried
          * `objectionBlockedReason`, a copy of half of `openObjection`'s rules, with
@@ -2897,6 +2914,9 @@ const REGRESSIONS = [
     }],
 
     ["R45 - the floor is seized once, paid for, and never by a card with nothing behind it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trial.mjs `seizeFloor` is not exported (would need an export of seizeFloor) and runs from a card hook on the
+           primary GM; what is read is its shape - one queue key, the price taken before the floor moves, the gate, and
+           that openObjection, which macros and fixtures call, pays nothing. */
         /*
          * T-1. The charge lives in the card hook and not in `openObjection`, which
          * the API, the suite and the harness all call and all must keep free. What
@@ -3445,6 +3465,11 @@ const REGRESSIONS = [
     }],
 
     ["R56 - the body discovery refuses the dark before it asks anything, and the button says so", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays is the case dashboard's half - which button the footer leads
+           with, the greyed button's reason and that the greying rides `keepFresh`, not `wireCase` - the shape of a window
+           whose outcome only a drawn dashboard shows. The window's own refusal is driven in tier 2's "in an Eclipse the
+           body's window is refused before its form, and only to a GM ... (E40 item 4: R56's rule, driven; was R56)", which
+           the window's three guards here read as text until E40. */
         /*
          * F12, 19.09. "A body is discovered" moved from a GM panel tile into the case
          * dashboard's footer and the Eclipse greying stayed behind with the tile, so
@@ -3455,19 +3480,7 @@ const REGRESSIONS = [
          * pressed, then what the map happens to have.
          */
         const sources = new Map(await otherSources());
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
-
-        const open = bodyOf(chapter, "export async function openBodyDiscoveryDialog", { until: "function allBullets" });
-        ok(open.length > 200, "openBodyDiscoveryDialog is gone or has moved past allBullets");
-        const gm = open.indexOf("game.user.isGM");
-        const dark = open.indexOf("isEclipse()");
-        const rooms = open.indexOf("placeScenes(");   // E12 C5: the room list is every place scene's, not `allRooms(canvas.scene)`
-        ok(gm > 0 && dark > 0 && rooms > 0, "the body-discovery window lost one of its three guards");
-        ok(gm < dark, "the body-discovery window asks about the Eclipse before it asks who is pressing");
-        ok(dark < rooms,
-            "the window builds its room list before it refuses an Eclipse, so a GM fills in a form "
-            + "that cannot be submitted");
 
         ok(inv.includes('button[data-action="bodyFound"]'),
             "the dashboard no longer greys the button that reaches the discovery");
@@ -3955,14 +3968,18 @@ const REGRESSIONS = [
     }],
 
     ["R67 - a repair moves the flags and says nothing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays here is an order inside killCharacter and incidentVictimDied
+           with no outcome a call can see apart from a running incident's Stage 6 (the bullets perish while the items
+           still exist to be read, then the record, then who is told, then the chapter's traces, then Stage 6), and the
+           repair calling the helper and not the procedure. The quiet half - markDeceased, the Students window's "dead",
+           setMonocub - is driven in tier 2's "a repair moves the flags and says nothing ... (E40 item 4: R67's rule,
+           driven; was R67)", which these lines read as text until E40. */
         /*
          * F16, 20.09. The Players window's dropdown is documented as the tool that
          * "moves the two flags and nothing else" and it called `killCharacter` - the
          * whole death procedure: the "A student is dead" card whispered to every GM
          * and to the owners of everyone in a running incident, the death chapter
-         * stamped, this chapter's traces tied off, Stage 6 offered. And clearing the
-         * Monocub flag announced "X is no longer a Monocub" about students who never
-         * were one.
+         * stamped, this chapter's traces tied off, Stage 6 offered.
          *
          * THE ORDER INSIDE `killCharacter` IS READ TOO. Nothing else guards it, and
          * the extraction is only reviewable if the sequence is stated: the bullets
@@ -3976,16 +3993,6 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
-        const cub = stripComments(sources.get("monocub.mjs") ?? "");
-
-        ok(/export async function markDeceased\(/.test(chapter),
-            "markDeceased is gone, so a repair has nothing quiet to call");
-        const mark = bodyOf(chapter, "export async function markDeceased", { until: "export async function killCharacter" });
-        ok(/FLAGS\.deceased/.test(mark) && /toggleStatusEffect\("dead"/.test(mark),
-            "markDeceased does not write the record and the token marker");
-        for (const loud of ["whisperToGms", "tieChapterTraces", "offerStageSix", "bulletsOf"]) {
-            ok(!mark.includes(loud), `markDeceased ${loud}s - it is meant to be the quiet half`);
-        }
 
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
@@ -4013,16 +4020,6 @@ const REGRESSIONS = [
         const repair = fnSource(panel, "applyAliveStates");
         ok(/incidentVictimDied\(/.test(repair) && !/killCharacter\(/.test(repair),
             "the repair does not offer Stage 6 for the running incident's victim, or runs the whole death procedure (F16, D13)");
-
-        const set = bodyOf(cub, "export async function setMonocub", { until: "export async function setSilenced" });
-        ok(/const was = isMonocub\(actor\)/.test(set),
-            "setMonocub does not read what it is about to change");
-        ok(/if \(was === Boolean\(value\)\)/.test(set),
-            "setMonocub still announces a change it did not make");
-        // Since E72 C2 the mark is the GMs' row (`patchCubRow`), not the flag; cleared before the change is asked, as the flag was.
-        ok(set.indexOf("patchCubRow(actor.id, { witness: null })") > -1 && set.indexOf("patchCubRow(actor.id, { witness: null })") < set.indexOf("was === Boolean(value)"),
-            "the silence mark is now cleared only on a real change - a cub who stopped being "
-            + "one keeps their silence");
     }],
 
     ["R68 - Edit campaign offers the chapter the clock is actually on", async () => {
@@ -4032,37 +4029,36 @@ const REGRESSIONS = [
          * wrote it: a GM who opened this window to fix a typo in the campaign name
          * rewound the campaign five chapters.
          *
-         * The weaker assertions all pass on the defect: the options already carry
-         * `selected` when they match (it simply never matched), and
-         * CHAPTERS_PER_SEASON already appears. Only the widening and the coercion
-         * tell the fix from the bug.
+         * E40 item 4 (13.11.2026): driven, not read. Until then this read gm-campaign.mjs `campaignRows` as text (the
+         * widening `Math.max(CHAPTERS_PER_SEASON`, a `Number.isFinite`, the stepper's `value: now`), and passed a
+         * coercion that kept every word and answered 1 for a chapter past the season (mutant m2, docs/dev/e40/ITEM4-C.md).
+         * Here both windows' rows are drawn from clocks handed in - no world is read or written - and the chapter field's
+         * value and cap are read off the markup: a clock past the season's last chapter, the same chapter stored as a
+         * string, one inside the season, and two a world should never hold (0 and a word) that fall back to 1.
          */
-        const sources = new Map(await otherSources());
-        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
-        const panel = stripComments(panelText(sources));
-        // E49 A1e: the fields left the window's body for `campaignRows`, which Edit campaign and Season setup both draw.
-        const clockWin = bodyOf(panel, "export function campaignRows");
-        const list = bodyOf(clockWin, "const stated", { until: "return [" });
-        ok(list.length > 80, "the chapter list has moved or gone");
-        ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(clockWin),
-            "the chapter list is six long whatever the clock says, so a campaign past "
-            + "chapter 6 opens this window on chapter 1 and Apply writes it");
-        ok(/Number\.isFinite/.test(list),
-            "the length of that array comes straight out of a world setting");
-        // E47-C2, 09.11.2026: the list is a kit stepper (the owner's Q-E47-1) whose value and `max` read the coerced `now`.
-        const chapterField = bodyOf(clockWin, 'stepper({ name: "chapter"', { length: 200 });
-        ok(/\bvalue:\s*now\b/.test(chapterField) && /\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON,\s*now\)/.test(chapterField),
-            "the chapter field reads the raw setting, so a chapter stored as a "
-            + "string widens nothing and matches nothing");
-
-        // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
-        // whose value is out of range fails constraint validation, so Apply there
-        // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
-        // E49 A1e: Season setup draws Edit campaign's own rows, so its chapter is the field read above.
-        const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const fields = bodyOf(season, "export function campaignFieldsHtml(", { until: "export function seasonTilesHtml(" });
-        ok(/\bcampaignRows\(/.test(fields) && !/stepper\(\{ name: "chapter"/.test(season),
-            "the Season setup window draws a chapter field of its own again, which this cap does not reach");
+        const { campaignRows } = await import("./gm-campaign.mjs");
+        const { campaignFieldsHtml } = await import("./season-setup.mjs");
+        const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
+        const { getClock } = await import("./settings.mjs");
+        must(Number.isInteger(CHAPTERS_PER_SEASON) && CHAPTERS_PER_SEASON >= 2, "the season has no chapter count to widen past - this would measure nothing");
+        const past = CHAPTERS_PER_SEASON + 1;
+        const fieldsOf = html => {
+            const el = document.createElement("div");
+            el.innerHTML = html;
+            return [...el.querySelectorAll('input[name="chapter"]')].map(input => [input.getAttribute("value"), input.getAttribute("max")]);
+        };
+        const clockAt = chapter => ({ ...getClock(), chapter });
+        const editCampaign = chapter => fieldsOf(campaignRows(clockAt(chapter)).map(row => row.field ?? row.full ?? "").join(""));
+        const seasonSetup = chapter => fieldsOf(campaignFieldsHtml(clockAt(chapter), ""));
+        const cap = String(CHAPTERS_PER_SEASON), wide = String(past);
+        const cases = [past, String(past), 2, 0, "seven"];
+        equal(JSON.stringify({ editCampaign: cases.map(editCampaign), seasonSetup: cases.map(seasonSetup) }),
+            JSON.stringify({
+                editCampaign: [[[wide, wide]], [[wide, wide]], [["2", cap]], [["1", cap]], [["1", cap]]],
+                seasonSetup: [[[wide, wide]], [[wide, wide]], [["2", cap]], [["1", cap]], [["1", cap]]]
+            }),
+            "the chapter field does not open on the clock's chapter, widened past the season, coerced from a string, and 1 for what is no chapter "
+            + `([value, max] of each chapter field for the chapters ${JSON.stringify(cases)}, in Edit campaign and in Season setup)`);
     }],
 
     ["R69 - the Eclipse warning fires on a clock that moved", async () => {
@@ -4101,19 +4097,71 @@ const REGRESSIONS = [
          * Hope at all. DialogV2 renders every footer button as a submit and implicit
          * submission takes the first one in tree order however `default` is set -
          * the trap this module has paid for twice already.
+         *
+         * E40 item 4 (13.11.2026): the guard is driven, not read. Until then this read utils.mjs `guardTextFields` as
+         * text (the marker, `focus()` before `click()`, the disabled check), and passed a guard that looked the button up
+         * across the whole window instead of the field's own fieldset (mutant m2, docs/dev/e40/ITEM4-C.md). Here the guard
+         * is put on a window of its own, built in this browser's page and taken away after (no world is read or
+         * written): two give-Hope rows, each a select and a number naming its row's button, a row whose button is
+         * disabled, a textarea and a field naming nothing. Read: which button each Enter pressed, whether focus stood on
+         * it when it was pressed, and whether the Enter was taken from the form. Where the windows put the marker is R5150.
          */
+        const { guardTextFields } = await import("./utils.mjs");
+        const root = document.createElement("div");
+        root.className = "drpg-ui";
+        root.innerHTML = `<form>
+            <fieldset data-row="a"><select data-drpg-enter="[data-drpg-give]"><option>1</option></select>
+                <input type="number" value="1" data-drpg-enter="[data-drpg-give]"><button type="button" data-drpg-give>a</button></fieldset>
+            <fieldset data-row="b"><input type="number" value="2" data-drpg-enter="[data-drpg-give]"><button type="button" data-drpg-give>b</button></fieldset>
+            <fieldset data-row="c"><input type="number" value="3" data-drpg-enter="[data-drpg-give]"><button type="button" data-drpg-give disabled>c</button></fieldset>
+            <fieldset data-row="d"><textarea data-drpg-enter="[data-drpg-give]"></textarea><button type="button" data-drpg-give>d</button></fieldset>
+            <input type="text" data-row="e" value="plain"></form>`;
+        document.body.append(root);
+        const pressed = [];
+        try {
+            must(guardTextFields(root) && !guardTextFields(root), "the guard was not put on the window once - this would measure nothing");
+            for (const button of root.querySelectorAll("button")) {
+                button.addEventListener("click", ev => {
+                    ev.preventDefault();
+                    pressed.push([button.textContent, document.activeElement === button]);
+                });
+            }
+            const enter = field => {
+                field.focus();
+                const from = pressed.length;
+                const ev = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+                field.dispatchEvent(ev);
+                return [pressed.slice(from), ev.defaultPrevented];
+            };
+            const read = {
+                select: enter(root.querySelector('[data-row="a"] select')),
+                number: enter(root.querySelector('[data-row="a"] input')),
+                otherRow: enter(root.querySelector('[data-row="b"] input')),
+                disabled: enter(root.querySelector('[data-row="c"] input')),
+                textarea: enter(root.querySelector('[data-row="d"] textarea')),
+                plain: enter(root.querySelector('[data-row="e"]'))
+            };
+            equal(JSON.stringify(read), JSON.stringify({
+                select: [[["a", true]], true], number: [[["a", true]], true], otherRow: [[["b", true]], true],
+                disabled: [[], false], textarea: [[], false], plain: [[], false]
+            }), "Enter in a field that names a button did not press that button, focused, in its own row, and nothing else "
+                + "({field: [[the button pressed, focused when pressed]], the Enter taken from the form]})");
+        } finally {
+            root.remove();
+        }
+    }],
+
+    ["R5150 - the windows that need Enter to press a button name it: the Mastermind's give-Hope row and the Sound window's cue picker", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): mastermind.mjs `mastermindHopeBox` is not exported and the Sound window's
+           cue picker is drawn inside `soundPlayPane` from the world's playlists, so where the marker stands is read in the
+           source; driving the row would need an export of mastermindHopeBox. What the marker does is R70's, driven. Split
+           out of R70 (MM-02, 20.09), whose text these assertions were until E40. */
         const sources = new Map(await otherSources());
         const utils = stripComments(sources.get("utils.mjs") ?? "");
         const guard = bodyOf(utils, "export function guardTextFields", { until: "export function registerTextGuard" });
         ok(guard.length > 200, "guardTextFields has moved or gone");
-        ok(/data-drpg-enter/.test(guard), "nothing reads the marker, so Enter still submits");
-        ok(/button\.focus\(\)[\s\S]{0,60}button\.click\(\)/.test(guard),
-            "the button is clicked with the caret still in the field, so keepLive defers the "
-            + "redraw and the donation looks as if it did nothing");
-        ok(/if \(!button \|\| button\.disabled\) return;/.test(guard),
-            "Enter presses a disabled button, which is a window's way of saying not now");
         ok(guard.indexOf("data-drpg-field") < guard.indexOf("data-drpg-enter"),
-            "the field rule moved below the button rule - R44 reads the first one's position");
+            "the field rule moved below the button rule");
 
         const mm = stripComments(sources.get("mastermind.mjs") ?? "");
         const box = bodyOf(mm, "function mastermindHopeBox(", { until: "function wireMastermindGive(" });
