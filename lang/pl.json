@@ -278,9 +278,9 @@
         "name": "Wygląd kości przy stole",
         "hint": "Przy jednym wyglądzie gracze i Asystenci GM-a rzucają w wyglądzie Dice So Nice jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem. Wygląd Daggerheart dodaje kolory Hope i Despair z Daggerhearta.",
         "choices": {
-          "own": "Własny wygląd każdego gracza",
-          "dsn": "Jeden wygląd dla stołu: Dice So Nice",
-          "daggerheart": "Jeden wygląd dla stołu: Daggerheart"
+          "own": "Każdy gracz własny",
+          "dsn": "Wszyscy: Dice So Nice",
+          "daggerheart": "Wszyscy: Daggerheart"
         }
       },
       "forcePrivateRolls": {

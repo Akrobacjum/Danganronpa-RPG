@@ -278,9 +278,9 @@
         "name": "Dice look for the table",
         "hint": "With one look, players and Assistant GMs throw in one full Gamemaster's Dice So Nice look, fixed the first time the game runs with it on. The Daggerheart look adds Daggerheart's Hope and Despair colors.",
         "choices": {
-          "own": "Each player's own look",
-          "dsn": "One look for the table: Dice So Nice",
-          "daggerheart": "One look for the table: Daggerheart"
+          "own": "Each player's own",
+          "dsn": "Everyone: Dice So Nice",
+          "daggerheart": "Everyone: Daggerheart"
         }
       },
       "forcePrivateRolls": {

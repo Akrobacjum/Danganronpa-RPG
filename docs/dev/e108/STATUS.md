@@ -93,9 +93,9 @@ One choice, three values, in the game's settings, Rolls and privacy, where the s
 
 | Value | Basic dice of users below full GM | Hope, Fear, advantage, disadvantage dice |
 | --- | --- | --- |
-| Each player's own look | their own (nothing written; today's off) | their own |
-| One look for the table: Dice So Nice | the source GM's DSN look (today's on) | as today: Daggerheart 2.9 and older the source GM's preset; 2.10 and later DSN's roles, each thrower's own role look where it set one (the gap above) |
-| One look for the table: Daggerheart | the source GM's DSN look, as the value above (Daggerheart has none for them) | Daggerheart's own colorsets, on every screen, whoever throws - a GM too |
+| Each player's own | their own (nothing written; today's off) | their own |
+| Everyone: Dice So Nice | the source GM's DSN look (today's on) | as today: Daggerheart 2.9 and older the source GM's preset; 2.10 and later DSN's roles, each thrower's own role look where it set one (the gap above) |
+| Everyone: Daggerheart | the source GM's DSN look, as the value above (Daggerheart has none for them) | Daggerheart's own colorsets, on every screen, whoever throws - a GM too |
 
 **How the Daggerheart value is applied.** Display only, as E60 C5d laid the 2.9 preset: at `diceSoNiceRollStart` each
 browser hands Dice So Nice a copy of the roll whose Hope, Fear, advantage and disadvantage dice carry
@@ -110,6 +110,35 @@ default `dsn`). A world from before reads `true` as the Dice So Nice value and `
 write. Why not one new key: every forced-look rule, the Assistant's put-back (dice-sync.mjs `SWITCHES`) and some forty
 tests read the Boolean; a second key beside it leaves all of that as it is. Both keys are held to a full Gamemaster's
 value as the switches are (an Assistant's write is put back).
+
+**The choices' words.** The coordinator's default was "Each player's own look", "One look for the table: Dice So
+Nice", "One look for the table: Daggerheart". The stage's shots (Chromium, probe 08's captures of the game's settings,
+1366x768) showed Stained Glass's select cut the last two at "One look for the table:", so the chosen look could not be
+read; Monokuma Legacy wrapped them. They are now "Each player's own", "Everyone: Dice So Nice", "Everyone: Daggerheart"
+(PL "Każdy gracz własny", "Wszyscy: Dice So Nice", "Wszyscy: Daggerheart"), which the shots show whole in both themes.
+The setting's name: "Dice look for the table" / "Wygląd kości przy stole". The owner may want other words.
+
+## Measured (13.11.2026, this worktree)
+
+| Run | Result |
+| --- | --- |
+| R5460-R5466 before the code (d2dcfb9c) | 7 numbered and 3 named tier-2 tests, all 10 failed |
+| `npm run quick`, at the last commit's tree | lint, check (17 parts), gate all green |
+| `node run-tests.mjs --tier 1`, whole, after the choices' rename | 1394 ran: 1379 passed, 0 failed, 16 skipped, 0 red (439.6 s) |
+| the same on 71331273, before R1256's count | 1378 passed, 1 failed (R1256 counts the table's settings by hand: 38, now 39), 16 skipped |
+| tier 2 by name: "dice look" and E60-T16 | 40 ran: 44 passed (the run's own 4 guards included), 0 failed |
+| tier 2 by name: the three E108 tests | passed (on 71331273) |
+| scenario 83-roll-integrity | 110/110 |
+| scenario 17-assistant (reads dice-sync.mjs) | 46/46 |
+| scenarios 12-social, 13-murder-signals, 33-bridge-paths (throw dice through `diceSoNiceRollStart`) | 28/28; 86/86; 77/78 with 1 expected red (foundry-cub-purse, as before) |
+
+The scenarios and the tier-2 tests ran before the rename of the choices' words; the rename touches lang/*.json and the
+GM handbooks only, and the tiers 0-1 run above is after it. No scenario reads settings-window.mjs; none was found that
+does (grep of scenarios/ for the file, `saveSettings`, `settingRowHtml` and the window openers).
+
+Shots: the private review page, artifact id UPggd89JQ1c6ZJ3eANjcTP (its full link is in the report to the coordinator: the host's name is a word this repository's docs do not hold; Polish captions): the game's settings,
+section Rolls and privacy, EN and PL, both themes, and the row with each choice selected. No die is shown: the harness
+cannot draw Dice So Nice's 3D dice, so the page lists Daggerheart's four colorset colours as read in its source instead.
 
 ## Not tried, and open
 

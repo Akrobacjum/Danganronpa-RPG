@@ -24026,8 +24026,10 @@ const REGRESSIONS = [
 
     ["R5466 - the table's dice look is worded as three choices in both languages, the GM's handbook names the setting and each choice in its line, and no text of the module still names the switch by its old name (E108)", async () => {
         /*
-         * E108, 13.11.2026; the coordinator's default for the owner's report of 13.11: "Each player's own look", "One look
-         * for the table: Dice So Nice", "One look for the table: Daggerheart". The GM's handbook's line on the setting (R803,
+         * E108, 13.11.2026; the coordinator's default for the owner's report of 13.11 was "Each player's own look", "One
+         * look for the table: Dice So Nice", "One look for the table: Daggerheart"; the stage's shots cut the last two at
+         * "One look for the table:" in Stained Glass, so they read "Each player's own", "Everyone: Dice So Nice",
+         * "Everyone: Daggerheart" (docs/dev/e108/STATUS.md). The GM's handbook's line on the setting (R803,
          * R806 read the same line) names the setting in italics and each choice. The old name, "One dice look for the
          * table" / "Jeden wygląd kości przy stole", stood in two strings (the setting's and the diagnostic's
          * presetMissingLaid): a string that names a setting by a name it no longer has sends the GM looking for a row that
