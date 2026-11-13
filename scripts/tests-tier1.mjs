@@ -10758,7 +10758,7 @@ const INVARIANTS = [
         const one = T.startTrialLines({ hall }), none = T.startTrialLines({ hall: null });
         equal(JSON.stringify([one.table, none.table, one.rule, none.rule, one.table.includes("<b>"), /\d/.test(one.table)]),
             JSON.stringify([game.i18n.format("DRPG.Floor.startTrialHall", { hall: "Hall &lt;b&gt;" }),
-                game.i18n.localize("DRPG.Floor.startTrialNoHall"), game.i18n.localize("DRPG.Floor.tableRuleDead"),
+                game.i18n.localize("DRPG.TrialScene.noHallLine"), game.i18n.localize("DRPG.Floor.tableRuleDead"),
                 game.i18n.localize("DRPG.Floor.tableRuleDead"), false, false]),
             "[the hall line (the name escaped), the line with no hall, the rule with a hall and without, the raw name in the line, a count in the line]");
         const door = args => T.tableDoor(args);

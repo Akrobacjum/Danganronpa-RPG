@@ -547,6 +547,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
                `sceneReport`). Its own row until E101 item 2 (the owner's yes to the GM screens' review, #3): two rows
                about one tab, both optional, are one. */
             key: "scenes",
+            // Season setup's words since E101 item 5 (the r112 review's S3): the old hint named Room setup's Scenes tab.
+            hintKey: "DRPG.Season.scenesHint",
             group: FIRST_SESSION,
             optional: true,
             done: Boolean(schoolScene() && trialScene()) && hall.done,

@@ -802,8 +802,8 @@ export const DrpgApi = {
      *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's
      *  "Show the hall" and "Back to school"; GM only. `trialSceneReport()` answers the linked scenes, the
      *  active one, the cast's hall tokens shown now, the tokens the module made there (E81 DZ6) and the
-     *  Scenes tab's warnings (GM only, else null);
-     *  `openTrialCast()` opens Room Setup on its Scenes tab, where the cast is chosen. */
+     *  scenes part's warnings (GM only, else null);
+     *  `openTrialCast()` opens Season setup, whose scenes part chooses the cast (Room Setup's Scenes tab until E101). */
     showCourtroom: (...a) => import("./trial-scene.mjs").then(m => m.showCourtroom(...a)),
     showSchool: (...a) => import("./trial-scene.mjs").then(m => m.showSchool(...a)),
     trialSceneReport: () => import("./trial-scene.mjs").then(m => m.trialSceneReport()),

@@ -62507,7 +62507,7 @@ const SCENARIOS = [
                 const keep = new Set([...played, monokuma].map(a => a.id));
                 await T.saveTrialCast(hall, Object.fromEntries(game.actors.filter(a => a.type === "character" && !keep.has(a.id)).map(a => [a.id, false])));
                 await settle();
-                const dark = T.hallIsDark(hall) ? [`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`] : [];
+                const dark = T.hallIsDark(hall) ? [`<p>${game.i18n.localize("DRPG.TrialScene.hallDarkLine")}</p>`] : [];
                 const seen = new Set(game.messages.map(m => m.id));
                 const enter = async () => {
                     const entered = await T.enterTrialScene(hall);

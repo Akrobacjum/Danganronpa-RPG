@@ -425,7 +425,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        and until the fix entering the trial whispered the GMs only the students the hall has no token for (none here). */
     const toldDark = await gm.eval(`${HALL} const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
         const T = await import("${repoUrl}/scripts/trial-scene.mjs");
-        const text = "<p>" + game.i18n.localize("DRPG.TrialScene.hallDark") + "</p>";
+        const text = "<p>" + game.i18n.localize("DRPG.TrialScene.hallDarkLine") + "</p>";
         const told = [];
         for (const m of game.messages) if (await wordsOf(m, 2000) === text) told.push((m.whisper ?? []).slice().sort());
         return { unprepared: Object.keys(T.hallPreparePatch(hall)).sort(), told };`, { timeout: 60000 });
