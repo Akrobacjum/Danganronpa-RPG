@@ -71,7 +71,7 @@ const KIT_ONE = ["toggle", "stepper", "iconButton", "chip", "roleButton", "launc
 const KIT_EACH = ["kitTabs", "kitTabBar", "modeBar", "chips"];
 const ALWAYS = new Set(["iconButton", "launcher"]);
 /** A row's reason: no help needed, a conditional tooltip with its condition named, or a stage's commit that gives one. */
-export const WHY = /^(none needed: .{20,}|conditional: .{20,}|E\d{2,3} C\d+[a-z]?: .+)$/s;
+export const WHY = /^(none needed: .{20,}|conditional: .{20,}|help in code: .{20,}|E\d{2,3} C\d+[a-z]?: .+)$/s;
 /** What a kit builder other than a tab bar draws a tooltip from: its `attrs` (REVIEW-E102-code C9). */
 const KIT_TIP = /data-tooltip|aria-describedby/;
 
@@ -325,6 +325,28 @@ export function compare(sites, rows, mainRows = null) {
     return problems;
 }
 
+/**
+ * HELP IN CODE (REVIEW-E102-code C3): a row "help in code: ..." is a control whose tooltip is written where the census
+ * cannot follow (a paint function, a helper, a state change), and it carries `held: { fn, pattern }` - the function of
+ * its file that writes the help and a pattern of that line. The gate reads the function (a top-level declaration, to
+ * the next one) and wants the pattern there, so losing that help is red, where a "none needed" row would have hidden it.
+ */
+export function heldProblems(rows, repo = REPO) {
+    const out = [];
+    for (const r of rows.filter(x => /^help in code: /.test(String(x.why ?? "")))) {
+        const where = `${BASELINE}: ${identity(r).replace(/\|/g, " ")}`;
+        if (!r.held?.fn || !r.held?.pattern) { out.push(`${where} says its help is in code and names no held { fn, pattern }`); continue; }
+        let src = "";
+        try { src = fs.readFileSync(path.join(repo, r.file), "utf8"); } catch { out.push(`${where}: ${r.file} could not be read`); continue; }
+        const at = src.search(new RegExp(`^(?:export )?(?:async )?function ${r.held.fn}\\(`, "m"));
+        if (at < 0) { out.push(`${where}: ${r.file} declares no top-level function ${r.held.fn}() - point held.fn at the code again`); continue; }
+        const rest = src.slice(at + 1), next = rest.search(/^(?:export )?(?:async )?function |^const \w+ = \{|^export const /m);
+        const body = src.slice(at, next < 0 ? src.length : at + 1 + next);
+        if (!new RegExp(r.held.pattern).test(body)) out.push(`${where}: its help is gone from ${r.held.fn}() (no ${r.held.pattern}) - give the control its tooltip again, or a row with another reason`);
+    }
+    return out;
+}
+
 /** Every key a script names to tipAttr / tipText, and the ones with no words in either language file. */
 export function missingTipKeys(repo = REPO) {
     const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
@@ -412,16 +434,17 @@ export function check(log = console.log, repo = REPO) {
     try { base = JSON.parse(fs.readFileSync(path.join(repo, BASELINE), "utf8")); }
     catch (err) { return [...misses, `${BASELINE} could not be read (${err.message})`]; }
     const rows = base.rows ?? [], main = mainBaseline(repo), keys = missingTipKeys(repo);
-    const problems = [...compare(sites, rows, main.rows), ...keys.bad, ...shippedRows(rows, repo)];
+    const problems = [...compare(sites, rows, main.rows), ...keys.bad, ...shippedRows(rows, repo), ...heldProblems(rows, repo)];
     const need = sites.filter(s => s.needs).length, kept = rows.reduce((a, r) => a + (r.count ?? 1), 0);
-    const reasons = rows.filter(r => /^(none needed|conditional): /.test(String(r.why ?? ""))).reduce((a, r) => a + (r.count ?? 1), 0);
+    const reasons = rows.filter(r => /^(none needed|conditional|help in code): /.test(String(r.why ?? ""))).reduce((a, r) => a + (r.count ?? 1), 0);
+    const held = rows.filter(r => /^help in code: /.test(String(r.why ?? ""))).length;
     log(`tooltips: ${sites.filter(s => !s.closing).length} control site(s) in ${new Set(sites.map(s => s.file)).size} file(s), `
         + `${need} with no tooltip and no hint; baseline ${kept} (${reasons} with a reason, ${kept - reasons} still to give one); `
         + (main.rows ? `main's copy ${main.rows.reduce((a, r) => a + (r.count ?? 1), 0)} row count(s) held; `
             // Loud on purpose (REVIEW-E102-code C2): CI's checkouts have no origin/main (.github/workflows/ci.yml fetches only
             // the commit, and changing that is the owner's call), so there the growth guard does not run; this says so.
             : `MAIN'S COPY NOT READ, so the guard on rows added by hand DID NOT RUN (${main.why}); `)
-        + `${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - misses.length}/${planted} planted site(s) read; `
+        + `${held} row(s) of help in code read where they say; ${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - misses.length}/${planted} planted site(s) read; `
         + `${problems.length + misses.length} problem(s)`);
     return [...misses, ...problems];
 }

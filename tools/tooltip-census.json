@@ -167,7 +167,11 @@
    "kind": "button",
    "key": "DRPG.CaseTrial.startLabel",
    "count": 1,
-   "why": "none needed: Already has a title, 'Start {mode} from {name}', and the reason in its place while it is greyed; that says what it does."
+   "why": "help in code: the Start button's title, its mode and node, or why it is greyed (caseGraphHtml)",
+   "held": {
+    "fn": "caseGraphHtml",
+    "pattern": "title=\"\\$\\{esc\\(c\\.start\\.disabled"
+   }
   },
   {
    "file": "scripts/case-map.mjs",
@@ -623,7 +627,11 @@
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "none needed: It already carries a live tooltip: whom the Objection would be aimed at, or why it is held, and its price."
+   "why": "help in code: whom the Objection would be aimed at, or why it is held (objectionControl, dataset[tipKey])",
+   "held": {
+    "fn": "objectionControl",
+    "pattern": "button\\.dataset\\[tipKey\\]\\s*="
+   }
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1391,7 +1399,11 @@
    "kind": "kit:chip",
    "key": null,
    "count": 1,
-   "why": "none needed: the helper writes each chip's tooltip (its caller's tip) or its title, which the census cannot follow through the spread"
+   "why": "help in code: each chip's tooltip from its caller's tip, else its title (passages-tab.mjs chip)",
+   "held": {
+    "fn": "chip",
+    "pattern": "\"data-tooltip\":\\s*tip"
+   }
   },
   {
    "file": "scripts/passages-tab.mjs",
@@ -1407,7 +1419,11 @@
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "none needed: It already carries a live tooltip: the notice history, with the unread count."
+   "why": "help in code: the corner button's tooltip, the notice history with its unread count (showUnread)",
+   "held": {
+    "fn": "showUnread",
+    "pattern": "button\\.dataset\\.tooltip\\s*=\\s*name"
+   }
   },
   {
    "file": "scripts/projects-map.mjs",
@@ -1423,7 +1439,11 @@
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "none needed: Already carries a tooltip that follows its state ('Fold the projects away' / 'Show the projects', applyCollapsed)."
+   "why": "help in code: the fold's tooltip, which follows its state (applyCollapsed)",
+   "held": {
+    "fn": "applyCollapsed",
+    "pattern": "button\\.dataset\\.tooltip\\s*=\\s*label"
+   }
   },
   {
    "file": "scripts/projects-ui.mjs",
@@ -1535,7 +1555,11 @@
    "kind": "input",
    "key": "DRPG.Overflow.noHopeNow",
    "count": 1,
-   "why": "none needed: The text beside each pick says what it gives, and a blocked Breath already carries its reason as a title."
+   "why": "help in code: a blocked Breath's title says why; the other picks' words are beside them (choosePicks)",
+   "held": {
+    "fn": "choosePicks",
+    "pattern": "title=\"\\$\\{foundry\\.utils\\.escapeHTML\\(game\\.i18n\\.localize\\(\"DRPG\\.Overflow\\.noHopeNow\"\\)\\)\\}\""
+   }
   },
   {
    "file": "scripts/room-setup.mjs",
@@ -1615,7 +1639,11 @@
    "kind": "dom:button",
    "key": "DRPG.Room.imageOpen",
    "count": 1,
-   "why": "none needed: the room's picture is itself the button and its aria-label names it; pressing a picture to see it is self-evident"
+   "why": "help in code: Read more and read less, as the toggle's state (openProse)",
+   "held": {
+    "fn": "openProse",
+    "pattern": "more\\.dataset\\.tooltipText\\s*=\\s*label"
+   }
   },
   {
    "file": "scripts/room-tile.mjs",
@@ -1623,7 +1651,11 @@
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "none needed: Already carries a tooltip that follows its state ('Read more' / read less, openProse)."
+   "why": "help in code: Read more and read less, as the toggle's state (openProse)",
+   "held": {
+    "fn": "openProse",
+    "pattern": "more\\.dataset\\.tooltipText\\s*=\\s*label"
+   }
   },
   {
    "file": "scripts/rules.mjs",
@@ -1759,7 +1791,11 @@
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "none needed: Already has a tooltip built in code (DRPG.Trial.presentTooltip, or the reason it is held)."
+   "why": "help in code: Present's tooltip, or who holds the floor (paintPresentButton)",
+   "held": {
+    "fn": "paintPresentButton",
+    "pattern": "button\\.dataset\\.tooltip\\s*=\\s*tip"
+   }
   },
   {
    "file": "scripts/sheet.mjs",
@@ -1767,7 +1803,11 @@
    "kind": "dom:button",
    "key": "DRPG.Overflow.silenced",
    "count": 1,
-   "why": "none needed: Already has a tooltip built in code (its summary and lock note, callButton)."
+   "why": "help in code: a Call's summary and its lock note (callButton)",
+   "held": {
+    "fn": "callButton",
+    "pattern": "button\\.dataset\\.tooltip\\s*=\\s*`\\$\\{summary\\}"
+   }
   },
   {
    "file": "scripts/sheet.mjs",
@@ -1775,7 +1815,11 @@
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "none needed: Already has a tooltip built in code (its head, the reason it is dimmed and its bonus, actionButton)."
+   "why": "help in code: an action's head, why it is dimmed, and its bonus (actionButton)",
+   "held": {
+    "fn": "actionButton",
+    "pattern": "button\\.dataset\\.tooltip\\s*=\\s*`\\$\\{button\\.dataset\\.drpgTipHead\\}"
+   }
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -1799,7 +1843,11 @@
    "kind": "radio",
    "key": null,
    "count": 1,
-   "why": "none needed: Each cell already has its name as a label and a title."
+   "why": "help in code: each picture cell's title, its name (itemPictureGrid)",
+   "held": {
+    "fn": "itemPictureGrid",
+    "pattern": "title=\"\\$\\{esc\\(label\\)\\}\""
+   }
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -2111,7 +2159,11 @@
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "none needed: the label says it (Show and listen, Mute everybody for you), or paintRow writes the glyph button's tooltip (dataset.tooltipText) at paint"
+   "why": "help in code: the mute and block glyphs' tooltips, written as the row is painted (paintList)",
+   "held": {
+    "fn": "paintList",
+    "pattern": "mute\\.dataset\\.tooltipText\\s*=\\s*label"
+   }
   },
   {
    "file": "scripts/voice-tile.mjs",
