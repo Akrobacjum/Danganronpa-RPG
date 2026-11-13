@@ -51323,6 +51323,15 @@ const INVARIANTS = [
         }), stableJson({ before: ["absolute", false], after: [true, "-1", "\"\""], row: "inline-flex", onButton: [] }),
             "[the button's ::before: [position, a glyph's mask]; its ::after: [the flag's mask, its order, its content]; the button's display; pixel-icons.css's glyph rules on a button's or an attribute's ::before]");
     }],
+    ["R4404 - Wide project windows is on by default (scripts/settings.mjs, the client setting `wideProjectWindows`; scripts/projects-ui.mjs `projectWindowWidth`; the owner, 13.11.2026: \"Wide project windows w ustawieniach gracza - niech bedzie domyslnie zaznaczone\"): the setting is registered with the default true, and the width reads wide when the setting cannot be read", async () => {
+        /* 13.11.2026. Red at 1ff4bc77: the default was false, and so was the fallback (E47-C6's "off by default"). */
+        const def = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.wideProjectWindows}`);
+        must(def, "the setting is not registered - this reads nothing");
+        const src = stripComments((await moduleSources()).get("projects-ui.mjs") ?? "");
+        const width = fnSource(src, "projectWindowWidth");
+        equal(stableJson({ default: def.default, scope: def.scope, fallback: /catch\s*\{\s*wide = true;\s*\}/.test(width) }),
+            stableJson({ default: true, scope: "client", fallback: true }), "[the registered default; each browser its own; the width when the setting cannot be read]");
+    }],
     ["R3726 - no file the module serves holds a merge's conflict marker (scripts, styles, lang): a line that is seven <, = or > alone or before a space is none of the module's own; one found 12.11.2026 in styles/danganronpa.css, left by the merge of the 1.2.107 line, dropped the rule after it (Monokuma Legacy's notifications)", async () => {
         /* 12.11.2026. Red at 7bbbd3c: styles/danganronpa.css line 18324 was "=======". */
         const sources = await moduleSources(), css = String(await moduleStyles() ?? "");

@@ -275,7 +275,7 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 | Desperacki | 8 |
 
 - Projekt mieszka w pokoju. Pracować nad nim może tylko ten, kto tam stoi.
-- **Zaproponowanie projektu** nie kosztuje akcji i wysyła kartę do GMa. Nic nie istnieje, dopóki GM nie zatwierdzi, a wcześniej może zmienić skalę, pokój albo brzmienie. **Szerokie okna projektów**, w sekcji tego modułu w ustawieniach Foundry, otwiera Zaproponuj projekt szerzej na twoim ekranie (tylko w twojej przeglądarce; domyślnie wyłączone).
+- **Zaproponowanie projektu** nie kosztuje akcji i wysyła kartę do GMa. Nic nie istnieje, dopóki GM nie zatwierdzi, a wcześniej może zmienić skalę, pokój albo brzmienie. **Szerokie okna projektów**, w sekcji tego modułu w ustawieniach Foundry, otwiera Zaproponuj projekt szerzej na twoim ekranie (tylko w twojej przeglądarce; domyślnie włączone).
 - **Opis** (od 1.2.99). Propozycja musi go mieć, najwyżej 1000 znaków: czym jest projekt, twoimi słowami. Gdy wybierzesz projekt ustalonego rodzaju (niżej), w polu staje nazwa tego rodzaju i możesz ją zmienić. GM czyta opis na karcie i może go zmienić przed zatwierdzeniem; potem zmieniają go już tylko GMowie. Każdy, kto zna projekt, czyta opis na karcie jego tokenu.
 - Projekt wymaga jednej statystyki, nadanej przy tworzeniu, i każdy rzut na nim bierze właśnie ją - twój i sabotażysty. Projekt zrobiony bez niej - stary - przed pierwszym rzutem prosi cię o propozycję jednej; GM zatwierdza ją albo zmienia na karcie i zostaje statystyką projektu.
 - **Narzędzie w ręku** daje przewagę i zdejmuje swój Tier z każdego progu rzutu.

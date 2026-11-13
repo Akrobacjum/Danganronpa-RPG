@@ -1499,16 +1499,17 @@ export function registerSettings() {
     });
 
     /* WIDE PROJECT WINDOWS (E47-C6, 09.11.2026; the owner's O4 of the E47-M mockup round, "Moze jako ustawienie w panelu
-       ustawien?", and its scope, "Kazdy dla siebie": each person's own). Off by default: Create a project, Edit project
-       and Propose a project open at the width they had; on, at the kit's `wide` (projects-ui.mjs `projectWindowWidth`).
-       Read when a window opens, so no onChange. */
+       ustawien?", and its scope, "Kazdy dla siebie": each person's own). On by default since 1.2.110 (the owner, 13.11.2026:
+       "Wide project windows w ustawieniach gracza - niech bedzie domyslnie zaznaczone"; R4404): Create a project, Edit
+       project and Propose a project open at the kit's `wide` (projects-ui.mjs `projectWindowWidth`); off, at the width
+       they had. A browser that saved its own choice keeps it. Read when a window opens, so no onChange. */
     game.settings.register(MODULE_ID, SETTINGS.wideProjectWindows, {
         name: "DRPG.Settings.wideProjectWindows.name",
         hint: "DRPG.Settings.wideProjectWindows.hint",
         scope: "client",
         config: false,
         type: Boolean,
-        default: false
+        default: true
     });
 
     /* ---- the language of this layer, per browser. English by default, and
