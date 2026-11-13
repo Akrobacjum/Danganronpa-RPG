@@ -459,6 +459,18 @@ export async function endEclipse({ advance = true } = {}) {
         const last = takeBackFor(closing, boundaryStamp(closing));
         await setClock({ eclipse: false, ...afterTakeBack(closing, last) });
         if (last) await takeBackBoundary(last);
+        /* AND WHAT ITS START ENDED (A113-C2-6, the coordinator's follow-up, 13.11.2026): the timed effects and the unused
+           lock passes end as an Eclipse starts since C2-6, so they come back with the rest - a misclick costs them no
+           more than before. A barricade is not put back, as before. */
+        if (last) {
+            try {
+                const stamp = boundaryStamp(closing);
+                await (await import("./timed-effects.mjs")).putBackAtTakeBack(stamp);
+                await (await import("./lockpick-gm.mjs")).putBackPassesAtTakeBack(stamp);
+            } catch (err) {
+                error("Could not put back what the Eclipse's start ended", err);
+            }
+        }
         await announce({
             flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
             content: `<p><strong>${timeOfDayLabel()}</strong> - ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`

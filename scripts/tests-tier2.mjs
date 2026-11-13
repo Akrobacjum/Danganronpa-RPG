@@ -94262,14 +94262,65 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{given: [Body's rise, rows' ends, a pass]; start: the same after the Eclipse's start; noEclipse: [Body's rise, rows, a pass] after a time of day's change with no Eclipse; night: [ended, Body's rise, rows] for a row until the day's end at Night's Eclipse}");
     }],
 
+    ["A113-C2-6 the undo - an Eclipse ended without advancing within its five minutes puts back the timed effect and the unused pass its start ended, exactly as they stood", async () => {
+        /*
+         * A113-C2-6, the coordinator's follow-up (13.11.2026): the earlier boundary must not make a misclick cost more than
+         * it did. Before C2-6 an Eclipse opened by mistake and ended without advancing left a +2 Body until the time of day
+         * ends and an unused Pick the Lock pass standing (they ended only at the clock's move); C2-6 ended them at the start
+         * and the take-back (clock.mjs `takeBackBoundary`: budgets, grants, seals) gave neither back. Now what the start
+         * ended is kept in the boundary's take-back record (gm-stores.mjs `takeBackStore`) and put back with the rest.
+         * Read: Body's rise, the row (id, kind, n, until, mark) and the pass (room, mark, entered) before the start, after
+         * it, and after "End without advancing". Red at 35a880b7: after the take-back Body +0, no row, no pass.
+         */
+        needs(world.atLeast("playerCharactersInRooms", 1), "a player's character standing in a room");
+        const T = await import("./timed-effects.mjs");
+        const L = await import("./lockpick-gm.mjs");
+        const E = await import("./eclipse.mjs");
+        const { actor, where } = await playerInRoom();
+        const body = () => Number(actor.system.traits.strength.value) || 0;
+        const was = body();
+        const passWas = foundry.utils.deepClone(L.passOf(actor.id));
+        const rows = () => T.timedEffectsOf(actor.id).map(r => [r.id, r.kind, r.n, r.until, r.mark]);
+        const pass = () => { const p = L.passOf(actor.id); return p ? [p.sceneId, p.room, p.mark, p.entered] : null; };
+        const read = {};
+        try {
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await L.grantPass(actor, where.scene, where.room);
+            await settle();
+            read.before = [body() - was, rows(), pass()];
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            read.dark = [body() - was, rows().length, pass()];
+            await E.endEclipse({ advance: false });
+            await settle();
+            read.back = [body() - was, rows(), pass()];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(actor, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (passWas) await L.grantPass(actor, game.scenes.get(passWas.sceneId), passWas.room);
+            else await L.endPass(actor.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /Body/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 120000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: read.before, dark: [0, 0, null], back: read.before }),
+            "{before: [Body's rise, rows, the pass]; dark: [Body's rise, rows, the pass] after the start; back: the same after End without advancing - expected as before}");
+        must(read.before?.[0] === 2 && read.before?.[1]?.length === 1 && read.before?.[2], "the bonus or the pass was not given - this test would read nothing");
+    }],
+
     ["A113-C2-6 the murder at the lights - a direct murder judged at an Eclipse's end opens on the killer's sheet without a bonus given until the time of day ended", async () => {
         /*
          * A113-C2-6 (audit 113, 13.11.2026). At the Eclipse's end `endEclipse` advances the clock - the primary's
          * `endTimedEffects` starts from that hook - and goes on to `judgePendingMurders`: whether a trait bonus was still
          * on the sheet as the murder's fight opened was a race. With one boundary the bonus ended as the Eclipse began, so
          * nothing is left to race. A killer with +2 Body until the time of day ends, alone with a victim, a declaration
-         * parked as the Eclipse runs, the Eclipse ended without advancing (the clock is the world's), Body read as the
-         * incident stands open. Red at ceb9e9c8: Body +2 (the bonus outlived the dark; no advance, so nothing ended it).
+         * parked as the Eclipse runs, the Eclipse ended as the GM panel ends it (`endEclipse()`, the clock advanced and
+         * put back after), Body read as the incident stands open. Red at ceb9e9c8 with an End without advancing: Body +2
+         * (nothing ended it). Ended so since the take-back's put-back (the coordinator's follow-up): within its five
+         * minutes that End without advancing now gives the bonus back before the lights, rightly - the time of day it was
+         * given in has not ended.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -94281,6 +94332,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const [killer, victim] = livingStudents().filter(player);
         const body = () => Number(killer.system.traits.strength.value) || 0;
         const was = body();
+        const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
         let stood = null, read = null;
         try {
             stood = await aloneTogether(killer, victim);
@@ -94292,7 +94344,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const id = E.eclipseId();
             must(E.isEclipse() && id, "the Eclipse did not start");
             await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE A113-C2-6 declared", at: 1, approved: true, eclipse: id, betrayal: null });
-            await E.endEclipse({ advance: false });
+            await E.endEclipse();
             await settle();
             const state = M.murderState();
             read = [state?.killerId ?? null, state?.victimId ?? null, body() - was, T.timedEffectsOf(killer.id).length];
@@ -94305,6 +94357,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (body() !== was) await trustedWrite(killer, { "system.traits.strength.value": was }, { reason: "gmRuling" });
             if (stood) await stood.back();
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock({ chapter, day, session, timeOfDay, phase });
             await settle();
         }
         equal(stableJson(read), stableJson([killer.id, victim.id, 0, 0]),

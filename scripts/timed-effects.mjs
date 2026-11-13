@@ -70,6 +70,12 @@ const KINDS = Object.freeze({
             row.ref = foundry.utils.randomID(16);
             await trustedWrite(actor, { [`system.experiences.${row.ref}`]: { name: row.label, value: row.n } }, { reason: "facility" });
         },
+        // Put back by the Eclipse's take-back (`putBackAtTakeBack`) under the id it had, not a new one.
+        restore: async (actor, row) => {
+            if (!row.ref) return;
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            await trustedWrite(actor, { [`system.experiences.${row.ref}`]: { name: row.label, value: row.n } }, { reason: "facility" });
+        },
         take: async (actor, row) => {
             if (!row.ref || !actor.system?.experiences?.[row.ref]) return;
             const { trustedWrite } = await import("./resource-guard.mjs");
@@ -335,12 +341,50 @@ function onTimedSocket(payload, senderId) {
  * begins a new day. Nothing given before the dark is left to end at the lights; a row given during it ends there, as
  * before. A time of day changed with no Eclipse still ends them at `drpgTimeOfDayChanged`. Answers how many ended.
  *
- * Not taken back: an Eclipse ended without advancing within five minutes puts back the budgets, grants and seals
- * (clock.mjs `takeBackBoundary`), not these rows - as it does not put back a barricade.
+ * TAKEN BACK WITH THE BOUNDARY (the coordinator's follow-up, 13.11.2026): the rows it ends are kept in the GMs'
+ * take-back record (clock.mjs `keepEndedAtStart`), and an Eclipse ended without advancing while its take-back stands
+ * puts them back as they stood (`putBackAtTakeBack`), with the budgets, grants and seals - before C2-6 such a misclick
+ * left them standing, and it costs no more now. A barricade is still not put back, as before.
  */
 export async function endAtEclipseStart(clock = getClock()) {
-    const { clockAfter } = await import("./clock.mjs");
-    return endTimedEffects({ clock: { ...clock, ...clockAfter(clock) } });
+    const { clockAfter, boundaryStamp, keepEndedAtStart } = await import("./clock.mjs");
+    const to = { ...clock, ...clockAfter(clock) };
+    const ended = [];
+    for (const actorId of Object.keys(timedEffectStore.entries() ?? {})) {
+        for (const row of timedEffectsOf(actorId)) {
+            if (!pastItsEnd(row, to)) continue;
+            const kept = foundry.utils.deepClone(row);
+            if (await endTimedEffect(row.id)) ended.push({ actorId, row: kept });
+        }
+    }
+    await keepEndedAtStart("eclipseTimed", boundaryStamp(clock), ended);
+    return ended.length;
+}
+
+/**
+ * The rows `endAtEclipseStart` ended at the boundary `stamp`, put back as they stood: the same row (its id, end and
+ * mark), and what its kind wrote written again - a trait's number raised again, an Experience under the id it had
+ * (`restore`). A row standing again already is left. Answers how many came back. GM only (the Eclipse's take-back,
+ * eclipse.mjs `endEclipse`).
+ */
+export async function putBackAtTakeBack(stamp) {
+    if (!game.user?.isGM) return 0;
+    const { takeEndedAtStart } = await import("./clock.mjs");
+    let n = 0;
+    for (const { actorId, row } of await takeEndedAtStart("eclipseTimed", stamp)) {
+        const actor = game.actors.get(actorId);
+        const kind = KINDS[row?.kind];
+        if (!actor || !kind || timedEffectsOf(actorId).some(r => r.id === row.id)) continue;
+        try {
+            await (kind.restore ?? kind.give)(actor, row);
+            await writeList(actorId, [...timedEffectsOf(actorId), row]);
+            tellOwners(actor);
+            n++;
+        } catch (err) {
+            error(`Could not put back ${actor.name}'s timed effect`, err);
+        }
+    }
+    return n;
 }
 
 /** At ready: the copy's listener on every client, an owner's first ask, and the primary's clock listeners. */
