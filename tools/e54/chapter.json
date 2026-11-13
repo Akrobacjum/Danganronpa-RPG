@@ -38,7 +38,12 @@
         "clearSeasonBodies": "async function",
         "openDeathDialog": "async function",
         "chooseFirst": "function"
-      }
+      },
+      "statements": [
+        "registerSeasonState({ group: \"deaths\"",
+        "registerSeasonState({ group: \"bodyFound\""
+      ],
+      "statementsWhy": "the season registry's row stands in the file of the functions it names (R1254: an entry's clear, tally or keep is a top-level function of its owner's file)"
     },
     {
       "file": "scripts/body.mjs",
@@ -86,5 +91,19 @@
     }
   ],
   "textMapNamed": [],
-  "textMapNamedWhy": "none needed"
+  "textMapNamedWhy": "none needed",
+  "repoint": {
+    "about": "tools/e54/repoint.mjs's part for this cut (sheet.json's `repoint` says what each field is).",
+    "sites": [
+      {
+        "test": "R3510",
+        "file": "scripts/tests-tier0.mjs",
+        "kind": "rows",
+        "sorted": true,
+        "find": "\"chapter.mjs\": {\"card\": 4, \"heading\": 1, \"message\": 1}",
+        "replace": "\"body.mjs\": {\"card\": 1, \"message\": 1}, \"chapter.mjs\": {\"card\": 3}, \"death.mjs\": {\"heading\": 1}",
+        "why": "the card-producing sites per file, as R3510's own classifier counts them on the split tree (13.11.2026); the script holds them to the old row's sums"
+      }
+    ]
+  }
 }

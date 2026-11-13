@@ -72,11 +72,20 @@ for (const [i, s] of ast.body.entries()) {
     if (!d) { refuse(`line ${s.loc.start.line}: an export list (${text.slice(...s.range).slice(0, 60)}) - not written for`); continue; }
     if (s.type === "ExportDefaultDeclaration" || s.type === "ExportAllDeclaration") { refuse(`line ${s.loc.start.line}: ${s.type} - not written for`); continue; }
     const kind = kindOf(d);
+    // A statement that declares nothing moves when a target's `statements` names it by the text it starts with (a
+    // registry's row that must stand beside the functions it names: R1254 holds a season entry's clear to its file).
+    const movedTo = !kind ? manifest.targets.find(t => (t.statements ?? []).some(head => text.slice(s.range[0]).startsWith(head))) : null;
+    if (movedTo) { statements.push({ i, s, d, kind: "statement", names: [], group: movedTo.file, bare: true }); continue; }
     if (!kind && KEEP_REST) { statements.push({ i, s, d, kind: "statement", names: [], group: "facade" }); continue; }
     if (!kind) { refuse(`line ${s.loc.start.line}: a top-level ${d.type} that declares nothing - place it by hand, or list it`); continue; }
     const names = d.type === "VariableDeclaration" ? d.declarations.map(x => x.id.type === "Identifier" ? x.id.name : null) : [d.id.name];
     if (names.some(n => n === null)) { refuse(`line ${s.loc.start.line}: a destructuring declaration - not written for`); continue; }
     statements.push({ i, s, d, kind, names, exported });
+}
+
+for (const t of manifest.targets) for (const head of t.statements ?? []) {
+    const n = statements.filter(st => st.bare && st.group === t.file && text.slice(st.s.range[0]).startsWith(head)).length;
+    if (n !== 1) refuse(`${t.file}: the statement "${head}" is found ${n} time(s) at the top level of ${manifest.source}, not once`);
 }
 
 /* ---- the manifest against the source ---- */
@@ -174,7 +183,13 @@ for (const [k, st] of ordered.entries()) {
 const targets = manifest.targets.map(t => {
     const order = Object.keys(t.names);
     const statementsOf = ordered.filter(st => st.group === t.file);
-    return { ...t, statements: statementsOf.sort((a, b) => order.indexOf(a.names[0]) - order.indexOf(b.names[0])) };
+    // a moved bare statement stands after the declaration it followed in the source, when that one moves here too
+    const at = st => {
+        if (!st.bare) return order.indexOf(st.names[0]);
+        const before = ordered.slice(0, ordered.indexOf(st)).reverse().find(x => x.names?.length);
+        return before && before.group === t.file ? order.indexOf(before.names[0]) + 0.5 : order.length;
+    };
+    return { ...t, statements: statementsOf.sort((a, b) => at(a) - at(b)) };
 });
 const exportNeeded = new Set();
 const fileImports = new Map();   // file -> Map(source -> [specifier])

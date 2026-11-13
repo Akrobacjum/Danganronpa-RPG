@@ -310,6 +310,13 @@ function rewrite(rel, text) {
         note(at, "text", all, `${TEXT_FN}(${list})`); used.add("text");
         return `${TEXT_FN}(${list})`;
     });
+    // a list of files read through a helper: ["a.mjs", "<file>"].map(h) - the file's element through `<base>By(h)`
+    text = text.replace(new RegExp(`(\\[(?:\\s*"[\\w-]+\\.mjs",?)*\\s*"${F}"(?:,\\s*"[\\w-]+\\.mjs")*\\s*\\])\\.map\\(([A-Za-z_$][\\w$]*)\\)`, "g"), (all, list, fn, at) => {
+        if (NOT_HELPERS.has(fn)) return all;
+        const out = `${list}.map(file => "${SOURCE}" === file ? ${BY_FN}(${fn}) : ${fn}(file))`;
+        note(at, "helper over a list", all, out); used.add("by");
+        return out;
+    });
     // a loop's test for the file among others: any file of the family now (R1476 read only the facade's hooks without it)
     text = text.replace(new RegExp(`\\b([A-Za-z_$][\\w$]*) === "${F}"`, "g"), (all, name, at) => {
         note(at, "file test", all, `${FAMILY_CONST}.includes(${name})`); used.add("family");
@@ -328,7 +335,13 @@ function rewrite(rel, text) {
         const held = familyOrder([...body.matchAll(new RegExp(`"(${FAMILY.slice(1).map(esc).join("|")})"`, "g"))].map(x => x[1]));
         const left = [...body.matchAll(new RegExp(`"${F}"`, "g"))];
         if (!held.length || !left.length) continue;
-        const inList = left.every(x => /\[[^\]\n]*$/.test(body.slice(0, x.index)) && /^"[^\]\n]*\]/.test(body.slice(x.index)));
+        // only a list of files: every element a file's name or a spread (`["a.mjs", ...FAMILY, "<file>"]`), on one line
+        const listAround = x => {
+            const open = body.lastIndexOf("[", x.index), close = body.indexOf("]", x.index);
+            if (open < 0 || close < 0 || /\n/.test(body.slice(open, close))) return false;
+            return /^\[\s*(?:(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*,\s*)*(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*\]$/.test(body.slice(open, close + 1));
+        };
+        const inList = left.every(listAround);
         // any other mention in code (strings, templates and comments blanked: a message's prose names the file as it may)
         const code = body.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, "\"\"");
         const otherUse = new RegExp(`(?<![\\w-])${F}`).test(code);
@@ -353,8 +366,19 @@ for (const rel of TIER_FILES) {
 }
 
 /* ---- the contract register: file beside symbol ---- */
-for (const rel of RP.registers ?? ["scripts/patches.mjs"]) {
+/* The registers outside the suite: patches.mjs's contract (a `file` beside its `symbol`) and every module file that keys
+   a row by `<file>#NAME` (rooms.mjs CAMERA_READERS ...), found by that spelling; `RP.registers` adds to them. */
+const REGISTERS = [...new Set([...(RP.registers ?? []), "scripts/patches.mjs", ...fs.readdirSync(path.join(REPO, "scripts"))
+    .filter(f => f.endsWith(".mjs") && !/^tests/.test(f) && !FAMILY.includes(f))
+    .filter(f => new RegExp(`(?<![\\w-])${F}#\\w`).test(fs.readFileSync(path.join(REPO, "scripts", f), "utf8")))
+    .map(f => `scripts/${f}`)])];
+for (const rel of REGISTERS) {
     let text = textOf(rel);
+    text = text.replace(new RegExp(`(?<![\\w-])${F}#(\\w+)`, "g"), (all, name, at) => {
+        if (!holderOf.has(name) || holderOf.get(name) === SOURCE || inComment(text, at)) return all;
+        report.push([rel, "(register)", "key", all, `${holderOf.get(name)}#${name}`]);
+        return `${holderOf.get(name)}#${name}`;
+    });
     text = text.replace(new RegExp(`(file: )"${F}"(,\\s*symbol: )"(\\w+)"`, "g"), (all, a, b, name, at) => {
         const file = holder(name, `${rel} symbol ${name}`);
         if (file === SOURCE) return all;
@@ -362,6 +386,19 @@ for (const rel of RP.registers ?? ["scripts/patches.mjs"]) {
         return `${a}${q(file)}${b}"${name}"`;
     });
     edits.set(rel, text);
+}
+
+/* ---- the owners of the season registry's rows the split moved (a target's `statements`, by their `group:`) ---- */
+for (const t of manifest.targets) for (const head of t.statements ?? []) {
+    const group = head.match(/group: "(\w+)"/)?.[1];
+    if (!group) continue;
+    for (const rel of TIER_FILES) {
+        const text = textOf(rel);
+        const out = text.replace(new RegExp(`\\b${group}: "${F}"`, "g"), () => `${group}: ${q(path.basename(t.file))}`)
+            // and the message a planted registration expects of that owner (R1254's self-check)
+            .replace(new RegExp(`(\\b${group}: registered in [\\w-]+\\.mjs, not )${F}`, "g"), (all, head) => `${head}${path.basename(t.file)}`);
+        if (out !== text) { report.push([rel, "(owners)", "a moved row's owner", `${group}: ${SOURCE}`, path.basename(t.file)]); edits.set(rel, out); }
+    }
 }
 
 /* ---- 4. the sites measured on the split tree, and the patches ---- */
@@ -406,6 +443,25 @@ for (const site of RP.sites ?? []) {
         const files = [...site.replace.matchAll(/"([\w-]+\.mjs)":/g)].map(x => x[1]);
         if (files.some(f => !FAMILY.includes(f))) { refuse(`${rel}: site ${site.test} - its rows name a file outside the family`); continue; }
         if (sum(site.find) !== sum(site.replace)) { refuse(`${rel}: site ${site.test} - the rows add up to ${sum(site.replace)}, the row they replace to ${sum(site.find)}: the tree is not the one they were read on - read them again`); continue; }
+        if (site.sorted) {
+            // the object the row stands in is compared in its files' order (`localeCompare`, as the test sorts): the old
+            // row taken out, each new row put before the first key that sorts after it
+            const pos = text.indexOf(site.find);
+            let open = pos, depth = 0;
+            for (; open >= 0; open--) { if (text[open] === "}") depth++; else if (text[open] === "{") { if (depth === 0) break; depth--; } }
+            const close = closeOf(text, open);
+            let body = text.slice(open + 1, close);
+            const at = body.indexOf(site.find);
+            body = body.slice(0, at) + body.slice(at + site.find.length).replace(/^,[ \t]*/, "");
+            for (const row of site.replace.match(/"[\w-]+\.mjs":\s*\{[^}]*\}/g)) {
+                const file = row.match(/"([\w-]+\.mjs)"/)[1];
+                const next = [...body.matchAll(/"([\w-]+\.mjs)":/g)].find(k => k[1].localeCompare(file) > 0);
+                body = next ? body.slice(0, next.index) + `${row}, ` + body.slice(next.index) : body.replace(/\s*$/, m => `, ${row}${m}`);
+            }
+            report.push([rel, site.test, "site rows, sorted", site.find, site.replace]);
+            edits.set(rel, text.slice(0, open + 1) + body + text.slice(close));
+            continue;
+        }
         out = site.replace;
     } else { refuse(`site ${site.test}: no kind ${site.kind}`); continue; }
     report.push([rel, site.test, `site ${site.kind}`, site.find, out]);

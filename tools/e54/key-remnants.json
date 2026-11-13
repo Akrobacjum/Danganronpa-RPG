@@ -63,9 +63,27 @@
         "openKeyRemnantHere": "async function",
         "placeInSlot": "async function",
         "placeKeyRow": "async function"
-      }
+      },
+      "statements": [
+        "registerSeasonState({ group: \"keyPlan\""
+      ],
+      "statementsWhy": "the season registry's row stands in the file of the functions it names (R1254: an entry's clear, tally or keep is a top-level function of its owner's file)"
     }
   ],
   "textMapNamed": [],
-  "textMapNamedWhy": "none needed"
+  "textMapNamedWhy": "none needed",
+  "repoint": {
+    "about": "tools/e54/repoint.mjs's part for this cut (sheet.json's `repoint` says what each field is).",
+    "sites": [
+      {
+        "test": "R3510",
+        "file": "scripts/tests-tier0.mjs",
+        "kind": "rows",
+        "sorted": true,
+        "find": "\"investigation.mjs\": {\"card\": 1, \"line\": 2}",
+        "replace": "\"key-remnants.mjs\": {\"card\": 1, \"line\": 2}",
+        "why": "the card-producing sites per file, as R3510's own classifier counts them on the split tree (13.11.2026): all three of investigation.mjs's moved with the fee and the placing road"
+      }
+    ]
+  }
 }

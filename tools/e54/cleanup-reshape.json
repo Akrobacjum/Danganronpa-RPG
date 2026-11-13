@@ -44,5 +44,19 @@
     }
   ],
   "textMapNamed": [],
-  "textMapNamedWhy": "none needed"
+  "textMapNamedWhy": "none needed",
+  "repoint": {
+    "about": "tools/e54/repoint.mjs's part for this cut (sheet.json's `repoint` says what each field is).",
+    "sites": [
+      {
+        "test": "R3510",
+        "file": "scripts/tests-tier0.mjs",
+        "kind": "rows",
+        "sorted": true,
+        "find": "\"cleanup.mjs\": {\"action\": 5, \"built\": 1, \"card\": 4, \"heading\": 2, \"line\": 7, \"message\": 1}",
+        "replace": "\"cleanup.mjs\": {\"action\": 3, \"built\": 1, \"card\": 3, \"heading\": 2, \"line\": 6, \"message\": 1}, \"cleanup-reshape.mjs\": {\"action\": 2, \"card\": 1, \"line\": 1}",
+        "why": "the card-producing sites per file, as R3510's own classifier counts them on the split tree (13.11.2026); the script holds them to the old row's sums"
+      }
+    ]
+  }
 }
