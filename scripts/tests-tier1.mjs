@@ -53861,7 +53861,9 @@ const INVARIANTS = [
             read.again = await S.playTrialExit(clock("m"), { on: true });
             await wait(T.title + 150);
             read.title = host?.querySelector(".drpg-seq-title-band")?.textContent === game.i18n.localize("DRPG.Sequence.exitTitle");
-            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter: 3 });
+            // the trial's record's chapter where it names one, the clock's otherwise (A113-C2-3; tier 2 "the trial's exit after End of chapter")
+            const named = (await import("./trial-progress.mjs")).trialProgressChapter() ?? 3;
+            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter: named });
             const esc1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
             window.dispatchEvent(esc1);
             read.escaped = esc1.defaultPrevented && S.sequenceNow() === null && !document.getElementById(S.SEQUENCE_HOST_ID);

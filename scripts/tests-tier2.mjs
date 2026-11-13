@@ -17806,6 +17806,46 @@ const SCENARIOS = [
             "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
     }],
 
+    ["the trial's exit after End of chapter names the trial's own chapter, not the one the clock moved to (A113-C2-3)", async () => {
+        /*
+         * A113-C2-3 (audit 113, 13.11.2026). End of chapter with "end the trial" moves the clock to chapter N+1 while the
+         * phase is still the Class Trial (chapter.mjs's `clock` step), then closes the trial (`trial` step), so the exit -
+         * drawn from the clock after both writes - read "Chapter N+1 · Back to school" for chapter N's trial. The owner's
+         * decision of 12.11.2026 says the exit carries "the chapter's line when the clock has a chapter"; the default
+         * taken here (the coordinator's, the owner may override): the trial's own chapter, its record's
+         * (trial-progress.mjs `trialProgressChapter`), the clock's where the record names none. The record says chapter 1
+         * and the exit's clock chapter 2, as after the move; then the record names none. Red at ceb9e9c8: "Chapter 2".
+         */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const stamp = `A113-C2-3:${Date.now()}`, read = [];
+        const sub = async (k, record) => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            await settle();
+            S.endSequence("cut");
+            await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 2, trialEndedAt: `${stamp}${k}`, trialCut: true }, { on: true });
+            const text = document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-title-sub`)?.textContent ?? null;
+            S.endSequence("cut");
+            return text;
+        };
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            read.push(await sub("a", { ...stored, chapter: 1 }));
+            const { chapter: _gone, ...none } = stored;
+            read.push(await sub("b", none));
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([1, 2].map(chapter => game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter }))),
+            "the exit does not name the trial's record's chapter, or the clock's where the record names none [record 1, clock 2 | no record, clock 2]");
+    }],
+
     ["the Students window's Monocub to alive is one step: no Spectator made on the way, one toast, the student alive and no Monocub (A113-C2-4)", async () => {
         /*
          * A113-C2-4 (audit 113, 13.11.2026). The State list's "alive" on a Monocub ran `setMonocub(actor, false)`, which
