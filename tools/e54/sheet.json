@@ -90,6 +90,8 @@
         "leaveLoadoutTab": "function",
         "tabScrolls": "const",
         "keepTabScroll": "function",
+        "CREATE_ACTIONS": "const",
+        "removeSystemCreators": "function",
         "SHY": "const",
         "LONG_WORD": "const",
         "BREAK_EVERY": "const",
@@ -166,6 +168,7 @@
         "writeReserve": "async function",
         "PARTY_RESERVES": "const",
         "paintPartyReserves": "function",
+        "guardRow": "function",
         "injectEquippedTools": "function",
         "noteEmptyExperience": "function",
         "knownPassageRows": "function",
@@ -186,7 +189,10 @@
         "BIOGRAPHY_ANCESTORS": "const",
         "plainBiography": "function",
         "saveBiography": "function",
-        "tidyBiography": "function"
+        "tidyBiography": "function",
+        "GEAR_GROUP": "const",
+        "INVENTORY_GROUPS": "const",
+        "itemTags": "function"
       }
     },
     {
@@ -197,13 +203,8 @@
         "the Truth Bullets' groups, order and folds (`bulletGroups`)."
       ],
       "names": {
+        "BULLET_FOLDS": "const",
         "tidyInventoryTab": "function",
-        "CREATE_ACTIONS": "const",
-        "removeSystemCreators": "function",
-        "guardRow": "function",
-        "GEAR_GROUP": "const",
-        "INVENTORY_GROUPS": "const",
-        "itemTags": "function",
         "isBedroomKey": "function",
         "groupItems": "function",
         "buildItemRow": "function",
@@ -218,7 +219,6 @@
         "addEquipButton": "function",
         "addDiscardButton": "function",
         "addStashButton": "function",
-        "BULLET_FOLDS": "const",
         "bulletSortMode": "function",
         "bulletRecency": "function",
         "orderBullets": "function",

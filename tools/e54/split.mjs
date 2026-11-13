@@ -135,7 +135,14 @@ for (const [k, st] of ordered.entries()) {
 }
 
 /* ---- what each file needs ---- */
-const targets = manifest.targets.map(t => ({ ...t, statements: ordered.filter(st => st.group === t.file) }));
+/* A target's declarations in the MANIFEST's order (its `names`, as written): the suite cuts a function up to the next
+   function or `const X = {` (tests-kit.mjs `topLevelFunction`), so what follows a function decides its cut, and the
+   manifest places a declaration where the cut a test reads stays the base's (moved-only's part `cuts`). */
+const targets = manifest.targets.map(t => {
+    const order = Object.keys(t.names);
+    const statementsOf = ordered.filter(st => st.group === t.file);
+    return { ...t, statements: statementsOf.sort((a, b) => order.indexOf(a.names[0]) - order.indexOf(b.names[0])) };
+});
 const exportNeeded = new Set();
 const fileImports = new Map();   // file -> Map(source -> [specifier])
 const addImport = (file, source, spec) => {
@@ -164,6 +171,20 @@ for (const st of ordered.filter(x => !x.import && x.group && x.group !== "facade
     if (!reexports.has(st.group)) reexports.set(st.group, []);
     reexports.get(st.group).push(...st.names);
 }
+
+/* ---- no import cycle between the new files (R161 holds the module's static graph to none) ---- */
+{
+    const edges = new Map(targets.map(t => [rel(t.file), [...(fileImports.get(t.file)?.keys() ?? [])].filter(src => familyOrder0().includes(src))]));
+    const seen = new Set();
+    const walk = (node, trail) => {
+        if (trail.includes(node)) { refuse(`an import cycle between the new files: ${[...trail.slice(trail.indexOf(node)), node].join(" -> ")}`); return; }
+        if (seen.has(node)) return;
+        for (const next of edges.get(node) ?? []) walk(next, [...trail, node]);
+        seen.add(node);
+    };
+    for (const node of edges.keys()) walk(node, []);
+}
+function familyOrder0() { return manifest.targets.map(t => `./${path.basename(t.file)}`); }
 
 /* ---- the texts ---- */
 const specText = sp => sp.imported === "default" ? sp.local : sp.imported === "*" ? `* as ${sp.local}` : sp.imported === sp.local ? sp.local : `${sp.imported} as ${sp.local}`;
