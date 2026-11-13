@@ -2,7 +2,7 @@
  * Danganronpa RPG - the dead as Spectators (E62 C3b, 13.11.2026; docs/dev/e62/STORYBOARD-C3.md on the e62-c3 line, the
  * owner's answers to Q-C3b-1..6 and the default of Q-C3b-7).
  * ---------------------------------------------------------------------------
- * A student who dies, and is no Monocub, watches the rest of the season as a Spectator: a new actor of its own (the
+ * A student who dies, is no Monocub and is some player's (`isNpcAtDeath`, 1.2.113), watches the rest of the season as a Spectator: a new actor of its own (the
  * "watcher"), owned by the student's player, named after the student and carrying the student's sheet image and token
  * image (Q-C3b-2: "zmiana typu na obserwatora zawsze ma pozostawiac ten sam obraz karty i tokenu"), with one token where
  * the body's token stands. The body's own token stays the corpse.
@@ -101,9 +101,28 @@ export function tokenLookOf(tokenDoc) {
     return look;
 }
 
-/** The non-GM owners of `student`, the watcher's owners. */
-function playerOwners(student) {
-    return (game.users ?? []).filter(u => !u.isGM && student.testUserPermission?.(u, "OWNER")).map(u => u.id);
+/**
+ * The non-GM owners of `student`, the watcher's owners: every user Foundry lists, connected or away, so a student whose
+ * player is offline at the death is still that player's (owner or ownership's default at OWNER, as Foundry's
+ * `testUserPermission` reads it).
+ */
+export function playerOwners(student, users = game.users) {
+    return [...(users ?? [])].filter(u => !u.isGM && student?.testUserPermission?.(u, "OWNER")).map(u => u.id);
+}
+
+/**
+ * NO SPECTATOR FOR AN NPC (the owner's decision of 13.11.2026, 1.2.113). A dead student no player owns - read off
+ * `playerOwners` at the moment of the death, a player away counting as one who owns it - is an NPC, and gets no
+ * Spectator: no actor, no token. Until 1.2.113 one was made at every such death (E62 C3b), owned by nobody but the GMs
+ * (scenario 41's "S41 Ghost"); voice.mjs `watchesForTheDead` gave it no voice row from 1.2.112 (R5469), and the actor
+ * and its token stayed. A watcher made before 1.2.113 stays in the world until a GM deletes it (the GM handbook).
+ * A kept death decides at the kill and the GMs' row keeps the answer (`watcher.npc`), so its publication makes none
+ * either, whoever owns the student by then.
+ */
+export function isNpcAtDeath(student, { row = undefined, users = game.users } = {}) {
+    if (row?.watcher?.npc === true) return true;
+    if (row?.watcher?.actorId) return false;
+    return playerOwners(student, users).length === 0;
 }
 
 /** Every token of `actor` on every scene, `{ scene, tokenDoc }`. */
@@ -127,10 +146,16 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
     const store = deathStore;
     const { isMonocub } = await import("./monocub.mjs");
     if (isMonocub(student)) return null;
-    const existing = watcherActorOf(student, { row: store.get(student.id) ?? null });
+    const row = store.get(student.id) ?? null;
+    const existing = watcherActorOf(student, { row });
     if (existing) {
         if (!kept) await linkPublicly(existing, student);
         return existing;
+    }
+    if (isNpcAtDeath(student, { row })) {
+        if (kept && row && row.watcher?.npc !== true) await store.patch(student.id, { watcher: { npc: true } });
+        log(`${student.name} is no player's: no Spectator.`);
+        return null;
     }
     const { locateActor } = await import("./movement.mjs");
     const place = locateActor(student);
@@ -281,7 +306,20 @@ export async function monocubBecomesWatcher(student) {
     const cubTokens = tokensOf(student).filter(({ tokenDoc }) => tokenDoc.getFlag?.(MODULE_ID, FLAGS.cubToken));
     if (!cubTokens.length) return ensureDeadSpectator(student, { silent: true });
     const watcher = await ensureWatcherActorOnly(student);
-    if (!watcher) return null;
+    if (!watcher) {
+        /* An NPC Monocub no more (1.2.113, `isNpcAtDeath`): no Spectator to give the token to, so the token it walked goes,
+           silently, as a revive takes it (`removeDeadSpectator`); the corpse stays. */
+        if (isNpcAtDeath(student)) {
+            for (const { scene, tokenDoc } of cubTokens) {
+                try {
+                    await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent: true } });
+                } catch (err) {
+                    error(`Could not take ${student.name}'s Monocub token off the map`, err);
+                }
+            }
+        }
+        return null;
+    }
     for (const { tokenDoc } of cubTokens) {
         try {
             /* ONE WRITE (E62 C3b fix; the e93 review's F5): the re-link and the mark's removal together, so no browser reads a
@@ -303,6 +341,7 @@ async function ensureWatcherActorOnly(student) {
     if (!game.user?.isGM) return null;
     const existing = watcherActorOf(student);
     if (existing) return existing;
+    if (isNpcAtDeath(student)) return null;
     const ownership = { default: NONE };
     for (const id of playerOwners(student)) ownership[id] = OWNER;
     try {

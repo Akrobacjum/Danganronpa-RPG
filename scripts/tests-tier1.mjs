@@ -52231,12 +52231,13 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ note: ["P", true, false, null, false], placed: true }),
             "{the note [tag, DRPG.Move.free as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
     }],
-    ["R4472 - Move's words hold where Move does (the r112 review's P2 and P4, 13.11.2026): sheet.mjs `moveDragSaid` answers no in a Class Trial and in an incident the character is in, and yes otherwise; the HUD's Move row and the Monocub's Move tile ask it; a locked Move tile says no \"Drag your token\" and takes the keyboard's focus with its words as a label; the Monocub's line says \"Free\" only while the Free Move is there, the next crossing's price after it, and the panel's repaint draws it again", async () => {
+    ["R4472 - Move's words hold where Move does (the r112 review's P2 and P4, 13.11.2026): sheet.mjs `moveDragSaid` answers no in a Class Trial and in an incident the character is in, and yes otherwise; the HUD's Move row and the Monocub's Move tile ask it; a locked Move tile says no \"Drag your token\" and takes the keyboard's focus with its words as a label; the Monocub's line says \"Free\" with the Free Move and after it (1.2.113: a Monocub's drag costs nothing, R5701), a character that is no Monocub reads the next crossing's price after it, and the panel's repaint draws it again", async () => {
         /*
          * The r112 review's P2 and P4 (REVIEW-112, 13.11.2026). E100 item 1 put "drag your token there" first in the HUD's
          * Move tooltip and "Drag your token" on the Monocub's Move tile, whatever the phase: in a Class Trial the drag is
          * refused (movement.mjs `trialLocked`), and the tile is locked there too. The Monocub's line read "Free" after its
-         * Free Move was spent, when its next crossing costs an action. And the tile, a `div` since item 1, took no focus,
+         * Free Move was spent, when its next crossing was read to cost an action - a premise 1.2.113 measured wrong for a
+         * Monocub's drag (movement.mjs `chargeRoute`, E72 C10; R5701), so the line is Free again. And the tile, a `div` since item 1, took no focus,
          * so its tooltip (the lock's reason among it) was the mouse's alone. Read on stand-ins, so tier 1 changes nothing:
          * the helper under the two states, the tiles and the line built here, and the readers in source. Red at 318935b9:
          * no `moveDragSaid`, no exported `stillMoveTile`.
@@ -52255,9 +52256,13 @@ const INVARIANTS = [
         };
         const lines = tile => [...tile.querySelectorAll(".drpg-action-cost")].map(n => n.textContent.trim());
         const open = S.stillMoveTile(button(), false), shut = S.stillMoveTile(button(), true);
-        // A Monocub stand-in: its Free Move there, then spent with nothing banked and one action left.
-        const cub = used => ({ system: { resources: { actions: { value: 1, max: 2 } } }, getFlag: (scope, key) => (key === "freeMoveUsed" ? used : undefined) });
-        const fresh = S.monocubMoveNote(cub(false)), spent = S.monocubMoveNote(cub(true));
+        // A Monocub stand-in: its Free Move there, then spent with nothing banked and one action left. Until 1.2.113 the
+        // stand-in carried no Monocub flag and "line" read the next price after the Free Move; a Monocub's drag costs
+        // nothing (movement.mjs `chargeRoute`, E72 C10; measured in tier 2 on 13.11.2026), so its line says Free (R5701),
+        // and the next price is read on the same purse with no Monocub flag.
+        const cub = (used, monocub = true) => ({ system: { resources: { actions: { value: 1, max: 2 } } },
+            getFlag: (scope, key) => (key === "freeMoveUsed" ? used : key === FLAGS.monocub ? monocub : undefined) });
+        const fresh = S.monocubMoveNote(cub(false)), spent = S.monocubMoveNote(cub(true)), notCub = S.monocubMoveNote(cub(true, false));
         const read = {
             said: [S.moveDragSaid(null, { trial: true, incident: false }), S.moveDragSaid(null, { trial: false, incident: true }),
                 S.moveDragSaid(null, { trial: false, incident: false })],
@@ -52265,13 +52270,38 @@ const INVARIANTS = [
                 /stillMoveTile\(button, locked\)/.test(fnSource(src("sheet.mjs"), "actionButton"))],
             tiles: [lines(open).includes(short), lines(shut).includes(short), open.tabIndex, shut.tabIndex,
                 (shut.getAttribute("aria-label") ?? "").includes(ACTIONS.move.label)],
-            line: [fresh.textContent === free, spent.textContent === B.moveLine(cub(true)), spent.textContent !== free],
+            line: [fresh.textContent === free, spent.textContent === free, notCub.textContent === B.moveLine(cub(true, false)), notCub.textContent !== free],
             repaint: /monocubMoveNote\(actor\)/.test(fnSource(src("sheet.mjs"), "refreshMonocubTiles"))
         };
         equal(stableJson(read), stableJson({ said: [false, false, true], readers: [true, true], tiles: [true, false, 0, 0, true],
-            line: [true, true, true], repaint: true }),
-            "{said: the drag sentence [in a trial, in an incident, otherwise]; readers: [the HUD's Move row, the Monocub's tile]; tiles: [the drag line on an open tile, on a locked one, the open tile's tabIndex, the locked one's, the locked tile's label names Move]; line: [Free with the Free Move, the next price after it, not Free]; repaint: the Monocub's repaint draws the line}");
+            line: [true, true, true, true], repaint: true }),
+            "{said: the drag sentence [in a trial, in an incident, otherwise]; readers: [the HUD's Move row, the Monocub's tile]; tiles: [the drag line on an open tile, on a locked one, the open tile's tabIndex, the locked one's, the locked tile's label names Move]; line: [a Monocub: Free with the Free Move, Free after it (1.2.113); no Monocub after it: the next price, not Free]; repaint: the Monocub's repaint draws the line}");
     }],
+    ["R5701 - a Monocub's Move line reads \"Free\" whatever its purse: a Monocub's crossing by a drag takes no Free Move, free crossing, Burst or action (movement.mjs `chargeRoute`, E72 C10), so the line says Free with the Free Move spent, with free crossings banked and with nothing left; a character that is no Monocub reads the next price (sheet.mjs `monocubMoveNote`; 1.2.113)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. From the r112 review's P2 the line read actions.mjs `nextCrossingPrice` once the Free Move
+         * was spent, on the premise that a Monocub pays as a student does; tier 2 "1.2.113 a Monocub's crossing costs
+         * nothing ..." measured the charge: a Monocub with nothing to pay with crosses and nothing is written (E72 C10's
+         * "A MONOCUB MOVES FREE"). Stand-ins: a Monocub with its Free Move spent and [nothing banked | two free crossings
+         * banked (a Dash's, a Sprint's or a room action's: one counter) | a Burst | no action], and the same purse with no
+         * Monocub flag. Red at aabf28b8: the Monocub's line named the next price.
+         */
+        const S = await import("./sheet.mjs"), B = await import("./action-briefing.mjs");
+        const free = game.i18n.localize("DRPG.Move.free");
+        const purse = ({ cub = true, actions = 1, crossings = 0, bursts = 0 } = {}) => ({
+            system: { resources: { actions: { value: actions, max: 2 } } },
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === FLAGS.monocub ? cub : key === FLAGS.freeMoveUsed ? true
+                : key === FLAGS.freeMoveGrants ? crossings : key === FLAGS.freeActionGrants ? bursts : undefined) });
+        const line = actor => S.monocubMoveNote(actor).textContent;
+        const student = purse({ cub: false });
+        const read = {
+            cub: [line(purse()), line(purse({ crossings: 2 })), line(purse({ bursts: 1 })), line(purse({ actions: 0 }))].map(t => t === free),
+            student: [line(student) === B.moveLine(student), line(student) !== free]
+        };
+        equal(stableJson(read), stableJson({ cub: [true, true, true, true], student: [true, true] }),
+            "{cub: Free on a Monocub's line [the Free Move spent, free crossings banked, a Burst, no action]; student: [the next price, not Free]}");
+    }],
+
     ["R4108 - every action window names its statistic outside Details (E100; the owner's rule of 12.11.2026, the E93 line's finding): for each action whose briefing names statistics (all but Projects and Sabotage, whose project names its own), action-briefing.mjs `briefingBlock` shows them in the lead - the description naming the first, or a line of its own (`drpg-briefing-rolls`, \"Rolls: ...\") right after it - and the \"Rolls\" line is in no Details box and stands once", async () => {
         /*
          * E100, 12.11.2026. The owner: "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji NIGDY". E49 A8.1 put
@@ -52528,7 +52558,11 @@ const INVARIANTS = [
            rule gives 1 instead of 2. Red at 36c50449. */
         /* A wound takes its action in the phases `STATES.wounded.actionsLostIn` names (E64 C1c), not in the Class Trial
            01-runtests' A2 runs this in (read there at cb78cfd7: "own less a wound" was the whole count): `now` is what a
-           wound takes on this clock, and the wounded stand-in's maximum is what `resetActionsFor` writes on it. */
+           wound takes on this clock, and the wounded stand-in's maximum is what `resetActionsFor` writes on it.
+           1.2.113 (13.11.2026): in a Class Trial the sentence read the trial's count twice ("2 instead of 2 in Daily
+           Life and the Investigation"), which R4106 accepted. The sentence names Daily Life and the Investigation, so
+           its two numbers are theirs on any clock (`actionBudget`'s `phase`), and it says the Class Trial takes no action
+           for a wound. Red at acb63530: no trial clause (and, in a trial, the trial's number twice). */
         const now = A.actionBudget(null, { wounded: true }).costsAction ? lost : 0;
         const hurtActor = { system: { resources: { actions: { value: base - now, max: base - now }, hitPoints: { value: 6, max: 6 } } } };
         const hurt = E.actionsExplained({ actor: hurtActor });
@@ -52541,14 +52575,16 @@ const INVARIANTS = [
         const read = {
             phase: [has(E.phaseExplanation(daily, { actor }), unit("actionAcc", base + 1)), has(E.phaseExplanation(daily), unit("actionAcc", base))],
             what: [own[0].includes(unit("action", base + 1)), rule[0].includes(unit("action", base))],
-            wounded: [own[1].includes(unit("actionAcc", Math.max(0, base + 1 - now))), own[1].includes(unit("actionGen", base + 1))],
+            wounded: [own[1].includes(unit("actionAcc", Math.max(0, base + 1 - lost))), own[1].includes(unit("actionGen", base + 1))],
             // The whole sentence: "1 action" stands in its second half too, so a part read alone would pass on a wrong first.
-            hurt: hurt[1] === game.i18n.format("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", base - now), actions: unit("actionGen", base) }),
+            hurt: hurt[1] === game.i18n.format("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", base - lost), actions: unit("actionGen", base) }),
+            // The trial's clause, in the sentence the window shows (the phase's name as the glossary has it, both languages).
+            trial: hurt[1].includes("Class Trial") && rule[1].includes("Class Trial"),
             windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "openStateExplainer")),
                 /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "openStatusExplainer"))]
         };
-        equal(stableJson(read), stableJson({ phase: [true, true], what: [true, true], wounded: [true, true], hurt: true, windows: [true, true] }),
-            "{Daily Life's paragraph [with the character: its own count; with none: the rule's]; the strip's budget sentence [own, rule]; Wounded's [own less a wound, own]; Wounded's for a wounded student [the rule's wounded budget, the whole one]; the windows hand the character in [the clock's, the strip's]}");
+        equal(stableJson(read), stableJson({ phase: [true, true], what: [true, true], wounded: [true, true], hurt: true, trial: true, windows: [true, true] }),
+            "{Daily Life's paragraph [with the character: its own count; with none: the rule's]; the strip's budget sentence [own, rule]; Wounded's [own less a wound, own]; Wounded's for a wounded student [Daily Life's wounded budget, the whole one]; the trial's clause in it; the windows hand the character in [the clock's, the strip's]}");
     }],
 
     ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {
@@ -56793,6 +56829,35 @@ const INVARIANTS = [
         })();
         equal(stableJson(read), stableJson([["R5469o", true], ["R5469w", true], ["R5469e", false]]),
             "left out of the voice rows ([actor, watches for the dead]: a watcher nobody owns, an away player's watcher, an away E92 Spectator)");
+    }],
+
+    ["R5700 - a dead student no player owns is an NPC and gets no Spectator; a student whose player is away is that player's, and so is one whose ownership's default is OWNER; a kept death's row decides for its publication (spectator-dead.mjs `isNpcAtDeath`; the owner's decision of 13.11.2026, 1.2.113)", async () => {
+        /*
+         * 1.2.113, the owner's decision of 13.11.2026: a Spectator for an NPC must not exist. "NPC" is read off the
+         * ownership at the moment of the death: no user who is not a GM owns the student (Foundry's
+         * `testUserPermission(u, "OWNER")`, which counts an owner by name and an ownership's default of OWNER). A player
+         * who is away still owns the student, so it keeps its Spectator. A kept death's row carries the kill's answer:
+         * `watcher.npc` stays an NPC's, `watcher.actorId` a player's. Stand-ins: users handed in, never game.users.
+         * Red at a2b233d2: no `isNpcAtDeath`.
+         */
+        const D = await import("./spectator-dead.mjs");
+        const ask = typeof D.isNpcAtDeath === "function" ? D.isNpcAtDeath : () => "none";
+        const gm = { id: "R5700g", isGM: true, active: true }, here = { id: "R5700h", isGM: false, active: true },
+            away = { id: "R5700a", isGM: false, active: false };
+        const users = [gm, here, away];
+        const student = (owners, byDefault = false) => ({ id: "R5700s", type: "character",
+            testUserPermission: (u, level) => level === "OWNER" && (byDefault || u.isGM || owners.includes(u.id)) });
+        const read = {
+            npc: ask(student([]), { users, row: null }),
+            gmOnly: ask(student([gm.id]), { users, row: null }),
+            present: ask(student([here.id]), { users, row: null }),
+            away: ask(student([away.id]), { users, row: null }),
+            byDefault: ask(student([], true), { users, row: null }),
+            keptNpc: ask(student([away.id]), { users, row: { watcher: { npc: true } } }),
+            keptPlayer: ask(student([]), { users, row: { watcher: { actorId: "R5700w" } } })
+        };
+        equal(stableJson(read), stableJson({ npc: true, gmOnly: true, present: false, away: false, byDefault: false, keptNpc: true, keptPlayer: false }),
+            "an NPC at the death ([no owner, a GM alone, a player here, a player away, the default OWNER, a kept NPC's row, a kept player's row])");
     }],
 
     ["R4554 - the Class Trial mutes a dead player who owns its Spectator: the account's voice in the trial is the listed dead student, never the Spectator actor its player was given (E62 C3b; scenario 30's SECURITY dead-Botan checks, 13.11.2026)", async () => {

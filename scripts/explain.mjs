@@ -138,13 +138,17 @@ export function actionsExplained({ actor = null } = {}) {
     /* The character's own count (E100 item 7). Wounded's two numbers are the budget's own road (actions.mjs `actionBudget`:
        the wound, a Monocub's exemption, a darkened hour), with a GM's change to the maximum kept on both sides. Until the
        r112 review's P1 (13.11.2026) the wound was taken off the count itself, which a wounded student's maximum already
-       has (`resetActionsFor` writes the wounded budget): "0 instead of 1" where the rule gives 1 instead of 2 (R4106). */
+       has (`resetActionsFor` writes the wounded budget): "0 instead of 1" where the rule gives 1 instead of 2 (R4106).
+       DAILY LIFE'S NUMBERS ON ANY CLOCK (1.2.113, 13.11.2026). The sentence names Daily Life and the Investigation, where
+       a wound takes its action (`STATES.wounded.actionsLostIn`); read on the clock's phase, in a Class Trial it said the
+       trial's count twice ("2 instead of 2"). The wounded count is now Daily Life's (`actionBudget`'s `phase`), and the
+       sentence says the Class Trial takes no action for a wound. */
     const whole = actionsOf(actor);
     const own = Boolean(actor) && Number.isFinite(Number(actor?.system?.resources?.actions?.max))
         && !(typeof actor.getFlag === "function" && isMonokuma(actor));
     const extra = own ? whole - actionBudget(actor).total : 0;
     const fit = own ? actionBudget(actor, { wounded: false }).total + extra : baseActions();
-    const hurt = Math.max(0, own ? actionBudget(actor, { wounded: true }).total + extra : baseActions({ wounded: true }));
+    const hurt = Math.max(0, own ? actionBudget(actor, { wounded: true, phase: "dailyLife" }).total + extra : baseActions({ wounded: true }));
     return [
         t("DRPG.Explain.status.actionsWhat", {
             actions: unit("action", whole), short: unit("actionAcc", REST.short.actionCost), long: unit("actionAcc", REST.long.actionCost)

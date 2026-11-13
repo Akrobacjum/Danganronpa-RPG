@@ -4906,10 +4906,15 @@ function injectMonocubPanel(tab, actor) {
 export function monocubMoveNote(actor = null) {
     const note = document.createElement("p");
     note.className = "notes drpg-monocub-move";
-    /* "Free" while it is (the r112 review's P2, 13.11.2026): a Monocub pays its crossings as a student does (actions.mjs
-       `takeMove`), so once the Free Move is spent the line says what the next crossing takes (action-briefing.mjs
-       `moveLine`), and the panel's repaint draws it again (`refreshMonocubTiles`). With no character, the owner's word. */
-    note.textContent = !actor || nextCrossingPrice(actor) === "free" ? game.i18n.localize("DRPG.Move.free") : moveLine(actor);
+    /* "Free" for a Monocub whatever its purse (1.2.113, 13.11.2026; R5701). The r112 review's P2 made the line say the
+       next price once the Free Move was spent (action-briefing.mjs `moveLine`, actions.mjs `nextCrossingPrice`), on the
+       premise that a Monocub pays its crossings as a student does. It does not: movement.mjs `chargeRoute` lets a
+       Monocub's drag through with nothing taken - no Free Move, free crossing, Burst or action (E72 C10) - and tier 2
+       "1.2.113 a Monocub's crossing costs nothing ..." measured it with nothing left to pay with. A character that is no
+       Monocub, which the panel never holds, still reads the next price; with no character, the owner's word. Whether it
+       is a Monocub is `sheetMode`'s (R1470: one sheet mode). The panel's repaint draws the line again
+       (`refreshMonocubTiles`). */
+    note.textContent = !actor || sheetMode(actor).monocub || nextCrossingPrice(actor) === "free" ? game.i18n.localize("DRPG.Move.free") : moveLine(actor);
     return note;
 }
 

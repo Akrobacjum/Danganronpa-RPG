@@ -192,7 +192,8 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
     /* THE DEAD WATCH (E62 C3b, 13.11.2026; spectator-dead.mjs): the student's Spectator where the body lies, made here
        for a death public at once and the Players window's "dead", and found here for a kept death made the table's
        (`publishDeath`), whose link then leaves the GMs' row for the watcher's flag. `silent` by default: every caller
-       but `killCharacter` is a GM's correction or a publication, and only a death in play fades (SB-C3 #17). */
+       but `killCharacter` is a GM's correction or a publication, and only a death in play fades (SB-C3 #17). None for an
+       NPC, a student no player owns at the death (1.2.113, the owner's decision of 13.11.2026; `isNpcAtDeath`). */
     try {
         await ensureDeadSpectator(actor, { silent });
     } catch (err) {
@@ -244,7 +245,8 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
             warn(`${actor.name}'s death could not be kept by the GMs, so it is the table's at once.`);
             secretly = false;
         } else {
-            // The kept death's Spectator (E62 C3b): its link in the GMs' row, no flag (spectator-dead.mjs).
+            // The kept death's Spectator (E62 C3b): its link in the GMs' row, no flag (spectator-dead.mjs). For an NPC
+            // none, and the row says so (`watcher.npc`), so the publication makes none either (1.2.113).
             try {
                 await ensureDeadSpectator(actor, { silent, kept: true });
             } catch (err) {
