@@ -4818,35 +4818,16 @@ const REGRESSIONS = [
             "Confusion was added to a list of ACTIONS keys, and it is not one");
     }],
 
-    ["R87 - a trace of unstated origin is not a free Analyze", async () => {
-        /*
-         * ACT-10, 20.09. `ANALYZE_DC` has no neutral column, so `analyzeDc` fell
-         * through to `null` for a bullet whose REAL type is itself neutral - a red
-         * herring, or a GM who never picked a category - and `null` is read one line
-         * later as the guide's "Bez rzutu". Every such bullet identified itself on any
-         * roll at all and closed for ever: the action was spent, the evidence was
-         * shut, and nothing was learned.
-         *
-         * The note that said this file wants no alias table was half right: it is the
-         * DISPLAYED type that is normally neutral, and this lookup takes the real one.
-         * The case it missed is the real one being neutral too. `OBSERVE_TYPE_ALIAS`
-         * is the module's existing answer - "a trace of unstated origin is priced like
-         * the ordinary evidence it stands in for" - so no second number is invented.
-         */
-        const cfg = stripComments(new Map(await otherSources()).get("config.mjs") ?? "");
-        const fn = bodyOf(cfg, "export function analyzeDc", { length: 300 });
-        // ANALYZE_TYPE_ALIAS since 21.09: Observe's aliases spread, plus autopsy.
-        ok(/(?:OBSERVE|ANALYZE)_TYPE_ALIAS\[realType\] \?\? realType/.test(fn),
-            "Analyze still has no answer for a trace whose real type is neutral");
-
-        const analyze = stripComments(new Map(await otherSources()).get("analyze.mjs") ?? "");
-        // Asked of every kind's own `analysedHint` since 21.09, neutral's included.
-        ok(/TRUTH_BULLET_TYPES\[realType\]\?\.analysedHint/.test(analyze),
-            "the card announcing an analysis still prints the un-analysed sentence - "
-            + "\"analysis turns it into a real category\" - about an analysis that did not");
-    }],
-
     ["R88 - a refusal hands back what was paid, and an Observe miss is not a refusal", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is shape. The rule itself - what `declineAction` writes,
+           an Observe's "Nothing was there" marking the Sanity with no action back, a free action's refusal giving back
+           nothing - is tier 2's "an Observe's Nothing was there marks the Sanity and gives nothing back, and a free action's
+           refusal gives back nothing (E40 item 4: R88's rule, driven; was R88)". Read here: no card of the action family
+           writes its own refusal button (a census), the Observe card of the GM's road builds its miss with `missAction`
+           (that road needs a GM ruling an Observe declared by a player: not driven), the miss's bookmark carries the marks
+           made and not the constant (read by a Reroll's undo: not driven), and `refundOnCard`'s `data.paid === "none"` -
+           measured on a copy, 13.11.2026: that line removed, tier 2's test still passes, since `if (data.paid) return null`
+           below it answers a "none" the same way; it stands as a statement of the case, not as an outcome. */
         /*
          * ACT-14 and ACT-17, 20.09.
          *
@@ -4869,10 +4850,6 @@ const REGRESSIONS = [
 
         const builder = bodyOf(rolls, "function declineAction", { until: "function missAction" });
         ok(builder.length > 200, "the refusal button is hand-written again");
-        ok(/paid: receipt \? \(receipt\.pay \?\? "action"\) : "none"/.test(builder),
-            "a free action's card is indistinguishable from a card with no receipt");
-        ok(/amount: String\(receipt\?\.amount \?\? 0\)/.test(builder),
-            "the card does not say how much was paid, so two actions come back as one");
 
         // No hand-written refusal anywhere else: the builder is the only one.
         const outside = rolls.replace(builder, "");
@@ -4882,8 +4859,6 @@ const REGRESSIONS = [
         ok(/missAction\(actor\)/.test(rolls), "the Observe card still sends a refusal");
 
         const observe = stripComments(sources.get("observe.mjs") ?? "");
-        ok(/export async function chargeObserveMiss\(/.test(observe),
-            "there is no single writer of an Observe miss");
         ok(/bulletId: null,(?: projectId: null,)? stress: marked/.test(observe),
             "the miss bookmarks the figure the rule asks for rather than the marks it made");
         ok(!/bulletId: null,(?: projectId: null,)? stress: OBSERVE_FAIL_STRESS/.test(observe),
@@ -4891,14 +4866,6 @@ const REGRESSIONS = [
             + "the constant hands back Sanity nobody spent");
 
         const app = stripComments(sources.get("messenger-app.mjs") ?? "");
-        const miss = bodyOf(app, "async function ruleObserveMiss(", { until: "function refundOnCard(" });
-        ok(miss.length > 200, "the GM's \"nothing was there\" has no handler of its own");
-        ok(/observeMiss: ruleObserveMiss,/.test(app), "the miss is not in CARD_ACTIONS");
-        ok(/chargeObserveMiss\(actor\)/.test(miss), "the miss charges nothing");
-        ok(!/refundAction/.test(miss),
-            "the miss refunds the action - the character looked, on either road");
-        ok(!/DRPG\.Bridge\.declined|settledDeclined/.test(miss),
-            "the miss tells the player their action is back, beside the Sanity it just took");
         ok(/data\.paid === "none"/.test(app),
             "a card for a free action still refunds an action that was never spent");
     }],
@@ -6806,6 +6773,10 @@ const REGRESSIONS = [
     }],
 
     ["R172 - no answer-key writer derives a value from absence", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of 30 store writers and 2 migrations in 11 files, each held to what its row
+           names. A derived write that forgot `ifLive`, `weak` or `fillOnly` behaves the same on one GM; it differs only
+           when a second GM's copy arrives, and the per-field merge that makes the difference is R169's and tier 2's.
+           What is measured is the call's text, every writer at once, which no single call returns. */
         /*
          * E04, 26.09.2026; audit S05-01. The answer key was erased by a writer that
          * built a row out of nothing - a migration that met a bullet this GM held no
@@ -13183,6 +13154,9 @@ const REGRESSIONS = [
     }],
 
     ["R305 - a trace's tie keeps its three states through every writer and reader of the ledger", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of ten writers and readers of the tie, none flattening it with
+           `Boolean()` or passing a token's old flag on raw. The behaviour is tier 2's ("a victim's death ties the chapter's
+           undecided traces and never one a GM marked not tied"); this holds the shape across every function at once. */
         /*
          * E09 C4, 08.10.2026; audit S05-37, S05-25, the owner's D14. The tie is `true` (tied to the
          * crime), `false` (a GM's "not tied", a red herring) or `null` (nobody has said). Five places
@@ -13227,6 +13201,9 @@ const REGRESSIONS = [
     }],
 
     ["R306 - a reshape's ruling is claimed before anything waits: claimRuling marks `ruled` with no await, and the store's hydration is the only wait before either ruling claims", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order with no outcome a call can see. The race it rests on is tier 2's
+           ("two rulings of one reshape at once run once, and the second is told it was ruled"); an await added before the
+           claim on a road that test does not take shows only under a timing no call fixes. `claimRuling` is not exported. */
         /*
          * E09 C10, 08.10.2026. Two rulings of one reshape both ran - Approve and Decline on one card,
          * or two GMs' Approve - because each read the attempt's row, awaited, and wrote, and nothing
@@ -14130,6 +14107,9 @@ const REGRESSIONS = [
     }],
 
     ["R430 - the room cache and a Remnant's card read the world's tokens, not the ones this browser draws", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of two readers that must not name the canvas. What each reads
+           differs only on a browser that draws another scene than the one the tokens are on, which tier 0 cannot set up
+           without a write; scenario 66 R reads the crossing that followed from it. */
         /*
          * E12 fix r2-S1, 11.10.2026; review round 2 O3. Two readers reached the camera by a road R382
          * does not read: movement.mjs `primeRoomCache` took `canvas.tokens.placeables`, so a browser
@@ -18530,6 +18510,9 @@ const REGRESSIONS = [
         "[registerTokenRuler sets CONFIG.Token.rulerClass from hourRulerFor; registerFog calls it; the body's observer recolours the outline and draws the rulers again]");
     }],
     ["R1120 - an undescribed trace's name is empty and worded at read time: the key `DRPG.Remnant.tokenName` is localized only in remnants.mjs `traceLabel` and `neutralWords`, nothing compares a name against `traceLabel(`, and observe.mjs `createFind` prefills the GM's describe window from the trace's subject, not from the stored name (E51 C5; E51-30, audit S05-52)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over every module file - where the neutral word's key is
+           localized and whether any name is compared against `traceLabel(` - and which argument `createFind` hands the
+           describe window (`createFind` and `describeFind` are not exported). The ITEM4 pilot read it as (c). */
         /*
          * E51 C5, 31.10.2026; audit S05-52. Every trace's `public.name` read "Trace" until a GM described it - the neutral
          * word, in the language of the browser that wrote or read it (remnants.mjs `defaultPublic`) - and about fifteen

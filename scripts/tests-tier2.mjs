@@ -37937,6 +37937,140 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     // E40 item 4, slice B: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
     // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["a Truth Bullet whose real kind is Neutral is analysed against the number of the evidence it stands in for, and its card says there is nothing more in it (E40 item 4: R87's rule, driven; was R87)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R87 (tier 0, removed in E40) read two lines as text: config.mjs `analyzeDc`
+         * looking its column up through `ANALYZE_TYPE_ALIAS[realType] ?? realType`, and analyze.mjs naming
+         * `TRUTH_BULLET_TYPES[realType]?.analysedHint`. It passed a mutant that kept both lines and broke the rule: the
+         * alias table without its `neutral` row (the lookup's text unchanged, a Neutral's number null again, so every roll
+         * on one misses - analyze.mjs reads a null as a miss since 21.09), and the card reading `hint` before
+         * `analysedHint` (the name still there, the un-analysed sentence printed again). ACT-10, 20.09: a trace of unstated
+         * origin is priced like the ordinary evidence it stands in for. Here: the number for each visibility, a Neutral's
+         * against a Prep's, and two Neutral bullets on one student analysed on the GM, one at that number less one and one
+         * at it; read for each the verdict and which of the two sentences its card carries.
+         */
+        const [student] = cast(1);
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { analyzeDc, ANALYZE_DC, TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        const bands = Object.keys(ANALYZE_DC);
+        must(bands.length >= 4, "the Analyze table has fewer than four visibilities - this would measure less than it says");
+        const priced = bands.map(v => [analyzeDc(v, "neutral"), analyzeDc(v, "prep")]);
+        const dc = analyzeDc("evident", "prep");
+        must(Number.isFinite(dc) && dc > 1, `a Prep bullet's evident number is ${dc} - a total under it cannot be thrown, and this would measure nothing`);
+        const said = foundry.utils.escapeHTML(TRUTH_BULLET_TYPES.neutral?.analysedHint ?? "");
+        const unread = foundry.utils.escapeHTML(TRUTH_BULLET_TYPES.neutral?.hint ?? "");
+        must(said && unread && said !== unread, "the Neutral kind has no two sentences to tell apart - this would measure nothing");
+        const titles = ["DRPG.Analyze.identifiedTitle", "DRPG.Analyze.failedTitle"].map(k => game.i18n.localize(k));
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        const made = [], read = [];
+        try {
+            for (const total of [dc - 1, dc]) {
+                const item = await bullets.createTruthBullet(student, { name: `SUITE E40 R87 a Neutral at ${total}`, realType: "neutral", visibility: "evident" });
+                must(item, "the fixture's Neutral bullet was not made");
+                made.push(item);
+                const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total });
+                await settle();
+                const card = () => game.messages.contents.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? ""))
+                    .find(w => titles.some(t => w.includes(t)));
+                await until(card);
+                const words = card() ?? "";
+                for (const m of game.messages.contents) seen.add(m.id);
+                read.push([verdict?.success ?? null, words.includes(titles[0]), words.includes(said), words.includes(unread)]);
+            }
+        } finally {
+            for (const item of made) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+        equal(stableJson([priced.every(([n, p]) => p !== null && n === p), read]),
+            stableJson([true, [[false, false, false, false], [true, true, true, false]]]),
+            "a Neutral bullet was not priced as the Prep evidence it stands in for, or its card printed the un-analysed sentence "
+                + "([each visibility's Neutral number a Prep's], then for a total one under that number and at it: verdict, the "
+                + "identified card, the sentence that there is nothing more in it, the sentence to analyse it)");
+    }],
+
+    ["an Observe's Nothing was there marks the Sanity and gives nothing back, and a free action's refusal gives back nothing (E40 item 4: R88's rule, driven; was R88)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R88 (tier 0, trimmed in E40 to the four lines it still reads as text) read
+         * action-pipeline.mjs `declineAction` and messenger-app.mjs `ruleObserveMiss` and `CARD_ACTIONS` as text. It passed
+         * two mutants that kept every line it matched: `declineAction`'s data spread a `paid: ""` after its `paid` line for
+         * a card with no receipt (the legacy branch of `refundOnCard`, which hands one action back), and `CARD_ACTIONS`
+         * handed `observeMiss` to `ruleDecline` in a statement after the table. ACT-14 and ACT-17, 20.09: a refusal hands
+         * back what the card says was paid and nothing for a free action; "Nothing was there" on an Observe is its
+         * result, so it marks the Sanity the rule asks and gives no action back. Here: what `declineAction` writes for a
+         * Burst's receipt and for none; then a student with a player, one action spent and no Sanity marked, gets two
+         * cards in their thread (`callGm`), one with the Observe's miss and one with a free action's refusal, and each
+         * button is pressed as a GM presses it (`wireCallActions`). Read per press: the actions and the Sanity marks
+         * moved, the refusal's sentence and the GM's "Nothing was there" ruling said, and the card settled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the cards go to a player's thread");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { missAction, declineAction } = await import("./action-pipeline.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const drawn = [declineAction(student, { pay: "burst", amount: 2, grant: true }).data, declineAction(student, null).data]
+            .map(d => [d.paid, d.amount, d.grant]);
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const marks = () => Number(foundry.utils.getProperty(student._source, STRESS)) || 0;
+        const had = { [ACT]: foundry.utils.getProperty(student._source, ACT), [STRESS]: foundry.utils.getProperty(student._source, STRESS) };
+        must(actionsMax(student) >= 1 && Number(student.system.resources?.stress?.max) >= 1,
+            `${student.name} has no action to spend or no Sanity to mark - this would measure nothing`);
+        const declined = foundry.utils.escapeHTML(game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }));
+        const ruled = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Bridge.nothingThere"));
+        const posted = [];
+        const read = [];
+        try {
+            await student.update({ [ACT]: actionsMax(student) - 1, [STRESS]: 0 });
+            await settle();
+            for (const [call, button] of [["observeMiss", missAction(student)], ["decline", declineAction(student, null)]]) {
+                const before = new Set(game.messages.contents.map(m => m.id));
+                await callGm(student, { title: `SUITE E40 R88 ${call}`, actions: [button] });
+                const withButton = () => game.messages.contents.find(m => !before.has(m.id)
+                    && String(contentOf(m) ?? "").includes(`data-drpg-call="${call}"`));
+                await until(withButton, 8000);
+                const card = withButton();
+                must(card, `the ${call} card was not posted`);
+                posted.push(card.id);
+                const [actions, stress] = [actionsLeft(student), marks()];
+                const since = new Set(game.messages.contents.map(m => m.id));
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                const pressed = body.querySelector(`[data-drpg-call="${call}"]`);
+                must(pressed, `the ${call} card's button was not drawn`);
+                pressed.click();
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+                await settle();
+                const fresh = game.messages.contents.filter(m => !since.has(m.id));
+                for (const m of fresh) posted.push(m.id);
+                const said = fresh.map(m => String(contentOf(m) ?? ""));
+                read.push([actionsLeft(student) - actions, marks() - stress, said.some(w => w.includes(declined)),
+                    said.some(w => w.includes(ruled)), Boolean(cardFlag(game.messages.get(card.id), "settled"))]);
+            }
+        } finally {
+            for (const id of posted) await game.messages.get(id)?.delete();
+            await student.update(had);
+            await settle();
+        }
+        equal(stableJson([drawn, read]), stableJson([[["burst", "2", "true"], ["none", "0", "false"]],
+            [[0, 1, false, true, true], [0, 0, false, false, true]]]),
+            "a refusal's card did not say what was paid, an Observe's Nothing was there was taken as a refusal, or a free action's "
+                + "refusal gave something back ([declineAction's paid, amount, grant for a Burst of 2 and for none]; then per press of "
+                + "the Observe's miss and the free refusal: actions moved, Sanity marks moved, the refusal's sentence, the GM's Nothing "
+                + "was there, the card settled)");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*
