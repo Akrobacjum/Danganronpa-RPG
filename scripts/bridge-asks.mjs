@@ -34,7 +34,7 @@ import {
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -139,6 +139,23 @@ export function requestOfferRecord(actorId, offer, offerId = null) {
 export function requestCardPost(card) {
     return ask(ACTION_CARD, card, {
         local: () => import("./secret.mjs").then(m => m.postAsked(game.user, card))
+    });
+}
+
+/**
+ * Give a Truth Bullet, carried to the primary GM so its copy lands in the one receiver's finds' queue (E38; D153;
+ * `handleGiveBullet`). The window runs on whichever GM opened it; this asks the primary, or, when this GM is the
+ * primary, makes the bullet here (`local`, `onPrimary`), each in that queue. The value is `{ given, id }` -
+ * `"already"` when the receiver holds a copy of the trace, `"bullet"` with the item's id when one was made - as the
+ * run answers it, so the window reads the same whichever GM gave. `giveBullet`'s own copy check stands in the queue.
+ */
+export function requestGiveBullet(who, bullet) {
+    return ask(ACTION_BULLET_GIVE, { whoId: who?.id ?? null, bullet }, {
+        onPrimary: true,
+        local: () => import("./gm-items.mjs").then(async m => {
+            const item = await m.giveBullet(who, bullet);
+            return item === m.GIVEN_ALREADY ? { given: "already" } : item?.id ? { given: "bullet", id: item.id } : null;
+        })
     });
 }
 

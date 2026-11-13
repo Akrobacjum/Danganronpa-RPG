@@ -56,7 +56,11 @@
  * see that sentence: there is no server-side copy to catch up from. Before this,
  * every GM saw every whisper forever. That is the trade, and it is the right way
  * round - a second GM reading yesterday's private narration is a convenience; a
- * player reading it is the game.
+ * player reading it is the game. A PLAYER who was away is given the words on return
+ * by a GM that holds them (below, "WORDS AFTER A RETURN"): since E38 that includes
+ * the GM that posted a card to players alone, which keeps its own words for them
+ * (`authorHold`; the owner's answer of 13.11.2026: keep it). Still no server copy -
+ * a player whose card's GMs are all away waits until one who holds it is back.
  */
 
 import { MODULE_ID, TIMING } from "./config.mjs";
@@ -602,6 +606,9 @@ export function secretHtml(message) {
     const entry = read()[message.id];
     if (!entry || typeof entry.html !== "string") return null;
     if (entry.user && entry.user !== game.user?.id) return null;
+    // Its author keeps it for others, and does not read it here (E38): a GM whispering a card to players alone sees
+    // its stub, as it did before the author-hold catch-up.
+    if (entry.authorHold) return null;
     if (entry.trusted) return entry.html;
     if (!cleaned.has(message.id)) cleaned.set(message.id, cleanCardHtml(entry.html));
     return cleaned.get(message.id);
@@ -629,6 +636,7 @@ export function cardMeta(message, key) {
     if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return undefined;
     const entry = read()[message.id];
     if (!entry || (entry.user && entry.user !== game.user?.id)) return undefined;
+    if (entry.authorHold) return undefined; // kept for its readers' return, not read by its author (E38)
     return entry.meta?.[key];
 }
 
@@ -720,7 +728,7 @@ export function contentOf(message) {
  * @param {boolean} [trusted]  Written by a GM, as the GM wrote it. Anything else
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
-async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined, readers = undefined, lines = undefined) {
+async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined, readers = undefined, lines = undefined, { authorHold = false } = {}) {
     const words = trusted ? html : cleanCardHtml(html);
     // A GM's uncut words, from a GM (above): kept with these words, and gone with words that carry none.
     const uncut = trusted && game.user?.isGM && typeof lines === "string" && hasLines(lines) ? lines : null;
@@ -743,6 +751,9 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
         // browser for every world it opens, and `pruneOrphans` must only ever
         // judge this world's cards against this world's chat log.
         world: game.world?.id ?? null,
+        // A card its author keeps for a reader who was away (E38), hidden from the author's own reads: secretHtml and
+        // cardMeta give nothing for it, and only `answerWordsRequest` serves it, to the card's readers alone.
+        ...(authorHold ? { authorHold: true } : {}),
         ...(pin ? { pin: true } : {}), ...(trusted ? { trusted: true } : {})
     } };
 
@@ -809,7 +820,9 @@ function writtenByGm(message) {
  * (`readersOf`) only when a GM wrote the card, since a player's own card's whisper list is its author's
  * to widen after the fact. A player is given the words as a player is sent them (`wordsFor`: without
  * the GMs' prose), by an addressed `secret.card` to the asker alone. A GM answers only from its own
- * store: a card whose readers had no GM among them, or whose GMs were all away, stays without words and
+ * store, which since E38 holds a card a GM posted to players alone as well - its author keeps the words for
+ * them, hidden from its own reads (`authorHold`, in `post`; the owner's answer of 13.11.2026). A card no GM
+ * holds - a player's own card to another player, or one whose GMs are all away - stays without words and
  * says so (`elsewhereHtml`). Each GM connected answers; the first answer of each card asked raises its
  * notice (`cardOnReturn`), the next ones find the words here and are passed over (`onSecretPacket`).
  *
@@ -1148,6 +1161,24 @@ async function post(data, { clean = false, outcome = null } = {}) {
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
             error("Could not deliver a private card's words", err);
+        }
+    }
+
+    /* THE AUTHOR KEEPS THE WORDS FOR A READER WHO WAS AWAY (E38). A GM whispering a card to players alone - a tail's
+       result, a door, a reroll receipt (utils.mjs `whisperToOwnerOnly`) - left no GM holding its words, so a player
+       offline when it was posted read a dash for good: the catch-up above ("WORDS AFTER A RETURN") serves only from a
+       GM who was a reader, and these cards have none. The author GM now keeps them, hidden from its own reads
+       (`authorHold`) and served to the card's readers alone (`answerWordsRequest`, which already checks the asker is a
+       reader). This is no server copy: a player whose author GM is also away still waits, as the trade says. Only a
+       GM's own authored card: a player's private card is its author's to catch up, and an incident's card a GM posts
+       for a player is already remembered above (the GM is a reader of what it posts). */
+    if (game.user.isGM && !recipients.includes(game.user.id)) {
+        try {
+            const own = wordsFor(game.user.id, html);
+            await remember(message.id, clean ? cleanCardHtml(own) : own, at, pin, true, summary, meta,
+                recipients, clean ? cleanCardHtml(html) : html, { authorHold: true });
+        } catch (err) {
+            error("Could not keep a private card's words for a reader's return", err);
         }
     }
 
@@ -1583,6 +1614,7 @@ export function secretSummaries(since = 0) {
     for (const entry of Object.values(read())) {
         if (!entry?.summary || entry.world !== here) continue;
         if (entry.user && entry.user !== me) continue;
+        if (entry.authorHold) continue; // the author keeps this card for its readers, not for its own day summary (E38)
         const at = entry.summary.at ?? entry.at ?? 0;
         if (since && at < since) continue;
         out.push({ ...entry.summary, at });

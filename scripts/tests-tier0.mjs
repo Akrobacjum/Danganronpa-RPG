@@ -21136,6 +21136,53 @@ const REGRESSIONS = [
             "[the declarations whose createTruthBullet stands outside the receiver's finds' queue or has no copiedRemnants check in its step; "
             + "an exempt declaration no longer there; the planted three]");
     }],
+    ["R5000 - D153 across two GMs (E38; E60's Open 50): Give a Truth Bullet runs its give on the primary - gm-items.mjs `giveTruthBulletDialog` asks bridge-asks.mjs `requestGiveBullet` and calls no `giveBullet(` itself; the bridge's row `bullet.give` takes a GM alone (its first guard `gmOnly`), answers a reply, and its run makes the bullet through `giveBullet`, in the receiver's finds' queue on the primary's browser", async () => {
+        /*
+         * E38, 13.11.2026; D153 (SIER-R1 of 31.10, E60's fix round FG6). R1289 holds each bullet to the receiver's finds'
+         * queue, which is one browser's memory: an Observe's find runs on the primary, and the give ran on whichever GM
+         * opened the window, so a give on a second GM's browser beside the primary's find of the same trace for the same
+         * receiver made two copies (97-two-gms G: Chie held 2 on both GMs, at E38 C2). Read off the source and the table:
+         * the window's body (comments blanked) names `requestGiveBullet(` and no `giveBullet(`; `bullet.give` is a row
+         * whose first guard is `gmOnly`, whose answer is "reply" and whose run's source calls `giveBullet(`; and
+         * `requestGiveBullet` asks it `onPrimary` with a `local` that is the GM's own give. Red before E38 C4: no row,
+         * no `requestGiveBullet`, and the window called `giveBullet(who, payload)`.
+         */
+        const sources = new Map(await moduleSources());
+        const items = stripComments(sources.get("gm-items.mjs") ?? "");
+        const dialog = fnSource(items, "giveTruthBulletDialog");
+        ok(/\brequestGiveBullet\s*\(/.test(dialog), "the GM's Give window does not ask the primary (requestGiveBullet)");
+        ok(!/(?<![\w.])giveBullet\s*\(/.test(dialog), "the GM's Give window still makes its bullet on its own browser (giveBullet)");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const row = BRIDGE_ACTIONS["bullet.give"] ?? null;
+        ok(row !== null, "the bridge has no row bullet.give");
+        ok(row?.guards?.[0]?.factory === "gmOnly", "bullet.give's first guard is not gmOnly: a player could ask for a bullet");
+        equal(row?.answer ?? null, "reply", "bullet.give's answer");
+        ok(/\bgiveBullet\s*\(/.test(String(row?.run ?? "")), "bullet.give's run does not make the bullet through giveBullet (the receiver's queue)");
+        const asks = stripComments(sources.get("bridge-asks.mjs") ?? "");
+        const request = /\bexport\s+(?:async\s+)?function\s+requestGiveBullet\b/.test(asks) ? fnSource(asks, "requestGiveBullet") : "";
+        ok(/ACTION_BULLET_GIVE/.test(request) && /onPrimary:\s*true/.test(request) && /local:[\s\S]*giveBullet\s*\(/.test(request),
+            "requestGiveBullet does not ask bullet.give on the primary, with the GM's own give as its local run");
+    }],
+    ["R5001 - a private card's author keeps its words for a reader who was away (E38): secret.mjs `post`, when the poster is a GM and not among the recipients, calls `remember(` with an `authorHold` flag; `secretHtml` and `cardMeta` give that author nothing (they return for `authorHold`), and `answerWordsRequest` serves the card's readers from the author's store as before", async () => {
+        /*
+         * E38, 13.11.2026; the second finding of E38 (97/98's STATUS). A card a GM whispers to players alone - a tail's
+         * result, a door, a reroll receipt (whisperToOwnerOnly) - left no GM holding its words, so a player offline when
+         * it was posted read a dash for good: the catch-up (`answerWordsRequest`) serves only from a GM who was a reader.
+         * The author GM keeps them now, hidden from its own reads (`authorHold`) and served to the card's readers alone.
+         * The documented trade stands (a player whose author GM is also away still waits: no server copy). Read off the
+         * source: `post`'s branch, and the two readers' guards. Red before the fix: no `authorHold` anywhere in secret.mjs.
+         */
+        const secret = stripComments((new Map(await moduleSources())).get("secret.mjs") ?? "");
+        const post = fnSource(secret, "post");
+        ok(/authorHold/.test(post), "secret.mjs post() does not keep a non-recipient author's words (authorHold)");
+        ok(/game\.user\.isGM[\s\S]{0,160}recipients\.includes\(game\.user\.id\)[\s\S]{0,200}\bremember\s*\(/.test(post)
+            || /!recipients\.includes\(game\.user\.id\)[\s\S]{0,200}\bremember\s*\([\s\S]{0,400}authorHold/.test(post),
+            "post() does not remember the words when a GM posts to players it is not among");
+        ok(/\bif\s*\(\s*entry\.authorHold\s*\)\s*return null/.test(fnSource(secret, "secretHtml")),
+            "secretHtml does not hide an authorHold card from its own author");
+        ok(/\bif\s*\(\s*entry\.authorHold\s*\)\s*return undefined/.test(fnSource(secret, "cardMeta")),
+            "cardMeta does not hide an authorHold card's meta from its own author");
+    }],
     ["R1291 - the GM panel has no Public roll (E60 C5a; E60-13): no tile of its sections and no code of the panel's family names `publicRoll`, `openPublicRollDialog` or a DRPG.Panel.publicRoll key; that key's label, formula, flavour and roll are gone from lang/en.json and lang/pl.json and its gmOnly and badFormula stay, both read by private-rolls.mjs; `game.drpg.publicRoll` stays, in api.mjs and in tools/api-surface.json as a function (a macro's road)", async () => {
         /*
          * E60 C5a, 03.11.2026; the owner after installing 1.2.97: "Usunmy funkcje public roll z gm panel". E33 C12 put a

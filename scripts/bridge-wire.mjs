@@ -192,3 +192,6 @@ export const ACTION_REROLL = "reroll.ask";
 export const ACTION_CARD = "card.post";
 /** GM -> primary GM: a GM's click on a card to the GMs, claimed before it rules and marked ruled after (E18 C3; `claimCard`). */
 export const ACTION_CARD_CLAIM = "card.claim";
+
+/** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
+export const ACTION_BULLET_GIVE = "bullet.give";
