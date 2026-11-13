@@ -123,7 +123,7 @@ export async function handleAnalyzeResolve(payload, sender, ctx) {
  * the sender has to own the character (the declaration's guard), the character
  * has to be CARRYING an offer, the kind comes off THE OFFER rather than off the
  * packet (whose `kind` is not even on the whitelist), the number of picks has
- * to be the number that kind buys, and every option has to be one of the five.
+ * to be the number that kind buys, and every option has to be one of the three (E64 C6: +1 Health and +1 Sanity are no options; DA39).
  * Nothing here trusts the claim except the picks themselves, which are the one
  * thing the offer was made to let them choose.
  *
@@ -167,6 +167,11 @@ export async function handleAdvancement(payload, sender, ctx) {
     }
     if (picks.some(p => !LEVEL_UP_OPTIONS[p?.option])) {
         return { refused: "a pick names something that is not an option" };
+    }
+    /* AN OFFER OF STATISTIC POINTS TAKES STATISTICS (E64; the DA39 migration, level-up.mjs `applyDa39Migration`): its
+       picker draws that option alone, and a packet carrying another is refused here, the offer standing. */
+    if (offer.only === "trait" && picks.some(p => p.option !== "trait")) {
+        return { refused: "that offer is for statistics only" };
     }
 
     /* Bounded on arrival as well as caught on the player's screen (level-up.mjs):

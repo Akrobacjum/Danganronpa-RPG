@@ -288,6 +288,13 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // threw, it counts only where the die held (forced-roll.mjs `loadedDieHeld`; E16 part 2 C5, audit S02-44): a d12
     // drawn by another dice method shows an honest face, and the roll was told "freeCritUsed" all the same.
     const loaded = drawn ? drawn.loaded === true : free && loadedDieHeld(result);
+    // One that did not hold gives its Call back (E64, D052; call-effects.mjs `giveBackLoadedDie`): here only where this
+    // browser threw the dice, which with a Loaded Die armed is a GM's - a player's roll is drawn, and the GM that drew it
+    // gave it back there (roll-draw.mjs `throwDrawn`).
+    if (free && !drawn && !loaded) {
+        const { giveBackLoadedDie } = await import("./call-effects.mjs");
+        await giveBackLoadedDie(actor, armed);
+    }
 
     const outcome = {
         total,

@@ -102,7 +102,7 @@ export async function openCrisisMenu(actor) {
         intro: `<div class="drpg-briefing-block"><p>${game.i18n.localize("DRPG.Murder.crisisBrief")}</p></div>`,
         prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
         confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
-        options: options.map(({ key, def, threshold, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
+        options: options.map(({ key, def, threshold, defense, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
             value: key,
             icon: def.icon ?? "fa-burst",
             label: def.label,
@@ -115,7 +115,11 @@ export async function openCrisisMenu(actor) {
                 ? game.i18n.localize("DRPG.Murder.noRollItWorks")
                 : threshold === null || threshold === undefined
                     ? game.i18n.localize("DRPG.Murder.noRollNeeded")
-                    : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
+                    // With the other side's defence in it (E64; DA6/DA23): "Beat 16 (+1 for the victim's Body)".
+                    : defense > 0 && def.defense
+                        ? game.i18n.format(`DRPG.Murder.thresholdDefended.${def.defense.side}`, {
+                            n: threshold, d: defense, trait: TRAITS[def.defense.trait]?.label ?? def.defense.trait })
+                        : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
                 // The row's one sentence (E68 C13; the owner's Q5 of round M): `short`, its full hint first in the details.
                 def.short ? ` - ${proseOf(def, "short")}` : def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,

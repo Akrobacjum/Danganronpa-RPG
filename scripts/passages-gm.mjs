@@ -1223,11 +1223,12 @@ const whyTable = () => new Map([
         ["the item is neither a usable nor a tool that is broken or worn.", "notRepairable"],
         ["nothing to cut again.", "nothingBack"],
         ["nothing to put back.", "itemBack"],
-        ["the item was broken or worn again since.", "brokenSince"]
+        ["the item was broken or worn again since.", "brokenSince"],
+        ["the item's tier asks a bigger repair than this one.", "repairTooSmall"]
 ]);
 
 /** The closed list of the codes `whyText` can say, each `DRPG.Passage.why.<code>` in both language files (R983). */
-export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "unknown"]);
+export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "repairTooSmall", "unknown"]);
 
 /** A judge's English reason's code, or null for one the table does not know. */
 export function whyCode(reason) {

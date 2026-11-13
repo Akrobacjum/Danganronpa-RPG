@@ -955,12 +955,15 @@ export const COMPLETION_EFFECTS = [
          */
         key: "repairsItem",
         has: meta => meta.target?.preset === "repairItem" && typeof meta.target.itemId === "string",
-        onCrossed: ({ id, name, meta }) => {
+        onCrossed: ctx => {
+            const { id, name, meta } = ctx;
             let made = null;
             const builder = game.actors.get(meta.by ?? "") ?? null;
             return {
                 apply: async () => {
-                    made = await (await import("./inventory.mjs")).repairItem(builder, meta.target.itemId, { ref: id });
+                    // Held to the item's tier as it is now, or to the size the GM picked (E64, D034, D039).
+                    made = await (await import("./inventory.mjs")).repairItem(builder, meta.target.itemId, { ref: id, size: ctx.target,
+                        sizedByGm: meta.target.sizedByGm ?? null });
                     if (made?.was) await setProjectMeta(id, { target: { ...meta.target, was: made.was } });
                 },
                 remove: true,
@@ -1654,12 +1657,16 @@ export async function createProject({
 /**
  * A preset's target as the GMs keep it (E15 part 2 C2, C5): `{ preset, room }`, and for the owner's three of 15.10 what
  * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`) -,
- * strings alone.
+ * strings alone; and a Repair an item's size where the GM picked another than its tier's in the approval window
+ * (`sizedByGm`, a whole number of progress; E64, D039), which the completion holds instead of the tier's (inventory.mjs
+ * `repairItem`, D034). Absent where the window kept the tier's size.
  */
 function presetTargetOf(presetTarget) {
     const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId"]
         .filter(key => typeof presetTarget[key] === "string" && presetTarget[key]).map(key => [key, presetTarget[key]]));
-    return { preset: String(presetTarget.preset), room: presetTarget.room ?? null, ...ids };
+    const size = Number(presetTarget.sizedByGm);
+    const sized = presetTarget.preset === "repairItem" && Number.isInteger(size) && size > 0 ? { sizedByGm: size } : {};
+    return { preset: String(presetTarget.preset), room: presetTarget.room ?? null, ...ids, ...sized };
 }
 
 /**

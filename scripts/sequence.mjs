@@ -542,11 +542,19 @@ export const MORNING_LINE_MAX = 200;
 /**
  * What a move of the clock folds into its one write for the morning line and the mood (E94 C1, C4; clock.mjs
  * `advanceTimeOfDay`): at the day's roll-over the GM's line (`draft`, kept on that GM's browser until then, so it is in
- * no world data before the day starts) and the mood's word; at any other move both cleared, so neither outlives the
- * morning they were written for. Pure.
+ * no world data before the day starts) and the mood's word; at any other move only the morning line is cleared (when
+ * one stands), so it does not outlive the morning it was written for, and the mood is left as it is until the next
+ * roll-over writes it again. And at the roll-over the new `day`, when handed in, as the boards' stamp (`dayBoard`,
+ * 12.11.2026; the owner's rule of that day): the day's boards play on a new day whose clock carries it (transitions.mjs
+ * `boardsFor`), so the real roll-over - Next time of day, the Morning Eclipse's end - plays them and Edit campaign's
+ * day + 1, which writes no stamp, does not. Pure.
  */
-export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {} } = {}) {
-    if (rolledOver) return { morningLine: morningLineOf(draft), mood: MOOD_BANDS.includes(mood) ? mood : null };
+export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {}, day = null } = {}) {
+    if (rolledOver) {
+        const patch = { morningLine: morningLineOf(draft), mood: MOOD_BANDS.includes(mood) ? mood : null };
+        if (day != null && Number.isFinite(Number(day))) patch.dayBoard = Number(day);
+        return patch;
+    }
     const patch = {};
     if (before?.morningLine != null) patch.morningLine = null;
     return patch;

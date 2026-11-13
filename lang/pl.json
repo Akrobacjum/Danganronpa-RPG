@@ -722,6 +722,7 @@
         "nothingBack": "nie ma czego przywrócić. Jeśli wyłom ma zostać, zrób go ponownie ręcznie.",
         "itemBack": "na przedmiocie nie było czego przywrócić.",
         "brokenSince": "przedmiot w międzyczasie znów się zepsuł albo zużył i zostaje taki, jaki jest.",
+        "repairTooSmall": "tier przedmiotu wzrósł od zatwierdzenia tej naprawy, więc niczego nie naprawiono. Zatwierdź nową naprawę właściwej wielkości.",
         "unknown": "moduł nie umie powiedzieć dlaczego; powód jest w konsoli GM-a."
       },
       "engineOff": "Tajne przejścia nie mogą się tu otworzyć: każdy token zatrzyma się na ich ścianach. Sprawdź, czy jest aktualizacja Danganronpa RPG, albo wyłącz moduły, które zmieniają ruch tokenów.",
@@ -1554,6 +1555,7 @@
         "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}.",
         "verdictElsewhere": "Werdykt wydaje {name}. Zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Zakończ rozdział.",
+        "caseSummary": "Werdykt zapadł. Pokaż podsumowanie sprawy.",
         "endZone": "Głos ma tryb stref. Liczy się sam; Zakończ ten tryb go kończy.",
         "scrum": "Straw Poll podzielił klasę. Otwórz Scrum Debate w Strefach sali albo otwórz debatę."
       },
@@ -1609,6 +1611,7 @@
         "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}, żeby każdy jego krok wykonał się raz: poproś o to GM-a {name}, potem zakończ rozdział.",
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+        "caseSummary": "Werdykt zapadł. Pokaż graczom podsumowanie sprawy, potem zakończ rozdział.",
         "sentenceWaits": "Rozprawa trwa: wyrok zostanie wykonany, gdy się skończy.",
         "round": "Głos ma runda: mówcy po kolei. Pomiń przechodzi do następnego mówcy; Zakończ ten tryb kończy rundę.",
         "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie.",
@@ -2281,6 +2284,9 @@
       "moveIntro": "Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje {n} Sanity.",
       "moveAlwaysTrace": "To zawsze zostawia Evident ślad, cokolwiek powiedzą kości. Zwłok nie da się wywlec po cichu. Sypialni nie ma na liście: ciało za czyimiś zamkniętymi drzwiami samo wskazuje podejrzanego.",
       "moveWhere": "Zanieś do",
+      "moveFar": "Dwa pokoje dalej - tylko krytyk",
+      "moveFarNote": "Pokój dwa dalej wymaga krytyka. Każdy inny sukces doniesie ciało tylko do pokoju pomiędzy.",
+      "bodyShort": "Doniesiono je tylko do: {room} - do: {far} trzeba było krytyka.",
       "moveConfirm": "Zanieś tam",
       "bodyNowhere": "Nie ma gdzie go zanieść - żaden pokój nie łączy się z tym albo łączą się tylko sypialnie.",
       "toolsBroken": "{items} jest zniszczony. Wciąż leży w twoim ekwipunku i wciąż jest dowodem.",
@@ -2471,6 +2477,7 @@
       "useItemGone": "Tego już przy tobie nie ma - nie ma czego użyć.",
       "useItemWorked": "Przedmiot idzie w ruch.",
       "useItemFumbled": "Zostaje w kieszeni, a ktoś widział, jak po niego sięgasz.",
+      "useItemAsked": "GM decyduje, czy to zadziała. Do tego czasu przedmiot nie jest zużyty.",
       "notYourTurn": "To nie twoja tura.",
       "actionBlocked": "Na razie masz to zablokowane.",
       "actionHindered": "To jest teraz trudniejsze - rzucasz z utrudnieniem.",
@@ -2522,6 +2529,10 @@
       "actionDenied": "Ta akcja nie jest teraz dla ciebie dostępna.",
       "failedNothing": "Nic z tego nie wychodzi.",
       "thresholdShort": "Pobij {n}",
+      "thresholdDefended": {
+        "victim": "Pobij {n} (+{d} za {trait} ofiary)",
+        "killer": "Pobij {n} (+{d} za {trait} zabójcy)"
+      },
       "noRollNeeded": "Bez rzutu",
       "unlockedActions": "Odblokowane: {names}.",
       "drainStopped": "Krwawienie ustaje - w tym incydencie nie tracisz już Health ani Sanity.",
@@ -2623,7 +2634,7 @@
       "filterChapter": "Rozdział",
       "filterEveryChapter": "Każdy rozdział",
       "chapterN": "Rozdział {n}",
-      "neverOnePerson": "Trop zawęża krąg, nigdy nie wskazuje nazwiska: Key Remnant wskazuje najwyżej połowę obsady, zwykły ślad 2-4 osoby. Ostatni krok od kręgu do nazwiska należy do Class Trial.",
+      "neverOnePerson": "Ślad nigdy nie wskazuje nazwiska: Key Remnant zawęża krąg najwyżej do połowy obsady, inny do 2-4 osób.",
       "filterCount": "Pokazano {shown} z {total}.",
       "noneMatch": "Żaden Remnant nie pasuje do tego filtra.",
       "plannerIntro": {
@@ -2632,7 +2643,7 @@
         "many": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
         "other": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób."
       },
-      "notePlaceholder": "Co ten trop im mówi",
+      "notePlaceholder": "Co widzi uczeń",
       "analysisPlaceholder": "Co dodaje laboratorium",
       "difficulty": "Trudność",
       "onMap": "Który Remnant",
@@ -2664,7 +2675,7 @@
       "keysHeld": "Key",
       "unidentified": "Bez analizy",
       "breakdown": "Naprawdę",
-      "breakdownTooltip": "Czym naprawdę są Truth Bullets każdego ucznia, rodzaj po rodzaju, według klucza GM-ów - nie to, co pokazano ich posiadaczom.",
+      "breakdownTooltip": "Czym naprawdę jest każdy Truth Bullet według klucza GM-ów - nie to, co pokazano jego posiadaczowi.",
       "createHere": "Utwórz na mapie",
       "createNote": "Postaw od razu stawia Key Remnant wiersza na mapie, w wybranym pokoju: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju, ze słowami wpisanymi w wierszu. Wiersz, który jest już na mapie, nie ma przycisku Postaw.",
       "tabTraces": "Remnanty",
@@ -2727,7 +2738,7 @@
         "other": "Jeszcze {n} znalezionych Key Remnants jest spoza planu i wlicza się do progu {bar} znalezionych: {names}."
       },
       "newTraceTitle": "Nowy Remnant",
-      "newTraceIntro": "Ślad, o którym po prostu stwierdzasz, że istnieje. Trafia w losowe miejsce wewnątrz pokoju, dokładnie jak zaplanowany trop - przesuń potem token, jeśli miejsce ma znaczenie.",
+      "newTraceIntro": "Trafia w losowe miejsce pokoju; przesuń token, jeśli miejsce ma znaczenie.",
       "newTraceTied": "Powiązany z tym morderstwem (przetrwa czyszczenie na koniec rozdziału)",
       "newTraceReinforced": "Reinforced (nie do sprzątnięcia)",
       "newTraceNote": "Nazwę i opis uczeń przeczyta, gdy go znajdzie; to, co ujawnia analiza - dopiero po Analyze. Twoja notatka zostaje twoja.",
@@ -2869,7 +2880,8 @@
       "keyDuplicatesTaken": "{actor} - więcej niż jeden klucz do pokoju {room}: jeden zostaje, a nadmiarowe kopie zabrano.",
       "keyTakenGm": "{actor} nie ma już klucza do: {room}. Ten pokój nie należy już do tej postaci.",
       "keyTakenBack": "Twój klucz do: {room} został zabrany. Ten pokój nie jest już twój.",
-      "keyCopiesGm": "Kopie klucza do: {room} wciąż mają: {holders}. Otwierają też drzwi nowego właściciela; zabierz je ręcznie, jeśli mają odejść razem z pokojem.",
+      "keyCopiesTakenGm": "Kopie klucza do: {room} odeszły razem z pokojem. Zabrano je: {holders}.",
+      "keyCopyTakenBack": "Twoja kopia klucza do: {room} została zabrana. Ten pokój zmienił właściciela.",
       "noKeysToGive": "Nie ma kluczy do wydania - ta postać ma już klucz do każdej sypialni, która ma właściciela.",
       "hasEveryKey": "{name} ma już klucz do każdej sypialni, która ma właściciela.",
       "onlyOwnBedroom": "Jedyna sypialnia z właścicielem należy do: {name}. Nie ma klucza do wydania.",
@@ -2958,8 +2970,7 @@
       "endTitle": "Zakończ rozdział",
       "endIntro": "Rozdział {chapter} dobiega końca. Zaznacz, co ma się stać.",
       "optReveal": "Ujawnij, czym naprawdę są Truth Bullets, razem z ich odczytami ({n} do ujawnienia)",
-      "revealKeeps": "Truth Bullets Faint nie są ujawniane, z tym wyjątkiem, że każdy Final, Faint czy nie, pokazuje swój rodzaj bez odczytu: oba zostają u graczy, wciąż do przeanalizowania, także w następnym rozdziale.",
-      "endNote": "Ujawnienie typów jest trwałe, tak samo jak trzy porządki powyżej. Nic innego tutaj niczego nie usuwa.",
+      "revealKeeps": "Truth Bullets Faint zostają nieujawnione, ale każdy Final, Faint czy nie, pokazuje swój rodzaj; oba zostają u graczy do analizy.",
       "endButton": "Zakończ rozdział {n}",
       "doneReveal": {
         "one": "Ujawniono typ {n} Truth Bulleta.",
@@ -3311,6 +3322,9 @@
       "describeTitle": "Observe - co widać?",
       "describeIntro": "{actor} coś znajduje w: {room}. Nazwij to tak, jak nazwałaby to ta osoba, i powiedz, co widzi.",
       "critPrompt": "Krytyk - kategoria rozpoznana od razu, i należy się solidna podpowiedź.",
+      "critHint": "Podpowiedź tylko dla tej osoby",
+      "critHintPlaceholder": "Co mówi jej krytyk",
+      "critHintNote": "Zostaje tylko na Truth Bullecie tego ucznia. Opis śladu i wszyscy inni, którzy go znajdą, nigdy tego nie pokażą.",
       "describeConfirm": "Przekaż",
       "rerollLost": "Przyszedł Reroll Observe bez zapisu tutaj. Oceń nową liczbę ręcznie względem tego samego śladu i odbierz Truth Bullet, jeśli już nie pasuje.",
       "alreadyHeld": "Masz już Truth Bullet tego śladu.",
@@ -3358,7 +3372,7 @@
       "playerText": "Opis dla gracza",
       "playerTextPlaceholder": "Co naprawdę widzi osoba, która to znalazła.",
       "analyzedText": "Co ujawnia analiza",
-      "analyzedTextPlaceholder": "To, czego nie widać gołym okiem - czyja krew, który mankiet, czym pachnie.",
+      "analyzedTextPlaceholder": "Czyja krew?",
       "analyzedTextNote": "Pole opcjonalne. Przeczyta to tylko uczeń, któremu uda się Analyze na tym śladzie. Puste nie psuje niczego - Analyze i tak nazwie kategorię.",
       "analysisHeading": "Analiza:",
       "gmNote": "Notatka dla GM-a (nigdy nie pokazywana graczowi)",
@@ -3414,6 +3428,9 @@
       "tieOpen": "- nie rozstrzygnięto -",
       "tieTied": "Powiązany",
       "tieUntied": "Niepowiązany",
+      "tieShortOpen": "?",
+      "tieShortTied": "Tak",
+      "tieShortUntied": "Nie",
       "reinforcedColumn": "Reinforced",
       "cardFacts": "Remnant",
       "cardPlayerHalf": "Co czyta gracz",
@@ -3567,6 +3584,7 @@
       "sealedBlocked": "{room} zapieczętowany na tę porę dnia. Nikt nie wchodzi.",
       "freeCritTitle": "Loaded Die",
       "freeCritUsed": "{name} wykonuje akcję z jedną kością już ustawioną na 12 i rzuca drugą.",
+      "loadedDieBack": "Loaded Die postaci {name} nie zadziałał. Jest gotowy znowu na następny rzut.",
       "grants": {
         "advantage": "przewagę",
         "disadvantage": "utrudnienie",
@@ -4384,9 +4402,9 @@
         "refused": "Klient GM-a odmówił.",
         "noGm": "Żaden GM nie jest połączony.",
         "noAnswer": "Klient GM-a nie odpowiedział na czas.",
+        "spectator": "Widz nie wykonuje akcji.",
         "capReached": "Ten uczeń miał już ruch Monocuba o tej porze dnia. Nie tracisz akcji ani Hope.",
         "capDay": "Ten uczeń miał już dziś dwa ruchy Monocuba. Nie tracisz akcji ani Hope.",
-        "spectator": "Widz nie wykonuje akcji.",
         "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony.",
         "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony.",
         "rollUnknown": "Klient GM-a nie ma twojego rzutu, na podstawie którego mógłby to rozliczyć.",
@@ -4782,6 +4800,33 @@
       "whichImprovement": "Które ulepszenie?",
       "forWhom": "Postać: {name}. {reason}",
       "whichTrait": "Która statystyka?",
+      "raisesHealth": "także +1 do maksimum Health",
+      "raisesSanity": "także +1 do maksimum Sanity",
+      "da39": {
+        "title": "Level Upy według nowej zasady",
+        "intro": "Level Upy nie dają już +1 Health ani +1 Sanity: Head podnosi maksimum Sanity, Body i Leg maksimum Health. Wybierz zmiany do wprowadzenia. Cofnięty wybór staje się punktem statystyki do rozdania. Niewybrane zmiany zostają.",
+        "takeHealth": "Cofnij wybór +1 Health (maksimum Health -1, punkt statystyki do rozdania)",
+        "takeSanity": "Cofnij wybór +1 Sanity (maksimum Sanity -1, punkt statystyki do rozdania)",
+        "riseHealth": "Punkt w {trait} w tym sezonie: maksimum Health +1",
+        "riseSanity": "Punkt w {trait} w tym sezonie: maksimum Sanity +1",
+        "handNote": "Maksimum podniesione ręcznie wygląda jak stary wybór. Anuluj zapyta znowu następnym razem.",
+        "apply": "Zastosuj",
+        "health": "{n} do maksimum Health",
+        "sanity": "{n} do maksimum Sanity",
+        "points": {
+          "one": "{n} punkt statystyki do rozdania",
+          "few": "{n} punkty statystyki do rozdania",
+          "many": "{n} punktów statystyki do rozdania",
+          "other": "{n} punktu statystyki do rozdania"
+        },
+        "noPlayer": "tego ucznia nie prowadzi żaden gracz, więc daj punkty własnym Level Upem",
+        "toPlayer": {
+          "one": "Według nowej zasady Level Upów twój wybór +1 Health albo +1 Sanity został cofnięty. Masz {n} punkt statystyki do rozdania: naciśnij przycisk obok swojego imienia.",
+          "few": "Według nowej zasady Level Upów twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punkty statystyki do rozdania: naciśnij przycisk obok swojego imienia.",
+          "many": "Według nowej zasady Level Upów twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktów statystyki do rozdania: naciśnij przycisk obok swojego imienia.",
+          "other": "Według nowej zasady Level Upów twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktu statystyki do rozdania: naciśnij przycisk obok swojego imienia."
+        }
+      },
       "whichExperience": "Które doświadczenie?",
       "newExperienceName": "Nowe doświadczenie",
       "newExperiencePlaceholder": "słowo albo zdanie o tym, kim są",
@@ -6006,7 +6051,7 @@
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
         "actionsWhat": "{actions} na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje {short}, Long Rest {long}.",
-        "actionsWounded": "Gdy nie zostało ci już Health, dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
+        "actionsWounded": "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
         "actionsNow": "Masz {left} z {max} o tej porze dnia.",
         "moveTitle": "Free Move",
         "moveWhat": "Jedno przejście między pokojami na porę dnia, które nic nie kosztuje. Potem zmiana pokoju kosztuje akcję jak wszystko inne.",
@@ -6545,7 +6590,7 @@
         },
         "tamper": {
           "label": "Tamper",
-          "hint": "Wymaż Remnant, o którym wiesz, że tu jest (nie Reinforced); przy krytyku możesz go zamiast tego przekształcić. Możesz też podłożyć fałszywy Remnant, który wskazuje na kogoś innego. Płacisz akcją, a gdy nie masz już akcji - Sanity.",
+          "hint": "Wymaż Remnant, o którym wiesz, że tu jest (nie Reinforced); przy krytyku możesz go zamiast tego przekształcić. Możesz też podłożyć fałszywy Remnant, który wskazuje na kogoś innego. Kosztuje akcję.",
           "description": "Im łatwiej zauważyć Remnant, tym trudniej go wymazać. Zamiast tego możesz go przekształcić, jeśli GM zatwierdzi nową nazwę i opis. Gdy ktoś patrzy, najpierw rzucasz Shadow, co może kosztować Sanity; po pudle obecni widzą, co robisz."
         },
         "directMurder": {
@@ -6897,12 +6942,6 @@
         }
       },
       "LEVEL_UP_OPTIONS": {
-        "hp": {
-          "label": "Zwiększ Health o +1"
-        },
-        "stress": {
-          "label": "Zwiększ Sanity o +1"
-        },
         "trait": {
           "label": "Zwiększ jedną statystykę o +1"
         },
@@ -7475,7 +7514,7 @@
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
-        "tamper": "Nie masz już akcji ani Sanity, które można by dać w zamian.",
+        "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },
       "paid": {
@@ -8039,6 +8078,7 @@
     },
     "CaseSummary": {
       "show": "Pokaż podsumowanie",
+      "shown": "Podsumowanie wysłane",
       "previewTitle": "Podsumowanie sprawy",
       "intro": "Gracze dostaną tylko to: co znaleźli, zaznaczone wnioski i kontry, a rozwiązanie, jeśli zagłosowali dobrze.",
       "send": "Wyślij wszystkim",

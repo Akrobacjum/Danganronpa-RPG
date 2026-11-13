@@ -1060,8 +1060,16 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         const held = M.murderState()?.openingTrait ?? null;
         const asked = await M.rollOpening("killer", M.murderState());
         return { held, asked: asked?.asked ?? null };`, { timeout: 60000 });
-    await settle(800);
-    const f9p3 = await p3.eval(`return { held: globalThis.__heldTraits, copy: (await import("${repoUrl}/scripts/settings.mjs")).incidentCast().openingTrait ?? null };`);
+    /* THE SECOND ROLL IS WAITED FOR, NOT A FIXED 800 MS (gaps-61, 12.11.2026). F9 read p3 800 ms after gm2's re-ask
+       returned, and under load the re-ask's roll reached p3 later: measured with a probe of this scenario stamping each
+       roll p3 held against the moment gm2 began, 32 loaded runs, every one with both rolls - 20 at 4 in parallel the
+       second at 20-537 ms against a read at 808-1376 ms, 12 at 6 in parallel at 99-888 ms against 816-1046 ms (888 of
+       1027 the closest). A plain loaded 20 (4 in parallel) read 1 red, F9 with `held: [["finesse",true]]`, the second
+       roll not yet held; a delay of 1500 ms planted on p3's second roll reads the same red. So p3 is read once it holds
+       two rolls or 5 s have passed: a re-ask that never reaches p3 still fails here. */
+    const f9p3 = await p3.eval(`const end = Date.now() + 5000;
+        while ((globalThis.__heldTraits ?? []).length < 2 && Date.now() < end) await new Promise(r => setTimeout(r, 50));
+        return { held: globalThis.__heldTraits, copy: (await import("${repoUrl}/scripts/settings.mjs")).incidentCast().openingTrait ?? null };`);
     const picksAfter = { gm: await gm.eval(PICKS), gm2: await gm2.eval(PICKS) };
     check("F9: the primary's pick is kept in the cast and a second GM's re-ask sends it without asking again; the killer's player throws Hand both times, as the GM's, and their copy holds no pick",
         f9open.stage === "openingRoll" && f9open.trait === "hand" && f9reask.held === "hand" && f9reask.asked === true
@@ -1668,7 +1676,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(800);
     const answeredOnJoin = await offersSince(askedH2), litH2 = await litOn(p1);
     const apply = () => p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        const res = await B.requestAdvancement({ actorId: "${IDS.aiko}", picks: [{ option: "hp" }], kind: "standard" });
+        const res = await B.requestAdvancement({ actorId: "${IDS.aiko}", picks: [{ option: "trait", trait: "strength" }], kind: "standard" });
         return { ok: Boolean(res?.ok), reason: res?.reason ?? null };`, { timeout: 60000 });
     const spent = await apply();
     await settle(800);

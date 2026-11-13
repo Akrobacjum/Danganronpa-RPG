@@ -226,21 +226,24 @@ export const FLOWS = Object.freeze([
     // E72 C6 (12.11.2026): the invitation, answered from the dead student's player's window (monocub.mjs `openInvitation`)
     // as `monocub.answer`; tier 2 judges a player's packet, 33-bridge-paths A20 drives the window's yes, and
     // 30-security sends the packet from consoles.
+    // Covered at 1.2.110 (the release that shipped E72 and E91, 13.11.2026): monocub-invite, monocub-bribe and
+    // mastermind-door are driven end to end by 33-bridge-paths A20-A22 and forged by 30-security; monocub-meddle by
+    // 40-flow's "a Monocub's own ask, end to end" and 30-security.
     { id: "monocub-invite", what: "A dead student's player answers the GMs' invitation to become a Monocub",
-        entry: { bridge: ["monocub.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E72" },
+        entry: { bridge: ["monocub.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.110" },
     // E72 C15 (12.11.2026): a living student's Bribe to a Monocub, offered and answered as `bribe.offer` and `bribe.answer`;
     // tier 2 judges both on the GM, 33-bridge-paths A21 drives the offer and the window's yes, 30-security forges both.
     { id: "monocub-bribe", what: "A living student offers a Monocub a Bribe, which its player accepts or refuses",
-        entry: { bridge: ["bribe.offer", "bribe.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E72" },
+        entry: { bridge: ["bribe.offer", "bribe.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.110" },
     // E91 C4, C5 (D038, 12.11.2026): the Mastermind's player locks or opens their room with the GM's lock and seals a
     // passage at their door, as `mastermind.lairLock` and `passage.lairSeal`; tier 2 "D038 lair lock" and "D038 lair seal"
     // judge both on the GM, 33-bridge-paths A22 asks both from the Mastermind's player, 30-security forges both.
     { id: "mastermind-door", what: "The Mastermind locks or opens their room, and seals a secret passage at their door",
-        entry: { bridge: ["mastermind.lairLock", "passage.lairSeal"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E91" },
+        entry: { bridge: ["mastermind.lairLock", "passage.lairSeal"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.110" },
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
     // E72 C2 (12.11.2026): the Monocubs' record (gm-stores.mjs `cubStore`, the crime witness's mark) is the GMs' with its
     // owner's copy, whose ask and answer are monocub.mjs's socket (`registerCubCopy`).
-        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs", "monocub.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E72" },
+        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs", "monocub.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "covered", stage: "1.2.110" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening

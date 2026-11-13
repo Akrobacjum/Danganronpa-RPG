@@ -199,6 +199,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
+    // E64: an offer of statistic points alone (the DA39 migration; bridge-runs-acts.mjs `handleAdvancement`).
+    ["badRequest", /^that offer is for statistics only$/],
     ["badRequest", /^a new experience has no name$/],
     ["badRequest", /^a pick raises a statistic that is not one$/],
     ["missing", /^a pick raises an experience the character does not have$/],

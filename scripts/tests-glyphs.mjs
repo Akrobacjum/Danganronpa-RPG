@@ -393,7 +393,7 @@ export const THEMES = {
  *  where it has none, the name the drawing rounds draw (10, gaps). */
 export const ELEMENTS = {
     "ACTIONS.search": "search", "ACTIONS.observe": "observe", "ACTIONS.analyze": "brain",
-    "ACTIONS.project": "hourglass", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
+    "ACTIONS.project": "hammer", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
     "ACTIONS.tamper": "broom", "ACTIONS.directMurder": "direct-murder", "ACTIONS.move": "move", "ACTIONS.sabotage": "tamper",
     "HOPE_CALLS.support": "support", "HOPE_CALLS.experience": "cap", "HOPE_CALLS.ultimate": "star", "HOPE_CALLS.talent": "star",
     "HOPE_CALLS.contribution": "contribution", "HOPE_CALLS.reroll": "reroll", "HOPE_CALLS.sprint": "sprint",
@@ -666,6 +666,12 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 
 /** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
 export const FACE_RULES = [
+    /* gaps-108 (the owner's pick of round 2, 12.11.2026; R3988): an inventory row's Hold this ready and Hand this over
+       wore FACES's fist and palm, two hands an inch apart; each takes a drawing of its own, keyed on the row button,
+       since Strike, Resolve and Determination keep fa-hand-fist's fist and Secure a Trace and Plant fa-hand-holding's palm.
+       A row's handover that copies (a bedroom key, a Truth Bullet) wears fa-share-nodes and is left as it was. */
+    ["an inventory row's Hold this ready (its fa-hand-fist is Strike's)", ".drpg-row-equip > i.fa-hand-fist", "hold-ready"],
+    ["an inventory row's Hand this over (its fa-hand-holding is Secure a Trace's)", ".drpg-row-handover > i.fa-hand-holding", "hand-over"],
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
     ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
     /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
@@ -695,7 +701,8 @@ export const STATE_RULES = [
 export const STAT_GLYPHS = { eye: "stat-eye", head: "stat-head", body: "stat-body", leg: "stat-leg", hand: "stat-hand", shadow: "stat-shadow" };
 
 /** Every rule the glass section writes: [id, selector, glyph, how] - how "box" (the FA box, the slot set), "image" (an
- *  element that is a mask box already: only its image), "before" (a text button given a glyph before its label). */
+ *  element that is a mask box already: only its image), "first" (a text button given a glyph before its label: the
+ *  button a row, the glyph its ::after put first). */
 export function glassRules() {
     const out = [];
     for (const [id, glyph] of Object.entries(ELEMENTS)) {
@@ -711,8 +718,13 @@ export function glassRules() {
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */
     /* E49 A2 moved End the chapter into Edit campaign as a text button (gm-campaign.mjs, `data-drpg-end-chapter`): no
-       <i> to mask, so the glyph stands before its label, the one way to key it with no markup change (Q5). */
-    out.push(["button.end-chapter", "[data-drpg-end-chapter]::before", "end-chapter", "before"]);
+       <i> to mask, so the glyph stands before its label, the one way to key it with no markup change (Q5).
+       ON ITS ::after, NOT ITS ::before (12.11.2026; the owner's report at a real table on 1.2.109: in Season setup and
+       Edit campaign the flag covered the "E"). A module window's button under the glass has its ::before taken by the
+       brush (stained-glass.css, "the brush": absolute, inset, behind the label; 0,5,3 against this rule's 0,2,2), so the
+       flag drawn there became a 22 px box over the first letter. The button is a row now and the flag its ::after,
+       put first (`order: -1`); the ::before is the brush's. R4403. */
+    out.push(["button.end-chapter", "[data-drpg-end-chapter]", "end-chapter", "first"]);
     return out;
 }
 
@@ -776,13 +788,13 @@ export function glassCssOf(glyphs) {
     for (const [, sel, glyph, how] of rules) {
         if (how === "box") css.push(`${GLASS} ${sel} { --drpg-glyph: var(--drpg-pix-${glyph}); }`);
         else if (how === "image") css.push(`${GLASS} ${sel} { -webkit-mask-image: var(--drpg-pix-${glyph}); mask-image: var(--drpg-pix-${glyph}); }`);
-        else css.push(`${GLASS} ${sel} {
+        else css.push(`${GLASS} ${sel} { display: inline-flex; align-items: center; gap: 0.35em; }
+${GLASS} ${sel}::after {
     content: "";
-    display: inline-block;
+    order: -1;
+    flex: none;
     width: 22px;
     height: 22px;
-    margin-inline-end: 0.35em;
-    vertical-align: -0.3em;
     background-color: currentColor;
     -webkit-mask-image: var(--drpg-pix-${glyph});
     mask-image: var(--drpg-pix-${glyph});
@@ -1220,12 +1232,14 @@ export function chromeThemeProblems(glyphs, css) {
  *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind); on 12.11.2026 three
  *  came back as tiles of Season setup's row, each its reading of before, and the row's Season checklist keeps its Font
  *  Awesome icon under Legacy (`fa:fa-list-check`; the owner: Legacy keeps an FA icon - the Projects tile beside it
- *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. */
+ *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. gaps-108 (12.11.2026, R3987):
+  the owner approved the claw hammer on the Projects action in both themes, so `ACTIONS.project` reads `--drpg-pix-hammer`
+  (legacy:hammer) where it read `--drpg-pix-project`; that one reading, on purpose. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
     "ACTIONS.analyze": "--drpg-pix-analyze",
-    "ACTIONS.project": "--drpg-pix-project",
+    "ACTIONS.project": "--drpg-pix-hammer",
     "ACTIONS.rest": "--drpg-pix-rest",
     "ACTIONS.listen": "--drpg-pix-listen",
     "ACTIONS.palm": "--drpg-pix-palm-action",

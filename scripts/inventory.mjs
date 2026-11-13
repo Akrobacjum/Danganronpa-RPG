@@ -10,7 +10,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
-    BEDROOM_KEY_FLAG, ACTIONS }
+    BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
@@ -331,13 +331,23 @@ export function repairRefusal(actor, item, { held = item } = {}) {
  * it was (the stage's open default). A player's own mend on the sheet is still put back (sheet-audit.mjs). Answers
  * `{ id, name, was: { broken, wear } }`, or `{ refused }` with nothing written.
  */
-export async function repairItem(actor, itemId, { ref = null } = {}) {
+export async function repairItem(actor, itemId, { ref = null, size = null, sizedByGm = null } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM mends one." };
     const item = actor?.items?.get?.(typeof itemId === "string" ? itemId : "") ?? null;
     const { itemsHeldNow } = await import("./sheet-audit.mjs");
     const held = item ? itemsHeldNow(actor).find(each => each.id === item.id) ?? item : null;
     const refused = repairRefusal(actor, item, { held });
     if (refused) return { refused };
+    /* HELD TO THE ITEM'S TIER AT THE COMPLETION (E64, D034; the owner's word of 12.11.2026). The approval sized the repair
+       by the item's tier then (passages-gm.mjs `presetScale`); a tier raised since - a GM's edit, a mark put back - asked
+       nothing more, and a Trivial repair mended a Tier 3 tool. `size` is the project's (projects.mjs, the row's `ctx`): a
+       project smaller than the item's tier asks now mends nothing, and the GMs are told why - unless the GM picked that
+       size in the approval window (`sizedByGm`, D039), whose choice stands. A caller that names no size is not held. */
+    if (Number(size) > 0 && !(Number(sizedByGm) > 0)) {
+        const [{ presetScale }, { tierOf }] = await Promise.all([import("./passages-gm.mjs"), import("./use-items.mjs")]);
+        const asks = PROJECT_SCALE[presetScale("repairItem", { tier: tierOf(held) })]?.progress ?? 0;
+        if (Number(size) < asks) return { refused: "the item's tier asks a bigger repair than this one." };
+    }
     const was = { broken: isBroken(held), wear: wearOf(held), flag: held.getFlag?.(MODULE_ID, ITEM_FLAGS.broken) ?? null };
     await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false, [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: 0 },
         { reason: "gmRuling", ref });
@@ -1013,8 +1023,9 @@ export const TRANSFER_REFUSED = Object.freeze(["cannotNow", "notThere", "missing
  * Who acts: the giver of a give and a Plant, the taker of the rest. In every mode, the Eclipse and the Class Trial
  * refuse, and so does an actor dead for the GMs (settings.mjs `isDeadForGm`, as `stealFromPerson` and `verify` read at
  * Base). Then per mode:
- *   give   both in one room (movement.mjs `sameRoom`) and a living receiver - one the GMs alone hold dead refused in
- *          the words of anything else that cannot be done now (rule D, E05 C10);
+ *   give   the person gate below (since E64, D001; until then both in one room by movement.mjs `sameRoom`) and a
+ *          living receiver - one the GMs alone hold dead refused in the words of anything else that cannot be done now
+ *          (rule D, E05 C10);
  *   steal, plant  the person gate (frisk.mjs `personActionRefusal`: a Monocub, a Monokuma, a hidden token, oneself,
  *          a room of the same name on another scene, the asker a side of the running incident), and a target whose
  *          death `asker` knows refused, a body's road being the loot: one the GMs keep from that player is robbed and
@@ -1038,15 +1049,19 @@ export async function transferRefusal(from, to, { mode, asker = null } = {}) {
         return knownDeath(user, other) ? "that cannot be done now" : null;
     }
     const { isEclipse, isDeadForGm } = await import("./settings.mjs");
+    // A give through the same person gate (E64, D001; the owner's word of 12.11.2026): until E64 it asked only the Eclipse,
+    // the Class Trial, a death and movement.mjs `sameRoom`, so a give reached a token the GMs hid or a Monocub, and a
+    // Monokuma gave. The gate answers those, the room as the GMs read it, the Eclipse, the trial and the giver's incident; a
+    // dead taker is refused as before, whoever knows of the death - in the words a living one's refusal uses.
+    if (mode === "give") {
+        const why = personActionRefusal(actor, other);
+        if (why) return why;
+        return isDeadForGm(to) ? "that cannot be done now" : null;
+    }
     const { inClassTrial } = await import("./trial.mjs");
     if (isEclipse()) return "an Eclipse is running";
     if (inClassTrial()) return "that waits until the Class Trial is over";
     if (isDeadForGm(actor)) return "that cannot be done now";
-    if (mode === "give") {
-        const { sameRoom } = await import("./movement.mjs");
-        if (!sameRoom(from, to)) return "the character is not in that room";
-        if (isDeadForGm(to)) return "that cannot be done now";
-    }
     return null;
 }
 

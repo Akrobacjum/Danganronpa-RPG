@@ -33,7 +33,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, USABLE_KINDS, TABLE_NAME_WORDS, TABLE_COPY_WORDS } from "./config.mjs";
-import { log, error } from "./utils.mjs";
+import { log, error, shuffle } from "./utils.mjs";
 
 /**
  * A category's plural and a goal's label as a NAME reads them: the English copy config.mjs froze before any language
@@ -926,9 +926,9 @@ async function drawRoomAny(ctx) {
     if (!ctx.roomBase) return null;
     const owned = (ctx.tables?.contents ?? []).filter(t => isRoomTableOf(ctx.roomBase, t.name, ctx.tier) && !tierPoolOf(t));
     // Shuffled rather than "the first one": the room's tables are named by category and taking the first would
-    // silently favour whichever category sorts earliest. The shuffle is today's, `sort` on the draw's `rng`: a fair
-    // one (Fisher-Yates) waits for the balance after sessions 0 (D21, E64).
-    for (const table of owned.sort(() => ctx.rng() - 0.5)) {
+    // silently favour whichever category sorts earliest. A fair shuffle on the draw's `rng` (utils.mjs `shuffle`,
+    // Fisher-Yates; E64 C3, D21) - until 1.2.105 a `sort` on a random comparison, which is not one.
+    for (const table of shuffle(owned, ctx.rng)) {
         const found = await drawFrom(table, { substitute: true });
         if (found) return resultFrom(found, ctx, { from: "room", table });
     }
@@ -959,12 +959,12 @@ async function drawBuiltIn(ctx) {
 
 /**
  * Nothing in the asked-for category anywhere, which is a world with a gap in it rather than a room with a character.
- * Any other category, at random (today's shuffle on the draw's `rng`, as the room's; D21, E64), rather than sending
+ * Any other category, at random (the fair shuffle on the draw's `rng`, as the room's; E64 C3, D21), rather than sending
  * somebody away empty-handed from a roll they beat - never a Truth Bullet. Its own category (E14 part 2 C3): until
  * then an apple from here was granted as the category nobody stocks.
  */
 async function drawSpare(ctx) {
-    for (const other of Object.keys(ITEM_CATEGORIES).sort(() => ctx.rng() - 0.5)) {
+    for (const other of shuffle(Object.keys(ITEM_CATEGORIES), ctx.rng)) {
         if (other === ctx.category || other === "truthBullet") continue;
         const name = randomItem(other, ctx.tier, null, ctx.rng);
         if (name) return resultFrom({ name, fromTable: false, substitute: true, roles: rolesForPoolItem(name) }, ctx, { from: "spare", category: other });

@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.109";
+    --drpg-css-version: "1.2.110";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -9253,9 +9253,11 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     mask-image: var(--drpg-pix-listen);
 }
 
+/* The hammer, not the plain T (gaps-108, R3987; the owner's yes on the review page, 12.11.2026): legacy:hammer, the
+   glass drawing in both themes. The Remnant card's project glyph keeps `--drpg-pix-project`. */
 .drpg-action-button[data-drpg-action="project"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-pix-project);
-    mask-image: var(--drpg-pix-project);
+    -webkit-mask-image: var(--drpg-pix-hammer);
+    mask-image: var(--drpg-pix-hammer);
 }
 
 .drpg-action-button[data-drpg-action="sabotage"] .drpg-action-icon {
@@ -15494,7 +15496,8 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-summary-dialog, .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
-#chat-popout {
+#chat-popout,
+#drpg-sequence .drpg-seq-day {
     border: 1px solid var(--drpg-window-edge);
     box-shadow: 0 8px 28px rgba(var(--drpg-shadow-rgb), 0.55);
 }
@@ -16402,8 +16405,8 @@ i.drpg-pix-foot {
 }
 
 #drpg-gm-launcher i::before {
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
 }
 
 .application .window-header .header-control[data-action="close"]::before {
@@ -17103,9 +17106,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-flask);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-equip i {
-    -webkit-mask-image: var(--drpg-pix-fist);
-    mask-image: var(--drpg-pix-fist);
+    -webkit-mask-image: var(--drpg-pix-hold-ready);
+    mask-image: var(--drpg-pix-hold-ready);
 }
 
 .drpg-row-discard i {
@@ -17133,9 +17137,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-share);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-handover i.fa-hand-holding {
-    -webkit-mask-image: var(--drpg-pix-give);
-    mask-image: var(--drpg-pix-give);
+    -webkit-mask-image: var(--drpg-pix-hand-over);
+    mask-image: var(--drpg-pix-hand-over);
 }
 
 .drpg-row-present i {
@@ -18357,7 +18362,13 @@ body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g4) :is(#drpg-vo
 
 /* THE START-OF-DAY BOARD (E94 C2; sequence.mjs `dayStartElement`; MK-R2 #4): a panel in the middle of the screen over the
    curtain's turn, the cast in a row of portraits, the dead greyed in their place with their name and "we remember",
-   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself. */
+   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself.
+   ITS FRAME IS A WINDOW'S (12.11.2026; the owner's report at a real table on 1.2.109: the frame was pink). The edge was
+   three units of `--drpg-seq-band`, the trial's band colour - Despair's pink under the glass, red here - on a panel
+   that is no part of the trial. It takes the module's ordinary window frame now: its selector stands in the list of
+   the module's windows above (the one-pixel `--drpg-window-edge` and the drop shadow), and in stained-glass.css's
+   rule of the windows' glass (6. LIQUID GLASS ON THE WINDOWS) - the same declarations, no copy of them;
+   `--drpg-seq-band` stays the trial's band and the "spilling" mood word's. R4402 reads both themes. */
 #drpg-sequence.drpg-sequence-dayStart { pointer-events: none; }
 #drpg-sequence .drpg-seq-day {
     position: absolute;
@@ -18369,7 +18380,6 @@ body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g4) :is(#drpg-vo
     gap: calc(14 * var(--drpg-seq-u));
     padding: calc(28 * var(--drpg-seq-u)) calc(36 * var(--drpg-seq-u));
     background: color-mix(in srgb, var(--drpg-seq-dark) 94%, transparent);
-    border: calc(3 * var(--drpg-seq-u)) solid var(--drpg-seq-band);
     color: var(--drpg-seq-light);
     text-align: center;
 }
