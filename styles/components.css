@@ -3360,6 +3360,10 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
     border: 1px solid var(--drpg-kit-line);
 }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-graph.is-panning { cursor: grabbing; }
+/* THE GRAB OVER A NODE TOO (13.11.2026): the middle button pans over a node, whose rule says `pointer` (eight classes and
+   two elements); the `:is()` takes its weight from the node's own selector, one class over it, so the whole map shows the
+   grab while it pans (Chromium: `pointer` over the node at eight classes and one element). */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-graph.is-panning .drpg-case-canvas :is(button[data-drpg-node], *) { cursor: grabbing; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
 body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { transition: none; }
@@ -3471,13 +3475,15 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) .
    place (case-map.mjs `is-editing`; the fields' top is the face's, case-view.mjs `relayoutCaseMap`). At the node rule's
    weight and one class more. */
 body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-editing { display: none; }
-/* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box under its face, at its width, joined to it -
-   what the node says, then the Table's own cells one under another. A node not open keeps its fields in the form,
-   out of sight. Its box grows with its fields as the face grows with its words; the camera brings it into view. */
+/* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box in its face's place, at the width of the node
+   clicked (the owner, 13.11.2026; 352 px until then, the node 240) - the node rule's width here, and the face's measured
+   width written on it by case-view.mjs `relayoutCaseMap` - what the node says, then the Table's own cells one under
+   another, each text box the box's whole width. A node not open keeps its fields in the form, out of sight. Its box
+   grows with its fields as the face grows with its words; the camera brings it into view. */
 .application.drpg-window-case .drpg-case-canvas > .drpg-case-edit {
     position: absolute;
     box-sizing: border-box;
-    width: 352px;
+    width: 240px;
     margin: 0;
     padding: 0.25rem 0.5rem 0.5rem;
     min-width: 0;

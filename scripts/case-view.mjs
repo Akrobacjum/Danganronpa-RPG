@@ -17,15 +17,16 @@
  * browser shows for the moment before it measures - and `relayoutCaseMap` reads each node's box and places them again
  * through the same pure `mapPlace`, given the sizes it read. A column is a stack: a node stands `rowGap` below the one
  * above it, so a taller node pushes the rest of its column down and nothing overlaps by construction; a column is as
- * wide as its widest node, so an open node (its fields under it, `openW`) widens its column and pushes the next ones
- * right. With no size given, a node is `nodeW` x `nodeH` and stands where C5's arithmetic puts it (R3651 holds those).
+ * wide as its widest node, so a wider node widens its column and pushes the next ones right (an open node's fields take
+ * its face's width since 13.11.2026, so opening one no longer does). With no size given, a node is `nodeW` x `nodeH` and stands where C5's arithmetic puts it (R3651 holds those).
  * `nodeW` is 240 since the fix (196 at C5; the owner's "Powiekszmy je"): at 196 a Remnant's description under the glass
  * made a node 449 px tall at 1366x768, taller than the 289 px the graph had to show it in (audit/case-map-sweep.mjs).
  */
 
 /**
  * The map's geometry in CSS pixels at the root's 16 px: a node's least box (`nodeW` x `nodeH`; a node grows from it), an
- * open node's width (`openW`, its face and its fields), the gap between columns, the pitch between rows when every node
+ * open node's face's width where it is drawn (`openW`: a map with no fields; on the Map its fields take the face's width
+ * as clicked, `relayoutCaseMap`), the gap between columns, the pitch between rows when every node
  * is its least height (so the gap between two nodes of a column is `pitch - nodeH`), the margin around the graph and the
  * room the column heads take above it. Read by `mapPlace` and by the stylesheet's node rule (components.css "THE CASE
  * MAP", whose least width and height and open width are these three numbers).
@@ -206,6 +207,21 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
     for (const b of canvas.querySelectorAll(":scope > button[data-drpg-node]")) buttons.set(b.dataset.drpgNode, b);
     const edits = new Map();
     for (const f of canvas.querySelectorAll(":scope > .drpg-case-edit[data-drpg-edit]")) if (!f.hidden && f.dataset.drpgEdit) edits.set(f.dataset.drpgEdit, f);
+    /* THE OPEN FIELDS AT THE CLICKED NODE'S WIDTH (the owner, 13.11.2026: "the pop-up windows for typed text should have
+       the same width as the field we click to edit the text"): the face measured as it stood when clicked - neither open
+       (`is-selected` draws it at `openW`) nor hidden (`is-editing`) - and its fields given that width, their text boxes
+       filling it (components.css). Its layout width, so the same at every zoom: the fields stand in the same scaled
+       canvas. Measured in Chromium at 1366x768 and 1920x1080, both themes: the node 240 px, its fields 352 until then.
+       In jsdom a face reads 0 and the stylesheet's width (the node's) stands. */
+    for (const [id, f] of edits) {
+        const b = buttons.get(id);
+        if (!b) continue;
+        const had = ["is-selected", "is-editing"].filter(c => b.classList.contains(c));
+        b.classList.remove(...had);
+        const w = b.offsetWidth || 0;
+        b.classList.add(...had);
+        if (w > 0) f.style.width = `${w}px`;
+    }
     const sizes = new Map();
     for (const [id, b] of buttons) {
         const f = edits.get(id);
@@ -300,27 +316,38 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
     };
     if (!graph || graph.dataset.drpgCamera) return { apply, zoomBy, fit, reveal };
     graph.dataset.drpgCamera = "1";
-    /* A DRAG ON EMPTY SPACE PANS: a press on the canvas or the viewport, not on a node, its fields, the fold or a control.
-       Moved less than 4 px it is a click, which `wireCaseMap` reads as a click outside the open node. */
+    /* THE MIDDLE BUTTON PANS, ANYWHERE ON THE MAP (the owner, 13.11.2026: "moving the camera should be done with the
+       middle mouse button"): over a node too, since a middle press opens nothing there, and at once, since it is never a
+       click. Not over a text field, where a middle press may paste (Linux's selection). Its press is held from the
+       browser, so no autoscroll starts (`mousedown`, and `auxclick` after it). A DRAG ON EMPTY SPACE WITH THE LEFT BUTTON
+       PANS AS WELL (kept, so a touchpad with no middle button still moves the map): a press on the canvas or the
+       viewport, not on a node, its fields, the fold or a control. Moved less than 4 px it is a click, which `wireCaseMap`
+       reads as a click outside the open node; a middle drag is no click and leaves that reading alone. */
     const INTERACTIVE = "button, input, select, textarea, label, a, summary, .drpg-case-edit";
+    const TYPED = "input, select, textarea";
+    const midPress = event => event.button === 1 && !event.target?.closest?.(TYPED);
     let drag = null;
     graph.addEventListener("pointerdown", event => {
-        if (event.button !== 0 || event.target?.closest?.(INTERACTIVE)) return;
+        const mid = midPress(event);
+        if (!mid && (event.button !== 0 || event.target?.closest?.(INTERACTIVE))) return;
+        if (mid) event.preventDefault();
         const cam = now();
-        drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, x: cam.x, y: cam.y, z: cam.z, moved: false };
+        drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, x: cam.x, y: cam.y, z: cam.z, moved: false, mid };
+        if (mid) graph.classList.add("is-panning");
         graph.setPointerCapture?.(event.pointerId);
     });
+    for (const type of ["mousedown", "auxclick"]) graph.addEventListener(type, event => { if (midPress(event)) event.preventDefault(); });
     graph.addEventListener("pointermove", event => {
         if (!drag || event.pointerId !== drag.id) return;
         const dx = event.clientX - drag.sx, dy = event.clientY - drag.sy;
-        if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+        if (!drag.mid && !drag.moved && Math.hypot(dx, dy) < 4) return;
         drag.moved = true;
         graph.classList.add("is-panning");
         apply({ x: drag.x + dx, y: drag.y + dy, z: drag.z });
     });
     const end = event => {
         if (!drag || event.pointerId !== drag.id) return;
-        graph.dataset.drpgDragged = drag.moved ? "1" : "";
+        if (!drag.mid) graph.dataset.drpgDragged = drag.moved ? "1" : "";
         drag = null;
         graph.classList.remove("is-panning");
         graph.releasePointerCapture?.(event.pointerId);

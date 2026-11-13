@@ -24239,6 +24239,117 @@ const REGRESSIONS = [
             css: [true, true]
         }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
+    ["R5820 - the case map pans with the middle mouse button (the owner, 13.11.2026: \"moving the camera should be done with the middle mouse button\"; case-view.mjs `wireCaseCamera`): a middle drag pans over empty space and over a node alike, from its first move, with the grab's class while it lasts; its press, its mousedown and its auxclick are held from the browser (no autoscroll); a middle press in a text field neither pans nor is held; a middle drag leaves the next click outside the open node a click; a left drag on empty space still pans and one on a node still does not; the grab's cursor reaches the nodes", async () => {
+        /*
+         * fix-113d, 13.11.2026. `wireCaseMap` driven on a detached copy, its viewport sized by hand as R3662's. Red at
+         * ceb9e9c8: only button 0 started a drag, so a middle drag moved nothing and its press went on to the browser.
+         * The cursor's reach over a node and the autoscroll held are the commit's Chromium reading.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R5820 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R5820 a", inputs: ["S.T1"] } } });
+        const d = document.createElement("div");
+        const editors = new Map([["d-a", M.editRow("R5820 note", `<textarea name="r5820:note" rows="2"></textarea>`)]]);
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { node: "d-a" }, editors });
+        const view = d.querySelector(".drpg-case-graph");
+        must(view, "the Map drew no graph viewport");
+        Object.defineProperty(view, "clientWidth", { configurable: true, get: () => 1000 });
+        Object.defineProperty(view, "clientHeight", { configurable: true, get: () => 400 });
+        let cam = { x: 0, y: 0, z: 1 };
+        const said = [];
+        M.wireCaseMap(d, { camera: { get: () => cam, set: c => { cam = c; } }, onClose: id => said.push(["close", id]) });
+        const node = view.querySelector('button[data-drpg-node="S.T1"]');
+        const typed = view.querySelector('textarea[name="r5820:note"]');
+        must(node && typed, "the Map drew no node or no open field to press on");
+        const press = (type, x, y, button, target = view) => {
+            const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button });
+            Object.defineProperty(e, "pointerId", { value: button + 1 });
+            target.dispatchEvent(e);
+            return e.defaultPrevented;
+        };
+        const drag = (button, target, dx, dy) => {
+            const was = { ...cam };
+            const held = press("pointerdown", 100, 100, button, target);
+            const down = press("mousedown", 100, 100, button, target);
+            press("pointermove", 100 + dx, 100 + dy, button, target);
+            const panning = view.classList.contains("is-panning");
+            press("pointerup", 100 + dx, 100 + dy, button, target);
+            const aux = press("auxclick", 100 + dx, 100 + dy, button, target);
+            return { moved: [Math.round(cam.x - was.x), Math.round(cam.y - was.y)], held, down, aux, panning, after: view.classList.contains("is-panning") };
+        };
+        const reads = {
+            middleEmpty: drag(1, view, 40, 20),
+            middleNode: drag(1, node, 30, 10),
+            middleShort: drag(1, view, 2, 1).moved,
+            middleTyped: drag(1, typed, 50, 50),
+            leftEmpty: drag(0, view, 60, 30).moved,
+            leftNode: drag(0, node, 60, 30).moved
+        };
+        // the click a browser sends after the left drag on empty space ends it, and shuts nothing; then a middle drag (no
+        // click follows one) and a plain click on empty space: the open node's fields shut, as after no drag
+        view.click();
+        drag(1, view, 50, 0);
+        view.click();
+        reads.clickAfter = said;
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        reads.cursor = /\.drpg-case-graph\.is-panning \.drpg-case-canvas :is\(button\[data-drpg-node\], \*\)\s*\{\s*cursor:\s*grabbing/.test(rules);
+        equal(JSON.stringify(reads), JSON.stringify({
+            middleEmpty: { moved: [40, 20], held: true, down: true, aux: true, panning: true, after: false },
+            middleNode: { moved: [30, 10], held: true, down: true, aux: true, panning: true, after: false },
+            middleShort: [2, 1],
+            middleTyped: { moved: [0, 0], held: false, down: false, aux: false, panning: false, after: false },
+            leftEmpty: [60, 30],
+            leftNode: [0, 0],
+            clickAfter: [["close", "d-a"]],
+            cursor: true
+        }), "{a middle drag on empty space and on a node [moved, its pointerdown, mousedown and auxclick held, panning while it lasts, not after]; a middle move of 2 px pans; a middle drag in a text field; a left drag on empty space and on a node; the click ending a left drag shuts nothing, and one after a middle drag shuts the open node; the grab's cursor over the nodes}");
+    }],
+    ["R5821 - an open node's fields take the width of the node clicked (the owner, 13.11.2026: \"the pop-up windows for typed text should have the same width as the field we click to edit the text\"; case-view.mjs `relayoutCaseMap`, components.css): the fields are given the face's width as it stood when clicked (neither open nor hidden), read off the face, so a face of another width gives its own; a face that reads 0 (jsdom) writes none and the stylesheet's stands, which is the node rule's width; each text box fills the fields' width", async () => {
+        /*
+         * fix-113d, 13.11.2026. Measured in Chromium at ceb9e9c8 (1366x768 and 1920x1080, both themes, en and pl, a short
+         * and a long node): the node clicked 240 px, its fields 352 px. The faces' widths here are given by hand, as a
+         * browser would read them (240 closed, 352 open, 0 hidden). Red at ceb9e9c8: no width is written on the fields and
+         * the stylesheet gives them 352.
+         */
+        const M = await import("./case-map.mjs");
+        const V = await import("./case-view.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R5821 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R5821 a", inputs: ["S.T1"] } } });
+        const draw = closed => {
+            const d = document.createElement("div");
+            const editors = new Map([["d-a", M.editRow("R5821 note", `<textarea name="r5821:note" rows="2"></textarea>`)]]);
+            d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { node: "d-a" }, editors });
+            const canvas = d.querySelector(".drpg-case-canvas");
+            for (const b of canvas?.querySelectorAll(":scope > button[data-drpg-node]") ?? []) {
+                Object.defineProperty(b, "offsetWidth", { configurable: true,
+                    get: () => closed === 0 ? 0 : b.classList.contains("is-editing") ? 0 : b.classList.contains("is-selected") ? 352 : closed });
+            }
+            V.relayoutCaseMap(canvas);
+            const face = canvas?.querySelector('button[data-drpg-node="d-a"]');
+            return { width: canvas?.querySelector('.drpg-case-edit[data-drpg-edit="d-a"]')?.style.width ?? null,
+                face: face ? ["is-selected", "is-editing"].filter(c => face.classList.contains(c)) : null };
+        };
+        const reads = { at240: draw(240), at300: draw(300), jsdom: draw(0) };
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        const widthOf = re => rules.match(re)?.[1] ?? null;
+        reads.css = {
+            fields: widthOf(/\.drpg-window-case \.drpg-case-canvas > \.drpg-case-edit \{[^}]*?\bwidth:\s*([\d.]+px)/),
+            node: widthOf(/button\.drpg-case-node\[data-drpg-node\] \{[^}]*?\bwidth:\s*([\d.]+px)/),
+            boxes: /\.drpg-case-edit-field :is\(input\[type="text"\], textarea, select\) \{[^}]*width:\s*100%/.test(rules)
+        };
+        equal(JSON.stringify(reads), JSON.stringify({
+            at240: { width: "240px", face: ["is-selected", "is-editing"] },
+            at300: { width: "300px", face: ["is-selected", "is-editing"] },
+            jsdom: { width: "", face: ["is-selected", "is-editing"] },
+            css: { fields: "240px", node: "240px", boxes: true }
+        }), "{the fields' width with the clicked face 240 px wide, and 300 px (its classes put back after the reading); a face reading 0 writes none; css: the fields' width, the node's, the text boxes filling the fields}");
+    }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
          * perf-open line, 12.11.2026. The owner, at a table on 1.2.108 (Foundry 14.365 on a hosted server): the module's
