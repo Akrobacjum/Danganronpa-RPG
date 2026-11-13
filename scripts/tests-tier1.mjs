@@ -57173,6 +57173,51 @@ const INVARIANTS = [
         equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
             "[Legacy, Stained Glass: the enabled text, colour and select fields' cursor, opacity and filter; the disabled ones'; a disabled text field's ink not an enabled one's]");
     }],
+    ["R5762 - the Actions resource survives Daggerheart's clean-up of optional resources (Daggerheart 2.12.8 documents/actor.mjs `_cleanupOptionalResources`, run after every item update or delete by the acting user, :1515-1537; the 2.10.5 probe's E24-1): resources.mjs `keepActionsResource`, a preUpdateActor hook the module registers, takes a deletion of `system.resources.actions` out of an update - as a ForcedDeletion or as `-=actions` - and cancels an update that held nothing else; it leaves another resource's deletion, a write of the Actions' value and a non-character actor's update as they came", async () => {
+        /*
+         * Red at ceb9e9c8: no such hook. Daggerheart deletes every key of `system.resources` that is not hitPoints, stress
+         * or hope, granted by a feature or a Homebrew resource (:300-325), and the module registers `actions` only into
+         * CONFIG.DH.RESOURCE.character.custom and .all (resources.mjs `registerActionResource`), so by reading any item
+         * change on a student refilled its Actions to 2/2 and dropped a time-of-day maximum. Plain change objects; nothing
+         * written. That a v14 update hands the hook the deletion in one of these two spellings is LIVE-E30-03.
+         */
+        const R = await import("./resources.mjs");
+        const U = await import("./utils.mjs");
+        const del = U.forcedDeletion();
+        must(del !== null, "no deletion operator in this Foundry");
+        const run = (type, changes) => {
+            const kept = typeof R.keepActionsResource === "function" ? R.keepActionsResource({ type }, changes, {}, game.user?.id) : "none";
+            const r = changes.system?.resources ?? {};
+            const actions = "-=actions" in r || r.actions === del ? "actions deleted" : "actions" in r ? "actions written" : "no actions";
+            return [kept === false ? "cancelled" : "passed", actions, Object.keys(changes).sort().join("+"), Object.keys(r).sort().join("+")];
+        };
+        const got = [
+            run("character", { system: { resources: { actions: del } } }),
+            run("character", { system: { resources: { "-=actions": null } } }),
+            run("character", { system: { resources: { actions: del, extra: del } } }),
+            run("character", { name: "Renamed", system: { resources: { actions: del } } }),
+            run("character", { system: { resources: { actions: { value: 1 } } } }),
+            run("adversary", { system: { resources: { actions: del } } })
+        ];
+        const registered = (Hooks.events?.preUpdateActor ?? []).some(entry => entry.fn === R.keepActionsResource);
+        equal(stableJson([got.map(([verdict]) => verdict), got.map(([, actions]) => actions), got.slice(2).map(([, , top, resources]) => `${top}|${resources}`), registered]),
+            stableJson([["cancelled", "cancelled", "passed", "passed", "passed", "passed"],
+                ["no actions", "no actions", "no actions", "no actions", "actions written", "actions deleted"],
+                ["system|extra", "name|", "system|actions", "system|actions"], true]),
+            "[each update cancelled or passed: the deletion alone, as -=actions, beside another key's, beside a name, a value written, an adversary's; the Actions key in what is left; the keys left of the last four (top|resources); the hook registered]");
+    }],
+
+    ["R5763 - the Equipped block's tool rows carry Daggerheart 2.12.8's image box (`img-portrait`, inventory-item-compact.hbs:15 and inventory-item-V2.hbs:32; until 2.12 the class was spelt `img-portait`): sheet.mjs `injectEquippedTools` draws the row's picture in a box of both spellings, so the system's 40 px box, the image's sizing and its grid area reach the module's rows on 2.12.8 as on older builds", async () => {
+        /*
+         * Red at ceb9e9c8: the row drew `<div class="img-portait">` alone - Daggerheart's old misspelling, which 2.12.8's
+         * templates and stylesheet no longer use (inventory-item.less:6-226), so its rules for the box did not reach it.
+         */
+        const source = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        const body = fnSource(source, "injectEquippedTools");
+        must(body.length > 200, "injectEquippedTools not found in sheet.mjs");
+        const box = /<div class="([^"]*)" data-tooltip="#item#/.exec(body)?.[1]?.split(/\s+/).sort() ?? null;
+        equal(stableJson(box), stableJson(["img-portait", "img-portrait"]), "[the classes of the tool row's picture box]");
+    }],
 ];
 
 /**
