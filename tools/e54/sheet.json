@@ -1,0 +1,275 @@
+{
+  "about": [
+    "The first cut of E54 (the file split, wave 3): scripts/sheet.mjs into a facade and eight files, by whole top-level",
+    "declarations. Read by tools/e54/split.mjs, which refuses when a listed declaration is missing, is of another kind, or a",
+    "top-level declaration of the source is listed nowhere. `kind` is the declaration's kind at 421f2395 (origin/main,",
+    "13.11.2026); the groups are the E54 plan's (docs/dev/E54/PLAN.md on the prep-54 line, section 3.1), read by name."
+  ],
+  "source": "scripts/sheet.mjs",
+  "facadeNote": [
+    "E54 (the file split, wave 3): this file is the sheet family's facade. It keeps the registration",
+    "(`registerSheetTweaks`), the step table (`SHEET_STEPS`, `runSheetSteps`) and the render hook (`onRenderCharacterSheet`);",
+    "every other name it exported is re-exported from the family's files - sheet-mode, sheet-item, sheet-repaint, sheet-fit,",
+    "sheet-header, sheet-sidebar, sheet-inventory and sheet-actions - which never import it."
+  ],
+  "keep": {
+    "registerSheetTweaks": "function",
+    "SHEET_STEPS": "const",
+    "runSheetSteps": "function",
+    "onRenderCharacterSheet": "function"
+  },
+  "targets": [
+    {
+      "file": "scripts/sheet-mode.mjs",
+      "header": [
+        "The sheet's mode (E54, the sheet's family): what the person looking at a character sheet may see and do -",
+        "`sheetMode`, built once a render; the render's mode kept for the row builders (`RENDER_MODES`, `modeOf`); the row's and",
+        "the header's gates (`rowGate`, `headerGate`); and the sheets open for an actor (`sheetsFor`). A leaf of the family: every",
+        "other sheet file reads it, and it reads none of them."
+      ],
+      "names": {
+        "sheetMode": "function",
+        "RENDER_MODES": "const",
+        "modeOf": "function",
+        "rowGate": "function",
+        "headerGate": "function",
+        "sheetsFor": "function"
+      }
+    },
+    {
+      "file": "scripts/sheet-item.mjs",
+      "header": [
+        "The item sheet (E54, the sheet's family): Daggerheart's item sheet cut to what an item is - its tabs, editors and",
+        "heading dropped, its kind labelled, name and description locked - with the wear line (`wearMarkup`), a Truth Bullet's",
+        "badges (`bulletBadges`, `classSafe`) and the tab dropper the character sheet shares (`dropTab`)."
+      ],
+      "names": {
+        "dropTab": "function",
+        "ITEM_TABS_CUT": "const",
+        "trimItemSheet": "function",
+        "dropItemEditors": "function",
+        "dropTypeHeading": "function",
+        "wearMarkup": "function",
+        "labelItemKind": "function",
+        "lockItemName": "function",
+        "lockItemDescription": "function",
+        "classSafe": "function",
+        "bulletBadges": "function"
+      }
+    },
+    {
+      "file": "scripts/sheet-repaint.mjs",
+      "header": [
+        "The flicker's repair (E54, the sheet's family): `renderPlan` and `installRenderPlan`, which repaint a sheet in",
+        "place for a resource write instead of rendering it, and `repaintInPlace` with the priced tiles, the Calls and the",
+        "Monocub tiles it refreshes, inside `settle`."
+      ],
+      "names": {
+        "RESOURCE_PREFIX": "const",
+        "REPAINTABLE": "const",
+        "onlyResourceKeys": "function",
+        "isOptions": "const",
+        "renderPlan": "function",
+        "RENDER_PLAN": "const",
+        "installRenderPlan": "function",
+        "repaintInPlace": "function",
+        "refreshPricedTiles": "function",
+        "refreshCallsPanels": "function",
+        "refreshMonocubTiles": "function",
+        "settle": "function"
+      }
+    },
+    {
+      "file": "scripts/sheet-fit.mjs",
+      "header": [
+        "How the sheet fits its window (E54, the sheet's family): the Loadout tab left, a tab's scroll kept, the action",
+        "tiles' fit (`fitActionTiles`, `fitTileText`, `watchTileFit`, `LONGEST_TILE_WORD`, `softWrap`) and the sheet's height",
+        "held and grown for the Calls (`holdActionsTab`, `growForCalls`)."
+      ],
+      "names": {
+        "leaveLoadoutTab": "function",
+        "tabScrolls": "const",
+        "keepTabScroll": "function",
+        "SHY": "const",
+        "LONG_WORD": "const",
+        "BREAK_EVERY": "const",
+        "softWrap": "function",
+        "tileOverflows": "function",
+        "fitActionTiles": "function",
+        "TILE_TEXT_FLOOR": "const",
+        "LONGEST_TILE_WORD": "const",
+        "fitTileText": "function",
+        "watchTileFit": "function",
+        "grown": "const",
+        "SHEET_MIN_HEIGHT": "const",
+        "holdActionsTab": "function",
+        "growForCalls": "function"
+      }
+    },
+    {
+      "file": "scripts/sheet-header.mjs",
+      "header": [
+        "The sheet's header (E54, the sheet's family): the trait frames and glyphs, the action bar with the time of day",
+        "and Hope's flash, the starting resources' button, Advancement, the death mark and the GM's controls, giving and taking",
+        "items, the Ultimate and its public helpers (`getUltimate`, `setUltimate`, `findDuplicateUltimates`)."
+      ],
+      "names": {
+        "TRAIT_AREA_SELECTORS": "const",
+        "frameTraits": "function",
+        "markTraitGlyphs": "function",
+        "flashHope": "function",
+        "markHopeChange": "function",
+        "actionPips": "function",
+        "moveSlots": "function",
+        "moveFeetHtml": "function",
+        "moveLegend": "function",
+        "freeMovePip": "function",
+        "pendingStack": "function",
+        "injectActionBar": "function",
+        "standingEffects": "function",
+        "needsInit": "function",
+        "injectInitButton": "function",
+        "injectAdvanceButton": "function",
+        "markSheetState": "function",
+        "injectClassControls": "function",
+        "injectItemButton": "function",
+        "headerButton": "function",
+        "injectUltimate": "function",
+        "buildUltimateRow": "function",
+        "commitUltimate": "async function",
+        "getUltimate": "function",
+        "setUltimate": "function",
+        "findDuplicateUltimates": "function"
+      }
+    },
+    {
+      "file": "scripts/sheet-sidebar.mjs",
+      "header": [
+        "The sheet's sidebar and its other tabs (E54, the sheet's family): the sidebar tidied, the reserves",
+        "(`paintReserves`, `writeReserve`, `paintPartyReserves`), the equipped tools, an empty experience, the known passages and",
+        "the step through one, the safeword and the biography (`tidyBiography`, `saveBiography`)."
+      ],
+      "names": {
+        "hideSidebarSection": "function",
+        "dropBiographyTab": "function",
+        "tidySidebar": "function",
+        "RESERVE_PIPS": "const",
+        "RESERVE_FIELD": "const",
+        "RESERVE_HIDDEN": "const",
+        "reserveBlock": "function",
+        "paintReserves": "function",
+        "paintStateBadges": "function",
+        "emptyReserveControls": "function",
+        "paintReserveBar": "function",
+        "paintReservePips": "function",
+        "paintReserveRow": "function",
+        "writeReserve": "async function",
+        "PARTY_RESERVES": "const",
+        "paintPartyReserves": "function",
+        "injectEquippedTools": "function",
+        "noteEmptyExperience": "function",
+        "knownPassageRows": "function",
+        "panToPassage": "async function",
+        "showPassageDialog": "async function",
+        "crossingsAsked": "const",
+        "goThrough": "async function",
+        "tunnelSteps": "const",
+        "stepSpot": "const",
+        "noteStepStart": "function",
+        "onTunnelStep": "async function",
+        "knownPassageItem": "function",
+        "injectKnownPassages": "function",
+        "redrawPassageSheets": "function",
+        "injectSafeword": "function",
+        "findHeadingByText": "function",
+        "BIOGRAPHY_CUTS": "const",
+        "BIOGRAPHY_ANCESTORS": "const",
+        "plainBiography": "function",
+        "saveBiography": "function",
+        "tidyBiography": "function"
+      }
+    },
+    {
+      "file": "scripts/sheet-inventory.mjs",
+      "header": [
+        "The inventory (E54, the sheet's family): the system's create buttons removed, the groups the player chose,",
+        "the rows and their buttons (use, equip, discard, stash, present, hand over; `guardRow` among them), the open stashes and",
+        "the Truth Bullets' groups, order and folds (`bulletGroups`)."
+      ],
+      "names": {
+        "tidyInventoryTab": "function",
+        "CREATE_ACTIONS": "const",
+        "removeSystemCreators": "function",
+        "guardRow": "function",
+        "GEAR_GROUP": "const",
+        "INVENTORY_GROUPS": "const",
+        "itemTags": "function",
+        "isBedroomKey": "function",
+        "groupItems": "function",
+        "buildItemRow": "function",
+        "groupInventory": "function",
+        "CARRIED_TYPES": "const",
+        "buildOtherSection": "function",
+        "buildOpenStashSection": "function",
+        "buildStashSection": "function",
+        "buildOneStashSection": "function",
+        "addUseButton": "function",
+        "inCrisis": "function",
+        "addEquipButton": "function",
+        "addDiscardButton": "function",
+        "addStashButton": "function",
+        "BULLET_FOLDS": "const",
+        "bulletSortMode": "function",
+        "bulletRecency": "function",
+        "orderBullets": "function",
+        "bulletGroups": "function",
+        "compareRecency": "function",
+        "bulletSortSwitch": "function",
+        "bulletFold": "function",
+        "buildBulletRow": "function",
+        "addPresentButton": "function",
+        "paintPresentButton": "function",
+        "repaintPresentButtons": "function",
+        "addHandoverButton": "function"
+      }
+    },
+    {
+      "file": "scripts/sheet-actions.mjs",
+      "header": [
+        "The action panel (E54, the sheet's family): the rules panel that replaces the Effects tab, `injectActionPanel`",
+        "with the Monocub and Calls panels and their buttons, whether Tamper has anything to work on (`forgetTamper`), and the",
+        "tile itself with its price (`actionButton`)."
+      ],
+      "names": {
+        "replaceEffectsTab": "function",
+        "relabelEffectsNav": "function",
+        "buildRulesPanel": "function",
+        "injectActionPanel": "function",
+        "injectMonocubPanel": "function",
+        "monocubTiles": "function",
+        "abilityButton": "function",
+        "budgetLine": "function",
+        "injectCallsPanel": "function",
+        "callLockNote": "function",
+        "callButton": "function",
+        "monokumaPool": "function",
+        "attachActionDelegate": "function",
+        "runCall": "async function",
+        "roomBlockFor": "function",
+        "tamperAnswers": "const",
+        "tamperAsking": "const",
+        "tamperKey": "function",
+        "forgetTamper": "function",
+        "tamperBlock": "function",
+        "askTamper": "async function",
+        "paintTamper": "function",
+        "actionButton": "function",
+        "callsGmFor": "function",
+        "costOf": "function",
+        "directMurderIsFree": "function",
+        "priceQuoteFor": "function",
+        "costLabelFor": "function"
+      }
+    }
+  ]
+}
