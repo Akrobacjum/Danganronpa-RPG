@@ -9787,9 +9787,142 @@ const INVARIANTS = [
         const sent = bodyOf(src, "const CONTEXT_SENT = Object.freeze({", { until: "});" });
         const spec = fnSource(src, "pickSpecOf");
         const search = bodyOf(src, '{ from: "search", read:', { until: '{ from: "project"' });
-        equal(JSON.stringify([/\bpart: "text"/.test(sent), /key === "search"\) return \{ kind: "action", key: "search"/.test(spec), /gmPickOf\(actor, spec, listed\)/.test(search)]),
+        equal(JSON.stringify([/\bpart: "text"/.test(sent), /key === "search"\) return \{ kind: "action", key: "search"/.test(spec), /pickArriving\(actor, spec, listed\)/.test(search) && /gmPickOf\(actor, spec, listed\)/.test(fnSource(src, "pickArriving"))]),
             JSON.stringify([true, true, true]),
-            "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read)");
+            "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read; since DH212 1 through `pickArriving`)");
+    }],
+    ["R3990 - a roll the GM draws says so on the roller's screen once its dice are late: not before DRAW_SIGN_MS, not once they started, taken down as they start or the draw ends (DH212 3)", async () => {
+        /*
+         * DH212 3, 12.11.2026 (the owner's "a big delay before the dice show"; docs/dev/DH212/WAITS.md: while the GM draws,
+         * the roller's window has closed and nothing is shown until a warning at 8 s or 30 s). roll-draw.mjs `drawSign`
+         * puts up "The GM is throwing your dice." (`DRPG.Rolls.gmThrowing`) when a draw's dice have not started
+         * `DRAW_SIGN_MS` after it was asked, and takes it down when they start (`startOnMessage` calls the wait's
+         * `onStart`) or the draw ends. Read on stand-ins of the wait and of the notice, with a 30 ms delay: (a) no start -
+         * shown once with that text, then taken down at the end; (b) started before the delay - never shown; (c) ended
+         * before the delay - never shown; (d) a notice whose drawing resolves after the end - taken down at once; (e)
+         * started after it was shown - taken down then. And the wiring, read off the source: `drawAndPlay` puts it up and
+         * `startOnMessage` starts the wait's `onStart`. Red at 3306602c: `drawSign` does not exist.
+         */
+        const D = await import("./roll-draw.mjs");
+        must(typeof D.drawSign === "function", "roll-draw.mjs exports no drawSign");
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const run = async ({ startAt = null, endAt = 80, slowShow = 0 } = {}) => {
+            const wait = { at: null };
+            const seen = { shown: [], dismissed: 0 };
+            const show = async text => {
+                seen.shown.push(text);
+                if (slowShow) await pause(slowShow);
+                return () => { seen.dismissed += 1; };
+            };
+            const end = D.drawSign(wait, { delayMs: 30, show });
+            const steps = [];
+            if (startAt !== null) steps.push(pause(startAt).then(() => { wait.at = performance.now(); wait.onStart?.(); }));
+            await Promise.all([...steps, pause(endAt)]);
+            end();
+            await pause(slowShow + 10);
+            return [seen.shown.length, seen.dismissed];
+        };
+        const read = [await run(), await run({ startAt: 5 }), await run({ endAt: 5 }), await run({ endAt: 40, slowShow: 40 }), await run({ startAt: 50, endAt: 90 })];
+        equal(JSON.stringify(read), JSON.stringify([[1, 1], [0, 0], [0, 0], [1, 1], [1, 1]]),
+            "the sign was not shown once and taken down where the dice were late, or was shown where they started or the draw ended first (per case: shown, taken down)");
+        const texts = [];
+        const end = D.drawSign({ at: null }, { delayMs: 1, show: async text => { texts.push(text); return () => {}; } });
+        await pause(20);
+        end();
+        equal(texts[0], game.i18n.localize("DRPG.Rolls.gmThrowing"), "the sign does not say DRPG.Rolls.gmThrowing");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("roll-draw.mjs") ?? "");
+        equal(JSON.stringify([/\bdrawSign\(start\b/.test(fnSource(src, "drawAndPlay")), /\bonStart\?\.\(\)/.test(fnSource(src, "startOnMessage")),
+            typeof D.DRAW_SIGN_MS === "number" && D.DRAW_SIGN_MS > 0]), JSON.stringify([true, true, true]),
+            "drawAndPlay does not put the sign up for its wait, startOnMessage does not take it down, or DRAW_SIGN_MS is not a delay");
+    }],
+    ["R3991 - the contract register reads Daggerheart 2.12's roll road: a row for the MoveContext the module's roll marks ride, a row for where the roll's outcome is written, and the critical rule's row failed where Daggerheart reads the critical somewhere critical.mjs does not look (DH212 5)", async () => {
+        /*
+         * DH212 5, 12.11.2026 (docs/dev/DH212/STATUS.md rows 1, 3 and 4). On Daggerheart 2.12.8 under 1.2.108 the critical
+         * rule's row read ok (`ours: true`) while its wrapper could never fire: 2.12 writes no `config.roll.isCritical`
+         * (dualityRoll.mjs:237-262 reads `config.evaluated`). And the two roads E76b made the module depend on - the
+         * MoveContext `actor.rollTrait` builds (move-context.mjs:39 keeps the caller's event, which roll-marks.mjs carries
+         * the marks on) and the outcome `buildEvaluate` writes (`config.evaluated`, dhRoll.mjs:98-107, which
+         * `fillRollFacts` writes back where 2.10 put it) - had no row, so the next change to either would be found by a
+         * wrong number, not at load. Read: the three probes on stand-ins of each shape (2.10's, 2.12's, an unknown one),
+         * and on this world's Daggerheart. Red at f61a2450: no row and no probe of the first two.
+         */
+        const P = await import("./patches.mjs");
+        must(typeof P.moveContextRow === "function" && typeof P.rollOutcomeRow === "function" && typeof P.criticalRow === "function",
+            "patches.mjs exports no moveContextRow, rollOutcomeRow or criticalRow");
+        const ids = P.PATCHES.map(row => row.id);
+        equal(JSON.stringify(["roll-marks-move-context", "roll-outcome-evaluated"].map(id => ids.includes(id))), "[true,true]",
+            "the register has no row for the MoveContext road or the roll's outcome");
+        const fn = text => new Function(`return (${text});`)();
+        const road = {
+            old: fn("async function rollTrait(trait, options = {}) { const config = { ...options }; return this.diceRoll(config); }"),
+            kept: fn("async function rollTrait(trait, options = {}) { const config = await MoveContext.build({ ...options }); return config; }"),
+            context: fn("class MoveContext { constructor(data = {}) { this.event ??= data.event; } }"),
+            dropped: fn("class MoveContext { constructor(data = {}) { this.title = data.title; } }")
+        };
+        const state = row => row?.state ?? (row?.present === false ? "failed" : "unknown");
+        const moves = [P.moveContextRow(road.old, null), P.moveContextRow(road.kept, road.context), P.moveContextRow(road.kept, road.dropped)].map(state);
+        const outcome = {
+            old: fn("class R { static async buildEvaluate(roll, config) { await roll.evaluate(); config.roll.total = roll.total; config.roll.isCritical = roll.isCritical; } }"),
+            now: fn("class R { static async buildEvaluate(roll, config) { await roll.evaluate(); config.roll = { ...config.roll }; config.evaluated = roll; } }"),
+            neither: fn("class R { static async buildEvaluate(roll, config) { await roll.evaluate(); config.result = roll; } }")
+        };
+        const outcomes = [P.rollOutcomeRow(outcome.old), P.rollOutcomeRow(outcome.now), P.rollOutcomeRow(outcome.neither)].map(state);
+        const marked = f => Object.assign(f, { [Symbol.for("drpgCriticalRule")]: true });
+        const critical = {
+            old: fn("async function addDualityResourceUpdates(config) { if (config.roll.isCritical) return 1; }"),
+            now: fn("async function addDualityResourceUpdates(config) { if (config.evaluated?.isCritical) return 1; }"),
+            neither: fn("async function addDualityResourceUpdates(config) { if (config.outcome.crit) return 1; }")
+        };
+        const wrap = original => marked(Object.assign(async () => {}, { original }));
+        const criticals = [P.criticalRow(wrap(critical.old)), P.criticalRow(wrap(critical.now)), P.criticalRow(wrap(critical.neither))].map(state);
+        equal(JSON.stringify([moves, outcomes, criticals]), JSON.stringify([["ok", "ok", "failed"], ["ok", "ok", "failed"], ["ok", "ok", "failed"]]),
+            "a probe does not read 2.10's road and 2.12's as ok and an unknown one as failed (MoveContext: 2.10, kept event, dropped; outcome: config.roll, config.evaluated, neither; critical: config.roll, config.evaluated, neither)");
+        const live = ["roll-marks-move-context", "roll-outcome-evaluated", "critical-rule"].map(id => state(P.PATCHES.find(row => row.id === id)?.probe?.()));
+        equal(JSON.stringify(live), JSON.stringify(["ok", "ok", "ok"]), "this world's Daggerheart reads other than ok on the three rows (MoveContext, outcome, critical)");
+        equal(JSON.stringify(["roll-marks-move-context", "roll-outcome-evaluated"].map(id => [Boolean(game.i18n.has?.(`DRPG.Contract.instead.${id}`)),
+            game.i18n.localize(`DRPG.Contract.instead.${id}`) !== `DRPG.Contract.instead.${id}`])), "[[true,true],[true,true]]",
+            "a new row has no sentence of what the table gets instead (DRPG.Contract.instead.<id>)");
+    }],
+    ["R3992 - a GM's Reroll of a drawn roll with no record of what it scored throws the character's roll effects: the ones applicable and not suppressed whose roll conditions pass, read as Daggerheart 2.10 and 2.12 read them (DH212 5)", async () => {
+        /*
+         * DH212 5, 12.11.2026 (docs/dev/DH212/STATUS.md row 8). reroll.mjs `rollAsThrown` read a roll's effects through
+         * `game.system.api.data.actions.actionsTypes.base.getActionRelevantEffects(actor)`, the 2.6.5 signature
+         * (baseAction.mjs:351, `(actor, effectParent)`). 2.10 took `(rollData, actor)` (baseAction.mjs:369, 2.10.11) and
+         * answered [] for the module's one argument; 2.12 has no such static at all (move-context.mjs:198 is a MoveContext's
+         * own method), so `?? []` answered [] there too: no Active Effect's roll bonus was in a Reroll rebuilt off the
+         * character. `rollEffectsOf` reads them as both read them: `allApplicableEffects({ noTransferArmor, noSelfArmor })`,
+         * not suppressed, whose roll-phase conditions pass on the character's roll data. Read on a stand-in character:
+         * four effects - one that counts, one suppressed, one whose condition fails, one with no condition reader - and the
+         * call the reader made. Red at f61a2450: reroll.mjs exports no rollEffectsOf.
+         */
+        const R = await import("./reroll.mjs");
+        must(typeof R.rollEffectsOf === "function", "reroll.mjs exports no rollEffectsOf");
+        const asked = [];
+        const effect = (name, { suppressed = false, passes = true, reader = true } = {}) => ({
+            name, isSuppressed: suppressed,
+            system: reader ? { testConditionals: (data, opts) => { asked.push([name, data?.mark ?? null, opts?.phase ?? null]); return passes; } } : {}
+        });
+        const actor = {
+            getRollData: () => ({ mark: "rollData" }),
+            * allApplicableEffects(opts) {
+                asked.push(["opts", Boolean(opts?.noTransferArmor), Boolean(opts?.noSelfArmor)]);
+                yield effect("counts");
+                yield effect("suppressed", { suppressed: true });
+                yield effect("fails", { passes: false });
+                yield effect("plain", { reader: false });
+            }
+        };
+        const names = (await R.rollEffectsOf(actor)).map(e => e.name);
+        const phase = CONFIG.DH?.EFFECTS?.conditionalPhases?.roll?.id ?? null;
+        equal(JSON.stringify([names, asked]), JSON.stringify([["counts", "plain"],
+            [["opts", true, true], ["counts", "rollData", phase], ["fails", "rollData", phase]]]),
+            "the Reroll's effects are not the applicable, unsuppressed ones whose roll conditions pass (names kept; the calls made)");
+        equal(JSON.stringify(await R.rollEffectsOf({})), "[]", "a character with no effects to read gave other than none");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("reroll.mjs") ?? "");
+        ok(!/getActionRelevantEffects/.test(src) && /\brollEffectsOf\(actor\)/.test(fnSource(src, "rollAsThrown")),
+            "rollAsThrown still reads Daggerheart's getActionRelevantEffects, or does not read rollEffectsOf");
     }],
     ["R3152 - Stage 6 rolls Shadow and asks nobody: every clean-up step but Move the Body lists Shadow alone, the ruling answers it with no card and no window on a player's browser and a GM's, Move the Body stays Body, and the GM's draw holds a clean-up to Shadow (E68 C5; DA4)", async () => {
         /*
@@ -10375,7 +10508,7 @@ const INVARIANTS = [
         const clockMs = Number((/\bconst DRAW_ANSWER_MS = ([\d_]+);/.exec(draw)?.[1] ?? "").replaceAll("_", ""));
         const play = fnSource(draw, "drawAndPlay");
         const closes = play.search(/if \(!answer\?\.ok \|\| typeof answer\.value\?\.messageId !== "string"\) return;/);
-        const asks = /bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS \}\)/.test(play);
+        const asks = /bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true \}\)/.test(play);
         const { createWaiter } = await import("./bridge-guards.mjs");
         const waitFor = gms => {
             const sent = [], said = [], timers = [];
@@ -23435,6 +23568,7 @@ const INVARIANTS = [
          * and `lookFrom`'s one argument for the source's look, which change nothing): the look carries the GM's two effects with no
          * macro, a player holding them is left, and `canonicalLook` reads the GM's list. The `canonicalLook` reads, written in H82
          * fix r1, red against that commit's planted `specialEffects` road (the finding's own mutant), green without it.
+         * E108 (Q-E108-2, 13.11.2026): the look carries the source's role looks too (`roleAppearance`, R5467), none here.
          */
         const S = await import("./dice-sync.mjs");
         const J = v => stableJson(v);
@@ -23464,7 +23598,7 @@ const INVARIANTS = [
         const users = [holding("R940P1", CONST.USER_ROLES.PLAYER, asWritten), holding("R940P2", CONST.USER_ROLES.PLAYER),
             holding("R940P3", CONST.USER_ROLES.TRUSTED, own), holding("R940A1", CONST.USER_ROLES.ASSISTANT, asWritten)];
         equal(J({ look, copy: [J(copy.appearance) === J(appearance), J(copy.sfxList) === J(effects), copy.color], gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
-            J({ look: { appearance: owned, sfxList: [] }, copy: [true, true, "#aa0000"], gm: true }),
+            J({ look: { appearance: owned, sfxList: [], roleAppearance: {} }, copy: [true, true, "#aa0000"], gm: true }),
             "the look a forced user is held to is not the GM's appearance with no effect, or the GM's own copy lost an effect or its appearance, or building the look changed the GM's flags (look: { appearance, sfxList }; copy: [its appearance the GM's, its effects all three, its colour]; gm: the GM's flags as found)");
         equal(J(users.map(user => [S.isForced(user), S.holdsTableLook(user, look)])), J([[true, false], [true, true], [true, false], [true, false]]),
             "a player or an Assistant holding the GM's effects or its own is not put back to none, or one holding none is written again ([forced, holds the table's look] for: a player with the GM's effects as 1.2.80 wrote them, a player with none, a trusted player with its own, an Assistant with the GM's)");
@@ -23483,7 +23617,7 @@ const INVARIANTS = [
         });
         const flagLook = viaDsn(null);
         equal(J({ dsnLook, flagLook, asked, gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
-            J({ dsnLook: { appearance: owned, sfxList: [] }, flagLook: { appearance: owned, sfxList: [] }, asked: [[GM, true]], gm: true }),
+            J({ dsnLook: { appearance: owned, sfxList: [], roleAppearance: {} }, flagLook: { appearance: owned, sfxList: [], roleAppearance: {} }, asked: [[GM, true]], gm: true }),
             "`canonicalLook`, the look every sweep, put-back, connect and message holds a forced user to while the source holds the copy, is not the GM's appearance with no effect: with Dice So Nice's own `ALL_CUSTOMIZATION` answering the GM's three effects (dsnLook), or with none, from the GM's flags (flagLook); or it did not ask Dice So Nice for the GM's look once, or changed the GM's flags ([the look from Dice So Nice, the look from the flags, [whose look it asked, with a DiceFactory], the GM's flags as found])");
         const src = stripComments(new Map(await otherSources()).get("dice-sync.mjs") ?? "");
         const reads = text => (text.match(/getFlag\(\s*DSN\s*,\s*"sfxList"\s*\)/g) ?? []).length;
@@ -23507,7 +23641,8 @@ const INVARIANTS = [
         const S = await import("./dice-sync.mjs");
         const J = v => stableJson(v);
         const DSN = "dice-so-nice";
-        const look = { appearance: { global: { colorset: "fire" } }, sfxList: [] };
+        // The look's role looks since E108 (Q-E108-2, R5467): none here, an empty one, as `lookFrom` builds it.
+        const look = { appearance: { global: { colorset: "fire" } }, sfxList: [], roleAppearance: {} };
         const stub = flags => ({ id: "R3603P", name: "R3603P", role: CONST.USER_ROLES.PLAYER, getFlag: (scope, key) => (scope === DSN ? flags[key] : undefined) });
         const held = saved => S.holdsTableLook(stub({ ...foundry.utils.deepClone(look), ...(saved === undefined ? {} : { saved }) }), look);
         equal(J([held({ appearance: true, sfx: true }), held(undefined), held({ appearance: true }), held({ sfx: true }),
@@ -38365,6 +38500,204 @@ const INVARIANTS = [
                 ["FearDie", look.fear, null], ["AdvantageDie", look.advantage, null], ["Die", null, null]],
             handed: true, copy: true, plain: null, none: null, empty: null
         }), "[each die of the laid copy: class, appearance, model file; the roll handed in unchanged; a copy; a plain roll; no look; an empty look]");
+    }],
+
+    ["R5460 - the table's dice look is one choice of three, read from the two settings an older world already holds (E108): settings.mjs `diceLookChoice(read)` answers \"own\" with forceDiceLook off whatever diceLookKind holds, \"dsn\" with it on and diceLookKind \"dsn\", unset or anything else, \"daggerheart\" with it on and diceLookKind \"daggerheart\"; `diceLookWrites(choice, read)` answers the writes that make a choice, kind before switch, none for the choice already made or one not of the three", async () => {
+        /*
+         * E108, 13.11.2026; the owner's report of 13.11 ("w ustawieniach rolls and privacy jest wybor tylko kostek dice so
+         * nice. Chcialbym miec wybor kostek z dice so nice vs z daggerheart") and the coordinator's default: one choice of
+         * three, an existing world reading true as Dice So Nice's and false as each player's own. Built as a read-time
+         * mapping (docs/dev/e108/STATUS.md): the Boolean stays, beside it `diceLookKind`; nothing is migrated. Pure, on
+         * stub readers. Red before E108: neither function.
+         */
+        const S = await import("./settings.mjs");
+        ok(typeof S.diceLookChoice === "function" && typeof S.diceLookWrites === "function", "settings.mjs exports no diceLookChoice or diceLookWrites");
+        if (typeof S.diceLookChoice !== "function" || typeof S.diceLookWrites !== "function") return;
+        const F = SETTINGS.forceDiceLook, K = SETTINGS.diceLookKind;
+        const reader = (force, kind) => key => {
+            if (key === F) return force;
+            if (key === K) { if (kind instanceof Error) throw kind; return kind; }
+            throw new Error(`R5460 read ${key}`);
+        };
+        const unregistered = new Error("not a registered game setting");
+        const choices = [[true, "dsn"], [true, undefined], [true, unregistered], [true, "R5460 junk"], [true, "daggerheart"],
+            [false, "daggerheart"], [false, "dsn"], ["true", "daggerheart"]].map(([f, k]) => S.diceLookChoice(reader(f, k)));
+        const writes = [["own", true, "dsn"], ["own", false, "daggerheart"], ["dsn", false, "dsn"], ["dsn", false, "daggerheart"], ["dsn", true, "dsn"],
+            ["daggerheart", true, "dsn"], ["daggerheart", false, "dsn"], ["daggerheart", true, "daggerheart"], ["R5460 junk", true, "dsn"], [undefined, false, "dsn"]]
+            .map(([choice, f, k]) => S.diceLookWrites(choice, reader(f, k)));
+        equal(stableJson({ keys: [F, K], list: S.DICE_LOOK_CHOICES, choices, writes }), stableJson({
+            keys: ["forceDiceLook", "diceLookKind"], list: ["own", "dsn", "daggerheart"],
+            choices: ["dsn", "dsn", "dsn", "dsn", "daggerheart", "own", "own", "own"],
+            writes: [[[F, false]], [], [[F, true]], [[K, "dsn"], [F, true]], [], [[K, "daggerheart"]], [[K, "daggerheart"], [F, true]], [], [], []]
+        }), "[the choices read: on and dsn, on and unset, on and unregistered, on and junk, on and daggerheart, off twice, \"true\" not true; "
+            + "the writes of own from on and from off, dsn from off twice and from dsn, daggerheart from dsn, from off and from daggerheart, a junk choice, none]");
+    }],
+
+    ["R5461 - which Hope and Despair look a browser lays on each throw, by the table's choice and the system's version (E108): dice-look.mjs `tableDualityLookFor({ choice, systemId, version, preset })` answers nothing for each player's own look; the source GM's preset on Daggerheart 2.9 and older and on no Daggerheart, whichever look the table took; on 2.10 and later nothing for Dice So Nice's look and Daggerheart's four colorsets for Daggerheart's", async () => {
+        /*
+         * E108, 13.11.2026. docs/dev/e108/STATUS.md point 3: on Daggerheart 2.10 and later `tableDualityLook` answered null
+         * whatever the switch, so "One dice look for the table" could not give the table Daggerheart's dice. Daggerheart
+         * 2.12.8 registers four Dice So Nice colorsets (module/config/dsnConfig.mjs:1-49, each `daggerheart-<kind>-colorset`)
+         * and gives the roles the system "standard" (systemDefaults, :58-63). Pure. Red before E108: no tableDualityLookFor.
+         */
+        const L = await import("./dice-look.mjs");
+        ok(typeof L.tableDualityLookFor === "function" && L.DAGGERHEART_DICE && typeof L.DAGGERHEART_DICE === "object", "dice-look.mjs exports no tableDualityLookFor or DAGGERHEART_DICE");
+        if (typeof L.tableDualityLookFor !== "function" || !L.DAGGERHEART_DICE) return;
+        const preset = { hope: { colorset: "spectrum", background: "#ff00aa" } };
+        const at = (choice, version, systemId = "daggerheart", p = preset) => {
+            const look = L.tableDualityLookFor({ choice, systemId, version, preset: p });
+            return look === null ? null : look === preset ? "preset" : look === L.DAGGERHEART_DICE ? "daggerheart" : stableJson(look);
+        };
+        equal(stableJson({
+            dice: L.DAGGERHEART_DICE,
+            own: [at("own", "2.6.5"), at("own", "2.12.8")],
+            old: [at("dsn", "2.6.5"), at("daggerheart", "2.9.4"), at("dsn", "2.9.99"), at("daggerheart", "2.6.5", "daggerheart", null), at("dsn", "2.12.8", "dnd5e")],
+            roles: [at("dsn", "2.10.0"), at("dsn", "2.12.8"), at("daggerheart", "2.10.0"), at("daggerheart", "2.12.8"), at("daggerheart", "3.0.1")],
+            junk: [at("R5461", "2.12.8"), at(undefined, "2.6.5")]
+        }), stableJson({
+            dice: { hope: { colorset: "daggerheart-hope-colorset", system: "standard" }, fear: { colorset: "daggerheart-fear-colorset", system: "standard" },
+                advantage: { colorset: "daggerheart-advantage-colorset", system: "standard" }, disadvantage: { colorset: "daggerheart-disadvantage-colorset", system: "standard" } },
+            own: [null, null],
+            old: ["preset", "preset", "preset", null, "preset"],
+            roles: [null, null, "daggerheart", "daggerheart", "daggerheart"],
+            junk: [null, null]
+        }), "[Daggerheart's dice; each player's own look on 2.6.5 and 2.12.8; 2.9 and older (and another system): the preset, none where none is kept; "
+            + "2.10 and later: Dice So Nice's look lays nothing, Daggerheart's lays its colorsets; a choice not of the three]");
+    }],
+
+    ["R5462 - Daggerheart's dice laid on a throw (E108): dice-look.mjs `layDualityLook(roll, look, { colorset: true })` answers a copy whose Hope, Fear, advantage and disadvantage dice carry the kind's colorset as their term's own `options.colorset` and an appearance of the look alone, their effect and model file kept, every other die and the roll handed in unchanged", async () => {
+        /*
+         * E108, 13.11.2026. Dice So Nice 6.4.5 lays a role's look in three layers - Daggerheart's defaults, the world's role
+         * scopes, then the thrower's own `roleAppearance` (engine/DiceRoleRegistry.js:245-279) - and a term's own
+         * `options.colorset` above them all ("priority 1", engine/DiceFactory.js:2183-2186, which also drops a library die
+         * the role named), its `options.appearance` merged over that (:2210-2213). So the look is the term's colorset and an
+         * appearance of the look's names alone; whatever appearance the die carried would merge over Daggerheart's
+         * colours. Here on fixed JSONs, R1298's duality roll with a disadvantage die beside. Red before E108: the third
+         * argument is not read, so the copy carries no `options.colorset` and keeps the die's own colours.
+         */
+        const L = await import("./dice-look.mjs");
+        ok(typeof L.layDualityLook === "function" && L.DAGGERHEART_DICE && typeof L.DAGGERHEART_DICE === "object", "dice-look.mjs exports no layDualityLook or DAGGERHEART_DICE");
+        if (typeof L.layDualityLook !== "function" || !L.DAGGERHEART_DICE) return;
+        const term = (cls, faces, options = {}, modifiers = []) => ({ class: cls, options, evaluated: true, number: 1, faces, modifiers, results: [{ result: 5, active: true }] });
+        const plus = { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" };
+        const sfx = { id: "daggerheart-duality-trigger", result: "hope" };
+        const duality = () => ({ class: "DualityRoll", options: {}, evaluated: true, formula: "1d12 + 1d12 + 1d6 + 1d6 + 1d12", terms: [
+            term("HopeDie", 12, { appearance: { system: "dot", colorset: "inspired", background: "#ffe760" }, modelFile: "R5462/d12.glb", sfx }, ["h"]),
+            plus, term("FearDie", 12, { colorset: "R5462 console" }, ["f"]), plus, term("AdvantageDie", 6, {}, ["a"]), plus,
+            term("DisadvantageDie", 6, {}, ["d"]), plus, term("Die", 12, { appearance: { background: "#123456" } })] });
+        const handed = duality(), was = stableJson(handed);
+        const laid = L.layDualityLook(handed, L.DAGGERHEART_DICE, { colorset: true });
+        const dice = laid?.terms?.filter(t => typeof t.faces === "number") ?? [];
+        const kind = k => ({ colorset: `daggerheart-${k}-colorset`, system: "standard" });
+        equal(stableJson({
+            dice: dice.map(t => [t.class, t.options?.colorset ?? null, t.options?.appearance ?? null, t.options?.modelFile ?? null, t.options?.sfx ?? null]),
+            handed: stableJson(handed) === was, copy: laid !== handed,
+            plain: L.layDualityLook({ class: "Roll", options: {}, evaluated: true, formula: "1d20", terms: [term("Die", 20)] }, L.DAGGERHEART_DICE, { colorset: true })
+        }), stableJson({
+            dice: [["HopeDie", kind("hope").colorset, kind("hope"), "R5462/d12.glb", sfx], ["FearDie", kind("fear").colorset, kind("fear"), null, null],
+                ["AdvantageDie", kind("advantage").colorset, kind("advantage"), null, null], ["DisadvantageDie", kind("disadvantage").colorset, kind("disadvantage"), null, null],
+                ["Die", null, { background: "#123456" }, null, null]],
+            handed: true, copy: true, plain: null
+        }), "[each die of the laid copy: class, its own colorset, appearance, model file, effect; the roll handed in unchanged; a copy; a roll with no duality die]");
+    }],
+
+    ["R5463 - the game's settings window draws the table's dice look as one choice of three where the switch stood (E108): settings-window.mjs `settingRowHtml(\"forceDiceLook\")` holds one select named forceDiceLook, no switch, whose three options are own, dsn and daggerheart with their words, the one the world holds (`diceLookChoice`) selected", async () => {
+        /*
+         * E108, 13.11.2026. The row keeps the key forceDiceLook (R3420's frozen list places it in privacy), and Save writes
+         * the two settings by `diceLookWrites` (R5460; the window's Save itself, which writes, is tier 2's "the game's settings window saves the table's dice look as one choice of three"). Read on
+         * this world as it stands: nothing is written. Red before E108: the row is a switch.
+         */
+        const W = await import("./settings-window.mjs");
+        const S = await import("./settings.mjs");
+        ok(typeof S.diceLookChoice === "function", "settings.mjs exports no diceLookChoice");
+        if (typeof S.diceLookChoice !== "function") return;
+        const box = document.createElement("div");
+        box.innerHTML = W.settingRowHtml("forceDiceLook");
+        const row = box.querySelector("[data-drpg-setting]");
+        const select = row?.querySelector("select");
+        const words = [...(select?.options ?? [])].map(o => [o.value, o.textContent]);
+        const keyed = ["own", "dsn", "daggerheart"].map(v => [v, game.i18n.localize(`DRPG.Settings.forceDiceLook.choices.${v}`)]);
+        equal(stableJson({
+            row: row?.dataset.drpgSetting ?? null, name: select?.name ?? null, switches: row?.querySelectorAll("input[type=checkbox]").length ?? null,
+            options: words, worded: keyed.every(([, w]) => w && !w.startsWith("DRPG.")), selected: select?.value ?? null
+        }), stableJson({ row: "forceDiceLook", name: "forceDiceLook", switches: 0, options: keyed, worded: true, selected: S.diceLookChoice() }),
+            "[the row's setting, its select's name, switches in it, its options and their words, all worded, the one selected]");
+    }],
+
+    ["R5464 - the choice's second setting is the table's and a full Gamemaster's (E108): `diceLookKind` is a world String, default \"dsn\", not in Foundry's list, kept with the table's settings, and dice-sync.mjs holds it with the switches (`SWITCHES`), so an Assistant's write of it is put back as a write of forceDiceLook is", async () => {
+        /*
+         * E108, 13.11.2026. The owner's Q5 of 19.10 (E16 fix r1b-G1): a world setting an Assistant GM may write but only a
+         * full Gamemaster may set is held in `SWITCHES`; the kind is one, or an Assistant would choose the table's dice.
+         * Read on the registration and the source. The put-back itself, on a write, is tier 2's "an Assistant GM's write of the table's dice look kind is put back". Red before E108:
+         * no diceLookKind.
+         */
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.diceLookKind}`) ?? null;
+        const src = stripComments((await moduleSources()).get("dice-sync.mjs") ?? "");
+        const settingsSrc = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        must(src.length > 1000 && settingsSrc.length > 1000, "dice-sync.mjs or settings.mjs did not load - this test reads nothing");
+        const switches = /const SWITCHES = \[([^\]]*)\]/.exec(src)?.[1] ?? "";
+        const table = /const TABLE_SETTINGS = \[([^\]]*)\]/.exec(settingsSrc)?.[1] ?? "";
+        equal(stableJson({
+            key: SETTINGS.diceLookKind ?? null,
+            reg: reg ? [reg.scope, reg.type === String, reg.default, reg.config === true] : null,
+            switches: /SETTINGS\.diceLookKind\b/.test(switches), table: /SETTINGS\.diceLookKind\b/.test(table)
+        }), stableJson({ key: "diceLookKind", reg: ["world", true, "dsn", false], switches: true, table: true }),
+            "[the key; scope, a String, its default, in Foundry's list; held with the switches; one of the table's settings]");
+    }],
+
+    ["R5465 - the dice look's diagnostic no longer says Daggerheart's roles are unforced where this browser lays Daggerheart's dice (E108): dice-look.mjs `lookFindings` raises `rolesUnforced` on Daggerheart 2.10 and later only while no table look is laid here (`browser.tableLook`)", async () => {
+        /*
+         * E108, 13.11.2026. `rolesUnforced` ("Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles,
+         * which the table's forced look does not set") was true of every forced table on 2.10 and later until E108; with
+         * Daggerheart's look chosen this browser lays the roles' colorsets on each throw, and the sentence would be false.
+         * A view as R1294 builds one, on 2.12.8. Red before E108: raised whatever `tableLook` holds.
+         */
+        const L = await import("./dice-look.mjs");
+        ok(typeof L.lookFindings === "function", "dice-look.mjs exports no lookFindings");
+        if (typeof L.lookFindings !== "function") return;
+        const view = tableLook => ({
+            gm: false, me: "u1", forcing: true, sourceId: "g1",
+            users: [{ id: "u1", name: "R5465 u1", here: true, gm: false, active: true, forced: true, holds: true, stopped: null, overlays: [],
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true } }],
+            browser: { module: "1.2.112", foundry: "14.370", system: { id: "daggerheart", version: "2.12.8", roles: true },
+                dsn: { version: "6.4.5", active: true, ready: true, api: { allCustomization: true } },
+                display: { visibility: "all", showOthersSFX: true, imageQuality: "high", read: true },
+                dhPreset: null, tableLook, registry: { missing: [] }, lastThrows: [] },
+            roll: null
+        });
+        const laid = { hope: { colorset: "daggerheart-hope-colorset", system: "standard" }, fear: { colorset: "daggerheart-fear-colorset", system: "standard" },
+            advantage: null, disadvantage: null };
+        const codes = v => L.lookFindings(v).map(f => f.code).sort();
+        equal(stableJson({ none: codes(view(null)), laid: codes(view(laid)) }), stableJson({ none: ["rolesUnforced"], laid: [] }),
+            "[the codes raised on 2.12.8 with no table look laid here, and with Daggerheart's laid]");
+    }],
+
+    ["R5467 - the table's dice look carries the source Gamemaster's Dice So Nice role looks (E108, Q-E108-2): dice-sync.mjs `lookFrom` answers the source's `roleAppearance`, each role's library die owned by the source where it names none, and none as an empty one; `holdsTableLook` reads a user's own role look as not the table's", async () => {
+        /*
+         * E108 (the coordinator's default for Q-E108-2, 13.11.2026: "close the roleAppearance gap so a forced look is
+         * really forced"). Dice So Nice 6.4.5 lays a role's look - Hope, Fear, a damage type - from the role's defaults,
+         * the world's role scopes and then the thrower's own `flags.dice-so-nice.roleAppearance`, its actor's laid over it
+         * (module/settings/DsnSettings.js:208-246 `ROLE_APPEARANCE`, `ROLE_CONTEXT`; engine/DiceRoleRegistry.js:245-279
+         * `resolveRoleSlot`, which takes a library die's owner from the slot or else the thrower). Until this commit the
+         * forced look was `appearance` and `sfxList` alone, so a player's own Hope die stood. Pure, on stub users. Red
+         * before: no `roleAppearance` in the look.
+         */
+        const D = await import("./dice-sync.mjs");
+        const source = { id: "R5467gm" };
+        const roles = { hope: { global: { colorset: "fire" }, d12: { libraryDieId: "R5467-d12" } }, fear: { d12: { libraryDieId: "x", libraryDieOwner: "other" } } };
+        const look = D.lookFrom(source, { appearance: { global: { colorset: "ice" } }, roleAppearance: roles });
+        const none = D.lookFrom(source, { appearance: {} });
+        const user = flags => ({ getFlag: (scope, key) => (scope === "dice-so-nice" ? flags[key] : undefined) });
+        const holding = { appearance: { global: { colorset: "ice" } }, sfxList: [], roleAppearance: look.roleAppearance, saved: { appearance: true, sfx: true } };
+        equal(stableJson({
+            roles: look.roleAppearance ?? null, none: none.roleAppearance ?? null, given: roles.hope.d12.libraryDieOwner ?? null,
+            holds: D.holdsTableLook(user(holding), look),
+            own: D.holdsTableLook(user({ ...holding, roleAppearance: { hope: { global: { colorset: "black" } } } }), look),
+            missing: D.holdsTableLook(user({ ...holding, roleAppearance: undefined }), look)
+        }), stableJson({
+            roles: { hope: { global: { colorset: "fire" }, d12: { libraryDieId: "R5467-d12", libraryDieOwner: "R5467gm" } }, fear: { d12: { libraryDieId: "x", libraryDieOwner: "other" } } },
+            none: {}, given: null, holds: true, own: false, missing: false
+        }), "[the look's role looks (a library die owned by the source where it named none); none; the source's own object untouched; a user holding the look; one with a Hope die of its own; one with none]");
     }],
 
     ["R1301 - the dice look's two preset findings know the table's look (E60 fix FG3; the end review's C-m5, G-m5): where this browser lays the table's Hope and Despair look (`browser.tableLook`), dice-look.mjs `lookFindings` words a duality die with no preset as drawn in the table's look (`presetMissing`, its own sentence) and holds a die's preset to the table's look rather than this browser's Daggerheart preset (`presetDiffers`, its own sentence; none where the two agree); with no table look laid both say what they said at C5b", async () => {

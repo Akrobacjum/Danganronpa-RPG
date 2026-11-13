@@ -10279,6 +10279,7 @@ const REGRESSIONS = [
             ["SURFACE action-dynamic.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE roll-draw.mjs#drawSignNotice#showWaiting", "the roller's sign that the GM is throwing a drawn roll's late dice (DH212 3, R3990): the module's own i18n (`DRPG.Rolls.gmThrowing`), taken down as the dice start or the draw ends; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE day-summary.mjs#keepDayEndCard", "this client's own end-of-day board as one card (E94 C3), drawn by sequence.mjs `dayEndElement` from this browser's own rows, the public cards' text and the names escaped there, under the board's i18n title; kept as a summary (`source: \"summary\"`, R297) in place of the Night's summary it folds (`nightFoldsIntoBoard`), and cleaned at save like every snapshot"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "on a GM, a thread card that asks the GMs (`gmAsk`): the player's words in a card (`cardPreview`), kept as the thread's entry - its message and the conversation it opens - under the thread's player only when a GM's session wrote the card, else under its writer (`cardWriter`; a `thread` flag is the writer's to set, E81 fix r2-H1), an author that is no user of this world dropped (R297), and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
@@ -15843,6 +15844,48 @@ const REGRESSIONS = [
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
     }],
+
+    ["R5466 - the table's dice look is worded as three choices in both languages, the GM's handbook names the setting and each choice in its line, and no text of the module still names the switch by its old name (E108)", async () => {
+        /*
+         * E108, 13.11.2026; the coordinator's default for the owner's report of 13.11 was "Each player's own look", "One
+         * look for the table: Dice So Nice", "One look for the table: Daggerheart"; the stage's shots cut the last two at
+         * "One look for the table:" in Stained Glass, so they read "Each player's own", "Everyone: Dice So Nice",
+         * "Everyone: Daggerheart" (docs/dev/e108/STATUS.md). The GM's handbook's line on the setting (R803,
+         * R806 read the same line) names the setting in italics and each choice. The old name, "One dice look for the
+         * table" / "Jeden wygląd kości przy stole", stood in two strings (the setting's and the diagnostic's
+         * presetMissingLaid): a string that names a setting by a name it no longer has sends the GM looking for a row that
+         * is not there. Red before E108: no choices, and both old names.
+         */
+        const OLD = { en: "one dice look for the table", pl: "jeden wygląd kości przy stole" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const setting = keys.DRPG?.Settings?.forceDiceLook ?? {};
+            const choices = ["own", "dsn", "daggerheart"].map(v => setting.choices?.[v] ?? "");
+            ok(typeof setting.name === "string" && setting.name.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook.name - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
+            const book = (await lfText(res)).toLocaleLowerCase(lang);
+            const at = book.indexOf(`*${(setting.name ?? "").toLocaleLowerCase(lang)}*`);
+            const line = at >= 0 ? lineAround(book, at) : "";
+            const strings = [];
+            const walk = (node, path) => {
+                if (typeof node === "string") strings.push([path, node]);
+                else if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+            };
+            walk(keys, "");
+            measured[lang] = {
+                choices: choices.every(Boolean) && new Set(choices).size === 3,
+                named: at >= 0,
+                eachChoice: choices.map(c => Boolean(c) && line.includes(`*${c.toLocaleLowerCase(lang)}*`)),
+                old: strings.filter(([, text]) => text.toLocaleLowerCase(lang).includes(OLD[lang])).map(([path]) => path)
+            };
+            expected[lang] = { choices: true, named: true, eachChoice: [true, true, true], old: [] };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - three distinct choices worded; the GM's handbook names the setting in italics; its line names each choice in italics; "
+            + "the lang keys that still name the old switch]");
+    }],
     ["R905 - a room found opens at once (H81-08): the reveal's curtain starts opening within 450 ms of the reveal and is open by 1100 ms, its sound plays as the reveal starts, and the room's name stays up for its 5.4 s", async () => {
         /*
          * H81 C2, 20.10.2026; the owner's 1.2.80 table (item 1: the room's "door" opened late) and answer D,
@@ -20836,8 +20879,9 @@ const REGRESSIONS = [
             // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
             // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
             // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
-            counts: [20, 11, 38], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 38, the clock's entry does not "
+            // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
+            counts: [20, 11, 39], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 39, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 

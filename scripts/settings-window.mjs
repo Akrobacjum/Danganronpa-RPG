@@ -60,7 +60,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting, autoScale } from "./settings.mjs";
+import { SETTINGS, getSetting, autoScale, diceLookChoice, diceLookWrites, DICE_LOOK_CHOICES } from "./settings.mjs";
 import { esc, error, wholeNumber } from "./utils.mjs";
 import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
@@ -162,15 +162,26 @@ function ownerTheme(key) {
 
 const THEME_WORDS = Object.freeze({ stainedGlass: "DRPG.SettingsWindow.glassOnly", monokumaLegacy: "DRPG.SettingsWindow.legacyOnly" });
 
+/*
+ * THE TABLE'S DICE LOOK (E108; settings.mjs "THE TABLE'S DICE LOOK, ONE CHOICE OF THREE"). Its row keeps the switch's key
+ * and place, and draws one select of three where the switch was: its value is `diceLookChoice`, and Save writes the two
+ * settings `diceLookWrites` names. Each choice's words, by value.
+ */
+const DICE_LOOK_WORDS = Object.freeze({ own: "DRPG.Settings.forceDiceLook.choices.own", dsn: "DRPG.Settings.forceDiceLook.choices.dsn",
+    daggerheart: "DRPG.Settings.forceDiceLook.choices.daggerheart" });
+const isDiceLook = key => (SETTINGS[key] ?? key) === SETTINGS.forceDiceLook;
+
 /** One setting's control: a switch for a Boolean, a select for choices, a stepper for a number with a range. */
 function controlHtml(key, reg, value, off) {
     const name = SETTINGS[key] ?? key;
     const label = localize(reg.name);
-    if (reg.type === Boolean) return toggle({ name, checked: value === true, label, disabled: off });
+    const diceLook = isDiceLook(key);
+    if (reg.type === Boolean && !diceLook) return toggle({ name, checked: value === true, label, disabled: off });
     const id = stepperId();
     const head = `<label class="drpg-settings-label" for="${esc(id)}">${esc(label)}</label>`;
-    if (reg.choices) {
-        const options = Object.entries(reg.choices).map(([v, words]) =>
+    const choices = diceLook ? Object.fromEntries(DICE_LOOK_CHOICES.map(v => [v, DICE_LOOK_WORDS[v]])) : reg.choices;
+    if (choices) {
+        const options = Object.entries(choices).map(([v, words]) =>
             `<option value="${esc(v)}"${String(value) === v ? " selected" : ""}>${esc(localize(words))}</option>`).join("");
         return `${head}<select id="${esc(id)}" name="${esc(name)}"${off ? " disabled" : ""}>${options}</select>`;
     }
@@ -188,7 +199,8 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
     if (!reg) return "";
     const owner = ownerTheme(key);
     const off = Boolean(owner && owner !== theme);
-    const stored = game.settings.get(MODULE_ID, SETTINGS[key] ?? key);
+    // The dice look reads its one choice (E108, settings.mjs `diceLookChoice`), not a stored value of its own.
+    const stored = isDiceLook(key) ? diceLookChoice() : game.settings.get(MODULE_ID, SETTINGS[key] ?? key);
     // A number as short as it is (E101 table note 5): a stored 0.9500000000000001 is drawn 0.95.
     const value = reg.type === Number && Number.isFinite(Number(stored)) ? Number(Number(stored).toFixed(6)) : stored;
     /* Interface scale's row says what it does in one sentence of the window's own (E101 table note 5): the setting's
@@ -407,6 +419,14 @@ export async function saveSettings(form, user = game.user, { reload = askReload 
         const reg = game.settings.settings.get(`${MODULE_ID}.${key}`);
         if (!reg || field.disabled || field.closest("[data-drpg-setting]")?.dataset.drpgSetting !== key) continue;
         if (reg.scope === "world" && !mayModifyWorld(user)) { refused.push(key); continue; }
+        if (isDiceLook(key)) {
+            for (const [name, value] of diceLookWrites(String(field.value))) {
+                await game.settings.set(MODULE_ID, name, value);
+                written.push(name);
+                if (game.settings.settings.get(`${MODULE_ID}.${name}`)?.requiresReload) world = true;
+            }
+            continue;
+        }
         const value = fieldValue(field, reg);
         if (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;
         await game.settings.set(MODULE_ID, key, value);

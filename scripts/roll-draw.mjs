@@ -158,7 +158,8 @@ export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototyp
  * and the GM told once per version. Not having one (no Actor class here) is not judged: the build's
  * review decides alone.
  */
-function reviewTraitRoad(rollTrait, MoveContext) {
+/** Exported for patches.mjs `moveContextRow` (DH212 5), which reads the same road the seam does. */
+export function reviewTraitRoad(rollTrait, MoveContext) {
     if (typeof rollTrait !== "function") return { ok: true, why: "" };
     const text = Function.prototype.toString.call(rollTrait);
     if (/\{\s*\[native code\]\s*\}/.test(text)) return { ok: false, why: "the actor's rollTrait cannot be read" };
@@ -190,6 +191,8 @@ export function registerRollDraw() {
     Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
     Hooks.on("createActor", actor => notePayments(actor));
     Hooks.on("updateActor", notePayments);
+    // After `notePayments`, whose listener runs first on the same hook: the waits read the tickets it wrote (DH212 2).
+    Hooks.on("updateActor", wakePayments);
     // On any build, drawn or not (E76b): Daggerheart's `buildConfigure` calls this before the window opens and the
     // roll is made, so the window, the roll's options and the claim's nonce read the marks a 2.12 MoveContext dropped.
     Hooks.on(`${CONFIG.DH?.id ?? "daggerheart"}.preRollDuality`, config => { adoptMarks(config); });
@@ -354,8 +357,11 @@ async function drawAndPlay(cls, config, message) {
     const drawn = awaitDrawn(config[ROLL_NONCE]);
     const start = awaitStart(config[ROLL_NONCE], primaryGmId());
     const asked = performance.now();
+    const signDown = drawSign(start);
     try {
-        const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
+        // Asked again when a GM is ready (`resend`): the primary answers a request it has drawn from its record (`drawAgainOf`).
+        const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true });
+        signDown();
         const answered = performance.now() - asked;
         // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made. A draw the GM wrote
         // the message of and then failed has had its dice start here at that message (`startOnMessage`): said in the log.
@@ -367,10 +373,57 @@ async function drawAndPlay(cls, config, message) {
         await playBack(cls, roll, config, message, answer.value, claim.subject, start);
         keepTrip("drawn", { at: Date.now(), answered, started: start.at - asked, atMessage: start.atMessage, shown: performance.now() - asked });
     } finally {
+        signDown();
         drawn();
         start.stop();
     }
     return config;
+}
+
+/*
+ * THE ROLLER IS TOLD THE GM IS THROWING (DH212 3, 12.11.2026; the owner's "a big delay before the dice show",
+ * docs/dev/DH212/WAITS.md). While the GM draws, the roll's window has closed and this screen showed nothing until the
+ * dice, or a warning at the ack's 8 s or the answer's 30 s. A draw whose dice have not started `DRAW_SIGN_MS` after it
+ * was asked now puts up "The GM is throwing your dice." (`DRPG.Rolls.gmThrowing`, popup.mjs `showWaiting`, kept
+ * nowhere), taken down when the dice start at the GM's message (`startOnMessage` calls the wait's `onStart`), when the
+ * answer comes, or when the draw ends. A draw as fast as the harness's (325 ms to the dice at 80 ms each way, scenario
+ * 33's A17) shows nothing. R3990.
+ */
+/** How long a draw's dice may take before the roller is told the GM is throwing them. Chosen, not measured: about twice the harness's 325 ms. */
+export const DRAW_SIGN_MS = 600;
+
+/** The notice itself, from popup.mjs (imported late: popup.mjs reaches this file's importers). Answers its dismiss. */
+async function drawSignNotice(text) {
+    const { showWaiting } = await import("./popup.mjs");
+    return showWaiting(text);
+}
+
+/**
+ * Put the sign up for `wait` (`awaitStart`'s) once `delayMs` have passed with its dice not started; answers the function
+ * that takes it down, which the wait's `onStart` is too. `show` draws the notice and answers its dismiss (R3990's stand-in).
+ */
+export function drawSign(wait, { delayMs = DRAW_SIGN_MS, show = drawSignNotice } = {}) {
+    let over = false;
+    let dismiss = null;
+    const down = () => {
+        if (over) return;
+        over = true;
+        clearTimeout(timer);
+        try { dismiss?.(); } catch { /* already gone */ }
+        dismiss = null;
+    };
+    const timer = setTimeout(async () => {
+        if (over || wait?.at !== null) return;
+        try {
+            const taken = await show(game.i18n.localize("DRPG.Rolls.gmThrowing"));
+            if (over) taken?.();
+            else dismiss = taken;
+        } catch (err) {
+            debug(`The sign that the GM is throwing could not be shown: ${err?.message ?? err}`);
+        }
+    }, delayMs);
+    if (wait && typeof wait === "object") wait.onStart = down;
+    return down;
 }
 
 /*
@@ -446,6 +499,7 @@ function startOnMessage(message) {
         wait.messageId = message.id;
         wait.atMessage = true;
         wait.started = playDice(message.rolls);
+        wait.onStart?.();
     } catch (err) {
         error("Could not start the dice of a roll the GM drew at its message", err);
     }
@@ -935,6 +989,39 @@ function ticketsOf(actorId) {
     return kept;
 }
 
+/*
+ * A PAYMENT IS TAKEN AS IT LANDS (DH212 2, 12.11.2026; docs/dev/DH212/WAITS.md). A draw, a claimed ask and a Hope Call's
+ * progress wait for the roller's payment to reach this GM (`drawRefusal`, `claimTicket`, `takeCallPayment`). Until DH212
+ * each read the tickets every 100 ms for up to `PAY_WAIT_MS`, so a payment that landed was taken up to 100 ms late
+ * (tier 2's "a payment that lands while the GM waits for it ...", at 13513d3a: [68,27,87,47,12] ms after five writes).
+ * Now every wait is woken on `updateActor` once `notePayments` has written (`wakePayments`), and reads again then; it
+ * still reads every 100 ms between wakes, since a ticket a riding part takes can also come from another GM's record
+ * (`handedOver`), which no `updateActor` here says. The bound and the answer are the poll's.
+ */
+const paymentWaiters = new Set();
+
+/** What `find` answers once it answers, read at each payment noted here and every 100 ms, until `ms` is over. */
+async function untilPaid(find, ms = PAY_WAIT_MS) {
+    for (const end = Date.now() + ms; !find() && Date.now() < end;) {
+        await new Promise(resolve => {
+            let timer = null;
+            const wake = () => {
+                clearTimeout(timer);
+                paymentWaiters.delete(wake);
+                resolve();
+            };
+            paymentWaiters.add(wake);
+            timer = setTimeout(wake, Math.max(0, Math.min(100, end - Date.now())));
+        });
+    }
+    return find();
+}
+
+/** Every wait above, woken: on `updateActor`, registered after `notePayments`, so each reads the tickets it wrote. */
+function wakePayments() {
+    for (const wake of [...paymentWaiters]) wake();
+}
+
 /**
  * On `updateActor` (and `createActor`, and at `ready` for every character), on every GM: what a
  * player's own write took down is a payment, what it put back takes back as many undrawn tickets
@@ -1087,10 +1174,7 @@ async function drawRefusal(actor, key, context) {
     // Its whole price, as this GM reads it (the coordinator's fix of 12.11.2026): a GM's room action costs one action and
     // the Toll's more (facilities.mjs `facilityCost`), and a payment of less draws nothing (`ticketCovers`).
     const need = key === "facility" ? (await import("./facilities.mjs")).facilityCost("gm", null, overflowFacilityToll()) : 1;
-    for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key, need) && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = ticketFor(actor.id, key, need);
+    const ticket = await untilPaid(() => ticketFor(actor.id, key, need));
     if (!ticket) return "no payment of that character's stands for that roll";
     // An undrawn ticket a riding part takes is one a GM before this one drew its partner on (`handedOver`): both are stamped.
     const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;
@@ -1133,10 +1217,7 @@ function lootDrawRefusal(actor, context) {
 export async function claimTicket(actorId, kind) {
     const pays = paysFor(kind);
     const find = () => ticketsOf(actorId).find(ticket => !ticket.kinds.length && pays.includes(ticket.pay)) ?? null;
-    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = find();
+    const ticket = await untilPaid(find);
     if (!ticket) return false;
     ticket.kinds.push(kind);
     return true;
@@ -1182,10 +1263,7 @@ export function forgetPayments(actorId) {
  */
 export async function takeCallPayment(actorId, cost) {
     const find = () => ticketsOf(actorId).find(ticket => ticket.pay === "hope" && !ticket.kinds.length && ticket.size >= cost);
-    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = find();
+    const ticket = await untilPaid(find);
     if (!ticket) return false;
     ticket.kinds.push("call");
     return true;
@@ -1215,7 +1293,7 @@ const marksOpen = async () => (await answerKeysOpen({ store: sheetMarkStore })) 
  * player's roll is then held to the action it is for (`drawRefusal`, fix r2-H1) - refused,
  * `{ refused }`, before anything is thrown - and only then thrown (`throwDrawn`).
  */
-export async function drawOnGm(packet, sender) {
+export async function drawOnGm(packet, sender, { requestId = null } = {}) {
     const arrived = performance.now();
     const actor = game.actors.get(packet?.actorId ?? "");
     const key = typeof packet?.actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(packet.actionKey) ? packet.actionKey : null;
@@ -1229,7 +1307,7 @@ export async function drawOnGm(packet, sender) {
         const { murderState } = await import("./murder.mjs");
         const state = murderState();
         let written = null;
-        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
+        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; }, requestId);
         // A Take's roll, the first of its kind for that taker and body since their last Take of it: bound (`lootDrawRefusal` above).
         if (out?.reply && !sender?.isGM && PAID_BY_NOTHING.includes(key)) {
             await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
@@ -1580,7 +1658,7 @@ async function tellRoller(sender, legal) {
  * Daggerheart's card (C13).
  */
 async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
-    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null) {
+    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null, requestId = null) {
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
@@ -1651,6 +1729,9 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     if (loads && !dieHeld) await giveBackLoadedDie(actor, applied.find(call => call?.grants === "critical" && call.nonce === loaded));
     await keepRecord({
         rollId, actorId: actor.id, userId: sender.id, actionKey: key,
+        // The request a player's draw came under and what its answer said, so a resend is answered again (`drawAgainOf`).
+        requestId: !sender.isGM && typeof requestId === "string" && requestId ? requestId : null,
+        answer: { faces: facesOf(roll), total: roll.total, roll: legal.json },
         messageId: message.id, claimed: Boolean(claimed), formula: roll.formula,
         // The statistic and the experiences the roll was thrown with, as the GM was told them at
         // the draw - a Reroll of a roll with no `scored` rebuilds the roll from these (reroll.mjs
@@ -2004,6 +2085,41 @@ function gmPickOf(actor, spec, listed) {
     return null;
 }
 
+/*
+ * A PICK CARD IS READ AS IT LANDS (DH212 1, 12.11.2026; docs/dev/DH212/WAITS.md). The answer a player rolls on leaves
+ * the GM before its card is settled (messenger-app.mjs `rulePickTrait`, then `settleCall`), so a roll can reach this GM
+ * before the card's meta. Until DH212 the wait read the messages every 100 ms for up to `PICK_WAIT_MS`: a card that
+ * landed was read up to 100 ms late (tier 2's "a GM's pick card that lands while a drawn roll waits ...", at 9c088110:
+ * [97,29,86,58,6] ms after five settles). Now `gmPickOf` is read again at every chat card made or changed on this
+ * browser and at every private card's words and meta stored here (secret.mjs `drpgSecretStored`: a veiled card's
+ * ruling travels in its meta, not on the document, so no `updateChatMessage` says it came), and once more at the
+ * bound; the bound and the answer are the poll's.
+ */
+const PICK_HOOKS = Object.freeze(["createChatMessage", "updateChatMessage", "drpgSecretStored"]);
+function pickArriving(actor, spec, listed, ms = PICK_WAIT_MS) {
+    const now = gmPickOf(actor, spec, listed);
+    if (now || !(ms > 0)) return Promise.resolve(now);
+    return new Promise(resolve => {
+        let timer = null;
+        const done = found => {
+            clearTimeout(timer);
+            for (const name of PICK_HOOKS) Hooks.off(name, look);
+            resolve(found);
+        };
+        function look() {
+            let found = null;
+            try { found = gmPickOf(actor, spec, listed); } catch { found = null; }
+            if (found) done(found);
+        }
+        for (const name of PICK_HOOKS) Hooks.on(name, look);
+        timer = setTimeout(() => {
+            let found = null;
+            try { found = gmPickOf(actor, spec, listed); } catch { found = null; }
+            done(found);
+        }, ms);
+    });
+}
+
 /** Of the statistics `listed`, the one lowest in the character's numbers (`sheetOf`), the first listed of equals - what a roll whose pick did not come is thrown on (the `gm` row below). */
 const lowestOf = (sheet, listed) => listed.reduce((low, trait) => ((sheet.traits[trait] ?? 0) < (sheet.traits[low] ?? 0) ? trait : low));
 
@@ -2061,12 +2177,7 @@ const TRAIT_SOURCES = Object.freeze([
         // claim decides only the wait - the most common Search is drawn at once. A claim of another waits as before.
         if (listed.length < 2 || told === eye.trait) return eye;
         const spec = { kind: "action", key: "search", variant: null };
-        let found = gmPickOf(actor, spec, listed);
-        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            found = gmPickOf(actor, spec, listed);
-        }
-        return found ?? eye;
+        return (await pickArriving(actor, spec, listed)) ?? eye;
     } },
     { from: "project", read: async (actor, { key, context }) => {
         if (key !== "project" && key !== "sabotage") return null;
@@ -2077,12 +2188,7 @@ const TRAIT_SOURCES = Object.freeze([
     { from: "gm", read: async (actor, { key, context, listed }) => {
         if (listed.length < 2) return null;
         const spec = await pickSpecOf(actor, key, context);
-        let found = gmPickOf(actor, spec, listed);
-        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            found = gmPickOf(actor, spec, listed);
-        }
-        return found ?? { lowest: listed };
+        return (await pickArriving(actor, spec, listed)) ?? { lowest: listed };
     } },
     { from: "fixed", read: (actor, { listed }) => (listed.length === 1 ? { trait: listed[0] } : null) }
 ]);
@@ -2504,6 +2610,29 @@ async function keepRecord(record) {
     if (old.length) await rollStore.dropMany(old);
     for (const id of replaced) await rollStore.patch(id, { superseded: record.rollId });
     await rollStore.patch(record.rollId, record);
+}
+
+/*
+ * A DRAW ASKED AGAIN IS ANSWERED AS BEFORE (DH212 4a, 12.11.2026; docs/dev/DH212/WAITS.md). `roll.draw` was not resent:
+ * a primary that drew a roll and reloaded before its answer reached the roller left the roller waiting out
+ * DRAW_ANSWER_MS for a "no answer", and a resend would have been judged again - its payment taken, so refused - for a
+ * roll that stood (the dice had mostly started at the GM's message already, `startOnMessage`). The roller's wait now
+ * asks again when a GM is ready (`resend: true`, bridge-guards.mjs `resendOnGmReady`), and the row's `again`
+ * (private-rolls.mjs) answers a request this GM's record has drawn: found by Foundry's sender and the request's id,
+ * never by anything in the packet (E18 C7's road, as `sabotageAgain`), with what the first answer said - the record,
+ * its message, the faces, the total, the stash's step, the die and the roll the GM threw (kept on the record as
+ * `answer`). A GM's own draw is not resent and keeps no request. Tier 2's "a drawn roll asked again under its request
+ * ..." reads it; the clock is unchanged (the coordinator's 4a).
+ */
+export function drawAgainOf(sender, ctx) {
+    if (!sender || sender.isGM || typeof ctx?.requestId !== "string" || !ctx.requestId) return null;
+    for (const record of Object.values(rollStore.entries() ?? {})) {
+        if (record?.requestId !== ctx.requestId || record.userId !== sender.id || !record.answer) continue;
+        const { faces, total, roll } = record.answer;
+        return { reply: { rollId: record.rollId, messageId: record.messageId, faces, total,
+            stash: record.used?.stash ?? null, loaded: record.used?.loaded ?? false, roll } };
+    }
+    return null;
 }
 
 /** The GMs' record of a drawn roll, or null. */

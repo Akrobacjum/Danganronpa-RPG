@@ -278,8 +278,13 @@
     },
     "Settings": {
       "forceDiceLook": {
-        "name": "One dice look for the table",
-        "hint": "Every player and Assistant GM throws Dice So Nice dice in the look of one full Gamemaster, fixed the first time the game runs with it on, with no special effects but those a Gamemaster marks as global, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table beyond the effects they mark as global. Every Hope and Despair die takes the look that Gamemaster set in Daggerheart, whoever throws it (Daggerheart 2.9 and older). Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+        "name": "Dice look for the table",
+        "hint": "With one look, players and Assistant GMs throw in one full Gamemaster's Dice So Nice look, fixed the first time the game runs with it on. The Daggerheart look adds Daggerheart's Hope and Despair colors.",
+        "choices": {
+          "own": "Each player's own",
+          "dsn": "Everyone: Dice So Nice",
+          "daggerheart": "Everyone: Daggerheart"
+        }
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
@@ -4297,8 +4302,8 @@
           "lowQuality": "{name} draws dice at low image quality.",
           "presetDiffers": "{duality} of the roll read carries another preset than this browser's Daggerheart setting: it was thrown on another browser.",
           "presetMissing": "{duality} of the roll read carries no Daggerheart preset, so it is drawn in its thrower's Dice So Nice look.",
-          "presetMissingLaid": "{duality} of the roll read carries no Daggerheart preset of its own; with One dice look for the table on, this browser draws it in the table's Hope and Despair look.",
-          "presetDiffersLaid": "{duality} of the roll read carries another preset than the table's Hope and Despair look; with One dice look for the table on, this browser draws it in the table's look over its own.",
+          "presetMissingLaid": "{duality} of the roll read carries no Daggerheart preset of its own; with one look for the table, this browser draws it in the table's Hope and Despair look.",
+          "presetDiffersLaid": "{duality} of the roll read carries another preset than the table's Hope and Despair look; with one look for the table, this browser draws it in the table's look over its own.",
           "missingSystem": "Dice So Nice on this browser has no dice system \"{name}\", so dice that use it are drawn as standard dice here.",
           "missingColorset": "Dice So Nice on this browser has no colorset \"{name}\", so dice that use it are drawn in a custom colour here.",
           "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
@@ -4980,7 +4985,7 @@
         "liveKitInFoundry": "LiveKit's voice stays inside the Foundry window for everyone.",
         "rtcDock": "Foundry's camera dock is folded while the voice tile is on, and no camera pops out.",
         "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog and global light: turning 'Rooms decide what players can see' off gives them back.",
-        "diceLook": "While 'One dice look for the table' is on, every player and Assistant GM throws Dice So Nice dice in one full Gamemaster's look. Give back does not change this, and nobody's own earlier look comes back: the module never kept it."
+        "diceLook": "With one look for the table in 'Dice look for the table', every player and Assistant GM throws Dice So Nice dice in one full Gamemaster's look. Give back does not change this, and nobody's own earlier look comes back: the module never kept it."
       },
       "givenBackState": "Given back: the module leaves these settings alone until you hold them again.",
       "filesStay": "Give back leaves the file permissions as they are now: if players should browse or upload files, grant it in Foundry's permissions.",
@@ -5367,6 +5372,7 @@
         "kind": "the roll's kind"
       },
       "waitsForGm": "An action roll waits for a GM: no GM is connected, so the action was not taken and nothing was paid.",
+      "gmThrowing": "The GM is throwing your dice.",
       "unwitnessed": "Thrown with no GM connected - the GM will see it.",
       "awayTitle": "Rolls made while no GM was connected",
       "awayLine": "{name}: Hope die {hope}, Despair die {fear} - {moves}",
@@ -6259,6 +6265,8 @@
         "critical-rule": "a critical keeps Daggerheart's own numbers",
         "roll-dialog-context": "what a Call forces is filled into the roll window once it is open, as before",
         "roll-draw": "rolls are thrown in the player's own browser, as in 1.2.66",
+        "roll-marks-move-context": "the module's marks on a roll are lost: an action's roll reads as a statistic from the sheet, and the Loaded Die is not loaded",
+        "roll-outcome-evaluated": "an action's roll has no total where the module reads it, so the action is not carried out",
         "dice-random-uniform": "nothing stands in for Foundry's randomiser",
         "no-scrolling-text": "captions float over tokens as Foundry draws them",
         "window-close": "windows close without the module's exit or its sound",

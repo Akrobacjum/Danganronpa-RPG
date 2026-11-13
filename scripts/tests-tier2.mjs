@@ -1373,7 +1373,7 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * they were. Ask the world's rows first - it writes.
  */
 async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye",
-    window: throughWindow = false, experiences = null, situational = 0 } = {}) {
+    window: throughWindow = false, experiences = null, situational = 0, requestId = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -1404,7 +1404,7 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     const stop = typeof watch === "function" ? watch() : null;
     try {
         if (faces) globalThis.__forceRoll = faces;
-        verdict = await G.judge(P.ROLL_ACTIONS, { action: "roll.draw", requestId: `C12A${foundry.utils.randomID(8)}`, ...packet }, player.id,
+        verdict = await G.judge(P.ROLL_ACTIONS, { action: "roll.draw", requestId: requestId ?? `C12A${foundry.utils.randomID(8)}`, ...packet }, player.id,
             { send: (to, reply) => sent.push({ action: reply?.action ?? null, reason: reply?.reason ?? null, value: reply?.value ?? null }) });
     } finally {
         if (hadForce) globalThis.__forceRoll = force;
@@ -3774,6 +3774,9 @@ const overlayOf = actor => foundry.utils.deepClone(actor?.toObject?.().flags?.[D
 const overlayWrite = look => ({ [`flags.${DSN_SCOPE}.appearance`]: look });
 /** A GM's overlay on a character: the GMs' copy the put-back must come back to. */
 const GM_OVERLAY = { global: { colorset: "ice", material: "glass" } };
+/** A Dice So Nice role look (E108): the GM's Hope and Fear dice, and a player's own Hope die. */
+const GM_ROLE_LOOK = { hope: { global: { colorset: "fire" } }, fear: { global: { colorset: "ice" } } };
+const OWN_ROLE_LOOK = { hope: { global: { colorset: "black" }, d12: { colorset: "bloodmoon" } } };
 /** A player's or an Assistant's own: a colour of its own and a die scope the GM's has not. */
 const OWN_OVERLAY = { global: { colorset: "black" }, d6: { colorset: "bloodmoon" } };
 /**
@@ -9046,6 +9049,162 @@ const SCENARIOS = [
         const none = [[["trait", lowest, highest], ["pick", "1", "0"]], lowest, null];
         equal(stableJson(read), stableJson([none, none, none, [[], highest, "GM"], none, 1]),
             "a pick card a player wrote, a GM's for another project or naming a statistic a project does not list held the Work, a GM's own pick did not, a roll with no pick was thrown on its claim rather than the lowest it lists, or a player's difficulty card was read over the GM's (per Work: statistic flags, thrown, whose card; the difficulty)");
+    }],
+
+    ["a GM's pick card that lands while a drawn roll waits for it is read as it lands, not at the next poll, and with no card the wait still ends at its bound (DH212 1)", async () => {
+        /*
+         * DH212 1, 12.11.2026 (the roll-delay report, docs/dev/DH212/WAITS.md). A roll whose definition lists several
+         * statistics waits on the GM for the pick card's meta (roll-draw.mjs `TRAIT_SOURCES`, rows `gm` and `search`),
+         * which can land after the answer the player rolled on: the answer leaves before the card is settled
+         * (messenger-app.mjs `rulePickTrait`, then `settleCall`). Until DH212 the wait read the messages every 100 ms
+         * for up to `PICK_WAIT_MS`, so a card that landed was read up to 100 ms late. Driven on this GM: a project
+         * stored without a statistic (the `gm` row, four listed), its reading started, and 130 ms later a GM's card
+         * naming the highest settled on it; read: the statistic and how long after the settle the reading answered.
+         * Then the control, no card: the reading answers the lowest, at the bound and not before.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the character is a player's, as a drawn roll's is");
+        const { theirs } = playerAndCharacters();
+        const P = await import("./projects.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS, TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const value = t => Number(theirs.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const highest = listed.reduce((high, t) => (value(t) > value(high) ? t : high));
+        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
+        must(value(highest) > value(lowest), `${theirs.name}'s statistics a project lists are all equal - the pick and the lowest would read the same`);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let project = null;
+        const lags = [], picked = [];
+        let boundAt = null, unpicked = null;
+        try {
+            project = (await P.createProject({ name: "SUITE DH212 pick wait", target: 6, room: null, trait: null }))?.id ?? null;
+            must(project, "a project stored without a statistic was not made - this would measure nothing");
+            // Five cards, each landing at its own moment: a poll's lag is where the card falls between two reads (0-100 ms),
+            // so all five under 25 ms happen to a poll about once in a thousand runs, and to a hook every time.
+            for (const wait of [130, 170, 210, 250, 290]) {
+                const reading = D.expectedFor(theirs, { actionKey: "project", context: { projectId: project } }).then(e => ({ e, at: performance.now() }));
+                await new Promise(resolve => setTimeout(resolve, wait));
+                const m = await whisperToGms("<p>SUITE DH212 pick</p>");
+                must(m, "no card to settle a pick on - this would measure nothing");
+                await settleCall(m, "SUITE DH212", { type: "trait", actorId: theirs.id, kind: "project", key: project, variant: null, trait: highest });
+                const settledAt = performance.now();
+                const { e, at } = await reading;
+                picked.push(e.trait ?? null);
+                lags.push(Math.round(at - settledAt));
+                await m.delete();
+            }
+            const started = performance.now();
+            const bare = await D.expectedFor(theirs, { actionKey: "project", context: { projectId: project } });
+            boundAt = Math.round(performance.now() - started);
+            unpicked = bare.trait ?? null;
+        } finally {
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            if (project) await P.deleteProject(project).catch(() => {});
+        }
+        equal(stableJson(picked), stableJson(Array(5).fill(highest)), "a card that landed during the wait did not hold the roll to its statistic");
+        ok(lags.length === 5 && lags.every(lag => lag < 25), `the reading answered ${stableJson(lags)} ms after each card was settled; a card is read as it lands (each under 25 ms), not at a poll`);
+        equal(unpicked, lowest, "with no card the reading did not fall to the lowest listed");
+        ok(boundAt >= 1900 && boundAt < 3000, `with no card the reading answered after ${boundAt} ms; the wait's bound is PICK_WAIT_MS (2000)`);
+    }],
+
+    ["a payment that lands while the GM waits for it is taken as it lands, not at the next poll, and with none the wait still ends at its bound (DH212 2)", async () => {
+        /*
+         * DH212 2, 12.11.2026 (docs/dev/DH212/WAITS.md). A draw, a claimed ask and a Hope Call's progress wait on the GM for
+         * the roller's payment to reach it (roll-draw.mjs `drawRefusal`, `claimTicket`, `takeCallPayment`): a ticket
+         * `notePayments` writes on the payment's `updateActor`. Until DH212 each read the tickets every 100 ms for up to
+         * `PAY_WAIT_MS`, so a payment that landed was taken up to 100 ms late. Driven on this GM through `takeCallPayment`
+         * (the one of the three exported): the wait started, and 130-290 ms later one Hope written down as the player's
+         * browser writes it (`PAID_AS_PLAYER`), five times; read: what each wait answered and how long after the write.
+         * Then the control, no payment: false, at the bound and not before.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the payment is a player's write to their own character");
+        const { theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const HOPE = "system.resources.hope.value";
+        const hope = Number(theirs.system.resources.hope?.value) || 0;
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const lags = [], taken = [];
+        let boundAt = null, unpaid = null;
+        try {
+            D.forgetPayments(theirs.id);
+            for (const wait of [130, 170, 210, 250, 290]) {
+                await trustedWrite(theirs, { [HOPE]: 2 }, { reason: "gmRuling" });
+                const waiting = D.takeCallPayment(theirs.id, 1).then(value => ({ value, at: performance.now() }));
+                await new Promise(resolve => setTimeout(resolve, wait));
+                await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
+                const paidAt = performance.now();
+                const { value, at } = await waiting;
+                taken.push(value);
+                lags.push(Math.round(at - paidAt));
+            }
+            const started = performance.now();
+            unpaid = await D.takeCallPayment(theirs.id, 1);
+            boundAt = Math.round(performance.now() - started);
+        } finally {
+            D.forgetPayments(theirs.id);
+            if ((Number(theirs.system.resources.hope?.value) || 0) !== hope) await trustedWrite(theirs, { [HOPE]: hope }, { reason: "gmRuling" });
+        }
+        equal(stableJson(taken), stableJson(Array(5).fill(true)), "a payment that landed during the wait was not taken");
+        ok(lags.length === 5 && lags.every(lag => lag < 25), `the wait answered ${stableJson(lags)} ms after each payment was written; a payment is taken as it lands (each under 25 ms), not at a poll`);
+        equal(unpaid, false, "with no payment the wait did not answer false");
+        ok(boundAt >= 1400 && boundAt < 2500, `with no payment the wait answered after ${boundAt} ms; its bound is PAY_WAIT_MS (1500)`);
+    }],
+
+    ["a drawn roll asked again under its request is answered from its record, thrown once; another player's packet under that id, or the player's under a new one, is judged as any other (DH212 4)", async () => {
+        /*
+         * DH212 4a, 12.11.2026 (docs/dev/DH212/WAITS.md; the coordinator's 4a). `roll.draw` was not resent: a primary that
+         * drew a roll and reloaded before its answer reached the roller left the roller waiting out DRAW_ANSWER_MS (30 s)
+         * for a "no answer", and a resend would have been judged again - the payment taken, so refused - for a roll that
+         * stood. Now the roller's wait resends it when a GM is ready (`resend: true`, bridge-guards.mjs
+         * `resendOnGmReady`), and the row's `again` answers a request it has drawn from the record: keyed by Foundry's
+         * sender and the request's id, never by the packet (E18 C7's road), with what the first answer said - its record,
+         * message, faces, total, stash, die and roll. Driven on this GM as the bridge's runner judges a player's packet:
+         * a Search drawn under one id, then the same packet under that id from the player, from another player, and from
+         * the player under a new id. Read: the first answer's ids; each later answer's kind and whether it is the first's;
+         * the records and messages made after the first. Red at 3dc28064: the same request was judged again and refused
+         * as paid already.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a second connected player sends under the first one's request id");
+        const { player, theirs } = playerAndCharacters();
+        const another = game.users.find(u => !u.isGM && u.active && u.id !== player.id);
+        must(another, "no second connected player - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const rid = `DH212${foundry.utils.randomID(8)}`;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const F = await drawnForPlayer(player, theirs, { requestId: rid });
+        must(F.value?.rollId && F.message, `the first draw was not answered (${F.verdict}) - this would measure nothing`);
+        const records = () => Object.keys(rollStore.entries() ?? {}).length;
+        const ask = async (userId, requestId) => {
+            const sent = [];
+            await G.judge(P.ROLL_ACTIONS, { action: "roll.draw", requestId, ...F.packet }, userId,
+                { send: (to, reply) => sent.push({ action: reply?.action ?? null, value: reply?.value ?? null }) });
+            await settle();
+            const done = sent.find(r => r.action === "bridge.done");
+            if (done) return ["done", stableJson(done.value) === stableJson(F.value)];
+            return [sent.find(r => r.action === "bridge.refused") ? "refused" : "none", false];
+        };
+        let read;
+        try {
+            const recordsBefore = records();
+            const messagesBefore = game.messages.contents.length;
+            const same = await ask(player.id, rid);
+            const other = await ask(another.id, rid);
+            const fresh = await ask(player.id, `DH212${foundry.utils.randomID(8)}`);
+            read = [same, other, fresh, records() - recordsBefore, game.messages.contents.length - messagesBefore];
+        } finally {
+            await F.putBack();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson([["done", true], ["refused", false], ["refused", false], 0, 0]),
+            "a resend of a drawn roll was not answered from its record as first answered, or another player's packet under its id or the player's under a new one was answered from it, or a resend wrote a record or a message (same request; another player; a new request; records made; messages made)");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("roll-draw.mjs") ?? "");
+        ok(/bridgeRequest\("roll\.draw"[^;]*\bresend:\s*true\b/.test(fnSource(src, "drawAndPlay")), "drawAndPlay does not ask roll.draw with resend: true");
     }],
 
     ["a pass after a GM's \"Change to\" voids that card's ruling: a later roll is held to no pick, a Search to Eye, and a pass for another definition voids nothing (E68 review R3)", async () => {
@@ -19066,7 +19225,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a drawn roll its GM acknowledged and never answered ends at the draw's own clock as not answered and said once; an answer after it plays nothing", async () => {
         /*
          * E33 C6, 07.10.2026; that plan's 2.5 and 1.7 item 7. A player's drawn roll asks the GM with
-         * `bridgeRequest("roll.draw", ..., { settle: "reply", timeoutMs: DRAW_ANSWER_MS })` (roll-draw.mjs
+         * `bridgeRequest("roll.draw", ..., { settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true })` (roll-draw.mjs
          * `drawAndPlay`), and a GM who said "got it" and then nothing - gone mid-draw, its draw stuck -
          * ends it at that clock as a closed roll window ends a roll: `noAnswer`, said once, nothing made.
          * The suite is the primary GM, whose own requests never leave it, so the wait is R165's waiter:
@@ -19081,7 +19240,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const src = stripComments((await moduleSources()).get("roll-draw.mjs") ?? "");
         const draw = fnSource(src, "drawAndPlay");
         const clockMs = Number((/\bconst DRAW_ANSWER_MS = ([\d_]+);/.exec(src)?.[1] ?? "").replaceAll("_", ""));
-        const asks = [/bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS \}\)/.test(draw),
+        const asks = [/bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true \}\)/.test(draw),
             /if \(!answer\?\.ok \|\| typeof answer\.value\?\.messageId !== "string"\) return;/.test(draw), /\blate\b/.test(draw)];
         const sent = [], said = [], timers = [];
         const clock = { set: (fn, ms) => timers.push({ fn, ms, live: true }) - 1, clear: i => { if (timers[i]) timers[i].live = false; } };
@@ -88358,6 +88517,221 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted (the harness's summary: "
             + "cannot fail here); the Reroll's throws laid; the GM's own throw; the throw history's newest row (laid, its Hope and Fear dice's "
             + "look); the laid copy of a ghost throw and of a secret one (laid, ghost, secret); with the switch off; a player's write put back]");
+    }],
+
+    ["the game's settings window saves the table's dice look as one choice of three (E108): from Dice So Nice's, Daggerheart's writes the kind alone; a Save with the choice untouched writes nothing; each player's own turns the look off, the world's reload asked, and leaves the kind; Dice So Nice's then writes the kind and turns the look on, the reload asked again", async () => {
+        /*
+         * E108, 13.11.2026. The row is R5463's; Save writes through settings.mjs `diceLookWrites` (R5460), the kind before
+         * the switch, so a world that reloads on the switch reads the kind it was given. A form of the row alone, saved
+         * by settings-window.mjs `saveSettings` with the reload stood in. Red before E108: the row is a switch, so the
+         * select is not found and nothing is written.
+         */
+        needs(env.primaryGm());
+        const W = await import("./settings-window.mjs");
+        const S = await import("./settings.mjs");
+        ok(typeof S.diceLookChoice === "function" && game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`), "no diceLookChoice, or no diceLookKind");
+        if (typeof S.diceLookChoice !== "function" || !game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`)) return;
+        const get = key => game.settings.get(MODULE_ID, key);
+        const was = [get(SETTINGS.forceDiceLook), get(SETTINGS.diceLookKind)];
+        const asked = [];
+        const save = async choice => {
+            const form = document.createElement("form");
+            form.innerHTML = W.settingRowHtml("forceDiceLook");
+            const select = form.querySelector("select[name=forceDiceLook]");
+            if (select && choice !== null) select.value = choice;
+            asked.length = 0;
+            const result = await W.saveSettings(form, game.user, { reload: async options => { asked.push(options?.world === true ? "world" : "client"); } });
+            await wait(300);
+            return [select ? select.value : null, result.written, asked.slice(), get(SETTINGS.forceDiceLook), get(SETTINGS.diceLookKind), S.diceLookChoice()];
+        };
+        const read = {};
+        try {
+            if (was[0] !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            if (was[1] !== "dsn") await game.settings.set(MODULE_ID, SETTINGS.diceLookKind, "dsn");
+            await wait(300);
+            read.daggerheart = await save("daggerheart");
+            read.untouched = await save(null);
+            read.own = await save("own");
+            read.dsn = await save("dsn");
+        } finally {
+            if (get(SETTINGS.diceLookKind) !== was[1]) await game.settings.set(MODULE_ID, SETTINGS.diceLookKind, was[1]);
+            if (get(SETTINGS.forceDiceLook) !== was[0]) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was[0]);
+            await wait(600);
+        }
+        equal(stableJson(read), stableJson({
+            daggerheart: ["daggerheart", ["diceLookKind"], [], true, "daggerheart", "daggerheart"],
+            untouched: ["daggerheart", [], [], true, "daggerheart", "daggerheart"],
+            own: ["own", ["forceDiceLook"], ["world"], false, "daggerheart", "own"],
+            dsn: ["dsn", ["diceLookKind", "forceDiceLook"], ["world"], true, "dsn", "dsn"]
+        }), "[per Save: the select's value, the keys written, the reload asked, the switch, the kind, the choice read back]");
+    }],
+
+    ["an Assistant GM's write of the table's dice look kind is put back, heard or written with no hook (E108)", async () => {
+        /*
+         * E108, 13.11.2026. R5464 reads that `diceLookKind` is one of dice-sync.mjs `SWITCHES`; this is the put-back on a
+         * write, as the switches' own test (an Assistant GM's switch of the table's dice look, S16-02) does it: heard - the
+         * write with `noHook`, then handed to `updateSetting`'s listeners with the Assistant's id; unheard - the write with
+         * `noHook`, then a message a player posts, the next step the primary takes. Red before E108: no diceLookKind.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const KEY = SETTINGS.diceLookKind;
+        ok(game.settings.settings.has(`${MODULE_ID}.${KEY}`), "no diceLookKind");
+        if (!game.settings.settings.has(`${MODULE_ID}.${KEY}`)) return;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const get = key => game.settings.get(MODULE_ID, key);
+        const was = [get(SETTINGS.forceDiceLook), get(KEY)];
+        const made = [], cards = [];
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "R5468 kind writer", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            if (was[0] !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            await game.settings.set(MODULE_ID, KEY, "daggerheart");
+            await wait(800);
+            await game.settings.set(MODULE_ID, KEY, "dsn", { noHook: true });
+            Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${KEY}`, value: "dsn" }, { value: "dsn" }, {}, assistant.id);
+            read.heard = await until(() => get(KEY) === "daggerheart", 3000);
+            await wait(1200);
+            await game.settings.set(MODULE_ID, KEY, "dsn", { noHook: true });
+            await wait(600);
+            read.unheard = [get(KEY)];
+            cards.push(await ChatMessage.create({ author: player.id, content: "R5468 a player's throw after a kind no hook heard" }));
+            read.unheard.push(await until(() => get(KEY) === "daggerheart", 3000));
+        } finally {
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            for (const user of made) if (game.users.get(user.id)) await user.delete();
+            if (get(KEY) !== was[1]) await game.settings.set(MODULE_ID, KEY, was[1]);
+            if (get(SETTINGS.forceDiceLook) !== was[0]) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was[0]);
+            await wait(600);
+        }
+        equal(stableJson(read), stableJson({ heard: true, unheard: ["dsn", true] }),
+            "[heard: the kind back to the full Gamemaster's; unheard: the write stood until the player's message, then back]");
+    }],
+
+    ["with Daggerheart's look chosen, every throw this browser draws on Daggerheart 2.10 and later carries Daggerheart's four colorsets on its duality dice, whoever throws, and with Dice So Nice's or each player's own it carries none (E108)", async () => {
+        /*
+         * E108, 13.11.2026. dice-look.mjs `layOnThrow` hands Dice So Nice (`diceSoNiceRollStart`'s `context.dsnRoll`) a
+         * copy whose Hope, Fear, advantage and disadvantage dice carry Daggerheart's colorset (R5461, R5462). The harness's
+         * system answers module.json's verified version (lib/versions.mjs), 2.6.5, so `layOnThrow` - what the hook runs,
+         * here on the settings this test writes - is handed a system of 2.12.8, with a roll of the player's: the throw a
+         * GM's screen draws of it. The hook's own road is the 2.9 test's (the table's Hope and Despair dice, E60 C5d). Red
+         * before E108: no layOnThrow exported, and on 2.12.8 nothing laid whatever the switch.
+         */
+        const L = await import("./dice-look.mjs");
+        ok(typeof L.layOnThrow === "function", "dice-look.mjs exports no layOnThrow");
+        if (typeof L.layOnThrow !== "function") return;
+        ok(game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`), "no diceLookKind");
+        if (!game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`)) return;
+        const player = game.users.find(u => !u.isGM) ?? game.user;
+        const get = key => game.settings.get(MODULE_ID, key);
+        const was = [get(SETTINGS.forceDiceLook), get(SETTINGS.diceLookKind)];
+        const system = { id: "daggerheart", version: "2.12.8" };
+        const roll = () => Roll.fromData({ class: "DualityRoll", options: {}, evaluated: true, formula: "1d12 + 1d12 + 1d6 + 1d20", total: 30, terms: [
+            { class: "HopeDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["h"], results: [{ result: 7, active: true }] },
+            { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+            { class: "FearDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["f"], results: [{ result: 5, active: true }] },
+            { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+            { class: "AdvantageDie", options: {}, evaluated: true, number: 1, faces: 6, modifiers: ["a"], results: [{ result: 4, active: true }] },
+            { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+            { class: "Die", options: {}, evaluated: true, number: 1, faces: 20, modifiers: [], results: [{ result: 14, active: true }] }] });
+        const thrown = () => {
+            const context = { roll: roll(), user: player, blind: false };
+            L.layOnThrow(context, system);
+            return (context.dsnRoll?.terms ?? []).filter(t => typeof t?.faces === "number").map(t => t.options?.colorset ?? null);
+        };
+        const set = async (force, kind) => {
+            if (get(SETTINGS.diceLookKind) !== kind) await game.settings.set(MODULE_ID, SETTINGS.diceLookKind, kind);
+            if (get(SETTINGS.forceDiceLook) !== force) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, force);
+            await wait(300);
+        };
+        const read = {};
+        try {
+            await set(true, "daggerheart");
+            read.daggerheart = thrown();
+            await set(true, "dsn");
+            read.dsn = thrown();
+            await set(false, "daggerheart");
+            read.own = thrown();
+        } finally {
+            await set(was[0], was[1]);
+            await wait(600);
+        }
+        equal(stableJson(read), stableJson({
+            daggerheart: ["daggerheart-hope-colorset", "daggerheart-fear-colorset", "daggerheart-advantage-colorset", null],
+            dsn: [], own: []
+        }), "[each die's own colorset on the copy Dice So Nice draws: Daggerheart's look, Dice So Nice's look (no copy), each player's own (no copy)]");
+    }],
+
+    ["a player's own look for a Dice So Nice role goes back to the GM's, and the GM's role looks reach every player (E108, Q-E108-2)", async () => {
+        /*
+         * E108, 13.11.2026 (the coordinator's default for Q-E108-2). Dice So Nice 6.4 draws a role's die - Hope, Fear,
+         * a damage type - from the thrower's own `flags.dice-so-nice.roleAppearance` over the role's defaults (R5467 has
+         * the reading). The GM, the look's source, gives themself a Hope role look; it must reach a connected player; then
+         * the player writes a Hope die of its own through the server, as a console's would arrive. Read after each: the
+         * player's role looks against the GM's. Red before: the GM's never reached the player, and the player's stood.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const roles = () => stableJson(diceScopeOf(player)?.roleAppearance ?? null);
+        const read = {};
+        try {
+            await gm.update({ [`flags.${DSN_SCOPE}.roleAppearance`]: GM_ROLE_LOOK });
+            read.spread = await until(() => roles() === stableJson(GM_ROLE_LOOK), 3000);
+            await player.update({ [`flags.${DSN_SCOPE}.roleAppearance`]: OWN_ROLE_LOOK });
+            read.back = await until(() => roles() === stableJson(GM_ROLE_LOOK), 3000);
+        } finally {
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ back: true, spread: true }),
+            "[the GM's role looks reached the player; the player's own Hope die went back to the GM's]");
+    }],
+
+    ["a player's or an Assistant's role look on a character goes back to the GMs' and a full Gamemaster's own stands (E108, Q-E108-2)", async () => {
+        /*
+         * E108, 13.11.2026 (the coordinator's default for Q-E108-2). Dice So Nice 6.4 lays an actor's own
+         * `roleAppearance` over its thrower's (DsnSettings.js `ROLE_APPEARANCE`), so a player who owns a character could
+         * still throw a Hope die of its own through it. As the appearance overlay's test does it: the GM gives the
+         * player's character a role look; then the player and an Assistant GM made for the test (offline) each write
+         * one, as the primary hears their write (the hook with their id). Read: the character's role looks after each,
+         * the GM's 1.2 s after its write. Red before: every write stands.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const found = actorDiceFound([student]);
+        const made = [];
+        const rolesOf = actor => stableJson(foundry.utils.deepClone(actor?.toObject?.().flags?.[DSN_SCOPE]?.roleAppearance ?? null));
+        const asUser = async (user, look) => {
+            const write = { [`flags.${DSN_SCOPE}.roleAppearance`]: look };
+            await student.update(write, { noHook: true });
+            Hooks.callAll("updateActor", student, foundry.utils.expandObject(write), {}, user.id);
+        };
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E108 role assistant", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            await settle();
+            await student.update({ [`flags.${DSN_SCOPE}.roleAppearance`]: GM_ROLE_LOOK });
+            await wait(1200);
+            read.gm = rolesOf(student) === stableJson(GM_ROLE_LOOK);
+            await asUser(player, OWN_ROLE_LOOK);
+            read.player = await until(() => rolesOf(student) === stableJson(GM_ROLE_LOOK), 3000);
+            await asUser(assistant, { fear: { global: { colorset: "emerald" } } });
+            read.assistant = await until(() => rolesOf(student) === stableJson(GM_ROLE_LOOK), 3000);
+        } finally {
+            for (const user of made) if (game.users.get(user.id)) await user.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ assistant: true, gm: true, player: true }),
+            "[gm: the GM's role look on the character stands; player, assistant: put back to the GM's]");
     }],
 
     ["E60-T17 - a GM sees a player's drawn dice only with that GM's Monokuma in the roller's room (E60 C5e; E60-18, Q-C5-4): with the Monokuma's token in the roller's room this GM's screen throws the drawn roll and its audience names this GM; moved out, no throw and this GM is not in its audience; the roller is in it either way, and the GM reads the roll's card either way", async () => {

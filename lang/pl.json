@@ -278,8 +278,13 @@
     },
     "Settings": {
       "forceDiceLook": {
-        "name": "Jeden wygląd kości przy stole",
-        "hint": "Każdy gracz i asystent GM-a rzuca kośćmi Dice So Nice w wyglądzie jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem, bez efektów specjalnych poza tymi, które któryś Gamemaster oznaczy jako globalne, a własna zmiana wraca do niego. Własny wygląd innego pełnego Gamemastera zostaje jego i niczego przy stole nie zmienia poza efektami, które oznaczy jako globalne. Każda kość Hope i Despair ma wygląd, który ten Gamemaster ustawił w Daggerheart, kto by nią nie rzucał (Daggerheart 2.9 i starszy). Każdy zachowuje własne ustawienia wyświetlania i wydajności. Wyłączenie nikomu nie przywraca dawnego wyglądu."
+        "name": "Wygląd kości przy stole",
+        "hint": "Przy jednym wyglądzie gracze i Asystenci GM-a rzucają w wyglądzie Dice So Nice jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem. Wygląd Daggerheart dodaje kolory Hope i Despair z Daggerhearta.",
+        "choices": {
+          "own": "Każdy gracz własny",
+          "dsn": "Wszyscy: Dice So Nice",
+          "daggerheart": "Wszyscy: Daggerheart"
+        }
       },
       "forcePrivateRolls": {
         "name": "Wymuszaj prywatne rzuty graczy",
@@ -4623,8 +4628,8 @@
           "lowQuality": "{name} rysuje kości w niskiej jakości obrazu.",
           "presetDiffers": "{duality} odczytanego rzutu ma inny preset niż ustawienie Daggerhearta w tej przeglądarce: rzucono ją w innej przeglądarce.",
           "presetMissing": "{duality} odczytanego rzutu nie ma presetu Daggerhearta, więc rysuje się w wyglądzie Dice So Nice osoby, która rzuca.",
-          "presetMissingLaid": "{duality} odczytanego rzutu nie ma własnego presetu Daggerhearta; przy włączonym ustawieniu Jeden wygląd kości przy stole ta przeglądarka rysuje ją w wyglądzie Hope i Despair stołu.",
-          "presetDiffersLaid": "{duality} odczytanego rzutu ma inny preset niż wygląd Hope i Despair stołu; przy włączonym ustawieniu Jeden wygląd kości przy stole ta przeglądarka rysuje ją w wyglądzie stołu zamiast jej własnego.",
+          "presetMissingLaid": "{duality} odczytanego rzutu nie ma własnego presetu Daggerhearta; przy jednym wyglądzie dla stołu ta przeglądarka rysuje ją w wyglądzie Hope i Despair stołu.",
+          "presetDiffersLaid": "{duality} odczytanego rzutu ma inny preset niż wygląd Hope i Despair stołu; przy jednym wyglądzie dla stołu ta przeglądarka rysuje ją w wyglądzie stołu zamiast jej własnego.",
           "missingSystem": "Dice So Nice w tej przeglądarce nie ma systemu kości „{name}”, więc kości, które go używają, rysują się tu jako standardowe.",
           "missingColorset": "Dice So Nice w tej przeglądarce nie ma zestawu kolorów „{name}”, więc kości, które go używają, rysują się tu we własnym kolorze.",
           "missingTexture": "Dice So Nice w tej przeglądarce nie ma tekstury „{name}”, więc kości, które jej używają, rysują się tu bez tekstury.",
@@ -5370,7 +5375,7 @@
         "liveKitInFoundry": "Głos LiveKit zostaje w oknie Foundry u wszystkich.",
         "rtcDock": "Dok kamer Foundry jest zwinięty, gdy działa kafel głosu, i żadna kamera nie wyskakuje w osobnym oknie.",
         "sceneVision": "Na scenach z pokojami własne widzenie, mgłę i globalne światło Foundry przejmują pokoje: wyłączenie „Pokoje decydują, co widzą gracze” je oddaje.",
-        "diceLook": "Póki „Jeden wygląd kości przy stole” jest włączony, każdy gracz i Asystent GM-a rzuca kośćmi Dice So Nice w wyglądzie jednego pełnego Gamemastera. Oddanie tego nie zmienia i nikomu nie wraca jego dawny wygląd: moduł go nie zachował."
+        "diceLook": "Przy jednym wyglądzie dla stołu w ustawieniu „Wygląd kości przy stole” każdy gracz i Asystent GM-a rzuca kośćmi Dice So Nice w wyglądzie jednego pełnego Gamemastera. Oddanie tego nie zmienia i nikomu nie wraca jego dawny wygląd: moduł go nie zachował."
       },
       "givenBackState": "Oddane: moduł nie rusza tych ustawień, dopóki znów ich nie przejmiesz.",
       "filesStay": "Oddanie zostawia uprawnienia do plików takie, jakie są teraz: jeśli gracze mają przeglądać lub wysyłać pliki, nadaj je w uprawnieniach Foundry.",
@@ -5785,6 +5790,7 @@
         "kind": "rodzaj rzutu"
       },
       "waitsForGm": "Rzut akcji czeka na GM-a: żaden GM nie jest połączony, więc akcja się nie odbyła i nic nie zapłacono.",
+      "gmThrowing": "GM rzuca twoimi kośćmi.",
       "unwitnessed": "Rzucono bez połączonego GM-a - GM to zobaczy.",
       "awayTitle": "Rzuty wykonane bez połączonego GM-a",
       "awayLine": "{name}: kość Hope {hope}, kość Despair {fear} - {moves}",
@@ -8026,6 +8032,8 @@
         "critical-rule": "krytyk zostaje przy liczbach samego Daggerheart",
         "roll-dialog-context": "to, co wymusza Call, jest wpisywane do okna rzutu dopiero po jego otwarciu, jak dotąd",
         "roll-draw": "rzuty są wykonywane w przeglądarce samego gracza, jak w 1.2.66",
+        "roll-marks-move-context": "znaczniki modułu na rzucie giną: rzut akcji wygląda jak rzut statystyką z karty, a kość Loaded Die nie jest ładowana",
+        "roll-outcome-evaluated": "rzut akcji nie ma wyniku tam, gdzie moduł go czyta, więc akcja się nie odbywa",
         "dice-random-uniform": "nic nie zastępuje generatora losowego Foundry",
         "no-scrolling-text": "napisy nad tokenami unoszą się tak, jak rysuje je Foundry",
         "window-close": "okna zamykają się bez wyjścia i dźwięku z modułu",
