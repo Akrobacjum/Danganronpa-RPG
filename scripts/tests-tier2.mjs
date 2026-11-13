@@ -53257,14 +53257,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { grantItem } = await import("./inventory.mjs");
         const bonus = value => ({ system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
         let tool = null, seen = null;
-        // A write made aside on the GM, then handed to the judge with the player's id, as its hook would be: put back or not, and its rows.
+        /* A write made aside on the GM, then handed to the judge with the player's id, as its hook would be: put back or not, and its rows.
+           ITS ROWS ARE THE ONES ITS JUDGEMENT ADDED (13.11.2026, CI run 43377699418, suite 4/8 on 03b293f5, red on this test). They were
+           read as every row stamped at or after the round began (`row.at >= from`), and the five rounds follow each other closely: here
+           the round before's row was 2 to 172 ms older than the next round's start (median 3, 132 rounds read, 13.11.2026), so a round
+           that began in the millisecond its forerunner's row was stamped counted that row as its own. With the GM's clock read to 50 ms,
+           the same window read the rounds' rows doubled, red 3 of 3 ([true,["true:itemEffects.T","true:itemEffects.T"]] for the
+           change); read by the ids the round added, green 3 of 3 on the same clock. That this was CI's red is not measured: its results
+           file, which holds the reading, could not be fetched here. */
         const judged = async (kind, write, changes = {}) => {
-            const from = Date.now();
+            const before = new Set(Object.keys(sheetWriteStore.entries() ?? {}));
             const effect = await write();
             const verdict = await judgeWrite(kind, effect, changes, player.id);
             await sheetAuditIdle();
-            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id
-                && row.at >= from && row.verdict === "putBack");
+            const rows = Object.entries(sheetWriteStore.entries() ?? {}).filter(([id, row]) => !before.has(id) && row?.actorId === student.id
+                && row.userId === player.id && row.verdict === "putBack").map(([, row]) => row);
             return [verdict?.verdict === "putBack", rows.map(row => `${row.itemId === tool.id}:${Object.keys(row.change ?? {})
                 .map(path => path.split(".").slice(0, 2).join(".").replace(tool.id, "T")).join(",")}`)];
         };
