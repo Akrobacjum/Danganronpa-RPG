@@ -197,6 +197,16 @@ export async function setClock(patch = {}) {
         if (trialEdge && before.phase === "classTrial" && patch.trialEndedAt === undefined) {
             next.trialEndedAt = serverNow();
         }
+        /* AND WHETHER THE WAY OUT SWITCHES A SCENE (fix-113r, 13.11.2026): `followPhase` runs on this GM after the write
+           and activates the scene `exitSwitchesScene` reads now - the GM's choice at End the trial, the school, the scene
+           the trial was opened from - or none. Every browser's closed curtain reads the stamp (sequence.mjs
+           `playTrialExit`): false, it waits for no scene, so a table left in the hall is not held 15 s. Unreadable, true:
+           the curtain waits, with its safety. `patch` wins, so a restored clock keeps its own. */
+        if (trialEdge && before.phase === "classTrial" && patch.trialExitScene === undefined) {
+            try { next.trialExitScene = (await import("./trial-scene.mjs")).exitSwitchesScene() !== false; } catch { next.trialExitScene = true; }
+        }
+        // a clock put back carries its own stamp or none, as `trialCut` below (the suite's restore leaves no new key)
+        if (Object.hasOwn(patch, "writtenAt") && !Object.hasOwn(patch, "trialExitScene")) delete next.trialExitScene;
         /* whether the table plays this crossing (`trialCutOf`): a patch's own word is no crossing's. A CLOCK PUT BACK -
            a patch naming its own `writtenAt`, which no road writes but a whole clock read earlier (the suite's
            `setClock(clockBefore)` after every test that crosses the edge) - carries its own mark or none: kept from the

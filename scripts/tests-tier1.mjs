@@ -54268,6 +54268,66 @@ const INVARIANTS = [
             open: { layers: ["drpg-seq-glass.is-open"], first: [[0, 0]], samePlan: true }
         }), "[entryPieces: the hole filled once; the closed curtain painted once; the closed curtain that paint; the close's panes cut from it over the old look with the one fill; the opening the same panes from the same paint with the same fill; in motion: what played; the curtain's layers at the start; held from 900 ms - the layers, the new panes' offsets drawn; at the opening - the layers, its first frame's offsets, the one plan]");
     }],
+    ["R6093 - an exit that switches no scene does not hold the closed curtain (scripts/clock.mjs `setClock`; scripts/trial-scene.mjs `exitDestination`, `exitSwitchesScene`, `leaveTrialScene`; scripts/sequence.mjs `playTrialExit`; fix-113r, the coordinator's change of 13.11.2026): the GM's write out of the trial stamps on the clock whether `followPhase` will activate a scene (`trialExitScene`), read from the one destination `leaveTrialScene` takes (the GM's choice, the school, the scene the trial left) and true when it cannot be read; a clock put back keeps its own stamp or none; with the stamp false the exit's closed curtain waits for no scene - a scene that never comes leaves it opening at its own time, 3.4 s, still at 1.5 s - and with it true, or absent, it waits for the scene as before; with no hall, or nowhere to go, nothing switches", async () => {
+        /*
+         * fix-113r, 13.11.2026. Red at bb1df8de: an exit with no school and no scene to return to - the table stays in the
+         * hall, `leaveTrialScene` activates nothing - held every browser's closed curtain for the 15 s safety, since the
+         * exit's gate waited for any scene but the hall and none came. The stand-in for the scene never settles here, as
+         * none comes at that table; the clock's own stamp is what lets the curtain go.
+         */
+        const S = await import("./sequence.mjs"), TS = await import("./trial-scene.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const T = S.SEQUENCE_TIMES.trialExit, read = {};
+        const never = () => new Promise(() => null);
+        const clock = (k, extra = {}) => ({ ...getClock(), phase: "dailyLife", chapter: 2, trialEndedAt: `R6093${k}:${Date.now()}`, trialCut: true, ...extra });
+        const ended = async ms => { const t0 = performance.now(); await until(() => S.sequenceNow() === null, ms); return Math.round(performance.now() - t0); };
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            read.none = await S.playTrialExit(clock("n", { trialExitScene: false }), { on: true, scene: never() });
+            const tn = await ended(T.end + 1500);
+            read.noneEnds = tn >= T.end - 100 && tn <= T.end + 400 && S.sequenceNow() === null;
+            body.classList.add("drpg-reduced-motion");
+            read.still = await S.playTrialExit(clock("s", { trialExitScene: false }), { on: true, scene: never() });
+            const ts = await ended(T.still + 1500);
+            read.stillEnds = ts >= T.still - 100 && ts <= T.still + 400 && S.sequenceNow() === null;
+            body.classList.remove("drpg-reduced-motion");
+            // stamped true, and not stamped: the curtain waits for the scene, as R6090's
+            for (const [k, extra] of [["t", { trialExitScene: true }], ["a", {}]]) {
+                await S.playTrialExit(clock(k, extra), { on: true, scene: never() });
+                await wait(T.end + 300);
+                read[k === "t" ? "stampedTrue" : "unstamped"] = S.sequenceGate?.() ?? null;
+                S.endSequence("cut");
+            }
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        // the destination's reads: no hall, nothing; an active destination switches nothing
+        read.reads = {
+            noHall: typeof TS.exitDestination === "function" ? TS.exitDestination(null) : "missing",
+            noHallSwitch: typeof TS.exitSwitchesScene === "function" ? TS.exitSwitchesScene(null) : "missing"
+        };
+        const sources = await moduleSources();
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), sceneSrc = stripComments(sources.get("trial-scene.mjs") ?? "");
+        must(clockSrc.length > 5000 && sceneSrc.length > 5000, "a source was not read - the source half reads nothing");
+        const set = bodyOf(clockSrc, "export async function setClock(", { until: "\nexport " });
+        read.wired = {
+            stamped: /before\.phase === "classTrial" && patch\.trialExitScene === undefined\)[\s\S]{0,200}exitSwitchesScene\(\) !== false; \} catch \{ next\.trialExitScene = true; \}/.test(set),
+            putBack: /Object\.hasOwn\(patch, "writtenAt"\) && !Object\.hasOwn\(patch, "trialExitScene"\)\) delete next\.trialExitScene/.test(set),
+            leave: /const destination = exitDestination\(hall, exit\);/.test(bodyOf(sceneSrc, "export async function leaveTrialScene(", { until: "\n}" })),
+            active: sceneSrc.includes("export function exitSwitchesScene(") && /Boolean\(destination\) && !destination\.active/.test(bodyOf(sceneSrc, "export function exitSwitchesScene(", { until: "\n}" }))
+        };
+        equal(stableJson(read), stableJson({
+            none: "motion", noneEnds: true, still: "still", stillEnds: true,
+            stampedTrue: { waiting: true, why: null }, unstamped: { waiting: true, why: null },
+            reads: { noHall: null, noHallSwitch: false },
+            wired: { stamped: true, putBack: true, leave: true, active: true }
+        }), "[stamped false: played; ended at its own 3.4 s with no scene; still: played; ended at its 1.5 s; stamped true: waiting past 3.4 s; not stamped: waiting; no hall: no destination, no switch; setClock stamps the crossing out from exitSwitchesScene, true when unreadable; a put-back clock keeps its own; leaveTrialScene goes where exitDestination says; a destination already active switches nothing]");
+    }],
     ["R5382 - over the windows the title's grounds are whole (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026, \"napis i jego tlo na otwartych oknach\"; the stage's shots of 13.11.2026): read through the module's cascade in both themes, in the title layer of the trial's edges the band's ground and the chapter line's dark shard are opaque - neither mixes with transparent - so a window's words under them do not read through; outside the trial's edges (the verdict's cut-in, a host with no look) the band keeps the sequences' band token", async () => {
         /*
          * E105, 13.11.2026. Red at 6ea64bac: the band under Stained Glass is the Despair pink at 95 % and the line's shard

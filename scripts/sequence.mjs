@@ -634,7 +634,9 @@ export function whenTrialExitEnds() {
  * closed curtain, and they open onto the hour's cut - for the entry's 3.4 s, still 1.5 s under reduced motion, Escape
  * earlier; the lids under Monokuma Legacy and on a stacked screen. No sound: End the trial's card carries `trialClose`.
  * Nothing when the crossing was Edit campaign's (`edgeShown`), heard again, or before ready. `pieces`, the suite's
- * stand-in for the curtain's. Answers what `playSequence` answered.
+ * stand-in for the curtain's. Answers what `playSequence` answered. The closed curtain waits for this browser's next
+ * scene (`scene`, the suite's stand-in), unless the clock says the way out switches none (`trialExitScene` false,
+ * clock.mjs): then it opens at its own time, whatever stand-in is handed.
  */
 export function playTrialExit(clock = getClock(), { pieces = undefined, on = sequencesOn(), scene = undefined } = {}) {
     const key = trialExitKey(clock);
@@ -652,7 +654,7 @@ export function playTrialExit(clock = getClock(), { pieces = undefined, on = seq
             document.body.dataset.drpgPhase = clock.phase ?? "dailyLife";
             try { glass = (await import("./glass.mjs")).exitPieces?.() ?? null; } catch { glass = null; }
         }
-        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, clock, "trialExit"), { on, onEnd: done, gate: { at: SEQUENCE_TIMES.trialExit.titleOut, ready: scene === undefined ? () => sceneGateFor("trialExit") : scene } });
+        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, clock, "trialExit"), { on, onEnd: done, gate: { at: SEQUENCE_TIMES.trialExit.titleOut, ready: clock?.trialExitScene === false ? "none" : scene === undefined ? () => sceneGateFor("trialExit") : scene } });
         if (played === null || played === "off") { glass?.release?.(); done(played ?? "none"); }
         return played;
     })().catch(err => { done("failed"); console.error(`${MODULE_ID} | the trial's exit failed`, err); return null; });
