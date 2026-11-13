@@ -4165,8 +4165,15 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
    read here. So the mark no longer rides the flow: the box is the containing block, the mark laid across it
    (`inset: 0`, `margin: auto` with its own size) and grown about its centre, and no `translate`, `rotate` or `scale` of
    anyone else's moves it; the radio's box and its dot are round, the checkbox keeps its square and its tick. */
+/* ON ITS LABEL'S LINE (gaps-radio, R4656; the review's M1, 13.11.2026): an `inline-grid` with no box in flow takes its
+   bottom edge as its baseline, so in a plain label the control stood on the words' baseline - 4.50 px above the middle
+   of the line, Reset the season's three radios and thirty checkboxes (audit/radio-sweep.mjs). Those labels are flex,
+   lined up on their baselines (`.drpg-inline-check`), where `vertical-align` does nothing and the control's baseline is
+   its bottom edge again: so `middle` in a line of text, as Legacy's radio, and `center` as a flex item. */
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]) {
     position: relative;
+    vertical-align: middle;
+    align-self: center;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"])::before {
     position: absolute;

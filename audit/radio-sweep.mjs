@@ -68,6 +68,23 @@ async function readWindow(browser, { dir, w, theme, dsf, core, shot }) {
     if (core) await page.addStyleTag({ content: CORE });
     // a picker folded in a <details> (Create a project's Tray icon, a new item's picture) is read open, as its user sees it
     await page.evaluate(() => globalThis.document.querySelectorAll("details:not([open])").forEach(d => { d.open = true; }));
+    /* THE CONTROL ON ITS LABEL'S LINE (gaps-radio, the review's M1, 13.11.2026): in a plain label - the control a child of
+       the <label>, the label's own text beside it - how far the control's centre stands from the centre of the text's
+       first line, in px (negative: above), or null where the label holds no text of its own (a choice row's control is
+       centred on its two lines by the row's flex, and is not read here). */
+    await page.evaluate(() => {
+        globalThis.drpgOffLine = el => {
+            const label = el.parentElement?.tagName === "LABEL" ? el.parentElement : null;
+            const text = label ? [...label.childNodes].find(n => n.nodeType === 3 && n.textContent.trim()) : null;
+            if (!text) return null;
+            const range = globalThis.document.createRange();
+            range.selectNodeContents(text);
+            const line = [...range.getClientRects()].find(r => r.height > 0);
+            if (!line) return null;
+            const r = el.getBoundingClientRect();
+            return (r.top + r.height / 2) - (line.top + line.height / 2);
+        };
+    });
     const problems = [];
     const radios = await page.$$('input[type="radio"]');
     let read = 0;
@@ -79,7 +96,7 @@ async function readWindow(browser, { dir, w, theme, dsf, core, shot }) {
             const r = el.getBoundingClientRect(), at = globalThis.document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
             if (!at || !(at === el || at.contains(el) || el.closest("label")?.contains(at))) return { hidden: `${el.name}=${el.value}` };
             const s = globalThis.getComputedStyle(el);
-            return { name: `${el.name}=${el.value}`, appearance: s.appearance, radius: s.borderRadius, clip: s.clipPath, w: el.offsetWidth, h: el.offsetHeight };
+            return { name: `${el.name}=${el.value}`, appearance: s.appearance, radius: s.borderRadius, clip: s.clipPath, w: el.offsetWidth, h: el.offsetHeight, off: globalThis.drpgOffLine(el) };
         });
         if (!st) continue;
         if (st.hidden) { unseen.push(st.hidden); continue; }
@@ -88,6 +105,7 @@ async function readWindow(browser, { dir, w, theme, dsf, core, shot }) {
         if (st.appearance !== "none") { problems.push(`${tag}: not drawn by the module (appearance ${st.appearance})`); continue; }
         if (st.radius !== "50%") problems.push(`${tag}: border-radius ${st.radius}, not 50%`);
         if (st.clip !== "none") problems.push(`${tag}: clip-path ${st.clip.slice(0, 40)}`);
+        if (st.off !== null && Math.abs(st.off) > 2) problems.push(`${tag}: its centre ${st.off.toFixed(2)} px ${st.off < 0 ? "above" : "below"} its label's text`);
         await handle.evaluate(el => { el.checked = true; el.dispatchEvent(new globalThis.Event("change", { bubbles: true })); });
         const style = await page.addStyleTag({ content: PROBE });
         await page.waitForTimeout(220);
@@ -115,9 +133,11 @@ async function readWindow(browser, { dir, w, theme, dsf, core, shot }) {
     if (!read && !unseen.length) unseen.push("every radio in a pane not shown");
     // a switch (`role="switch"`, the kit's `toggle`) is a pill on purpose, not a checkbox's box
     for (const handle of await page.$$('input[type="checkbox"]:not([role="switch"])')) {
-        const st = await handle.evaluate(el => (el.getClientRects().length ? { name: el.name || el.className || "checkbox", radius: globalThis.getComputedStyle(el).borderRadius, appearance: globalThis.getComputedStyle(el).appearance } : null));
+        const st = await handle.evaluate(el => (el.getClientRects().length ? { name: el.name || el.className || "checkbox", radius: globalThis.getComputedStyle(el).borderRadius, appearance: globalThis.getComputedStyle(el).appearance, off: globalThis.drpgOffLine(el) } : null));
         if (!st) continue;
-        if (!/^0px$/.test(st.radius) && st.appearance === "none") problems.push(`${w.id} ${theme} dsf${dsf} checkbox ${st.name}: border-radius ${st.radius}, not square`);
+        const tag = `${w.id} ${theme} dsf${dsf}${core ? " +core" : ""} checkbox ${st.name}`;
+        if (!/^0px$/.test(st.radius) && st.appearance === "none") problems.push(`${tag}: border-radius ${st.radius}, not square`);
+        if (st.appearance === "none" && st.off !== null && Math.abs(st.off) > 2) problems.push(`${tag}: its centre ${st.off.toFixed(2)} px ${st.off < 0 ? "above" : "below"} its label's text`);
     }
     if (shot) {
         const first = radios.length ? radios[0] : null;

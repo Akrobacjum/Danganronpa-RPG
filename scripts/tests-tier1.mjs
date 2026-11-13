@@ -41316,6 +41316,29 @@ const INVARIANTS = [
             JSON.stringify(["50%", "2px solid var(--drpg-bone)", "2px"]),
             "[the radio's border-radius, its border, the text field's border-radius]");
     }],
+    ["R4656 - under Stained Glass a checkbox or a radio stands in the middle of its label's line, not on its baseline (gaps-radio, the review's M1 of 13.11.2026): on a module window the control states `vertical-align: middle` and `align-self: center`, in a plain label, a flex label that lines its items up on their baselines (`.drpg-inline-check`) and a choice row", async () => {
+        /*
+         * docs/dev/e93/REVIEW-111.md's M1 (13.11.2026), a reader's claim the sweep then measured: the glass draws both
+         * controls as `inline-grid` with no box in flow (the mark is a pseudo-element laid absolutely), so the box's
+         * baseline is its bottom edge and a control in a plain label - `<label><input> words</label>` - sits on the text's
+         * baseline, above the words. Measured in Chromium on the style harness (audit/radio-sweep.mjs, the committed
+         * captures, 1366x768, dsf 1 and 2): Reset the season's three radios and thirty checkboxes stood 4.50 px above the
+         * centre of their label's line; no other window's control, and none under Legacy, whose radio states `middle`.
+         * Reset the season's labels are `.drpg-inline-check`, flex with `align-items: baseline`, where `vertical-align` does
+         * nothing and the control's baseline is again its bottom edge; so the control centres itself as a flex item too.
+         * Read here by the sheets' cascade on a body of its own. Red at f0666a1b: neither stated.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass";
+        html.append(body);
+        body.innerHTML = `<div class="application drpg-panel drpg-ui"><section class="window-content">`
+            + `<label class="drpg-inline-check"><input type="checkbox" name="wipe.clock"> The clock</label><label><input type="radio" name="castTo" value="stay"> Stay</label>`
+            + `<div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="a"><span>A</span></label></div></section></div>`;
+        const read = [...body.querySelectorAll("input")].map(el => [C.winner(el, ["vertical-align"])?.value.trim() ?? null, C.winner(el, ["align-self"])?.value.trim() ?? null]);
+        equal(JSON.stringify(read), JSON.stringify([["middle", "center"], ["middle", "center"], ["middle", "center"]]),
+            "[[vertical-align, align-self] of a checkbox in a flex label, a radio in a plain label, a radio in a choice row]");
+    }],
     ["R1432 - reduced motion stops Foundry's pause caption too (E23 fix G3, E23-30; the end review's goal m1, Open 113): with `body.drpg-reduced-motion` a rule of the module's sheets wins the caption's animation with none, under both themes, over a stand-in for core's endless `pulse`; without the class the stand-in still wins", async () => {
         /*
          * E23 fix G3, 08.11.2026; the end review's goal m1 (Open 113). danganronpa.css's pause section said Foundry's own
