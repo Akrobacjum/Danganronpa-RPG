@@ -128,6 +128,14 @@ The handbooks (GM, EN/PL) say the body tile is grey and opens no sheet.
 
 **Q-E106-1 for the owner:** P1 alone, P1 + P2, or none of them; P3 yes or no.
 
+**The owner's answer to Q-E106-1 (13.11.2026, through the coordinator):** "Pytanie odroznienia cialo od monocuba - nic
+nie rob. GM recznie podmieni obrazek, sam." None of P1, P2 or P3: the GM swaps the picture by hand. **P1 is not shipped,
+by the owner's choice.** Its commit (60069f20: body-tile.mjs `greyBodyPicture`, R5403, R5404, AUDIT 9.2 item 510
+LIVE-E106-03, the GM handbook's lines on a grey tile, shots/p1-grey-matrix.png) stays on the e72 line unreverted, as the
+coordinator asked, and is not merged: 1.2.112 takes the line up to 72c384d8, where the tile's picture is the token's in
+colour and the handbooks do not call it grey. What 1.2.112 does carry from E106: the Monocub's token at the body
+token's look (`tokenLookOf`, R5400, R5401) and the tile's mark taking no click (R5402).
+
 ## Numbers
 
 - Tier 1 R5400, R5401, R5402: red before the fix (no `tokenLookOf`; the prototype and the token without the look;
