@@ -1734,7 +1734,6 @@
       "pickerLabel": "Start a mode"
     },
     "Events": {
-      "regionName": "Event panel",
       "redeemTitle": "Redeem is waiting",
       "redeemMeta": "+1 Hope, free, once a day.",
       "bribeWaitTitle": "A Bribe waits",

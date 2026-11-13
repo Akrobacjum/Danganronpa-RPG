@@ -10143,29 +10143,6 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
     pointer-events: none;
 }
 #drpg-events[data-drpg-scrolls] { pointer-events: auto; }
-/* THE PANEL WITH NOTHING TO SAY (gaps-111, 13.11.2026; 1.2.105's Known gaps, E48 K4's last part). events.mjs keeps the
-   panel standing with no card, a named live region marked `data-drpg-empty` (R4931), so it must paint nothing and take
-   no room: out of the flow at no size, its paint clipped away - its frame, its ground and the glass's brush pseudo-
-   elements with it - in both themes and on a stacked screen. Its selector outweighs every rule that draws the panel
-   ((2,2,2): narrow.css's stacked column is (2,1,1), the glass's turning rule (1,2,1)), so no theme or layout gives it
-   a size back. Read in Chromium on the glass
-   harness, both themes, desk and phone: the commit's numbers. */
-html body #drpg-events#drpg-events[data-drpg-empty][data-drpg-empty] {
-    position: absolute;
-    width: 0;
-    height: 0;
-    min-height: 0;
-    max-height: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    background: none;
-    box-shadow: none;
-    outline: 0;
-    pointer-events: none;
-}
 
 .drpg-event {
     --acc: var(--drpg-gold-antique);

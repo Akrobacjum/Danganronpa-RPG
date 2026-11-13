@@ -941,7 +941,7 @@ function watchEventsBox(panel) {
     for (const card of panel.children) eventsBoxWatch.observe(card);
 }
 
-/** Build or rebuild the panel. Safe to call repeatedly; with nothing to say it stands empty (below). */
+/** Build or rebuild the panel. Safe to call repeatedly; removes itself when there is nothing to say. */
 export function renderEvents() {
     try {
         const existing = document.getElementById(WIDGET_ID);
@@ -952,13 +952,7 @@ export function renderEvents() {
            is stopped, nothing else on this panel is happening. */
         const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
             bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), cubCard()].filter(Boolean);
-        /* NOTHING TO SAY, AND STILL THERE (gaps-111, 13.11.2026; 1.2.105's Known gaps, E48 K4's last part). The panel was
-           removed with its last card and built with its first, so a card was always born in a new region - the case K4
-           keeps the panel standing for between two sets of cards (R3462). Now the panel stands whatever it holds: with
-           no card it is emptied and marked (`data-drpg-empty`), its role and its name (`DRPG.Events.regionName`) kept,
-           and the next card is written into it. The stylesheets take an empty panel out of the flow at no size and clip
-           what it would paint, so it is no box, no pane of the curtain (glass.mjs reads only a block with a width and a
-           height) and no foot of the band (settings.mjs `sheetBandFoot`). R4931; the paint read in Chromium. */
+        if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and
         // every rebuild of it is a recut of the glass around it.
@@ -977,9 +971,7 @@ export function renderEvents() {
            moved only when the rail moved; a new panel is built only where none stands. R3462. */
         const panel = existing ?? Object.assign(document.createElement("div"), { id: WIDGET_ID, className: "drpg-events" });
         panel.dataset.signature = signature;
-        panel.toggleAttribute("data-drpg-empty", !cards.length);
         panel.setAttribute("role", "status");
-        panel.setAttribute("aria-label", game.i18n.localize("DRPG.Events.regionName"));
         panel.replaceChildren(...cards.map(cardElement));
         if (rail ? panel.previousElementSibling !== rail : panel.parentElement !== host) {
             if (rail) rail.after(panel); else host.append(panel);

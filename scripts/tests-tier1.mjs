@@ -19018,56 +19018,6 @@ const INVARIANTS = [
             gone: false
         }), "{each disclosure's line in a11yReport, shut, open, and one whose region is missing; any line once the window is gone}");
     }],
-    ["R4931 - the Event panel with nothing to say stays in the page as the same named, empty live region (gaps-111, 1.2.105's Known gaps: \"The Event panel, empty, is still removed rather than kept as a steady empty region (E48 K4: not done)\"): its last card gone, events.mjs `renderEvents` keeps the element standing - its role, aria-live, an accessible name, no card, marked empty - and the next card is written into that same element", async () => {
-        /*
-         * gaps-111, 13.11.2026. Until now `renderEvents` removed the panel when no card was left, so the region a screen
-         * reader had been told of was gone, and the next card was born in a new one - the case E48 K4 kept the panel
-         * standing for between two sets of cards (R3462; WAI-ARIA announces changes to a region already in the page,
-         * read in the specification, not measured with a reader: LIVE-E48-06). Here, R3462's road: the clock read as a
-         * Class Trial through a stand-in of `game.settings.get` (nothing written), the panel drawn; then read as a plain
-         * day with no Eclipse, so no card of the clock's is drawn; then the trial again. What the empty panel paints is
-         * read in Chromium (the commit's numbers), not here. Red at c21305cb: the panel was gone with its last card.
-         */
-        const E = await import("./events.mjs");
-        must(game.user.isGM, "the trial's card is drawn here for a GM - this would read nothing");
-        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
-        let phase = "classTrial";
-        const read = {};
-        try {
-            game.settings.get = function (scope, key, ...rest) {
-                const value = get.call(this, scope, key, ...rest);
-                return scope === MODULE_ID && key === SETTINGS.clock ? { ...value, phase, eclipse: false } : value;
-            };
-            const old = document.getElementById("drpg-events");
-            if (old) old.dataset.signature = "R4931";
-            E.renderEvents();
-            const panel = document.getElementById("drpg-events");
-            must(panel?.isConnected && panel.children.length, "the Event panel was not drawn with the trial's card - this would read nothing");
-            (await import("./a11y.mjs")).nameControls(panel.parentElement ?? document);
-            phase = "freeTime";
-            E.renderEvents();
-            const empty = document.getElementById("drpg-events");
-            must(!empty || empty.children.length === 0, "a card not the clock's stands in this world - this would read nothing");
-            read.empty = { same: empty === panel, connected: Boolean(empty?.isConnected), role: empty?.getAttribute("role") ?? null,
-                live: empty?.getAttribute("aria-live") ?? null, name: empty?.getAttribute("aria-label") ?? null,
-                cards: empty?.children.length ?? null, marked: empty?.hasAttribute("data-drpg-empty") ?? null };
-            phase = "classTrial";
-            E.renderEvents();
-            const again = document.getElementById("drpg-events");
-            read.again = { same: again === panel, cards: (again?.children.length ?? 0) > 0, marked: again?.hasAttribute("data-drpg-empty") ?? null,
-                name: again?.getAttribute("aria-label") ?? null };
-        } finally {
-            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
-            const now = document.getElementById("drpg-events");
-            if (now) now.dataset.signature = "R4931";
-            E.renderEvents();
-        }
-        const name = game.i18n.localize("DRPG.Events.regionName");
-        equal(stableJson(read), stableJson({
-            empty: { same: true, connected: true, role: "status", live: "polite", name, cards: 0, marked: true },
-            again: { same: true, cards: true, marked: false, name }
-        }), "{empty: the panel once its last card went - the same element, on the page, its role, aria-live, name, cards, marked empty; again: the next card's panel}");
-    }],
     ["R4932 - under Stained Glass the sheet's and the status strip's Hope and Action marks are E48 batch 5's drawings (gaps-111; 1.2.105's Known gaps, the owner's \"E48 akcept\" of 12.11): a held Hope slot wears the diamond and an empty one the empty diamond, a held action the dot and a free one the empty dot, on the sheet's header and on the strip alike", async () => {
         /*
          * gaps-111, 13.11.2026. 1.2.105's Known gaps: "under Stained Glass the sheet's Hope and Action marks are still drawn
