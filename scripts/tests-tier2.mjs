@@ -89837,6 +89837,46 @@ const SCENARIOS = [
             lines: ["SUITE line one", "SUITE line two"] }),
             "{cards; glyph: the Facilities tile's; title: the line used, the label as typed; lines: what it did} - the room action's card");
     }],
+    ["E92+E93 - a Spectator standing in a room takes no room action's effect and is nobody's tail target (scripts/facilities-gm.mjs `targetsOf`, action-tail.mjs `tailTargets`, through movement.mjs `countsAsPresent`; E92's census, the merge of 13.11.2026): a character in the room, flagged a Spectator, is in neither \"everyone present\" nor the tail targets, and is in both once the flag is off", async () => {
+        /*
+         * The merge of main 1.2.109 into the E93 train, 13.11.2026. E92 (the owner's DRPG-D1, 12.11.2026) leaves a Spectator
+         * out of every student list (docs/dev/e92/CENSUS.md). The train's two lists, written before it, filter `occupantsOf`
+         * and `othersInRoom`, which count no Spectator present (movement.mjs `countsAsPresent`, E92 C1): a guard that the
+         * two hold together, not a red-first test - green at 522cd601, and green with a Spectator check of the lists' own
+         * (measured 13.11.2026), so nothing in them is needed. Another student's token is stood in the test character's
+         * room and flagged a Spectator for the reading; both put back after.
+         */
+        const { targetsOf } = await import("./facilities-gm.mjs");
+        const { tailTargets } = await import("./action-tail.mjs");
+        const { occupantsOf } = await import("./movement.mjs");
+        const { actor, where } = await playerInRoom();
+        // Another student's token stood on the test character's spot (the same room), and put back after.
+        const token = where.scene.tokens.find(t => t.actorId && t.actorId !== actor.id && t.actor?.type === "character"
+            && !t.actor.getFlag(MODULE_ID, FLAGS.monokuma) && !t.actor.getFlag(MODULE_ID, FLAGS.monocub));
+        must(token, "no other student has a token on the scene - this would measure nothing");
+        must(typeof targetsOf === "function", "facilities-gm.mjs exports no targetsOf - it cannot be read");
+        const other = token.actor, spot = { x: token.x, y: token.y };
+        const was = other.getFlag(MODULE_ID, FLAGS.spectator) ?? null;
+        const read = {};
+        try {
+            await token.update({ x: where.tokenDoc.x, y: where.tokenDoc.y });
+            await settle();
+            must(occupantsOf(where.room, actor, where.scene).some(a => a?.id === other.id), "the other student does not stand in the room - this would measure nothing");
+            await other.setFlag(MODULE_ID, FLAGS.spectator, true);
+            await settle();
+            read.watching = [(await targetsOf(actor, "present", where)).some(a => a.id === other.id), tailTargets(actor).some(a => a.id === other.id)];
+            await other.unsetFlag(MODULE_ID, FLAGS.spectator);
+            await settle();
+            read.student = [(await targetsOf(actor, "present", where)).some(a => a.id === other.id), tailTargets(actor).some(a => a.id === other.id)];
+        } finally {
+            if (was === null) await other.unsetFlag(MODULE_ID, FLAGS.spectator);
+            else await other.setFlag(MODULE_ID, FLAGS.spectator, was);
+            await token.update(spot);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ watching: [false, false], student: [true, true] }),
+            "{watching: [in everyone present, a tail target] while a Spectator; student: the same with the flag off} - a Spectator in no student list");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it
