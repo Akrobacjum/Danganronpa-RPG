@@ -58,7 +58,8 @@ Each commit's message holds its red and green readings and its gate.
 | Propose a project (the form) | Wyślij do GM-a / Send it to the GM | Wyślij do GM-a / Send to the GM | `DRPG.Project.proposeButton` (EN changed) |
 | Dynamic Action and every request window to a GM | Wyślij do GM-a / Send to GM | Wyślij do GM-a / Send to the GM | `DRPG.Bridge.send` (EN changed) |
 | Rest's picks (Short or Long Rest; Relief's too) | Zrób to / Do it | Odpocznij / Rest | `DRPG.Action.restNow` (new) |
-| Level Up: which kind; who picks | Zrób to / Do it | Dalej / Next | `DRPG.Action.next` |
+| Level Up (one window since E101, the r112 merge) | Zrób to / Do it | Przyznaj / Grant | `DRPG.Advance.grant` |
+| Infiltrate's rows (the r112 review's G1) | Zrób to / Do it | Rzuć / Roll on Dash, Shut the Door and Keep Watch; Dalej / Next on Listen, Tail, Force and Pick | `DRPG.Action.roll`, `DRPG.Action.next` |
 | Crisis action with a roll | Rzuć / Roll it | Rzuć / Roll | `DRPG.Murder.briefRoll` (EN changed) |
 | Move | Jasne / Got it | (window removed, item 1) | `DRPG.Action.gotIt` removed |
 

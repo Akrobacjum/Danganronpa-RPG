@@ -65,10 +65,17 @@ export function infiltrateRows(actor) {
             label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
             hint: `${plural("DRPG.Action.willCost", { n: row.cost ?? 1, left: actionsLeft(actor) })} · ${
                 game.i18n.localize(`DRPG.Infiltrate.row.${key}.hint`)}`,
-            disabled: Boolean(why), why: why ?? ""
+            disabled: Boolean(why), why: why ?? "",
+            /* One word per kind of button (E100 item 6; the r112 review's G1, the coordinator's default of 13.11.2026): a
+               row that rolls from this press says Roll, one that opens a window of its own (which says Roll) says Next.
+               With no `confirm` the window said `chooseVariant`'s fallback, Do it (R4105). */
+            confirm: game.i18n.localize(ROLLS_FROM_THE_ROW.has(key) ? "DRPG.Action.roll" : "DRPG.Action.next")
         };
     });
 }
+
+/** Infiltrate's rows that roll from the window's own press: no window of their own follows (R4105). */
+const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch"]);
 
 /**
  * Listen - fully automatic, no GM.

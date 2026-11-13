@@ -49409,7 +49409,7 @@ const INVARIANTS = [
             once: ["all", "announcements", "evidence", "forYou", "messenger", "notDone", "players"], picked: ["evidence", []], back: ["forYou", ""] }),
             "{the chips; the menu [its values, named]; the seven filters, each offered once; a menu pick [the filter, the chips pressed]; a chip pressed after [the filter, the menu's value]}");
     }],
-    ["R4105 - one word per kind of button (E100 item 6; the owner's 12.11.2026, the player-screens review's #10): a button that rolls says Roll / Rzuć (Observe, Search, Tamper, Listen, Palm, Analyze, a project's work and sabotage and the project picker; the crisis roll), one whose words go to a GM to decide says Send to the GM / Wyślij do GM-a (the Dynamic action, a project's proposal), one that only leads to the next window says Next / Dalej (Propose a project, both Level Up menus), Rest's picks say Rest / Odpocznij and an open Frisk Ask them / Poproś; Do it is left to `chooseVariant`'s fallback alone, which Rest's first window still reaches (E93 turns it into Facilities, whose rows do more than lead on: its word is E93's), and Got it is gone", async () => {
+    ["R4105 - one word per kind of button (E100 item 6; the owner's 12.11.2026, the player-screens review's #10): a button that rolls says Roll / Rzuć (Observe, Search, Tamper, Listen, Palm, Analyze, a project's work and sabotage and the project picker; the crisis roll), one whose words go to a GM to decide says Send to the GM / Wyślij do GM-a (the Dynamic action, a project's proposal), one that only leads to the next window says Next / Dalej (Propose a project, Infiltrate's rows that open their own window), Level Up's one window Grant / Przyznaj (E101, the r112 merge), Infiltrate's rows that roll from its press Roll, Rest's picks say Rest / Odpocznij and an open Frisk Ask them / Poproś; Do it is left to `chooseVariant`'s fallback alone, its callers counted by file, which Rest's first window still reaches (E93 turns it into Facilities, whose rows do more than lead on: its word is E93's), and Got it is gone", async () => {
         /*
          * E100 item 6, 12.11.2026. The review: Observe, Search and Tamper ended on "Rzut", Analyze and Projects on "Zrób to",
          * Dynamic on "Wyślij do GM-a", Move on "Jasne", Level Up on "Zrób to". Each window's button read off its opener's
@@ -49434,9 +49434,17 @@ const INVARIANTS = [
                 tamper: keysIn("action-tamper.mjs", "chooseTamper"), listen: keysIn("action-listen.mjs", "performListen"), palm: keysIn("palm.mjs", "choosePalm"),
                 analyze: keysIn("action-analyze.mjs", "askWhatToAnalyze"), project: keysIn("action-project.mjs", "performProject"),
                 picker: keysIn("action-project.mjs", "chooseProject"), rest: keysIn("action-rest.mjs", "performRest"), picks: keysIn("rest.mjs", "choosePicks"),
-                levelUp: keysIn("level-up.mjs", "openAdvancementFor"), dynamic: keysIn("call-gm.mjs", "askForRequest"), proposal: keysIn("action-project.mjs", "startProject")
+                levelUp: keysIn("level-up.mjs", "openAdvancementFor"), dynamic: keysIn("call-gm.mjs", "askForRequest"), proposal: keysIn("action-project.mjs", "startProject"),
+                // The r112 review's G1 and G3 (13.11.2026): Infiltrate's rows, and the windows e93 brought (Tail, Force, Pick).
+                infiltrate: keysIn("action-listen.mjs", "infiltrateRows"), tail: keysIn("action-tail.mjs", "performTail"),
+                force: keysIn("action-doors.mjs", "performForce"), pick: keysIn("action-doors.mjs", "performPick")
             },
-            proceed: proceedUsers
+            proceed: proceedUsers,
+            /* Every window built on `chooseVariant`, by file (the r112 review's G1): a row with no `confirm` falls back to
+               Do it inside action-menus.mjs, which the `proceed` scan above allows, so Infiltrate said Do it unseen. A new
+               caller makes this red until its opener is in `openers` with the word it says. */
+            variantCallers: [...sources].filter(([file]) => !file.startsWith("tests") && file !== "action-menus.mjs")
+                .map(([file, text]) => [file, [...stripComments(text).matchAll(/\bchooseVariant\(/g)].length]).filter(([, n]) => n > 0).sort()
         };
         equal(stableJson(read), stableJson({
             words: { roll: ["Roll", "Rzuć"], next: ["Next", "Dalej"], restNow: ["Rest", "Odpocznij"], askThem: ["Ask them", "Poproś"],
@@ -49445,9 +49453,15 @@ const INVARIANTS = [
                 analyze: ["Action.roll"], project: ["Action.next", "Action.roll"], picker: ["Action.roll"], rest: [], picks: ["Action.restNow"],
                 /* Level Up: Grant (the r112 merge, 13.11.2026, changed on purpose): E101 made its two menus one window
                    (the owner's yes to the GM screens' review, R4056), whose press grants; no menu leads to another. */
-                levelUp: ["Advance.grant"], dynamic: ["Bridge.send"], proposal: ["Project.proposeButton"] },
-            proceed: ["action-menus.mjs"]
-        }), "{the words [en, pl] of each button kind; the button keys each window's opener localizes; the module files that still name Do it}");
+                levelUp: ["Advance.grant"], dynamic: ["Bridge.send"], proposal: ["Project.proposeButton"],
+                /* Infiltrate (the r112 review's G1, the coordinator's default of 13.11.2026): Roll on a row that rolls from
+                   this press (Dash, Shut the Door, Keep Watch), Next on one that opens its own window (Listen, Tail, Force,
+                   Pick), each of which says Roll. Red at 2895e28e: no key, the fallback Do it. */
+                infiltrate: ["Action.next", "Action.roll"], tail: ["Action.roll"], force: ["Action.roll"], pick: ["Action.roll"] },
+            proceed: ["action-menus.mjs"],
+            variantCallers: [["action-analyze.mjs", 1], ["action-listen.mjs", 1], ["action-murder.mjs", 1], ["action-observe.mjs", 1],
+                ["action-project.mjs", 1], ["action-rest.mjs", 1], ["action-search.mjs", 1], ["action-tamper.mjs", 1], ["level-up.mjs", 1], ["palm.mjs", 1]]
+        }), "{the words [en, pl] of each button kind; the button keys each window's opener localizes; the module files that still name Do it; the files that call chooseVariant, and how often}");
     }],
     ["R4106 - the explainers count the character's own actions (E100 item 7; the owner's 12.11.2026, the player-screens review's #9): explain.mjs `phaseExplanation` (Daily Life's paragraph, the clock's window) and `actionsExplained` (the strip's window) put the open character's own maximum into `{actions}` - the number \"Masz 3 z 3\" beside them reads (actions.mjs `actionsMax`) - and Wounded's sentence that maximum less what a wound takes; with no character, or a Monokuma, the rule's (`baseActions`); both windows hand them the character they show (`subjectActor`)", async () => {
         /*
