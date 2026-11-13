@@ -34,7 +34,7 @@ https://claude.ai/artifact/RJ2T7YTs1PSQQSRna4oqW1
 | Sheet Call tile a GM rules (Talent, Experience, Ultimate; a Despair Call by `callAsksGm`) | sheet.mjs:5106 `callButton` | both: the drawer's plain tile, chip in flow | **changed** (layout only): corner chip |
 | Pick rows with `gmRoute`: Observe's two, Analyze's hint, Search's specific, Tamper's Reshape, a new project, a crisis row a GM approves; a Call window's rows | ui-columns.mjs:50 `choiceRowHtml`, called by action-menus.mjs:191 `chooseVariant` and call-pickers.mjs:142 | glass: GM-red indicator, the picked row brushed in light GM red; Legacy: 3 px red left edge, kept when picked | **changed**: a plain row with the chip |
 | Monocub's ability tiles | sheet.mjs:4868 `abilityButton` | no GM marker at all | left: nothing to change |
-| A Tier 0 item's Use | sheet.mjs:3833 | an icon button on an item row, not a tile; measured on the sheet stand-in it computes exactly as a plain Use in both themes (see Found, 2) | left: not a tile |
+| A Tier 0 item's Use | sheet.mjs:3833 | an icon button on an item row, not a tile; measured on the sheet stand-in it computes exactly as a plain Use in both themes | left in part 1; **changed in part 2**: the chip beside the flask |
 | Footer and window buttons on the GM's road (the kit's `gmRoute` role, `role: "gmRoute"`), the GM panel's buttons, the Students window's mini button | ui-kit.mjs, gm-students.mjs:135, the glass's `.drpg-gmp-button.drpg-gm-route` | red | left: buttons, not tiles (the coordinator's default) |
 | Rest options, a Frisk's ways | rest.mjs, palm.mjs | none is on the GM's road today (the glass's rules named them; they matched nothing) | no change |
 
@@ -77,17 +77,38 @@ test-name wording edits; after them the seven touched tests and `npm run quick` 
 action rolls what the GM approved", "E22-T3", "in a fight the tile says Crisis actions" green; scenarios 71-sheet 41/41,
 73-notice-history 32/32. No run in a real Foundry.
 
-## Found, not changed
+## Part 2 (0dbef339): the two things part 1 found
 
-1. **Legacy's cost stripes are all grey.** `body.drpg-theme-monokuma-legacy .drpg-action-button[data-drpg-cost-kind]::before`
-   (0,3,2) outranks each kind's colour `.drpg-action-button[data-drpg-cost-kind="gm"]::before` (0,2,1): free, action, gm
-   and stress all computed rgba(228, 222, 216, 0.34) in Chromium. The coloured stripes danganronpa.css describes do not
-   show. Not this stage's; for the owner.
-2. **A Tier 0 item's Use is not red.** sheet.mjs and R121 call it red; R121 reads the class, and the class paints nothing
-   on that button in the sheet (measured on the stand-in, both themes). Only its tooltip names the GM. Not checked in
-   Foundry.
+At the coordinator's word, 13.11.2026, target 1.2.113.
+
+1. **Legacy's cost stripes by kind.** Under Legacy every stripe drew `--drpg-line-strong` (Chromium: rgba(228, 222,
+   216, 0.34) for free, action, gm and stress). Until ab9957d2 (10.09.2026) the base rule
+   `.drpg-action-button[data-drpg-cost-kind]::before` (0,2,1) came before the four kinds' rules of the same weight, and
+   each kind won; ab9957d2 scoped the base to Legacy (0,3,2) and from then on it outranked them. The four rules are
+   scoped the same way now and win again: free Bone rgb(228, 222, 216), action Dim rgb(138, 130, 150), stress Blood
+   rgb(255, 61, 139) (Chromium). **The GM's kind takes the action's Dim, not the eye's red it had before ab9957d2**:
+   the owner's rule of 13.11.2026 (a GM's tile is ordinary and its chip is the red) - one line to change back if the
+   owner wants the red stripe. Under Stained Glass the pseudo-element is the tile's brush, untouched (R5433).
+2. **A Tier 0 item's Use carries the GM chip.** Its `drpg-gm-route` class painted nothing on the button. It now has
+   the chip beside the flask (sheet.mjs `addUseButton`); the button widens and otherwise keeps a plain Use's
+   background, edge and glyph colour (R5434). The sheet's own square rule (`.application.sheet.actor
+   .drpg-row-button`, 26 px, padding `!important`) outranked a plain selector, so the rule names the sheet and the
+   ends' room is the glyph's and chip's margins. Glass: the chip's line-height 1 inside this button (25 px over the
+   26 px button at 1.1; 23 px, 2 px clear each side, measured). R121 reads the chip in `addUseButton` and
+   `callButton` and its colour per theme (`look`), not the class alone.
+
+| R | What | Red at |
+| --- | --- | --- |
+| R5433 | the stripe's `::before` background per kind: Legacy Bone / Dim / Dim / Blood, glass the brush | b9dab19d: every Legacy kind `var(--drpg-line-strong)` |
+| R5434 | `addUseButton` writes the chip under `askGm`; a GM Use's background, edge and glyph a plain Use's; the chip red | b9dab19d: no chip |
+| R121 changed | the Use's chip in its source; the chip's ink red on the Call tile and the Use, both themes | b9dab19d: `use` false |
+
+Runs at 0dbef339: `npm run quick` green; tiers 0-1 1384 passed, 0 failed, 16 skipped; tier 2 by name "a Monocub's
+sheet offers no Use" green; scenario 71-sheet 41/41. Shots on the review page, section 7 (before b9dab19d). The
+registry's "Next free" reads R5435. No run in Foundry.
 
 ## Open, for the owner
 
 1. The chip in the tile's corner rather than under the cost (why: above).
 2. The window rows changed too (the picked GM row was all red); keeping red there is a separate small change.
+3. Part 2: a GM tile's Legacy stripe is the action's grey, not the red it was before 10.09.2026.
