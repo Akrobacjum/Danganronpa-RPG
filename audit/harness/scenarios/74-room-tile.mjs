@@ -1108,6 +1108,51 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     check("U2: on p1 the line goes when a countdown is drawn and comes back, once, when Daggerheart draws the tray again with none left",
         J(trayP1.out.slice(1)) === J([shownU(trayP1, 1, 0, false), shownU(trayP1, 0, "line", false)]), J(trayP1.out));
 
+    /* The tray's title where Daggerheart 2.12.8 draws none (13.11.2026; the owner's table on 1.2.112). 2.12.8's
+       countdowns-view.hbs (Foundryborne/daggerheart head e9c61d7) draws the header with the clock icon, the type toggles and
+       the header controls and no `.window-title`; the module's name for the tray, the override on
+       DAGGERHEART.UI.Countdowns.title, was then read by nothing. projects-tray.mjs `addTrayTitle` writes one inside the
+       header on every render, after the icon and after the fold caret. Each page draws that header, renders twice on the
+       same element, then draws it afresh (as the tray's re-render does) and renders once more; and once more with 2.6.5's
+       header, whose title must stay the one Daggerheart drew. Red before the fix: no title on the 2.12.8 header. */
+    const TRAYV = `const el = document.createElement("div");
+        el.id = "s74-countdowns-212";
+        document.body.append(el);
+        const draw = title => { el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i>'
+            + (title ? '<span class="window-title">' + title + '</span>' : '')
+            + '<div class="header-type-toggles"></div><div class="header-controls"><a class="header-control" data-action="toggleViewMode"></a></div></header>'
+            + '<div class="countdowns-container"></div></div>'; };
+        const read = () => { const head = el.querySelector(".countdowns-header"), titles = head.querySelectorAll(".window-title");
+            return { titles: titles.length, text: titles[0]?.textContent ?? null, lang: titles[0]?.getAttribute("lang") ?? null,
+                foldLang: head.querySelector(".drpg-projects-fold")?.getAttribute("lang") ?? null, order: [...head.children].map(c => c.matches(".drpg-projects-fold") ? "fold" : c.matches("i") ? "icon"
+                    : c.matches(".window-title") ? "title" : c.matches(".drpg-projects-gear") ? "gear" : c.className || c.tagName) }; };
+        try {
+            const out = {};
+            draw(null);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.twice = read();
+            draw(null);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.redrawn = read();
+            draw("Daggerheart's own");
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.older = read();
+            return { want: game.i18n.localize("DAGGERHEART.UI.Countdowns.title"), lang: out.twice.foldLang, out };
+        } finally { el.remove(); }`;
+    const titleP1 = await p1.eval(TRAYV, { timeout: 15000 });
+    const titleGm = await gm.eval(TRAYV, { timeout: 15000 });
+    const titled = (read, order) => J({ titles: 1, text: read.want, lang: read.lang, foldLang: read.lang, order });
+    check("U3: on Daggerheart 2.12.8's header, which draws no title, the tray is named Projects inside the header - once over two renders, again "
+        + "after the header is drawn afresh - after the fold caret and the clock icon, in the module's language; 2.6.5's own title is kept, "
+        + "and no second one added; the GM's the same with the gear after",
+    titleP1.want === "Projects" && typeof titleP1.lang === "string" && titleP1.lang.length > 0 && J(titleP1.out.twice) === titled(titleP1, ["fold", "icon", "title", "header-controls"])
+        && J(titleP1.out.redrawn) === titled(titleP1, ["fold", "icon", "title", "header-controls"])
+        && J(titleP1.out.older) === J({ titles: 1, text: "Daggerheart's own", lang: null, foldLang: titleP1.lang, order: ["fold", "icon", "title", "header-controls"] })
+        && J(titleGm.out.twice) === titled(titleGm, ["fold", "icon", "title", "header-controls", "gear"])
+        && J(titleGm.out.redrawn) === titled(titleGm, ["fold", "icon", "title", "header-controls", "gear"]),
+    J({ titleP1, titleGm }));
+
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);
         globalThis.__s74observer?.disconnect();

@@ -32,7 +32,7 @@ import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
-    labelTrayControls, markTrayMore
+    addTrayTitle, labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
@@ -55,7 +55,11 @@ export function registerProjectsUi() {
 /**
  * The tray is renamed "Projects" through i18n overrides on the system's own
  * keys, not by injecting a heading - an injected one sat outside the tray's
- * own layout and vanished on hover when the tray re-rendered.
+ * own layout and vanished on hover when the tray re-rendered. Daggerheart
+ * 2.12.8's header draws no title at all (its countdowns-view.hbs read at head
+ * e9c61d7), so where it has none `addTrayTitle` writes one inside the header,
+ * from the same overridden key, on every render: inside the header the render
+ * rebuilds, it cannot be left behind by a re-render as the old heading was.
  *
  * Three things happen here, all re-applied on every render since the tray
  * rebuilds its header each time:
@@ -98,6 +102,8 @@ function onRenderCountdowns(app, element) {
         // The minus and the plus named, and the list's foot faded while rows stand below it (E23 C3a).
         labelTrayControls(root);
 
+        // The tray's name, where Daggerheart 2.12.8's header draws none (13.11.2026; projects-tray.mjs `addTrayTitle`).
+        addTrayTitle(root);
         // Folding the tray away is everybody's, not the GM's - a player with
         // four projects on a 1080p screen wants the map back, and the tray sits
         // directly under their own status strip.
