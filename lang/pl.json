@@ -526,6 +526,13 @@
       "prompt": "Jesteś w: {room}. Który sąsiedni pokój?",
       "which": "Pokój",
       "noNeighbours": "Stąd nie ma sąsiednich pokoi.",
+      "eavesdrop": {
+        "stop": "Przestań słuchać: {room}",
+        "gmTitle": "Podsłuchują pod drzwiami",
+        "gmLine": "{name} słucha: {into}, z: {from}",
+        "noVoiceGm": "Listen dał tylko kartę: głos według pokoi jest wyłączony, więc nikt nie trafia na kanał pokoju.",
+        "started": "Słuchasz pod drzwiami: {room}. Słyszysz pokój, a nikt tam nie słyszy ciebie. Przestań słuchać jest na kaflu głosu."
+      },
       "anonymous": {
         "one": "{n} osoba w: {room}. Nie da się poznać kto.",
         "few": "{n} osoby w: {room}. Nie da się poznać kto.",
@@ -3748,6 +3755,11 @@
         }
       },
       "notBuilt": "Jeszcze niezrobione.",
+      "echoes": {
+        "notInEclipse": "Nie w czasie Eclipse.",
+        "found": "Echoes: ktoś jest w: {room}.",
+        "nobody": "Echoes: nikogo nie słychać."
+      },
       "dashResult": {"one": "Dash: {n} darmowe przejście do końca pory dnia.", "few": "Dash: {n} darmowe przejścia do końca pory dnia.", "many": "Dash: {n} darmowych przejść do końca pory dnia.", "other": "Dash: {n} darmowego przejścia do końca pory dnia."},
       "row": {
         "listen": {
@@ -3777,6 +3789,10 @@
         "dash": {
           "label": "Dash",
           "hint": "Leg: darmowe przejścia na szybki bieg."
+        },
+        "echoes": {
+          "label": "Echoes",
+          "hint": "Bez rzutu: najbliższy pokój, w którym jest uczeń innego gracza."
         }
       }
     },
@@ -4702,6 +4718,9 @@
         "facility.use": "Akcja w pokoju",
         "dash.settle": "Dash",
         "tail.start": "Tail Someone",
+        "listen.eavesdrop": "Listen pod drzwiami",
+        "listen.stop": "Przestań słuchać",
+        "listen.echoes": "Echoes",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
@@ -5876,6 +5895,7 @@
         "connecting": "Trwa dołączanie do kanału głosowego.",
         "connected": "Połączono z kanałem głosowym.",
         "deadMuted": "Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.",
+        "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
@@ -7028,7 +7048,7 @@
         },
         "listen": {
           "label": "Infiltrate",
-          "hint": "Listen przy ścianie, Tail Someone, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Keep Watch. Każde kosztuje akcję.",
+          "hint": "Listen przy ścianie, Echoes, Tail Someone, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Keep Watch. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "thresholds": {
             "0": {

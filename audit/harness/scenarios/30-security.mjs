@@ -6914,6 +6914,23 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && dash.theirs.forOwnership && dash.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(dash).slice(0, 2000), { flow: "dash" });
 
+    /* A CONSOLE'S EAVESDROP AND ECHOES (E69 C6, C7, 13.11.2026). From p1's console: `listen.eavesdrop` for Botan's
+       character, and for Aiko with no roll named and no eavesdrop of this time of day to repeat; `listen.stop` for Botan's;
+       `listen.echoes` for Botan's - each refused, no eavesdrop kept on the GM. The legal roads are 33's E69-C. */
+    phase("a console's eavesdrop and Echoes", { flow: "eavesdrop" });
+    const readEars = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.eavesdropStore.entries() ?? {}).sort() : [];`;
+    const ears = {
+        theirs: await forge("listen.eavesdrop", { actorId: ids.botan, room: "Gym", total: 30, isCritical: true }, readEars),
+        noRoll: await forge("listen.eavesdrop", { actorId: ids.aiko, room: "Gym", total: 30, isCritical: true }, readEars),
+        stopTheirs: await forge("listen.stop", { actorId: ids.botan }, readEars),
+        echoesTheirs: await forge("listen.echoes", { actorId: ids.botan }, readEars)
+    };
+    check("SECURITY: a console's eavesdrop is refused for another's character and with no roll and nothing to repeat, its Stop and its Echoes for another's character - no eavesdrop kept - and each refusal is logged on the GM and told to p1",
+        Object.values(ears).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && ears.theirs.forOwnership && ears.stopTheirs.forOwnership && ears.echoesTheirs.forOwnership
+            && /nothing was carried out: |not standing in any room/.test(ears.noRoll.reasons[0] ?? "") && !ears.noRoll.forOwnership,
+        JSON.stringify(ears).slice(0, 2000), { flow: "eavesdrop" });
+
     /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
        tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */
     phase("forgeries of a tail", { flow: "tail" });

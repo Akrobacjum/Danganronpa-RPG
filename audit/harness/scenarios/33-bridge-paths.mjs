@@ -1950,6 +1950,57 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && e69b.p1?.actions === 2 && JSON.stringify(e69b.row?.slice(0, 2)) === JSON.stringify([IDS.botan, true]) && e69b.logged.length === 0,
         JSON.stringify(e69b), { flow: "tail" });
 
+    /* E69-C. ECHOES, STOP LISTENING AND A FREE REPEAT FROM p1'S OWN PAGE (E69 C6, C7, 13.11.2026). The legal controls of
+       `listen.echoes`, `listen.stop` and `listen.eavesdrop`: p1 hears Echoes as the Infiltrate window does (action-listen.mjs
+       `performEchoes`: an action paid, the room read on the GM); the GM begins an eavesdrop of Aiko's on a room next to
+       hers with voice that moves (the harness's avclient-livekit is a shim; eavesdrop-gm.mjs `startEavesdrop`'s `voice`),
+       p1's copy shows it, p1 presses Stop listening, and asks the same room again with no roll - a free repeat of this
+       time of day. Read: each answer, Aiko's actions, the copy, the row, and the GM's log of refusals (none). Put back:
+       Aiko's actions, the row, p1's microphone. The rolled road is tier 2's E69-T5. */
+    phase("Echoes and an eavesdrop", { flow: "eavesdrop" });
+    const e69c = { before: await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const was = { actions: a.system.resources.actions.value, perms: foundry.utils.deepClone(game.users.get("${IDS.p1}")._source.permissions ?? {}) };
+        await trustedWrite(a, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        return was;`, { timeout: 30000 }) };
+    await settle(500);
+    await clearFailures(gm);
+    e69c.echoes = await p1.eval(`const L = await import("${repoUrl}/scripts/action-listen.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const out = await L.performEchoes(aiko);
+        await new Promise(r => setTimeout(r, 400));
+        return { answered: out !== null, room: out?.room ?? null, actions: aiko.system.resources.actions.value };`, { timeout: 60000 });
+    e69c.begun = await gm.eval(`const E = await import("${repoUrl}/scripts/eavesdrop-gm.mjs"); const M = await import("${repoUrl}/scripts/movement.mjs");
+        const a = game.actors.get("${IDS.aiko}"); const place = M.locateActor(a);
+        const into = M.neighbouringRooms(place.scene, place.room)[0] ?? null;
+        const out = into ? await E.startEavesdrop({ actor: a, into, userId: "${IDS.p1}", rolled: true, voice: async () => true }) : null;
+        return { into, out };`, { timeout: 30000 });
+    await settle(800);
+    e69c.copy = await p1.eval(`const E = await import("${repoUrl}/scripts/eavesdrop-gm.mjs"); return E.myEavesdrop()?.into ?? null;`);
+    e69c.stop = await p1.eval(`const B = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const res = await B.requestEavesdropStop({ actorId: "${IDS.aiko}" }); return res.ok;`, { timeout: 30000 });
+    await settle(500);
+    e69c.free = await p1.eval(`const B = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const res = await B.requestEavesdrop({ actorId: "${IDS.aiko}", room: ${JSON.stringify(e69c.begun?.into ?? "")} });
+        return res.ok ? res.value ?? null : null;`, { timeout: 30000 });
+    e69c.logged = [...await refusalsLogged(gm, "listen.echoes"), ...await refusalsLogged(gm, "listen.stop"), ...await refusalsLogged(gm, "listen.eavesdrop")];
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const V = await import("${repoUrl}/scripts/voice.mjs");
+        if (S.eavesdropStore.get("${IDS.aiko}")) await S.eavesdropStore.drop("${IDS.aiko}");
+        await V.settleTrialVoices();
+        const was = ${JSON.stringify(e69c.before ?? {})};
+        const user = game.users.get("${IDS.p1}");
+        if ((user._source.permissions ?? {}).BROADCAST_AUDIO === false && was.perms?.BROADCAST_AUDIO !== false) {
+            const gone = (await import("${repoUrl}/scripts/utils.mjs")).forcedDeletion();
+            await user.update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(was.perms ?? {}, "BROADCAST_AUDIO") ? was.perms.BROADCAST_AUDIO : gone });
+        }
+        await trustedWrite(a, { "system.resources.actions.value": was.actions ?? 3 }, { reason: "gmRuling" });
+        return true;`, { timeout: 30000 });
+    await settle(500);
+    check("E69-C: p1's Echoes is paid with one action and answered by the GM; the GM's eavesdrop of Aiko reaches p1's copy, p1's Stop listening ends it, and the same room asked again with no roll is a free repeat - none refused",
+        e69c.echoes?.answered === true && e69c.echoes?.actions === 2 && e69c.begun?.out?.moved === true && e69c.copy === e69c.begun?.into
+            && e69c.stop === true && e69c.free?.free === true && e69c.logged.length === 0,
+        JSON.stringify(e69c), { flow: "eavesdrop" });
+
     /* E74-A. SHUT THE DOOR FROM p1'S OWN PAGE (E74 C2, 12.11.2026). The legal control of `door.shut`: p1 barricades Aiko's
        room as the Infiltrate window does (action-doors.mjs `performShut`): an action paid, a Body roll the GM draws, the
        barricade kept by the GM with that roll's total and the public flag set on the room. Read: the answer, Aiko's

@@ -1727,9 +1727,9 @@ export const ACTIONS = {
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
-        hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
-            + "Keep Watch. Each costs an action.",
+        variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        hint: "Listen at a wall, hear Echoes, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick "
+            + "the Lock or Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -2172,6 +2172,9 @@ export const REST = {
  * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
  *
  *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
+ *           A good roll is also an eavesdrop on that room's voice (E69 C6, eavesdrop-gm.mjs).
+ *   echoes  Echoes (E69 C7): no roll; the nearest room by crossings with a living student of another player, read on
+ *           the GM (echoes-gm.mjs); struck through in an Eclipse (Q-E69-3's default).
  *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (`traits`: the player proposes one on
  *           E68's card and a GM picks, trait-ruling.mjs `definitionOf`'s generic `tail`, as R213 holds every list of
  *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
@@ -2184,6 +2187,8 @@ export const REST = {
  */
 export const INFILTRATE = Object.freeze({
     listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
+    // Echoes (E69 C7; the owner's 10.11 (b)): one action, no roll - the nearest room with a living student of another player.
+    echoes: Object.freeze({ traits: Object.freeze([]), cost: 1 }),
     tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
         unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
     dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,

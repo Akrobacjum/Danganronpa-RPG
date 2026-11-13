@@ -50,7 +50,7 @@ import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs
 import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
-import { deathStore, trialMuteStore } from "./gm-stores.mjs";
+import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -865,7 +865,10 @@ export async function voiceTargets() {
     // dry run's `voicePlan` and at every change of primary), so a GM who becomes the primary starts with nothing kept.
     standDownRoomsKept();
     const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
+    // Listen's eavesdrops that stand (E69 C6; eavesdrop-gm.mjs, which ends on the primary the ones that do not).
+    const listens = eclipse || trial ? new Map() : await (await import("./eavesdrop-gm.mjs")).listensInForce();
     const { rows, byUser, claims, waits, held } = await placeVoices({
+        listens,
         actors: game.actors.filter(a => a.type === "character" && !watchesForTheDead(a)), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
         locate: gaps.locate,
@@ -940,7 +943,8 @@ export function contestedOf(claims) {
  *   held: Set<string>}>}  `held`: the players' accounts sent nothing while the cast is unknown (a kept account's room)
  */
 export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null,
-    userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma, users = [] } = {}) {
+    userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma, users = [],
+    listens = new Map() } = {}) {
     // Nobody's death is asked in an Eclipse or the trial (`voiceClaim`; R117), so nor are the facts of one.
     const asked = !eclipse && !trial;
     const facts = asked ? death ?? await deathFacts() : null;
@@ -1002,6 +1006,12 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
             why: "a Spectator, talking with the Spectators" });
     }
 
+    // LISTEN'S EAVESDROP (E69 C6; eavesdrop-gm.mjs): one more rule over the account's row, after the Spectators' room.
+    for (const [userId, row] of byUser) {
+        const heard = listeningRow(row, listens);
+        if (heard !== row) byUser.set(userId, heard);
+    }
+
     const waits = new Map();
     const held = new Set();
     if (!asked) return { rows, byUser, claims, waits, held };
@@ -1018,7 +1028,8 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
     }
     const cast = facts?.cast ?? new Set();
     // Never a Spectator (E92 C2): it watches, and is nobody's witness.
-    const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma
+    // Nor a listener at a door (E69 C6): they hear the room and are not in it.
+    const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma && !row.listening
         && !isSpectator(row.actor) && !dead(row.actor) && !cast.has(row.actor.id));
     for (const [index, row] of rows.entries()) {
         if (!row.fallen || row.gone !== false || !row.target || !row.user?.active) continue;
@@ -1034,6 +1045,40 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         for (const [userId] of near) waits.set(userId, [...new Set([...(waits.get(userId) ?? []), row.user.id])]);
     }
     return { rows, byUser, claims, waits, held };
+}
+
+/**
+ * LISTEN'S EAVESDROP, THE RULE (E69 C6, 13.11.2026; the owner's 10.11 (a); eavesdrop-gm.mjs holds the rows). An account's
+ * row whose character listens at a door (`listens`: actor id -> `{ sceneId, from, into }`, `listensInForce`) and stands
+ * in a room of its own in the room it listens from is sent into the voice channel of the room it listens at, marked
+ * `listening`; its microphone is the trial's block's (`settleTrialVoices`). Any other row - no eavesdrop, another
+ * room, another scene, no room (a doorway's gap the pass did not keep), a Spectator's room, the dead channel - is
+ * answered as it came: the primary's sweep ends an eavesdrop whose listener has left (`eavesdropEnd`). Pure (R6020).
+ */
+export function listeningRow(row, listens = new Map()) {
+    const listen = row?.actor ? listens.get(row.actor.id) : null;
+    if (!listen || row.claim !== CLAIM.inRoom || row.target === SPECTATOR_ROOM) return row;
+    if ((row.scene?.id ?? null) !== listen.sceneId || row.room !== listen.from) return row;
+    return { ...row, target: liveKitRoomFor(listen.sceneId, listen.into), listening: { from: listen.from, into: listen.into },
+        kept: false, why: `listening at the door of ${listen.into}, from ${listen.from}` };
+}
+
+/**
+ * The LiveKit room this browser's own character listens into, from the owner's copy (E69 C6), or null: `micHold`'s
+ * "listening" is asked of the room the primary sent this browser, so a stale copy holds nothing.
+ */
+/** On a GM: the accounts whose character listens at a door now, from the GMs' rows (E69 C6). */
+function listeningIds() {
+    if (!game.user?.isGM) return new Set();
+    return new Set(Object.values(eavesdropStore.entries() ?? {}).filter(row => row?.active && row.userId).map(row => row.userId));
+}
+
+function ownListenRoom(user = game.user) {
+    if (!user || user.id !== game.user?.id || user.isGM) return null;
+    for (const [actorId, row] of Object.entries(eavesdropCopy.read() ?? {})) {
+        if (row?.active && game.actors?.get(actorId)?.isOwner) return liveKitRoomFor(row.sceneId, row.into);
+    }
+    return null;
 }
 
 /**
@@ -1169,7 +1214,7 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  * and not external, and a renamed Room or `state` as offline.
  */
 export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
-    canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts() } = {}) {
+    canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts(), listening = ownListenRoom(user) } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
     // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
@@ -1189,6 +1234,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // `listed`), as vote.mjs `trialParticipants` seats it: the lowest id alone muted a living voter as dead.
     const speaker = inTrial ? accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null : null;
     if (speaker && isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
+    // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
+    // browser in the room it listens into.
+    if (listening && room === listening) return { reason: "listening", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
@@ -1213,8 +1261,10 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
  * nobody is located at all. The facts can be handed in, as `micHold`'s.
  */
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
-    dead = isDeadForGm } = {}) {
+    dead = isDeadForGm, listening = listeningIds() } = {}) {
     if (!game.user?.isGM || !user) return null;
+    // Listening at a door (E69 C6): the eavesdrop's block, which the GM's own is not offered over.
+    if (listening.has(user.id)) return { reason: "listening", held: true };
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
     const actor = row?.actor;
     // A Spectator's block is the module's (E92 C2, `settleTrialVoices`): the GM's own block is not offered over it -
@@ -1499,6 +1549,9 @@ async function restoreTrialBlock(user, row) {
  */
 export async function settleTrialVoices({ release = false } = {}) {
     if (!game.user?.isGM || !isPrimaryGm()) return null;
+    // Listen's eavesdrop blocks by the same write (E69 C6, eavesdrop-gm.mjs): a listener's account, and for a moment after.
+    const eavesdrop = await import("./eavesdrop-gm.mjs");
+    await eavesdropStore.whenHydrated();
     if (await deathStore.whenHydrated() === "timedOut") warn("The trial's dead are listed from the deaths this GM holds: the other GMs' have not arrived.");
     await trialMuteStore.whenHydrated();
     const vote = await import("./vote.mjs");
@@ -1538,7 +1591,8 @@ export async function settleTrialVoices({ release = false } = {}) {
             // trial's exit and a role given back put back exactly what the block found; `release` gives it back too.
             // While it talks in the Spectators' room the block is lifted (E92 C6), and written again when it leaves.
             const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
-            if (watching || (voice && listed.has(voice.id))) {
+            const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
+            if (watching || listening || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }
@@ -1573,8 +1627,8 @@ function trialVoicesPending() {
     return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0
         || Boolean(game.actors?.some?.(actor => isSpectator(actor) && !watchesForTheDead(actor)));
 }
-function scheduleTrialVoices() {
-    if (!isPrimaryGm() || !trialVoicesPending()) return;
+function scheduleTrialVoices({ force = false } = {}) {
+    if (!isPrimaryGm() || (!force && !trialVoicesPending())) return;
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
         settleTimer = null;
@@ -1591,6 +1645,8 @@ export function registerTrialVoices() {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) scheduleTrialVoices();
     });
     Hooks.on("drpgPrimaryReady", () => scheduleTrialVoices());
+    // Listen's eavesdrop (E69 C6): its block written and lifted by the same settle, whatever else is pending.
+    Hooks.on("drpgEavesdropChanged", () => scheduleTrialVoices({ force: true }));
     // The Spectator's switch (E92 C6): its block lifted in the Spectators' room, written again when it leaves.
     Hooks.on("updateUser", (_user, changes) => { if (changes?.flags?.[MODULE_ID]) scheduleTrialVoices(); });
     Hooks.once("ready", () => {

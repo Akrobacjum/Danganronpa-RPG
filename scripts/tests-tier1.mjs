@@ -55517,7 +55517,8 @@ const INVARIANTS = [
         const C = await import("./config.mjs");
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const plRow = pl?.DRPG?.Config?.ACTIONS?.listen ?? {};
-        const seven = ["Listen", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch"];
+        // E69 C7 (13.11.2026) adds Echoes, an intended change of this expectation.
+        const seven = ["Listen", "Echoes", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch"];
         const I = C.INFILTRATE ?? {};
         const read = {
             key: Object.hasOwn(C.ACTIONS, "listen"),
@@ -55530,9 +55531,9 @@ const INVARIANTS = [
             dash: I.dash ? [I.dash.traits, I.dash.bands?.map(b => [b.min, b.moves]), I.dash.critical?.moves] : null,
             inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
         };
-        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"],
             // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
-            rows: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
+            rows: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 2], [18, 3]], 4], inAggregate: true }),
             "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
     }],
     ["R3756 - the Infiltrate window is one list of rows, Listen first and shut with its reason where the room has no neighbour (scripts/action-listen.mjs `infiltrateRows`, `performListen`; E69 C1, DA28): one row a key of `ACTIONS.listen.variants` in its order, each with its price; Listen open where the character's room has a neighbour and greyed with the no-neighbour line where it has none; a row not built greyed with its line; and `performListen` asks the rows before Listen's own room", async () => {
@@ -55558,8 +55559,173 @@ const INVARIANTS = [
             asksFirst: src.indexOf("infiltrateRows(actor)") > 0 && src.indexOf("infiltrateRows(actor)") < src.indexOf("neighbouringRooms(scene, here)") }),
             stableJson({ rows: [...new Set(rows.map(r => stableJson([C.ACTIONS.listen.variants.join(), true, true, true])))].map(JSON.parse),
                 // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
-                variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"], asksFirst: true }),
+                // E69 C7 (13.11.2026) adds Echoes, second (an intended change).
+                variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"], asksFirst: true }),
             "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
+    }],
+    ["R6020 - Listen's eavesdrop is one more rule of the voice decision (scripts/voice.mjs `listeningRow`, `placeVoices`' `listens`; E69 C6, the owner's 10.11 (a)): an account whose character stands in the room it listens from is sent into the voice channel of the room it listens at, marked listening; one in another room, in no room or with no eavesdrop is placed as before; with no eavesdrop handed in nobody moves", async () => {
+        /*
+         * E69 C6, 13.11.2026. Plain objects, nothing written and nothing sent, as R815 asks `placeVoices`. Red at ceb9e9c8:
+         * no `listeningRow`, and `placeVoices` read no `listens`.
+         */
+        const V = await import("./voice.mjs");
+        ok(typeof V.listeningRow === "function", "voice.mjs has no listeningRow: an eavesdrop moves nobody's voice");
+        if (typeof V.listeningRow !== "function") return;
+        const school = { id: "R6020SCHOOL00000", name: "R6020 School" };
+        const account = id => ({ id, name: id, active: true, isGM: false });
+        const actor = id => ({ id, name: id, type: "character", getFlag: () => undefined });
+        const A = { ear: actor("R6020AEAR0000000"), hall: actor("R6020AHALL000000"), gap: actor("R6020AGAP0000000"), away: actor("R6020AAWAY000000") };
+        const U = Object.fromEntries(Object.keys(A).map(k => [k, account(`R6020U${k.toUpperCase().padEnd(10, "0")}`)]));
+        const stands = { ear: "Kitchen", hall: "Hall", gap: null, away: "Dorm" };
+        const listen = { sceneId: school.id, from: "Kitchen", into: "Hall" };
+        const label = target => (target === null ? "main" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        const place = async listens => {
+            const placed = await V.placeVoices({
+                actors: Object.values(A), eclipse: false, trial: false,
+                death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                locate: a => { const k = Object.keys(A).find(n => A[n].id === a.id); return stands[k] ? { scene: school, room: stands[k] } : null; },
+                userOf: a => U[Object.keys(A).find(n => A[n].id === a.id)], dead: () => false, monokumaOf: () => false, listens
+            });
+            return Object.fromEntries(Object.keys(A).map(k => { const row = placed.byUser.get(U[k].id); return [k, [label(row?.target ?? null), Boolean(row?.listening)]]; }));
+        };
+        const read = {
+            listening: await place(new Map([[A.ear.id, listen], [A.gap.id, listen], [A.away.id, listen]])),
+            none: await place(new Map())
+        };
+        equal(stableJson(read), stableJson({
+            listening: { ear: ["Hall", true], hall: ["Hall", false], gap: ["main", false], away: ["Dorm", false] },
+            none: { ear: ["Kitchen", false], hall: ["Hall", false], gap: ["main", false], away: ["Dorm", false] }
+        }), "{listening | none: per account [the room it is sent, marked listening]} - the eavesdrop's rule");
+    }],
+    ["R6021 - an eavesdrop ends on leaving the room, not on a step inside it, and a repeat on the same room is free for the rest of the time of day (scripts/eavesdrop-gm.mjs `eavesdropEnd`, `freeRepeat`; E69 C6, the owner's 10.11 (c)): it stands in its room and in a doorway's gap; it ends standing in another room, on another scene, with no token, at a new time of day, in an Eclipse, a Class Trial, an incident, at the listener's death and once stopped; a repeat is free on the same room and scene in the same time of day and on nothing else", async () => {
+        /* E69 C6, 13.11.2026. Pure readings. Red at ceb9e9c8: no eavesdrop-gm.mjs. */
+        let E = null;
+        try { E = await import("./eavesdrop-gm.mjs"); } catch { E = null; }
+        ok(typeof E?.eavesdropEnd === "function" && typeof E?.freeRepeat === "function", "eavesdrop-gm.mjs has no eavesdropEnd or freeRepeat");
+        if (typeof E?.eavesdropEnd !== "function") return;
+        const row = { active: true, sceneId: "S1", from: "Kitchen", into: "Hall", mark: "1:2:morning" };
+        const at = (place, more = {}) => E.eavesdropEnd(row, { mark: "1:2:morning", place, ...more });
+        const read = {
+            stands: [at({ sceneId: "S1", room: "Kitchen" }), at({ sceneId: "S1", room: null })],
+            ends: [at({ sceneId: "S1", room: "Dorm" }), at({ sceneId: "S2", room: "Kitchen" }), at(null),
+                E.eavesdropEnd(row, { mark: "1:2:noon", place: { sceneId: "S1", room: "Kitchen" } }),
+                at({ sceneId: "S1", room: "Kitchen" }, { eclipse: true }), at({ sceneId: "S1", room: "Kitchen" }, { trial: true }),
+                at({ sceneId: "S1", room: "Kitchen" }, { incident: true }), at({ sceneId: "S1", room: "Kitchen" }, { dead: true }),
+                E.eavesdropEnd({ ...row, active: false }, { mark: "1:2:morning", place: { sceneId: "S1", room: "Kitchen" } })],
+            free: [E.freeRepeat(row, { mark: "1:2:morning", sceneId: "S1", into: "Hall" }), E.freeRepeat(row, { mark: "1:2:noon", sceneId: "S1", into: "Hall" }),
+                E.freeRepeat(row, { mark: "1:2:morning", sceneId: "S1", into: "Dorm" }), E.freeRepeat(row, { mark: "1:2:morning", sceneId: "S2", into: "Hall" }),
+                E.freeRepeat(null, { mark: "1:2:morning", sceneId: "S1", into: "Hall" })]
+        };
+        equal(stableJson(read), stableJson({ stands: [null, null],
+            ends: ["left", "left", "gone", "timeOfDay", "eclipse", "trial", "incident", "death", "off"], free: [true, false, false, false, false] }),
+            "{stands: in its room, in a gap; ends: another room, another scene, no token, a new time of day, Eclipse, trial, incident, death, stopped; free: same room and time of day, another time of day, another room, another scene, no row}");
+    }],
+    ["R6022 - a listener's microphone is the module's while they listen (scripts/voice.mjs `micHold`, `moduleHoldsMic`, `settleTrialVoices`; voice-tile.mjs `micState`; E69 C6): `micHold` holds it, reason listening, while this browser is in the room it listens into, and names a GM's block elsewhere; a GM's `moduleHoldsMic` holds a listening account so the GM's own block is not offered over it; the tile draws it held; the trial's settle blocks a listener's account (`eavesdropMutedIds`); the reason has its words in English and Polish", async () => {
+        /* E69 C6, 13.11.2026. Plain facts and source; nothing written. Red at ceb9e9c8: no "listening" anywhere. */
+        needs(env.primaryGm(), "a GM's `moduleHoldsMic` answers on a GM's browser alone");
+        const V = await import("./voice.mjs");
+        const T = await import("./voice-tile.mjs");
+        const user = { id: "R6022USER0000000", name: "R6022", isGM: false, active: true };
+        const room = V.liveKitRoomFor("R6022SCENE000000", "Hall");
+        const hold = (here, listening) => V.micHold({ user, room: here, external: false, connected: true, canBroadcastAudio: false, actors: [], trial: null, listening });
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText), "settleTrialVoices") ?? "");
+        const read = {
+            hold: [hold(room, room)?.reason ?? null, hold(room, room)?.held ?? null, hold("drpg-elsewhere", room)?.reason ?? null, hold(room, null)?.reason ?? null],
+            gm: [V.moduleHoldsMic(user, { actors: [], eclipse: false, trial: false, dead: () => false, listening: new Set([user.id]) })?.reason ?? null,
+                V.moduleHoldsMic(user, { actors: [], eclipse: false, trial: false, dead: () => false, listening: new Set() })?.reason ?? null],
+            tile: T.micState({ hold: { reason: "listening", held: true } }).state,
+            settle: src.includes("eavesdropMutedIds()"),
+            words: [game.i18n.has("DRPG.Voice.held.listening"), typeof pl?.DRPG?.Voice?.held?.listening === "string"]
+        };
+        equal(stableJson(read), stableJson({ hold: ["listening", true, "gmBlock", "gmBlock"], gm: ["listening", null], tile: "held", settle: true, words: [true, true] }),
+            "{hold: [in the room listened into: reason, held; another room; no eavesdrop]; gm: [listening, not]; tile; settle blocks a listener; words [EN, PL]}");
+    }],
+    ["R6023 - Echoes finds the nearest room by crossings that holds a living student of another player (scripts/echoes-gm.mjs `nearestEchoRoom`, `echoCounts`; E69 C7, the owner's 10.11 (b)): the fewest crossings win, the asker's own room is no answer, a tie is broken by the random number handed in, nothing reachable answers null; a body, Monokuma, a Monocub, a Spectator, a hidden token, a GM's character and a character of the asker's own player do not count", async () => {
+        /* E69 C7, 13.11.2026. Pure readings. Red at ceb9e9c8: no echoes-gm.mjs. */
+        let E = null;
+        try { E = await import("./echoes-gm.mjs"); } catch { E = null; }
+        ok(typeof E?.nearestEchoRoom === "function" && typeof E?.echoCounts === "function", "echoes-gm.mjs has no nearestEchoRoom or echoCounts");
+        if (typeof E?.nearestEchoRoom !== "function") return;
+        // A - B - C - D, and A - E - C: B and E one crossing from A, C two, D three.
+        const map = { A: ["B", "E"], B: ["A", "C"], E: ["A", "C"], C: ["B", "E", "D"], D: ["C"], X: [] };
+        const near = (occupied, random = () => 0) => E.nearestEchoRoom({ start: "A", edges: r => map[r] ?? [], occupied: new Set(occupied), random });
+        const actor = (flags = {}, type = "character") => ({ type, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const read = {
+            near: [near(["D", "C"]), near(["A"]), near(["X"]), near(["B", "E"], () => 0).room, near(["B", "E"], () => 0.99).room, near(["A", "D"])],
+            counts: [E.echoCounts(actor(), ["P1"], { owners: ["P2"] }), E.echoCounts(actor(), ["P1"], { owners: ["P2"], dead: true }),
+                E.echoCounts(actor({ [FLAGS.monokuma]: true }), ["P1"], { owners: ["P2"] }), E.echoCounts(actor({ [FLAGS.monocub]: true }), ["P1"], { owners: ["P2"] }),
+                E.echoCounts(actor({ [FLAGS.spectator]: true }), ["P1"], { owners: ["P2"] }), E.echoCounts(actor(), ["P1"], { owners: ["P2"], hidden: true }),
+                E.echoCounts(actor(), ["P1"], { owners: [] }), E.echoCounts(actor(), ["P1"], { owners: ["P1"] }), E.echoCounts(actor({}, "npc"), ["P1"], { owners: ["P2"] })]
+        };
+        equal(stableJson(read), stableJson({
+            near: [{ room: "C", steps: 2 }, null, null, "B", "E", { room: "D", steps: 3 }],
+            counts: [true, false, false, false, false, false, false, false, false]
+        }), "{near: [C before D, own room, unreachable, a tie at 0, a tie at 0.99, own room and D]; counts: [a student of another player, dead, Monokuma, Monocub, Spectator, hidden, a GM's, the asker's own player's, not a character]}");
+    }],
+    ["R6024 - Echoes is a row of the Infiltrate tile: one action, no roll, struck through with its reason in an Eclipse (scripts/config.mjs `INFILTRATE.echoes`, action-listen.mjs `infiltrateRows`, `echoesShutWhy`; E69 C7, Q-E69-3's default): its table row costs 1 and names no statistic, it comes second in `ACTIONS.listen.variants`, the window's row has a price, its words exist in English and Polish, and its reason in an Eclipse is the Eclipse's line and none outside one", async () => {
+        /* E69 C7, 13.11.2026. Read off the config, the window's rows and the language files; nothing written. Red at ceb9e9c8. */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        const C = await import("./config.mjs");
+        const L = await import("./action-listen.mjs");
+        const M = await import("./movement.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const student = game.actors.find(a => a.type === "character" && M.locateActor(a)?.room);
+        must(student, "no student stands in a named room - this would measure nothing");
+        const row = L.infiltrateRows(student).find(r => r.value === "echoes") ?? null;
+        const read = {
+            table: C.INFILTRATE.echoes ? [C.INFILTRATE.echoes.cost, C.INFILTRATE.echoes.traits?.length ?? null] : null,
+            second: C.ACTIONS.listen.variants?.[1] ?? null,
+            row: row ? [row.label, /\d/.test(row.hint)] : null,
+            words: ["label", "hint"].map(k => [game.i18n.has(`DRPG.Infiltrate.row.echoes.${k}`), typeof pl?.DRPG?.Infiltrate?.row?.echoes?.[k] === "string"]),
+            shut: typeof L.echoesShutWhy === "function" ? [L.echoesShutWhy({ eclipse: true }), L.echoesShutWhy({ eclipse: false })] : null
+        };
+        equal(stableJson(read), stableJson({ table: [1, 0], second: "echoes", row: ["Echoes", true], words: [[true, true], [true, true]],
+            shut: [game.i18n.localize("DRPG.Infiltrate.echoes.notInEclipse"), null] }),
+            "{table [cost, statistics]; second in variants; row [label, a price]; words [label, hint] x [EN, PL]; shut [in an Eclipse, outside one]} - Echoes' row");
+    }],
+    ["R6025 - the voice tile's Stop listening and a GM's eavesdroppers (scripts/voice-tile.mjs `paintStopListening`, `paintEavesdroppers`; E69 C6, the owner's 10.11 (a) and (d)): the button stands on a tile while its viewer listens, named for the room, and goes when they stop; a press asks to stop the eavesdrop it was drawn for; a GM's list holds one line per eavesdrop under way, a player's none", async () => {
+        /* E69 C6, 13.11.2026. A detached tile and list of the test's own; nothing written, nothing sent. Red at ceb9e9c8. */
+        const T = await import("./voice-tile.mjs");
+        ok(typeof T.paintStopListening === "function" && typeof T.paintEavesdroppers === "function", "voice-tile.mjs has no paintStopListening or paintEavesdroppers");
+        if (typeof T.paintStopListening !== "function") return;
+        const tile = document.createElement("div");
+        const controls = document.createElement("div");
+        controls.className = "drpg-voice-tile-controls";
+        tile.append(controls);
+        const pressed = [];
+        const listening = { actorId: "R6025ACTOR000000", into: "Hall" };
+        const drawn = T.paintStopListening(tile, { listening, onStop: l => pressed.push(l.actorId) });
+        drawn?.click();
+        await new Promise(r => setTimeout(r, 0));
+        const label = drawn?.getAttribute("aria-label") ?? null;
+        T.paintStopListening(tile, { listening: null });
+        const list = document.createElement("div");
+        const rows = document.createElement("div");
+        rows.className = "drpg-voice-list-rows";
+        list.append(rows);
+        const lines = [{ actorId: "a", name: "Aiko", from: "Kitchen", into: "Hall" }, { actorId: "b", name: "Botan", from: "Dorm", into: "Gym" }];
+        const read = {
+            button: [Boolean(drawn), label === game.i18n.format("DRPG.Listen.eavesdrop.stop", { room: "Hall" }), pressed, controls.querySelectorAll(".drpg-voice-stop-listening").length],
+            gm: [T.paintEavesdroppers(list, { gm: true, rows: lines }), list.querySelectorAll(".drpg-voice-listening-mark").length,
+                list.querySelector(".drpg-voice-listening-mark")?.textContent === game.i18n.format("DRPG.Listen.eavesdrop.gmLine", lines[0])],
+            player: [T.paintEavesdroppers(list, { gm: false, rows: lines }), list.querySelectorAll(".drpg-voice-listening-mark").length]
+        };
+        equal(stableJson(read), stableJson({ button: [true, true, ["R6025ACTOR000000"], 0], gm: [2, 2, true], player: [0, 0] }),
+            "{button: [drawn, named for the room, a press asks to stop it, gone once they stop]; gm: [lines, marks, the first's words]; player: [lines, marks]}");
+    }],
+    ["R6026 - the three roads of the eavesdrop and Echoes are bridge actions declared as the recipe asks (scripts/bridge-table.mjs `listen.eavesdrop`, `listen.stop`, `listen.echoes`; E69 C6, C7): each owned by the sender's character, named in English and Polish; the eavesdrop reads a Listen roll off the GMs' record when it names one and settles it once as an eavesdrop; the stop and Echoes read no roll", async () => {
+        /* E69 C6, C7, 13.11.2026. Read off the table and the language files; nothing written. Red at ceb9e9c8. */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const names = ["listen.eavesdrop", "listen.stop", "listen.echoes"];
+        const read = names.map(name => {
+            const decl = BRIDGE_ACTIONS[name];
+            return [Boolean(decl), Boolean(decl && game.i18n.has(decl.label)), typeof pl?.DRPG?.Bridge?.what?.[name] === "string",
+                decl?.rolled ? [decl.rolled.kind, decl.rolled.settles, decl.rolled.when] : null, decl?.answer ?? null];
+        });
+        equal(stableJson(read), stableJson([[true, true, true, ["listen", "eavesdrop", "rollId"], "reply"], [true, true, true, null, "ack"], [true, true, true, null, "reply"]]),
+            "per road [declared, its label in English, in Polish, its roll [kind, settles, when], its answer]");
     }],
     ["R3757 - a GM's room action is drawn only on a payment of its whole price (E93 C3, C6; the coordinator's fix of 12.11.2026, from E93's watched gap): the GM's price is one action, two under Toll; a payment's size is what its one write took down, a Burst's covering any price; a ticket of one action does not cover two, one of two and a Burst's do", async () => {
         /*

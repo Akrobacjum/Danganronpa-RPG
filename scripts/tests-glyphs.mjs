@@ -682,6 +682,8 @@ export const FACE_RULES = [
     ["Infiltrate: Force the Door (its fa-hand-fist is the fist)", '.drpg-choice:has(> input[value="force"]) > i.fa-hand-fist', "force-door"],
     ["Infiltrate: Pick the Lock (its fa-key is the key)", '.drpg-choice:has(> input[value="pick"]) > i.fa-key', "pick-lock"],
     ["Infiltrate: Keep Watch (its fa-eye is Observe's)", '.drpg-choice:has(> input[value="keepWatch"]) > i.fa-eye', "keep-watch"],
+    // E69 C7 (13.11.2026): Echoes' row (E48 row 49, approved 11.11); its fa-tower-broadcast has no drawing of its own.
+    ["Infiltrate: Echoes (its fa-tower-broadcast has no glass drawing)", '.drpg-choice:has(> input[value="echoes"]) > i.fa-tower-broadcast', "echoes"],
     /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
        projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
        gear, the corner Look launcher's gear with its sound waves. */
@@ -700,6 +702,15 @@ export const FACE_RULES = [
  *  so under Stained Glass the mic wears it and the badge stands down. Legacy keeps the mic and its badge (option A). */
 export const STATE_RULES = [
     ["the GM's manual mic lock (F5)", ".drpg-voice-mic.is-gm-blocked > .drpg-pxi:first-child", "mic-lock", ".drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock"]
+];
+
+/** A ui-kit.mjs `pixelGlyph` that Legacy draws with a legacy row of its name and Stained Glass with a drawing of its own:
+ *  [what, the glyph element's selector, glyph] - the image alone, as STATE_RULES (E69 C6, 13.11.2026). A script names a
+ *  legacy row only (R3349), so the voice tile's Stop listening and the GM's eavesdroppers name Legacy's ear, `listen`,
+ *  and wear E48 rows 50 and 51 (the owner's drawings of 11.11) under the glass. */
+export const PXI_RULES = [
+    ["the voice tile's Stop listening (Legacy's ear)", ".drpg-voice-stop-listening > .drpg-pxi", "stop-listening"],
+    ["an eavesdropper on a GM's voice list (Legacy's ear)", ".drpg-voice-listening-mark > .drpg-pxi", "listening"]
 ];
 
 /** The six statistics (config.mjs TRAITS) -> the glyph Stained Glass wears before each one's name (E49, the owner's ask of
@@ -723,6 +734,7 @@ export function glassRules() {
     for (const [what, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
     for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
     for (const [, sel, glyph] of STATE_RULES) out.push([`state.${glyph}`, sel, glyph, "image"]);
+    for (const [, sel, glyph] of PXI_RULES) out.push([`pxi.${glyph}`, sel, glyph, "image"]);
     for (const [stat, glyph] of Object.entries(STAT_GLYPHS)) out.push([`stat.${stat}`, `i.drpg-stat-glyph[data-drpg-stat="${stat}"]`, glyph, "box"]);
     for (const [host, , faces] of HOST_FACES) for (const [fa, glyph] of Object.entries(faces)) out.push([`host.${host}.fa-${fa}`, `${host} i.fa-${fa}`, glyph, "box"]);
     /* No rule for the GM launcher: its glass glyph is today's eye pixel for pixel (glass:gm same g:monokuma-eye, the owner

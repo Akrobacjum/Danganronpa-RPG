@@ -34,7 +34,8 @@ import {
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -107,6 +108,28 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
     const packet = { tailerId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId };
     return ask(ACTION_TAIL_START, packet, {
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleTailStart(packet, game.user))
+    });
+}
+
+/** Listen's eavesdrop (E69 C6): after a good Listen roll (`rollId`), or a free repeat (none); answers `{ moved, free }` as `.value`. */
+export function requestEavesdrop({ actorId, room, total = 0, isCritical = false, rollId = null }) {
+    const packet = { actorId, room, total, isCritical, rollId };
+    return ask(ACTION_LISTEN_EAVESDROP, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdrop(packet, game.user))
+    });
+}
+
+/** Stop listening (E69 C6). */
+export function requestEavesdropStop({ actorId }) {
+    return ask(ACTION_LISTEN_STOP, { actorId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdropStop({ actorId }, game.user))
+    });
+}
+
+/** Echoes (E69 C7): answers `{ room, steps }` as `.value`, `room` null when nobody is found. */
+export function requestEchoes({ actorId }) {
+    return ask(ACTION_LISTEN_ECHOES, { actorId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEchoes({ actorId }, game.user))
     });
 }
 

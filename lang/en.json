@@ -521,6 +521,13 @@
       "prompt": "You are in {room}. Which neighbouring room?",
       "which": "Room",
       "noNeighbours": "No neighbouring rooms from here.",
+      "eavesdrop": {
+        "stop": "Stop listening at {room}",
+        "gmTitle": "Listening at a door",
+        "gmLine": "{name} listens at {into}, from {from}",
+        "noVoiceGm": "Listen gave its card alone: voice per room is off, so nobody is moved into a room's channel.",
+        "started": "You listen at the door of {room}: you hear the room, and nobody there hears you. Stop listening is on the voice tile."
+      },
       "anonymous": {
         "one": "{n} person in {room}. You cannot tell who.",
         "other": "{n} people in {room}. You cannot tell who."
@@ -3484,6 +3491,11 @@
         }
       },
       "notBuilt": "Not built yet.",
+      "echoes": {
+        "notInEclipse": "Not during an Eclipse.",
+        "found": "Echoes: someone is in {room}.",
+        "nobody": "Echoes: you hear nobody."
+      },
       "dashResult": {"one": "Dash: {n} free crossing until the time of day ends.", "other": "Dash: {n} free crossings until the time of day ends."},
       "row": {
         "listen": {
@@ -3513,6 +3525,10 @@
         "dash": {
           "label": "Dash",
           "hint": "Leg: free crossings to run with."
+        },
+        "echoes": {
+          "label": "Echoes",
+          "hint": "No roll: the nearest room where another player's student is."
         }
       }
     },
@@ -4371,6 +4387,9 @@
         "facility.use": "Room action",
         "dash.settle": "Dash",
         "tail.start": "Tail Someone",
+        "listen.eavesdrop": "Listen at a door",
+        "listen.stop": "Stop listening",
+        "listen.echoes": "Echoes",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
@@ -5454,6 +5473,7 @@
         "connecting": "Joining your voice channel.",
         "connected": "Connected to your voice channel.",
         "deadMuted": "Your character is dead: you listen to the trial, and your microphone stays off until it ends.",
+        "listening": "Listening at a door: your microphone stays off until you stop.",
         "cubSpeak": "Discussion: you may speak.",
         "cubListen": "Mode: {mode}. You listen.",
         "cubVote": "The vote: you listen.",
