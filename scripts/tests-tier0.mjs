@@ -15219,7 +15219,7 @@ const REGRESSIONS = [
         /*
          * E80 fix r1-G2, 19.10.2026 (the review's E80-C6-2). The table is laid out fixed and 1 px wide
          * (`.drpg-room-setup-table`), so it is as wide as its columns, and C6's eight summed to 1540 px - wider than the
-         * window can be: utils.mjs `windowWidthFor` caps Room Setup at 94% of the screen and `--drpg-window-max`, 1284 px
+         * window can be: windows.mjs `windowWidthFor` caps Room Setup at 94% of the screen and `--drpg-window-max`, 1284 px
          * on a 1366 px screen, and the content scrolls past it, so Make public, Make secret and Delete lay out of view.
          * Read here: the classes of the tab's `<col>`s off passages-tab.mjs `passagesTabBody`, each one's width off the
          * module's stylesheets (comments blanked), against 94% of 1366 or the cap, the lower, less 34 px for the window's
@@ -24415,7 +24415,7 @@ const REGRESSIONS = [
         }), JSON.stringify({ writers: ["settings.mjs#applyTheme"], onChange: true, loop: [true, true], memo: [true, false] }),
             "{writers: the functions that write the theme's body classes; onChange: the theme setting's change runs applyTheme; loop: applyTheme forgets each open window's memo before sizing it, and the loop was read; memo: scaleMemo keys the slider and the height, and names no theme}");
     }],
-    ["R4803 - one place decides a module window's size (E54 W6, the plan's done line): every `setPosition` of scripts/ that gives a window a width or a height of a number takes it from a function of the windows' family - settings.mjs `scaledBox` (through `scaleWindow`), utils.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), settings.mjs `actionsTabHeight` and `callsHeight` (the sheet's, Q-E54-7) - or is ui-kit.mjs `settleKitWidth`'s stated width of the kit (`kitWidth`, WINDOW_WIDTHS: the owner's question, listed); `height: \"auto\"` and a `top` alone decide no size", async () => {
+    ["R4803 - one place decides a module window's size (E54 W6, the plan's done line): every `setPosition` of scripts/ that gives a window a width or a height of a number takes it from a function of the windows' family - settings.mjs `scaledBox` (through `scaleWindow`), windows.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), settings.mjs `actionsTabHeight` and `callsHeight` (the sheet's, Q-E54-7) - or is ui-kit.mjs `settleKitWidth`'s stated width of the kit (`kitWidth`, WINDOW_WIDTHS: the owner's question, listed); `height: \"auto\"` and a `top` alone decide no size", async () => {
         /*
          * E54 W6, 13.11.2026. Read off the sources, comments stripped: each `setPosition(` call of scripts/ (the suite's
          * files aside) in the top-level function it stands in, its argument read for `width` and `height`; a size that is
