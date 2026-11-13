@@ -439,8 +439,9 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
  * the open or in secret as any project, D37). The owner's three of 15.10 since C5 (the owner, 15.10; the stage's Q2 of
  * 19.10: "Tak"): Seal the passage, Hand, and Close the breach, Body - the statistics of their counterparts, which the GM
  * may change at the approval - both Complex; Repair an item, Hand, whose size is the item's tier's (`byTier`: tier 0-1
- * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, is E68's
- * `PROJECT_KINDS`, which this table goes into.
+ * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, was to be a
+ * kind of E68's project table, which this table would go into; E68 shipped (1.2.104) with no such table, and the presets
+ * are read from here (action-project.mjs).
  */
 export const PASSAGE_PRESETS = Object.freeze({
     secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),

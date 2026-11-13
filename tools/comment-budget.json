@@ -1,6 +1,14 @@
 {
   "about": "What each module file of scripts/ may hold, held by tools/comments-lint.mjs (node tools/check.mjs comments): `citations` (a backticked name in a comment that no code, language key or stylesheet of the repository holds: renamed, removed, or somebody else's) and `doubledJsdoc` (two JSDoc blocks with nothing between them; a file's header before its first declaration's block not counted). A count above its row fails: a comment added one. A count below fails until the row is lowered in the same commit, so the budget only falls. `known` holds names read and kept, each with its reason (a Foundry, Daggerheart or browser name; a history line), which are counted nowhere. Written at a31e7a3b's counts on 13.11.2026 (E56 C1 on main's base; prep-54 first wrote it at 4dfac3a9: 175 names, 63 doubled blocks); E56 lowers it to zero or to `known` names. The rows are written by `node tools/comments-lint.mjs --write`, which lowers a row to its count and never raises one, from a run, never by hand.",
-  "known": {},
+  "known": {
+    "anyCub": "gm-students.mjs: history - the E47-C8 defect (a function read as a value), told at the cub cells' comment and pointed to by the pools' one (E56 C3, 13.11.2026)",
+    "shownTraces": "investigation.mjs: history - the S1-m7 snapshot the form replaced in E09 C3 ('until then')",
+    "shownKeyPlan": "investigation.mjs: history - the E05 C5 snapshot the form replaced in E09 C3 ('until then')",
+    "incidentVeil": "secret.mjs: history - fix r1-G3's call-site veil, replaced by `incidentVeils` in fix r2-G2 (past tense in both comments)",
+    "difficultyTag": "remnants.mjs: history - the Observe DC's word the header says is gone",
+    "attemptTransform": "cleanup.mjs: a function that was not written ('a second ... would have been a copy'), named to say why",
+    "raisesVisibility": "cleanup.mjs, config.mjs: history - an outcome field no outcome carries any more, said so in both comments"
+  },
   "files": {
     "scripts/a11y.mjs": {
       "citations": 1,
@@ -75,11 +83,11 @@
       "doubledJsdoc": 0
     },
     "scripts/cleanup.mjs": {
-      "citations": 2,
+      "citations": 0,
       "doubledJsdoc": 3
     },
     "scripts/config.mjs": {
-      "citations": 6,
+      "citations": 5,
       "doubledJsdoc": 7
     },
     "scripts/crossing-settle.mjs": {
@@ -139,7 +147,7 @@
       "doubledJsdoc": 0
     },
     "scripts/glass.mjs": {
-      "citations": 2,
+      "citations": 1,
       "doubledJsdoc": 0
     },
     "scripts/gm-bridge.mjs": {
@@ -156,10 +164,6 @@
     },
     "scripts/gm-stores.mjs": {
       "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/gm-students.mjs": {
-      "citations": 2,
       "doubledJsdoc": 0
     },
     "scripts/handbooks.mjs": {
@@ -183,7 +187,7 @@
       "doubledJsdoc": 3
     },
     "scripts/investigation.mjs": {
-      "citations": 3,
+      "citations": 1,
       "doubledJsdoc": 2
     },
     "scripts/iso-shield.mjs": {
@@ -234,10 +238,6 @@
       "citations": 0,
       "doubledJsdoc": 2
     },
-    "scripts/passages-gm.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
     "scripts/patches.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
@@ -271,7 +271,7 @@
       "doubledJsdoc": 0
     },
     "scripts/remnants.mjs": {
-      "citations": 5,
+      "citations": 3,
       "doubledJsdoc": 2
     },
     "scripts/reroll-receipts.mjs": {
@@ -311,7 +311,7 @@
       "doubledJsdoc": 1
     },
     "scripts/secret.mjs": {
-      "citations": 2,
+      "citations": 0,
       "doubledJsdoc": 1
     },
     "scripts/settings-window.mjs": {

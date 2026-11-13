@@ -3757,7 +3757,7 @@ export const FLASH_KF = (() => {
   return out;
 })();
 const meanOf = poly => [poly.reduce((s, q) => s + q[0], 0) / poly.length, poly.reduce((s, q) => s + q[1], 0) / poly.length];
-/* the panes from the centre of the screen outward (MK-R1 `byCentre`): the order a phase's colour and its flash take */
+/* the panes from the centre of the screen outward (the MK-R1 design's name for it was byCentre): the order a phase's colour and its flash take */
 function centreOrder(panes, W, H) {
   const cx = W / 2 || 1, cy = H / 2 || 1;
   const dist = panes.map(p => { const [x, y] = meanOf(p.poly); return Math.hypot((x - cx) / cx, (y - cy) / cy); });
