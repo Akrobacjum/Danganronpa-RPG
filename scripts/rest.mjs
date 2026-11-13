@@ -226,7 +226,7 @@ function currentClock() {
  * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, or not
  * allowed in this room. Both reasons used to be printed above a pair of buttons that stayed live regardless, so the
  * player could pick the one the list had just told them they could not have. Out of action-rest.mjs `performRest`
- * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (`restShutReason`).
+ * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (action-facilities.mjs `facilitiesRows`).
  */
 export function restVariants(actor) {
     const place = locateActor(actor);
@@ -256,17 +256,6 @@ export function restVariants(actor) {
                 : elsewhere
         };
     });
-}
-
-/**
- * Why neither rest can be taken now, row by row ("Short rest: ... · Long rest: ..."), or null while one can: the Rest
- * tile's tooltip (sheet.mjs `roomBlockFor`; E16 part 2 C4, audit S02-26). The tile stays pressable, as every dimmed
- * tile does, and its window shows the same two rows greyed.
- */
-export function restShutReason(actor) {
-    const rows = restVariants(actor);
-    if (rows.some(row => !row.disabled)) return null;
-    return rows.map(row => `${row.label}: ${row.why}`).join(" · ");
 }
 
 /* ==========================================================================

@@ -94020,6 +94020,82 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
             "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
     }],
+    ["E93-T16 - the Facilities tile is struck through only when no row of its window can be taken (scripts/action-facilities.mjs `facilitiesRows`, `facilitiesShutReason`, sheet.mjs `roomBlockFor`; the owner's report of 13.11.2026 at a table on 1.2.112: \"The Facilities action is struck through when there are no rests available in the room, even though a GM's room action or a project's action is available\"): in a room with neither rest marked, the tile is live while a GM's room action is open; with that action closed this time of day and no project it is dimmed and its reason names every row's; with a completed project's free action there it is live again; under Lockdown it is dimmed with the Lockdown line; and at each step the window's rows say the same", async () => {
+        /*
+         * 13.11.2026 (fix line 113f). A connected player's character in a named room, read on this GM's browser (`locateActor`
+         * and `canSee` answer for a GM as for its player: a public project). The room's rest marks are taken off and its GM
+         * actions written for the test; the character is given one action so the GM's action's price is covered. Read at
+         * each step: the tile's reason (sheet.mjs `roomBlockFor`, "rest") and whether every row of the window (rest.mjs
+         * `restVariants` and action-facilities.mjs `facilityRows`, the window's two halves) is greyed. Put back: the rest
+         * marks, the room's actions, `facilityClosed`, the project, the darkening, the actions. Red at ceb9e9c8: the tile
+         * read the two rests alone, so it was dimmed with the GM's action open and with the project's.
+         */
+        const F = await import("./facilities.mjs");
+        const A = await import("./action-facilities.mjs");
+        const P = await import("./projects.mjs");
+        const R = await import("./rest.mjs");
+        const sheet = await import("./sheet.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { writablePieces } = await import("./rooms.mjs");
+        const { FACILITIES, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { actor, where } = await playerInRoom();
+        const pieces = writablePieces(where.scene, where.room);
+        must(pieces.length, `the room ${where.room} has no piece to hold an action - this would measure nothing`);
+        const flagKeys = [FACILITIES.flag, R.REST_FLAGS.short, R.REST_FLAGS.long];
+        const flagsBefore = pieces.map(p => Object.fromEntries(flagKeys.map(k => [k, foundry.utils.deepClone(p.getFlag(MODULE_ID, k) ?? null)])));
+        const closedBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {});
+        const actionsBefore = Number(actor.system.resources[ACTIONS_RESOURCE]?.value) || 0;
+        const gmId = "E93T16a";
+        const gmLabel = "SUITE E93-T16 kettle";
+        const projectLabel = "SUITE E93-T16 lamp";
+        const rows = async () => [...R.restVariants(actor), ...await A.facilityRows(actor)];
+        const step = async () => {
+            const tile = sheet.roomBlockFor(actor, "rest");
+            const list = await rows();
+            return { tile: tile ?? null, windowShut: list.length > 0 && list.every(row => row.disabled), rows: list.length };
+        };
+        const read = {};
+        let id = null, dark = null;
+        try {
+            await R.setRestRoom(where.room, { short: false, long: false, scene: where.scene });
+            await F.setRoomActions(where.scene, where.room, [{ id: gmId, label: gmLabel, trait: "eye", dc: 10, effects: [{ kind: "sanity", n: 1 }] }]);
+            await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: Math.max(actionsBefore, FACILITIES.gmCost) }, { reason: "gmRuling" });
+            await settle();
+            must(R.restVariants(actor).every(row => row.disabled), `a rest can still be taken in ${where.room} - this would measure nothing`);
+            const rests = R.restVariants(actor).map(row => `${row.label}: ${row.why}`);
+            read.gmOpen = await step();
+            await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, { mark: F.facilityMark(), keys: [F.gmActionKey(where.scene.id, where.room, gmId)] });
+            await settle();
+            const closed = await step();
+            read.gmClosed = { ...closed, tile: typeof closed.tile === "string"
+                && [...rests, `${gmLabel}: ${game.i18n.localize("DRPG.Facility.closed")}`].every(part => closed.tile.includes(part)) };
+            id = (await P.createProject({ name: projectLabel, target: 1, room: where.room }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: projectLabel, effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "timesOfDay", n: 1 } });
+            await P.addProgress(id, 1);
+            await settle();
+            read.project = await step();
+            dark = await e93Darkening("lockdown");
+            const shut = await step();
+            read.lockdown = { ...shut, tile: typeof shut.tile === "string"
+                && [`${gmLabel}: ${game.i18n.localize("DRPG.Facility.shut.lockdown")}`,
+                    `${projectLabel}: ${game.i18n.localize("DRPG.Facility.shut.lockdown")}`].every(part => shut.tile.includes(part)) };
+        } finally {
+            if (dark) await dark();
+            if (id) await P.deleteProject(id);
+            await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, closedBefore);
+            await where.scene.updateEmbeddedDocuments("Region", pieces.map((p, i) => ({ _id: p.id,
+                ...Object.fromEntries(flagKeys.map(k => [`flags.${MODULE_ID}.${k}`, flagsBefore[i][k] === null ? forcedDeletion() : flagsBefore[i][k]])) })));
+            await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsBefore }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            gmOpen: { tile: null, windowShut: false, rows: 3 },
+            gmClosed: { tile: true, windowShut: true, rows: 3 },
+            project: { tile: null, windowShut: false, rows: 4 },
+            lockdown: { tile: true, windowShut: true, rows: 4 } }),
+        "{gmOpen, gmClosed, project, lockdown: {tile: its reason (null live; true where it names every row's reason), windowShut: every row of the window greyed, rows}} - the Facilities tile against its window");
+    }],
     ["E93-T4 - a completed project's room action leaves a faint Subtle trace where it is used, as a GM's does (scripts/bridge-runs-acts.mjs `handleFacilityUse`, facilities-gm.mjs `leaveTrace`; the owner's answer to Q-E93-6, 12.11.2026: \"Akcja projektu tez zostawia slad\"): a player's use of a project's action through the road places one Remnant of the action, Subtle and faint, where the character stands", async () => {
         /*
          * E93, 12.11.2026 (the owner's DRPG-D1 answers, through the coordinator). Judged as the primary judges the player's
