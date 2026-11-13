@@ -4,7 +4,7 @@ This stage's own branch, from `origin/main` (1.2.109 at 421f2395, merged forward
 `docs/dev/plans/E38.md` on the planner's branch (read whole). R numbers reserved: R5000-R5099, used: R5000 (D153
 across two GMs), R5001 (an author keeps a private card's words). Scenario numbers: 97, 98.
 
-C4 (the coordinator's ask of 13.11, for 1.2.114): the two findings below, both fixed on this branch.
+C4 (the coordinator's ask of 13.11, for 1.2.113, renamed from 1.2.114 by the owner): the two findings below, both fixed on this branch.
 
 ## Done
 
