@@ -38,6 +38,10 @@ here, not resolved on another line's files.
 
 | Commit | main | e101 | e100 | e97-98 | float-text | e64 |
 | --- | --- | --- | --- | --- | --- | --- |
+| C0-C3 (pushed 13.11) | clean | R-REGISTRY.md, settings-window.mjs, tests-tier0.mjs - all three also conflict between e101 and main alone (e101 stands on 1.2.108), none of E102's | R-REGISTRY.md (generated: `node tools/registry.mjs --write` after the merge); rest.mjs was E102's (C2's tooltip beside e100's relabelled Rest button) and is moved apart in "C2 follow-up" | R-REGISTRY.md | R-REGISTRY.md | chapter.mjs (End the chapter: claude/e64 redraws the window in two columns; this line's own, resolved when 1.2.110 is on main), plus four that e64 has with main alone |
+
+How it was read: each branch's conflicts with origin/main alone, against its conflicts with claude/e102; only the
+difference is E102's. R-REGISTRY.md is generated and conflicts wherever two lines add R numbers.
 
 ## Open
 
