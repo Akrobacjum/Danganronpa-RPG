@@ -125,7 +125,7 @@ function mayModifyWorld(user = game.user) {
 }
 
 /** The keys of a section `user` is drawn: a client section's to everybody, a game one's to a user who may write them. */
-function keysFor(section, user = game.user) {
+export function keysFor(section, user = game.user) {
     if (section.place === "game" && !mayModifyWorld(user)) return [];
     return section.keys.filter(key => registered(key));
 }
