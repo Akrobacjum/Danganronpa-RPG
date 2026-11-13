@@ -1088,6 +1088,17 @@
         "note": "A place on the scene, not a mode: TR18 does not cover it."
       },
       {
+        "id": "camps-confer",
+        "en": "Camps confer",
+        "pl": "Narada obozów",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E73",
+        "source": ["E73 plan"],
+        "note": "The owner's word of 13.11.2026, after E73: Scrum Debate's second phase, between Sides and the debate: each camp talks in a voice room of its own. A phase, not a mode: TR18 does not cover it, so it is Polish in the Polish UI."
+      },
+      {
         "id": "discussion",
         "en": "discussion",
         "pl": "dyskusja",

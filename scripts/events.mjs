@@ -22,7 +22,7 @@
 import { MODULE_ID, TRIAL, MONOCUB } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { error, plural, tickerRuns, trialModeLabel } from "./utils.mjs";
-import { isZoneMode, zoneOf } from "./zone-machine.mjs";
+import { isZoneMode, zoneOf, conferLineOf } from "./zone-machine.mjs";
 import { pairOf, reserveLine } from "./murder-ui.mjs";
 import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
@@ -542,6 +542,13 @@ export function trialFloorCard(floor) {
             n: (Number(zone.set?.index) || 0) + 1, total: zone.set?.total ?? 1, turn: zone.turn ?? 0, turns: zone.turns ?? 0,
             zone: String(zone.side ?? "").toUpperCase()
         }) : null;
+    }
+    /* A SCRUM DEBATE'S CAMPS CONFER (the owner's 13.11.2026): "Camps confer" under the mode, and which camp this
+       player talks with, or the GM's "Zone A and Zone B confer apart."; the clock below counts the Confer down. */
+    const confer = conferLineOf(floor, { gm: game.user.isGM, owns: id => game.actors?.get?.(id ?? "")?.isOwner === true });
+    if (confer) {
+        speaker = game.i18n.localize("DRPG.Zones.confer.name");
+        meta = game.i18n.format(confer.key, confer.words);
     }
     return {
         kind: "trial",

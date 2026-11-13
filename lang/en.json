@@ -1469,8 +1469,10 @@
         }
       },
       "scrum": {
-        "opened": "{question} Camps form: Zone A for {a}, Zone B for {b}. The turns start in {seconds} s.",
-        "openedBare": "Camps form: Zone A for {a}, Zone B for {b}. The turns start in {seconds} s.",
+        "opened": "{question} Pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
+        "openedBare": "Pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
+        "confer": "The sides are set: Zone A {a}, Zone B {b}. Each camp confers apart for {seconds} s, then the debate.",
+        "noVoice": "The camps' voices are not split: regional voice is off or LiveKit is not active. The camps confer however the table does.",
         "begins": "Zone {zone} speaks first; the camps take turns of {seconds} s until turn {turns}.",
         "over": "The Scrum Debate is over: Zone A {a}, Zone B {b}.",
         "empty": "Zone {zone} is empty. The class thinks: {answer}.",
@@ -1489,9 +1491,18 @@
           "pause": "Question {n} of {total} is counted - the answer in {seconds} s."
         },
         "scrum": {
-          "setup": "The camps form - {seconds} s.",
+          "setup": "Sides: the camps form - {seconds} s.",
+          "confer": "Camps confer: each camp in its own voice room - {seconds} s.",
           "speak": "Turn {turn} of {turns}: {who} speaks for Zone {zone} - {seconds} s."
         }
+      },
+      "confer": {
+        "name": "Camps confer",
+        "mine": "You confer with Zone {zone}.",
+        "apart": "Zone A and Zone B confer apart.",
+        "none": "You are in neither camp: you stay in the trial hall's voice.",
+        "sidesSet": "Sides set",
+        "conferOver": "End the confer"
       },
       "picker": {
         "title": "Hall zones",
@@ -1507,7 +1518,7 @@
         "hint": {
           "straw": "45 s for everyone to stand in a zone, then one count. Two thirds on one side is a Finding.",
           "dive": "The set's questions one at a time, 60 s each. A majority goes on; a wrong answer or a tie ends the set.",
-          "scrum": "45 s for the camps to form, then the camps speak in turn, the smaller first."
+          "scrum": "45 s to pick sides, 120 s for each camp to confer apart, then the camps speak in turn, the smaller first."
         }
       },
       "pick": {

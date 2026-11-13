@@ -61,7 +61,7 @@ import { trialParticipants, trialProgress, verdictStopped, verdictRunner } from 
 import { MODES, nextFloor, modeSecondsOf, overruleTarget, leftAt, isRoundMode, closingOf, closingTimed, closingRecordAfter } from "./floor-machine.mjs";
 import { isZoneMode, zoneOf } from "./zone-machine.mjs";
 // The zone modes' reads around their rows (E73): static, and no cycle - trial-zones.mjs reads this file by `import()`.
-import { zoneCtxOf, zoneEarly, afterZoneStep, zoneFloorEnded, snapshotStands, diveStartEvent, zoneCardWords } from "./trial-zones.mjs";
+import { zoneCtxOf, zoneEarly, afterZoneStep, conferNotice, zoneFloorEnded, snapshotStands, diveStartEvent, zoneCardWords } from "./trial-zones.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
@@ -645,6 +645,9 @@ async function commitFloor(prev, result, op, { replaced = true } = {}) {
     /* WHAT A ZONE STEP LEAVES (E73): a Finding and the Straw Poll's count in the record, a Logic Dive set's end in the
        GMs' store (trial-zones.mjs `afterZoneStep`). */
     if (result.zoneRecord || result.dive) await afterZoneStep(result);
+    /* A SCRUM DEBATE'S CAMPS BEGIN TO CONFER (the owner's 13.11.2026): their voice rooms are voice.mjs `placeVoices`'
+       rule, asked by the floor's write; where voice cannot split them the GMs are told once (trial-zones.mjs). */
+    if (result.conferBegun) await conferNotice();
     // An Overrule's Objection is overruled, not withdrawn (E70 C2): its card is marked by `overruleInStep`.
     const kept = result.floor?.mode === FLOOR_MODES.objection && result.floor?.messageId === prev?.messageId;
     if (!kept && replaced) await withdrawReplaced(prev);

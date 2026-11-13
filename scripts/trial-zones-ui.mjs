@@ -17,7 +17,7 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
 import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
-import { ZONE_MODES, isZoneMode, zoneOf } from "./zone-machine.mjs";
+import { ZONE_MODES, isZoneMode, zoneOf, conferCamps } from "./zone-machine.mjs";
 import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDebate, startLogicDive, findingsNow, addFinding, editFinding,
     deleteFinding, confirmFinding } from "./trial-zones.mjs";
 import { trialParticipants } from "./vote.mjs";
@@ -52,7 +52,10 @@ function zoneLine(side, zone, sides) {
 function zonePanelHtml({ floor, sides = null } = {}) {
     const zone = zoneOf(floor);
     if (!zone) return "";
-    const s = sides ?? sidesNow({ floor });
+    // While the camps confer, the panel names the camps as they were kept at the Sides' end - the rooms they talk in -
+    // and nobody outside them (the owner's 13.11.2026; zone-machine.mjs `conferCamps`).
+    const camps = conferCamps(floor);
+    const s = camps ? { ...camps, none: [], line: [] } : sides ?? sidesNow({ floor });
     const L = key => game.i18n.localize(key);
     const mode = L(`DRPG.Floor.mode.${floor.mode}`);
     const phase = game.i18n.format(`DRPG.Zones.panel.${floor.mode}.${zone.phase}`, {
