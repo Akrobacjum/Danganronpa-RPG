@@ -553,8 +553,8 @@
   },
   "kindWhatItReallyTooltip": {
    "key": "DRPG.Tips.Case.kindWhatItReallyTooltip",
-   "en": "Its true kind, which a student learns with Analyze",
-   "pl": "Jego prawdziwy rodzaj, który uczeń poznaje dzięki Analyze",
+   "en": "Its true kind. Key shows on a find; the others show after an Analyze, a critical find or the chapter's end",
+   "pl": "Jego prawdziwy rodzaj. Key widać od razu po znalezieniu; inne po Analyze, krytycznym znalezieniu albo na koniec rozdziału",
    "sites": [
     "investigation:1055",
     "investigation:1889"
@@ -573,8 +573,8 @@
   },
   "difficultyTooltip": {
    "key": "DRPG.Tips.Case.difficultyTooltip",
-   "en": "How hard it is to spot with Observe",
-   "pl": "Jak trudno go zauważyć przy Observe",
+   "en": "How hard it is to spot with Observe, and its copies to analyze",
+   "pl": "Jak trudno go zauważyć przy Observe i przeanalizować jego kopie",
    "sites": [
     "investigation:1059",
     "investigation:1330",
@@ -651,8 +651,8 @@
   },
   "deleteTooltip": {
    "key": "DRPG.Tips.Case.deleteTooltip",
-   "en": "Removes this Remnant from the map and from the case. Asks first.",
-   "pl": "Usuwa ten Remnant z mapy i ze sprawy. Najpierw pyta.",
+   "en": "Deletes this Remnant from the map and the case for good, after asking. A Reinforced one stays",
+   "pl": "Po pytaniu usuwa na dobre ten Remnant z mapy i ze sprawy. Reinforced zostaje",
    "sites": [
     "investigation:1905"
    ]
@@ -699,16 +699,16 @@
   },
   "noteForTheGmsTooltip": {
    "key": "DRPG.Tips.Case.noteForTheGmsTooltip",
-   "en": "Your words on this node. A solution's words reach the players in the case summary.",
-   "pl": "Twoje słowa o tym węźle. Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy.",
+   "en": "A solution's words reach the players in the case summary; a planned Incident Remnant's become what its finder reads",
+   "pl": "Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy, a planowanego Incident Remnantu do tego, kto go znajdzie",
    "sites": [
     "investigation:2454"
    ]
   },
   "trialModeTooltip": {
    "key": "DRPG.Tips.Case.trialModeTooltip",
-   "en": "The Class Trial mode this node is played out in",
-   "pl": "Tryb Class Trial, w którym rozgrywa się ten węzeł",
+   "en": "In the Class Trial, this node's tile gets a button that starts this mode",
+   "pl": "W Class Trial kafel tego węzła dostaje przycisk, który uruchamia ten tryb",
    "sites": [
     "investigation:2455"
    ]
@@ -762,14 +762,6 @@
     "investigation:3035"
    ]
   },
-  "trialEvidenceLogTooltip": {
-   "key": "DRPG.Tips.Case.trialEvidenceLogTooltip",
-   "en": "Shows who objected to whom in the Class Trial, and with what evidence",
-   "pl": "Pokazuje, kto komu zgłosił Objection w Class Trial i jakim dowodem",
-   "sites": [
-    "investigation:3036"
-   ]
-  },
   "bodyFoundTooltip": {
    "key": "DRPG.Tips.Case.bodyFoundTooltip",
    "en": "Announces to the whole table that a body was found, in a room you pick",
@@ -780,32 +772,16 @@
   },
   "realizationPreviewTooltip": {
    "key": "DRPG.Tips.Case.realizationPreviewTooltip",
-   "en": "Shows where the planned Key Remnants would go. Nothing changes until you run it.",
-   "pl": "Pokazuje, gdzie trafią zaplanowane Key Remnanty. Nic się nie zmienia, dopóki jej nie uruchomisz.",
+   "en": "Shows where the planned Key Remnants would go",
+   "pl": "Pokazuje, gdzie trafią zaplanowane Key Remnanty",
    "sites": [
     "investigation:3043"
    ]
   },
-  "clearFaintRemnantsTooltip": {
-   "key": "DRPG.Tips.Case.clearFaintRemnantsTooltip",
-   "en": "Deletes every Faint Remnant on every scene, except tied and reinforced ones. Asks first.",
-   "pl": "Usuwa każdy Faint Remnant na każdej scenie, poza powiązanymi i Reinforced. Najpierw pyta.",
-   "sites": [
-    "investigation:3046"
-   ]
-  },
-  "sweepTruthBulletsTooltip": {
-   "key": "DRPG.Tips.Case.sweepTruthBulletsTooltip",
-   "en": "Deletes the students' Truth Bullets, except Faint ones and the Final Truth. Asks first.",
-   "pl": "Usuwa Truth Bullets z ekwipunku uczniów, poza Faint i Final Truth. Najpierw pyta.",
-   "sites": [
-    "investigation:3047"
-   ]
-  },
   "undoRealizationTooltip": {
    "key": "DRPG.Tips.Case.undoRealizationTooltip",
-   "en": "Removes what the realization placed, except what a student has found. Asks first.",
-   "pl": "Usuwa to, co postawiła realizacja, poza tym, co ktoś już znalazł. Najpierw pyta.",
+   "en": "Removes what the realization placed, except what a student found or Monokuma revealed. Asks first.",
+   "pl": "Usuwa to, co postawiła realizacja, poza tym, co ktoś znalazł albo co ujawnił Monokuma. Najpierw pyta.",
    "sites": [
     "investigation:3049"
    ]
@@ -820,8 +796,8 @@
   },
   "onANodeTooltip": {
    "key": "DRPG.Tips.Case.onANodeTooltip",
-   "en": "Marks this point as reached in the Class Trial; every GM sees the mark",
-   "pl": "Oznacza ten punkt jako osiągnięty w Class Trial; znacznik widzi każdy GM",
+   "en": "Marks this point as reached in the Class Trial; a ticked one goes into the players' case summary",
+   "pl": "Oznacza ten punkt jako osiągnięty w Class Trial; zaznaczony trafi do podsumowania sprawy dla graczy",
    "sites": [
     "case-map:172"
    ]
@@ -872,22 +848,6 @@
    "pl": "Otwiera Mapę w Investigation na tym Remnancie",
    "sites": [
     "case-map:493"
-   ]
-  },
-  "notNowTooltip": {
-   "key": "DRPG.Tips.Case.notNowTooltip",
-   "en": "Not asked again; Realization preview in the Investigation window opens it later",
-   "pl": "Pytanie nie wróci; później otworzy to Podgląd realizacji w oknie Investigation",
-   "sites": [
-    "case-realize:195"
-   ]
-  },
-  "showThePreviewTooltip": {
-   "key": "DRPG.Tips.Case.showThePreviewTooltip",
-   "en": "The preview changes nothing until you press Run realization.",
-   "pl": "Podgląd niczego nie zmienia, dopóki nie klikniesz Uruchom realizację.",
-   "sites": [
-    "case-realize:196"
    ]
   }
  },

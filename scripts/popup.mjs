@@ -927,7 +927,8 @@ export function showPopup(bodyHtml, {
         const close = document.createElement("button");
         close.type = "button";
         close.className = "drpg-popup-close";
-        close.dataset.tooltip = tipText("DRPG.Tips.Setup.closeXTooltip");
+        // Only a card the notice history keeps says so: a record: false card (showWaiting, the ready round's) is kept nowhere.
+        if (record) close.dataset.tooltip = tipText("DRPG.Tips.Setup.closeXTooltip");
         close.innerHTML = `<i class="fa-solid fa-xmark" inert></i>`;
         close.setAttribute("aria-label", game.i18n.localize("DRPG.Panel.close"));
         head.append(close);

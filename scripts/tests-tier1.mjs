@@ -25398,6 +25398,31 @@ const INVARIANTS = [
             monocub: [false, true], tier: [false, true, true], play: [true, true], observer: [false, true], donor: [true, true, true]
         }), "{a new Monocub: 'at zero', 'full' in en and pl; tier: 'last longer', a usable in en and pl; play: a state with its own music in en and pl; Observer: 'no longer owns', the own player keeps; one donor key in both windows and the old one gone}");
     }],
+    ["R4763 - a card's close button says the notice history keeps the card only when it does (E102; REVIEW-102-C4C5 S7 as corrected at 6732a09d on claude/gaps-radio: `record: false` on showWaiting and on the ready round's card is deliberate): popup.mjs `showPopup` writes DRPG.Tips.Setup.closeXTooltip on the close only under `record`; a `record: false` card's close carries no data-tooltip, and keeps its aria-label", async () => {
+        /* Red at 34c2fac7: every card's close said "the notice history keeps it", a record: false card's too. */
+        const own = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/popup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(own.length > 500, "popup.mjs read as nothing - this would measure nothing");
+        const body = fnSource(own, "showPopup");
+        const { showPopup } = await import("./popup.mjs");
+        const host = () => document.getElementById("drpg-popups");
+        const before = new Set(host()?.querySelectorAll(".drpg-popup") ?? []);
+        const dismiss = showPopup("<p>R4763</p>", { title: "R4763", record: false, sticky: true });
+        let close = null;
+        try {
+            await wait(50);
+            const card = [...(host()?.querySelectorAll(".drpg-popup") ?? [])].find(c => !before.has(c));
+            must(card, "showPopup drew no card - this would measure nothing");
+            close = card.querySelector(".drpg-popup-close");
+            equal(stableJson({
+                guarded: /if\s*\(\s*record\s*\)\s*close\.dataset\.tooltip\s*=\s*tipText\(\s*"DRPG\.Tips\.Setup\.closeXTooltip"\s*\)/.test(body),
+                unguarded: /^\s*close\.dataset\.tooltip\s*=/m.test(body),
+                drawn: close ? [close.hasAttribute("data-tooltip"), Boolean(close.getAttribute("aria-label"))] : null
+            }), stableJson({ guarded: true, unguarded: false, drawn: [false, true] }),
+            "{the close's tooltip written under record; written for every card; a record: false card's close [has data-tooltip, has its aria-label]}");
+        } finally {
+            if (typeof dismiss === "function") dismiss();
+        }
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is
