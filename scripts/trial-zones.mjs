@@ -167,7 +167,8 @@ export async function conferNotice({ split } = {}) {
     if (can) return false;
     try {
         const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p>${esc(game.i18n.localize("DRPG.Zones.scrum.noVoice"))}</p>`);
+        // A GMs' warning is a warning card (E49 B5a's census, R3510).
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.localize("DRPG.Zones.scrum.noVoice"))}</p>` });
     } catch (err) {
         error("Could not tell the GMs that the camps' voices are not split", err);
         return false;
