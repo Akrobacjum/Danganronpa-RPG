@@ -1,26 +1,55 @@
 {
-  "about": "E54's window geometry, its second half (the plan's W3), written to measure F2 at the base, not to be applied: the settings half of the window size moved out of settings.mjs reads `sliderScale`, `layoutHeight` and `settingsRegistered`, which settings.mjs keeps, and settings.mjs's `applyTheme` calls `scaleWindow` back. split.mjs refuses it, by name, until the behaviour commit W2 hands `scaleWindow` its readers (`registerWindows(readers)`); after W1, windows.mjs exists, and this half would be appended to it, which split.mjs does not do yet.",
+  "about": "E54 window geometry, its second half (the plan W3): the slider scaling of a window box moves out of settings.mjs into window-scale.mjs - after the behaviour commits W2 (registerWindows hands scaleWindow its readers; before it the half read sliderScale, layoutHeight and settingsRegistered, which settings.mjs keeps, and split.mjs refused it, F2) and Q-E54-7 (the sheet heights actionsTabHeight and callsHeight). A file of its own, not windows.mjs, because W1 writes windows.mjs from utils.mjs and split.mjs refuses a target that exists: the owner question is whether one windows.mjs is wanted, which needs split.mjs to append. Run after windows.json: node tools/e54/split.mjs --manifest tools/e54/windows-settings.json, then node tools/e54/repoint.mjs --manifest tools/e54/windows-settings.json.",
   "source": "scripts/settings.mjs",
-  "facadeNote": [],
+  "facadeNote": [
+    "E54 (the plan W3): the slider scaling of a window box (`scaleWindow`, `registerWindows`, the memo and the boxes, the sheet heights) lives in window-scale.mjs, re-exported here; this file keeps the settings."
+  ],
   "keep": "*",
   "targets": [
     {
-      "file": "scripts/windows.mjs",
+      "file": "scripts/window-scale.mjs",
       "header": [
-        "Not to be written: the manifest that measures F2's refusal."
+        "The slider scaling of a module window box (E54, the plan W3): `registerWindows` stands `scaleWindow` on the two render",
+        "hooks with the readers module.mjs hands it (the slider, the layout height, whether the settings are registered), the",
+        "memo that keeps a re-render from compounding the scale (`scaleMemo`), the box a window asks for scaled and held on",
+        "the screen (`scaledBox`, `sheetBox`), and the sheet heights (`actionsTabHeight`, `callsHeight`, Q-E54-7). Moved out of",
+        "settings.mjs, which re-exports what it exported. windows.mjs (W1) holds the width that shows a table."
       ],
       "names": {
         "rescaleSheets": "function",
         "scaledBox": "function",
+        "actionsTabHeight": "function",
+        "callsHeight": "function",
         "DAGGERHEART_SHEET": "const",
         "scaleMemo": "function",
         "sheetBox": "function",
         "SHEET_BELOW_BAND": "const",
         "sheetBandFoot": "function",
-        "scaleWindow": "function"
+        "scaleWindow": "function",
+        "windowReaders": "let",
+        "windowHeight": "function",
+        "registerWindows": "function"
       }
     }
   ],
   "textMapNamed": [],
-  "textMapNamedWhy": "none needed"
+  "textMapNamedWhy": "none needed",
+  "repoint": {
+    "about": "tools/e54/repoint.mjs part for this cut (sheet.json repoint says what each field is).",
+    "stays": [
+      "bodiesFound",
+      "bodyFound",
+      "clock",
+      "discoveredRooms",
+      "foundryWindows",
+      "observePending",
+      "playerRegions",
+      "sceneRoles",
+      "trialQueue",
+      "voicePeerMutes",
+      "voiceTile"
+    ],
+    "sites": [],
+    "patches": []
+  }
 }

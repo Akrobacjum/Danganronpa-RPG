@@ -49,7 +49,7 @@ const req = createRequire(path.join(SELF, "audit", "harness", "package.json"));
 const espree = req("espree");
 const say = m => console.log(`e54-sweep-build: ${m}`);
 
-const CUTS = ["sheet", "windows", "key-remnants", "cleanup-reshape", "chapter"];
+const CUTS = ["sheet", "windows", "key-remnants", "cleanup-reshape", "chapter", "glass", "windows-settings"];
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const parse = t => espree.parse(t, { ecmaVersion: "latest", sourceType: "module", range: true, loc: true, comment: true, tokens: true });
 const read = (root, rel) => fs.readFileSync(path.join(root, rel), "utf8");
@@ -71,7 +71,13 @@ for (const c of cuts) {
         catch (err) { say(`REFUSED: the ${c.cut} cut does not apply on the base (${step}.mjs): ${String(err.stdout ?? "").split("\n").filter(l => /REFUSED/.test(l)).slice(0, 3).join(" | ")}`); process.exit(1); }
     }
 }
-const declOf = text => new Set([...text.matchAll(/^(?:export )?(?:async )?(?:function\*? ([\w$]+)|(?:const|let|class) ([\w$]+))/gm)].map(m => m[1] ?? m[2]));
+/* A file's top-level declarations, read off its syntax tree: glass.mjs indents its cut two spaces (E54 G5), which a
+   column-0 pattern did not read, so a comment naming "glass.mjs `stackShapes`" read as naming nothing. */
+const declOf = text => new Set(parse(text).body.flatMap(st => {
+    const d = st.type === "ExportNamedDeclaration" ? st.declaration : st;
+    if (d?.type === "VariableDeclaration") return d.declarations.filter(x => x.id.type === "Identifier").map(x => x.id.name);
+    return d?.type === "FunctionDeclaration" || d?.type === "ClassDeclaration" ? [d.id.name] : [];
+}));
 const DECL = Object.fromEntries(cuts.map(c => [c.source, declOf(read(BASE, `scripts/${c.source}`))]));
 const VERDICTS = JSON.parse(fs.readFileSync(path.join(HERE, "sweep-verdicts.json"), "utf8")).verdicts;
 const verdictFor = (rel, text) => VERDICTS.find(v => v.file === rel && text.trim().startsWith(v.line.slice(0, 60)));
