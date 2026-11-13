@@ -944,4 +944,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("p1: once the trial has ended the trial's list of the dead is gone from p1's world data (E70-24; fix p1-G1)",
         listOut.phase !== "classTrial" && !listOut.has, JSON.stringify(listOut));
     await scanned("after the trial");
+
+    /* A SECRET PROJECT'S INSIDER KEEPS IT THROUGH A CLEARED CHAT LOG (E101's review of S17-31, R2, 13.11.2026). Since S17-31
+       the countdown every browser holds carries no name and tells no player apart, so what a player in on a secret
+       project knows of it - that they are in on it, and its name - has to reach their browser some other way. Until this
+       fix it was a GM's private card, read off the chat log (projects-secrecy.mjs `toldSight`): the GM's Clear Chat Log
+       took the project out of every insider's tray, and the GMs' record that they had been told kept it from being sent
+       again. Here p3 (Chie's player, the trap's builder, in on the project) reads it, the GM clears the log as the chat's
+       Clear button does (`deleteAll`), and p3 reads it again. The name is compared here, not on the page. Red at a6203bdc:
+       after the clear p3 held neither. */
+    const sightOn = () => p3.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const row = P.allProjects().find(p => p.id === "${made ?? "none"}");
+        return { sees: P.canSee("${made ?? "none"}"), name: String(row?.name ?? "") };`)
+        .then(r => ({ sees: r.sees, named: r.name === project.name }));
+    const sightBefore = await sightOn();
+    const cleared = await gm.eval(`await ChatMessage.deleteDocuments([], { deleteAll: true });
+        await new Promise(r => setTimeout(r, 1500)); return game.messages.size;`, { timeout: 60000 });
+    const sightAfter = await sightOn();
+    check("p3: the player in on the secret project still holds it, by its name, after the GM clears the chat log (E101's review of S17-31, R2)",
+        Boolean(made) && sightBefore.sees && sightBefore.named && cleared === 0 && sightAfter.sees && sightAfter.named,
+        JSON.stringify({ sightBefore, cleared, sightAfter }));
 }

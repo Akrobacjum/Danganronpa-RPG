@@ -450,6 +450,8 @@ const REGRESSIONS = [
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
             "incident-store.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part; a player's ask for the deaths is answered by the primary GM alone, about Foundry's sender, and a copy of them or a finder's notice is taken only from a GM, addressed to this user",
+            // E101's review of S17-31, R2 (13.11.2026): `payload.userId` is the copy's address, compared with this user's own id.
+            "projects.mjs": "a player's ask for their sight of the secret projects is answered by the primary GM alone, about Foundry's sender and nobody in the packet; the sight is taken only from a GM, addressed to this user, into this user's own copy; acts on no actor",
             "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
@@ -9050,6 +9052,11 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). Since E11 C10 the reset's `seals` group unsets the flag on every student (season-wipe.mjs `wipeStudent`) and reads nothing [1b.1 pendingCall, 1b.2]"],
             ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: a GM -> player packet (the Eclipse's placements); C3 touches only `startEclipse`'s guard; no E11 commit changes it"],
             ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
+            // E101's review of S17-31, R2 (13.11.2026): a player's sight of the secret projects, the GMs' copy of it to its owner.
+            ["SOCKET projects.mjs#onSightSocket#held", "judged: a player's ask, answered by the primary GM alone about Foundry's sender (`senderId`) and nobody in the packet; `held` only names projects the answer lets go of, filtered to this world's countdowns, and nothing is written for it"],
+            ["SOCKET projects.mjs#onSightSocket#userId", "judged: the address of a GM -> player packet, compared with this user's own id; taken only from a GM sender (`game.users.get(senderId)?.isGM`)"],
+            ["SOCKET projects.mjs#onSightSocket#sight", "judged: a GM -> player packet, taken only from a GM and addressed to this user, into this user's own copy (`projectSightCopy`), cut to this world's countdowns; acts on no actor"],
+            ["SOCKET projects.mjs#onSightSocket#stamps", "judged: as `#sight` - the copy takes it by the offers' rule (`offersCombine`)"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:137) and touches no actor. Since E11 C3 the gather's camera rides it (and since E11 fix r2-H4 the reset's `placeCast` sends it too, 65 U0): `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); since E11 C3 `SYNC.gather`'s `tokenIds` are read only to find this client's own token on its canvas, and nothing is written"],
             ["CHAT season-wipe.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
@@ -22339,7 +22346,8 @@ const REGRESSIONS = [
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
             "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 5},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
-            "projects.mjs": {"built": 3, "card": 1, "line": 12, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
+            // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
+            "projects.mjs": {"built": 3, "card": 1, "line": 9, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
             "remnants.mjs": {"built": 1, "card": 1, "heading": 2, "line": 1}, "requirements.mjs": {"built": 1},
             "reroll-receipts.mjs": {"card": 1}, "reroll.mjs": {"heading": 3, "line": 3}, "rest.mjs": {"action": 1},
             "roll-draw.mjs": {"built": 2, "card": 1, "message": 1}, "room-setup.mjs": {"message": 1},

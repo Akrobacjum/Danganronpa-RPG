@@ -53,9 +53,8 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { log, ownerIdsOf, isPrimaryGm, serialWrite } from "./utils.mjs";
-import { projectSecretStore } from "./gm-stores.mjs";
+import { projectSecretStore, projectSightCopy } from "./gm-stores.mjs";
 import { spectatorUserIds } from "./spectator.mjs";
-import { cardMeta } from "./secret.mjs";
 
 export const DH = "daggerheart";
 export const COUNTDOWNS = "Countdowns";
@@ -126,42 +125,22 @@ export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition
  */
 export const HIDDEN_NAME = "???";
 
-/** The meta key of a GM's private card telling a player they are in on a secret project, and its name (`tellSight`). */
-export const PROJECT_SIGHT = "projectSight";
-
-/* The newest such card each project has on this browser (`toldSight`); emptied when a card or its words arrive or go. */
-let sightHere = null;
-
-/** Forget what this browser's cards told (projects.mjs's hooks, beside its own card caches). */
-export function forgetToldSight() {
-    sightHere = null;
-}
-
 /**
- * Whether this browser's player is in on a secret project, and its name, as the newest of the GMs' private cards to them
- * says (`PROJECT_SIGHT`: `{ id, in, name }`, posted by projects.mjs `tellSight`): `{ in, name }`, or null when no card here
- * names the project. A card a GM did not write counts for nothing.
+ * Whether this browser's player is in on a secret project, and its name, as the GMs sent it (gm-stores.mjs
+ * `projectSightCopy`, sent by projects.mjs `sendSightTo`): `{ in, name }`, or null when this user's copy does not name
+ * the project. Until E101's review of S17-31 (R2, 13.11.2026) it read the newest of the GMs' private cards to this
+ * player, so a cleared chat log took the project out of the tray; the copy is the player's own client setting, which
+ * no chat action touches, and is asked again at every load.
  */
 export function toldSight(countdownId) {
-    if (!sightHere) {
-        sightHere = new Map();
-        for (const message of game.messages ?? []) {
-            if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;
-            const told = cardMeta(message, PROJECT_SIGHT);
-            if (typeof told?.id !== "string") continue;
-            const at = Number(message.timestamp) || 0;
-            if (!sightHere.has(told.id) || sightHere.get(told.id).at <= at) {
-                sightHere.set(told.id, { in: told.in === true, name: typeof told.name === "string" ? told.name : null, at });
-            }
-        }
-    }
-    const held = sightHere.get(countdownId);
-    return held ? { in: held.in, name: held.name } : null;
+    const held = projectSightCopy.read()?.[countdownId];
+    if (!held || typeof held !== "object") return null;
+    return { in: held.in === true, name: typeof held.name === "string" ? held.name : null };
 }
 
 /**
  * A project's name as this browser may hold it (S17-31): the countdown's for a public project; for a secret one the GMs'
- * store on a GM, the newest card to this player on a player's, and `HIDDEN_NAME` failing those.
+ * store on a GM, this player's copy of the GMs' sight on a player's (`toldSight`), and `HIDDEN_NAME` failing those.
  */
 export function shownName(countdownId, countdown = rawCountdown(countdownId)) {
     const name = countdown?.name ?? "";

@@ -625,6 +625,13 @@ export const SETTINGS = {
      */
     projectSecrets: "gmProjectSecrets",
     /**
+     * A PLAYER'S SIGHT OF THE SECRET PROJECTS (E101's review of S17-31, R2, 13.11.2026): each player's copy of what
+     * the GMs' rows say of the secret projects they see - `{ countdownId: { in, name } }`, in on it or (a Spectator)
+     * only watching, and its name (gm-stores.mjs `projectSightCopy`). Until then a GM's private card, read off the
+     * chat log, which a cleared log took away.
+     */
+    mineProjectSight: "mineProjectSight",
+    /**
      * THE KEY REMNANT PLAN (E05, 1.2.64; audit S01-01, S05-02): a GM store
      * (gm-stores.mjs `keyPlanStore`), a row per chapter and slot,
      * `${chapter}:${slot}` -> { scale, name, text, analysis, note, tokenId,
@@ -2409,6 +2416,14 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // A player's sight of the secret projects (E101 R2): the tray and the project tokens ask again whom they show.
+    game.settings.register(MODULE_ID, SETTINGS.mineProjectSight, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgProjectSightChanged")
     });
 
     // The Key Remnant plan: a GM store since E05 (`keyPlanStore`), a row per chapter

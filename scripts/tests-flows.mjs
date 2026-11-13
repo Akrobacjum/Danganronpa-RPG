@@ -285,8 +285,9 @@ export const FLOWS = Object.freeze([
     // with this flow and now named.
     // E36 C1 (25.10.2026): another GM's change of a project, made by the primary (`project.change`): 33's A7, 30's forgery.
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
-        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage", "project.change"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms"], status: "partial", stage: "E39" },
+        // E101's review of S17-31, R2 (13.11.2026): a player's ask for their sight of the secret projects (projects.mjs's socket); 72 reads it.
+        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage", "project.change"], sockets: ["projects.mjs"] },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms", "72-canary"], status: "partial", stage: "E39" },
     // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
     // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of
     // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.

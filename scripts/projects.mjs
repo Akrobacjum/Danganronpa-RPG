@@ -27,7 +27,11 @@ import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph, projec
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
-import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
+import { projectSecretStore, rerollBookmarkStore, projectSightCopy } from "./gm-stores.mjs";
+// The engine's own calls, as incident-store.mjs takes them for the deaths' copy: nothing of a store's key (R171).
+import { gmStoresQuiet, whenGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
+// A leaf (config.mjs alone): the module's socket name.
+import { SOCKET_EVENT } from "./bridge-wire.mjs";
 /* `discoveredFor` is the per-character record of which rooms somebody has
    actually stood in - the public half of `knowsProject` below. Imported at the
    top and not dynamically: the import graph was checked in both directions
@@ -47,7 +51,7 @@ import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, PROJECT_SIGHT, shownName, forgetToldSight
+    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
@@ -260,43 +264,156 @@ export async function tellDescription(countdownId) {
 /**
  * TELL A SECRET PROJECT'S PLAYERS THEY ARE IN ON IT, AND ITS NAME (known leak S17-31; the coordinator's task of 12.11.2026).
  * The countdown every browser holds carries neither (projects-secrecy.mjs `HIDDEN_NAME`, `ownershipMap`), so a player in
- * on a secret project learns it by the road its description takes (`tellDescription`): on the primary GM, after every
- * change of it, each player in on it (`insidersOf`) whom the GMs' row does not record as told this name is sent one
- * private card, veiled, its meta `{ id, in: true, name }` (`PROJECT_SIGHT`); each player told before and in on it no
- * longer is sent `{ id, in: false }`. Their browser reads the newest (projects-secrecy.mjs `toldSight`): `canSee`, the
- * tray's row and its name. A Spectator, who sees every project and is in on none (E92, the owner's DRPG-D1 of 12.11.2026),
- * is sent the name alone, `{ id, in: false, name }` - its row comes from `canSee`'s Spectator rule; the description and the
- * room action stay withheld from it (the coordinator's default of 13.11.2026, the owner's E92 answer). Who was told what is
- * the GMs' (`sightTold`, in their row: the name, `watch:` and the name for a Spectator, or false). Answers how many players
- * were told.
+ * on a secret project learns both from the GMs: on the primary GM, after every change of it, each player in on it
+ * (`insidersOf`) whom the GMs' row does not record as told this name, each Spectator likewise (E92, the owner's DRPG-D1
+ * of 12.11.2026: it sees every project and is in on none, so it is sent the name alone), and each player told before who
+ * is neither any more, is sent their sight of the secret projects (`sendSightTo`). Who was told what is the GMs'
+ * (`sightTold`, in their row: the name, `watch:` and the name for a Spectator, or false). Answers how many players were
+ * told.
+ *
+ * NOT A CARD ANY MORE (E101's review of S17-31, R2, 13.11.2026). Until then each was told by a private card, veiled, and
+ * their browser read the newest off the chat log: a GM's Clear Chat Log took the project out of every insider's tray,
+ * and `sightTold` kept it from being sent again (scenario 72, red at a6203bdc). The sight is now the player's copy of the
+ * GMs' rows (gm-stores.mjs `projectSightCopy`), a client setting no chat action touches, asked again at every load
+ * (`askForSight`); the player's browser says what changed on a notification (`noticeSight`), in the words the cards had.
  */
 export async function tellSight(countdownId) {
     if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
-    const name = shownName(countdownId) || "?";
+    const name = secretsOf(countdownId).secretName;
+    // No name here yet (the GMs' row not arrived, E101 R1): nothing is known to tell.
+    if (typeof name !== "string" || !name) return 0;
     const told = { ...(secretsOf(countdownId).sightTold ?? {}) };
     const inside = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM);
     const watchers = [...spectatorUserIds()].filter(id => game.users.get(id) && !game.users.get(id).isGM && !inside.includes(id));
     const letIn = inside.filter(id => told[id] !== name);
     const letWatch = watchers.filter(id => told[id] !== `watch:${name}`);
     const letOut = Object.keys(told).filter(id => told[id] !== false && !inside.includes(id) && !watchers.includes(id) && game.users.get(id));
-    let n = 0;
-    if (letIn.length) {
-        const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.sightTold", { name }))}</p>`,
-            { whisper: [...gmIds(), ...letIn], veiled: true, flags: { [MODULE_ID]: { [PROJECT_SIGHT]: { id: countdownId, in: true, name } } } });
-        if (posted) { for (const id of letIn) told[id] = name; n += letIn.length; }
+    for (const id of letIn) told[id] = name;
+    for (const id of letWatch) told[id] = `watch:${name}`;
+    for (const id of letOut) told[id] = false;
+    const users = [...letIn, ...letWatch, ...letOut];
+    if (!users.length) return 0;
+    await projectSecretStore.patch(countdownId, { sightTold: told }, { whole: true });
+    // This GM's tray and project tokens too (E36-T6): the card's arrival ran their pass here until E101 R2.
+    Hooks.callAll("drpgProjectSightChanged");
+    // One whose browser is closed asks at its load; `also` lets a let-out player's copy go of this project.
+    for (const id of users) await sendSightTo(id, { also: letOut.includes(id) ? [countdownId] : [] });
+    return users.length;
+}
+
+/* THE SIGHT'S WIRE (E101 R2): the primary's answer to one player, and a player's ask, as the deaths' copy has them
+   (incident-store.mjs `sendDeathsTo`, `askForDeaths`). */
+const SIGHT_MINE = "projects.sight";
+const SIGHT_ASK = "projects.sightAsk";
+
+/**
+ * GM: what this user sees of the secret projects, as the GMs' rows say - `{ sight: { id: { in, name } }, stamps }`: each
+ * secret project they are in on (`insidersOf`), or watch as a Spectator, with its name; and, for each project in `also`
+ * or `held` (the asker's copy) that is not among them, a stamp with no row, so the copy lets it go. Nothing of a project
+ * whose name this browser does not hold yet. Every stamp is this answer's: an answer is the user's whole set, sent by the
+ * primary alone, so the newest is the truth (`offersCombine`).
+ */
+export function sightFor(userId, { also = [], held = [] } = {}) {
+    const user = game.users.get(userId);
+    const sight = {}, stamps = {};
+    if (!game.user?.isGM || !user || user.isGM) return { sight, stamps };
+    const now = gmStoreStamp();
+    const watching = spectatorUserIds().has(userId);
+    for (const project of allProjects()) {
+        if (!isSecret(project.id)) continue;
+        const name = secretsOf(project.id).secretName;
+        if (typeof name !== "string" || !name) continue;
+        const inside = insidersOf(project.id).includes(userId);
+        if (!inside && !watching) continue;
+        sight[project.id] = { in: inside, name };
+        stamps[project.id] = now;
     }
-    if (letWatch.length) {
-        const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.sightWatched", { name }))}</p>`,
-            { whisper: [...gmIds(), ...letWatch], veiled: true, flags: { [MODULE_ID]: { [PROJECT_SIGHT]: { id: countdownId, in: false, name } } } });
-        if (posted) { for (const id of letWatch) told[id] = `watch:${name}`; n += letWatch.length; }
+    for (const id of [...also, ...held]) if (typeof id === "string" && !(id in stamps)) stamps[id] = now;
+    return { sight, stamps };
+}
+
+/**
+ * GM: send one user their sight (`sightFor`), addressed, once the GMs' copies of the project secrets are here - an
+ * answer made before them would name none of the projects and empty the player's copy. Nothing while the suite holds the
+ * stores. Answers whether it sent.
+ */
+export async function sendSightTo(userId, { also = [], held = [] } = {}) {
+    const user = game.users.get(userId);
+    if (!isPrimaryGm() || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    if (await projectSecretStore.whenHydrated() === "timedOut") return false;
+    const { sight, stamps } = sightFor(userId, { also, held });
+    if (!Object.keys(stamps).length) return false;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: SIGHT_MINE, userId, sight, stamps }, { recipients: [userId] });
+    } catch (err) {
+        error("Could not tell a player the secret projects they see", err);
+        return false;
     }
-    if (letOut.length) {
-        const posted = await whisperToGms(`<p>${esc(game.i18n.localize("DRPG.Project.sightGone"))}</p>`,
-            { whisper: [...gmIds(), ...letOut], veiled: true, flags: { [MODULE_ID]: { [PROJECT_SIGHT]: { id: countdownId, in: false } } } });
-        if (posted) { for (const id of letOut) told[id] = false; n += letOut.length; }
+    return true;
+}
+
+/** After a restore of the project secrets (gm-stores.mjs `afterRestore`): every connected player is sent their sight again. */
+export async function retellSights() {
+    if (!isPrimaryGm() || gmStoresQuiet()) return 0;
+    let sent = 0;
+    for (const user of game.users ?? []) if (user.active && !user.isGM && await sendSightTo(user.id)) sent++;
+    return sent;
+}
+
+/** Player: take a GM's answer where it is newer (`projectSightCopy`), for this world's projects only; then say what changed. */
+export async function receiveSight(sight, stamps) {
+    const before = projectSightCopy.read() ?? {};
+    const mine = {}, own = {};
+    for (const [id, s] of Object.entries(stamps ?? {})) {
+        if (typeof id !== "string" || !rawCountdown(id)) continue;
+        own[id] = Number(s) || 0;
+        const row = sight?.[id];
+        if (!row || typeof row !== "object") continue;
+        mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null };
     }
-    if (n) await projectSecretStore.patch(countdownId, { sightTold: told }, { whole: true });
-    return n;
+    const taken = await projectSightCopy.receive(mine, own);
+    if (taken) noticeSight(before, projectSightCopy.read() ?? {});
+    return taken;
+}
+
+/* Player: what a new sight changed, in the words the cards said it in until E101 R2 - let in, watching, let out. */
+function noticeSight(before, after) {
+    for (const [id, row] of Object.entries(after)) {
+        const was = before[id];
+        if (was && was.in === row.in && was.name === row.name) continue;
+        const key = row.in ? "DRPG.Project.sightTold" : "DRPG.Project.sightWatched";
+        ui.notifications?.info?.(game.i18n.format(key, { name: row.name ?? HIDDEN_NAME }));
+    }
+    for (const id of Object.keys(before)) {
+        if (!Object.hasOwn(after, id) && before[id]?.in) ui.notifications?.info?.(game.i18n.localize("DRPG.Project.sightGone"));
+    }
+}
+
+/** Player: ask the primary for this user's sight, naming what the copy holds. */
+function askForSight(primary = primaryGmId()) {
+    if (!primary || game.user.isGM) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: SIGHT_ASK, held: Object.keys(projectSightCopy.read() ?? {}) }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM which secret projects this client sees", err);
+    }
+}
+
+function onSightSocket(payload, senderId) {
+    if (payload?.action === SIGHT_ASK) {
+        if (!isPrimaryGm()) return;
+        const sender = game.users.get(senderId);
+        if (!sender?.active || sender.isGM) return;
+        const held = Array.isArray(payload.held) ? [...new Set(payload.held.filter(id => typeof id === "string" && rawCountdown(id)))] : [];
+        // Asked while the suite holds the stores: answered once it lets them go.
+        whenGmStoresAudible().then(() => sendSightTo(sender.id, { held }))
+            .catch(err => error("Could not answer a player's sight of the secret projects", err));
+        return;
+    }
+    if (payload?.action !== SIGHT_MINE || game.user.isGM) return;
+    // A GM's, and addressed to this user: a player cannot hand another a sight.
+    if (payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
+    receiveSight(payload.sight, payload.stamps).catch(err => error("Could not keep the secret projects this client sees", err));
 }
 
 /**
@@ -1590,14 +1707,25 @@ export function registerProjectChanges() {
     /* A proposer's card, or its words, came or went (H84 fix G3): `projectsToldHere` reads again, and the tray and the
        project tokens ask again whom they show when the words name a project. */
     // A card that tells a secret project's description (`PROJECT_WORDS`, E44 fix FG6) is read again the same way.
-    const forget = () => { toldHere = null; wordsHere = null; forgetToldSight(); };
+    const forget = () => { toldHere = null; wordsHere = null; };
     Hooks.on("createChatMessage", forget);
     Hooks.on("deleteChatMessage", forget);
+    // A player's sight of the secret projects changed (S17-31, E101 R2): a share or a revoke writes no countdown any more,
+    // so Daggerheart's setting change no longer runs the tray's and the tokens' pass; the copy's change does.
+    Hooks.on("drpgProjectSightChanged", () => {
+        import("./projects-tray.mjs").then(m => m.refreshProjects?.()).catch(err => error("Could not redraw the Projects tray", err));
+        import("./visibility.mjs").then(m => m.applyAll?.()).catch(err => error("Could not ask again who sees the project tokens", err));
+    });
+    // The sight's wire (E101 R2): the listener on every client, and a player's ask at its load and at a primary's.
+    Hooks.once("ready", () => {
+        game.socket.on(SOCKET_EVENT, onSightSocket);
+        if (game.user.isGM) return;
+        askForSight();
+        Hooks.on("drpgPrimaryReady", primary => askForSight(primary));
+    });
     Hooks.on("drpgSecretStored", message => {
         forget();
-        // A card telling a player they are in on a secret project, or out (S17-31), asks the tray and the tokens again too:
-        // a share or a revoke writes no countdown any more, so Daggerheart's setting change no longer runs the pass.
-        if (!cardMeta(message, PROJECT_KNOWN) && !cardMeta(message, PROJECT_SIGHT)) return;
+        if (!cardMeta(message, PROJECT_KNOWN)) return;
         import("./projects-tray.mjs").then(m => m.refreshProjects?.()).catch(err => error("Could not redraw the Projects tray", err));
         import("./visibility.mjs").then(m => m.applyAll?.()).catch(err => error("Could not ask again who sees the project tokens", err));
     });

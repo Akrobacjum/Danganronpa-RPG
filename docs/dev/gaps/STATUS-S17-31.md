@@ -112,6 +112,19 @@ Found by the suite and fixed in the same work:
   countdown's name tells them apart (only a lift writes `HIDDEN_NAME`): a countdown still named holds an older map, read
   as written. S17-31-T2's second project (every player at OBSERVER, still named): red at 9f052871 (list empty, no player
   sees it), green.
+- **R2, the insiders' sight in the chat log.** A player in on a secret project learnt it, and its name, from a GM's
+  private card read off the chat log: Clear Chat Log took the project out of every insider's tray, and `sightTold` kept
+  it from being sent again. Now it is the player's copy of the GMs' rows (gm-stores.mjs `projectSightCopy`, the client
+  setting `mineProjectSight`), as the deaths' copy is: the primary sends each player their whole sight after every change
+  (`tellSight` -> `sendSightTo`, once the store is hydrated) and on the player's ask at its load and at a primary's
+  (`askForSight`), and again after a restore (`afterRestore`, `retellSights`); `toldSight` reads the copy. The player is
+  told what changed on a notification in the cards' words (`sightTold`, `sightWatched`, `sightGone`), not in the chat.
+  The socket's two packets are in R1b's exemption list, R160's projects flow and R346's census; R3510 counts 9 lines in
+  projects.mjs where the cards made 12. Scenario 72's new last check (p3 holds the project, by its name, after the GM
+  clears the log): red at a6203bdc, green.
+- Found on the way, this line's own: "Back up the case, then Restore, brings every store back" failed on `timedEffects`
+  and `lockpicks` (Q-E93-3, E74: backed up, no fixture) - a tier-2 test the by-name gates of those stages did not select.
+  Fixtures added; green.
 - Left as it is: a reveal made before the copies arrive writes the countdown's "???" back as its name (no real name is
   known on that browser); a GM sees the project manager say so, and renames.
 
