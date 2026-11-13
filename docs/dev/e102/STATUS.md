@@ -11,7 +11,7 @@ asked for the stage now, not after 1.2.124. R numbers: R4750-R4799.
 | starts after e101, E57 C4b, E71, E54-E56 | starts now, on 1.2.109 | the owner's word; to keep merges cheap the tooltip keys are new keys only (no value of an existing key is rewritten), all in one new block `DRPG.Tips` placed after `DRPG.Kit` (a stretch of the lang files no live line touches on 13.11), and each commit is one screen family |
 | E57 C4b adds the tab tooltip | C1 adds it (a section's `tooltip` in `tabNav`, one line) | C4b is a plan, not code, on 13.11; E57 takes it over as built |
 | C2-C9 by window group, C9 for "Change" | C2-C6, one per screen family; the Investigation family last | the review page had no verdicts when the stage started (the `decisions` store read empty, 13.11 00:35 UTC), so the proposals are built as written and a later verdict changes a key's words only. claude/e64 (held for 1.2.110) rewrites investigation.mjs's bar and tables, so the Case family waits for it on main |
-| a census check by the drawn DOM as well | the static census only, held by `node tools/check.mjs tooltips`; each family commit adds one R test that reads each of its keys in the function that draws its control | a DOM read of 137 windows needs each window opened with its world; the per-family tests and the census together hold every site E102 fills |
+| a census check by the drawn DOM as well | the static census only, held by `node tools/check.mjs tooltips`; each family commit adds one R test that reads each of its keys in the function that draws its control | a DOM read of 137 windows needs each window opened with its world. What the census reads, and what it does not, is its header's list (tools/tooltip-census.mjs), not "every control": REVIEW-102 C1 found whole kinds it missed, and the list is what was widened after it |
 
 ## Commits
 
@@ -25,6 +25,7 @@ asked for the stage now, not after 1.2.124. R numbers: R4750-R4799.
 | C5 | Setup, sheet and the rest | tables-editor, passages-tab, level-up, sound-panel, room-tile, season-setup, settings-window, room-setup, anonymity, messenger-app, sheet, popup | 28 (29) | R4754 |
 | C6 | Investigation and the case | investigation, case-map, case-realize, case-summary, remnant-ring | 41 (60) | R4755 |
 | C7 | the incident node's note (texts-e71's item, the coordinator 13.11) | investigation.mjs `schemaEditor`: a second key for a planned Incident Remnant node, "What a finder reads" / "Co przeczyta znalazca", where the node's text becomes the Remnant's words (`placeIncident` opens New Remnant with it); built last, after claude/e97-98 (which is editing `schemaEditor`) is pushed and merged into claude/e102 | - | 1 R |
+| C8 | the sites the widened census reads (REVIEW-102 C1): notice history, the voice list, the room tile's buttons, summaries, each tab | 25 rows "E102 C8" | - | R47xx |
 | C10-C11 | screenshots, ledger, LIVE | - | - | - |
 
 `KEYS.json` holds each family's keys: one key per distinct tooltip of a family (179 keys for 208 sites), with the
@@ -44,6 +45,26 @@ here, not resolved on another line's files.
 
 How it was read: each branch's conflicts with origin/main alone, against its conflicts with claude/e102; only the
 difference is E102's. R-REGISTRY.md is generated and conflicts wherever two lines add R numbers.
+
+## The review of c5cf2aff (REVIEW-102, claude/e93 dbbd91e5)
+
+| Finding | What was done | Commit |
+| --- | --- | --- |
+| C1 (high) the census never read wrappers, aliased or unlisted builders, `<summary>`, `<a data-action>`, `role="button"` | read now, one level of local wrapper; the tab, mode and chip builders one site per object | 937082c0 |
+| C2 the baseline could grow | a `why` on every row; no count above origin/main's copy (not on main yet: the gate prints that); a stage's rows red once it shipped. Left: one identity is a count per function, kind and key | 937082c0 |
+| C3 help from the neighbour | the control's own attribute, call or variable; `tooltip: ""` is none; a key with no words is red. A hint line is still by proximity, and the header says so | 937082c0 |
+| C4 three plants of eight kinds | 25 plants, every kind; old census 13/25, new 25/25 | 937082c0 |
+| C5 / L2 the registry said E64, no stage row | E102 in stages.json (planned 1.2.133; ids may have three digits now), R4750-R4754 say E102 | d3c7c3b2 |
+| T1-T15 | the words, two code changes (Rest's cost, the project window's key), five tooltips dropped, `title` on the controls drawn disabled; R4760 | af5939de |
+| T16 Grant all is in the posting GM's language | left: the card is GMs-only, nothing leaks; a GM in another language reads the poster's words | - |
+
+R numbers: R4750-R4754 (C1-C5), R4760 on (review fixes, C6-C8).
+
+## Tier 2
+
+Whole, on C2 (70613472), 13.11 01:17-02:32 UTC: tiers 0-2, 2676 tests, 2652 passed, 1 failed, 27 skipped. The one: "every
+control in the module's own chrome has a name to be read out" - a Daggerheart trait `<input>` on the sheet of a
+character a tier-2 test made (r3551), not an E102 control. Not yet measured on main alone, so not called pre-existing.
 
 ## Open
 
