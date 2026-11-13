@@ -23639,6 +23639,34 @@ const REGRESSIONS = [
             css: [true, true]
         }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
+    ["R5203 - gm-store.mjs exports one registry of the fields only the GMs hold, SECRET_FIELDS (E43; the plan's item 2): a secret project's fields (projects-secrecy.mjs PROJECT_SECRET_FIELDS), an incident's cast (gm-stores.mjs CAST_FIELDS) and a trace's answer key (world-secrets.mjs everySetting's fields), each registered by the file that holds its list and equal to it; and no name in it is a module world setting's key, a FLAGS name, or a flag a module file writes by its literal name (`setFlag(MODULE_ID, \"x\")`, `flags.${MODULE_ID}.x`)", async () => {
+        /*
+         * E43, 13.11.2026. world-secrets.mjs said "E43 turns the whole into SECRET_FIELDS": the fields each secret lives
+         * under were three lists in three files, and nothing said one of their names was never also a key the world sends
+         * every browser. The engine imports config.mjs alone (R161), so the lists are not imported into it: each file
+         * registers its own (`registerSecretFields`), and the registry answers its owners and names. The source read
+         * finds the literal flag names itself - asked to find "roles", which tables-editor.mjs writes by name, as its control.
+         * Red before C3: no SECRET_FIELDS.
+         */
+        const G = await import("./gm-store.mjs");
+        const [P, S, W, C] = await Promise.all([import("./projects-secrecy.mjs"), import("./gm-stores.mjs"), import("./world-secrets.mjs"), import("./config.mjs")]);
+        const reg = G.SECRET_FIELDS ?? null;
+        const owners = reg ? reg.owners() : null;
+        const lists = reg ? [reg.of("projectMeta"), reg.of("cast"), reg.of("answerKey")] : null;
+        const literal = new Set();
+        for (const [file, text] of await moduleSources()) {
+            if (file.startsWith("tests")) continue;
+            const src = stripComments(text);
+            for (const m of src.matchAll(/setFlag\((?:MODULE_ID|"danganronpa-rpg"),\s*"([^"]+)"/g)) literal.add(m[1]);
+            for (const m of src.matchAll(/flags\.\$\{MODULE_ID\}\.([A-Za-z0-9_]+)/g)) literal.add(m[1]);
+        }
+        const keys = new Set([...Object.values(SETTINGS), ...Object.values(C.FLAGS)].filter(v => typeof v === "string"));
+        const names = reg ? reg.names() : [];
+        equal(JSON.stringify([owners, lists, names.filter(n => keys.has(n) || literal.has(n)), literal.has("roles"), names.length > 30]),
+            JSON.stringify([["answerKey", "cast", "projectMeta"], [[...P.PROJECT_SECRET_FIELDS], [...S.CAST_FIELDS], [...W.WORLD_SECRET_RULES.everySetting.fields]], [], true, true]),
+            "[the registry's owners; each owner's list beside the file's own; the names that are also a setting key, a FLAGS name or a literal flag; the read finds tables-editor.mjs's literal flag; the registry holds the lists]");
+    }],
+
 ];
 
 

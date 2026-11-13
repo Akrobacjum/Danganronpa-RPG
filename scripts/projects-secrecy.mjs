@@ -54,6 +54,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { log, ownerIdsOf, isPrimaryGm, serialWrite } from "./utils.mjs";
 import { projectSecretStore } from "./gm-stores.mjs";
+import { registerSecretFields } from "./gm-store.mjs";
 import { spectatorUserIds } from "./spectator.mjs";
 
 export const DH = "daggerheart";
@@ -109,6 +110,7 @@ export function metaFor(countdownId) {
  */
 export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy",
     "proposerTold"]);
+registerSecretFields("projectMeta", PROJECT_SECRET_FIELDS);
 
 /**
  * A SECRET PROJECT'S DESCRIPTION IS THE GMS' (E44 fix FG6, 05.11.2026; the end review's S-M1, the owner's option (a), the

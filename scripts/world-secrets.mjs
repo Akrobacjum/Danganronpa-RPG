@@ -18,8 +18,10 @@
  * fails R9 at every table until then, and the harness names such a secret a known
  * leak until its commit. At E05 C2 the rule holds what C1 closed - projectMeta's
  * killer, builder, condition and trigger - and R9's five answer-key names, which
- * were its whole list; E05's later commits add theirs, and E43 turns the whole
- * into SECRET_FIELDS. A field held everywhere may be let stand in one setting,
+ * were its whole list; E05's later commits add theirs. Since E43 (13.11.2026) the
+ * fields only the GMs hold are one registry, gm-store.mjs SECRET_FIELDS: everySetting's
+ * answer key below is one of its owners (registered by gm-stores.mjs), beside a secret
+ * project's fields and an incident's cast (R5203). A field held everywhere may be let stand in one setting,
  * with the reason written beside it (`except`); R190 fixtures both halves.
  *
  * IMPORTS NOTHING, so Node reads it (the harness, the tools) exactly as the

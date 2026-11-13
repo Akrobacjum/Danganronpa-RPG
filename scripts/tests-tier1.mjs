@@ -23634,22 +23634,26 @@ const INVARIANTS = [
          * in the Dorm, a living student in the Kitchen), its text read back; and `contestedWarning`, the words of the
          * warning `reportContested` writes, for that player. Nothing is written and nothing sent.
          * Red at the fix's parent: `voicePlan` read the world's own rows, and no `contestedWarning`.
+         * Changed on purpose by E43 C2 (13.11.2026): the plan groups an account by where it is sent, so the victim whose
+         * account the spare's Dorm speaks for stands under "(sent nowhere)", and a second victim with an account of its own
+         * stands under "(dead channel)"; and a living spare outranking a dead student is no conflict (`contestedOf`,
+         * R5202), so no CONFLICTS line - the warning's words are read on the account's whole list.
          */
         needs(env.primaryGm(), "the voice plan is a GM's, and the harness's GM is the primary");
         const V = await import("./voice.mjs");
         const school = { id: "R833SCHOOL000000", name: "R833 School" };
         const account = id => ({ id, name: id, active: true, isGM: false });
-        const victimUser = account("R833PV0000000000"), livingUser = account("R833PL0000000000");
+        const victimUser = account("R833PV0000000000"), livingUser = account("R833PL0000000000"), loneUser = account("R833PLONE0000000");
         const actor = id => ({ id, name: id, type: "character", getFlag: () => undefined });
-        const victim = actor("R833AVICTIM00000"), spare = actor("R833ASPARE000000"), living = actor("R833ALIVING00000");
-        const where = { [victim.id]: "Kitchen", [spare.id]: "Dorm", [living.id]: "Kitchen" };
+        const victim = actor("R833AVICTIM00000"), spare = actor("R833ASPARE000000"), living = actor("R833ALIVING00000"), lone = actor("R833ALONE0000000");
+        const where = { [victim.id]: "Kitchen", [spare.id]: "Dorm", [living.id]: "Kitchen", [lone.id]: "Gym" };
         const { rows, byUser, claims, waits, held } = await V.placeVoices({
-            actors: [victim, spare, living], eclipse: false, trial: false,
+            actors: [victim, spare, living, lone], eclipse: false, trial: false,
             death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
             locate: a => ({ scene: school, room: where[a.id] }),
-            userOf: a => (a === living ? livingUser : victimUser), dead: a => a === victim, monokumaOf: () => false
+            userOf: a => (a === living ? livingUser : a === lone ? loneUser : victimUser), dead: a => a === victim || a === lone, monokumaOf: () => false
         });
-        const contested = new Map([...claims].filter(([, list]) => new Set(list.map(r => r.target ?? null)).size > 1));
+        const contested = V.contestedOf(claims);
         const text = await V.voicePlan({ targets: { rows, byUser, contested, eclipse: false, trial: false, waits, held } });
         const lines = String(text ?? "").split("\n");
         const groupOf = name => {
@@ -23658,14 +23662,14 @@ const INVARIANTS = [
         };
         const conflict = lines.find(line => line.includes(victim.name) && !line.includes(" - ")) ?? null;
         const typeOf = typeof V.contestedWarning;
-        const warning = typeOf === "function" ? V.contestedWarning(victimUser.id, contested.get(victimUser.id) ?? [], byUser.get(victimUser.id)) : null;
+        const warning = typeOf === "function" ? V.contestedWarning(victimUser.id, claims.get(victimUser.id) ?? [], byUser.get(victimUser.id)) : null;
         const words = { main: game.i18n.localize("DRPG.Voice.mainRoom"), dead: game.i18n.localize("DRPG.Voice.deadRoom") };
-        equal(stableJson([groupOf(victim.name), groupOf(spare.name), groupOf(living.name), conflict?.trim() ?? null, warning,
+        equal(stableJson([groupOf(victim.name), groupOf(lone.name), groupOf(spare.name), groupOf(living.name), conflict?.trim() ?? null, warning,
             game.i18n.has("DRPG.Voice.deadRoom")]), stableJson([
-            "(dead channel)", "Dorm", "Kitchen", `${victim.name} · the dead channel`,
+            "(sent nowhere)", "(dead channel)", "Dorm", "Kitchen", null,
             game.i18n.format("DRPG.Voice.contested", { name: victimUser.id, places: `${victim.name} → ${words.dead}; ${spare.name} → Dorm`, room: "Dorm" }),
             true]),
-            "[the voice plan's group of the secret victim, of its player's spare, of a living student; the victim's line under CONFLICTS; "
+            "[the voice plan's group of the secret victim its spare's account speaks for, of a secret victim with an account of its own, of the first's spare, of a living student; the victim's line under CONFLICTS (none: no conflict); "
             + "the contested warning for its player; the dead channel's word]");
     }],
 
@@ -51408,6 +51412,89 @@ const INVARIANTS = [
         }
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
+    }],
+
+    ["R5200 - the private cards' and the traps' diagnoses are on game.drpg (E43; the plan's item 4): `game.drpg.diagnoseSecrets()` answers secret.mjs `diagnoseSecrets`, and `game.drpg.diagnoseTraps()` answers traps.mjs `diagnoseTraps` on a GM and warns and answers null on a player (read in its line), as the diagnostics window's part runs it for the GMs alone", async () => {
+        /*
+         * E43, 13.11.2026. Both ran only as parts of the diagnostics window (diagnostics.mjs `part("secrets")`,
+         * `part("traps", ..., { gmOnly: true })`), so a GM at the console had no name for either. Read here: each key's
+         * kind on the live object, what each answers beside the function it names, and the traps' key's line for what it does
+         * on a player (nothing swapped, nothing written). Red before C1: neither key on game.drpg.
+         */
+        const S = await import("./secret.mjs"), T = await import("./traps.mjs");
+        const kinds = [typeof game.drpg.diagnoseSecrets, typeof game.drpg.diagnoseTraps];
+        const secrets = kinds[0] === "function" ? await game.drpg.diagnoseSecrets() : null;
+        const traps = kinds[1] === "function" && game.user.isGM ? await game.drpg.diagnoseTraps() : null;
+        const drop = report => report && Object.fromEntries(Object.entries(report).filter(([k]) => k !== "bytes"));
+        /* On a player it warns and answers null, as the window's part is the GMs' alone: read in the key's line, since this
+           test runs on a GM and swaps no user. */
+        const api = stripComments((await moduleSources()).get("api.mjs") ?? "");
+        const line = kinds[1] === "function" ? bodyOf(api, "diagnoseTraps:", { until: "\n" }) : "";
+        const asPlayer = [/game\.user\.isGM/.test(line), /DRPG\.Panel\.gmOnly/.test(line), /,\s*null\)/.test(line)];
+        equal(stableJson([kinds, drop(secrets), game.user.isGM ? stableJson(traps) : "player", asPlayer]),
+            stableJson([["function", "function"], drop(S.diagnoseSecrets()), game.user.isGM ? stableJson(T.diagnoseTraps()) : "player", [true, true, true]]),
+            "[the two keys' kinds; diagnoseSecrets' report without its byte count; diagnoseTraps' on this GM; its line asks isGM, warns gmOnly and answers null]");
+    }],
+
+    ["R5201 - the GM's voice plan groups the accounts by where each is sent, lists what is sent nowhere apart, and has a section for the accounts with no character (E43; the plan's item 4): a Spectator talking with the Spectators under the Spectators' room, not its token's; a character whose owner is offline and one its account's ranking passed over under \"(sent nowhere)\"; an account with no character under ACCOUNTS WITH NO CHARACTER with where it goes", async () => {
+        /*
+         * E43, 13.11.2026. voice.mjs `voicePlan` grouped every character row by its own room (`placeName(row)`), so a
+         * Spectator whose switch sends it to the Spectators' room was printed in its token's room; a character with no
+         * connected owner (sent nothing) in "(main room)"; a passed-over spare in its own room with an arrow; and an
+         * account with no character (its row from `placeVoices`' second loop, `actor` null) not at all. Read here on
+         * plain rows (`targets` handed in, as R833 does): nothing written, nothing sent. Red before C2.
+         */
+        needs(env.primaryGm(), "the voice plan is a GM's, and the harness's GM is the primary");
+        const V = await import("./voice.mjs"), VC = await import("./voice-client.mjs");
+        const account = (id, extra = {}) => ({ id, name: id, active: true, isGM: false, ...extra });
+        const pA = account("R5201PA000000000"), pS = account("R5201PS000000000"), pOff = account("R5201POFF0000000", { active: false });
+        const lone = account("R5201LONE0000000");
+        const actor = id => ({ id, name: id, type: "character" });
+        const row = (a, user, extra) => ({ actor: a, monokuma: false, user, scene: null, room: null, target: null, claim: 0, why: "w", ...extra });
+        const aKitchen = row(actor("R5201AKITCHEN000"), pA, { room: "Kitchen", target: "drpg-kitchen", claim: 3 });
+        const aSpare = row(actor("R5201ASPARE00000"), pA, { claim: 2, why: "nowhere" });
+        const sRow = row(actor("R5201ASPEC000000"), pS, { room: "Dorm", target: "drpg-dorm", claim: 3 });
+        const offRow = row(actor("R5201AOFF0000000"), pOff, { why: "not connected" });
+        const rows = [aKitchen, aSpare, sRow, offRow];
+        const byUser = new Map([[pA.id, aKitchen], [pS.id, { ...sRow, room: null, target: VC.SPECTATOR_ROOM, why: "a Spectator, talking with the Spectators" }],
+            [lone.id, { actor: null, monokuma: false, user: lone, room: null, target: null, claim: 0, why: "no character - the main room" }]]);
+        const text = await V.voicePlan({ targets: { rows, byUser, contested: new Map(), eclipse: false, trial: false, waits: new Map(), held: new Set() } });
+        const lines = String(text ?? "").split("\n");
+        const heading = line => /^\S.*\(\d+\)$/.test(line);
+        const groupOf = name => {
+            const at = lines.findIndex(line => line.includes(name));
+            return at < 0 ? null : lines.slice(0, at).reverse().find(heading)?.replace(/\s+\(\d+\)$/, "") ?? null;
+        };
+        equal(stableJson([groupOf(aKitchen.actor.name), groupOf(sRow.actor.name), groupOf(offRow.actor.name), groupOf(aSpare.actor.name), groupOf(lone.name),
+            lines.filter(line => line.includes(sRow.actor.name)).length]),
+            stableJson(["Kitchen", "(Spectators' room)", "(sent nowhere)", "(sent nowhere)", "ACCOUNTS WITH NO CHARACTER", 1]),
+            "[the group of a character placed in the Kitchen; of a Spectator talking; of a character whose owner is offline; of a spare its account's ranking passed over; of an account with no character; the Spectator's lines]");
+    }],
+
+    ["R5202 - the voice plan's conflicts are only the accounts the ranking settled by actor id between two places (E43; the plan's item 4: no false \"contested\"): voice.mjs `contestedOf` names an account with two students in two rooms, and not one whose living student outranks a dead one, nor one whose spare stands on no room - the warning's own advice - nor a dead victim's account while the victim keeps its room by A9's rule; voiceTargets reads it", async () => {
+        /*
+         * E43, 13.11.2026. `voiceTargets` called an account contested when its connected characters' targets differed
+         * at all, so the warning "leave their tokens off the map" kept firing for a spare whose token was off it (its
+         * claim `nowhere` loses to any room), and for a player whose dead student lies in one room while their living
+         * one stands in another (`dead` loses to `inRoom`). Those the ranking (`voiceRowFor`) settles by a rule; only a
+         * tie broken by the lowest actor id sends an account somewhere it could as well not be. Plain rows; nothing
+         * written. Red before C2: no `contestedOf`.
+         */
+        const V = await import("./voice.mjs");
+        const typeOf = typeof V.contestedOf;
+        const r = (id, claim, target, extra = {}) => ({ actor: { id }, claim, target, fallen: false, gone: false, ...extra });
+        const claims = new Map([
+            ["twoRooms", [r("a1", 3, "kitchen"), r("a2", 3, "dorm")]],
+            ["deadAndAlive", [r("b1", 1, "drpg-dead", { fallen: true, gone: true }), r("b2", 3, "dorm")]],
+            ["spareOffMap", [r("c1", 3, "kitchen"), r("c2", 2, null)]],
+            ["victimKeepsRoom", [r("d1", 3, "gym", { fallen: true, gone: false }), r("d2", 3, "dorm")]],
+            ["sameRoom", [r("e1", 3, "kitchen"), r("e2", 3, "kitchen")]],
+            ["twoDead", [r("f1", 1, "drpg-dead", { fallen: true, gone: true }), r("f2", 1, null, { fallen: true, gone: true })]]
+        ]);
+        const named = typeOf === "function" ? [...V.contestedOf(claims).keys()].sort() : null;
+        const source = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
+            "[the accounts contestedOf names; voiceTargets reads it]");
     }],
 ];
 

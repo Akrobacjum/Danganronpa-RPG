@@ -27,8 +27,9 @@ import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.m
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
-    raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp, fileSection
+    raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp, fileSection, registerSecretFields
 } from "./gm-store.mjs";
+import { WORLD_SECRET_RULES } from "./world-secrets.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
@@ -391,6 +392,11 @@ export const CAST_FIELDS = Object.freeze([
     "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT
 ]);
+/* The cast's fields and a trace's answer key in gm-store.mjs's one registry (E43; R5203). The answer key's list is
+   world-secrets.mjs's, which imports nothing so that Node reads it as the module does; it is registered here, beside the
+   stores that hold a trace's rows. */
+registerSecretFields("cast", CAST_FIELDS);
+registerSecretFields("answerKey", WORLD_SECRET_RULES.everySetting.fields);
 
 /**
  * WHO IS IN THE INCIDENT (E04 C6; audit S04-24, the cast half of S06-19). One

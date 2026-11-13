@@ -1247,6 +1247,12 @@ export const DrpgApi = {
      */
     diagnosePatches: () => import("./patches.mjs").then(m => m.diagnosePatches()),
 
+    /** The private cards this browser holds and whether any card in the world still carries its words (secret.mjs, E04);
+     *  the traps watching now, the plants and the ledger (traps.mjs, E04) - GM only, as the diagnostics window's part. Both
+     *  ran only as parts of that window until E43 (13.11.2026) gave them a name at the console. */
+    diagnoseSecrets: () => import("./secret.mjs").then(m => m.diagnoseSecrets()),
+    diagnoseTraps: () => game.user.isGM ? import("./traps.mjs").then(m => m.diagnoseTraps()) : (ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly")), null),
+
     /**
      * Every diagnose* this browser may run, the data migration, the contract and this session's failures as
      * one text, shown with Copy report and the silences' Show again; answers the text (E52 C4, E52-14). On a
