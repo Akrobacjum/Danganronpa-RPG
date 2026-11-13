@@ -249,24 +249,57 @@ for (const p of lines.values()) {
         : cuts.find(c => [...c.holder.values()].some(f => `scripts/${f}` === p.lands))?.tree ?? named.tree;
     const there = read(cutTree, p.lands);
     if (!there.includes(p.text)) { problems.push(`${p.rel}:${p.line}: the line is not in ${p.lands} of the ${p.cut} cut's tree`); continue; }
-    // the changed fragment: the common head and tail taken off, then widened to whole words until it stands once
-    let a = 0; while (a < p.text.length && p.text[a] === neu[a]) a++;
-    let b = 0; while (b < p.text.length - a && p.text[p.text.length - 1 - b] === neu[neu.length - 1 - b]) b++;
-    let from = a, to = p.text.length - b;
-    const grow = () => {
-        const before = from, after = to;
-        while (from > 0 && !/\s/.test(p.text[from - 1])) from--;
-        if (from === before && from > 0) { from--; while (from > 0 && !/\s/.test(p.text[from - 1])) from--; }
-        while (to < p.text.length && !/\s/.test(p.text[to])) to++;
-        if (to === after && to < p.text.length) { to++; while (to < p.text.length && !/\s/.test(p.text[to])) to++; }
-        return from !== before || to !== after;
+    /* THE CHANGED FRAGMENTS, ONE ROW EACH (E54, 13.11.2026). A line can change in two places (W3's R4803 name: two
+       "settings.mjs" a few words apart), and another cut's sweep can rewrite a word between them (W1's
+       "utils.mjs `windowWidthFor`"): one fragment from the first change to the last held that word as it was and
+       refused once W1's row had run. So each changed run of words is its own row, widened to whole words until it
+       stands once; two whose widening meets are one row, as a line with one change always was. */
+    const split = s => s.match(/\s+|[^\s]+/g) ?? [];
+    const A = split(p.text), B = split(neu);
+    const L = Array.from({ length: A.length + 1 }, () => new Array(B.length + 1).fill(0));
+    for (let i = A.length - 1; i >= 0; i--) for (let j = B.length - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const hunks = [];   // [old from, old to, new text] in characters of p.text
+    { let i = 0, j = 0, at = 0, cur = null;
+      const close = () => { if (cur) { hunks.push(cur); cur = null; } };
+      while (i < A.length || j < B.length) {
+          if (i < A.length && j < B.length && A[i] === B[j]) { close(); at += A[i].length; i++; j++; }
+          else if (j < B.length && (i === A.length || L[i][j + 1] >= L[i + 1][j])) { cur ??= [at, at, ""]; cur[2] += B[j]; j++; }
+          else { cur ??= [at, at, ""]; at += A[i].length; cur[1] = at; i++; }
+      }
+      close(); }
+    const widen = h => {
+        let [from, to] = h;
+        const grow = () => {
+            const before = from, after = to;
+            while (from > 0 && !/\s/.test(p.text[from - 1])) from--;
+            if (from === before && from > 0) { from--; while (from > 0 && !/\s/.test(p.text[from - 1])) from--; }
+            while (to < p.text.length && !/\s/.test(p.text[to])) to++;
+            if (to === after && to < p.text.length) { to++; while (to < p.text.length && !/\s/.test(p.text[to])) to++; }
+            return from !== before || to !== after;
+        };
+        grow();
+        while (there.split(p.text.slice(from, to)).length - 1 > 1 && grow());
+        return [from, to];
     };
-    grow();
-    while (there.split(p.text.slice(from, to)).length - 1 > 1 && grow());
-    const oldText = p.text.slice(from, to);
-    if (there.split(oldText).length - 1 !== 1) { problems.push(`${p.rel}:${p.line}: no fragment of the line stands once in ${p.lands}`); continue; }
-    const newText = neu.slice(from, neu.length - (p.text.length - to));
-    tables[p.cut].push({ base: `${p.rel}:${p.line}`, file: p.lands, old: oldText, new: newText, line: p.text, why: [...new Set(p.why)].join("; "), ...(p.test ? { test: true } : {}) });
+    // widen each, merging any two whose spans meet, until none meet
+    let spans = hunks.map(h => ({ hs: [h], span: widen(h) }));
+    for (let merged = true; merged;) {
+        merged = false;
+        for (let k = 0; k + 1 < spans.length; k++) if (spans[k].span[1] >= spans[k + 1].span[0]) {
+            const hs = [...spans[k].hs, ...spans[k + 1].hs];
+            spans.splice(k, 2, { hs, span: widen([hs[0][0], hs[hs.length - 1][1]]) }); merged = true; break;
+        }
+    }
+    let bad = false;
+    for (const { hs, span: [from, to] } of spans) {
+        const oldText = p.text.slice(from, to);
+        if (there.split(oldText).length - 1 !== 1) { bad = true; break; }
+        let newText = "", at = from;
+        for (const [hf, ht, ins] of hs) { newText += p.text.slice(at, hf) + ins; at = ht; }
+        newText += p.text.slice(at, to);
+        tables[p.cut].push({ base: `${p.rel}:${p.line}`, file: p.lands, old: oldText, new: newText, line: p.text, why: [...new Set(p.why)].join("; "), ...(p.test ? { test: true } : {}) });
+    }
+    if (bad) problems.push(`${p.rel}:${p.line}: no fragment of the line stands once in ${p.lands}`);
 }
 const baseHead = (() => { try { return execFileSync("git", ["-C", BASE, "rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); } catch { return "a tree with no git"; } })();
 for (const [cut, list] of Object.entries(tables)) {
