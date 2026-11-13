@@ -3,27 +3,29 @@
  * held to one baseline before E55 consolidates a line of CSS (E55 step 0, F0; 13.11.2026).
  *
  *   cd audit/harness && npm ci            (once: Playwright comes from there; it downloads no browser)
- *   node audit/style-freeze.mjs --pl-windows <dir>            compare with audit/style-freeze-baseline.json; exit 1 on any
- *                                                              difference, naming the page, theme, language, size, surface,
- *                                                              its selector and the property, before and after
- *   node audit/style-freeze.mjs --pl-windows <dir> --write    the baseline written from this run (read it before committing)
- *   node audit/style-freeze.mjs ... --root <dir>              serve another checkout (a throwaway copy with a planted CSS
- *                                                              change) against this repository's baseline
- *   node audit/style-freeze.mjs ... --only kit-gallery        one page (repeatable)
- *   node audit/style-freeze.mjs ... --en-windows <dir>        the English windows from a fresh probe 08 capture in <dir>
- *                                                              instead of the committed audit/windows/ (which can be older
- *                                                              than the code: 60 rows there, 80 from the probe on 421f2395)
- * `--pl-windows <dir>` is a probe 08 capture in Polish: `cd audit/harness && DRPG_CAPTURE_LANG=pl
- * DRPG_CAPTURE_OUT=<dir> node cluster.mjs probes/08-capture-windows.mjs` (the committed captures in audit/windows/ are the
- * English ones). Without it the Polish windows are not read, the run says so, and it is red: a freeze that silently reads
- * one language is not the freeze.
+ *   node audit/style-freeze.mjs                 compare with audit/style-freeze/baseline.json; exit 1 on any difference,
+ *                                               naming the page, theme, language, size, surface, its selector and the
+ *                                               property, before and after, then every difference grouped
+ *   node audit/style-freeze.mjs --write         the baseline written from this run (read it before committing)
+ *   node audit/style-freeze.mjs --root <dir>    serve another checkout (a throwaway copy with a planted CSS change)
+ *                                               against this repository's baseline and captures
+ *   node audit/style-freeze.mjs --only kit-gallery    one page (repeatable)
+ *   --chromium <executable>                     the browser (the harness's Playwright may want another build than the
+ *                                               one installed; the baseline names the build it was written in)
+ * The windows are read from the captures the baseline was read from, kept beside it in audit/style-freeze/windows-en
+ * and windows-pl (probe 08 on 421f2395: 80 rows each, 79 captured in each language; the committed audit/windows/ is
+ * older, 60 rows), so a comparison holds the markup still and only the sheets can differ. Refresh them together with
+ * the baseline, never one without the other: `cd audit/harness && DRPG_CAPTURE_OUT=<dir> node cluster.mjs
+ * probes/08-capture-windows.mjs`, again with DRPG_CAPTURE_LANG=pl into another <dir>, then `--en-windows <dir>
+ * --pl-windows <dir> --write` and copy the two folders in. A run without both captures stops: the freeze reads both
+ * languages.
  *
  * WHAT IT REUSES, AND WHAT IT ADDS. The reading is scripts/style-snapshot.mjs `styleSnapshot` (STYLE_SURFACES, 33
  * properties each, the first element each selector matches), unchanged, as audit/style-sweep.mjs runs it; the pages
  * are the sweep's (every window probe 08 captured, on audit/style-harness.html; the kit gallery; the sheet's parts; the
  * glass harness's GM and player pages), at the sweep's four sizes, with the sweep's three controls first (unchanged,
  * restyled, removed). Neither the sweep nor its baseline is touched (three open lines edit style-sweep.mjs). What
- * this adds: (1) Polish - every window as probe 08 drew it in Polish (served from `--pl-windows` in place of
+ * this adds: (1) Polish - every window as probe 08 drew it in Polish (served from audit/style-freeze/windows-pl in place of
  * audit/windows/), and the kit gallery and the sheet's parts with `&lang=pl` (the harness reads lang/pl.json); the
  * glass harness has no language of its own, so its two pages are read once per theme, under "en"; (2) the Chromium
  * build in the baseline: the sweep's baseline, written in another build, read 2308 differences at 4dfac3a9 (prep-54's
@@ -45,7 +47,7 @@ import { createRequire } from "node:module";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
-const BASELINE = path.join(HERE, "style-freeze-baseline.json");
+const BASELINE = path.join(HERE, "style-freeze", "baseline.json");
 const SIZES = [[1920, 1080], [1366, 768], [1024, 768], [390, 844]];
 const THEMES = ["glass", "legacy"];
 
@@ -54,8 +56,10 @@ const opt = name => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 
 const many = name => argv.flatMap((a, i) => (a === name ? [argv[i + 1]] : [])).filter(Boolean);
 const WRITE = argv.includes("--write");
 const ONLY = new Set(many("--only"));
-const PL_DIR = opt("--pl-windows") ? path.resolve(opt("--pl-windows")) : null;
-const EN_DIR = opt("--en-windows") ? path.resolve(opt("--en-windows")) : null;
+/* The captures the baseline was read from are kept beside it (audit/style-freeze/windows-en, windows-pl), so a comparison
+   holds the markup still and only the sheets can differ; `--en-windows` and `--pl-windows` read others. */
+const PL_DIR = path.resolve(opt("--pl-windows") ?? path.join(HERE, "style-freeze", "windows-pl"));
+const EN_DIR = path.resolve(opt("--en-windows") ?? path.join(HERE, "style-freeze", "windows-en"));
 const ROOT = opt("--root") ? path.resolve(opt("--root")) : REPO;
 const CHROMIUM = opt("--chromium");
 
@@ -146,8 +150,8 @@ async function main() {
     const readings = {};
     let loads = 0;
     try {
-        const langs = PL_DIR ? ["en", "pl"] : ["en"];
-        if (!PL_DIR) problems.push("no --pl-windows <dir>: the Polish windows were not read, so this is not the freeze");
+        const langs = ["en", "pl"];
+        for (const [lang, dir] of [["en", EN_DIR], ["pl", PL_DIR]]) if (!fs.existsSync(path.join(dir, "manifest.json"))) throw new Error(`no ${lang} captures at ${dir} (probe 08's manifest.json): the freeze reads both languages`);
         const page = await browser.newPage({ viewport: { width: SIZES[0][0], height: SIZES[0][1] } });
         const first = pages("en")[0];
         if (!first) throw new Error("no page to read");
@@ -205,6 +209,14 @@ async function main() {
             }
         }
         if (diffs > 200) problems.push(`... and ${diffs - 200} more difference(s)`);
+        /* Every difference, grouped, so a run with more than the 200 printed still says what all of them were. */
+        const groups = new Map();
+        for (const key of Object.keys(readings)) if (before[key]) for (const d of differences(before[key], readings[key])) {
+            const [, theme, lang] = key.split("|");
+            const g = `${d.id} ${d.prop ?? d.what} ${theme} ${lang}`;
+            groups.set(g, (groups.get(g) ?? 0) + 1);
+        }
+        if (groups.size) console.log(`style-freeze: every difference by surface, property, theme and language: ${[...groups].sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g} x${n}`).join("; ")}`);
     }
     for (const p of problems) console.log(`style-freeze: ${p}`);
     console.log(`style-freeze: ${Object.keys(readings).length} reading(s), ${surfaces} surface reading(s), ${loads} page load(s), Chromium ${build}, root ${path.relative(REPO, ROOT) || "."}; ${diffs} difference(s); ${problems.length ? "RED" : "green"}`);

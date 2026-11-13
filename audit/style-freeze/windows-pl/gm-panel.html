@@ -1,0 +1,91 @@
+<dialog id="app-feleESw9" class="application dialog drpg-panel drpg-gm-panel-window drpg-window-panel drpg-ui drpg-kit-width drpg-kit-width-panel" open="" style="z-index: 150; left: 160px; top: 384px;" data-drpg-width="panel" data-drpg-scaled="1@768" lang="pl" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><div class="drpg-gm-panel">
+        <div class="drpg-gmp-standing">
+                
+                <h3>DRPG Audit World</h3>
+                <p><strong>Rozdział 1 · Dzień 1 · Sesja 1 · Rano</strong>
+                   <span class="drpg-gmp-phase">Daily Life</span>
+                   <button type="button" class="drpg-gmp-next-go drpg-gmp-advance" data-drpg-run="advance" data-tooltip="Przesuń zegar bez Eclipse: odnawia akcje, Free Moves i Search Tokens. Nocą zaczyna też następny dzień i sesję." data-drpg-named="own">
+               <i class="fa-solid fa-forward-step" inert=""></i> Następna pora dnia</button></p>
+                <div class="drpg-gmp-next">
+            <span class="drpg-gmp-next-label">Dalej</span>
+            <span class="drpg-gmp-next-text">Sezon nie jest jeszcze ustawiony. Następne na Liście kontrolnej sezonu: Nazwij kampanię.</span>
+            <button type="button" class="drpg-gmp-next-go" data-drpg-run="seasonChecklist" data-drpg-named="own">
+                       Lista kontrolna sezonu</button>
+            
+        </div>
+                
+                <p class="drpg-gmp-students" data-drpg-students-left="4">4 uczniowie mają jeszcze akcje
+                <button type="button" class="drpg-gmp-next-go" data-drpg-run="whoIsAlive" data-drpg-named="own">
+                    <i class="fa-solid fa-heart-pulse" inert=""></i> Uczniowie</button></p>
+            </div>
+        <div class="drpg-gmp-sections">
+        <details class="drpg-gmp-section in-season" data-drpg-key="now" open="">
+            <summary>Teraz</summary>
+            <div class="drpg-gmp-grid">
+                <button type="button" class="drpg-gmp-button" data-drpg-run="whoIsAlive" data-drpg-named="own">
+                    <i class="fa-solid fa-heart-pulse" inert=""></i>
+                    <span>Uczniowie</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="projects" data-drpg-named="own">
+                    <i class="fa-solid fa-list-check" inert=""></i>
+                    <span>Projects</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="sound" data-drpg-named="own">
+                    <i class="fa-solid fa-volume-high" inert=""></i>
+                    <span>Dźwięk</span>
+                </button></div>
+        </details>
+        <details class="drpg-gmp-section in-season" data-drpg-key="case" open="">
+            <summary>Sprawa</summary>
+            <div class="drpg-gmp-grid">
+                <button type="button" class="drpg-gmp-button drpg-destructive" data-drpg-run="murder" data-drpg-named="own">
+                    <i class="fa-solid fa-skull" inert=""></i>
+                    <span>Morderstwo</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="investigation" data-drpg-named="own">
+                    <i class="fa-solid fa-magnifying-glass-chart" inert=""></i>
+                    <span>Investigation</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="trial" data-drpg-named="own">
+                    <i class="fa-solid fa-scale-balanced" inert=""></i>
+                    <span>Class Trial</span>
+                </button></div>
+        </details>
+        <details class="drpg-gmp-section" data-drpg-key="between">
+            <summary>Między sesjami</summary>
+            <div class="drpg-gmp-grid">
+                <button type="button" class="drpg-gmp-button" data-drpg-run="roomSetup" data-drpg-named="own">
+                    <i class="fa-solid fa-door-closed" inert=""></i>
+                    <span>Ustawienia pokoi</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="tables" data-drpg-named="own">
+                    <i class="fa-solid fa-table-list" inert=""></i>
+                    <span>Tabele przedmiotów</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="seasonSetup" data-drpg-named="own">
+                    <i class="fa-solid fa-wand-magic-sparkles" inert=""></i>
+                    <span>Ustawienia sezonu</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="settings" data-drpg-named="own">
+                    <i class="fa-solid fa-sliders" inert=""></i>
+                    <span>Ustawienia gry</span>
+                </button></div>
+        </details>
+        <details class="drpg-gmp-section dim" data-drpg-key="fixes">
+            <summary><em class="drpg-gmp-dim">Diagnostyka</em></summary>
+            <div class="drpg-gmp-grid">
+                <button type="button" class="drpg-gmp-button" data-drpg-run="failureLog" data-drpg-named="own">
+                    <i class="fa-solid fa-bug" inert=""></i>
+                    <span>Dziennik debugowania</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="voiceReset" data-drpg-named="own">
+                    <i class="fa-solid fa-microphone-lines" inert=""></i>
+                    <span>Wyślij wszystkim ponownie ich pokój głosowy</span>
+                </button>
+                <button type="button" class="drpg-gmp-button" data-drpg-run="caseWindow" data-drpg-named="own">
+                    <i class="fa-solid fa-box-archive" inert=""></i>
+                    <span>Sprawa</span><small class="notes">ostatnia kopia: nigdy</small>
+                </button></div>
+        </details></div>
+        <p class="drpg-gmp-version">Danganronpa RPG v1.2.109</p>
+    </div></div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"></div><div class="drpg-kit-left"><button type="submit" data-action="close" class="default drpg-role-close" data-drpg-role="close" autofocus="" data-drpg-named="own">Zamknij</button></div></footer></form></dialog>
