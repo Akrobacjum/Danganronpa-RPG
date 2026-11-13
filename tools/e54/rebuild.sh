@@ -95,11 +95,17 @@ proofs() { # quick and tiers 0-1 at this commit; $1 the step's name
 
 # 3
 proofs picks
-step "golden boxes" golden-boxes.txt node audit/glass-golden.mjs --capture --boxes "$OUT/golden-boxes.json" --chromium "$CHROMIUM" \
-  || stop "golden boxes" $DT "logs/golden-boxes.txt"
-step "golden base" golden-base.txt node audit/glass-golden.mjs --boxes "$OUT/golden-boxes.json" --out "$OUT/golden-0.json" --chromium "$CHROMIUM" \
-  || stop "golden base" $DT "logs/golden-base.txt"
-row "golden base" $DT "$(tail -1 "$OUT/logs/golden-base.txt" | cut -c1-120)"
+# glass-golden exits 1 when a size draws no glass (844x390 and 640x360 on 1.2.112: 23 of 25 captured) and 2 when it
+# cannot run; so its own line is read, and the byte comparison at the end is the proof
+golden() { # golden <step> <log> <args...>
+  local name=$1 log=$2; shift 2
+  step "$name" "$log" node audit/glass-golden.mjs "$@" --chromium "$CHROMIUM"; local rc=$?
+  [ $rc = 2 ] && stop "$name" $DT "glass-golden could not run (logs/$log)"
+  grep -q "size(s) captured into\|byte(s) written to" "$OUT/logs/$log" || stop "$name" $DT "nothing written (logs/$log)"
+  row "$name" $DT "$(grep "size(s) captured into\|byte(s) written to" "$OUT/logs/$log" | tail -1 | sed 's/ into .*\| to .*//' | cut -c1-120)"
+}
+golden "golden boxes" golden-boxes.txt --capture --boxes "$OUT/golden-boxes.json"
+golden "golden base" golden-base.txt --boxes "$OUT/golden-boxes.json" --out "$OUT/golden-0.json"
 
 # 4
 cp "$T"/{sheet,windows,windows-settings,key-remnants,cleanup-reshape,chapter,glass}.json "$OUT/tables/"
@@ -169,8 +175,7 @@ row rows $DT "$(tail -1 "$OUT/logs/rows.txt")"
 
 # 7
 proofs end
-step "golden end" golden-end.txt node audit/glass-golden.mjs --boxes "$OUT/golden-boxes.json" --out "$OUT/golden-1.json" --chromium "$CHROMIUM" \
-  || stop "golden end" $DT "logs/golden-end.txt"
+golden "golden end" golden-end.txt --boxes "$OUT/golden-boxes.json" --out "$OUT/golden-1.json"
 cmp -s "$OUT/golden-0.json" "$OUT/golden-1.json" && row golden $DT "SAME, $(wc -c < "$OUT/golden-1.json") bytes" || stop golden $DT "DIFFERS from step 3's"
 if [ $SWEEP = 1 ]; then
   step "glass-sweep" glass-sweep.txt node audit/glass-sweep.mjs --chromium "$CHROMIUM"; s=$?
