@@ -13,7 +13,11 @@
  *   - `day`: when the clock's day changes (`day`, `dayMark`).
  *
  * WHEN IT ENDS. On the primary at `drpgTimeOfDayChanged` (`endTimedEffects`): each row past its end is taken back
- * (`KINDS[kind].take`) and dropped. A GM may end one by hand (`endTimedEffect`).
+ * (`KINDS[kind].take`) and dropped; a row that lasts until an Eclipse at its end (`endEclipseEffects`). Those two are
+ * the only callers of `endTimedEffect` outside the tests: no window, button or game.drpg command ends a row by hand
+ * (A113-C6-5, 13.11.2026; this line said "a GM may end one by hand" until then). A GM who edits a trait the row raised
+ * back to its number by hand does not end the row, and its end takes the bonus again from whatever the sheet holds:
+ * measured headless on 13.11.2026, a +2 on a trait of 0, edited back to 0, read -2 after `endTimedEffect`.
  *
  * WHO SEES IT. The GMs (the store), and each owner of the character, through a copy of their own characters' rows
  * (gm-stores.mjs `timedEffectCopy`), sent by the primary when a row is given or ends and when the owner asks (at load, at
