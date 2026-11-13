@@ -23922,7 +23922,7 @@ const REGRESSIONS = [
             drawn: {
                 aside: 0, open: [false, true, true, true, true, 0], bWarn: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "R3661 b", ref: "" })],
                 others: [["S.T1", true], ["d-b", true]], face: ["button", "true"],
-                overview: [true, 2, true], tools: [true, 6, [true, true, true]],
+                overview: [true, 2, true], tools: [true, 3, [true, true, true]],
                 names: ["case:4:d-a:label", "case:4:d-b:label", "keyOverride", "name.S__T1"], nameless: []
             },
             said: [["pick", "d-b"], ["move", "d-a", -1], ["drop", "d-a"], ["close", "d-a"], ["close", "d-a"], ["check"], ["add", "counter"]],

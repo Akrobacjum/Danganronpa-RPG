@@ -9117,6 +9117,38 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R5334 - the Map adds a plan from one select, so its tools stay one row (E104): three buttons for a deduction, a counter and the solution, and a select of the plans - a Remnant, a Final Truth, a Truth Bullet - whose pick adds that plan and goes back to its first line", async () => {
+        /*
+         * E104. case-map.mjs `caseToolsHtml`, `wireCaseMap`. As three more buttons the tools went to two lines and took
+         * the graph's viewport from 297 to 226 px under the glass at 1366x768 (audit/case-map-sweep.mjs; STATUS). Red at
+         * 383c5da1: six buttons and no select.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 4, rows: { "d-a": { kind: "deduction", label: "R5334" } } });
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const said = [];
+        let read = null;
+        try {
+            host.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { node: null, fold: false }, tools: M.caseToolsHtml({ sort: "kind", sorts: ["kind"] }) });
+            M.wireCaseMap(host, { onPick: () => {}, onClose: () => {}, onMove: () => {}, onDrop: () => {}, onCheck: () => {}, onAdd: k => said.push(k), onSort: () => {} });
+            const select = host.querySelector("[data-drpg-case-add-plan]");
+            const buttons = [...host.querySelectorAll(".drpg-case-tools [data-drpg-case-add]")].map(b => b.dataset.drpgCaseAdd);
+            const options = select ? [...select.options].map(o => o.value) : null;
+            if (select) {
+                select.value = "final";
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            read = { buttons, options, said, after: select?.value ?? null, named: select?.getAttribute("aria-label") ?? null };
+        } finally {
+            host.remove();
+        }
+        equal(stableJson(read), stableJson({ buttons: ["deduction", "counter", "solution"], options: ["", "incident", "final", "bullet"], said: ["final"],
+            after: "", named: game.i18n.localize("DRPG.CaseMap.addPlan") }),
+            "{the tools' add buttons; the plans' select's options; what a pick of Final Truth added; the select after; its name}");
+    }],
     ["R5333 - a planned Truth Bullet made by hand is a case row of its own (E104; the owner, 13.11.2026: \"kazdemu zaplanowanemu remnantowi/bulletowi\"): kind bullet, holding the Give Truth Bullet window's Write new fields with its defaults (Neutral, shown as auto, Evident, not Faint, not tied, the player told), its recipient and when it was given; on the Map evidence of its real type, planned until given and sent after, needing a name and a recipient where it has none", async () => {
         /*
          * E104 C4. case-schema.mjs CASE_KINDS, `caseNodeOf` (`bulletFields`), `graphOf`'s planned Truth Bullet; case-map.mjs

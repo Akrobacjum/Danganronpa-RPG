@@ -112,3 +112,22 @@ Every plan is a row of the GMs' stores (the case schema, the Key plan), which on
 browser receives a planned item only when its real road makes the real thing (a Remnant placed, a Truth Bullet given).
 No new road reaches a player.
 
+## C5. The plans are added from one select, so the Map keeps its height
+
+- Measured on the shots of C1-C4 (audit/case-map-sweep.mjs, investigation--map-planned, 1366x768): the three plans'
+  add buttons put the Map's tools on two lines, and the graph's viewport went from 297 to 226 px under the glass and
+  from 319 to 273 px under Legacy, in Polish and English alike.
+- So a deduction, a counter and the solution keep their buttons, and the plans are one select, **Add a plan** /
+  **Dodaj plan** (Planned Remnant, Planned Final Truth, Planned Truth Bullet); a pick adds that plan and the select goes
+  back to its first line (case-map.mjs `caseToolsHtml`, `wireCaseMap`).
+- Measured again after: 297 px under the glass and 319 px under Legacy, as before E104; the sweep reads 44 pages,
+  0 failing (the four plans' editors, the Key slot and the Autopsy, both themes, both languages, 1366x768 and
+  1920x1080, after the plain Map for the sweep's control).
+- Tests: R5334 (tier 1: the tools' three buttons, the select's options, a pick adding the plan, the select reset, its
+  name); red at 383c5da1. R3661 reads three add buttons again.
+- GM handbook EN/PL: the tools' sentence names the select and its three plans.
+
+### Default taken, owner to confirm
+
+- **D11. The plans are one select, not three buttons**, to keep the Map's height (above).
+
