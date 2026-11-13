@@ -44,7 +44,7 @@ import { studentActors } from "./monokuma.mjs";
 import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
-import { drpgWindow, drpgConfirm, emptyOption, box } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, emptyOption, box, tipAttr, tipText } from "./ui-kit.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -2020,12 +2020,12 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
             <hr />
             ${option("endTrial", trialSitting, game.i18n.localize("DRPG.Chapter.optEndTrial"), { why: "DRPG.Chapter.optNoTrial" })}
             <label class="drpg-checkbox">
-                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
+                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"}${tipAttr("DRPG.Tips.Trial.moveToChapterToTooltip")} />
                 ${game.i18n.format("DRPG.Chapter.optNextChapter", { from: chapter, to: chapter + 1 })}</label>
             ${lastChapter ? box("warning", `<p>${game.i18n.format("DRPG.Chapter.lastChapter", {
                     n: chapter, next: chapter + 1 })}</p>`) : ""}
             <label class="drpg-checkbox">
-                <input type="checkbox" name="nextSession" checked />
+                <input type="checkbox" name="nextSession" checked${tipAttr("DRPG.Tips.Trial.countThisAsSessionTooltip")} />
                 ${game.i18n.format("DRPG.Chapter.optNextSession", { from: session, to: session + 1 })}</label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextMorning" checked />
@@ -2706,8 +2706,8 @@ async function askStoppedEnd(record) {
         // Cancel the default, as before (E42 C2). Finish runs the rest of an end and Drop gives it up for good: both cannot
         // be undone (E22 rule 4), destructive, Cancel first under Enter.
         footer: {
-            destructive: [{ action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd") },
-                { action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest") }],
+            destructive: [{ action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd"), tooltip: tipText("DRPG.Tips.Trial.finishTheChapterSTooltip") },
+                { action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest"), tooltip: tipText("DRPG.Tips.Trial.dropTheRestTooltip") }],
             close: "cancel",
             default: "cancel"
         },

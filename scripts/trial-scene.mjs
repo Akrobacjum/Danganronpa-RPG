@@ -144,7 +144,7 @@ import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { gatherEveryone, carryAcross, clearCarriedFrom, CARRIED_FROM } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
-import { formGrid, dataTable, toggle, box } from "./ui-kit.mjs";
+import { formGrid, dataTable, toggle, box, tipAttr } from "./ui-kit.mjs";
 import { storedZones, zoneCandidates, zoneWarnings } from "./zone-geometry.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
@@ -1419,7 +1419,7 @@ export function scenesZoneRows(roles = sceneRoles(), hall = null) {
     return ["a", "b"].map(side => {
         const key = side === "a" ? "zoneA" : "zoneB";
         const id = scenesFieldId(key);
-        const field = `<select id="${id}" name="scenes:${key}" data-drawn="${esc(drawn(side))}"${hall ? "" : " disabled"}>
+        const field = `<select id="${id}" name="scenes:${key}" data-drawn="${esc(drawn(side))}"${hall ? "" : " disabled"}${tipAttr("DRPG.Tips.Trial.zoneAZoneBTooltip")}>
         ${zoneOptions(regions, drawn(side))}
     </select>`;
         return { label: game.i18n.localize(`DRPG.TrialScene.${key}`), id, field };
@@ -1441,7 +1441,7 @@ export function scenesTabRows(roles = sceneRoles()) {
     const drawn = { school: drawnRole(roles, "school"), trial: drawnRole(roles, "trial") };
     const scenes = Array.from(game.scenes ?? []).sort((a, b) => a.name.localeCompare(b.name));
     const ids = { school: scenesFieldId("school"), trial: scenesFieldId("trial") };
-    const select = role => `<select id="${ids[role]}" name="scenes:${role}" data-drawn="${esc(drawn[role])}">
+    const select = role => `<select id="${ids[role]}" name="scenes:${role}" data-drawn="${esc(drawn[role])}"${role === "school" ? tipAttr("DRPG.Tips.Trial.schoolTrialHallTooltip") : ""}>
         <option value="">${game.i18n.localize("DRPG.TrialScene.noScene")}</option>
         ${scenes.map(scene => `<option value="${esc(scene.id)}"${scene.id === drawn[role] ? " selected" : ""}>${esc(scene.name)}</option>`).join("")}
     </select>`;

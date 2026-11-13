@@ -36,7 +36,7 @@ import { studentActors } from "./monokuma.mjs";
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
 import { announce, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
-import { stepper, emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { stepper, emptyOption, drpgWindow, drpgConfirm, tipAttr, tipText } from "./ui-kit.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
@@ -503,8 +503,8 @@ function mastermindHopeBox({ monokumas, donorLabel }) {
             held: mastermindActor()?.system?.resources?.hope?.value ?? 0
         })}</p>
         <select name="donor" data-drpg-enter="[data-drpg-give]">${buildDonors()}</select>
-        ${stepper({ name: "amount", value: 1, min: 1, attrs: { style: "width:4em", "data-drpg-enter": "[data-drpg-give]" } })}
-        <button type="button" class="drpg-mini-button" data-drpg-give>
+        ${stepper({ name: "amount", value: 1, min: 1, attrs: { style: "width:4em", "data-drpg-enter": "[data-drpg-give]", "data-tooltip": tipText("DRPG.Tips.Trial.amountTooltip") } })}
+        <button type="button" class="drpg-mini-button" data-drpg-give${tipAttr("DRPG.Tips.Trial.giveTooltip")}>
             ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
 }
 

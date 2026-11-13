@@ -71,7 +71,7 @@ import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clo
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -215,8 +215,8 @@ function placementTable(rows) {
             </tr></thead><tbody>${body}</tbody></table>`,
         // A question withdrawn: Cancel (E21 rule 3), the answer it was "cancel" before.
         footer: {
-            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance") },
-            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") }],
+            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), tooltip: tipText("DRPG.Tips.Trial.endAndMoveTheTooltip") },
+            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly"), tooltip: tipText("DRPG.Tips.Trial.endWithoutAdvancingTooltip") }],
             close: { role: "cancel", action: "cancel" }
         },
         rejectClose: false

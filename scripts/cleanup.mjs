@@ -86,7 +86,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
     log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.
@@ -788,10 +788,10 @@ function reshapeFields(limits, typed = {}) {
     const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
     return `<label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
                 <input type="text" name="name" maxlength="${limits.name ?? 60}" value="${esc(typed.name)}" autofocus
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}" /></label>
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}"${tipAttr("DRPG.Tips.Trial.callItNameTooltip")} /></label>
             <label>${game.i18n.localize("DRPG.Cleanup.reshapeText")}
                 <textarea name="text" rows="3" maxlength="${limits.text ?? 400}"
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}">${esc(typed.text)}</textarea></label>`;
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}"${tipAttr("DRPG.Tips.Trial.andItLooksLikeTooltip")}>${esc(typed.text)}</textarea></label>`;
 }
 
 /**
@@ -3353,11 +3353,11 @@ export async function openCleanupDialog(actor) {
                 })
                 : game.i18n.localize("DRPG.Cleanup.bareHands")}</p>
             <label>${game.i18n.localize("DRPG.Cleanup.which")}
-                <select name="trace">${options}</select></label>
+                <select name="trace"${tipAttr("DRPG.Tips.Trial.whichRemnantTooltip")}>${options}</select></label>
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Cleanup.confirm"),
+                action: "ok", label: game.i18n.localize("DRPG.Cleanup.confirm"), tooltip: tipText("DRPG.Tips.Trial.scrubAtItTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=trace]").value
             },
             close: "cancel"
@@ -3451,7 +3451,7 @@ export async function openMoveBodyDialog(actor) {
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Cleanup.moveConfirm"),
+                action: "ok", label: game.i18n.localize("DRPG.Cleanup.moveConfirm"), tooltip: tipText("DRPG.Tips.Trial.carryItThereTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=room]").value
             },
             close: "cancel"

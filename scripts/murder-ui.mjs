@@ -36,7 +36,7 @@ import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, reserveNote, reserveView } from "./character.mjs";
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, formGrid, dataTable, emptyState, box } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, formGrid, dataTable, emptyState, box, tipAttr } from "./ui-kit.mjs";
 import { murderState, killerIds } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
 
@@ -217,7 +217,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                 game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) }))}</div>` : ""}
             ${formGrid([
                 { label: game.i18n.localize("DRPG.Murder.killer"), id: ids.killer,
-                  field: `<select name="killer" id="${ids.killer}">${optionsFor(defaultKiller)}</select>` },
+                  field: `<select name="killer" id="${ids.killer}"${tipAttr("DRPG.Tips.Trial.killerTooltip")}>${optionsFor(defaultKiller)}</select>` },
                 { label: game.i18n.localize("DRPG.Murder.victim"), id: ids.victim,
                   field: `<select name="victim" id="${ids.victim}">${options}</select>` },
                 { full: `<label class="drpg-checkbox">

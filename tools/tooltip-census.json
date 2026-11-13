@@ -114,22 +114,6 @@
    "why": "none needed: The yes to a question the window asks in full (noFirst, used for \"Start it\" before an Eclipse and \"Go on\" past players not done)."
   },
   {
-   "file": "scripts/boundary.mjs",
-   "unit": "placementTable",
-   "kind": "footer",
-   "key": "DRPG.Eclipse.endAndAdvance",
-   "count": 1,
-   "why": "E102 C3: Ends the Eclipse and moves on to the next time of day"
-  },
-  {
-   "file": "scripts/boundary.mjs",
-   "unit": "placementTable",
-   "kind": "footer",
-   "key": "DRPG.Eclipse.endOnly",
-   "count": 1,
-   "why": "E102 C3: Ends the Eclipse and keeps the current time of day"
-  },
-  {
    "file": "scripts/call-gm.mjs",
    "unit": "callCardHtml",
    "kind": "button",
@@ -338,84 +322,12 @@
    "why": "none needed: Each tick's label says what it does, with its count and '(cannot be undone)'; a tick with nothing to do says why."
   },
   {
-   "file": "scripts/chapter.mjs",
-   "unit": "chapterEndForm",
-   "kind": "checkbox",
-   "key": "DRPG.Chapter.optNoTrial",
-   "count": 1,
-   "why": "E102 C3: Moves the clock to the next chapter and ends an Investigation still open"
-  },
-  {
-   "file": "scripts/chapter.mjs",
-   "unit": "chapterEndForm",
-   "kind": "checkbox",
-   "key": "DRPG.Chapter.lastChapter",
-   "count": 1,
-   "why": "E102 C3: Raises the session number and ends an Investigation still open"
-  },
-  {
-   "file": "scripts/chapter.mjs",
-   "unit": "askStoppedEnd",
-   "kind": "footer",
-   "key": "DRPG.Chapter.finishEnd",
-   "count": 1,
-   "why": "E102 C3: Runs the steps that did not finish, in their order"
-  },
-  {
-   "file": "scripts/chapter.mjs",
-   "unit": "askStoppedEnd",
-   "kind": "footer",
-   "key": "DRPG.Chapter.dropRest",
-   "count": 1,
-   "why": "E102 C3: Gives up the unfinished steps for good. None of them runs later."
-  },
-  {
-   "file": "scripts/cleanup.mjs",
-   "unit": "reshapeFields",
-   "kind": "input",
-   "key": "DRPG.Cleanup.reshapeNamePlaceholder",
-   "count": 1,
-   "why": "E102 C3: The name whoever finds this Remnant will see"
-  },
-  {
-   "file": "scripts/cleanup.mjs",
-   "unit": "reshapeFields",
-   "kind": "textarea",
-   "key": "DRPG.Cleanup.reshapeTextPlaceholder",
-   "count": 1,
-   "why": "E102 C3: What whoever finds this Remnant will read about it"
-  },
-  {
-   "file": "scripts/cleanup.mjs",
-   "unit": "openCleanupDialog",
-   "kind": "select",
-   "key": "DRPG.Cleanup.which",
-   "count": 1,
-   "why": "E102 C3: Reinforced Remnants are listed, but they cannot be wiped"
-  },
-  {
    "file": "scripts/cleanup.mjs",
    "unit": "askTransform",
    "kind": "footer",
    "key": "DRPG.Cleanup.transformErase",
    "count": 1,
    "why": "none needed: The note in the window says erasing happens at once, beside the other choice."
-  },
-  {
-   "file": "scripts/cleanup.mjs",
-   "unit": "openCleanupDialog",
-   "kind": "footer",
-   "key": "DRPG.Cleanup.confirm",
-   "count": 1,
-   "why": "E102 C3: Rolls to wipe the chosen Remnant away"
-  },
-  {
-   "file": "scripts/cleanup.mjs",
-   "unit": "openMoveBodyDialog",
-   "kind": "footer",
-   "key": "DRPG.Cleanup.moveConfirm",
-   "count": 1,
-   "why": "E102 C3: Rolls to drag the body into the room you picked"
   },
   {
    "file": "scripts/despair.mjs",
@@ -1547,27 +1459,11 @@
   },
   {
    "file": "scripts/mastermind.mjs",
-   "unit": "mastermindHopeBox",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: Gives the Hope now. The Monokuma's pool pays at the next time of day."
-  },
-  {
-   "file": "scripts/mastermind.mjs",
    "unit": "openMastermindDialog",
    "kind": "select",
    "key": "DRPG.Mastermind.whoIs",
    "count": 1,
    "why": "none needed: The label asks the question and the note under it says what the choice means."
-  },
-  {
-   "file": "scripts/mastermind.mjs",
-   "unit": "mastermindHopeBox",
-   "kind": "kit:stepper",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: How much Despair turns into Hope, one for one"
   },
   {
    "file": "scripts/messenger-app.mjs",
@@ -1696,54 +1592,6 @@
    "key": "DRPG.Murder.criticalChoiceStress",
    "count": 1,
    "why": "none needed: The window's intro says both points come off one reserve, and the label names it."
-  },
-  {
-   "file": "scripts/murder-rules.mjs",
-   "unit": "afterIncident",
-   "kind": "footer",
-   "key": "DRPG.Chapter.bodyTitle",
-   "count": 1,
-   "why": "E102 C3: Opens the window that calls everyone to the body"
-  },
-  {
-   "file": "scripts/murder-rules.mjs",
-   "unit": "afterIncident",
-   "kind": "footer",
-   "key": "DRPG.Murder.afterGoInvestigation",
-   "count": 1,
-   "why": "E102 C3: Switches the phase to Investigation without announcing the body"
-  },
-  {
-   "file": "scripts/murder-rules.mjs",
-   "unit": "afterIncident",
-   "kind": "footer",
-   "key": "DRPG.TruthBullet.autopsyTitle",
-   "count": 1,
-   "why": "E102 C3: Opens the Autopsy window, with every living student ticked to receive it"
-  },
-  {
-   "file": "scripts/murder-rules.mjs",
-   "unit": "afterEscape",
-   "kind": "footer",
-   "key": "DRPG.Murder.escapeRemnants",
-   "count": 1,
-   "why": "E102 C3: Opens the Investigation window with the Remnants this fight left"
-  },
-  {
-   "file": "scripts/murder-rules.mjs",
-   "unit": "afterNoBody",
-   "kind": "footer",
-   "key": "DRPG.Murder.escapeRemnants",
-   "count": 1,
-   "why": "E102 C3: Opens the Investigation window with the Remnants this fight left"
-  },
-  {
-   "file": "scripts/murder-ui.mjs",
-   "unit": "openMurderDialog",
-   "kind": "select",
-   "key": "DRPG.Murder.killer",
-   "count": 1,
-   "why": "E102 C3: A killer with a finished trap ticks the trap box by itself"
   },
   {
    "file": "scripts/murder-ui.mjs",
@@ -2451,27 +2299,11 @@
   },
   {
    "file": "scripts/trial-floor-ui.mjs",
-   "unit": "openRoundWindow",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: Moves this speaker one place earlier"
-  },
-  {
-   "file": "scripts/trial-floor-ui.mjs",
    "unit": "askTrialExit",
    "kind": "select",
    "key": "DRPG.Floor.endTrialRoom",
    "count": 1,
    "why": "none needed: The paragraph above the field says where the students go and who is not moved."
-  },
-  {
-   "file": "scripts/trial-floor-ui.mjs",
-   "unit": "closingButton",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: Gives the floor to the drawn speaker"
   },
   {
    "file": "scripts/trial-floor-ui.mjs",
@@ -2491,22 +2323,6 @@
   },
   {
    "file": "scripts/trial-floor-ui.mjs",
-   "unit": "logButton",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: Who presented what in this chapter, and who objected to whom"
-  },
-  {
-   "file": "scripts/trial-floor-ui.mjs",
-   "unit": "logButton",
-   "kind": "button",
-   "key": "DRPG.Trial.logTitle",
-   "count": 1,
-   "why": "E102 C3: What the class settled in this trial. Every change there is told to the table."
-  },
-  {
-   "file": "scripts/trial-floor-ui.mjs",
    "unit": "confirmNewTrial",
    "kind": "footer",
    "key": "DRPG.Floor.newTrialTitle",
@@ -2520,22 +2336,6 @@
    "key": "DRPG.Floor.incidentKeep",
    "count": 1,
    "why": "none needed: The window's question explains both answers."
-  },
-  {
-   "file": "scripts/trial-floor-ui.mjs",
-   "unit": "incidentClosedFirst",
-   "kind": "footer",
-   "key": "DRPG.Murder.endMurder",
-   "count": 1,
-   "why": "E102 C3: Closes the incident now, and its Blackened go on the register"
-  },
-  {
-   "file": "scripts/trial-floor-ui.mjs",
-   "unit": "pickClosingDialog",
-   "kind": "footer",
-   "key": "DRPG.Floor.closing.pick",
-   "count": 1,
-   "why": "E102 C3: Gives the chosen student the floor for the Closing Argument"
   },
   {
    "file": "scripts/trial-scene.mjs",
@@ -2563,22 +2363,6 @@
   },
   {
    "file": "scripts/trial-scene.mjs",
-   "unit": "scenesZoneRows",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: The hall region a token stands in to take this side in the zone modes"
-  },
-  {
-   "file": "scripts/trial-scene.mjs",
-   "unit": "scenesTabRows",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: The scene the table goes back to when the trial ends"
-  },
-  {
-   "file": "scripts/trial-scene.mjs",
    "unit": "scenesTabRows",
    "kind": "kit:toggle",
    "key": null,
@@ -2595,27 +2379,11 @@
   },
   {
    "file": "scripts/trial-zones-ui.mjs",
-   "unit": "questionRows",
-   "kind": "radio",
-   "key": null,
-   "count": 1,
-   "why": "E102 C3: The side the class must stand on to go to the next question"
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
    "unit": "editDiveSet",
    "kind": "input",
    "key": "DRPG.Zones.dive.editor.name",
    "count": 1,
    "why": "none needed: A name field; its label says it."
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
-   "unit": "editDiveSet",
-   "kind": "input",
-   "key": "DRPG.Zones.dive.editor.conclusion",
-   "count": 1,
-   "why": "E102 C3: Becomes a Finding, told to the table, when the class answers every question right"
   },
   {
    "file": "scripts/trial-zones-ui.mjs",
@@ -2632,22 +2400,6 @@
    "key": "DRPG.Zones.picker.b",
    "count": 1,
    "why": "none needed: Labelled; the mode's line says what the zones are for."
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
-   "unit": "pickerHtml",
-   "kind": "input",
-   "key": "DRPG.Zones.picker.thesis",
-   "count": 1,
-   "why": "E102 C3: Shown under the question while the camps argue"
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
-   "unit": "pickerHtml",
-   "kind": "select",
-   "key": "DRPG.Zones.picker.set",
-   "count": 1,
-   "why": "E102 C3: The Logic Dive set to play. The number is how many questions it holds."
   },
   {
    "file": "scripts/trial-zones-ui.mjs",
@@ -2675,30 +2427,6 @@
   },
   {
    "file": "scripts/trial-zones-ui.mjs",
-   "unit": "findingsListHtml",
-   "kind": "button",
-   "key": "DRPG.Zones.findings.confirmedMark",
-   "count": 1,
-   "why": "E102 C3: Changes the words. The table is told what it was and what it is now."
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
-   "unit": "findingsListHtml",
-   "kind": "button",
-   "key": "DRPG.Zones.findings.edit",
-   "count": 1,
-   "why": "E102 C3: Takes the Finding off the list at once and tells the table"
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
-   "unit": "findingsListHtml",
-   "kind": "button",
-   "key": "DRPG.Zones.findings.delete",
-   "count": 1,
-   "why": "E102 C3: Tells the table that Monokuma confirms this Finding"
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
    "unit": "askFindingText",
    "kind": "input",
    "key": "DRPG.Zones.findings.text",
@@ -2723,14 +2451,6 @@
   },
   {
    "file": "scripts/trial-zones-ui.mjs",
-   "unit": "askFindingText",
-   "kind": "footer",
-   "key": "DRPG.Zones.findings.save",
-   "count": 1,
-   "why": "E102 C3: Saves the Finding and tells the table"
-  },
-  {
-   "file": "scripts/trial-zones-ui.mjs",
    "unit": "openFindings",
    "kind": "footer",
    "key": "DRPG.Zones.findings.add",
@@ -2747,35 +2467,11 @@
   },
   {
    "file": "scripts/trial.mjs",
-   "unit": "pickObjectionEvidence",
-   "kind": "textarea",
-   "key": "DRPG.Trial.commentPlaceholder",
-   "count": 1,
-   "why": "E102 C3: Your words go on the card with your Truth Bullet, for the whole table"
-  },
-  {
-   "file": "scripts/trial.mjs",
    "unit": "repointDialog",
    "kind": "select",
    "key": "DRPG.Floor.repointTo",
    "count": 1,
    "why": "none needed: The label says what is picked."
-  },
-  {
-   "file": "scripts/trial.mjs",
-   "unit": "openObjectionLog",
-   "kind": "button",
-   "key": "DRPG.Trial.logOverruled",
-   "count": 1,
-   "why": "E102 C3: Overrules this Objection. Its price stays, and the trial goes back to where it was."
-  },
-  {
-   "file": "scripts/trial.mjs",
-   "unit": "repointDialog",
-   "kind": "footer",
-   "key": "DRPG.Floor.repoint",
-   "count": 1,
-   "why": "E102 C3: Aims the running Objection at the chosen student instead"
   },
   {
    "file": "scripts/ui-columns.mjs",

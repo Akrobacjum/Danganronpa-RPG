@@ -51,7 +51,7 @@ import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanal
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, isPrimaryGm, log, error,
     whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -1428,7 +1428,7 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
             ${analysisChoice(offer)}
             <label>${game.i18n.localize("DRPG.Trial.comment")}
                 <textarea name="comment" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"${tipAttr("DRPG.Tips.Trial.saySomethingWithItTooltip")}></textarea></label>
             <p class="drpg-warning">${plural("DRPG.Trial.objectionWarning", { objection: TRIAL.objectionSeconds }, "objection")} ${
                 plural("DRPG.Trial.objectionWarningRebuttal", { rebuttal: TRIAL.rebuttalSeconds }, "rebuttal")}</p>
             ${decisionLine}
@@ -1520,7 +1520,7 @@ export async function repointDialog() {
                     student.id === floor.targetId ? " selected" : ""}>${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
         </form>`,
         footer: {
-            primary: { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"),
+            primary: { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"), tooltip: tipText("DRPG.Tips.Trial.rePointTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=target]")?.value ?? "" },
             close: "cancel"
         },
@@ -1635,7 +1635,7 @@ export async function openObjectionLog() {
                         : e.withdrawn ? ` <em>${game.i18n.localize("DRPG.Trial.logWithdrawn")}</em>`
                             : e.overruled ? ` - <em>${game.i18n.localize("DRPG.Trial.logOverruled")}</em>` : ""}${
                     !named.refused && named.messageId === e.id
-                        ? ` <button type="button" data-drpg-overrule="${e.id}">${
+                        ? ` <button type="button" data-drpg-overrule="${e.id}"${tipAttr("DRPG.Tips.Trial.overruleTooltip")}>${
                             game.i18n.localize("DRPG.Floor.bar.overrule")}</button>` : ""}`
                 : game.i18n.localize("DRPG.Trial.presentShort")}</td>
             <td>${foundry.utils.escapeHTML(e.presenter)}</td>

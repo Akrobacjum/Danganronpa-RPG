@@ -25167,6 +25167,62 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 37 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key)", async () => {
+        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. */
+        const TIPS = [
+            ["DRPG.Tips.Trial.endAndMoveTheTooltip","boundary.mjs","placementTable"],
+            ["DRPG.Tips.Trial.endWithoutAdvancingTooltip","boundary.mjs","placementTable"],
+            ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
+            ["DRPG.Tips.Trial.countThisAsSessionTooltip","chapter.mjs","chapterEndForm"],
+            ["DRPG.Tips.Trial.finishTheChapterSTooltip","chapter.mjs","askStoppedEnd"],
+            ["DRPG.Tips.Trial.dropTheRestTooltip","chapter.mjs","askStoppedEnd"],
+            ["DRPG.Tips.Trial.bodyFoundTooltip","murder-rules.mjs","afterIncident"],
+            ["DRPG.Tips.Trial.moveToInvestigationTooltip","murder-rules.mjs","afterIncident"],
+            ["DRPG.Tips.Trial.issueAutopsyTruthBulletTooltip","murder-rules.mjs","afterIncident"],
+            ["DRPG.Tips.Trial.openTheRemnantTableTooltip","murder-rules.mjs","afterEscape"],
+            ["DRPG.Tips.Trial.giveTooltip","mastermind.mjs","mastermindHopeBox"],
+            ["DRPG.Tips.Trial.amountTooltip","mastermind.mjs","mastermindHopeBox"],
+            ["DRPG.Tips.Trial.upTooltip","trial-floor-ui.mjs","openRoundWindow"],
+            ["DRPG.Tips.Trial.aClosingArgumentTooltip","trial-floor-ui.mjs","closingButton"],
+            ["DRPG.Tips.Trial.trialEvidenceLogTooltip","trial-floor-ui.mjs","logButton"],
+            ["DRPG.Tips.Trial.findingsNTooltip","trial-floor-ui.mjs","logButton"],
+            ["DRPG.Tips.Trial.endTheMurderTooltip","trial-floor-ui.mjs","incidentClosedFirst"],
+            ["DRPG.Tips.Trial.pickASpeakerTooltip","trial-floor-ui.mjs","pickClosingDialog"],
+            ["DRPG.Tips.Trial.zoneAZoneBTooltip","trial-scene.mjs","scenesZoneRows"],
+            ["DRPG.Tips.Trial.schoolTrialHallTooltip","trial-scene.mjs","scenesTabRows"],
+            ["DRPG.Tips.Trial.rightAnswerZoneATooltip","trial-zones-ui.mjs","questionRows"],
+            ["DRPG.Tips.Trial.findingWhenSolvedTooltip","trial-zones-ui.mjs","editDiveSet"],
+            ["DRPG.Tips.Trial.thesisTooltip","trial-zones-ui.mjs","pickerHtml"],
+            ["DRPG.Tips.Trial.setTooltip","trial-zones-ui.mjs","pickerHtml"],
+            ["DRPG.Tips.Trial.editTooltip","trial-zones-ui.mjs","findingsListHtml"],
+            ["DRPG.Tips.Trial.deleteTooltip","trial-zones-ui.mjs","findingsListHtml"],
+            ["DRPG.Tips.Trial.monokumaConfirmsTooltip","trial-zones-ui.mjs","findingsListHtml"],
+            ["DRPG.Tips.Trial.saveTooltip","trial-zones-ui.mjs","askFindingText"],
+            ["DRPG.Tips.Trial.saySomethingWithItTooltip","trial.mjs","pickObjectionEvidence"],
+            ["DRPG.Tips.Trial.overruleTooltip","trial.mjs","openObjectionLog"],
+            ["DRPG.Tips.Trial.rePointTooltip","trial.mjs","repointDialog"],
+            ["DRPG.Tips.Trial.callItNameTooltip","cleanup.mjs","reshapeFields"],
+            ["DRPG.Tips.Trial.andItLooksLikeTooltip","cleanup.mjs","reshapeFields"],
+            ["DRPG.Tips.Trial.whichRemnantTooltip","cleanup.mjs","openCleanupDialog"],
+            ["DRPG.Tips.Trial.scrubAtItTooltip","cleanup.mjs","openCleanupDialog"],
+            ["DRPG.Tips.Trial.carryItThereTooltip","cleanup.mjs","openMoveBodyDialog"],
+            ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 37, "lang/en.json has not the family's 37 keys under DRPG.Tips.Trial");
+        const fits = w => typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23;
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            const read = new RegExp(`tip(?:Attr|Text)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            return !(read && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is
@@ -30229,7 +30285,7 @@ const INVARIANTS = [
         const A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD", E = "objectorEEEEEEEE";
         const base = { active: true, mode: "closing", holderId: null, targetId: null, seconds: 30, startedAt: Date.now(), pending: false, messageId: null, before: [], round: null };
         const at = (phase, patch = {}) => ({ ...base, closing: { phase, step: 2, openedAt: 1, count: 2, ...patch } });
-        const ops = html => [...html.matchAll(/data-drpg-closing="([a-z]+)"(?: data-drpg-actor="([^"]+)")?>([^<]*)</g)].map(m => [m[1], m[2] ?? null, m[3]]);
+        const ops = html => [...html.matchAll(/data-drpg-closing="([a-z]+)"(?: data-drpg-actor="([^"]+)")?(?: data-tooltip="[^"]*")?>([^<]*)</g)].map(m => [m[1], m[2] ?? null, m[3]]);
         const names = { volunteers: ["R1048 Aiko", "R1048 Botan"], drawn: "R1048 Botan" };
         const run = (floor, progress = {}, given = names) => U.closingConsole({ floor, progress, running: true, names: given });
         const volunteer = run(at("volunteer"));

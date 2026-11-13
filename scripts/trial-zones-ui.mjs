@@ -22,7 +22,7 @@ import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDeba
     deleteFinding, confirmFinding } from "./trial-zones.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { drpgWindow, drpgConfirm, formGrid, box } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, formGrid, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { esc, error, serverNow, localeFormat } from "./utils.mjs";
 
 /** A name of `actorId`, escaped. */
@@ -150,7 +150,7 @@ export async function saveDiveSet(id, set) {
 function questionRows(q, i) {
     const n = i + 1;
     const field = (name, value) => `<input type="text" name="q${i}.${name}" value="${esc(value ?? "")}" maxlength="${name === "question" ? TRIAL.modes.zones.questionLength : TRIAL.modes.zones.answerLength}">`;
-    const truth = side => `<label><input type="radio" name="q${i}.truth" value="${side}"${q.truth === side ? " checked" : ""}> ${esc(game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB"))}</label>`;
+    const truth = side => `<label><input type="radio" name="q${i}.truth" value="${side}"${q.truth === side ? " checked" : ""}${tipAttr("DRPG.Tips.Trial.rightAnswerZoneATooltip")}> ${esc(game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB"))}</label>`;
     return `<fieldset class="drpg-dive-question" data-drpg-dive-q="${i}"><legend>${esc(game.i18n.format("DRPG.Zones.dive.editor.question", { n }))}</legend>
         ${formGrid([
         { label: game.i18n.localize("DRPG.Zones.picker.question"), field: field("question", q.question) },
@@ -189,7 +189,7 @@ export async function editDiveSet(id = null) {
             ${box("secret", `<p>${esc(game.i18n.localize("DRPG.Zones.dive.editor.secret"))}</p>`)}
             ${formGrid([
         { label: game.i18n.localize("DRPG.Zones.dive.editor.name"), field: `<input type="text" name="name" value="${esc(was?.name ?? "")}" maxlength="80">` },
-        { label: game.i18n.localize("DRPG.Zones.dive.editor.conclusion"), field: `<input type="text" name="conclusion" value="${esc(was?.conclusion ?? "")}" maxlength="${TRIAL.modes.zones.answerLength * 3}">` }
+        { label: game.i18n.localize("DRPG.Zones.dive.editor.conclusion"), field: `<input type="text" name="conclusion" value="${esc(was?.conclusion ?? "")}" maxlength="${TRIAL.modes.zones.answerLength * 3}"${tipAttr("DRPG.Tips.Trial.findingWhenSolvedTooltip")}>` }
     ])}
             ${qs.map(questionRows).join("")}
             <div data-drpg-dive-names aria-live="polite"></div>
@@ -248,10 +248,10 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets() } = {}) 
         { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" maxlength="${TRIAL.modes.zones.answerLength}">` },
         { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" maxlength="${TRIAL.modes.zones.answerLength}">` }
     ])}
-            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" maxlength="${TRIAL.modes.zones.scrum.thesisLength}">` }])}</div>
+            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" maxlength="${TRIAL.modes.zones.scrum.thesisLength}"${tipAttr("DRPG.Tips.Trial.thesisTooltip")}>` }])}</div>
         </div>
         <div data-drpg-zone-fields="dive">
-            ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId">${setOptions}</select>` }])
+            ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId"${tipAttr("DRPG.Tips.Trial.setTooltip")}>${setOptions}</select>` }])
         : `<p>${esc(L("DRPG.Zones.picker.noSets"))}</p>`}
             <div class="drpg-dive-replay">${warnings ? box("secret", warnings) : ""}</div>
             <button type="button" data-drpg-dive-edit>${esc(L("DRPG.Zones.picker.editSets"))}</button>
@@ -360,9 +360,9 @@ export function findingsListHtml(list) {
     return `<ul class="drpg-findings-list">${list.map(f => `<li data-drpg-finding="${esc(f.id)}"><span>${esc(f.text)}</span>
         ${f.mode ? `<small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}
         ${f.confirmed ? `<strong>${L("DRPG.Zones.findings.confirmedMark")}</strong>` : ""}
-        <button type="button" data-drpg-finding-act="edit">${L("DRPG.Zones.findings.edit")}</button>
-        <button type="button" data-drpg-finding-act="delete">${L("DRPG.Zones.findings.delete")}</button>
-        <button type="button" data-drpg-finding-act="confirm"${f.confirmed ? " disabled" : ""}>${L("DRPG.Zones.findings.confirm")}</button></li>`).join("")}</ul>`;
+        <button type="button" data-drpg-finding-act="edit"${tipAttr("DRPG.Tips.Trial.editTooltip")}>${L("DRPG.Zones.findings.edit")}</button>
+        <button type="button" data-drpg-finding-act="delete"${tipAttr("DRPG.Tips.Trial.deleteTooltip")}>${L("DRPG.Zones.findings.delete")}</button>
+        <button type="button" data-drpg-finding-act="confirm"${f.confirmed ? " disabled" : ""}${tipAttr("DRPG.Tips.Trial.monokumaConfirmsTooltip")}>${L("DRPG.Zones.findings.confirm")}</button></li>`).join("")}</ul>`;
 }
 
 /** One line of text asked of the GM: a Finding's words. */
@@ -370,7 +370,7 @@ async function askFindingText(title, value = "") {
     const out = await drpgWindow({
         title, classes: ["drpg-panel", "drpg-narrow"],
         body: `<form>${formGrid([{ label: game.i18n.localize("DRPG.Zones.findings.text"), field: `<input type="text" name="text" value="${esc(value)}" maxlength="${TRIAL.modes.zones.answerLength * 3}">` }])}</form>`,
-        footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Zones.findings.save"), callback: (e, b, d) => d.element.querySelector('[name="text"]')?.value ?? "" }, close: "cancel" },
+        footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Zones.findings.save"), tooltip: tipText("DRPG.Tips.Trial.saveTooltip"), callback: (e, b, d) => d.element.querySelector('[name="text"]')?.value ?? "" }, close: "cancel" },
         rejectClose: false
     });
     return typeof out === "string" && out !== "cancel" ? out : null;
