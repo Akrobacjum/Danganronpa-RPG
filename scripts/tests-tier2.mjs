@@ -57051,6 +57051,84 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the body's window in an Eclipse drew a form, or told a GM or a console the wrong refusal ({gm, console: [its answer, forms drawn so far, what was told]})");
     }],
 
+    ["the trial console hears every change of the vote after the record holds it: a vote opened, a ballot, a reminder and the close, a close with nobody voting too (E40 item 4: R58's rule, driven; was R58)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R58 (tier 0, the console's tick, its watch, its view and the +30 s's road kept there as a
+         * text guard) read vote.mjs for four `Hooks.callAll("drpgBallotsChanged")` and their places: in `recordBallot`
+         * after `ballotStore.patch(`, in `closeRound` after the first "open: false" and before "nobodyVoted". It passed a
+         * ballot written to the store a tick after its event, and a close whose record was written after its event, each
+         * keeping every word in its place (mutants m2 and m3, docs/dev/e40/ITEM4-C.md). Here the vote is driven on the
+         * primary GM with the ballots caught and never sent, as "a ballot naming one student twice ..." drives it, and
+         * every `drpgBallotsChanged` heard reads what a console would redraw from: the voter's row in the GMs' store and
+         * whether the record says the vote is open. A vote opened, the voter's ballot recorded (`recordBallot`), a
+         * reminder, the close; then a vote no one answers, closed. The record, the row and the cards are put back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a voter with a connected player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which records the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const record = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const lists = new Map();
+        let voter = null;
+        const rowHeld = () => {
+            const row = voter ? ballotStore.get(voter) : null;
+            return Boolean(row && row.chapter === getClock().chapter && row.round === V.trialProgress().vote?.round);
+        };
+        const heard = [];
+        const hook = Hooks.on("drpgBallotsChanged", () => heard.push([rowHeld(), V.trialProgress().vote?.open ?? null]));
+        const read = {};
+        try {
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    for (const userId of options?.recipients ?? []) lists.set(userId, (packet.candidates ?? []).map(c => c.id));
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await settle();
+            heard.length = 0;
+            await V.openVote();
+            const { round, picks, issued } = V.trialProgress().vote ?? {};
+            voter = issued?.[0] ?? null;
+            const list = lists.get(voter) ?? [];
+            must(voter && list.length >= picks && picks > 0, `the voter's ballot lists ${list.length} name(s) for a vote that asks for ${picks} - this would measure nothing`);
+            read.opened = heard.splice(0).some(([, open]) => open === true);
+            const answer = await V.recordBallot(game.users.get(voter), round, list.slice(0, picks));
+            read.cast = [answer?.reply?.round === round, heard.splice(0)];
+            await V.remindVoters();
+            await settle();
+            read.reminded = heard.splice(0).length > 0;
+            await V.closeVote();
+            await settle();
+            read.closed = heard.splice(0).map(([, open]) => open);
+            await ballotStore.dropMany([voter]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await settle();
+            await V.openVote();
+            heard.length = 0;
+            const nobody = await V.closeVote();
+            await settle();
+            read.nobody = [nobody, V.trialProgress().voteClosed === true, heard.splice(0).map(([, open]) => open)];
+        } finally {
+            Hooks.off("drpgBallotsChanged", hook);
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (voter) await ballotStore.dropMany([voter]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ opened: true, cast: [true, [[true, true]]], reminded: true, closed: [false], nobody: [null, true, [false]] }),
+            "the console was not told of a change of the vote, or was told before the record held it ([opened: told with the vote open]; "
+            + "[cast: answered for the round, [[the row held, the vote open]] as told]; [reminded: told]; [closed: the vote open as told]; "
+            + "[nobody: what the close answered, the record closed, the vote open as told])");
+    }],
+
     ["a console's call of a newly gated GM function changes nothing: syncStates", async () => {
         /* E33 C1a, 06.10.2026; R220's census. `game.drpg.syncStates` brings a student's two
            conditions into line with their tracks, and every road to it is a GM's; on a player's

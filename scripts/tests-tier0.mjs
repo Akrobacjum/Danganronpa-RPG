@@ -3548,6 +3548,11 @@ const REGRESSIONS = [
     }],
 
     ["R58 - the trial console counts the seconds, a ballot is an event, and +30 s means thirty", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays is the console's own shape - a once-a-second tick that ends with
+           its window and paints through the live region, the hooks and the watch it wakes on, the overrun's words - and the
+           +30 s's road through the floor's machine, whose arithmetic tier 1's R1024 drives. That the vote's four events come
+           after the record holds what they report is driven in tier 2's "the trial console hears every change of the vote
+           after the record holds it ... (E40 item 4: R58's rule, driven; was R58)", which these lines read as text until E40. */
         /*
          * F8 and F9, 19.09. Two kinds of change and neither reached this window: the
          * seconds are the passage of time, which no document hook will ever report,
@@ -3581,28 +3586,6 @@ const REGRESSIONS = [
         const view = bodyOf(ui2, "function trialConsoleHtml(", { until: "function trialSignature(" });
         ok(view.includes("DRPG.Floor.holdingDebateOver") && view.includes("Math.max(left, 0)"),
             "an overrun mode prints a clock running backwards again");
-
-        // `drpgBallotsChanged` is 1.2.47's name for this event, fired where a
-        // ballot is cast, a vote opens and voters are reminded; F8 adds the close.
-        // Since E10 C1 (1.2.71) a ballot is a row of the GMs' store and the count is
-        // the primary's `closeRound`, which writes the vote closed before it counts;
-        // since E10 C2 a ballot is recorded by the bridge's run (`recordBallot`).
-        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
-        const vote = stripComments(voteText(sources));
-        const EMIT = 'Hooks.callAll("drpgBallotsChanged")';
-        ok(vote.split(EMIT).length - 1 >= 4,
-            "one of the four vote events stopped being reported");
-        const cast = fnSource(vote, "recordBallot");
-        ok(cast.length > 200 && cast.includes(EMIT), "recordBallot is gone, or no longer reports a ballot");
-        ok(cast.includes("ballotStore.patch(") && cast.indexOf("ballotStore.patch(") < cast.indexOf(EMIT),
-            "the ballot is reported before it is in the tally, so a listener redraws the stale list");
-        const close = fnSource(vote, "closeRound");
-        ok(close.length > 200 && close.includes(EMIT), "closeRound is gone, or no longer reports the closing");
-        ok(close.indexOf("open: false") > 0 && close.indexOf("open: false") < close.indexOf(EMIT),
-            "the vote is reported closed before the record says it is");
-        ok(close.indexOf(EMIT) < close.indexOf("nobodyVoted"),
-            "the closing is reported after the road that returns early, so a vote nobody answered "
-            + "leaves the console printing its voters");
 
         // Since E70 C1 the arithmetic is floor-machine.mjs `nextFloor`'s `adjust` row, which `extendFloorInStep` asks;
         // tier 1 R1024 drives it (+30 s on a debate 40 s over leaves 30 s).
@@ -4293,6 +4276,7 @@ const REGRESSIONS = [
     }],
 
     ["R74 - a Season setup row hands over instead of answering", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): season-setup.mjs `wireSetupSteps` and `wireSeasonTiles` are not exported (would need an export of wireSetupSteps), and what they guard - a row handing its window off (`handOff`) instead of closing it under the opener's DialogV2.wait, and the opener returning the round trip - is an order of a window chain a GM panel tile awaits; read as the openers' and the rows' shape. */
         /*
          * SEASON-02, 20.09. A row button ran its step and then did
          * `await dialog.close(); openSeasonSetup();` - and that close resolves the
@@ -7022,6 +7006,7 @@ const REGRESSIONS = [
     }],
 
     ["R178 - no migration runs from a ready hook", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over every module file: no lift of old data is called outside its migration clause, each clause after forgetMonokumaWalks and since its version; tier 2 runs the lifts that remove world data, this holds where they may be called. */
         /*
          * E04 C10, 26.09.2026; audit S01-31. Four lifts of old data into the GM stores
          * ran from ready hooks - on every load, on every GM, before the other GMs'
@@ -12818,6 +12803,7 @@ const REGRESSIONS = [
     }],
 
     ["R315 - Enter in the verdict window presses Cancel, its executed select opens on nobody, and a right verdict executes the Blackened", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the verdict window's footer as its slots build it (Cancel first, the default; the verdicts destructive), the executed select's first option and `read` answering a right verdict before it reads the select: a window's shape. What these do is driven in tier 2's "the verdict window opens on the accused", "Enter in the verdict window executes nobody" and "a right verdict without the register executes the Blackened the GM names". */
         /*
          * E10 C4, 1.2.71; audit S06-04; the guard of the stage's doneWhen "Werdyktu nie da się
          * wykonać na przypadkowej osobie" (a verdict cannot be carried out on somebody by chance).
@@ -12851,6 +12837,7 @@ const REGRESSIONS = [
     }],
 
     ["R316 - a verdict writes its lock once, executes on the GMs' held reading, and its public card reads no Blackened", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the verdict family's writes (the lock written once in each verdict, twice in all), an order inside carryOutSentence (the audit awaited, the held reading, then the kill) and words a card's builder must not name; tier 2's "a wrong verdict's card names the executed and never the Blackened" and "a verdict that stops halfway is finished by Finish the verdict" drive the card and a verdict stopped. */
         /*
          * E10 C5, 1.2.71; audit S06-39, S06-06; ledger G2. Until C5 `applyVerdict` wrote
          * `verdictApplied: true` first and again after its last consequence - a consequence that
@@ -12881,6 +12868,7 @@ const REGRESSIONS = [
     }],
 
     ["R317 - a verdict's Level Ups are one window with the players' choice, and its line is said after it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order inside level-up.mjs `runAdvancementBatch` (the class's one window asked before any picker) and verdict.mjs `verdictLevelUps` (the line built after the batch answers), and words the line must not carry; tier 2's "a correct verdict opens one Level Up window ..." and "a Level Up picker the GM closes becomes an offer ..." drive both. */
         /*
          * E10 C7, 1.2.71; audit S06-25, S03-32, S06-32; ledger D3 (the stage's doneWhen: "the Level
          * Ups open in one window with 'the player picks'"). `runAdvancementBatch` opened one picker per
@@ -13101,6 +13089,7 @@ const REGRESSIONS = [
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of character.mjs: every function that writes is exported behind the GM gate before its first write, or private and called only from such a one; the reader is shown planted writers first. */
         /*
          * E29 C2, 05.10.2026; audit S03-45 (its code part). `initCharacter` writes a student's
          * maxima, Health, Sanity and Hope and stamps the season's baseline; `restoreStartingSheet`

@@ -19,9 +19,16 @@ the pilot's). Started 13.11.2026 from d7566926 on `claude/e40-item4-c`. R number
 | R45 | (c) | `seizeFloor` is not exported (would need an export of seizeFloor) and runs from a card hook on the primary; its shape is what is read | marked |
 | R55 | (b) | The pilot's (ITEM4.md) | tier 2, R55 removed |
 | R56 | (b) + (c) | The window's refusal in an Eclipse is driven, on the GM and from a console. What stays is the case dashboard's footer, the greyed button's reason and `keepFresh`: a drawn window's shape | tier 2 "in an Eclipse the body's window is refused before its form, and only to a GM: ... (E40 item 4: R56's rule, driven; was R56)"; R56 trimmed |
+| R58 | (b) + (c) | The vote's four events, each after the record holds what it reports, are driven on the primary GM (a vote opened, `recordBallot`, a reminder, the close, a close nobody answered). What stays is the console's tick, its hooks and watch, the overrun's words and the +30 s's road (tier 1's R1024 drives the arithmetic) | tier 2 "the trial console hears every change of the vote after the record holds it: ... (E40 item 4: R58's rule, driven; was R58)"; R58 trimmed |
 | R67 | (b) + (c) | `markDeceased`, the Students window's "dead" and `setMonocub` are driven. What stays is the order inside `killCharacter` and `incidentVictimDied` and the repair calling the helper, which only a running incident's Stage 6 shows | tier 2 "a repair moves the flags and says nothing: ... (E40 item 4: R67's rule, driven; was R67)"; R67 trimmed |
 | R68 | (a) | `campaignRows` and `campaignFieldsHtml` take the clock as an argument: both windows' chapter fields drawn from clocks handed in, no world read or written | R68 rewritten in place |
 | R70 | (a) + split | `guardTextFields` driven on a window built in the page and taken away after. The markers' places (`mastermindHopeBox`, not exported; the cue picker inside `soundPlayPane`) and the two rules' order stay text, split out under a new number (rule 4) | R70 rewritten in place; R5150 (c), new |
+| R74 | (c) | `wireSetupSteps` and `wireSeasonTiles` are not exported (would need an export of wireSetupSteps); a row's hand-off and the opener's round trip are an order of a window chain | marked |
+| R178 | (c) | A census of the lifts' callers over every module file | marked |
+| R221 | (c) | A census of character.mjs's writers and their GM gate | marked |
+| R315 | (c) | The verdict window's footer, select and `read` as built; tier 2's three named verdict-window tests drive what they do | marked |
+| R316 | (c) | A census of the lock's writes, an order inside `carryOutSentence`, words the card must not name; tier 2 drives the card and a verdict stopped | marked |
+| R317 | (c) | Orders inside `runAdvancementBatch` and `verdictLevelUps`; tier 2's two named Level Up tests drive both | marked |
 
 ## Mutants (rule 3)
 
@@ -42,6 +49,9 @@ and the new one run on it, then both on the clean copy. Never committed.
 | R29 | m2: the Monocub's exception turned round, `!(isDeadForGm(actor) && isMonocub(actor))` | ok - missed | FAIL |
 | R56 | m1: chapter.mjs `openBodyDiscoveryDialog`, `if (isEclipse())` -> `if (false)` | FAIL | FAIL |
 | R56 | m2: `if (isEclipse() === "never")` (the text kept) | ok - missed | FAIL |
+| R58 | m1: vote.mjs `recordBallot`'s `Hooks.callAll("drpgBallotsChanged")` removed | FAIL | FAIL |
+| R58 | m2: the ballot's `ballotStore.patch(` deferred a tick (`Promise.resolve().then(...)`), the text and its place kept | ok - missed | FAIL |
+| R58 | m3: `closeRound` writes the vote closed after its event, not before (the first "open: false" still above it) | ok - missed | FAIL |
 | all | the clean copy | ok | ok |
 
 Limits, measured or read: R56's new test sees the Eclipse refusal before any form and before the GM gate, not its
@@ -54,5 +64,6 @@ trace, so on a world with no untied trace of this chapter the tie would show now
 | Batch | Tests | node --check | check.mjs | lint | by name | tiers 0-1 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | R29, R30, R42, R43, R44, R45, R56, R67, R68, R70, R5150 | ok | 19 parts green | 0 problems | tier 0: 7 passed; tier 2: 3 ok (with R55) | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (406.2 s): R5150 the one more |
+| 2 | R58, R74, R178, R221, R315, R316, R317 | ok | 19 parts green | 0 problems | tier 0: 8 passed; tier 2: R58's ok | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (416.9 s) |
 
 Baseline at d7566926, read here before any change: 1419 ran, 1404 passed, 0 failed, 16 skipped, 0 red (433.9 s).
