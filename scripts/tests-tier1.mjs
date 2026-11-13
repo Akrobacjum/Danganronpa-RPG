@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -8213,7 +8213,7 @@ const INVARIANTS = [
         };
         const none = opts(R.authorOptions(null, students));
         const chosen = opts(R.authorOptions(students[0].id, students));
-        const inv = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
+        const inv = stripComments(await investigationFetch());
         const mm = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/mastermind.mjs`).then(lfText));
         const ring = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/remnant-ring.mjs`).then(lfText));
         const { caseFinalPanel } = await import("./investigation.mjs");
@@ -8610,7 +8610,7 @@ const INVARIANTS = [
          * visibility (config.mjs REMNANT_VISIBILITY_LABELS). Read off the source: the label each `<select name="vis">` sits
          * in. Red at 235c321: New Remnant's read `difficulty`.
          */
-        const source = stripComments((await moduleSources()).get("investigation.mjs") ?? "");
+        const source = stripComments(investigationText(await moduleSources()));
         const labels = [...source.matchAll(/localize\("DRPG\.Investigation\.(\w+)"\)\}\s*<select name="vis"/g)].map(m => m[1]);
         must(labels.length >= 2, "fewer than two labelled visibility selects were read - this would measure nothing");
         equal(stableJson([...new Set(labels)]), stableJson(["visibility"]), "[the keys labelling every visibility select]");
@@ -9059,7 +9059,7 @@ const INVARIANTS = [
          * readCaseFields. Since 13.11 the node's save and the window's close share one writer, `saveFieldsIn(scope)`,
          * handed the open node's editor or the window's form (`saveDrawnForm`).
          */
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
+        const src = stripComments(await investigationFetch());
         const node = fnSource(src, "saveOpenNode") + fnSource(src, "saveFieldsIn"), fields = fnSource(src, "readCaseFields"), dashboard = fnSource(src, "readDashboardForm");
         equal(stableJson({
             nodeReads: [/saveFieldsIn\(root\?\.querySelector\?\.\("\.drpg-case-edit:not\(\[hidden\]\)"\)\)/.test(node) && /readCaseFields\(scope\)/.test(node), /readDashboardForm/.test(node)],
@@ -10091,7 +10091,7 @@ const INVARIANTS = [
             ["gm-bridge.mjs", "requestFriskAsk"], ["gm-bridge.mjs", "requestFriskAnswer"], ["gm-bridge.mjs", "requestFriskFollow"]]
             .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(file === "gm-bridge.mjs" ? bridgeFn(sources, fn) : fnSource(stripComments(sources.get(file) ?? ""), fn)));
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
-        const feeAsk = topLevelFunction(stripComments(sources.get("investigation.mjs") ?? ""), "askToChargeForUnfoundKeys") ?? "";
+        const feeAsk = topLevelFunction(stripComments(investigationText(sources)), "askToChargeForUnfoundKeys") ?? "";
         const opening = fnSource(stripComments(sources.get("clock.mjs") ?? ""), "reconcilePhase");
         ok(/\bonPrimary:\s*true\b/.test(feeAsk) && /\baskToChargeForUnfoundKeys\(/.test(opening) && !/\bchargeForUnfoundKeys\(/.test(opening),
             "a trial's opening charges the Key fee on the GM who moved the phase, not on the primary (investigation.mjs askToChargeForUnfoundKeys, clock.mjs reconcilePhase)");
@@ -10286,7 +10286,7 @@ const INVARIANTS = [
         both("DRPG.Action.dcAnalyze", w => w.includes("{key}") && !w.includes("{daily}"), "still prints the Daily Life ladder");
         for (const [band, row] of Object.entries(ANALYZE_DC)) if ("dailyLife" in row) wrong.push(`ANALYZE_DC.${band} has a dailyLife column`);
         const sources = new Map(await otherSources());
-        const config = stripComments(sources.get("config.mjs") ?? ""), investigation = stripComments(sources.get("investigation.mjs") ?? "");
+        const config = stripComments(sources.get("config.mjs") ?? ""), investigation = stripComments(investigationText(sources));
         must(config.length > 1000 && investigation.length > 1000, "config.mjs or investigation.mjs did not load");
         for (const phrase of ["Left by the killer", "a trace you left"]) if (config.includes(phrase)) wrong.push(`config.mjs says "${phrase}"`);
         for (const kind of ["prep", "resolution"]) {
@@ -38817,7 +38817,7 @@ const INVARIANTS = [
          */
         const I = await import("./investigation.mjs");
         const sources = await moduleSources();
-        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(sources));
         must(inv, "investigation.mjs could not be read - this would measure nothing");
         const KEY = "SCN0000000000001__TOKR1337TRACE001";
         const holder = document.createElement("tbody");
@@ -38843,7 +38843,7 @@ const INVARIANTS = [
             names: /deleteTraceAsk", \{ name \}/.test(road),
             onlyRemove: !/\.delete\(|deleteEmbeddedDocuments|dropRemnantSecret/.test(road)
         };
-        const namers = [...sources].filter(([file, text]) => file !== "investigation.mjs" && !/^tests/.test(file)
+        const namers = [...sources].filter(([file, text]) => !INVESTIGATION_FAMILY.includes(file) && !/^tests/.test(file)
             && /\bdeleteTraceRow\b/.test(stripComments(text))).map(([file]) => file);
         const fetchLang = lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
         const [en, pl] = [await fetchLang("en"), await fetchLang("pl")];
@@ -39777,15 +39777,15 @@ const INVARIANTS = [
         const read2 = name => stripComments(src.get(name) ?? "");
         const destructiveYes = text => /yes:\s*\{\s*role:\s*"destructive"/.test(text);
         const sources = {
-            sweep: destructiveYes(fnSource(read2("investigation.mjs"), "confirmSweepBullets")),
+            sweep: destructiveYes(fnSource(investigationBy(read2), "confirmSweepBullets")),
             clearFaint: destructiveYes(fnSource(read2("remnants.mjs"), "confirmClearFaint")),
-            deleteTrace: destructiveYes(fnSource(read2("investigation.mjs"), "deleteTraceRow")),
+            deleteTrace: destructiveYes(fnSource(investigationBy(read2), "deleteTraceRow")),
             endMurderTracker: destructiveYes(fnSource(read2("murder-ui.mjs"), "openIncidentTracker")),
             endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "killerFell")),
             finalVerdict: (t => /destructive:\s*\[[^\]]*action:\s*"correct"[\s\S]*action:\s*"wrong"/.test(t) && /default:\s*"cancel"/.test(t) && !/primary:/.test(t))(fnSource(read2("verdict.mjs"), "openFinalVerdictDialog")),
             stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(read2("chapter.mjs"), "askStoppedEnd"))
         };
-        must(Object.values(sources).length === 7 && fnSource(read2("investigation.mjs"), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
+        must(Object.values(sources).length === 7 && fnSource(investigationBy(read2), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
         equal(stableJson(sources), stableJson({ sweep: true, clearFaint: true, deleteTrace: true, endMurderTracker: true, endMurderFight: true, finalVerdict: true, stoppedEnd: true }),
             "[the questions read off their sources: whether each one's yes is on the destructive role]");
     }],
@@ -49516,7 +49516,7 @@ const INVARIANTS = [
          * b6133c75: every edit is there and no option.
          */
         const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText));
-        const files = Object.fromEntries(await Promise.all(["room-setup.mjs", "passages-tab.mjs", "investigation.mjs", "gm-students.mjs", "projects-ui.mjs"].map(async f => [f, await read(f)])));
+        const files = Object.fromEntries(await Promise.all(["room-setup.mjs", "passages-tab.mjs", "investigation.mjs", "key-remnants.mjs", "gm-students.mjs", "projects-ui.mjs"].map(async f => [f, await read(f)])));
         const edits = { "room-setup.mjs": [".replace('role=\"switch\"'", "tokenStepper("], "passages-tab.mjs": [".replace('class=\"drpg-chip\"'", "startHead"],
             "investigation.mjs": [".replace(head"], "gm-students.mjs": ["silenced.dataset.tooltip"], "projects-ui.mjs": ["rowWhen("] };
         const options = { "room-setup.mjs": ["words: {", "\"data-drpg-undecided\":"], "passages-tab.mjs": ["cls: \"drpg-passage-chip\"", "title: c.cls === \"knows-start\""],
