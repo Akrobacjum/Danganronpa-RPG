@@ -309,7 +309,7 @@ export const WINDOWS = [
     { id: "room-window", client: "p1", module: "room-tile.mjs", call: "m.openRoomWindow()" }
 ];
 
-const capture = (repoUrl, w) => `
+export const capture = (repoUrl, w) => `
     const before = new Set(foundry.applications.instances.keys());
     const keep = { windows: globalThis.__dialogWindows, answers: [...globalThis.__dialogAnswers] };
     globalThis.__dialogWindows = true;

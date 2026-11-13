@@ -25117,8 +25117,8 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
-    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 32 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
-        /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. */
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 32 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
             ["DRPG.Tips.Actions.statisticTooltip","action-dynamic.mjs","askDynamicDifficulty"],
@@ -25161,15 +25161,17 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 32, "lang/en.json has not the family's 32 keys under DRPG.Tips.Actions");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
-            return !(read && fits(words(en, k)) && fits(words(pl, k)));
-        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
-        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. */
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
             ["DRPG.Tips.Trial.countThisAsSessionTooltip","chapter.mjs","chapterEndForm"],
@@ -25214,15 +25216,17 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
-            return !(read && fits(words(en, k)) && fits(words(pl, k)));
-        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 40 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
-        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. */
+    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 40 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Gm.minusTooltip","despair.mjs","buildRow"],
             ["DRPG.Tips.Gm.plusTooltip","despair.mjs","buildRow"],
@@ -25275,15 +25279,17 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 40, "lang/en.json has not the family's 40 keys under DRPG.Tips.Gm");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
-            return !(read && fits(words(en, k)) && fits(words(pl, k)));
-        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4754 - the setup windows, the sheet and the other panels draw their tooltips (E102 C5, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 28 keys under DRPG.Tips.Setup has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
-        /* Red at 6c2a7935 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Setup key. */
+    ["R4754 - the setup windows, the sheet and the other panels draw their tooltips (E102 C5, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 28 keys under DRPG.Tips.Setup has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 6c2a7935 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Setup key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Setup.roomPictureThumbnailTooltip","room-tile.mjs","paintTileRow"],
             ["DRPG.Tips.Setup.resetTheSeasonTooltip","season-setup.mjs","openSeasonSetup"],
@@ -25322,11 +25328,13 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28, "lang/en.json has not the family's 28 keys under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
-            return !(read && fits(words(en, k)) && fits(words(pl, k)));
-        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
     ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the four tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control", async () => {
@@ -25356,8 +25364,8 @@ const INVARIANTS = [
             rest: [true, true, ["one", "other"], ["few", "many", "one", "other"]], escape: false, gone: [], titled: [true, true, true]
         }), "{the roll passes at the number; 'beat' in the difficulty's words (en, pl); any room in the room's (en, pl); the Polish Frisk answer's plural or gendered form; Rest passes the cost, draws the plural key, its forms (en, pl); the escape's words promise a filtered window; dropped keys still in lang; title on the disabled controls}");
     }],
-    ["R4761 - the voice list's volume and push-to-talk's key button draw their tooltips (E102 C8, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 2 keys under DRPG.Tips.More has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
-        /* Red at 91f6413a with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.More key. */
+    ["R4761 - the voice list's volume and push-to-talk's key button draw their tooltips (E102 C8, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 2 keys under DRPG.Tips.More has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 1957091a with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.More key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.More.volumeTooltip","voice-tile.mjs","listRow"],
             ["DRPG.Tips.More.changeTheKeyTooltip","voice-panel.mjs","voiceFieldset"]
@@ -25370,11 +25378,13 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         must(Object.keys(words(en, "DRPG.Tips.More") ?? {}).length === 2, "lang/en.json has not the family's 2 keys under DRPG.Tips.More");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
-            return !(read && fits(words(en, k)) && fits(words(pl, k)));
-        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
     ["R4762 - the GM panels' and the setup windows' tooltips say what the code does (E102, the review of C4 and C5: docs/dev/gaps/REVIEW-102-C4C5.md on claude/gaps-radio, G1, G2, G4, S1, S2): a new Monocub's Health and Sanity are full, said as the reserve (M7, R1448), not at zero (`setMonocub` writes 0 marks, monocub.mjs); an item's tier is durability for a tool or weapon and what it restores for a usable (ITEM_DURABILITY 0 and 1 alike, USABLE_EFFECTS); the GM's track also ends at a state with its own music (`cueGivesWay`); Observer lowers every player's default and each sheet's own player keeps it (`fixExposed` writes ownership.default alone); the Monocub window's donor select reads the one donor key the Students window reads", async () => {
