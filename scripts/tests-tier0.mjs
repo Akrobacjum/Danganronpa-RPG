@@ -2505,6 +2505,12 @@ const REGRESSIONS = [
     }],
 
     ["R32 - the case dashboard saves the rows on screen, and a plan row only when it was edited", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the form's reader. The plan row's half - its words
+           pushed onto the trace only when the row was pointed at it - is tier 2's "a Key row's Save pushes the plan's words
+           onto its trace only when the row was pointed at it, not on another field's edit (E40 item 4: R32's plan-row
+           half, driven; was R32)". The rows read off the form (investigation.mjs `readCaseFields`) are not exported, and a
+           row the filter hides exists only in the open dashboard: driving it would need an export of the reader or the
+           dashboard opened and filtered. */
         /*
          * F1: a trace the filter hides has no inputs, and Save wrote its blanks over it.
          * F6: Save pushed the Key plan's old name back over a rename on the Traces tab.
@@ -2512,11 +2518,6 @@ const REGRESSIONS = [
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         ok(/traces\.filter\([^)]*\)\s*=>\s*q\(`name\./.test(inv),
             "the dashboard's Save reads a row the filter is hiding as blanks again");
-        // Cut at `keyRowShows` since E09 C16, which took `stripDraft` out with Save's placing.
-        const plan = bodyOf(inv, "async function saveKeyPlan", { until: "function keyRowShows" });
-        ok(plan.length > 200, "saveKeyPlan is gone or has moved past keyRowShows");
-        ok(/repointed/.test(plan) && /stored\.name/.test(plan),
-            "a Key plan row is pushed onto its trace whether or not anybody edited it");
     }],
 
     ["R33 - no action pays for its roll after the dice", async () => {
@@ -3501,30 +3502,54 @@ const REGRESSIONS = [
          * `keepLive` carries the fields somebody touched and redraws everything else
          * from the world - so anything applied by an EVENT is applied exactly once,
          * and anything captured as a NODE is detached a moment later.
+         *
+         * E40 item 4, slice B, 13.11.2026 (a): the two wirings are called on a detached element, as a rebuild hands them
+         * one. utils.mjs `wirePortraitPickers`: a picture whose hidden field holds another path is put in step, the
+         * picker opened by a click (Foundry's FilePicker stood in for by a class that keeps what it was given), the
+         * window's nodes replaced as a rebuild replaces them, and the picker's answer given. investigation.mjs
+         * `wireKeyLimitOverride`: rows drawn disabled under a ticked override, as a redraw that restored the tick draws
+         * them, then the tick taken off. Until then the test read the functions' text; mutants that kept it - the in-step
+         * guard joined by `&& false`, every limited row disabled again after `apply()` - passed it. What stays text:
+         * the dashboard re-wiring the override after a rebuild (`wireCase`, not exported) and `keepLive`'s order.
          */
-        const sources = new Map(await otherSources());
-        const utils = stripComments(sources.get("utils.mjs") ?? "");
-        // Cut to the function after it, `eachPane` since E44 C4a (it stands where `panelTabs` stood).
-        const picker = bodyOf(utils, "export function wirePortraitPickers", { until: "export function eachPane" });
-        ok(picker.length > 300, "wirePortraitPickers is gone or has moved past eachPane");
-        const cb = picker.indexOf("callback:");
-        ok(cb > 0, "wirePortraitPickers no longer hands the FilePicker a callback");
-        ok(bodyOf(picker, "callback:").includes("querySelector"),
-            "the picker's callback writes to the nodes it captured before the picker opened; a "
-            + "live window has replaced both by the time somebody chooses a file");
-        const insync = picker.indexOf('getAttribute("src")');
-        ok(insync > 0 && insync < cb,
-            "nothing puts the picture back in step with the hidden field after a rebuild");
+        const { wirePortraitPickers } = await import("./utils.mjs");
+        const { wireKeyLimitOverride } = await import("./investigation.mjs");
+        const FP = foundry.applications.apps?.FilePicker;
+        must(FP, "Foundry's FilePicker is not here - the picker cannot be opened");
+        const own = Object.getOwnPropertyDescriptor(FP, "implementation");
+        const root = document.createElement("div");
+        const draw = (src, value) => { root.innerHTML = `<img data-drpg-portrait="r1" src="${src}"><input type="hidden" name="img.r1" value="${value}">`; };
+        let opened = null, picture = null;
+        try {
+            Object.defineProperty(FP, "implementation", { configurable: true,
+                get: () => class { constructor(options) { opened = options; } render() { return this; } } });
+            draw("suite/old.webp", "suite/kept.webp");
+            wirePortraitPickers(root);
+            const synced = root.querySelector("img").getAttribute("src");
+            root.querySelector("img").click();
+            draw("suite/old.webp", "suite/old.webp");
+            opened?.callback?.("suite/picked.webp");
+            picture = [synced, Boolean(opened), root.querySelector("img").getAttribute("src"), root.querySelector("input").value];
+        } finally {
+            if (own) Object.defineProperty(FP, "implementation", own);
+            else delete FP.implementation;
+        }
+        const box = document.createElement("div");
+        box.innerHTML = `<input type="checkbox" name="keyOverride" checked><select class="drpg-key-limited" disabled></select>
+            <button type="button" class="drpg-key-limited" disabled></button>`;
+        const limited = () => [...box.querySelectorAll(".drpg-key-limited")].map(el => el.disabled);
+        const wired = wireKeyLimitOverride(box);
+        const ticked = limited();
+        const tick = box.querySelector('[name="keyOverride"]');
+        tick.checked = false;
+        tick.dispatchEvent(new Event("change"));
+        equal(JSON.stringify([picture, [wired, ticked, limited()]]),
+            JSON.stringify([["suite/kept.webp", true, "suite/picked.webp", "suite/picked.webp"], [true, [false, false], [true, true]]]),
+            "[the picture: put in step with its field, the picker opened, the picture and the field after the answer arrived over a rebuild], "
+                + "[the override: wired, the rows under a restored tick, the rows after it was taken off]");
 
+        const sources = new Map(await otherSources());
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
-        const helper = bodyOf(inv, "export function wireKeyLimitOverride", { until: "export async function openInvestigationDashboard" });
-        ok(helper.length > 200,
-            "wireKeyLimitOverride is gone or has moved past openInvestigationDashboard");
-        ok(/addEventListener\("change", apply\)/.test(helper),
-            "the override no longer follows the tick box at all");
-        ok(helper.indexOf("apply();") > helper.indexOf("addEventListener"),
-            "the override is wired but never applied, so a redraw that restores the tick leaves "
-            + "the rows disabled");
         const wire = bodyOf(inv, "function wireCase(", { until: "function wireCaseFilters(" });
         ok(wire.includes("wireKeyLimitOverride("),
             "the dashboard stopped re-wiring the Key Remnant limit override after a rebuild");

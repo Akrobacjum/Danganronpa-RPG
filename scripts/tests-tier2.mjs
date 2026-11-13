@@ -38430,6 +38430,66 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "([things granted, the plant among them] for a total under the lowest bar, then at it)");
     }],
 
+    ["a Key row's Save pushes the plan's words onto its trace only when the row was pointed at it, not on another field's edit (E40 item 4: R32's plan-row half, driven; was R32)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R32 (tier 0, trimmed in E40 to its form-reading half) read investigation.mjs
+         * `saveKeyPlan` as text: `repointed` and `stored.name` in it. It passed a mutant that kept both and pushed the
+         * plan's words on every Save (`const repointed = "token" in take || true;`). F6, 17.09: Save pushed the Key plan's
+         * old name back over a rename on the Traces tab. A Key trace placed, a chapter nobody has planned made the clock's,
+         * its plan's first row pointed at the trace with a name of the plan's own; the trace renamed as the Traces tab
+         * renames it (`setRemnantPublic`); the dashboard's Save of that row with its note alone changed, as the form hands it
+         * on (`applyDashboardSave`). Then a second trace, and the row pointed at it. Read: the first trace's name after the
+         * note's Save, and the second's after the repoint.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./gm-stores.mjs");
+        const PLAN = "SUITE E40 R32 the plan's name", RENAMED = "SUITE E40 R32 renamed on the Traces tab";
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        const placed = [];
+        let read = null;
+        try {
+            for (const x of [100, 300]) {
+                const token = await R.placeRemnant({ type: "key", visibility: "evident", x, y: 100, scene: canvas.scene, chapter: fresh, note: "SUITE E40 R32 a Key" });
+                must(token?.id, "the fixture's Key trace was not placed - this would measure nothing");
+                placed.push(token);
+            }
+            const [first, second] = placed;
+            await setClock({ chapter: fresh });
+            await I.setKeyPlan({ chapter: fresh, entries: [{ scale: "standard", tokenId: first.id, sceneId: canvas.scene.id, name: PLAN }] });
+            await gmStoresIdle();
+            await R.setRemnantPublic(first, { name: RENAMED });
+            await settle();
+            let plan = I.keyPlan();
+            must(plan.entries[0]?.tokenId === first.id && R.remnantPublic(first)?.name === RENAMED,
+                "the plan's row does not point at the renamed trace - this would measure nothing");
+            await I.applyDashboardSave({ traces: [], keyRows: [{ slot: 0, scale: plan.entries[0].scale,
+                fields: { note: { value: "SUITE E40 R32 a note", drawn: plan.entries[0].note ?? "" } } }] }, { traces: [], plan });
+            await settle();
+            const afterNote = R.remnantPublic(first)?.name ?? null;
+            plan = I.keyPlan();
+            await I.applyDashboardSave({ traces: [], keyRows: [{ slot: 0, scale: plan.entries[0].scale,
+                fields: { token: { value: `${second.id}|${canvas.scene.id}`, drawn: `${first.id}|${canvas.scene.id}` } } }] }, { traces: [], plan });
+            await settle();
+            read = [afterNote, I.keyPlan().entries[0]?.tokenId === second.id, R.remnantPublic(second)?.name ?? null];
+        } finally {
+            const rows = Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await setClock(clock);
+            for (const token of placed) {
+                const doc = canvas.scene.tokens.get(token.id);
+                if (doc) await R.removeRemnant(doc);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([RENAMED, true, PLAN]),
+            "a Key row's Save put the plan's name on its trace over a rename, or a repoint did not carry it (the first trace's "
+                + "name after the note's Save, the row on the second trace, the second's name)");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*

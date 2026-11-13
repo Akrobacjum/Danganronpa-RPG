@@ -25,7 +25,7 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 
 | R | Pick | Reason | Done |
 | --- | --- | --- | --- |
-| R32 | (b), not built | the dashboard's Save driven on a filtered list and a renamed trace: a window, a fixture |  |
+| R32 | (b), trimmed | the plan row's half driven through `applyDashboardSave`; the form reader (`readCaseFields`, not exported) stays as text | batch 6 |
 | R34 | (b), trimmed | a miss and a hit driven with a planted item; the spend's and the plant run's shape, the late answer and the one-caller census stay | batch 5 |
 | R36 | (b), trimmed | `plantOnPerson` driven at the plant's bars; Tamper's two resolver lines stay as text, not driven | batch 3 |
 | R37 | (b), not built | `releaseTamper` (not exported) reached by closing Tamper's window after a landed concealment roll |  |
@@ -35,7 +35,7 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R47 | (b), not built | Tamper's one price through `attemptCleanup`/`attemptStageSix` with windows; the GM-side charge census is (c) |  |
 | R49 | (b), not built | `createFind` (not exported), the give dialog's two guards, `publishReading` and `mintLootBullet` (not exported): several fixtures |  |
 | R53 | (c) | the tile is painted only on an open Daggerheart sheet, which the headless harness has none of (`env.systemSheets`); `paintTamper` not exported | batch 5 |
-| R57 | (b), not built | a live window rebuilt with a picked portrait and the override ticked |  |
+| R57 | (a) | `wirePortraitPickers` and `wireKeyLimitOverride` (exported) called on a detached element; `wireCase` (not exported) and `keepLive`'s order stay as text in the same test | batch 6 |
 | R87 | (b) | `analyzeDc` and `resolveAnalyze` driven: a Neutral priced as Prep, its card's sentence | batch 1 |
 | R88 | (b), trimmed | the cards' buttons pressed as a GM presses them; four assertions stay as text (below) | batch 1 |
 | R89 | (b), trimmed | the store's scope read off Foundry's registry; a resolve with no record driven; the write-through stays as text | batch 2 |
@@ -184,6 +184,28 @@ R34's assertions not held by the new test, kept in tier 0 and marked: no `takePl
 From batch 5 on, mutants run on two detached copies: d7566926's test files for the old test and this branch's for the new
 one, each mutant applied to both (an in-place (a) and its old self share a name).
 
+### R57 (a), in place
+
+| Mutant | Old R57 | R57 rewritten |
+| --- | --- | --- |
+| m57i-a: investigation.mjs `wireKeyLimitOverride` without its `apply();` | FAIL | FAIL |
+| m57ii-a: `apply();` kept, every limited row disabled after it | ok - missed | FAIL |
+| m57i-b: utils.mjs `wirePortraitPickers`'s callback writes no hidden field (`const live = null`) | ok - missed | FAIL |
+| m57ii-b: the in-step guard joined by `&& false` (`getAttribute("src")` still before the callback) | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+### R32 -> "a Key row's Save pushes the plan's words onto its trace only when the row was pointed at it ... (was R32)"
+
+| Mutant of investigation.mjs `saveKeyPlan` | Old R32 | New test |
+| --- | --- | --- |
+| m32i: `name: take.name ?? stored.name` (F6 itself: the plan's name on every Save) | ok - missed | FAIL |
+| m32ii: `const repointed = "token" in take || true;` | ok - missed | FAIL |
+| m32i-b: `name: take.name ?? ""` (a repoint carries no name) | FAIL | FAIL |
+| the clean copy | ok | ok |
+
+R32's F1 half (a row the filter hides is not read as blanks) stays in tier 0 as text: the reader is investigation.mjs
+`readCaseFields`, not exported, and the hidden row exists only in the open dashboard.
+
 ## Gates
 
 - Batch 1 (R87, R88, R172, R305, R306, R430, R1120): `node --check` on both test files; `node tools/check.mjs` 19 parts,
@@ -201,3 +223,7 @@ one, each mutant applied to both (an in-place (a) and its old self share a name)
   name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (441 s).
 - Batch 5 (R34, R53, R96, R143): `node --check`; check 19 parts, all green; lint 0 problems; R34's new test by name 1 ran,
   0 failed; R34, R53, R96, R143 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (453 s).
+- Batch 6 (R32, R57): `node --check`; check 19 parts, all green; lint 0 problems; R32's new test by name 1 ran, 0 failed;
+  R32 and R57 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (446 s). That run
+  read a tree that briefly held the next batch's first test (written in before the run ended, then taken out); run again on
+  the committed tree alone: 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (452 s).
