@@ -828,6 +828,27 @@ export function installRenderPlan(app) {
 }
 
 /**
+ * The Hope slots of a sheet's header redrawn for `hope` held, as Daggerheart draws them: a held slot
+ * `<i class="fa-solid fa-diamond">`, an empty one `<i class="fa-regular fa-circle">`. Both pairs, not the weight alone
+ * (13.11.2026; the owner's table on 1.2.112, held Hope drawn spent): until then only fa-solid and fa-regular were
+ * toggled, so a slot that became held without a render carried `fa-solid fa-circle`, a glyph Daggerheart never draws,
+ * and stained-glass.css's spent rule, which read `.fa-circle`, drew it at 0.34. The sheets read the state from
+ * `fa-solid` alone since; the glyph matches the system's so that nothing else that reads it is misled. R5720.
+ */
+export function paintHopeGlyphs(element, hope) {
+    for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
+        const n = Number(slot.dataset.value);
+        const glyph = slot.querySelector("i");
+        if (!glyph || !Number.isFinite(n)) continue;
+        const held = n <= hope;
+        glyph.classList.toggle("fa-solid", held);
+        glyph.classList.toggle("fa-diamond", held);
+        glyph.classList.toggle("fa-regular", !held);
+        glyph.classList.toggle("fa-circle", !held);
+    }
+}
+
+/**
  * Everything a render would have redrawn for a resource-only update, drawn here instead (the wrapper's
  * "repaint", `installRenderPlan`).
  *
@@ -841,14 +862,7 @@ export function installRenderPlan(app) {
 function repaintInPlace(actor, element, app = null) {
     paintReserves(app, element, actor);
 
-    const hope = Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0);
-    for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
-        const n = Number(slot.dataset.value);
-        const glyph = slot.querySelector("i");
-        if (!glyph || !Number.isFinite(n)) continue;
-        glyph.classList.toggle("fa-solid", n <= hope);
-        glyph.classList.toggle("fa-regular", n > hope);
-    }
+    paintHopeGlyphs(element, Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0));
 
     // AND THE CALLS, WHICH ARE WHAT THE NUMBER DECIDES (Dawid, 28.08).
     //

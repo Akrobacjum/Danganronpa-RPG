@@ -26,7 +26,8 @@
  * `localiseRawKeys`, `paintProgress`, `applyCollapsed`, `addCollapseControl`),
  * because the render hook calls them; projects-ui.mjs does not re-export them.
  * E79 C12 adds a sixth the hook calls, `showTrayToPlayer`, on the same terms,
- * and E23 C3a two more, `labelTrayControls` and `markTrayMore`.
+ * and E23 C3a two more, `labelTrayControls` and `markTrayMore`, and the fix of
+ * 13.11.2026 one more, `addTrayTitle`.
  * No module state: the fold is a client setting.
  */
 
@@ -395,6 +396,43 @@ export function applyCollapsed(root) {
     button.dataset.tooltip = label;
     button.setAttribute("aria-label", label);
     button.setAttribute("aria-expanded", String(!on));
+}
+
+/* ==========================================================================
+ * THE TRAY'S TITLE, WHERE DAGGERHEART NO LONGER DRAWS ONE (13.11.2026)
+ * --------------------------------------------------------------------------
+ * The owner's table on 1.2.112 (Foundry v14, Daggerheart 2.12.8): the tray had
+ * no title. Read in Daggerheart's source at head e9c61d7: 2.12.8's
+ * templates/ui/countdowns/countdowns-view.hbs draws `<header
+ * class="countdowns-header">` with the clock icon, `.header-type-toggles` and
+ * the header controls, and no `.window-title`. The module names the tray
+ * "Projects" through the i18n override on DAGGERHEART.UI.Countdowns.title, a key
+ * that template no longer reads, so the name was nowhere. Where the header has
+ * no `.window-title`, one is added here, after the icon (and so after the fold
+ * caret, which `addCollapseControl` puts first), with that same key - one name
+ * for the tray in both languages, the override's. A header that has one (older
+ * Daggerheart) is left as it is. projects-ui.mjs's header comment records an
+ * earlier heading injected outside the header that vanished on hover when the
+ * tray re-rendered; this one lives inside the header the render rebuilds, and is
+ * added again on each render, so a re-render cannot leave the tray without it.
+ * Idempotent: a second call on the same header finds the title and adds none.
+ * ========================================================================== */
+
+export function addTrayTitle(root) {
+    const host = root.querySelector(".countdowns-header")
+        ?? root.querySelector(".window-header")
+        ?? root.querySelector("header");
+    if (!host || host.querySelector(".window-title")) return;
+
+    const title = document.createElement("span");
+    title.className = "window-title drpg-projects-title";
+    title.textContent = game.i18n.localize("DAGGERHEART.UI.Countdowns.title");
+    // The module's word in Daggerheart's header, whose own are in Foundry's language (E66 fix r2; R1153).
+    markLanguage(title);
+
+    const after = host.querySelector(":scope > i") ?? host.querySelector(":scope > .drpg-projects-fold");
+    if (after) after.after(title);
+    else host.prepend(title);
 }
 
 export function addCollapseControl(root) {

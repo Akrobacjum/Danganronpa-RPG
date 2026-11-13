@@ -4796,7 +4796,12 @@ body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .
     -webkit-mask: var(--drpg-pix-diamond) center / contain no-repeat;
     mask: var(--drpg-pix-diamond) center / contain no-repeat;
 }
-body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value:has(> i:is(.fa-circle, .fa-regular))::before {
+/* SPENT IS READ FROM `fa-solid` ALONE (13.11.2026; the owner's table on 1.2.112: held Hope looked spent). This read
+   `:has(> i:is(.fa-circle, .fa-regular))`, whose `:is()` carries an id and so outranks every held rule; sheet.mjs
+   `repaintInPlace` toggled fa-solid and fa-regular only, so a slot that became held without a render carried
+   `fa-solid fa-circle`, matched `.fa-circle` and drew at 0.34 (measured in Chromium at 1.2.111 and 1.2.112). The
+   held state is `fa-solid` and nothing else, as every held rule reads it; R5720. */
+body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value:not(:has(> i.fa-solid))::before {
     opacity: 0.34;
 }
 
