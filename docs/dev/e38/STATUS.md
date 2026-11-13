@@ -14,7 +14,8 @@ C4 (the coordinator's ask of 13.11, for 1.2.114): the two findings below, both f
 | C2 7c9b2ce0 | 97-two-gms C (a card gm2 claims while the primary reloads, settled once), D (one `rolls` record per roll, drawn on gm and then on gm2 as the primary), F (an open Frisk whose primary leaves: the action handed back at once, no dice), G (D153 measured, a note) | 17/17; mutant "reload keeps no localStorage" killed (A2, A3 red) |
 | C3 ea81b712 | 98-chaos A (a card across the only GM's reload), B (a player away at a private card), C (the GM's reload mid-incident), D (the GM's reload mid-vote); README rows 97, 98 | 8/8 |
 | C4 e3c60252 | merge 1.2.111; **fix 1 (D153)**: Give a Truth Bullet carried to the primary (new bridge action `bullet.give`, R5000), so a give on a second GM and the primary's find of one trace make one copy; 97 G now reads 1 copy, gm2's give answers "already" | R5000 red then green; 97 17/17; tiers 0-1 1405/0/16; 30-security, 33-bridge-paths, E60-T9 green |
-| C5 (this commit) | **fix 2 (offline cards)**: a private card's author GM keeps its words (`authorHold`) and gives them to its readers on return (secret.mjs, R5001); 98 B2 now reads the words once p2 is back, the author GM still a dash | R5001 red then green; 98 8/8; tiers 0-1 1406/0/16 |
+| C5 f5d9cf48 | **fix 2 (offline cards)**: a private card's author GM keeps its words (`authorHold`) and gives them to its readers on return (secret.mjs, R5001); 98 B2 now reads the words once p2 is back, the author GM still a dash | R5001 red then green; 98 8/8; tiers 0-1 1406/0/16 |
+| C5a dab9ebb8 | 73-notice-history R2 updated: the card a GM whispered to a player alone is now given back on return (was "sent elsewhere") - an intended change to an older test encoding the old trade | 73-notice-history 1/1 (32 checks) |
 
 ## The two findings, both fixed in C4-C5
 
@@ -24,13 +25,21 @@ C4 (the coordinator's ask of 13.11, for 1.2.114): the two findings below, both f
    the window asks `requestGiveBullet`, the give runs on the primary in the find's queue, the second reads the first's
    copy. No rule players see changed; `giveBullet` is unchanged and still the suite's. Verified: 97 G reads 1 copy on
    both GMs (was 2).
-2. **A private card to a player alone, lost on an offline reload** (fix 2, C5): a card a GM whispers to players alone
-   (a tail, a door, a reroll receipt via `whisperToOwnerOnly`) had no GM reader, so the catch-up (`askForWords` /
-   `answerWordsRequest`) could serve nobody and an offline player read a dash for good. The author GM keeps the words
-   now (`authorHold`), hidden from its own reads and served to the card's readers alone on return. This is consistent
-   with secret.mjs's documented trade ("no server copy"): the trade is about a GM not connected at post time, and the
-   fix keeps only the author's own copy - a player whose author GM is also away still waits. Nothing visible changed
-   (the author GM still sees the stub; no new reader). Verified: 98 B2 reads the words, the author GM a dash.
+2. **A private card to a player alone, lost on an offline reload** (fix 2, C5 + C5a): a card a GM whispers to players
+   alone (a tail, a door, a reroll receipt via `whisperToOwnerOnly`) had no GM reader, so the catch-up (`askForWords`
+   / `answerWordsRequest`) could serve nobody and an offline player read a dash for good. The author GM keeps the words
+   now (`authorHold`), hidden from its own reads and served to the card's readers alone on return. The fix keeps only
+   the author's own copy, not a server copy, so a player whose author GM is also away still waits. No new reader; the
+   author GM still sees the stub. Verified: 98 B2 reads the words, the author GM a dash.
+
+   **Owner, please note (default taken, owner to confirm):** this reverses a behaviour secret.mjs documented as a
+   deliberate trade ("WORDS AFTER A RETURN": "there is no server-side copy to catch up from ... a player reading
+   [yesterday's private narration] is the game") and that an existing test asserted (73-notice-history R2 read the
+   card back as "sent to another browser"). The coordinator asked for this fix, so it was built and 73 R2 updated to
+   the new behaviour (C5a). What changes for a player: a card a GM whispered to them alone, which they missed by being
+   offline, now reaches them on return instead of showing "sent to another browser". If the owner wants the old trade
+   kept, revert C5, C5a and R5001 and restore 73 R2. The fix does not expose anything to anyone who was not already a
+   reader, and does not change what the GM or any bystander sees.
 
 ## Test results
 
