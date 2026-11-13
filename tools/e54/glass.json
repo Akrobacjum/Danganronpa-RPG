@@ -2,7 +2,9 @@
   "about": "E54 glass, the plan G1 and G5 in one cut: the curtain cut and the pure helpers it reads (the convex-polygon helpers, the field, the turn affine math, the voice tile settle, the turns and the strip constants) move out of glass.mjs into glass-geometry.mjs. One cut, not two, because split.mjs refuses a target that already exists; it runs after the behaviour commits on claude/e54-behaviour, through 699d5bab (G3, G4: the partitions take the page as an argument and give their writes back; G4b: settleVoice takes its wall), which E54 day cherry-picks first: at 32f5093f the cut reads PIN, the rails and avLift, a read of the facade split.mjs refuses. railBox, resolveAcc and accProbe read the page and stay; centreOrder stands among the turn helpers and is not on the plan F6 list, so it stays. Run: node tools/e54/split.mjs --manifest tools/e54/glass.json, then node tools/e54/repoint.mjs --manifest tools/e54/glass.json.",
   "source": "scripts/glass.mjs",
   "facadeNote": [
-    "E54 (the plan G1, G5): the curtain cut and the pure helpers it reads live in glass-geometry.mjs, re-exported here; this file keeps the page: measuring it, painting, the turn and the lifecycle."
+    "E54 (the plan G1, G5): the curtain cut and the pure helpers it reads live in glass-geometry.mjs and glass-blocks.mjs,",
+    "imported here (of their names this file exported only `blockTurns`, re-exported); it keeps the page: measuring it,",
+    "painting, the turn and the lifecycle."
   ],
   "keep": "*",
   "stay": {
@@ -19,10 +21,10 @@
       "header": [
         "The curtain cut, pure (E54, the plan G1 and G5): what the glass is cut into for a screen and the blocks on it,",
         "from arguments alone - the convex-polygon helpers, the slope field, the column and band cutters, the partitions",
-        "(`windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands`), the voice tile settle, the turns",
-        "and the affine math of the turn. Moved out of glass.mjs, which re-exports what it exported, measures the page for",
-        "the cut (`stackPage`, `deskPage`, `curtainPage`) and writes what the cut gives back (`writeCut`). It reads no page",
-        "and no state of glass.mjs: R4805."
+        "(`windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands`) and the affine math of the turn; the",
+        "voice tile's settle and a block's turn it reads from glass-blocks.mjs. Moved out of glass.mjs, which exported none",
+        "of these names, measures the page for the cut (`stackPage`, `deskPage`, `curtainPage`) and writes what the cut",
+        "gives back (`writeCut`). It reads no page and no state of glass.mjs: R4805."
       ],
       "names": {
         "bboxOf": "const",

@@ -11,7 +11,7 @@
       "header": [
         "One place for a module window's size (E54, the plan's W1): the width that shows a table of a given width",
         "(`windowWidthFor`, ui-kit.mjs `fitKitWidth`'s) and each tab pane measured in turn (`eachPane`). Moved out of",
-        "utils.mjs, which re-exports both; the settings half (`scaleWindow` and its box) joins once W2 hands it its readers.",
+        "utils.mjs, which re-exports both; the settings half (`scaleWindow` and its box) is window-scale.mjs's (W3).",
         "A leaf: it imports nothing."
       ],
       "names": {

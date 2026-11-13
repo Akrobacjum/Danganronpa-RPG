@@ -82,9 +82,9 @@
     {
       "file": "scripts/sheet-fit.mjs",
       "header": [
-        "How the sheet fits its window (E54, the sheet's family): the Loadout tab left, a tab's scroll kept, the action",
-        "tiles' fit (`fitActionTiles`, `fitTileText`, `watchTileFit`, `LONGEST_TILE_WORD`, `softWrap`) and the sheet's height",
-        "held and grown for the Calls (`holdActionsTab`, `growForCalls`)."
+        "How the sheet fits its window (E54, the sheet's family): the Loadout tab left, a tab's scroll kept, the system's",
+        "create buttons removed (`removeSystemCreators`), the action tiles' fit (`fitActionTiles`, `fitTileText`, `watchTileFit`,",
+        "`LONGEST_TILE_WORD`, `softWrap`) and the sheet's height held and grown for the Calls (`holdActionsTab`, `growForCalls`)."
       ],
       "names": {
         "leaveLoadoutTab": "function",
@@ -200,8 +200,8 @@
     {
       "file": "scripts/sheet-inventory.mjs",
       "header": [
-        "The inventory (E54, the sheet's family): the system's create buttons removed, the groups the player chose,",
-        "the rows and their buttons (use, equip, discard, stash, present, hand over; `guardRow` among them), the open stashes and",
+        "The inventory (E54, the sheet's family): the groups the player chose, the rows and their buttons (use, equip,",
+        "discard, stash, present, hand over; a row's guard is sheet-sidebar.mjs `guardRow`), the open stashes and",
         "the Truth Bullets' groups, order and folds (`bulletGroups`)."
       ],
       "names": {
