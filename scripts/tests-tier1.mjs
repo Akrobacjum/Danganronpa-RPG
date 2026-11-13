@@ -9117,6 +9117,40 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R5330 - a planned Remnant holds every field New Remnant asks (E104; the owner, 13.11.2026: \"niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry kazdemu zaplanowanemu remnantowi\"): its room's scene, who left it, its band, the tie (tied where an Incident's is unwritten, open for the other types), reinforced, the analysis, the GM's note and the picture; none on another kind; the Map's planned node carries them, and one with no room needs a room, which the consistency check says in words", async () => {
+        /*
+         * E104 C1. case-schema.mjs `caseNodeOf` (`incidentFields`), `graphOf`'s planned Remnant node and its `needs`,
+         * `checkCase`'s "incomplete"; case-map.mjs `problemText`. The editor and Place are tier 2's "planned Remnant
+         * holds every field ...". Red at 246635d8: none of the fields, no `needs`.
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const pick = n => n ? { scene: n.scene, author: n.author, vis: n.vis, tie: n.tie, reinforced: n.reinforced, analysis: n.analysis, note: n.note, img: n.img } : null;
+        const full = { kind: "incident", label: "R5330", type: "prep", room: "Hall", scene: "S1", author: "A1", vis: "subtle", tie: "untied",
+            reinforced: true, analysis: "lab words", note: "gm words", img: "x.webp" };
+        const graph = S.graphOf({ chapter: 1, rows: { "incident-a": full, "incident-b": { kind: "incident", label: "no room" } } });
+        const node = id => graph.nodes.find(n => n.id === id) ?? null;
+        const problems = S.checkCase(graph).filter(p => p.code === "incomplete");
+        equal(stableJson({
+            full: pick(S.caseNodeOf(full)),
+            bare: pick(S.caseNodeOf({ kind: "incident" })),
+            prep: S.caseNodeOf({ kind: "incident", type: "prep" })?.tie ?? null,
+            odd: pick(S.caseNodeOf({ kind: "incident", vis: "loud", tie: "maybe", reinforced: "yes" })),
+            other: pick(S.caseNodeOf({ kind: "deduction", vis: "subtle", author: "A1" })),
+            graph: [pick(node("incident-a")), node("incident-a")?.needs ?? null, node("incident-b")?.needs ?? null, node("incident-a")?.tied ?? null],
+            problems: problems.map(p => [p.node, p.ref]),
+            words: problems.length ? M.problemText(problems[0], graph) : null
+        }), stableJson({
+            full: { scene: "S1", author: "A1", vis: "subtle", tie: "untied", reinforced: true, analysis: "lab words", note: "gm words", img: "x.webp" },
+            bare: { scene: null, author: "", vis: "evident", tie: "tied", reinforced: false, analysis: "", note: "", img: "" },
+            prep: "",
+            odd: { scene: null, author: "", vis: "evident", tie: "tied", reinforced: false, analysis: "", note: "", img: "" },
+            other: { scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, note: null, img: null },
+            graph: [{ scene: "S1", author: "A1", vis: "subtle", tie: "untied", reinforced: true, analysis: "lab words", note: "gm words", img: "x.webp" }, [], ["room"], false],
+            problems: [["incident-b", "room"]],
+            words: game.i18n.format("DRPG.CaseMap.problem.incomplete", { node: "no room", ref: game.i18n.localize("DRPG.CaseMap.needs.room") })
+        }), "{a full row read; a bare one; a Prep's tie unwritten; bad values; a deduction; the graph's node fields, its needs, a roomless one's needs, its tie; the incomplete problems; their words}");
+    }],
     ["R4900 - several planned Autopsies a chapter (the owner, 13.11.2026: \"zaplanowane autopsy moga byc wiecej niz 1 ... preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce\"): the n-th under autopsy-<n>, the first under autopsy; the preset one a body, the bodies found and the open incident's victim, one where there is none, at most 9; the bodies in the order found, each once; due: of the count, with words, not sent, its body found - its atBody, else its own number; atBody and the meta row's count and sent marks as the store reads them; the Map draws the count's Autopsies and one past it only where it went out", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~09:20. case-schema.mjs `autopsyId`, `autopsyNumber`,

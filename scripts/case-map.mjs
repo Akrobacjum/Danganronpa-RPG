@@ -208,7 +208,10 @@ export function problemText(p, graph) {
         const n = (graph?.nodes ?? []).find(x => x.id === id);
         return n ? nameOf(n) : String(id ?? "");
     };
-    return F(`DRPG.CaseMap.problem.${p.code}`, { node: nameOfId(p.node), ref: p.code === "badMode" || p.code === "tooManyKeys" ? String(p.ref ?? "") : nameOfId(p.ref) });
+    // an incomplete plan's field by its word (E104, `DRPG.CaseMap.needs`)
+    const ref = p.code === "incomplete" ? L(`DRPG.CaseMap.needs.${p.ref}`)
+        : p.code === "badMode" || p.code === "tooManyKeys" ? String(p.ref ?? "") : nameOfId(p.ref);
+    return F(`DRPG.CaseMap.problem.${p.code}`, { node: nameOfId(p.node), ref });
 }
 
 /**

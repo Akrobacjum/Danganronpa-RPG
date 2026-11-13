@@ -7991,6 +7991,7 @@
       "moveDown": "W dół",
       "notSaved": "Nie zapisano. Wpisany tekst został w polach.",
       "field": {
+        "img": "Obraz",
         "label": "Nazwa",
         "text": "Notatka dla GM-ów",
         "mode": "Tryb rozprawy",
@@ -8031,8 +8032,11 @@
         "solutionUnreached": "Nic na mapie nie prowadzi do: {node}.",
         "badMode": "{node}: rozprawa nie ma takiego trybu, „{ref}”.",
         "culpritOnly": "{ref}, wejście węzła {node}, ma tylko sprawca, więc się nie liczy.",
-        "tooManyKeys": "Key Remnanty w sprawie: {ref}, więcej niż przygotowuje rozdział."
+        "tooManyKeys": "Key Remnanty w sprawie: {ref}, więcej niż przygotowuje rozdział.",
+        "incomplete": "Brakuje: {ref} ({node})."
       },
+      "needs": {"room": "pokój"},
+      "pickRoom": "- wybierz pokój -",
       "addIncident": "Dodaj zaplanowany Remnant",
       "placeOnMap": "Postaw na mapie",
       "showOnMap": "Pokaż",

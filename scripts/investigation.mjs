@@ -1013,7 +1013,8 @@ const NEW_TRACE_WIDTH = 900;
  * Opened from the case dashboard, so the room list is the scene that dashboard was
  * built from - `workingScene`, the same answer `createKeyRemnant` uses.
  */
-export async function openNewTrace({ room = null, sceneId = null, type = null, name = "", text = "", tied = "" } = {}) {
+export async function openNewTrace({ room = null, sceneId = null, type = null, name = "", text = "", tied = "", author: plannedAuthor = "", vis = "evident",
+    reinforced = false, analysis = "", note = "", img = "", askRoom = false } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -1027,8 +1028,9 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
         return null;
     }
 
-    const roomOptions = rooms.map(r =>
-        `<option value="${esc(r)}"${r === room ? " selected" : ""}>${esc(r)}</option>`).join("");
+    /* A plan with no room (E104) starts on "pick a room", which Create refuses, instead of the scene's first room */
+    const roomOptions = (askRoom ? `<option value="" selected>${esc(game.i18n.localize("DRPG.CaseMap.pickRoom"))}</option>` : "") + rooms.map(r =>
+        `<option value="${esc(r)}"${r === room && !askRoom ? " selected" : ""}>${esc(r)}</option>`).join("");
     /* EVERY TYPE THE MAP CAN HOLD, including the two with screens of their own.
        A GM repairing a case - a Key Remnant lost with its plan row, a Final Remnant
        that has to move - has nowhere else to say so, and refusing them here would
@@ -1045,7 +1047,7 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
         .map(([key, def]) => `<option value="${key}"${key === (type && findableKind(type) ? type : "prep") ? " selected" : ""}>${
             esc(def.label ?? key)}</option>`).join("");
     const visOptions = REMNANT_VISIBILITY.map(v =>
-        `<option value="${v}"${v === "evident" ? " selected" : ""}>${
+        `<option value="${v}"${v === (REMNANT_VISIBILITY.includes(vis) ? vis : "evident") ? " selected" : ""}>${
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
 
     // The room's field is labelled "Room" (E09 C14, 08.10.2026; audit S05-35): it borrowed
@@ -1066,13 +1068,13 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
             <label>${game.i18n.localize("DRPG.Investigation.traceType")}
                 <select name="type">${typeOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
-                <select name="author">${authorOptions(null, studentActors())}</select></label>
+                <select name="author">${authorOptions(plannedAuthor || null, studentActors())}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
                 <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
                     `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
-            <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
+            <label class="drpg-checkbox"><input type="checkbox" name="reinforced"${reinforced ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>`, `
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="tname" value="${esc(name ?? "")}" maxlength="60"
@@ -1082,11 +1084,11 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.notePlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}
-                <input type="text" name="tanalysis" value="" maxlength="400"
+                <input type="text" name="tanalysis" value="${esc(analysis ?? "")}" maxlength="400"
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.TruthBullet.analyzedTextPlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
-                <input type="text" name="note" value=""
+                <input type="text" name="note" value="${esc(note ?? "")}"
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.keyNotePlaceholder"))}" /></label>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>`])}
@@ -1177,11 +1179,13 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
      * finder cannot use, and two names for one object is a false contradiction the
      * table then has to spend the trial resolving.
      */
-    if (result.name || result.text || result.analysis) {
+    // and a planned picture (E104), the Table's field, which New Remnant itself does not ask
+    if (result.name || result.text || result.analysis || img) {
         await setRemnantPublic(token, {
             ...(result.name ? { name: result.name } : {}),
             ...(result.text ? { playerText: result.text } : {}),
-            ...(result.analysis ? { analyzedText: result.analysis } : {})
+            ...(result.analysis ? { analyzedText: result.analysis } : {}),
+            ...(img ? { img } : {})
         });
     }
     log(`Case panel: a ${result.type} trace placed by hand in ${result.room}.`);
@@ -2579,17 +2583,41 @@ function schemaEditor(graph, node) {
         ].join("");
     }
     if (node.kind === "incident") {
-        // E97 C12: a planned Incident Remnant: its room, and the road onto the map (New Remnant, filled in from here)
-        const rooms = placeRoomOptions({ room: node.room });
-        // 13.11.2026: its Remnant type (case-schema.mjs PLANNED_TYPES), Incident by default
+        /* A PLANNED REMNANT (E97 C12; its type 13.11.2026): EVERY FIELD NEW REMNANT ASKS, IN ITS ORDER AND ITS WORDS (E104;
+           the owner, 13.11.2026: "niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry"; the
+           default "the planner's editor shows the same fields, same order and same words as the real creation window").
+           `openNewTrace`'s left column - room (on its scene), type, who left it, band, the tie, reinforced - then its
+           right - name, words, analysis, the GM's note - and the Table's picture. Place hands every one to New Remnant
+           (`placeIncident`). */
         const types = PLANNED_TYPES.map(t => `<option value="${esc(t)}"${t === (node.type ?? "incident") ? " selected" : ""}>${
             esc(REMNANT_TYPES[t]?.label ?? t)}</option>`).join("");
-        rows.splice(2, 1, editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}">${types}</select>`),
-            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}"><option value="">${
-            esc(L("DRPG.CaseRealize.noRoom"))}</option>${rooms}</select>`));
-        rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
-            esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
-        return rows.join("");
+        const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (node.vis ?? "evident") ? " selected" : ""}>${
+            esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
+        const ties = Object.entries(TIE_OPTIONS).map(([value, label]) => `<option value="${value}"${value === (node.tie ?? "") ? " selected" : ""}>${
+            esc(L(label))}</option>`).join("");
+        const img = node.img || "";
+        return [
+            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}" data-drpg-scene-drawn="${esc(node.scene ?? "")}"><option value="">${
+                esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: node.room, sceneId: node.scene })}</select>`),
+            editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}">${types}</select>`),
+            editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}">${authorOptions(node.author || null, studentActors())}</select>`),
+            editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}">${vis}</select>`),
+            editRow(L("DRPG.Investigation.newTraceTied"), `<select name="${esc(name("tie"))}">${ties}</select>`),
+            editRow(L("DRPG.Investigation.newTraceReinforced"), `<input type="checkbox" name="${esc(name("reinforced"))}" aria-label="${
+                esc(L("DRPG.Investigation.newTraceReinforced"))}"${node.reinforced ? " checked" : ""} />`),
+            editRow(L("DRPG.Investigation.traceName"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" maxlength="60" placeholder="${
+                esc(traceLabel(null))}" />`),
+            editRow(L("DRPG.Investigation.traceText"), `<textarea name="${esc(name("text"))}" rows="3" maxlength="400" placeholder="${
+                esc(L("DRPG.Investigation.notePlaceholder"))}">${esc(node.text)}</textarea>`),
+            editRow(L("DRPG.Investigation.traceAnalysis"), `<textarea name="${esc(name("analysis"))}" rows="2" maxlength="400" placeholder="${
+                esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
+            editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
+                esc(L("DRPG.Investigation.keyNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+                esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
+            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
+                esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
+        ].join("");
     }
     if (node.kind === "counter") {
         const targets = others.filter(n => !n.evidence);
@@ -2655,6 +2683,11 @@ function readSchemaForm(form) {
             const value = typeof held === "string" ? held.trim() : held;
             const drawn = drawnOf(el);
             if (!sameValue(value, drawn)) node.text[field] = { value, drawn };
+            /* a room picked carries its scene (E104): the option's `data-scene`, against the scene the row was drawn
+               with (`data-drpg-scene-drawn`), so a plan names where its room is, not only what it is called */
+            if (field === "room" && el.tagName === "SELECT" && el.dataset.drpgSceneDrawn !== undefined) {
+                node.text.scene = { value: el.selectedOptions?.[0]?.dataset.scene || null, drawn: el.dataset.drpgSceneDrawn || null };
+            }
         }
     }
     const out = [];
@@ -2995,7 +3028,10 @@ export async function placeIncident(chapter, id) {
     // its planned room, said in one line when the scene no longer has it (New Remnant then starts on its first room)
     const { allRooms } = await import("./movement.mjs");
     if (row.room && !allRooms(workingScene()).includes(row.room)) ui.notifications.warn(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room: row.room }));
-    const token = await openNewTrace({ room: row.room, type, name: row.label, text: row.text, tied: type === "incident" ? "tied" : "" });
+    // every field it plans (E104); with no room planned, New Remnant asks for one instead of starting on the first
+    const token = await openNewTrace({ room: row.room, sceneId: row.scene, type, name: row.label, text: row.text, tied: row.tie ?? "",
+        author: row.author || "", vis: row.vis, reinforced: row.reinforced === true, analysis: row.analysis || "", note: row.note || "",
+        img: row.img || "", askRoom: !row.room });
     if (token) await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     return token;
 }

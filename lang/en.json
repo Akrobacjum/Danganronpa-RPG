@@ -6189,6 +6189,7 @@
       "moveDown": "Move down",
       "notSaved": "Not saved. Your text is still in the fields.",
       "field": {
+        "img": "Picture",
         "label": "Name",
         "text": "Note for the GMs",
         "mode": "Trial mode",
@@ -6229,8 +6230,11 @@
         "solutionUnreached": "Nothing on the map leads to {node}.",
         "badMode": "{node} asks for a trial mode the trial does not have, “{ref}”.",
         "culpritOnly": "Only the culprit holds {ref}, an input of {node}, so it does not count.",
-        "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares."
+        "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares.",
+        "incomplete": "{node} is missing its {ref}."
       },
+      "needs": {"room": "room"},
+      "pickRoom": "- pick a room -",
       "addIncident": "Add planned Remnant",
       "placeOnMap": "Place on the map",
       "showOnMap": "Show",

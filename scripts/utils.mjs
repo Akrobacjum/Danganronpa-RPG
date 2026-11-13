@@ -1298,7 +1298,10 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
         const id = portrait.dataset.drpgPortrait || null;
         // `prefix` is the field's name before the id: Room Setup's picture column names its fields
         // `img:<room>`, as its other columns are `desc:<room>` and `owner:<room>` (E77 C1).
-        const hiddenSelector = id ? `[name="${prefix}${CSS.escape(id)}"]` : '[name="img"]';
+        /* or the field it names itself (E104: a planned Remnant's picture is the case schema's field `case:<chapter>:<id>:img`,
+           which no prefix and id spell) */
+        const own = portrait.dataset.drpgPortraitField || null;
+        const hiddenSelector = own ? `[name="${CSS.escape(own)}"]` : id ? `[name="${prefix}${CSS.escape(id)}"]` : '[name="img"]';
 
         /*
          * THE HIDDEN FIELD IS THE RECORD AND THE PICTURE FOLLOWS IT (F13).

@@ -23,7 +23,7 @@ import { caseSchemaStore, keyPlanStore, caseTickStore } from "./gm-stores.mjs";
 import { remnantsOn, remnantData, keyOf } from "./remnants.mjs";
 import { getClock } from "./clock.mjs";
 import { sameSeason, SETTINGS } from "./settings.mjs";
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, REMNANT_VISIBILITY } from "./config.mjs";
 
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
@@ -118,6 +118,21 @@ export function caseModes() {
     return Object.values(MODES).filter(m => !PLAYER_MODES.includes(m));
 }
 
+const TIES = Object.freeze(["", "tied", "untied"]);
+function incidentFields(raw) {
+    const on = raw.kind === "incident";
+    const str = v => (on ? (typeof v === "string" ? v : "") : null);
+    return {
+        scene: on ? (typeof raw.scene === "string" && raw.scene ? raw.scene : null) : null,
+        author: str(raw.author),
+        vis: on ? (REMNANT_VISIBILITY.includes(raw.vis) ? raw.vis : "evident") : null,
+        tie: on ? (TIES.includes(raw.tie) ? raw.tie : ((PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") === "incident" ? "tied" : "")) : null,
+        reinforced: on ? raw.reinforced === true : null,
+        analysis: str(raw.analysis),
+        img: str(raw.img)
+    };
+}
+
 const atBodyOf = v => {
     const n = typeof v === "string" && v.trim() ? Number(v) : v;
     return Number.isInteger(n) && n >= 1 && n <= AUTOPSY_MAX ? n : null;
@@ -146,8 +161,14 @@ export function caseNodeOf(raw) {
         trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null,
         // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
         type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
-        // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; no other kind has one
-        note: raw.kind === "autopsy" ? (typeof raw.note === "string" ? raw.note : "") : null,
+        // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; a planned Remnant's (E104) too
+        note: ["autopsy", "incident"].includes(raw.kind) ? (typeof raw.note === "string" ? raw.note : "") : null,
+        /* E104 (the owner, 13.11.2026: "niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry kazdemu
+           zaplanowanemu remnantowi"): a planned Remnant holds every field New Remnant asks (investigation.mjs
+           `openNewTrace`) and the Table's picture - its room's scene, who left it, its band (with its type, its Observe
+           DC), the tie (open, tied, not tied; an Incident's reads tied where none is written), reinforced, the
+           analysis and the picture. Null on every other kind. */
+        ...incidentFields(raw),
         // 13.11.2026: which of the chapter's bodies, in the order found, sends a planned Autopsy; null is its own number
         atBody: raw.kind === "autopsy" ? atBodyOf(raw.atBody) : null,
         /* THE PLANNED MINIGAME (the owner, 13.11.2026: "mozliwosc zaplanowania logic dive i innych minigier class triala z
@@ -230,8 +251,12 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
                 if (t) t.incident = id;
                 continue;
             }
+            /* every field it plans (E104), and in `needs` what New Remnant cannot place it without - a room - so the Map
+               says so (`checkCase`'s "incomplete") and placing asks for it (investigation.mjs `placeIncident`) */
             nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: node.type, label: node.label,
-                tied: node.type === "incident", faint: node.type === "faint", room: node.room, chapter, foundAt: null, incident: id, text: node.text });
+                tied: node.tie === "tied", faint: node.type === "faint", room: node.room, chapter, foundAt: null, incident: id, text: node.text,
+                scene: node.scene, author: node.author, vis: node.vis, tie: node.tie, reinforced: node.reinforced, analysis: node.analysis,
+                note: node.note, img: node.img, needs: node.room ? [] : ["room"] });
             continue;
         }
         // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)
@@ -321,7 +346,7 @@ function autopsyNode(chapter, n = 1, node = null, sent = false) {
         faint: false, room: null, chapter, foundAt: null, written: Boolean(node), inputs: [], refutes: [], mode: null };
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note", "atBody",
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note", "atBody", "scene", "author", "vis", "tie", "reinforced", "analysis", "img",
     "zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
 const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made", "autopsies", "autopsySent"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -419,7 +444,7 @@ export function reachability(graph, holders = {}, { culpritId = null, living = n
 }
 
 /** The codes `checkCase` names, in the order it reads them. */
-export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noTarget", "noSolution", "twoSolutions", "solutionUnreached", "badMode", "culpritOnly", "tooManyKeys"]);
+export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noTarget", "noSolution", "twoSolutions", "solutionUnreached", "badMode", "culpritOnly", "tooManyKeys", "incomplete"]);
 
 /**
  * THE CASE'S CONSISTENCY (E97 C8; STAGE C8, Q-E97-7's default: warnings that block nothing). Pure: `graph` of `graphOf`,
@@ -433,7 +458,9 @@ export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noT
  * - solutionUnreached: a solution that names inputs none of which is on the map (every one gone), so nothing leads to it;
  * - badMode: a trial mode the trial does not have (a stage that renamed or dropped one);
  * - culpritOnly: a deduction an input of which only the culprit holds (B: it does not count until someone else does);
- * - tooManyKeys: more Key Remnant nodes than a chapter prepares.
+ * - tooManyKeys: more Key Remnant nodes than a chapter prepares;
+ * - incomplete (E104): a planned item lacking a field its real road cannot place or give it without (`ref` the field,
+ *   one problem a field; the node's `needs`, `graphOf`).
  */
 export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), keyMax = Infinity } = {}) {
     const nodes = graph?.nodes ?? [];
@@ -457,6 +484,7 @@ export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), 
     }
     const keys = nodes.filter(n => n.evidence && n.kind === "key").length;
     if (keys > keyMax) out.push({ code: "tooManyKeys", node: null, ref: String(keys) });
+    for (const n of nodes) for (const field of n.needs ?? []) out.push({ code: "incomplete", node: n.id, ref: field });
     return out;
 }
 
