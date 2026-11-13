@@ -376,9 +376,9 @@ Bieg: rzut na Leg daje darmowe przejścia do końca pory dnia, wydawane jak Free
 | Rzut | Darmowe przejścia |
 |---|---|
 | poniżej 12 | żadne |
-| 12+ | 1 |
-| 18+ | 2 |
-| krytyk | 3 |
+| 12+ | 2 |
+| 18+ | 3 |
+| krytyk | 4 |
 
 Kośćmi rzuca przeglądarka GM-a i to ona daje przejścia; bez GM-a przy stole nic nie jest płacone i nic się nie dzieje.
 

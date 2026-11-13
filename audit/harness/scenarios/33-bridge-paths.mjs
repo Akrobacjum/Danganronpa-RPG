@@ -1903,7 +1903,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await trustedWrite(a, { "system.resources.actions.value": ${JSON.stringify(e69a.before?.actions ?? 3)}, "flags.${MOD}.freeMoveGrants": ${JSON.stringify(e69a.before?.free ?? 0)} }, { reason: "gmRuling" });
         return true;`, { timeout: 30000 });
     await settle(500);
-    const e69Band = t => (t >= 18 ? 2 : t >= 12 ? 1 : 0);
+    // The bands of config.mjs INFILTRATE.dash, the owner's of 13.11.2026 (a success beats a plain crossing).
+    const e69Band = t => (t >= 18 ? 3 : t >= 12 ? 2 : 0);
     check("E69-A: p1's Dash is paid with one action, its Leg roll drawn on the GM, and the free crossings it earns are granted by the GM - none refused",
         typeof e69a.p1?.total === "number" && e69a.p1.moves === e69Band(e69a.p1.total) && e69a.p1.actions === 2 && e69a.p1.free === e69a.p1.moves
             && e69a.logged.length === 0,

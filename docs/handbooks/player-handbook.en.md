@@ -376,9 +376,9 @@ Run: a Leg roll gives free crossings until the time of day ends, spent like a Fr
 | Roll | Free crossings |
 |---|---|
 | under 12 | none |
-| 12+ | 1 |
-| 18+ | 2 |
-| critical | 3 |
+| 12+ | 2 |
+| 18+ | 3 |
+| critical | 4 |
 
 The GM's browser throws the dice and grants the crossings; with no GM connected nothing is paid and nothing happens.
 

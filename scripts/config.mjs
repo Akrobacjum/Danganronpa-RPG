@@ -2170,16 +2170,18 @@ export const REST = {
  *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
  *           `perDay` null: no daily limit, one active tail per tailer (DA26). What a tail does is tail-gm.mjs's.
  *   dash    Dash: Leg, free crossings by band (`bands`: the highest reached; `critical`), granted through actions.mjs
- *           `grantFreeMoves`. The plan names "0-3 by band" and no numbers: a miss 0, 12+ 1, 18+ 2, a critical 3 - a
- *           default taken (docs/dev/e69/SPEC.md).
+ *           `grantFreeMoves`. The plan named "0-3 by band" and no numbers, and E69 took a miss 0, 12+ 1, 18+ 2, a
+ *           critical 3 as a default (docs/dev/e69/SPEC.md). The owner's decision of 13.11.2026 ("Opcję A bierzemy"): a
+ *           miss 0, 12+ 2, 18+ 3, a critical 4. A crossing after the Free Move costs one action and a Dash costs one, so
+ *           a Dash at 12 that gave one crossing bought what walking buys; a success must beat a plain crossing.
  */
 export const INFILTRATE = Object.freeze({
     listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
     tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
         unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
     dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
-        bands: Object.freeze([Object.freeze({ min: 12, moves: 1 }), Object.freeze({ min: 18, moves: 2 })]),
-        critical: Object.freeze({ moves: 3 }) }),
+        bands: Object.freeze([Object.freeze({ min: 12, moves: 2 }), Object.freeze({ min: 18, moves: 3 })]),
+        critical: Object.freeze({ moves: 4 }) }),
     // Shut the Door (E74 C2; DA25 = 1): Body, its total the barricade's strength; a room with at most `maxExits` open doors.
     shut: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, maxExits: 2 }),
     // Force the Door (E74 C3; DA9, DA31 = 2, DA43 = 1, DA52): Body against what holds the door - a barricade by its strength,
