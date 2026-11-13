@@ -27237,6 +27237,77 @@ const SCENARIOS = [
             "{after the refused write: the error told, the stored name, the field's text; the name after the next close; the footer's closing word: role, text, action; the name after it was pressed as v14 dispatches it}");
     }],
 
+    ["planner autosave, the Table: a Remnant's name changed on the Table is written when the window closes by its X and by Close, with no Save; a Final Truth Remnant with its room picked is not placed at a close unasked (the owner, 13.11.2026: \"Nie, ma zapisywac\")", async () => {
+        /*
+         * The coordinator's follow-up, 13.11.2026: were the Table's unsaved changes lost without a word at a close? They
+         * were: the X, Escape, Close and the footer's buttons that reopen the window wrote the open node alone
+         * (investigation.mjs, the window's close). A fixture Remnant, the dashboard drawn on the Table, its name changed
+         * and the window closed by its X (ApplicationV2's close, as a table closes it); again by the footer's Close,
+         * pressed as v14 dispatches it. Then the Final Truth Remnant's room picked and the window closed: the GM is asked
+         * (`offerFinalOnClose`), "Not now" answered, and nothing is placed. Red at 2bfe747: both names stayed as drawn.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture Remnant stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const scene = canvas.scene;
+        const asked = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-final-ask"));
+        const finals = () => game.scenes.contents.flatMap(sc => remnants.remnantsOn(sc).filter(t => remnants.remnantData(t)?.type === "final").map(t => t.id));
+        const finalsBefore = new Set(finals());
+        let token = null, win = null;
+        const seen = {};
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - planner autosave, the Table" });
+            must(token, "could not place the fixture Remnant");
+            await remnants.setRemnantPublic(token, { name: "SUITE table as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+            const name = () => remnants.remnantData(token)?.public?.name ?? null;
+            win = await drawnCaseWindow({ view: "table" });
+            must(win.field(`name.${key}`), "the Table draws no name field for the fixture Remnant - this would measure nothing");
+            win.field(`name.${key}`).value = "SUITE table closed by X";
+            await win.app.close();
+            await Promise.race([win.answer, wait(5000)]);
+            await until(() => name() === "SUITE table closed by X", 4000).catch(() => {});
+            seen.x = name();
+            win = await drawnCaseWindow({ view: "table" });
+            win.field(`name.${key}`).value = "SUITE table closed by Close";
+            const word = win.app.element.querySelector("footer.form-footer button.drpg-role-close");
+            if (word?.dataset.action === "close") await win.app.close(); else word?.click();
+            await Promise.race([win.answer, wait(5000)]);
+            await until(() => name() === "SUITE table closed by Close", 4000).catch(() => {});
+            seen.close = name();
+            win = await drawnCaseWindow({ view: "table" });
+            const room = win.field("finalRoom");
+            const pick = [...(room?.options ?? [])].find(o => o.value);
+            must(pick, "the Final Truth Remnant's form offers no room - this would measure nothing");
+            room.value = pick.value;
+            await win.app.close();
+            await until(() => asked()?.element, 4000).catch(() => {});
+            const ask = asked();
+            seen.asked = Boolean(ask);
+            ask?.element?.querySelector('footer.form-footer button[data-action="later"]')?.click();
+            await Promise.race([win.answer, wait(5000)]);
+            await wait(400);
+            seen.placed = finals().filter(id => !finalsBefore.has(id)).length;
+            win = null;
+        } finally {
+            asked()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const sc of game.scenes.contents) for (const t of remnants.remnantsOn(sc)) {
+                if (remnants.remnantData(t)?.type !== "final" || finalsBefore.has(t.id)) continue;
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                await t.delete().catch(() => {});
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+        equal(stableJson(seen), stableJson({ x: "SUITE table closed by X", close: "SUITE table closed by Close", asked: true, placed: 0 }),
+            "{the name after the X; after Close; the Final Truth Remnant's question asked at a close; Final Truth Remnants placed after Not now}");
+    }],
+
     ["E97 C6: a case node's name, mode and inputs edited on the Map are saved by the panel's Save, and a name another GM moved under the window is refused and told", async () => {
         /*
          * E97 C6, 12.11.2026; Q-E97-6's default (schema edits ride Save, refused where another GM moved them). A fixture

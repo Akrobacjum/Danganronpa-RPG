@@ -2324,6 +2324,9 @@
       "trackerScore": "{total} against {n}"
     },
     "Investigation": {
+      "finalAskTitle": "Place the Final Truth Remnant?",
+      "finalAskBody": "A room is picked for the Final Truth Remnant, but the window was closed without Save. Place it now?",
+      "finalAskPlace": "Place it",
       "plannedRoomGone": "The planned room “{room}” is not on this scene. Pick a room.",
       "plannedRoom": "Planned room",
       "noRemnant": "- no Remnant -",

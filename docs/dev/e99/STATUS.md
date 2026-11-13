@@ -607,8 +607,7 @@ Defaults, as built (the owner may revise):
   so the footer's word is the kit's **Close** / **Zamknij** (`role: "close"`, DRPG.Kit.close; no new key). Its action is
   "close", ApplicationV2's own: at a table the press answers null, as the X does (LIVE-E21-06); headless it answers
   "close". Both write the open node.
-- The Table's changed fields still wait for **Save**, as with the X (default: "like every other close"; the owner's
-  answer was about the node's text).
+- The Table's changed fields still waited for **Save** in bc3445c, as with the X. That is changed by the next section.
 - Red, then green: tier 2 "planner autosave: a node's write that fails ..." (at da352a8 the footer had a Cancel,
   action "discard", and the typed name stayed unwritten) and R1358's row for the window (the closing word `close`).
 - GM handbook EN/PL: "**Close** saves them too." / "**Zamknij** też je zapisuje." in place of the Cancel sentence.
@@ -655,3 +654,20 @@ Defaults, as built (the owner may revise):
   planned one it was filled from is the one marked.
 - **Q-P111-3. Lowering the count.** Default: the Autopsies past the new count are kept and neither drawn nor sent;
   raising the count again brings them back as they were. One already sent stays drawn, marked sent.
+
+## Every close writes the Table's changes too (13.11.2026; the coordinator's follow-up on the owner's "Nie, ma zapisywac")
+
+- Checked first, then measured: a close by the X, Escape or **Close**, or by one of the footer's other buttons,
+  which reopen the window, wrote the open node alone. The Table's changed fields (a Remnant's
+  name, words, analysis, type, band, Faint, tie, reinforced; the Key slots' rows; the schema fields) were dropped
+  with no message. Red at 2bfe747: tier 2 "planner autosave, the Table: ..." (the name stayed as drawn after the X
+  and after Close).
+- Now every close but Save writes the drawn form's changed fields as Save does (investigation.mjs `saveDrawnForm`,
+  through the node's own writer `saveFieldsIn`): only what the GM changed, only where the world still holds what was
+  drawn, a refusal told by Save's own warning.
+- **Not done silently, with its reason:** placing the Final Truth Remnant. Save places it when its room is picked;
+  placing puts a token on the map, which is a world event, not a text write. So a close with its room picked asks
+  first, **Place it** / **Postaw** being the default, and **Not now** places nothing (`offerFinalOnClose`). Its text
+  fields without a room are not kept, as with Save.
+- R4454 reads the shared writer. GM handbook EN/PL: one sentence in the Save paragraph.
+
