@@ -280,5 +280,60 @@
     "sheetMode in the same file, and through it trial-floor.mjs presentRefusal's two keys (DRPG.Trial.presentNobody, presentOnly);",
     "from sheet-mode.mjs that is two hops. Named in the sheet's row, sheetMode is an entry point and the keys stay the sheet's",
     "(measured 13.11.2026: without it 2 keys unassigned, 5804 of 6162 assigned against main's 5806)."
-  ]
+  ],
+  "repoint": {
+    "about": "tools/e54/repoint.mjs's part: what it rewrites besides its generic forms (its header). `sites` are readings measured on the split tree - a list of files an expression reads, a count per file - found by their text exactly once; `patches` are corrections to a reader the split exposed, each with its why. Which file holds a name is never written here: it is `targets` and `keep` above.",
+    "files": [
+      "scripts/tests-tier0.mjs",
+      "scripts/tests-tier1.mjs",
+      "scripts/tests-tier2.mjs"
+    ],
+    "registers": [
+      "scripts/patches.mjs"
+    ],
+    "kitAfter": "voteText",
+    "sites": [
+      {
+        "test": "R1158",
+        "file": "scripts/tests-tier0.mjs",
+        "kind": "reread",
+        "find": "nom: [\"roll-dialog.mjs\", \"sheet.mjs\"]",
+        "regex": "DRPG\\.Calls\\.grantsNom\\.\\$\\{",
+        "sorted": true,
+        "why": "the files whose code (comments stripped) builds a nominative grant key by template; the test's `reading` lists them sorted"
+      },
+      {
+        "test": "R3858",
+        "file": "scripts/tests-tier1.mjs",
+        "kind": "recount",
+        "find": "\"sheet.mjs\": 4",
+        "regex": "type === \"character\"",
+        "why": "the census of `type === \"character\"` per file, comments left in, as the test counts it"
+      },
+      {
+        "test": "R3858",
+        "file": "docs/dev/e92/CENSUS.md",
+        "kind": "census-row",
+        "find": "| sheet.mjs:",
+        "regex": "type === \"character\"",
+        "why": "the census document's row for sheet.mjs, one row per file it stands in now, at its lines there"
+      }
+    ],
+    "patches": [
+      {
+        "test": "R22",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "    for (const m of text.matchAll(/\\bfor\\s*\\(\\s*(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)/g)) names.add(m[1]);\n",
+        "replace": "    for (const m of text.matchAll(/\\bfor\\s*\\(\\s*(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)/g)) names.add(m[1]);\n    // A loop's destructuring binds as a declaration's does: `for (const [name, run] of SHEET_STEPS)` (sheet.mjs `runSheetSteps`).\n    // Read since E54 (13.11.2026): the split left the facade with that loop and no other `run`, and R22 read the call as unbound.\n    for (const m of text.matchAll(/\\bfor\\s*\\(\\s*(?:const|let|var)\\s*([{[][^;]{0,400}?[}\\]])\\s+(?:of|in)\\b/g)) add(m[1]);\n",
+        "why": "R22's binding reader took a destructuring only before `=`; the facade's `runSheetSteps` binds `run` in a for-of alone, which the whole file had also bound elsewhere"
+      },
+      {
+        "test": "R1470",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "must(src.length > 20000, `${file} read nothing - this test would read nothing`);",
+        "replace": "must(src.length > 2000, `${file} read nothing - this test would read nothing`);",
+        "why": "the guard is against an empty read: the sheet's family is read file by file now, and its smallest file (sheet-mode.mjs, about 9700 characters, strings blanked) is under the 20000 the whole sheet.mjs cleared"
+      }
+    ]
+  }
 }
