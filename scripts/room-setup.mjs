@@ -49,8 +49,6 @@ import {
     startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom
 } from "./vault-store.mjs";
 
-import { tipText } from "./ui-kit.mjs";
-
 /* ==========================================================================
  * GM SETUP
  * ========================================================================== */
@@ -341,7 +339,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                (probe/summary.txt). The field has no name: Apply never reads it (the count acts at once). */
             tokens: `<span class="drpg-token-step">${stepper({ value: SearchTokens.left(room, scene), min: 0, max: maxTokens, compact: true,
                 words: { down: game.i18n.localize("DRPG.SearchTokens.spendOne"), up: game.i18n.localize("DRPG.SearchTokens.giveOne") },
-                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}`, "data-tooltip": tipText("DRPG.Tips.Setup.searchTokensStepperTooltip") } })}<span
+                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}` } })}<span
                 class="drpg-token-max">/ ${maxTokens}</span>${iconButton({ icon: "fa-solid fa-rotate-left",
                 label: game.i18n.localize("DRPG.SearchTokens.refillRoom"), attrs: { "data-drpg-token-refill": room } })}</span>`,
             table: `<select name="table:${escRoom}"${named("table")}>

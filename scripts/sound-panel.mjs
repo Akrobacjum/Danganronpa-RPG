@@ -174,7 +174,7 @@ function soundPlayPane() {
                             game.i18n.format("DRPG.Music.makeSituational", { name: SITUATIONAL_PLAYLIST })}</button>` })}
                 <div class="drpg-music-now-actions">
                     <button type="button" class="drpg-mini-button" data-drpg-play${
-                        playable ? "" : " disabled"}${tipAttr("DRPG.Tips.Setup.playTooltip")}>${
+                        playable ? "" : " disabled"}${tipAttr("DRPG.Tips.Setup.playTooltip", null, { title: true })}>${
                         game.i18n.localize("DRPG.Music.play")}</button>
                     <button type="button" class="drpg-mini-button" data-drpg-reset-music${tipAttr("DRPG.Tips.Setup.resetMusicTooltip")}>${
                         game.i18n.localize("DRPG.Music.reset")}</button>

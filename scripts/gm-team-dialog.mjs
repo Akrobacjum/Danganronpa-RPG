@@ -471,7 +471,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
                 marked,
                 who: `<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait" />${foundry.utils.escapeHTML(actor.name)}`,
                 mark: `<input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""}
-                       aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}"${tipAttr("DRPG.Tips.Gm.monokumaTooltip")} />`,
+                       aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />`,
                 pool: `<span class="drpg-cell-none" data-drpg-pool-none${marked ? " hidden" : ""}>-</span>
                 <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled hidden"}
                         aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}"${tipAttr("DRPG.Tips.Gm.despairPoolTooltip")}>${options}</select>`

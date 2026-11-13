@@ -175,7 +175,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
             open: `${sheetButton(a)}${role === "monokuma" ? keptSlot() : itemsButton(a)}`,
             role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}"${tipAttr("DRPG.Tips.Gm.roleTooltip")}>${
                 ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
-            levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id, "data-tooltip": tipText("DRPG.Tips.Gm.levelUpTooltip") },
+            levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
                 label: n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip") })
         };
     };

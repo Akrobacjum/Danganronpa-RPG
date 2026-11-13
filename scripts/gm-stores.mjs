@@ -2366,7 +2366,7 @@ export async function runHealthCheck() {
                     : { action: "continue", label: game.i18n.localize("DRPG.Case.continue") },
                 secondary: [
                     ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }] : []),
-                    ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces"), tooltip: tipText("DRPG.Tips.Gm.moveThemIntoTheTooltip") }] : []),
+                    ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
                     ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
                     ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : [])
                 ],

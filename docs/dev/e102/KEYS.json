@@ -918,8 +918,8 @@
   },
   "whichTableTooltip": {
    "key": "DRPG.Tips.Gm.whichTableTooltip",
-   "en": "The item table to pick from. It and the item fill in the category and tier below",
-   "pl": "Tabela przedmiotów, z której wybierasz. Ona i przedmiot wypełniają kategorię i Tier poniżej",
+   "en": "The table to pick the item from; the item it lists sets the category and tier below",
+   "pl": "Tabela, z której wybierasz przedmiot; to on ustala kategorię i Tier poniżej",
    "sites": [
     "gm-items:496"
    ]
@@ -974,7 +974,7 @@
   },
   "tellThePlayerTooltip": {
    "key": "DRPG.Tips.Gm.tellThePlayerTooltip",
-   "en": "Leave it unticked to take the item without a word to the player",
+   "en": "Untick it to take the item without telling the player",
    "pl": "Odznacz, żeby zabrać przedmiot bez informowania gracza",
    "sites": [
     "gm-items:1498"
@@ -990,8 +990,8 @@
   },
   "giveATruthBulletTooltip": {
    "key": "DRPG.Tips.Gm.giveATruthBulletTooltip",
-   "en": "Gives it at once. One from a Remnant shows that Remnant to its holder.",
-   "pl": "Daje go od razu. Gdy pochodzi z Remnantu, posiadacz zaczyna widzieć ten Remnant.",
+   "en": "Gives it at once, unless this student already holds a copy of that Remnant",
+   "pl": "Daje go od razu, chyba że ten uczeń ma już kopię tego Remnantu",
    "sites": [
     "gm-items:1284"
    ]
@@ -1012,14 +1012,6 @@
     "gm-team-dialog:444"
    ]
   },
-  "monokumaTooltip": {
-   "key": "DRPG.Tips.Gm.monokumaTooltip",
-   "en": "Makes this character a Monokuma: no actions or Hope, Despair Calls instead",
-   "pl": "Robi z tej postaci Monokumę: bez akcji i Hope, zamiast tego Despair Calls",
-   "sites": [
-    "gm-team-dialog:471"
-   ]
-  },
   "despairPoolTooltip": {
    "key": "DRPG.Tips.Gm.despairPoolTooltip",
    "en": "The GM pool this Monokuma spends Despair from",
@@ -1030,16 +1022,16 @@
   },
   "tabsPoolsMonokumasStudentsTooltip": {
    "key": "DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip",
-   "en": "Pools: which GM holds a Despair pool, and its name",
-   "pl": "Pule: który GM ma pulę Despair i jak się ona nazywa",
+   "en": "Names each GM's Despair pool, and grants or revokes an Assistant GM's",
+   "pl": "Nazywa pulę Despair każdego GM-a i przyznaje albo odbiera ją Asystentowi GM-a",
    "sites": [
     "gm-team-dialog:524"
    ]
   },
   "undoKeepTooltip": {
    "key": "DRPG.Tips.Gm.undoKeepTooltip",
-   "en": "Undo: puts back what the player changed by hand",
-   "pl": "Cofnij: przywraca to, co gracz zmienił ręcznie",
+   "en": "Puts back what the player changed by hand, unless it changed again since",
+   "pl": "Przywraca to, co gracz zmienił ręcznie, chyba że od tamtej pory znów się zmieniło",
    "sites": [
     "sheet-audit:2804"
    ]
@@ -1150,18 +1142,10 @@
     "monocub:779"
    ]
   },
-  "levelUpTooltip": {
-   "key": "DRPG.Tips.Gm.levelUpTooltip",
-   "en": "Opens this character's Level Up window",
-   "pl": "Otwiera okno Level Up tej postaci",
-   "sites": [
-    "gm-students:175"
-   ]
-  },
   "campaignNameTooltip": {
    "key": "DRPG.Tips.Gm.campaignNameTooltip",
    "en": "Shown to everyone on the HUD; left empty, the world's name is used",
-   "pl": "Widać ją u wszystkich w HUD; puste pole daje nazwę świata",
+   "pl": "Wszyscy widzą ją w HUD; gdy pole jest puste, widać nazwę świata",
    "sites": [
     "gm-campaign:166"
    ]
@@ -1197,14 +1181,6 @@
    "sites": [
     "gm-stores:2366",
     "gm-stores:2462"
-   ]
-  },
-  "moveThemIntoTheTooltip": {
-   "key": "DRPG.Tips.Gm.moveThemIntoTheTooltip",
-   "en": "Moves each Remnant's hidden answer off its token into the GM records",
-   "pl": "Przenosi ukrytą odpowiedź każdego Remnantu z jego żetonu do zapisków GM-a",
-   "sites": [
-    "gm-stores:2367"
    ]
   },
   "clearTheMastermindTooltip": {
@@ -1316,7 +1292,7 @@
   "iPickThePlayerTooltip": {
    "key": "DRPG.Tips.Setup.iPickThePlayerTooltip",
    "en": "Who chooses this student's improvements: you, here, or the player on their sheet",
-   "pl": "Kto wybiera ulepszenia tego ucznia: ty, tutaj, albo gracz na swoim arkuszu postaci",
+   "pl": "Kto wybiera ulepszenia tego ucznia: ty tutaj albo gracz na swoim arkuszu postaci",
    "sites": [
     "level-up:1208"
    ]
@@ -1339,26 +1315,18 @@
   },
   "allThePlayersPickTooltip": {
    "key": "DRPG.Tips.Setup.allThePlayersPickTooltip",
-   "en": "Hands every Level Up to its player, whatever the rows say. A student with no player opens here",
-   "pl": "Oddaje każdy Level Up graczowi, niezależnie od wierszy. Uczeń bez gracza otworzy się tutaj",
+   "en": "Hands every Level Up to its player, whatever the rows say. One with no player opens here",
+   "pl": "Oddaje każdy Level Up graczowi, niezależnie od wierszy. Level Up ucznia bez gracza otworzy się tutaj",
    "sites": [
     "level-up:1229"
    ]
   },
   "aStudentSNameTooltip": {
    "key": "DRPG.Tips.Setup.aStudentSNameTooltip",
-   "en": "Adds this student to the column at once",
-   "pl": "Od razu dopisuje tego ucznia do kolumny",
+   "en": "Gives this student the passage now; their player is told",
+   "pl": "Od razu daje temu uczniowi tajne przejście; jego gracz się o tym dowie",
    "sites": [
     "passages-tab:100"
-   ]
-  },
-  "aRowSActionTooltip": {
-   "key": "DRPG.Tips.Setup.aRowSActionTooltip",
-   "en": "Deletes the passage, and every student who knew it forgets it",
-   "pl": "Usuwa tajne przejście, a każdy uczeń, który je znał, je zapomina",
-   "sites": [
-    "passages-tab:189"
    ]
   },
   "aStudentWhoKnowsTooltip": {
@@ -1388,7 +1356,7 @@
   "playTooltip": {
    "key": "DRPG.Tips.Setup.playTooltip",
    "en": "Plays the chosen track on repeat for the whole table, until Reset music or a state with its own music",
-   "pl": "Odtwarza wybrany utwór w pętli dla całego stołu, do Resetuj muzykę albo do stanu z własną muzyką",
+   "pl": "Odtwarza wybrany utwór w pętli dla całego stołu, aż do kliknięcia Resetuj muzykę albo do stanu z własną muzyką",
    "sites": [
     "sound-panel:177"
    ]
@@ -1399,14 +1367,6 @@
    "pl": "Zamyka to powiadomienie; zostaje w historii powiadomień",
    "sites": [
     "popup:924"
-   ]
-  },
-  "searchTokensStepperTooltip": {
-   "key": "DRPG.Tips.Setup.searchTokensStepperTooltip",
-   "en": "Changes this room's Search Tokens at once, without Apply",
-   "pl": "Zmienia Search Tokens tego pokoju od razu, bez Zastosuj",
-   "sites": [
-    "room-setup:340"
    ]
   },
   "nameInATableTooltip": {
@@ -1429,7 +1389,7 @@
   "deleteTableTooltip": {
    "key": "DRPG.Tips.Setup.deleteTableTooltip",
    "en": "Deletes the shown table and every item in it, after asking",
-   "pl": "Usuwa widoczną tabelę z każdym przedmiotem w niej, po pytaniu",
+   "pl": "Najpierw pyta, potem usuwa widoczną tabelę razem ze wszystkimi jej przedmiotami",
    "sites": [
     "tables-editor:1053"
    ]
@@ -1473,13 +1433,21 @@
    "sites": [
     "sound-panel:177"
    ]
+  },
+  "aStudentSNameStartTooltip": {
+   "key": "DRPG.Tips.Setup.aStudentSNameStartTooltip",
+   "en": "Known again after each season reset, not now",
+   "pl": "Zna je znowu po każdym resecie sezonu, ale nie teraz",
+   "sites": [
+    "passages-tab:100"
+   ]
   }
  },
  "More": {
   "volumeTooltip": {
    "key": "DRPG.Tips.More.volumeTooltip",
-   "en": "How loud this person is for you alone; the others hear them as before",
-   "pl": "Jak głośno słyszysz tę osobę, tylko u siebie; inni słyszą ją jak wcześniej",
+   "en": "How loud this person is for you alone, and unmutes them; the others hear them as before",
+   "pl": "Jak głośno słyszysz tę osobę, tylko u siebie, i wyłącza jej wyciszenie; inni słyszą ją jak wcześniej",
    "sites": [
     "voice-tile:1353"
    ]

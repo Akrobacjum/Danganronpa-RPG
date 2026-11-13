@@ -25221,7 +25221,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 43 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 40 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. */
         const TIPS = [
             ["DRPG.Tips.Gm.minusTooltip","despair.mjs","buildRow"],
@@ -25239,7 +25239,6 @@ const INVARIANTS = [
             ["DRPG.Tips.Gm.giveATruthBulletTooltip","gm-items.mjs","giveTruthBulletDialog"],
             ["DRPG.Tips.Gm.poolNameTooltip","gm-team-dialog.mjs","buildContent"],
             ["DRPG.Tips.Gm.revokeThePoolFromTooltip","gm-team-dialog.mjs","buildContent"],
-            ["DRPG.Tips.Gm.monokumaTooltip","gm-team-dialog.mjs","buildContent"],
             ["DRPG.Tips.Gm.despairPoolTooltip","gm-team-dialog.mjs","buildContent"],
             ["DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip","gm-team-dialog.mjs","buildContent"],
             ["DRPG.Tips.Gm.undoKeepTooltip","sheet-audit.mjs","auditButton"],
@@ -25258,13 +25257,11 @@ const INVARIANTS = [
             ["DRPG.Tips.Gm.roleTooltip","gm-students.mjs","aliveTableHtml"],
             ["DRPG.Tips.Gm.amountTooltip","gm-students.mjs","aliveTableHtml"],
             ["DRPG.Tips.Gm.amountTooltip","monocub.mjs","openMonocubDialog"],
-            ["DRPG.Tips.Gm.levelUpTooltip","gm-students.mjs","aliveTableHtml"],
             ["DRPG.Tips.Gm.campaignNameTooltip","gm-campaign.mjs","campaignRows"],
             ["DRPG.Tips.Gm.phaseTooltip","gm-campaign.mjs","campaignRows"],
             ["DRPG.Tips.Gm.chapterTooltip","gm-campaign.mjs","campaignRows"],
             ["DRPG.Tips.Gm.keepTheMastermindTooltip","gm-stores.mjs","runHealthCheck"],
             ["DRPG.Tips.Gm.restoreFromAFileTooltip","gm-stores.mjs","runHealthCheck"],
-            ["DRPG.Tips.Gm.moveThemIntoTheTooltip","gm-stores.mjs","runHealthCheck"],
             ["DRPG.Tips.Gm.clearTheMastermindTooltip","gm-stores.mjs","runHealthCheck"],
             ["DRPG.Tips.Gm.backUpTooltip","gm-stores.mjs","openCaseWindow"],
             ["DRPG.Tips.Gm.enterTooltip","gm-stores.mjs","enterCastByHand"],
@@ -25276,7 +25273,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 43, "lang/en.json has not the family's 43 keys under DRPG.Tips.Gm");
+        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 40, "lang/en.json has not the family's 40 keys under DRPG.Tips.Gm");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
@@ -25285,7 +25282,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4754 - the setup windows, the sheet and the other panels draw their tooltips (E102 C5, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 29 keys under DRPG.Tips.Setup has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4754 - the setup windows, the sheet and the other panels draw their tooltips (E102 C5, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 28 keys under DRPG.Tips.Setup has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 6c2a7935 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Setup key. */
         const TIPS = [
             ["DRPG.Tips.Setup.roomPictureThumbnailTooltip","room-tile.mjs","paintTileRow"],
@@ -25302,13 +25299,11 @@ const INVARIANTS = [
             ["DRPG.Tips.Setup.handThemOutTooltip","level-up.mjs","askWhoPicks"],
             ["DRPG.Tips.Setup.allThePlayersPickTooltip","level-up.mjs","askWhoPicks"],
             ["DRPG.Tips.Setup.aStudentSNameTooltip","passages-tab.mjs","adder"],
-            ["DRPG.Tips.Setup.aRowSActionTooltip","passages-tab.mjs","button"],
             ["DRPG.Tips.Setup.aStudentWhoKnowsTooltip","passages-tab.mjs","rowHtml"],
             ["DRPG.Tips.Setup.aStudentKnownAtTooltip","passages-tab.mjs","rowHtml"],
             ["DRPG.Tips.Setup.playlistForAStateTooltip","sound-panel.mjs","musicMapTable"],
             ["DRPG.Tips.Setup.playTooltip","sound-panel.mjs","soundPlayPane"],
             ["DRPG.Tips.Setup.closeXTooltip","popup.mjs","showPopup"],
-            ["DRPG.Tips.Setup.searchTokensStepperTooltip","room-setup.mjs","roomCells"],
             ["DRPG.Tips.Setup.nameInATableTooltip","tables-editor.mjs","tableRowHtml"],
             ["DRPG.Tips.Setup.categoryTooltip","tables-editor.mjs","newItemPaneHtml"],
             ["DRPG.Tips.Setup.deleteTableTooltip","tables-editor.mjs","poolPaneHtml"],
@@ -25316,7 +25311,8 @@ const INVARIANTS = [
             ["DRPG.Tips.Setup.addAnItemTooltip","tables-editor.mjs","openItemTables"],
             ["DRPG.Tips.Setup.createTableTooltip","tables-editor.mjs","openItemTables"],
             ["DRPG.Tips.Setup.installReinstallTooltip","tables-editor.mjs","openItemTables"],
-            ["DRPG.Tips.Setup.resetMusicTooltip","sound-panel.mjs","soundPlayPane"]
+            ["DRPG.Tips.Setup.resetMusicTooltip","sound-panel.mjs","soundPlayPane"],
+            ["DRPG.Tips.Setup.aStudentSNameStartTooltip","passages-tab.mjs","adder"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -25324,7 +25320,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 29, "lang/en.json has not the family's 29 keys under DRPG.Tips.Setup");
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28, "lang/en.json has not the family's 28 keys under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);

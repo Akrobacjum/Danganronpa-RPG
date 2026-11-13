@@ -99,7 +99,7 @@ function adder(menu, act, offer, label) {
     if (!offer.length) return "";
     return `<button type="button" class="drpg-mini-button drpg-passage-add" data-drpg-passage-act="menu" data-drpg-menu="${menu}"
         aria-label="${esc(label)}" title="${esc(label)}" aria-expanded="false">+</button><span class="drpg-passage-menu" data-drpg-menu-of="${menu}" hidden>${
-        offer.map(a => `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}" data-drpg-actor="${esc(a.id)}"${tipAttr("DRPG.Tips.Setup.aStudentSNameTooltip")}>${
+        offer.map(a => `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}" data-drpg-actor="${esc(a.id)}"${act === "grant" ? tipAttr("DRPG.Tips.Setup.aStudentSNameTooltip") : tipAttr("DRPG.Tips.Setup.aStudentSNameStartTooltip")}>${
             esc(a.name)}</button>`).join("")}</span>`;
 }
 
@@ -188,7 +188,7 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
  */
 function button(act, key, { held = null } = {}) {
     const why = held ? ` disabled data-tooltip="${esc(t(held))}" aria-description="${esc(t(held))}"` : "";
-    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}${act === "delete" ? tipAttr("DRPG.Tips.Setup.aRowSActionTooltip") : ""}>${esc(t(key))}</button>`;
+    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}>${esc(t(key))}</button>`;
 }
 
 /**

@@ -2168,6 +2168,46 @@
    "key": "DRPG.Murder.endMurder",
    "count": 1,
    "why": "none needed: the window's own sentence (DRPG.Floor.incidentOpen) says what closing does (REVIEW-102 T14, O3)"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "runHealthCheck",
+   "kind": "footer",
+   "key": "DRPG.Case.moveTraces",
+   "count": 1,
+   "why": "none needed: the window's own note (DRPG.Case.moveNote) says what moving them does; a tooltip only repeated it (O3)"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "kit:roleButton",
+   "key": "DRPG.Advance.standing",
+   "count": 1,
+   "why": "none needed: the button's label (Level Up, or the Level Ups on offer) says what it opens (X19)"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "checkbox",
+   "key": "DRPG.Monokuma.isMonokuma",
+   "count": 1,
+   "why": "none needed: the tab's own note (DRPG.Monokuma.panelNote) says what a Monokuma is; a tooltip only repeated it (O3)"
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "unit": "button",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: the row's buttons say what they do, and the tab's footnote and Delete's question say the rest (O3)"
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "kit:stepper",
+   "key": "DRPG.SearchTokens.spendOne",
+   "count": 1,
+   "why": "none needed: the tab's note (DRPG.SearchTokens.roomSetupNote) says the arrows move this room at once (O3)"
   }
  ]
 }
