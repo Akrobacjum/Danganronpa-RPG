@@ -249,7 +249,10 @@ function misfits(win, state, still) {
     if (state.labelsOff?.length) out.push(`label off its field: ${state.labelsOff.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
     const demo = DEMO_SCROLLERS[win?.window] ?? [];
-    const own = OWN_SCROLLER[win?.window];
+    /* By the window, not its capture: probe 08 writes a window's other tabs and states as `<id>--<tab>` (`investigation--key`,
+       `investigation--final`), the same window, whose view is its one scroller too (fit-110, 13.11.2026: 44 readings of
+       those two read "a second scroller: div.drpg-case-live.drpg-case-view", the view the window is built on). */
+    const own = OWN_SCROLLER[win?.window] ?? OWN_SCROLLER[String(win?.window ?? "").replace(/--.*$/, "")];
     const others = state.scrollers.filter(s => (own ? s !== own : s !== "kit-body") && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
