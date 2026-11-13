@@ -1075,7 +1075,11 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
        header with its title, the rows' container; a row from parts/countdowns.hbs whose countdown is no project, which
        hideUndiscovered keeps), hides it as countdowns.mjs:93 does - for anybody but a GM while it holds no countdown -
        and calls the render hook the tray's render calls, twice on the same element (a line is never drawn twice). Three renders
-       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after. */
+       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after.
+       A113-C1-1 (13.11.2026): the rows' container is drawn as Daggerheart 2.12.8's countdowns-view.hbs:24-28 draws it, only
+       `{{#if countdownTypesWithVisibleEntries.length}}` - so not at all with no countdown - where until then it stood
+       always and U1 was green on markup 2.12.8 never draws. The line is looked for anywhere in the tray. Red at ceb9e9c8:
+       with no container `showTrayToPlayer` drew no line (U1, U2). */
     const TRAYU = renders => `const out = [], want = game.i18n.localize("DRPG.Project.trayEmpty");
         const ROW = '<div class="countdown-category-container"><div class="countdown-container" data-countdown="S74NOPROJECT0001"><div class="countdown-main-container">'
             + '<img src=""><div class="countdown-content"><header>S74 countdown</header><div class="countdown-tools"><div class="countdown-tool-controls">'
@@ -1087,12 +1091,12 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
             for (const rows of ${J(renders)}) {
                 el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i><span class="window-title"></span>'
                     + '<div class="header-type-toggles"></div><a class="header-control" data-action="toggleViewMode"></a></header>'
-                    + '<div class="countdowns-container">' + ROW.repeat(rows) + '</div></div>';
+                    + (rows ? '<div class="countdowns-container">' + ROW.repeat(rows) + '</div>' : '') + '</div>';
                 el.querySelector(".window-title").textContent = game.i18n.localize("DAGGERHEART.UI.Countdowns.title");
                 el.hidden = !game.user.isGM && el.querySelectorAll(".countdown-container").length === 0;
                 Hooks.callAll("renderDhCountdowns", { render() {} }, el);
                 Hooks.callAll("renderDhCountdowns", { render() {} }, el); // the same element heard twice: one line, not two
-                const line = el.querySelectorAll(".countdowns-container .drpg-projects-empty");
+                const line = el.querySelectorAll(".drpg-projects-empty");
                 out.push({ hidden: el.hidden, title: el.querySelector(".window-title")?.textContent ?? null, rows: el.querySelectorAll(".countdown-container").length,
                     empty: line.length === 1 && line[0].textContent === want ? "line" : line.length, gear: Boolean(el.querySelector(".drpg-projects-gear")) });
             }

@@ -209,19 +209,28 @@ export function nameSecretRows(root) {
  *
  * Takes the reader as an argument, as `hideUndiscovered` does, so the suite, which runs as a GM, can ask it.
  *
- * @returns {boolean|null} whether the line is drawn; null for a GM, or for a tray with no place for rows.
+ * WHERE NO ROWS' CONTAINER IS DRAWN (A113-C1-1, 13.11.2026). Daggerheart 2.12.8 draws `.countdowns-container` only
+ * `{{#if countdownTypesWithVisibleEntries.length}}` (templates/ui/countdowns/countdowns-view.hbs:24-28): with no
+ * countdown this player may see there is none at all, and the line, which went into it alone, was never drawn in the
+ * one case it was made for (scenario 74's stand-in had drawn the container always). Where there is none the line
+ * goes right after the tray's header, `.countdowns-header`, which the template draws always; a tray with neither has
+ * no place for it. The rows' container, where it is drawn with every row taken out by `hideUndiscovered`, keeps it.
+ *
+ * @returns {boolean|null} whether the line is drawn; null for a GM, or for a tray with no place for it.
  */
 export function showTrayToPlayer(root, user = game.user) {
     if (!root || user?.isGM) return null;
     root.hidden = false;
     root.querySelector(".drpg-projects-empty")?.remove();
     const rows = root.querySelector(".countdowns-container");
-    if (!rows) return null;
-    if (rows.querySelector(".countdown-container")) return false;
+    if (rows?.querySelector(".countdown-container")) return false;
+    const header = rows ? null : root.querySelector(".countdowns-header");
+    if (!rows && !header) return null;
     const line = document.createElement("p");
     line.className = "drpg-projects-empty";
     line.textContent = game.i18n.localize("DRPG.Project.trayEmpty");
-    rows.append(line);
+    if (rows) rows.append(line);
+    else header.after(line);
     return true;
 }
 
