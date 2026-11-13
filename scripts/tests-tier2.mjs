@@ -28517,6 +28517,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const result = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30,
                 withHope: true, viaAction: true, price: "action" });
             await settle();
+            await until(() => game.messages.contents.some(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Cleanup.trailPlanted", { name: foundry.utils.escapeHTML(framed.name), visibility: label }))));
             const said = game.messages.contents.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? ""));
             const planted = game.i18n.format("DRPG.Cleanup.trailPlanted", { name: foundry.utils.escapeHTML(framed.name), visibility: label });
             const trace = traces().find(t => !before.has(t.id));
@@ -29856,6 +29857,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await Z.countNow();
             await settle();
+            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 }))));
             const rec = V.trialProgress();
             read.strawEnd = [F.trialFloor(), (rec.findings ?? []).map(f => f.text), rec.strawPoll?.split ?? null, hall.tokens.get(t2.id)?.x ?? null,
                 game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 })))];
@@ -34232,6 +34234,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         await settle();
         await eclipse.endEclipse();
         await settle();
+        await until(() => game.messages.some(m => !before.has(m.id) && [m.getFlag(MODULE_ID, "sfx")].map(f => (typeof f === "string" ? f : f?.key ?? null))[0] === "eclipseEnd"));
 
         const fresh = game.messages.filter(m => !before.has(m.id));
         const carried = fresh.map(m => {
@@ -35271,6 +35274,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await cleanup.resolveCleanup({ actorId: who.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true,
                     viaAction: true, mode: "transform", price: "stress", change: { name: "SUITE C8 a kettle", text: "SUITE C8 it was always there" } });
                 await settle();
+                await until(() => game.messages.some(m => !before.has(m.id) && contentOf(m).includes('data-drpg-call="approveReshape"')));
                 card = game.messages.find(m => !before.has(m.id) && contentOf(m).includes('data-drpg-call="approveReshape"')) ?? null;
                 must(card, "no reshape card was raised - this would measure nothing");
                 await settleCall(card, "Suite: settled");
@@ -35959,6 +35963,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null },
                     mine.id, { send: () => null });
                 await settle();
+                await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="pickTrait"')));
                 const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="pickTrait"'));
                 must(card, "no statistic card was posted for the fixture's request - this would measure nothing");
                 const body = document.createElement("div");
@@ -36110,6 +36115,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null,
                 proposed: "hand", note: "" }, mine.id, { send: () => null });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"')));
             const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'));
             must(card, "no statistic card was posted for the proposal - this would measure nothing");
             const drawing = () => {
@@ -36634,6 +36640,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.judge(BRIDGE_ACTIONS, { action: "dynamic.difficulty", requestId: rid, actorId: student.id,
                 description: "E18 G7 a question", actorName: student.name, room: null }, asker.id, { send: () => null });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && cardFlag(m, "rid")?.id === rid));
             const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "rid")?.id === rid);
             must(card, "no card was posted for the question - this would measure nothing");
             read.push(cardFlag(card, "thread") === asker.id);
@@ -36687,11 +36694,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await callGm(student, { title: "E91 C6", body: "<p>E91 C6 a project</p>", thread: asker.id,
                 actions: [{ action: "declineProject", label: "Decline", data: { by: student.id } }] });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && cardFlag(m, "thread") === asker.id));
             const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "thread") === asker.id);
             must(card, "no card was posted in the asker's thread - this would measure nothing");
             const before = new Set(game.messages.contents.map(m => m.id));
             await pressCard(card, "declineProject", { by: student.id });
             await settle();
+            await until(() => game.messages.contents.some(m => !before.has(m.id) && cardFlag(m, "thread")));
             const notes = game.messages.contents.filter(m => !before.has(m.id) && cardFlag(m, "thread"));
             read = notes.map(m => (cardFlag(m, "thread") === asker.id ? "asker" : "other"));
         } finally {
