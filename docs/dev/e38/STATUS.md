@@ -1,4 +1,4 @@
-# E38 - status
+# E38 - status (final, 13.11.2026)
 
 This stage's own branch, from `origin/main` at 421f2395 (1.2.109). Plan: `docs/dev/plans/E38.md` on the planner's branch
 (read whole). R numbers reserved: R5000-R5099, none used: no module code changed (Q-E38-2 below), so no tier test was
@@ -24,6 +24,9 @@ needed; every check is a scenario check. Scenario numbers: 97, 98.
   C3 (ea81b712): all 16 green, and 97 and 98 green there too (from 12 s for 00-boot to 367 s for 61-gmstore-case).
 - Tiers 0-1 again at C3: 1320 ran, 1305 passed, 0 failed, 16 skipped, 0 red, 386.2 s wall.
 
+- CI on de4b9621 (run 43401864794, push): every job green - lint, check and gate; the eight scenario buckets (97 in
+  b3, 98 in b2); the suite's eight shards; the verdict. 09:30 to 09:59 UTC.
+
 ## Findings (measured, not fixed here)
 
 1. **D153 across two GMs' browsers is real** (97 G, note): gm's Observe find and gm2's Give of the same trace to Chie
@@ -46,6 +49,10 @@ needed; every check is a scenario check. Scenario numbers: 97, 98.
   the primary leaving mid-ask.
 - The FLOWS row "truth-bullets" (`stage: "E38"`, status partial) left as it is: 97 G drives it, but its fix (D153) is
   the verification chat's.
+
+## Next
+
+None named after E38: this line stops here. Not built of the plan is listed above, for the verification chat.
 
 ## Open questions (defaults)
 
