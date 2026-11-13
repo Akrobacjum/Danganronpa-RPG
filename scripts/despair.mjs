@@ -624,17 +624,40 @@ function timeOfDayMark(clock = getClock()) {
  * (`convertDespairToHope`); the write reads nothing.
  */
 async function recordOwed(userId, n) {
-    await despairOwedStore.patch(`${userId}:${game.user.id}:${Date.now()}`, { owed: n, since: timeOfDayMark() });
+    const key = `${userId}:${game.user.id}:${Date.now()}`;
+    await despairOwedStore.patch(key, { owed: n, since: timeOfDayMark() });
+    return key;
 }
 
 /**
  * A Despair this GM's pool owes from now, paid at the next time of day (E72 C16: a Bounty's price, DC40 "through the
- * debt buffer"): `recordOwed`, for a caller outside this file. GM-side; answers whether it was written.
+ * debt buffer"): `recordOwed`, for a caller outside this file. GM-side; answers the owed row's key (`returnOwed` reads
+ * it), or false when nothing was written.
  */
 export async function oweDespair(userId, n) {
     if (!game.user?.isGM || !(n > 0)) return false;
-    await recordOwed(userId, Math.trunc(n));
-    return true;
+    return recordOwed(userId, Math.trunc(n));
+}
+
+/**
+ * WHAT WAS OWED, GIVEN BACK (the audit's A113-C6-3, 13.11.2026; the owner's default): a lapsed Bounty's Despair goes back
+ * to its pool. The row `key` (`oweDespair`'s answer) still owed is dropped - "cancelled", nothing paid; a row gone was
+ * paid by a settlement, and `n` is paid back into the pool - "back", held at the maximum (`clamp`: a refund never spills).
+ * Asked in a step of `DESPAIR_KEY`, the key the settlement writes in on the primary, so on the primary a settlement half
+ * done (the pools written, the rows not yet dropped) is not read as owed. A row a fill or a zero cleared reads as paid:
+ * after a fill the pool is full and the clamp gives nothing; after a zero, `n` comes back. GM-side; answers which, or null.
+ */
+export async function returnOwed(userId, key, n) {
+    if (!game.user?.isGM || !userId || !key || !(n > 0)) return null;
+    await despairOwedStore.whenHydrated();
+    const owed = await serialWrite(DESPAIR_KEY, async () => {
+        if (!despairOwedStore.has(key)) return false;
+        await despairOwedStore.dropMany([key]);
+        return true;
+    });
+    if (owed) return "cancelled";
+    await adjustDespair(userId, Math.trunc(n), { clamp: true });
+    return "back";
 }
 
 /*

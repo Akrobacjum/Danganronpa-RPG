@@ -1807,8 +1807,10 @@ async function postBountyNow(userId, target) {
         if (why === "the pool has not the Despair for it") ui.notifications.warn(game.i18n.localize("DRPG.Monocub.bountyNoDespair"));
         return null;
     }
-    if (!await D.oweDespair(userId, cost)) return null;
-    const bounty = { by: userId, reward, at: serverNow(), targetName: target.name };
+    const owedKey = await D.oweDespair(userId, cost);
+    if (!owedKey) return null;
+    // The owed row's key and the price, so a lapse gives back what this Bounty took (A113-C6-3, `lapseBounties`).
+    const bounty = { by: userId, reward, cost, owedKey, at: serverNow(), targetName: target.name };
     await bountyStore.patch(target.id, bounty);
     tellEveryCub();
     await tellBounty("bountyPosted", { name: target.name, reward },
@@ -1830,15 +1832,36 @@ export async function claimBounty(cub, target) {
     return paid;
 }
 
-/** GM: every open Bounty lapses, unclaimed (each time of day, clock.mjs). Answers how many lapsed. */
+/**
+ * GM: every open Bounty lapses, unclaimed (each time of day, clock.mjs). Answers how many lapsed.
+ *
+ * ITS DESPAIR GOES BACK, AND THE LAPSE IS TOLD (the audit's A113-C6-3, 13.11.2026; the owner's default, asked). A lapse
+ * dropped the Bounty with no card while its Despair, owed at the post, was still taken. Now each lapsed Bounty's Despair
+ * goes back to the pool that posted it (despair.mjs `returnOwed`): dropped while still owed - at a table the lapse
+ * (clock.mjs `applyTimeOfDayChange`) usually runs before the settlement the same change asks for - or paid back when a
+ * settlement paid it first. The GMs' card says the lapse and which of the two it was; every Monocub's player is told
+ * the lapse, as the post was told to them. A Bounty posted before 1.2.113 holds no owed row's key and gives nothing back.
+ */
 export async function lapseBounties() {
     if (!game.user?.isGM) return 0;
-    const ids = Object.keys(bountyStore.entries() ?? {});
-    if (!ids.length) return 0;
-    await bountyStore.dropMany(ids);
+    const open = Object.entries(bountyStore.entries() ?? {});
+    if (!open.length) return 0;
+    await bountyStore.dropMany(open.map(([id]) => id));
     tellEveryCub();
-    log(`${ids.length} Bounty(-ies) lapsed unclaimed at the turn of the time of day.`);
-    return ids.length;
+    const D = await import("./despair.mjs");
+    for (const [id, bounty] of open) {
+        const cost = Math.max(0, Math.trunc(Number(bounty?.cost) || 0));
+        const back = bounty?.owedKey ? await D.returnOwed(bounty.by, bounty.owedKey, cost).catch(err => {
+            error("Could not give a lapsed Bounty's Despair back", err);
+            return null;
+        }) : null;
+        const pool = D.poolLabel(game.users.get(bounty?.by) ?? null);
+        const gmOnly = back === "cancelled" ? game.i18n.format("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool })
+            : back === "back" ? game.i18n.format("DRPG.Monocub.bountyDespairBack", { n: cost, pool }) : "";
+        await tellBounty("bountyLapsed", { name: bounty?.targetName ?? game.actors.get(id)?.name ?? "?" }, gmOnly);
+    }
+    log(`${open.length} Bounty(-ies) lapsed unclaimed at the turn of the time of day; their Despair given back.`);
+    return open.length;
 }
 
 /*
