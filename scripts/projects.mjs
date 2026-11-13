@@ -249,8 +249,15 @@ export async function tellDescription(countdownId) {
     const words = secretsOf(countdownId).description;
     if (typeof words !== "string" || !words) return 0;
     const told = { ...(secretsOf(countdownId).descriptionTold ?? {}) };
-    // Not to a Spectator (E92, the coordinator's 12.11: "secret projects stay secret (GMs' half untouched)"): it sees the name and progress.
-    const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
+    /* AND TO EVERY SPECTATOR, IN EVERY ROOM (the owner's answer to Q-E92-6 on DRPG-D1, 12.11.2026: "Widzi wszystkie projekty
+       w tym prywatne"; docs/dev/e92/STATUS.md). ce1ffadb took the Spectators out of this list on the coordinator's note of
+       12.11, written before that answer reached it ("secret projects stay secret (GMs' half untouched)"); the audit of
+       1.2.113 (A113-C5-3) read the narrowing as no owner's word, and the owner had every change of the audit go in 1.2.113.
+       The words alone: the GMs' half - the store's other fields, the GMs' note - is in no card. Who is a Spectator is read
+       as the GMs hold the flag (`spectatorUserIds`); a living student and a dead one who is no Spectator read what they
+       read before. */
+    const readers = [...new Set([...insidersOf(countdownId), ...spectatorUserIds()])]
+        .filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
     if (!readers.length) return 0;
     const name = shownName(countdownId) || "?";
     const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.descriptionTold", { name }))}</p><p>${esc(words).replace(/\n/g, "<br>")}</p>`,
@@ -2649,11 +2656,13 @@ export async function resealSecretProjects() {
 
 /**
  * THE SPECTATORS' SIGHT, AFTER A ROLE CHANGED (E92, the owner's DRPG-D1 of 12.11.2026: a Spectator sees every project,
- * the secret ones too - their name and progress; the GMs' half, the words among it, stays theirs). Called by monokuma.mjs
+ * the secret ones too - their name, progress and words since the audit of 1.2.113, A113-C5-3; the GMs' half stays
+ * theirs). Called by monokuma.mjs
  * `setSpectator` once the flag is written, on a GM. `gone` are the users who stopped playing a Spectator with it: each is
  * taken off every secret project it does not build (an `unshare`, the entry's own), since a Spectator's observer entry is
  * not told from a share in the map - so a student who watched and comes back loses the secret projects it was let in on
- * before (the GM shares them again). Then every secret project is resealed, which puts the Spectators in (`ownershipMap`).
+ * before (the GM shares them again). Then every secret project is resealed, which puts the Spectators in (`ownershipMap`),
+ * and its name and words are told to them (`tellSight`, `tellDescription`).
  */
 export async function seeAsSpectators(gone = []) {
     if (!game.user?.isGM) return 0;
@@ -2667,6 +2676,8 @@ export async function seeAsSpectators(gone = []) {
     const resealed = await resealSecretProjects();
     // A Spectator's name card, and a former one's goodbye (S17-31): a lifted project reseals to nothing, so it is asked here.
     for (const project of secret) await tellSight(project.id).catch(err => error(`Could not tell the Spectators of ${project.id}`, err));
+    // And its words (A113-C5-3): a new Spectator is sent each secret project's description, as an insider is.
+    for (const project of secret) await tellDescription(project.id).catch(err => error(`Could not tell the Spectators the words of ${project.id}`, err));
     return resealed;
 }
 
