@@ -51134,6 +51134,23 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ levels: players.length ? [OBSERVER] : [], gms: 0, default: NONE, hidden: true }),
             "{levels: the levels the map gives the players; gms: GMs it names; default; hidden: the neutral name has no letters}");
     }],
+    ["R4621 - the reseal at load and at a new user waits for the GMs' copies of the project secrets (scripts/projects.mjs `resealSecretProjects`; E101's review of S17-31, R1, 13.11.2026): it asks `projectSecretStore.whenHydrated()` before it reads a project's name or list, and writes nothing when the copies timed out, as `sealOldRepairs` does", async () => {
+        /*
+         * Since S17-31 a secret project's name and the players in on it are the GMs' store's (`secretName`, `viewers`), and
+         * the countdown carries "???" and one level for every player. module.mjs `sealProjects` runs the reseal on the primary
+         * at load and on every `createUser`; a primary whose browser had not yet been sent another GM's row read "???" and
+         * no list, and wrote both with fresh stamps that won the exchange (E101 R1). The other load passes over this store
+         * wait (`sealOldRepairs`, `tellProposers`). Read off the source: the wait cannot be staged in tier 1, and tier 2's
+         * S17-31-T3 holds what the step does without the row. Red at 9f052871: no wait.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects.mjs`).then(lfText));
+        const body = fnSource(src, "resealSecretProjects");
+        const waits = body.search(/await\s+projectSecretStore\.whenHydrated\(\)\s*===\s*["']timedOut["']\s*\)\s*return\s+0/);
+        const reads = body.search(/allProjects\(\)/);
+        must(reads >= 0, "resealSecretProjects no longer reads allProjects() - this test is pointed at the wrong code");
+        equal(JSON.stringify({ waits: waits >= 0, first: waits >= 0 && waits < reads }), JSON.stringify({ waits: true, first: true }),
+            "{waits: it awaits the store's hydration and returns 0 on a time-out; first: before it reads the projects}");
+    }],
     ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
         /*
          * E49, 11.11.2026. The owner: "sa tam statystyki nieuzywane przez modul" - the window the character sheet's wrench

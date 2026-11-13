@@ -89602,23 +89602,29 @@ const SCENARIOS = [
         const players = game.users.filter(u => !u.isGM);
         const [inside, outside] = players;
         const NAME = "SUITE S17-31 T2 the old seal";
+        // E101's R3 and R6 (13.11.2026): an old seal that let every player in - possible, a share at a time - is read as it was written.
+        const ALL = "SUITE S17-31 T2 the old seal shared with all";
         const raw = id => game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id] ?? null;
         const levels = c => [...new Set(players.map(u => Number(c?.ownership?.[u.id] ?? 0)))].length;
         const from = game.messages.contents.length;
-        let id = null;
+        let id = null, all = null;
         const read = {};
         try {
             id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [inside.id] }))?.id ?? null;
-            must(id, "the secret project could not be made - this would measure nothing");
+            all = (await P.createProject({ name: ALL, target: 6, room: null, secret: true, viewers: players.map(u => u.id) }))?.id ?? null;
+            must(id && all, "the secret projects could not be made - this would measure nothing");
             await settle();
             const data = foundry.utils.deepClone(game.settings.get("daggerheart", "Countdowns"));
-            const old = { default: NONE };
-            for (const u of players) old[u.id] = u.id === inside.id ? OBSERVER : NONE;
+            const old = { default: NONE }, every = { default: NONE };
+            for (const u of players) { old[u.id] = u.id === inside.id ? OBSERVER : NONE; every[u.id] = OBSERVER; }
             data.countdowns[id] = { ...data.countdowns[id], name: NAME, ownership: old };
+            data.countdowns[all] = { ...data.countdowns[all], name: ALL, ownership: every };
             await game.settings.set("daggerheart", "Countdowns", data);
             await projectSecretStore.patch(id, { secretName: null, viewers: null, sightTold: null }, { whole: true });
+            await projectSecretStore.patch(all, { secretName: null, viewers: null, sightTold: null }, { whole: true });
             await settle();
             must(raw(id)?.name === NAME && levels(raw(id)) === 2, "the old shape could not be planted - this would measure nothing");
+            must(raw(all)?.name === ALL && levels(raw(all)) === 1 && players.length >= 2, "the all-shared old shape could not be planted - this would measure nothing");
             const first = await game.drpg.migrate1_2_0({ force: true, quiet: true, only: ["hideSecretProjects"] });
             await settle();
             const held = projectSecretStore.get(id) ?? {};
@@ -89626,6 +89632,9 @@ const SCENARIOS = [
                 P.allProjects().find(p => p.id === id)?.name ?? null, P.canSee(id, inside), P.canSee(id, outside)];
             // The card is veiled (its document names no reader): who was told is the GMs' record of it (`sightTold`).
             read.told = [held.sightTold?.[inside.id] ?? null, held.sightTold?.[outside.id] ?? null];
+            const heldAll = projectSecretStore.get(all) ?? {};
+            read.allShared = [raw(all)?.name === ALL, heldAll.secretName ?? null, [...(heldAll.viewers ?? [])].sort().join(","),
+                players.every(u => P.canSee(all, u))];
             read.first = Boolean(first?.clauses?.hideSecretProjects);
             const before = JSON.stringify(raw(id));
             await game.drpg.migrate1_2_0({ force: true, quiet: true, only: ["hideSecretProjects"] });
@@ -89633,11 +89642,59 @@ const SCENARIOS = [
             read.again = JSON.stringify(raw(id)) === before;
         } finally {
             if (id) await P.deleteProject(id);
+            if (all) await P.deleteProject(all);
             for (const m of game.messages.contents.slice(from)) await m.delete().catch(() => {});
             await settle();
         }
-        equal(stableJson(read), stableJson({ lifted: [false, 1, NAME, [inside.id], NAME, true, false], told: [NAME, null], first: true, again: true }),
-            "{lifted: [the name in Countdowns, levels its map gives, the GMs' name, the GMs' list, the name the GMs read, the insider sees it, another does not]; told: [the name the insider was told, the other's]; first: the clause ran; again: a second run changed nothing} - the old seals lifted");
+        equal(stableJson(read), stableJson({ lifted: [false, 1, NAME, [inside.id], NAME, true, false], told: [NAME, null],
+            allShared: [false, ALL, players.map(u => u.id).sort().join(","), true], first: true, again: true }),
+            "{lifted: [the name in Countdowns, levels its map gives, the GMs' name, the GMs' list, the name the GMs read, the insider sees it, another does not]; told: [the name the insider was told, the other's]; allShared: [the name in Countdowns, the GMs' name, the GMs' list, every player sees it]; first: the clause ran; again: a second run changed nothing} - the old seals lifted");
+    }],
+    ["S17-31-T3 - a primary GM whose browser holds no row of a lifted secret project writes neither \"???\" nor an empty list over the GMs' own (scripts/projects-secrecy.mjs `sharedIds`, `sightChange`'s reseal; projects.mjs `changeStep`; E101's review of S17-31, R1, 13.11.2026): with the countdown already carrying \"???\" and one level for every player, and the GMs' `secretName` and `viewers` not on this browser, a reseal and a progress step leave both unwritten", async () => {
+        /*
+         * E101 R1. A GM who loads first while another GM holds a secret project's row reads, before the exchange, a
+         * countdown with no name and no player told apart - S17-31's shape - and no list of its own. Until this fix the
+         * reseal read "every player at one level" as "nobody" and the change step took the countdown's "???" for the real
+         * name: both written with fresh stamps, which win the exchange, so the name and the insiders were lost on every GM.
+         * Planted here by emptying the row on this browser (a whole patch, as T2 plants the old shape), the countdown left as
+         * S17-31 wrote it. A row not here is not a row that says "none": nothing is written for it. Red at 9f052871:
+         * secretName "???", viewers [].
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const { projectSecretStore } = await import("./gm-stores.mjs");
+        needs(world.atLeast("playerAccounts", 2), "two player accounts: the countdown's map must have players to tell apart");
+        const players = game.users.filter(u => !u.isGM);
+        const NAME = "SUITE S17-31 T3 the row on another GM";
+        const raw = id => game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id] ?? null;
+        const from = game.messages.contents.length;
+        let id = null;
+        const read = {};
+        try {
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [players[0].id] }))?.id ?? null;
+            must(id, "the secret project could not be made - this would measure nothing");
+            await settle();
+            must(raw(id)?.name === S.HIDDEN_NAME && Array.isArray(projectSecretStore.get(id)?.viewers),
+                "the project was not lifted at its making - this would measure nothing");
+            await projectSecretStore.patch(id, { secretName: null, viewers: null, sightTold: null }, { whole: true });
+            await settle();
+            must(projectSecretStore.get(id)?.secretName == null && projectSecretStore.get(id)?.viewers == null,
+                "the row could not be emptied on this browser - this would measure nothing");
+            await P.resealSecretProjects();
+            await settle();
+            read.reseal = [projectSecretStore.get(id)?.secretName ?? null, projectSecretStore.get(id)?.viewers ?? null];
+            await P.addProgress(id, 1);
+            await settle();
+            read.step = [projectSecretStore.get(id)?.secretName ?? null, projectSecretStore.get(id)?.viewers ?? null,
+                Number(raw(id)?.progress?.current ?? raw(id)?.progress?.start ?? NaN) >= 0];
+            read.countdown = [raw(id)?.name === S.HIDDEN_NAME, new Set(players.map(u => raw(id)?.ownership?.[u.id] ?? 0)).size];
+        } finally {
+            if (id) await P.deleteProject(id);
+            for (const m of game.messages.contents.slice(from)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ reseal: [null, null], step: [null, null, true], countdown: [true, 1] }),
+            "{reseal: [the GMs' name, list] after a reseal; step: [the same after a progress step, the countdown still read]; countdown: [still \"???\", levels its map gives]} - nothing written over the row another GM holds");
     }],
     ["E92+E93 - a Spectator standing in a room takes no room action's effect and is nobody's tail target (scripts/facilities-gm.mjs `targetsOf`, action-tail.mjs `tailTargets`, through movement.mjs `countsAsPresent`; E92's census, the merge of 13.11.2026): a character in the room, flagged a Spectator, is in neither \"everyone present\" nor the tail targets, and is in both once the flag is off", async () => {
         /*

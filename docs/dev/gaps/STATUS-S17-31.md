@@ -98,6 +98,23 @@ Found by the suite and fixed in the same work:
 - a share or a revoke no longer runs the token visibility pass (it relied on the countdown's change): the arrival of a
   sight card runs it, as a found project's card does - E36-T6.
 
+## E101's review (docs/dev/e101/REVIEW.md on r112, 13.11.2026), each red first
+
+- **R1, the reseal before the GMs' copies.** A primary GM that loaded before another GM's row of a lifted secret project
+  reached it read "???" and no list, and the reseal and every change step wrote both with fresh stamps, which win the
+  exchange. Now `resealSecretProjects` waits for `projectSecretStore.whenHydrated()` (a time-out writes nothing, R4621);
+  `sharedIds` answers null - not known here - for a countdown named `HIDDEN_NAME` with no list held, so the reseal writes
+  the map alone if it needs one, and a share or a revoke is refused ("the GMs' list of who sees it has not reached this
+  browser yet"); `changeStep` never takes "???" for the GMs' name. S17-31-T3 empties the row on this browser: red at
+  9f052871 (secretName "???", viewers []), green; a mutant of each guard turns it red again.
+- **R3, an old seal shared with every player.** "Every player at one level" read as "nobody" for S17-31's own map, and
+  caught an older seal a GM had shared with every player too: the migration lifted it into an empty list. Now the
+  countdown's name tells them apart (only a lift writes `HIDDEN_NAME`): a countdown still named holds an older map, read
+  as written. S17-31-T2's second project (every player at OBSERVER, still named): red at 9f052871 (list empty, no player
+  sees it), green.
+- Left as it is: a reveal made before the copies arrive writes the countdown's "???" back as its name (no real name is
+  known on that browser); a GM sees the project manager say so, and renames.
+
 ## Open, with a default taken
 
 - **The neutral name "???"**: no letters, the same in both languages. Owner may prefer a word (it would then be one

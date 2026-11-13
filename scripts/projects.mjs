@@ -1392,7 +1392,9 @@ async function changeStep(countdownId, change, by) {
     if (sealedAfter) {
         next.name = HIDDEN_NAME;
         next.ownership = ownershipMap();
-        if (secretsOf(countdownId).secretName !== realName) change = { ...change, meta: { ...change.meta, secretName: realName } };
+        // Never "???" as the GMs' name (E101's review, R1): read off a lifted countdown whose row has not reached this
+        // browser, it would be written with a fresh stamp over the real one another GM holds (S17-31-T3).
+        if (realName !== HIDDEN_NAME && secretsOf(countdownId).secretName !== realName) change = { ...change, meta: { ...change.meta, secretName: realName } };
     } else if (isSecret(countdownId) || project.name === HIDDEN_NAME) {
         next.name = realName;
         change = { ...change, meta: { ...change.meta, secretName: null } };
@@ -2442,6 +2444,11 @@ export function projectLabel(project, { name = true, scale = false, room = false
  */
 export async function resealSecretProjects() {
     if (!game.user.isGM) return 0;
+    /* After the GMs' copies of the project secrets (E101's review of S17-31, R1, 13.11.2026; R4621): since S17-31 a secret
+       project's name and list are the store's, so a reseal at load - module.mjs `sealProjects`, before the exchange - read
+       none on a primary that had not been sent another GM's row. As `sealOldRepairs` waits; a time-out writes nothing, and
+       the next load or `createUser` asks again. */
+    if (await projectSecretStore.whenHydrated() === "timedOut") return 0;
 
     let fixed = 0;
     for (const project of allProjects()) {

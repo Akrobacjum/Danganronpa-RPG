@@ -325,7 +325,7 @@ export function insidersOf(countdownId) {
 
 /** Users who can currently see a secret project (excluding GMs): the GMs' list on a GM (S17-31), this player on theirs when a card says so. */
 export function viewersOf(countdownId) {
-    const ids = game.user?.isGM ? sharedIds(countdownId) : (toldSight(countdownId)?.in ? [game.user.id] : []);
+    const ids = game.user?.isGM ? (sharedIds(countdownId) ?? []) : (toldSight(countdownId)?.in ? [game.user.id] : []);
     return ids.map(userId => game.users.get(userId)).filter(u => u && !u.isGM);
 }
 
@@ -344,19 +344,32 @@ export function secretChange(countdownId, viewerIds = []) {
 
 /**
  * The users who see a secret project now: the GMs' list (`viewers`, S17-31); for a project sealed before it, the
- * countdown's old per-player map, read until a reseal lifts it into the list (`sightChange`'s `reseal`).
+ * countdown's old per-player map, read until a reseal lifts it into the list (`sightChange`'s `reseal`); null when
+ * neither is here - a countdown S17-31 already lifted ("???", one level for everyone) whose row this browser has not
+ * been sent yet.
+ *
+ * WHICH OF THE TWO A COUNTDOWN IS, BY ITS NAME (E101's review of S17-31, R1 and R3, 13.11.2026). Until this fix a map
+ * with every player at one level read as "nobody", for S17-31's own map. It caught two more: an older seal a GM had
+ * shared with every player, a share at a time (the migration then lifted it into an empty list, every insider out -
+ * S17-31-T2's second project); and a lifted project on a primary GM that loaded before another GM's row reached it
+ * (the reseal and every change step wrote "???" and an empty list with fresh stamps, which won the exchange -
+ * S17-31-T3). The countdown's name tells them apart: only a lift writes `HIDDEN_NAME` there, so a countdown still
+ * named holds an older seal's map, read as written; one named `HIDDEN_NAME` holds no list at all, and without the
+ * GMs' row nothing about who sees it is known here. A Spectator observes every secret project and is no viewer (E92).
  */
 function sharedIds(countdownId) {
     const held = secretsOf(countdownId).viewers;
     if (Array.isArray(held)) return held.filter(id => typeof id === "string");
-    const ownership = rawCountdown(countdownId)?.ownership ?? {};
-    // A Spectator observes every secret project and is no viewer (E92): never read in as one.
+    const countdown = rawCountdown(countdownId);
+    if (countdown?.name === HIDDEN_NAME) return null;
     const watching = spectatorUserIds();
-    const players = Object.entries(ownership).filter(([key]) => key !== "default" && game.users.get(key) && !game.users.get(key).isGM && !watching.has(key));
-    // Every player at one level is no list (this file's map since S17-31, or the F4 leak `withoutLeak` replaces): none.
-    if (new Set(players.map(([, level]) => level)).size <= 1 && players.length > 1) return [];
-    return players.filter(([, level]) => level >= OBSERVER).map(([id]) => id);
+    return Object.entries(countdown?.ownership ?? {})
+        .filter(([key, level]) => key !== "default" && level >= OBSERVER && game.users.get(key) && !game.users.get(key).isGM && !watching.has(key))
+        .map(([id]) => id);
 }
+
+/** Said when a share or a revoke would be worked out on a list this browser does not hold (`sharedIds` null). */
+const LIST_NOT_HERE = "the GMs' list of who sees it has not reached this browser yet";
 
 /**
  * One more player in on a secret project. Only a SECRET project has a guest list (E03; audit S09-02): sharing a
@@ -365,13 +378,17 @@ function sharedIds(countdownId) {
  */
 export function shareChange(countdownId, userId) {
     if (!isSecret(countdownId)) return null;
-    return { ownership: ownershipMap(), meta: { viewers: [...new Set([...sharedIds(countdownId), userId])] } };
+    const ids = sharedIds(countdownId);
+    if (!ids) return { refused: LIST_NOT_HERE };
+    return { ownership: ownershipMap(), meta: { viewers: [...new Set([...ids, userId])] } };
 }
 
 /** A player taken back off a secret project: the GMs' list without them (S17-31), the map the same for everyone. */
 export function unshareChange(countdownId, userId) {
     if (!isSecret(countdownId)) return null;
-    return { ownership: ownershipMap(), meta: { viewers: sharedIds(countdownId).filter(id => id !== userId) } };
+    const ids = sharedIds(countdownId);
+    if (!ids) return { refused: LIST_NOT_HERE };
+    return { ownership: ownershipMap(), meta: { viewers: ids.filter(id => id !== userId) } };
 }
 
 /*
@@ -428,7 +445,11 @@ export function sightChange(countdownId, op = {}) {
         const same = foundry.utils.equals?.(current, wanted) ?? foundry.utils.objectsEqual?.(current, wanted) ?? false;
         // S17-31: sealed only once the list is the GMs' and the countdown carries no name; a project sealed before it lifts both.
         const lifted = Array.isArray(secretsOf(countdownId).viewers) && rawCountdown(countdownId)?.name === HIDDEN_NAME;
-        return same && lifted ? null : { ownership: wanted, meta: { viewers: sharedIds(countdownId) } };
+        if (same && lifted) return null;
+        // A lifted countdown whose row is not here (E101 R1): its map only, if it needs one - no list is known to write.
+        const ids = sharedIds(countdownId);
+        if (!ids) return same ? null : { ownership: wanted };
+        return { ownership: wanted, meta: { viewers: ids } };
     }
     return null;
 }
