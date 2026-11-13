@@ -118,7 +118,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
            nobody here found, and a secret one there with words of its own, shared with nobody. p3 (the Spectator) knows
            both - their names and progress - but not the secret one's words, which stay the GMs' (the coordinator's 12.11:
            "secret projects stay secret (GMs' half untouched)"); p1 (a student) knows neither and holds no words; the
-           countdown's ownership names p3 an observer and, since S17-31 (1.2.112), p1 as well: the map tells no player
+           countdown's ownership names p3 an observer and, since S17-31 (1.2.111), p1 as well: the map tells no player
            apart, and what keeps p1 out is the module (canSee, read below). */
         const made = await gm.eval(`const P = ${imp("projects.mjs")};
             const pub = await P.createProject({ name: "E92 public work", target: 6, room: "Gym", secret: false });

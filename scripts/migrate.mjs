@@ -1057,10 +1057,10 @@ const CLAUSES = [
     },
     {
         key: "hideSecretProjects",
-        since: "1.2.112",
+        since: "1.2.111",
         /*
          * A SECRET PROJECT'S NAME AND WHO IS IN ON IT LEAVE DAGGERHEART'S COUNTDOWNS (known leak S17-31; the coordinator's
-         * task of 12.11.2026). Until 1.2.112 a secret project's countdown, in a world setting every browser holds, carried
+         * task of 12.11.2026). Until 1.2.111 a secret project's countdown, in a world setting every browser holds, carried
          * its name and a map with each player's own level - OBSERVER for those in on it -, so any console read the plan and,
          * for an indirect murder, the killer's player. Once, on the primary: every secret project is resealed through the one
          * change entry (projects.mjs `resealSecretProjects`), whose step lifts what an older seal left - the name into the

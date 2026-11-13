@@ -1857,7 +1857,7 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
     // project put its name on every player's Projects tray. It is sealed now to whoever
     // can see what it repairs - the target's viewers and its builder's owners, the GMs seeing
     // everything - and named "Repair" alone: the countdowns setting is read by every browser, and
-    // until S17-31's fix (1.2.112) a secret countdown held its name there. Since then a secret
+    // until S17-31's fix (1.2.111) a secret countdown held its name there. Since then a secret
     // countdown carries none (projects-secrecy.mjs `HIDDEN_NAME`); the repair keeps the neutral
     // name all the same, as its viewers read it. A public project's repair is as it was.
     const secret = isSecret(targetId);

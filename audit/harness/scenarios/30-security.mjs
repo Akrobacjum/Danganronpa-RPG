@@ -1245,7 +1245,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     { timeout: 60000 });
     const hiddenRepair = await sabotageFromP2(hiddenWork);
     await settle(1000);
-    /* Since S17-31 (1.2.112) a secret countdown's map gives every player one level, so it tells nobody apart: p1's entry
+    /* Since S17-31 (1.2.111) a secret countdown's map gives every player one level, so it tells nobody apart: p1's entry
        is p2's, and what keeps p1 out is the module (canSee, the tray), read here as well. */
     const repairOnP1 = await p1.eval(`const c = game.settings.get("daggerheart", "Countdowns")?.countdowns?.["${hiddenRepair}"] ?? null;
         const P = await import("${repoUrl}/scripts/projects.mjs");

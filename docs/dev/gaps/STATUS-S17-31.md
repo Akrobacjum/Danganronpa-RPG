@@ -2,7 +2,7 @@
 
 The coordinator's task of 12.11.2026: close known leak S17-31, severity high, class killer-identity. It had no stage (it
 was E43's, which is out of the plan). Built on `claude/e93` (this session pushes there alone), its commits labelled
-"S17-31". Target release 1.2.112.
+"S17-31". Target release 1.2.111 (the owner joined the planned 1.2.111 and 1.2.112 into one, 13.11.2026).
 
 ## The leak, as measured
 
@@ -70,7 +70,7 @@ Order on `claude/e93`: the merge of main 1.2.109 (a1479e95), the train's eight b
 
 ## Migration
 
-`migrate.mjs` clause `hideSecretProjects`, since 1.2.112, on the primary: every secret project is resealed through the
+`migrate.mjs` clause `hideSecretProjects`, since 1.2.111, on the primary: every secret project is resealed through the
 change entry (`resealSecretProjects`), whose step lifts an older seal - the name into `secretName`, the players its old
 map let in into `viewers`, the countdown left with `HIDDEN_NAME` and one level - and `tellSight` then tells each player in
 on it. Idempotent: a lifted project reseals to nothing. The boot's secrecy pass does the same at every load; the clause
