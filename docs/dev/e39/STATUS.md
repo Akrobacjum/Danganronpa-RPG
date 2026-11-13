@@ -99,6 +99,8 @@ keep or drop.
   tier 2 by name - E35-T10, E39-T1, and E36-T2, E36-T3 beside them - 5 ran, 0 failed (28 s). No scenario reads
   tests-tier2.mjs by name (`git grep`); 01-runtests runs it whole in CI's shards. The first push (C1, C2 and the STATUS)
   went with "[skip ci]" on its head commit, so this push is CI's first run of C1-C4.
+- CI run 522 (a00b3967, C1-C4 and STATUS): green, every job - lint, check and gate, the suite's eight shards and
+  their merge, the scenario buckets with 70-movement and 99-actions in them.
 
 ## Gaps left (named, not built)
 
@@ -119,6 +121,10 @@ None: nothing visible changed (tests and documents only).
 
 - Q-E39-1, Q-E39-2, Q-E39-3: defaults taken above, owner to confirm.
 - The S09 list for the 14 project cases: not in this checkout; E36-T2..T11 stand for it until it is handed over.
+
+## Status
+
+E39 is done on this line: C1-C4 pushed, CI green (run 522). What is open is named under "Gaps left" and "Waits for".
 
 ## Tokens so far
 
