@@ -26,9 +26,8 @@
 
 import { SITUATIONAL_PLAYLIST, MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { error, esc } from "./utils.mjs";
+import { error, esc, firstSentence } from "./utils.mjs";
 import { emptyOption, box, dataTable, toggle } from "./ui-kit.mjs";
-import { firstSentence } from "./settings-window.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";

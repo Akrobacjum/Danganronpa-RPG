@@ -25119,6 +25119,8 @@ const INVARIANTS = [
          * account the spare's Dorm speaks for stands under "(sent nowhere)", and a second victim with an account of its own
          * stands under "(dead channel)"; and a living spare outranking a dead student is no conflict (`contestedOf`,
          * R5202), so no CONFLICTS line - the warning's words are read on the account's whole list.
+         * Merged with E62 C3b in the 1.2.112 tree: the secret victim with an account of its own is sent to the Spectators'
+         * room (Q-C3b-5; voice.mjs `voicePlan` names it "(Spectators' room)"), so it stands there, not under "(dead channel)".
          */
         needs(env.primaryGm(), "the voice plan is a GM's, and the harness's GM is the primary");
         const V = await import("./voice.mjs");
@@ -25147,7 +25149,7 @@ const INVARIANTS = [
         const words = { main: game.i18n.localize("DRPG.Voice.mainRoom"), dead: game.i18n.localize("DRPG.Voice.deadRoom") };
         equal(stableJson([groupOf(victim.name), groupOf(lone.name), groupOf(spare.name), groupOf(living.name), conflict?.trim() ?? null, warning,
             game.i18n.has("DRPG.Voice.deadRoom")]), stableJson([
-            "(sent nowhere)", "(dead channel)", "Dorm", "Kitchen", null,
+            "(sent nowhere)", "(Spectators' room)", "Dorm", "Kitchen", null,
             game.i18n.format("DRPG.Voice.contested", { name: victimUser.id, places: `${victim.name} → ${words.dead}; ${spare.name} → Dorm`, room: "Dorm" }),
             true]),
             "[the voice plan's group of the secret victim its spare's account speaks for, of a secret victim with an account of its own, of the first's spare, of a living student; the victim's line under CONFLICTS (none: no conflict); "

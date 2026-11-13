@@ -1448,3 +1448,20 @@ export function tickerRuns(word) {
     run.textContent = Array(6).fill(word).join(" · ") + " · ";
     return [run, run.cloneNode(true)];
 }
+
+/* A sentence ends at ".", "!" or "?" followed by a space or the end: "game.drpg.publicRoll" and "1.2" stay whole. Moved
+   from settings-window.mjs in the 1.2.112 tree (it re-exports both), so that sound-panel.mjs reads it without loading the
+   gear's window at boot (R4200). */
+const SENTENCE = /^(.+?[.!?])(?=\s|$)/s;
+
+/** A hint's first sentence (the line under a setting, [16]); the whole text when it has no sentence's end. */
+export function firstSentence(text) {
+    const s = String(text ?? "").trim();
+    return (SENTENCE.exec(s)?.[1] ?? s).trim();
+}
+
+/** What `firstSentence` leaves: the setting's tooltip. Empty for a hint of one sentence. */
+export function restOf(text) {
+    const s = String(text ?? "").trim();
+    return s.slice(firstSentence(s).length).trim();
+}

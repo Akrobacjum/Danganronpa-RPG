@@ -61,7 +61,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting, autoScale, diceLookChoice, diceLookWrites, DICE_LOOK_CHOICES } from "./settings.mjs";
-import { esc, error, wholeNumber } from "./utils.mjs";
+import { esc, error, wholeNumber, firstSentence, restOf } from "./utils.mjs";
 import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
@@ -107,20 +107,10 @@ export const SETTINGS_SECTIONS = Object.freeze([...CLIENT_SECTIONS, ...GAME_SECT
    (sound-panel.mjs `soundSettingSwitch`). Until E101 they were rows of the audio section above. */
 export const SOUND_WINDOW_SETTINGS = Object.freeze(["musicEnabled", "sfxVary"]);
 
-/* A sentence ends at ".", "!" or "?" followed by a space or the end: "game.drpg.publicRoll" and "1.2" stay whole. */
-const SENTENCE = /^(.+?[.!?])(?=\s|$)/s;
-
-/** A hint's first sentence (the line under a setting, [16]); the whole text when it has no sentence's end. */
-export function firstSentence(text) {
-    const s = String(text ?? "").trim();
-    return (SENTENCE.exec(s)?.[1] ?? s).trim();
-}
-
-/** What `firstSentence` leaves: the setting's tooltip. Empty for a hint of one sentence. */
-export function restOf(text) {
-    const s = String(text ?? "").trim();
-    return s.slice(firstSentence(s).length).trim();
-}
+/* A hint's first sentence and the rest (`firstSentence`, `restOf`) are utils.mjs's since the 1.2.112 tree, re-exported here:
+   the Sound window (sound-panel.mjs, loaded at boot through music.mjs) reads the first, and a static import of this file
+   for it loaded the gear's window at boot, which open-cost.mjs warms at idle instead (R4200). */
+export { firstSentence, restOf };
 
 const localize = key => game.i18n.localize(key);
 

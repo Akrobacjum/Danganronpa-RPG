@@ -12507,7 +12507,8 @@ const REGRESSIONS = [
             "cleanup.mjs": [1, "a reshaped trace's text (a kit window)"],
             "gm-campaign.mjs": [1, "Edit campaign's morning line"],
             "gm-items.mjs": [4, "Give's description, a Truth Bullet's texts, the autopsy's two"],
-            "investigation.mjs": [7, "the Remnants table's text and analysis, the Key tab's two, the case map's node text, a planned Autopsy node's player text and GM note (the dashboard)"],
+            // 16 since E104 (the 1.2.112 tree): a planned Remnant's, Final Truth's and Truth Bullet's three each, the case map's node editor.
+            "investigation.mjs": [16, "the Remnants table's text and analysis, the Key tab's two, the case map's node text, a planned Autopsy node's player text and GM note, a planned Remnant's, Final Truth's and Truth Bullet's words, analysis and note (the dashboard)"],
             "messenger-app.mjs": [3, "the messenger's input and note, a GM's ruling reply"],
             "observe.mjs": [3, "a critical's hint, a find's description and its analysed text (Observe's kit window)"],
             "projects-ui.mjs": [1, "a project's description"],
