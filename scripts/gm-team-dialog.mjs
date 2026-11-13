@@ -23,7 +23,7 @@ import {
     monokumas, poolLabel, setPoolLabel, poolCandidates, extraPoolUserIds, addPool, removePool,
     getDespair
 } from "./despair.mjs";
-import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
+import { isMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error } from "./utils.mjs";
@@ -31,6 +31,8 @@ import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from ".
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**
@@ -53,18 +55,14 @@ function readTeamDraft(root, gms, actors) {
         const field = root.querySelector(`[name="poolName.${CSS.escape(user.id)}"]`);
         if (field) pools[user.id] = field.value;
     }
-    const monokumas = {};
-    // The pool beside each tick as well (review of stage D): a GM who ticked a new
-    // Monokuma and chose its pool lost the choice on the first reopen, and Save then
-    // wrote the default into the character's flags.
+    // The pool beside each Monokuma (review of stage D): a GM who chose a Monokuma's pool lost the choice on the first
+    // reopen. The Monokuma box it once read beside the pool is gone (E101 item 6): the role is the Students window's.
     const monokumaPools = {};
     for (const actor of actors) {
-        const box = root.querySelector(`[name="mk.${CSS.escape(actor.id)}"]`);
-        if (box) monokumas[actor.id] = box.checked;
         const select = root.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`);
         if (select) monokumaPools[actor.id] = select.value;
     }
-    return { pools, monokumas, monokumaPools, overflow: readOverflowForm(root) };
+    return { pools, monokumaPools, overflow: readOverflowForm(root) };
 }
 
 /** Put a carried draft back, once the new copy has rendered. */
@@ -74,10 +72,6 @@ function paintTeamDraft(root, draft) {
         const field = root.querySelector(`[name="poolName.${CSS.escape(id)}"]`);
         // Whatever they typed, including a box they emptied on purpose.
         if (field) field.value = value;
-    }
-    for (const [id, on] of Object.entries(draft.monokumas ?? {})) {
-        const box = root.querySelector(`[name="mk.${CSS.escape(id)}"]`);
-        if (box) box.checked = on;
     }
     for (const [id, value] of Object.entries(draft.monokumaPools ?? {})) {
         const select = root.querySelector(`[name="pool.${CSS.escape(id)}"]`);
@@ -214,17 +208,14 @@ async function saveGmTeam(result) {
             await setPoolLabel(userId, label);
         }
 
-        // The flag first: `setMonokuma` clears the action budget and Hope, and
-        // a pool entry for an actor that is not a Monokuma would be dead state.
-        for (const row of result.monokumas) {
-            const actor = game.actors.get(row.id);
-            if (!actor) continue;
-            if (isMonokuma(actor) !== row.monokuma) await setMonokuma(actor, row.monokuma);
-        }
-
+        /* No role is written here since E101 item 6 (the owner's yes of 12.11.2026 to the GM screens' review, #7): the
+           Monokumas tab's box did what the Students window's Role list does, and two places for one role were two places
+           to get it wrong. A pool is kept for a character that is a Monokuma as the world says now. */
         const pools = {};
         for (const row of result.monokumas) {
-            if (row.monokuma && row.pool) pools[row.id] = row.pool;
+            const actor = game.actors.get(row.id);
+            const pool = row.pool === undefined ? poolFor(actor) : row.pool;
+            if (actor && isMonokuma(actor) && pool) pools[row.id] = pool;
         }
         await setPools(pools);
 
@@ -311,6 +302,12 @@ export async function openGmTeamDialog({ draft = null } = {}) {
             paintTeamDraft(dialog.element, draft);
             wireMonokumaLive(dialog);
             if (roster.length) wireAssignmentLive(dialog, gms);
+            // The one-GM fold (E101 item 6): Show puts the three tabs back in the bar and goes.
+            dialog.element.querySelector("[data-drpg-flow-unfold]")?.addEventListener("click", event => {
+                event.preventDefault();
+                for (const tab of dialog.element.querySelectorAll("nav.drpg-tabs > button[hidden]")) tab.hidden = false;
+                event.currentTarget.closest(".drpg-flow-unfold")?.remove();
+            });
             dialog.element.querySelector("[data-drpg-overflow-clear]")?.addEventListener("click", event => {
                 event.preventDefault();
                 void clearOverflowFromTab();
@@ -412,7 +409,31 @@ function shownPortrait(img) {
     return !img || CORE_PORTRAITS.has(img) || (core && img === core) ? UNSET_PORTRAIT : img;
 }
 
-function buildContent(actors, gms, roster, candidates, removable) {
+/**
+ * Which tab Despair Flow opens on and which it folds away (E101 item 6; the owner's yes of 12.11.2026 to the GM screens'
+ * review, #7). With one pool holder and no Assistant GM to grant a pool to or take one from, Pools, Monokumas and
+ * Students hold nothing to choose - every student feeds the one pool, every Monokuma draws on it - so the window opens
+ * on Overflow and the three are folded behind one Show button on its pane (`data-drpg-flow-unfold`), still in the form,
+ * so Save reads them as before. Otherwise it opens on Pools, as it did. `{ open, folded }`.
+ */
+export function despairFlowLayout({ gms = [], candidates = [], removable = [] } = {}) {
+    const single = gms.length === 1 && !candidates.length && !removable.length;
+    return single ? { open: "overflow", folded: ["pools", "monokumas", "students"] } : { open: "pools", folded: [] };
+}
+
+/** The window's form as the world stands (the suite's read, R4051): `single` forces the one-GM layout either way. */
+export function despairFlowMarkup({ single = null } = {}) {
+    const gms = monokumas();
+    const actors = game.actors.filter(a => a.type === "character").sort((a, b) => a.name.localeCompare(b.name));
+    const candidates = poolCandidates();
+    const extraIds = new Set(extraPoolUserIds());
+    const removable = gms.filter(u => extraIds.has(u.id));
+    const layout = single === null ? despairFlowLayout({ gms, candidates, removable })
+        : single ? despairFlowLayout({ gms: [gms[0]], candidates: [], removable: [] }) : { open: "pools", folded: [] };
+    return buildContent(actors, gms, students(), candidates, removable, layout);
+}
+
+function buildContent(actors, gms, roster, candidates, removable, layout = despairFlowLayout({ gms, candidates, removable })) {
     const L = key => game.i18n.localize(key);
 
     /* THE THREE TABLES ARE THE KIT'S (E46-C5a, 09.11.2026; card M3, STAGE E46's Despair Flow shape). At 3c952c67
@@ -429,7 +450,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
             account: foundry.utils.escapeHTML(u.name),
             name: `<input type="text" name="poolName.${u.id}" value="${foundry.utils.escapeHTML(poolLabel(u))}"
                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Despair.poolName")}: ${u.name}`)}"
-                       placeholder="${foundry.utils.escapeHTML(u.name)}" />`
+                       placeholder="${foundry.utils.escapeHTML(u.name)}"${tipAttr("DRPG.Tips.Gm.poolNameTooltip")} />`
         }))
     });
 
@@ -441,7 +462,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
 
     const removeRow = removable.length ? `
         <label>${L("DRPG.Despair.revokeFrom")}
-            <select name="removePoolCandidate">${removable.map(u =>
+            <select name="removePoolCandidate"${tipAttr("DRPG.Tips.Gm.revokeThePoolFromTooltip")}>${removable.map(u =>
                 `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))}</option>`).join("")}</select>
         </label>` : "";
 
@@ -451,14 +472,15 @@ function buildContent(actors, gms, roster, candidates, removable) {
         ${addRow}
         ${removeRow}`;
 
-    const mkTable = dataTable({
+    /* ONLY THE MONOKUMAS, AND ONLY THEIR POOL (E101 item 6): the box that made a character a Monokuma here is gone - the
+       Students window's Role list sets the role (gm-students.mjs), and this tab says whose pool each Monokuma draws on. */
+    const marked = actors.filter(actor => isMonokuma(actor));
+    const mkTable = marked.length ? dataTable({
         columns: [
             { key: "who", label: L("DRPG.Panel.character"), cls: "despair-who" },
-            { key: "mark", label: L("DRPG.Monokuma.isMonokuma"), cls: "despair-mark" },
             { key: "pool", label: L("DRPG.Monokuma.pool") }
         ],
-        rows: actors.map(actor => {
-            const marked = isMonokuma(actor);
+        rows: marked.map(actor => {
             const pool = poolFor(actor);
             const options = [
                 `<option value="">${L("DRPG.Monokuma.noPool")}</option>`,
@@ -466,17 +488,13 @@ function buildContent(actors, gms, roster, candidates, removable) {
             ].join("");
             return {
                 actorId: actor.id,
-                marked,
                 who: `<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait" />${foundry.utils.escapeHTML(actor.name)}`,
-                mark: `<input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""}
-                       aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />`,
-                pool: `<span class="drpg-cell-none" data-drpg-pool-none${marked ? " hidden" : ""}>-</span>
-                <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled hidden"}
-                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}">${options}</select>`
+                pool: `<select name="pool.${actor.id}" data-drpg-pool
+                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}"${tipAttr("DRPG.Tips.Gm.despairPoolTooltip")}>${options}</select>`
             };
         }),
-        rowAttrs: r => ({ "data-actor": r.actorId, class: r.marked ? "drpg-is-monokuma" : null })
-    });
+        rowAttrs: r => ({ "data-actor": r.actorId, class: "drpg-is-monokuma" })
+    }) : `<p class="notes" data-drpg-no-monokuma>${L("DRPG.Monokuma.noneYet")}</p>`;
 
     // The shared pool's warning: a kit box, written by `wireMonokumaLive` while two ticked Monokumas share a pool,
     // hidden while none do (E46-C5a; it was a red paragraph, E21's carried W site).
@@ -521,19 +539,29 @@ function buildContent(actors, gms, roster, candidates, removable) {
      * live. It used to be a window of its own with a tile on the GM panel; both
      * are gone, because two doors into one form is one door too many.
      */
+    // With one GM the window opens on Overflow and folds the other three behind one button (E101 item 6,
+    // `despairFlowLayout`): their buttons hidden in the bar, their panes still in the form.
+    const unfold = layout.folded.length ? `<p class="drpg-flow-unfold"><button type="button" class="drpg-mini-button" data-drpg-flow-unfold>${
+        L("DRPG.Despair.unfold")}</button> <span class="notes">${L("DRPG.Despair.unfoldNote")}</span></p>` : "";
     const body = kitTabs([
-        { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection },
+        { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection,
+          tooltip: tipText("DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip") },
         { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection },
         ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Despair.tabStudents"), html: assignSection }] : []),
-        { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: overflowSection({ suggestion: overflowSuggestionNow() }) }
-    ]);
+        { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: unfold + overflowSection({ suggestion: overflowSuggestionNow() }) }
+    ], { active: layout.open });
 
     // Built as an element, not a string: DialogV2 runs a string `content`
     // through `cleanHTML`, whose allow-list drops `placeholder` on a `<textarea>`
     // (v14 keeps it on an `<input>`). Built this way so a field that becomes a
     // textarea keeps its hint - the same reason every other form in this module
     // goes through `dialogContent()`.
-    return dialogContent(`<form>${body}</form>`);
+    const content = dialogContent(`<form>${body}</form>`);
+    for (const key of layout.folded) {
+        const tab = content.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${key}"]`);
+        if (tab) tab.hidden = true;
+    }
+    return content;
 }
 
 /**
@@ -609,19 +637,9 @@ function wireMonokumaLive(dialog) {
     const refresh = () => {
         const used = new Map();
 
-        for (const box of root.querySelectorAll("[data-drpg-mk]")) {
-            const row = box.closest("tr");
-            const select = row?.querySelector("[data-drpg-pool]");
-            row?.classList.toggle("drpg-is-monokuma", box.checked);
-            if (!select) continue;
-
-            // A pool means something only for a Monokuma: an actor not ticked shows a "-" (S10-62).
-            select.disabled = !box.checked;
-            select.hidden = !box.checked;
-            const none = row.querySelector("[data-drpg-pool-none]");
-            if (none) none.hidden = box.checked;
-            if (!box.checked) continue;
-
+        // Every row is a Monokuma since E101 item 6 (the tab lists no one else), so every select counts.
+        for (const select of root.querySelectorAll("[data-drpg-pool]")) {
+            const row = select.closest("tr");
             const value = select.value;
             if (!value) continue;
             if (!used.has(value)) used.set(value, []);
@@ -640,7 +658,7 @@ function wireMonokumaLive(dialog) {
         warning.hidden = !clashes.length;
     };
 
-    root.querySelectorAll("[data-drpg-mk], [data-drpg-pool]")
+    root.querySelectorAll("[data-drpg-pool]")
         .forEach(el => el.addEventListener("change", refresh));
     refresh();
 }
@@ -691,13 +709,15 @@ function readPoolNameForm(dialog, gms) {
     return map;
 }
 
-function readMonokumaForm(dialog, actors) {
+export function readMonokumaForm(dialog, actors) {
     const root = dialog.element;
-    return actors.map(actor => ({
-        id: actor.id,
-        monokuma: root.querySelector(`[name="mk.${CSS.escape(actor.id)}"]`)?.checked ?? false,
-        pool: root.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`)?.value || null
-    }));
+    return actors.map(actor => {
+        /* No select, no answer (the r112 review's S6, 13.11.2026): the tab draws one for the Monokumas as they stood when it
+           was drawn, so a character made one meanwhile has none here, and `undefined` tells Save to keep the world's pool
+           (`saveGmTeam`); null was read as "no pool" and the whole map was written without it. Exported for R4473. */
+        const select = root.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`);
+        return { id: actor.id, pool: select ? select.value || null : undefined };
+    });
 }
 
 /*
@@ -716,7 +736,6 @@ function readAssignmentForm(dialog, roster) {
     for (const actor of roster) {
         const select = root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
         if (!select?.value) continue;   // "(fallback)" (`FALLBACK_PICK`): a fallback stays one
-        if (root.querySelector(`[name="mk.${CSS.escape(actor.id)}"]`)?.checked) continue;
         if (select.dataset.drpgExplicit === "1" || select.value !== select.dataset.drpgWas) map[actor.id] = select.value;
     }
     return map;

@@ -9,9 +9,15 @@
  *     never from a client's clock; the same event heard twice (the bus and the setting's `onChange` both describe a
  *     write) starts it once (`started`, by the event's key). Nothing waits for it: it is called from the listener and
  *     never awaited by a writer, so the phase, the turn clock and the first mode card are live from the write.
- *   NOT BEFORE READY, AND NOT AFTER A RELOAD. A browser that loads during a trial is not told the phase moved (sync.mjs
- *     `heard` is read at ready) and a card in the log is not created again, so a client that came late, or reloaded in
- *     the middle of a sequence, plays nothing and shows the end state (the plan's Q-E61-1 default; E62's rule).
+ *   NOT BEFORE READY; LATE FOR 10 MINUTES (gaps-111, 13.11.2026: the owner's answer to Q-E61-1 and Q-E94-4, "Przez 10
+ *     minut"). A browser that loads during a trial is not told the phase moved (sync.mjs `heard` is read at ready) and a
+ *     card in the log is not created again, so no hook plays the event there. Instead, once at ready, `catchUpSequences`
+ *     plays the newest event under 10 minutes old (`LATE_PLAY_MS`) - the trial's entry, the verdict's cut-in, the
+ *     start-of-day board - that this browser would have seen live and has not played (`lateSequence`); past 10 minutes,
+ *     nothing, and the end state stands. Once per event per browser: every start is written to this browser's own
+ *     record (`localStorage`, `drpg-sequences-played`, kept 10 minutes), which a reload reads; nothing goes to the world.
+ *     The end-of-day board is not played late: its rows are the day that ended, whose start the new clock no longer
+ *     holds. E62's transitions (the curtain's turn, the discovery's flicker) are not sequences and play nothing late.
  *   ONE AT A TIME, CUT NOT QUEUED. A new sequence, or a phase change, ends the running one at once (the owner's 05.11).
  *   ESCAPE ENDS IT HERE. A capture listener on `window`, registered before foundry-windows.mjs's (module.mjs orders the
  *     two), acts only while a sequence plays and takes the key from the windows behind it; the next Escape reaches
@@ -38,7 +44,7 @@ import { MODULE_ID, TIME_OF_DAY_LABELS, MOOD_SHARES } from "./config.mjs";
 import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
-import { esc } from "./utils.mjs";
+import { esc, serverNow } from "./utils.mjs";
 import { slideAt } from "./glass-close.mjs";
 import { spectatorViewer } from "./spectator.mjs";
 
@@ -77,6 +83,29 @@ const LEAVE = "cubic-bezier(0.6, 0, 0.84, 0.2)";
 let ready = false;
 let running = null;
 const started = new Set();
+
+/** How long after its event a browser that loads still plays a sequence (the owner's "Przez 10 minut", 13.11.2026). */
+export const LATE_PLAY_MS = 10 * 60 * 1000;
+/* This browser's own record of the sequences it started, `{ id: when }` (server time), so a reload inside the 10 minutes
+   plays nothing twice. The browser's storage, never the world's; anything older than the window is dropped as it is
+   written, and a browser whose storage cannot be read plays as if it had played nothing. */
+export const PLAYED_KEY = "drpg-sequences-played";
+function playedRecord() {
+    try {
+        const record = JSON.parse(globalThis.localStorage?.getItem(PLAYED_KEY) ?? "{}");
+        return record && typeof record === "object" && !Array.isArray(record) ? record : {};
+    } catch {
+        return {};
+    }
+}
+function notePlayed(id, now = serverNow()) {
+    try {
+        const record = playedRecord();
+        for (const [k, at] of Object.entries(record)) if (!(now - Number(at) < LATE_PLAY_MS)) delete record[k];
+        record[id] = now;
+        globalThis.localStorage?.setItem(PLAYED_KEY, JSON.stringify(record));
+    } catch { /* a browser that keeps nothing plays again on a reload, within the window */ }
+}
 
 /** The table's switch: whether sequences are drawn at this table (a world setting, on unless a GM turned it off). */
 export function sequencesOn() {
@@ -136,6 +165,7 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     const id = `${kind}\u0000${key}`;
     if (started.has(id)) return null;
     started.add(id);
+    notePlayed(id);
     endSequence("cut");
     count("sequence.started");
     // and by kind, so a reading can tell the trial's entry from the cut-in (E61 C6: scenario 63 counts each per browser)
@@ -318,6 +348,22 @@ function coverBlocks(ctx) {
     });
 }
 
+/* THE CURTAIN UNDER THE WINDOWS, THE TITLE OVER THEM (E105, the owner's ask of 13.11.2026: "zamkniecie kurtyny niech
+   bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach"). The trial's edges draw in two layers of their own,
+   each fixed over the screen and stacked by danganronpa.css (THE SEQUENCES): the curtain's - the panes, the closed
+   curtain, the lids - under Foundry's window layer and over the board and the interface, so an open window, and one
+   opened while it plays, stands over the closing curtain and takes its clicks; and the title's - the band with its
+   background and the chapter's line - over every window. The host is no box of its own there (`display: contents`): a
+   fixed box is a stacking context, and its children could not stand on both sides of the windows. Until E105 the host
+   was one layer at 99980 and its children with it, over every window. The other sequences - the verdict's cut-in, the
+   day's boards - close no curtain and keep the one host. */
+function seqLayer(cls) {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.setAttribute("aria-hidden", "true");
+    return el;
+}
+
 /**
  * The entry's frames. Under Stained Glass with a curtain painted, the panes stand where they are and the hole they
  * leave fills with new panes of the curtain's kind, each sliding out at its own size from behind an edge it shares with
@@ -332,6 +378,9 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
     const chapter = clock?.chapter ?? null;
     host.dataset.drpgSequenceLook = glass ? "glass" : "lids";
     const title = titleBand(chapter, kind);
+    // the curtain's layer under the windows, the title's over them (above); the fades in and out are the curtain's
+    const curtain = seqLayer("drpg-seq-curtain"), top = seqLayer("drpg-seq-top");
+    host.append(curtain, top);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
         const closed = closedCanvas(glass.closed);
@@ -341,12 +390,12 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
         ctx.undo(() => glass.release?.());
         if (still) {
             glass.hold?.(0);
-            host.append(closed);
+            curtain.append(closed);
         } else {
             glass.hold?.(T.handIn);
-            anim(host, [{ opacity: 0 }, { opacity: 1 }], { duration: T.handIn, easing: "linear" });
+            anim(curtain, [{ opacity: 0 }, { opacity: 1 }], { duration: T.handIn, easing: "linear" });
             at(T.end - T.hand, () => {
-                anim(host, [{ opacity: 1 }, { opacity: 0 }], { duration: T.hand, easing: "linear", fill: "forwards" });
+                anim(curtain, [{ opacity: 1 }, { opacity: 0 }], { duration: T.hand, easing: "linear", fill: "forwards" });
                 glass.handBack?.(T.hand);
             });
             const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
@@ -355,7 +404,7 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
             open.layer.append(growOut.canvas);
             closed.hidden = true;
             open.layer.hidden = true;
-            host.append(close.layer, closed, open.layer);
+            curtain.append(close.layer, closed, open.layer);
             host.drpgEntry = { growIn, growOut, fill: [glass.close.fill, glass.open.fill] };
             glass.close.panes.forEach(p => anim(p.old, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, delay: p.batch * FADE_STEP, easing: "linear" }));
             const t0 = performance.now();
@@ -393,7 +442,7 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
         const lids = ["top", "bottom"].map(side => {
             const lid = document.createElement("div");
             lid.className = `drpg-seq-lid is-${side}`;
-            host.append(lid);
+            curtain.append(lid);
             return lid;
         });
         if (!still) {
@@ -402,9 +451,9 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
         }
     }
     coverBlocks(ctx);
-    if (still) { host.append(title); return; }
+    if (still) { top.append(title); return; }
     at(T.title, () => {
-        host.append(title);
+        top.append(title);
         anim(title, [{ transform: "rotate(-3deg) scale(1.12)", opacity: 0 }, { transform: "rotate(-3deg) scale(1)", opacity: 1 }], { duration: T.titleIn, easing: IN });
     });
     at(T.titleOut, () => anim(title, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "linear" }));
@@ -632,11 +681,16 @@ function drawDayStart(ctx, board) {
  * on every connected browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). `students` defaults to the cast as
  * monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
  */
+/** The start-of-day board's event key: the season, the day and the session. */
+export function dayStartKey(clock) {
+    return `day:${clock?.season ?? ""}:${Number(clock?.day) || 0}:${clock?.session ?? ""}`;
+}
+
 export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn() } = {}) {
     if (!clock || !ready) return null;
     const cast = students ?? (await import("./monokuma.mjs")).studentActors();
     const board = dayStartBoard(clock, cast, clock.morningLine ?? "");
-    return playSequence("dayStart", `day:${clock.season ?? ""}:${board.day}:${clock.session ?? ""}`, ctx => drawDayStart(ctx, board),
+    return playSequence("dayStart", dayStartKey(clock), ctx => drawDayStart(ctx, board),
         { sound: () => playSound("dayStart"), on });
 }
 
@@ -874,12 +928,60 @@ export function onPhaseChanged(phase, clock = getClock()) {
 }
 
 /**
+ * THE EVENT A LATE BROWSER STILL PLAYS (gaps-111; the header's "LATE FOR 10 MINUTES"). From what this browser holds -
+ * the clock and the chat it was sent - the newest of: the trial's entry (the clock in a Class Trial, its edge stamped
+ * `timeOfDayStartedAt`), a GM's verdict card (its `verdictAt`, at the message's time; one this user cannot see is not
+ * theirs, as it never reached them live) and the start-of-day board (a day the real roll-over stamped, `dayBoard`, at
+ * `dayStartedAt`; a correction writes no stamp and plays nothing, as live). An event counts while `now` is under
+ * `LATE_PLAY_MS` after it - one stamped a little ahead of this browser's server time is the writer's skew, and new - and
+ * when `played` (this browser's record) does not hold it. Every connected browser plays these three live, the GMs, the
+ * dead and a Spectator included (Q-E61-9; a Spectator's start-of-day board is everybody's), so the gate is the one the
+ * live hooks have: what reached this browser. Pure. Answers `{ kind, key, at, message? }` or null. R4934.
+ */
+export function lateSequence({ clock = null, messages = [], now = 0, played = {} } = {}) {
+    const found = [];
+    const trialKey = trialEntryKey(clock);
+    if (trialKey) found.push({ kind: "trialEntry", key: trialKey, at: Number(clock?.timeOfDayStartedAt) });
+    if (clock && clock.dayBoard != null && Number(clock.dayBoard) === Number(clock.day)) {
+        found.push({ kind: "dayStart", key: dayStartKey(clock), at: Number(clock.dayStartedAt ?? clock.timeOfDayStartedAt) });
+    }
+    for (const message of messages ?? []) {
+        if (!message?.author?.isGM || message.visible === false) continue;
+        const at = message.getFlag?.(MODULE_ID, "verdictAt");
+        if (at == null) continue;
+        found.push({ kind: "verdictCut", key: `verdict:${at}`, at: Number(message.timestamp), message });
+    }
+    const fresh = found.filter(e => Number.isFinite(e.at) && now - e.at < LATE_PLAY_MS && !(`${e.kind}\u0000${e.key}` in (played ?? {})));
+    return fresh.sort((a, b) => b.at - a.at)[0] ?? null;
+}
+
+/**
+ * Once at ready, after `registerSequences` (the header's "LATE FOR 10 MINUTES"): play the event `lateSequence` picks,
+ * through the same road its live hook takes, so the table's switch, reduced motion and the sound are as live: the
+ * trial's entry and the cut-in go through `playSequence` (off: the sound alone; still: the still frame), and the
+ * start-of-day board, which the table's switch off never plays live, is not played late either. Writes nothing to the
+ * world. Answers what the road answered, or null.
+ */
+export async function catchUpSequences({ now = serverNow(), on = sequencesOn() } = {}) {
+    if (!ready) return null;
+    const late = lateSequence({ clock: getClock(), messages: game.messages?.contents ?? [], now, played: playedRecord() });
+    if (!late) return null;
+    count("sequence.late");
+    if (late.kind === "trialEntry") return playTrialEntry(getClock());
+    if (late.kind === "verdictCut") return playVerdictCut(late.message);
+    if (late.kind === "dayStart" && on) return playDayStart(getClock(), { on });
+    return null;
+}
+
+/**
  * Once at ready, before foundry-windows.mjs's own Escape listener (module.mjs): from now on an event starts a
- * sequence. The phase's hook starts the entry and ends anything else that plays; a GM's verdict card starts the cut-in.
+ * sequence. The phase's hook starts the entry and ends anything else that plays; a GM's verdict card starts the cut-in;
+ * and an event of the last 10 minutes this browser missed plays once (`catchUpSequences`).
  */
 export function registerSequences() {
     if (ready) return;
     ready = true;
+    setTimeout(() => { catchUpSequences().catch(err => console.error(`${MODULE_ID} | a late sequence failed`, err)); }, 0);
     import("./vault-store.mjs").then(m => { safeImage = m.safeRoomImage; }).catch(() => null);
     window.addEventListener("keydown", onEscape, { capture: true });
     Hooks.on("drpgPhaseChanged", onPhaseChanged);

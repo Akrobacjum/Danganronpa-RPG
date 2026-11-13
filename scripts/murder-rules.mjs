@@ -92,6 +92,8 @@ import {
     registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, retireOpeningNotices
 } from "./incident-store.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /*
  * VEILED, ALL OF THEM (LIVE-001, the closing half).
  *
@@ -2451,7 +2453,8 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
     if (!visibility) return null;
 
     const override = indirectOverride(def, side);
-    const forced = reinforced
+    // `alwaysReinforced`: Secure a Trace's every hit (config.mjs, 1.2.112).
+    const forced = reinforced || Boolean(def.alwaysReinforced)
         || Boolean(def.criticalReinforced && band === "critical")
         || Boolean(override?.reinforced?.[band]);
     // "Ofiara pozostawia 2 Reinforced Incident Remnants" - the one place in the
@@ -3727,13 +3730,14 @@ async function afterIncident(state) {
             // THE BODY FIRST, AND IT NO LONGER STARTS STAGE 7 (D5). Announcing
             // the discovery and starting the investigation are two decisions
             // now, and this window offers them in that order.
-            primary: { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle") },
+            primary: { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), tooltip: tipText("DRPG.Tips.Trial.bodyFoundTooltip") },
             secondary: [
                 ...(alreadyInvestigating ? [] : [{
                     action: "investigation",
-                    label: game.i18n.localize("DRPG.Murder.afterGoInvestigation")
+                    label: game.i18n.localize("DRPG.Murder.afterGoInvestigation"),
+                    tooltip: tipText("DRPG.Tips.Trial.moveToInvestigationTooltip")
                 }]),
-                { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
+                { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle"), tooltip: tipText("DRPG.Tips.Trial.issueAutopsyTruthBulletTooltip") },
             ],
             /* THE BETRAYAL IS A SECOND MURDER (E22 C3b; S10-67, D11): on the GM's screen `drpg-gm-route` names no button,
                and this one ends the incident and opens another - destructive, never the default. */
@@ -4125,7 +4129,7 @@ async function afterEscape(state, victim, killer) {
             <ul class="drpg-briefing-facts">${owed.map(o => `<li>${o}</li>`).join("")}</ul>
         </div>`,
         footer: {
-            primary: { action: "remnants", label: game.i18n.localize("DRPG.Murder.escapeRemnants") },
+            primary: { action: "remnants", label: game.i18n.localize("DRPG.Murder.escapeRemnants"), tooltip: tipText("DRPG.Tips.Trial.openTheRemnantTableTooltip") },
             close: "close"
         },
         rejectClose: false
@@ -4156,7 +4160,7 @@ async function afterNoBody(state, victim, killer) {
             : game.i18n.localize("DRPG.Murder.afterInterrupted")}</p></div>`,
         // With no Remnant table to offer, Close alone, and the default.
         footer: {
-            primary: survived ? { action: "remnants", label: game.i18n.localize("DRPG.Murder.escapeRemnants") } : null,
+            primary: survived ? { action: "remnants", label: game.i18n.localize("DRPG.Murder.escapeRemnants"), tooltip: tipText("DRPG.Tips.Trial.openTheRemnantTableTooltip") } : null,
             close: "close"
         },
         rejectClose: false

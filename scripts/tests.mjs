@@ -354,6 +354,11 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
         notes.push(`the load's own writes had not finished after ${LOAD_WAIT_MS / 1000} s: one landing during tiers 0 and 1 reads there as the suite's`);
     }
     const untouched = first ? await worldDump() : null;
+    /* THIS BROWSER'S RECORD OF THE SEQUENCES IT PLAYED (gaps-111 (h), merged in the 1.2.112 tree). A tier-1 test that plays
+       one notes it in sequence.mjs `PLAYED_KEY` (localStorage, never the world's), which scenario 01's own reading of
+       the harness's storage saw move in A1 and A2 (shard 1/8 at b67ceef7: `client.drpg-sequences-played`). Tiers 0 and
+       1 put it back as they found it, nothing stored included. */
+    const played = first ? await playedKept() : null;
     let running = null;
     const writes = watchWrites(() => running);
     // The world's scene links while tier 2 holds them empty (below), put back in the `finally`.
@@ -376,6 +381,8 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                 running = null;
             }
         }
+
+        played?.putBack();
 
         // THE PROMISE, CHECKED (E01, audit S14-01): tier 0 and tier 1 are what a GM is
         // told may be run during play. A write that lands a moment after its test is a
@@ -603,4 +610,19 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
     else ui.notifications.info(summary);
     log(`Regression suite: ${summary}`);
     return { passed, failed, skipped, red, text, results, shard };
+}
+
+/** This browser's played-sequences record as it stands, and `putBack()`, which writes it back so (or takes it out). */
+async function playedKept() {
+    const { PLAYED_KEY } = await import("./sequence.mjs");
+    let was = null;
+    try { was = globalThis.localStorage?.getItem(PLAYED_KEY) ?? null; } catch { return { putBack() {} }; }
+    return {
+        putBack() {
+            try {
+                if (was === null) globalThis.localStorage?.removeItem(PLAYED_KEY);
+                else globalThis.localStorage?.setItem(PLAYED_KEY, was);
+            } catch { /* a browser that keeps nothing has nothing to put back */ }
+        }
+    };
 }

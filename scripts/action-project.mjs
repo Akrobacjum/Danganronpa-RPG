@@ -52,6 +52,8 @@ import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitF
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
 
+import { tipAttr } from "./ui-kit.mjs";
+
 /* ==========================================================================
  * PROJECTS
  * ========================================================================== */
@@ -111,6 +113,8 @@ export async function performProject(actor, def, options) {
         title: def.label,
         intro: briefingBlock(actor, "project", def),
         prompt: game.i18n.localize("DRPG.Project.choosePrompt"),
+        // Work and Sabotage roll; Propose leads to the proposal's window, whose button sends it (E100 item 6, R4105).
+        confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
             {
                 value: "work", icon: "fa-hammer",
@@ -123,7 +127,7 @@ export async function performProject(actor, def, options) {
                     : game.i18n.localize("DRPG.Action.noRoomNote")
             },
             {
-                value: "start", icon: "fa-lightbulb", gmRoute: true,
+                value: "start", icon: "fa-lightbulb", gmRoute: true, confirm: game.i18n.localize("DRPG.Action.next"),
                 label: game.i18n.localize("DRPG.Project.startNew"),
                 hint: game.i18n.localize("DRPG.Project.startNewHint")
             },
@@ -269,9 +273,9 @@ export async function startProject(actor) {
             { label: game.i18n.localize("DRPG.Project.name"), id: idOf("name"),
                 field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus />` },
             descriptionField(""),
-            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${scaleOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}">${roomOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required>${projectTraitOptions()}</select>` },
+            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${scaleOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.roomTooltip")}>${roomOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWorkTooltip")}>${projectTraitOptions()}</select>` },
             { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>` },
             { label: game.i18n.localize("DRPG.Project.condition"), id: idOf("condition"),
@@ -937,7 +941,7 @@ async function chooseProject(list, promptKey, actor, def, { disableComplete = fa
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"),
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
                 callback: (e, b, d) => ({ id: d.element.querySelector("[name=project]").value })
             },
             close: "cancel"

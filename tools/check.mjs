@@ -234,6 +234,17 @@
  *             every module file a reader names; REVIEW-111-e59 finding 1). A
  *             planted package with eight faults first. Red on 421f2395:
  *             macros/ and icons/pixel-sprite.svg. Bare Node and git.
+ *   tooltips  the controls with no help (E102 C1, widened after REVIEW-102;
+ *             tools/tooltip-census.mjs, whose header lists the kinds of
+ *             control it reads and the ones it does not): its self-check of
+ *             planted sites, one of every kind, then each control site it
+ *             reads with neither a tooltip of its own nor a hint line within
+ *             three lines, held to tools/tooltip-census.json by file, unit,
+ *             kind and key - red on a new one with no row, on a row no site
+ *             needs any more, on a row with no reason, on a count above
+ *             origin/main's copy (when that copy can be read), on a stage's
+ *             row once the stage shipped, and on a tipAttr/tipText key with no
+ *             words in either language. Needs espree (`npm ci` in audit/harness).
  */
 
 import fs from "node:fs";
@@ -1540,7 +1551,20 @@ async function glyphs() {
     return [...misses, ...problems, ...structure];
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, icons, contrast, glyphs };
+/* ------------------------------ tooltips ------------------------------ */
+
+async function tooltips() {
+    try {
+        const tool = await import(url.pathToFileURL(path.join(REPO, "tools", "tooltip-census.mjs")).href);
+        await tool.loadShipped(REPO);
+        return tool.check(line => console.log(line));
+    } catch (err) {
+        if (err.code === "MODULE_NOT_FOUND") return ["espree is not installed - run `npm ci` in audit/harness first"];
+        return [`the census could not run (${String(err.message).split("\n")[0]})`];
+    }
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, icons, contrast, glyphs, tooltips };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {

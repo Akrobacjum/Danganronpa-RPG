@@ -54,7 +54,7 @@ import {
     handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
     handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
-    friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
+    friskForceRoll, handleVaultSteal, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
     handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock
@@ -458,19 +458,17 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_VAULT_STEAL]: {
         label: "DRPG.Bridge.what.vault.steal",
         guards: [knownSender, notSpectator("thiefId"), owns("thiefId", "sender does not own the character searching")],
-        sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool, rollId: as.id }),
+        // A rifle names no roll: it is free, and a concealed stash opens to Find Stash alone. Until 1.2.112 a Search's
+        // packet came here too (`viaSearch`, `clumsy`, its roll's `rollId`, read by `searchTheftOf` off the GMs' record).
+        sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id }),
         run: handleVaultSteal,
-        /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-2 = E16R-03 = E16P2-R2): a Search that takes a
-           Murder Weapon out of a stash leaves a Prep Remnant (E16 part 2 C4), and on "ack" it left one as the packet was
-           accepted - for a thing a GM then refused (another reach took it first, full hands, an undecided item). The
-           asker leaves it only on the answer's `taken` (`handleVaultSteal`, action-search.mjs `searchStash`). */
+        /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-2 = E16R-03 = E16P2-R2): on "ack" the asker
+           heard "got it" as the packet was accepted, before a GM's refusal of the reach (another reach took it first,
+           full hands, an undecided item); the rifle's window reads whether it was refused (`handleVaultSteal`). */
         answer: "reply",
-        // A packet that says a Search paid for it names that Search's roll (E08+E28 C15; `searchTheftOf`).
-        rolled: { field: "rollId", actor: "thiefId", kind: "search", when: "viaSearch", derive: searchTheftOf },
         claims: {
             ownerId: "judged by stealFromVault (stash-reach.mjs): the owner of a stash the thief can reach",
-            itemId: "judged by stealFromVault (stash-reach.mjs): an item that owner has stashed",
-            rollId: "the Search's roll whether it found the stash, and fumbled it, is read from (searchTheftOf): one the GM drew for the thief's Search"
+            itemId: "judged by stealFromVault (stash-reach.mjs): an item that owner has stashed"
         }
     },
     [ACTION_OPENING_RESULT]: {

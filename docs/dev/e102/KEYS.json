@@ -1,0 +1,1415 @@
+{
+ "Actions": {
+  "difficultyTooltip": {
+   "key": "DRPG.Tips.Actions.difficultyTooltip",
+   "en": "The lowest total the student's roll needs",
+   "pl": "Najniższy wynik, który rzut ucznia musi osiągnąć",
+   "sites": [
+    "action-dynamic:334"
+   ]
+  },
+  "statisticTooltip": {
+   "key": "DRPG.Tips.Actions.statisticTooltip",
+   "en": "The statistic the student rolls against",
+   "pl": "Statystyka, na którą rzuca uczeń",
+   "sites": [
+    "action-dynamic:336"
+   ]
+  },
+  "refuseTooltip": {
+   "key": "DRPG.Tips.Actions.refuseTooltip",
+   "en": "Turns the action down. The student keeps their action.",
+   "pl": "Odrzuca akcję. Uczeń zachowuje akcję.",
+   "sites": [
+    "action-dynamic:347"
+   ]
+  },
+  "doItTooltip": {
+   "key": "DRPG.Tips.Actions.doItTooltip",
+   "en": "Gives you the rest benefits you ticked",
+   "pl": "Daje ci zaznaczone korzyści odpoczynku",
+   "sites": [
+    "rest:369"
+   ]
+  },
+  "detailsTooltip": {
+   "key": "DRPG.Tips.Actions.detailsTooltip",
+   "en": "Shows or hides the price, the rolls, and what each result does",
+   "pl": "Pokazuje albo chowa koszt, rzuty i to, co daje każdy wynik",
+   "sites": [
+    "action-menus:352"
+   ]
+  },
+  "makeTheAttemptTooltip": {
+   "key": "DRPG.Tips.Actions.makeTheAttemptTooltip",
+   "en": "Sends these words with your attempt. Closing the window still makes it, without them.",
+   "pl": "Wysyła te słowa razem z próbą. Zamknięcie okna też ją podejmuje, tylko bez nich.",
+   "sites": [
+    "action-menus:528"
+   ]
+  },
+  "scaleTooltip": {
+   "key": "DRPG.Tips.Actions.scaleTooltip",
+   "en": "How much work the project takes before it is done",
+   "pl": "Ile pracy wymaga projekt, zanim będzie gotowy",
+   "sites": [
+    "action-project:265"
+   ]
+  },
+  "roomTooltip": {
+   "key": "DRPG.Tips.Actions.roomTooltip",
+   "en": "Where students work on the project. Any room means anywhere.",
+   "pl": "Gdzie można pracować nad projektem. Dowolny pokój znaczy wszędzie.",
+   "sites": [
+    "action-project:266"
+   ]
+  },
+  "requiredWorkTooltip": {
+   "key": "DRPG.Tips.Actions.requiredWorkTooltip",
+   "en": "The statistic every roll on this project uses",
+   "pl": "Statystyka, której używa każdy rzut na ten projekt",
+   "sites": [
+    "action-project:267"
+   ]
+  },
+  "itAppliesTooltip": {
+   "key": "DRPG.Tips.Actions.itAppliesTooltip",
+   "en": "The player spends the Hope and the Call takes effect",
+   "pl": "Gracz wydaje Hope, a Call zaczyna działać",
+   "sites": [
+    "calls:796"
+   ]
+  },
+  "letThemLookTooltip": {
+   "key": "DRPG.Tips.Actions.letThemLookTooltip",
+   "en": "They see everything you had on you when they asked",
+   "pl": "Ta osoba zobaczy wszystko, co było przy tobie w chwili prośby",
+   "sites": [
+    "frisk:1086"
+   ]
+  },
+  "leaveItTooltip": {
+   "key": "DRPG.Tips.Actions.leaveItTooltip",
+   "en": "You let it go; they and anyone watching are told",
+   "pl": "Odpuszczasz; dowiaduje się o tym ta osoba i każdy, kto patrzy",
+   "sites": [
+    "frisk:1122"
+   ]
+  },
+  "nextTooltip": {
+   "key": "DRPG.Tips.Actions.nextTooltip",
+   "en": "You pay only when you confirm in the next window.",
+   "pl": "Płacisz dopiero po potwierdzeniu w następnym oknie.",
+   "sites": [
+    "call-pickers:255",
+    "call-pickers:490"
+   ]
+  },
+  "indirectMurderAProjectTooltip": {
+   "key": "DRPG.Tips.Actions.indirectMurderAProjectTooltip",
+   "en": "Marks the project as a murder by trap, secret by default",
+   "pl": "Oznacza projekt jako morderstwo przez pułapkę, domyślnie tajne",
+   "sites": [
+    "projects-ui:329"
+   ]
+  },
+  "secretAProjectSTooltip": {
+   "key": "DRPG.Tips.Actions.secretAProjectSTooltip",
+   "en": "Ticked, only the players ticked for it and its builder see it",
+   "pl": "Zaznaczony, widzą go tylko zaznaczeni przy nim gracze i budujący",
+   "sites": [
+    "projects-ui:331",
+    "projects-ui:1003"
+   ]
+  },
+  "onlyAfterDarkTooltip": {
+   "key": "DRPG.Tips.Actions.onlyAfterDarkTooltip",
+   "en": "The trap goes off only in the evening, at night, or during an Eclipse",
+   "pl": "Pułapka odpala tylko wieczorem, w nocy albo w czasie Eclipse",
+   "sites": [
+    "projects-ui:968"
+   ]
+  },
+  "notTheOneWhoTooltip": {
+   "key": "DRPG.Tips.Actions.notTheOneWhoTooltip",
+   "en": "The trap never goes off for the student who built it",
+   "pl": "Pułapka nigdy nie odpala dla ucznia, który ją zbudował",
+   "sites": [
+    "projects-ui:972"
+   ]
+  },
+  "room2Tooltip": {
+   "key": "DRPG.Tips.Actions.room2Tooltip",
+   "en": "Where students work on it and can sabotage it. With any room, they work anywhere and cannot sabotage it",
+   "pl": "Gdzie uczniowie nad nim pracują i mogą go sabotować. Przy dowolnym pokoju pracują wszędzie, a sabotować go nie mogą",
+   "sites": [
+    "projects-ui:993"
+   ]
+  },
+  "requiredWork2Tooltip": {
+   "key": "DRPG.Tips.Actions.requiredWork2Tooltip",
+   "en": "The statistic rolled whenever somebody works on this project",
+   "pl": "Statystyka, na którą rzuca każdy, kto pracuje nad tym projektem",
+   "sites": [
+    "projects-ui:994"
+   ]
+  },
+  "aPlayerSOnTooltip": {
+   "key": "DRPG.Tips.Actions.aPlayerSOnTooltip",
+   "en": "Ticked, this player sees the project while it is secret",
+   "pl": "Zaznaczony gracz widzi ten projekt, dopóki jest tajny",
+   "sites": [
+    "projects-ui:1553"
+   ]
+  },
+  "shareTooltip": {
+   "key": "DRPG.Tips.Actions.shareTooltip",
+   "en": "Lets one more player see a secret project",
+   "pl": "Pozwala kolejnemu graczowi widzieć tajny projekt",
+   "sites": [
+    "projects-ui:632"
+   ]
+  },
+  "deleteTooltip": {
+   "key": "DRPG.Tips.Actions.deleteTooltip",
+   "en": "Asks first, then removes the project and its progress for good",
+   "pl": "Najpierw pyta, potem na dobre usuwa projekt razem z postępem",
+   "sites": [
+    "projects-ui:1069"
+   ]
+  },
+  "share2Tooltip": {
+   "key": "DRPG.Tips.Actions.share2Tooltip",
+   "en": "This player sees the secret project from now on",
+   "pl": "Od teraz ten gracz widzi tajny projekt",
+   "sites": [
+    "projects-ui:1622"
+   ]
+  },
+  "revokeAccessTooltip": {
+   "key": "DRPG.Tips.Actions.revokeAccessTooltip",
+   "en": "This player stops seeing the secret project; its builder always sees it",
+   "pl": "Ten gracz przestaje widzieć tajny projekt; budujący widzi go zawsze",
+   "sites": [
+    "projects-ui:1623"
+   ]
+  },
+  "useItTooltip": {
+   "key": "DRPG.Tips.Actions.useItTooltip",
+   "en": "Restores what you picked and uses up one of this item, with no way back",
+   "pl": "Przywraca to, co wybrano, i zużywa jedną sztukę przedmiotu, bez możliwości cofnięcia",
+   "sites": [
+    "use-items:648"
+   ]
+  },
+  "clearTheOverflowTooltip": {
+   "key": "DRPG.Tips.Actions.clearTheOverflowTooltip",
+   "en": "Asks first, then sets the spilled Despair back to zero",
+   "pl": "Najpierw pyta, potem zeruje rozlany Despair",
+   "sites": [
+    "overflow:1185"
+   ]
+  },
+  "onPerRuleTooltip": {
+   "key": "DRPG.Tips.Actions.onPerRuleTooltip",
+   "en": "Ticked: this can be drawn when the overflow fires",
+   "pl": "Zaznaczone: to może zostać wylosowane, gdy overflow odpala",
+   "sites": [
+    "overflow:1157"
+   ]
+  },
+  "grantAllGrantNoneTooltip": {
+   "key": "DRPG.Tips.Actions.grantAllGrantNoneTooltip",
+   "en": "Gives the Hope and Despair these rolls would have moved",
+   "pl": "Daje Hope i Despair, które te rzuty by przesunęły",
+   "sites": [
+    "roll-draw:252"
+   ]
+  },
+  "frameStudentTooltip": {
+   "key": "DRPG.Tips.Actions.frameStudentTooltip",
+   "en": "The student the false Remnant points at",
+   "pl": "Uczeń, na którego wskazuje fałszywy Remnant",
+   "sites": [
+    "action-tamper:135"
+   ]
+  },
+  "nothingMatchesRefuseTooltip": {
+   "key": "DRPG.Tips.Actions.nothingMatchesRefuseTooltip",
+   "en": "The player keeps their action and finds nothing",
+   "pl": "Gracz zachowuje akcję i nic nie znajduje",
+   "sites": [
+    "observe:627"
+   ]
+  },
+  "indirectMurderWindowTooltip": {
+   "key": "DRPG.Tips.Actions.indirectMurderWindowTooltip",
+   "en": "Makes the project a murder by trap; saved here, it is always secret",
+   "pl": "Robi z projektu morderstwo przez pułapkę; zapisany tutaj, zawsze jest tajny",
+   "sites": [
+    "projects-ui:996"
+   ]
+  },
+  "doItCostTooltip": {
+   "key": "DRPG.Tips.Actions.doItCostTooltip",
+   "en": {
+    "one": "Spends {n} action and gives you the rest benefits you ticked",
+    "other": "Spends {n} actions and gives you the rest benefits you ticked"
+   },
+   "pl": {
+    "one": "Wydaje {n} akcję i daje ci zaznaczone korzyści odpoczynku",
+    "few": "Wydaje {n} akcje i daje ci zaznaczone korzyści odpoczynku",
+    "many": "Wydaje {n} akcji i daje ci zaznaczone korzyści odpoczynku",
+    "other": "Wydaje {n} akcji i daje ci zaznaczone korzyści odpoczynku"
+   },
+   "sites": [
+    "rest:369"
+   ]
+  }
+ },
+ "Trial": {
+  "moveToChapterToTooltip": {
+   "key": "DRPG.Tips.Trial.moveToChapterToTooltip",
+   "en": "Moves the clock to the next chapter and ends an Investigation still open",
+   "pl": "Przesuwa zegar na następny rozdział i kończy Investigation, jeśli wciąż trwa",
+   "sites": [
+    "chapter:2023"
+   ]
+  },
+  "countThisAsSessionTooltip": {
+   "key": "DRPG.Tips.Trial.countThisAsSessionTooltip",
+   "en": "Raises the session number and ends an Investigation still open",
+   "pl": "Podnosi numer sesji i kończy Investigation, jeśli wciąż trwa",
+   "sites": [
+    "chapter:2028"
+   ]
+  },
+  "finishTheChapterSTooltip": {
+   "key": "DRPG.Tips.Trial.finishTheChapterSTooltip",
+   "en": "Runs the steps that did not finish, in their order",
+   "pl": "Wykonuje kroki, które się nie skończyły, w ich kolejności",
+   "sites": [
+    "chapter:2709"
+   ]
+  },
+  "dropTheRestTooltip": {
+   "key": "DRPG.Tips.Trial.dropTheRestTooltip",
+   "en": "Gives up the unfinished steps for good",
+   "pl": "Porzuca na dobre niedokończone kroki",
+   "sites": [
+    "chapter:2710"
+   ]
+  },
+  "bodyFoundTooltip": {
+   "key": "DRPG.Tips.Trial.bodyFoundTooltip",
+   "en": "Opens the window that calls everyone to the body",
+   "pl": "Otwiera okno, które wzywa wszystkich do ciała",
+   "sites": [
+    "murder-rules:3657"
+   ]
+  },
+  "moveToInvestigationTooltip": {
+   "key": "DRPG.Tips.Trial.moveToInvestigationTooltip",
+   "en": "Switches the phase to Investigation without announcing the body",
+   "pl": "Przełącza fazę na Investigation bez ogłaszania ciała",
+   "sites": [
+    "murder-rules:3659"
+   ]
+  },
+  "issueAutopsyTruthBulletTooltip": {
+   "key": "DRPG.Tips.Trial.issueAutopsyTruthBulletTooltip",
+   "en": "Opens the Autopsy window, with every living student ticked to receive it",
+   "pl": "Otwiera okno Autopsy, w którym każdy żyjący uczeń jest zaznaczony jako odbiorca",
+   "sites": [
+    "murder-rules:3663"
+   ]
+  },
+  "openTheRemnantTableTooltip": {
+   "key": "DRPG.Tips.Trial.openTheRemnantTableTooltip",
+   "en": "Opens the Investigation window, where you place the Remnants this fight left",
+   "pl": "Otwiera okno Investigation, w którym rozmieszczasz Remnanty po tej walce",
+   "sites": [
+    "murder-rules:4055",
+    "murder-rules:4086"
+   ]
+  },
+  "giveTooltip": {
+   "key": "DRPG.Tips.Trial.giveTooltip",
+   "en": "Gives the Hope now. The Monokuma's pool pays at the next time of day.",
+   "pl": "Daje Hope od razu. Pula Monokumy płaci przy następnej porze dnia.",
+   "sites": [
+    "mastermind:507"
+   ]
+  },
+  "amountTooltip": {
+   "key": "DRPG.Tips.Trial.amountTooltip",
+   "en": "How much Despair turns into Hope, one for one",
+   "pl": "Ile Despair zamienia się w Hope, jeden do jednego",
+   "sites": [
+    "mastermind:506"
+   ]
+  },
+  "upTooltip": {
+   "key": "DRPG.Tips.Trial.upTooltip",
+   "en": "Moves this speaker one place earlier",
+   "pl": "Przesuwa tego mówcę o jedno miejsce wcześniej",
+   "sites": [
+    "trial-floor-ui:402"
+   ]
+  },
+  "aClosingArgumentTooltip": {
+   "key": "DRPG.Tips.Trial.aClosingArgumentTooltip",
+   "en": "Gives the floor to the drawn speaker",
+   "pl": "Oddaje głos wylosowanemu mówcy",
+   "sites": [
+    "trial-floor-ui:924"
+   ]
+  },
+  "trialEvidenceLogTooltip": {
+   "key": "DRPG.Tips.Trial.trialEvidenceLogTooltip",
+   "en": "Who presented what in this chapter, and who objected to whom",
+   "pl": "Kto co przedstawił w tym rozdziale i kto komu się sprzeciwił",
+   "sites": [
+    "trial-floor-ui:1109"
+   ]
+  },
+  "findingsNTooltip": {
+   "key": "DRPG.Tips.Trial.findingsNTooltip",
+   "en": "What the class settled in this trial. Every change there is told to the table.",
+   "pl": "To, co klasa ustaliła w tej rozprawie. Każda zmiana tam trafia do stołu.",
+   "sites": [
+    "trial-floor-ui:1110"
+   ]
+  },
+  "pickASpeakerTooltip": {
+   "key": "DRPG.Tips.Trial.pickASpeakerTooltip",
+   "en": "Gives the chosen student the floor for the Closing Argument",
+   "pl": "Oddaje wybranemu uczniowi głos w Closing Argument",
+   "sites": [
+    "trial-floor-ui:992"
+   ]
+  },
+  "zoneAZoneBTooltip": {
+   "key": "DRPG.Tips.Trial.zoneAZoneBTooltip",
+   "en": "The hall region: a token standing in it takes this side in the zone modes",
+   "pl": "Region sali: token, który w nim stoi, wybiera tę stronę w trybach stref",
+   "sites": [
+    "trial-scene:1422"
+   ]
+  },
+  "schoolTrialHallTooltip": {
+   "key": "DRPG.Tips.Trial.schoolTrialHallTooltip",
+   "en": "The scene the table goes back to when the trial ends",
+   "pl": "Scena, na którą stół wraca po zakończeniu Class Trial",
+   "sites": [
+    "trial-scene:1444"
+   ]
+  },
+  "rightAnswerZoneATooltip": {
+   "key": "DRPG.Tips.Trial.rightAnswerZoneATooltip",
+   "en": "The side most of the class must stand on for the next question; anything else ends the set",
+   "pl": "Strona, po której musi stanąć większość klasy, by przejść dalej; inaczej zestaw się kończy",
+   "sites": [
+    "trial-zones-ui:153"
+   ]
+  },
+  "findingWhenSolvedTooltip": {
+   "key": "DRPG.Tips.Trial.findingWhenSolvedTooltip",
+   "en": "Becomes a Finding, told to the table, when the class answers every question right",
+   "pl": "Gdy klasa dobrze odpowie na każde pytanie, trafia do stołu jako Finding",
+   "sites": [
+    "trial-zones-ui:192"
+   ]
+  },
+  "thesisTooltip": {
+   "key": "DRPG.Tips.Trial.thesisTooltip",
+   "en": "Shown under the question while the camps argue",
+   "pl": "Widoczna pod pytaniem, gdy obozy się spierają",
+   "sites": [
+    "trial-zones-ui:251"
+   ]
+  },
+  "setTooltip": {
+   "key": "DRPG.Tips.Trial.setTooltip",
+   "en": "The Logic Dive set to play. The number is how many questions it holds.",
+   "pl": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
+   "sites": [
+    "trial-zones-ui:254"
+   ]
+  },
+  "editTooltip": {
+   "key": "DRPG.Tips.Trial.editTooltip",
+   "en": "Changes the words. The table is told what it was and what it is now.",
+   "pl": "Zmienia treść. Stół dostaje wiadomość, co było i co jest teraz.",
+   "sites": [
+    "trial-zones-ui:363"
+   ]
+  },
+  "deleteTooltip": {
+   "key": "DRPG.Tips.Trial.deleteTooltip",
+   "en": "Takes the Finding off the list at once and tells the table",
+   "pl": "Od razu usuwa Finding z listy i mówi o tym stołowi",
+   "sites": [
+    "trial-zones-ui:364"
+   ]
+  },
+  "monokumaConfirmsTooltip": {
+   "key": "DRPG.Tips.Trial.monokumaConfirmsTooltip",
+   "en": "Tells the table that Monokuma confirms this Finding",
+   "pl": "Ogłasza stołowi, że Monokuma potwierdza ten Finding",
+   "sites": [
+    "trial-zones-ui:365"
+   ]
+  },
+  "saveTooltip": {
+   "key": "DRPG.Tips.Trial.saveTooltip",
+   "en": "Saves the Finding and tells the table",
+   "pl": "Zapisuje Finding i mówi o tym stołowi",
+   "sites": [
+    "trial-zones-ui:373"
+   ]
+  },
+  "saySomethingWithItTooltip": {
+   "key": "DRPG.Tips.Trial.saySomethingWithItTooltip",
+   "en": "Your words go on the card with your Truth Bullet, for the whole table",
+   "pl": "Twoje słowa trafiają na kartę razem z twoim Truth Bulletem, dla całego stołu",
+   "sites": [
+    "trial:1430"
+   ]
+  },
+  "overruleTooltip": {
+   "key": "DRPG.Tips.Trial.overruleTooltip",
+   "en": "Overrules this Objection. Its price stays, and the trial goes back to where it was.",
+   "pl": "Oddala to Objection. Koszt zostaje, a rozprawa wraca tam, gdzie była.",
+   "sites": [
+    "trial:1638"
+   ]
+  },
+  "rePointTooltip": {
+   "key": "DRPG.Tips.Trial.rePointTooltip",
+   "en": "Aims the running Objection at the chosen student instead",
+   "pl": "Kieruje trwające Objection na wybranego ucznia zamiast obecnego",
+   "sites": [
+    "trial:1523"
+   ]
+  },
+  "callItNameTooltip": {
+   "key": "DRPG.Tips.Trial.callItNameTooltip",
+   "en": "The name whoever finds this Remnant will see",
+   "pl": "Nazwa, którą zobaczy ten, kto znajdzie ten Remnant",
+   "sites": [
+    "cleanup:790"
+   ]
+  },
+  "andItLooksLikeTooltip": {
+   "key": "DRPG.Tips.Trial.andItLooksLikeTooltip",
+   "en": "What whoever finds this Remnant will read about it",
+   "pl": "To, co o tym Remnancie przeczyta ten, kto go znajdzie",
+   "sites": [
+    "cleanup:793"
+   ]
+  },
+  "whichRemnantTooltip": {
+   "key": "DRPG.Tips.Trial.whichRemnantTooltip",
+   "en": "Reinforced Remnants are listed, but you cannot wipe them",
+   "pl": "Remnanty Reinforced są na liście, ale nie da się ich wytrzeć",
+   "sites": [
+    "cleanup:3356"
+   ]
+  },
+  "scrubAtItTooltip": {
+   "key": "DRPG.Tips.Trial.scrubAtItTooltip",
+   "en": "Rolls to wipe the chosen Remnant away",
+   "pl": "Rzut na wytarcie wybranego Remnantu",
+   "sites": [
+    "cleanup:3359"
+   ]
+  },
+  "carryItThereTooltip": {
+   "key": "DRPG.Tips.Trial.carryItThereTooltip",
+   "en": "Rolls to drag the body into the room you picked",
+   "pl": "Rzut na przeciągnięcie ciała do wybranego pokoju",
+   "sites": [
+    "cleanup:3453"
+   ]
+  },
+  "killerTooltip": {
+   "key": "DRPG.Tips.Trial.killerTooltip",
+   "en": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not",
+   "pl": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza",
+   "sites": [
+    "murder-ui:220"
+   ]
+  }
+ },
+ "Case": {
+  "sendToEveryoneTooltip": {
+   "key": "DRPG.Tips.Case.sendToEveryoneTooltip",
+   "en": "Posts this summary in the chat for the whole table, once per Class Trial",
+   "pl": "Publikuje to podsumowanie na czacie dla całego stołu, raz na Class Trial",
+   "sites": [
+    "case-summary:89"
+   ]
+  },
+  "kindWhatItReallyTooltip": {
+   "key": "DRPG.Tips.Case.kindWhatItReallyTooltip",
+   "en": "Its true kind. Key shows on a find; the others show after an Analyze, a critical find or the chapter's end",
+   "pl": "Jego prawdziwy rodzaj. Key widać od razu po znalezieniu; inne po Analyze, krytycznym znalezieniu albo na koniec rozdziału",
+   "sites": [
+    "investigation:1055",
+    "investigation:1889"
+   ]
+  },
+  "leftByTooltip": {
+   "key": "DRPG.Tips.Case.leftByTooltip",
+   "en": "Counts as this student's own Remnant for Observe and Tamper",
+   "pl": "Liczy się jako własny Remnant tego ucznia przy Observe i Tamper",
+   "sites": [
+    "investigation:1057",
+    "investigation:1332",
+    "investigation:2207",
+    "remnant-ring:356"
+   ]
+  },
+  "difficultyTooltip": {
+   "key": "DRPG.Tips.Case.difficultyTooltip",
+   "en": "How hard it is to spot with Observe, and its copies to analyze",
+   "pl": "Jak trudno go zauważyć przy Observe i przeanalizować jego kopie",
+   "sites": [
+    "investigation:1059",
+    "investigation:1330",
+    "investigation:1451",
+    "investigation:1896",
+    "investigation:2205",
+    "remnant-ring:349"
+   ]
+  },
+  "nameTooltip": {
+   "key": "DRPG.Tips.Case.nameTooltip",
+   "en": "The name a student sees once they find it",
+   "pl": "Nazwa, którą uczeń zobaczy, gdy go znajdzie",
+   "sites": [
+    "investigation:1334",
+    "investigation:1861",
+    "investigation:2070",
+    "investigation:2209"
+   ]
+  },
+  "playerDescriptionTooltip": {
+   "key": "DRPG.Tips.Case.playerDescriptionTooltip",
+   "en": "What a student reads the moment they find it",
+   "pl": "Co uczeń przeczyta, gdy tylko go znajdzie",
+   "sites": [
+    "investigation:1337",
+    "investigation:1863",
+    "investigation:2072",
+    "investigation:2212"
+   ]
+  },
+  "whatAnalysisRevealsTooltip": {
+   "key": "DRPG.Tips.Case.whatAnalysisRevealsTooltip",
+   "en": "What a student reads only after a successful Analyze",
+   "pl": "Co uczeń przeczyta dopiero po udanym Analyze",
+   "sites": [
+    "investigation:1341",
+    "investigation:1870",
+    "investigation:2079",
+    "investigation:2216"
+   ]
+  },
+  "plannedClueTooltip": {
+   "key": "DRPG.Tips.Case.plannedClueTooltip",
+   "en": "The planned clue it fills, so the plan counts it",
+   "pl": "Zaplanowany trop, który wypełnia, żeby plan go liczył",
+   "sites": [
+    "investigation:1349"
+   ]
+  },
+  "faintTooltip": {
+   "key": "DRPG.Tips.Case.faintTooltip",
+   "en": "A doubtful lead. Clear Faint Remnants can remove it, and a sweep keeps its Truth Bullets.",
+   "pl": "Wątpliwy trop. „Wyczyść Faint Remnants” może go usunąć, a zbieranie Truth Bullets oszczędza jego kopie.",
+   "sites": [
+    "investigation:1898"
+   ]
+  },
+  "tiedToCrimeTooltip": {
+   "key": "DRPG.Tips.Case.tiedToCrimeTooltip",
+   "en": "Whether it belongs to the murder. A tied Remnant survives Clear Faint Remnants.",
+   "pl": "Czy należy do morderstwa. Powiązany Remnant przetrwa „Wyczyść Faint Remnants”.",
+   "sites": [
+    "investigation:1899"
+   ]
+  },
+  "reinforcedTooltip": {
+   "key": "DRPG.Tips.Case.reinforcedTooltip",
+   "en": "Nobody can clean it up with Tamper, and Clear Faint Remnants leaves it",
+   "pl": "Nikt nie usunie go przez Tamper, a „Wyczyść Faint Remnants” go pomija",
+   "sites": [
+    "investigation:1901"
+   ]
+  },
+  "deleteTooltip": {
+   "key": "DRPG.Tips.Case.deleteTooltip",
+   "en": "Deletes this Remnant from the map and the case for good, after asking. A Reinforced one stays",
+   "pl": "Po pytaniu usuwa na dobre ten Remnant z mapy i ze sprawy. Reinforced zostaje",
+   "sites": [
+    "investigation:1905"
+   ]
+  },
+  "chapterFilterTooltip": {
+   "key": "DRPG.Tips.Case.chapterFilterTooltip",
+   "en": "Also picks the chapter the Map view draws",
+   "pl": "Wybiera też rozdział, który rysuje widok Mapa",
+   "sites": [
+    "investigation:1953"
+   ]
+  },
+  "whichRemnantTooltip": {
+   "key": "DRPG.Tips.Case.whichRemnantTooltip",
+   "en": "Links this planned clue to a Key Remnant already on the map",
+   "pl": "Łączy ten zaplanowany trop z Key Remnantem, który już jest na mapie",
+   "sites": [
+    "investigation:2086"
+   ]
+  },
+  "placeTooltip": {
+   "key": "DRPG.Tips.Case.placeTooltip",
+   "en": "Puts this clue's Key Remnant on the map at once, in a room you pick",
+   "pl": "Od razu stawia Key Remnant tego tropu na mapie, w wybranym pokoju",
+   "sites": [
+    "investigation:2090"
+   ]
+  },
+  "mapTableTooltip": {
+   "key": "DRPG.Tips.Case.mapTableTooltip",
+   "en": "Shows the case as a map of evidence and deductions, or as tables",
+   "pl": "Pokazuje sprawę jako mapę dowodów i wniosków albo jako tabele",
+   "sites": [
+    "investigation:2296"
+   ]
+  },
+  "nameNodeTooltip": {
+   "key": "DRPG.Tips.Case.nameNodeTooltip",
+   "en": "Its name on the map, and in the case summary the players get",
+   "pl": "Jego nazwa na mapie i w podsumowaniu sprawy dla graczy",
+   "sites": [
+    "investigation:2453"
+   ]
+  },
+  "noteForTheGmsTooltip": {
+   "key": "DRPG.Tips.Case.noteForTheGmsTooltip",
+   "en": "Your words on this node. A solution's words reach the players in the case summary.",
+   "pl": "Twoje słowa o tym węźle. Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy.",
+   "sites": [
+    "investigation:2454"
+   ]
+  },
+  "trialModeTooltip": {
+   "key": "DRPG.Tips.Case.trialModeTooltip",
+   "en": "In the Class Trial, this node's tile gets a button that starts this mode",
+   "pl": "W Class Trial kafel tego węzła dostaje przycisk, który uruchamia ten tryb",
+   "sites": [
+    "investigation:2455"
+   ]
+  },
+  "roomPlannedIncidentRemnantTooltip": {
+   "key": "DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip",
+   "en": "The room the Incident Remnant goes in when you place it",
+   "pl": "Pokój, w którym stanie Incident Remnant, gdy go postawisz",
+   "sites": [
+    "investigation:2460"
+   ]
+  },
+  "placeOnTheMapTooltip": {
+   "key": "DRPG.Tips.Case.placeOnTheMapTooltip",
+   "en": "Opens New Remnant filled in from this node and tied to the murder",
+   "pl": "Otwiera Nowy Remnant wypełniony z tego węzła i powiązany z morderstwem",
+   "sites": [
+    "investigation:2462"
+   ]
+  },
+  "removeFromTheCaseTooltip": {
+   "key": "DRPG.Tips.Case.removeFromTheCaseTooltip",
+   "en": "Deletes this node from the case. Asks first.",
+   "pl": "Usuwa ten węzeł ze sprawy. Najpierw pyta.",
+   "sites": [
+    "investigation:2463",
+    "investigation:2475"
+   ]
+  },
+  "saveTooltip": {
+   "key": "DRPG.Tips.Case.saveTooltip",
+   "en": "Saves every field you changed, and places a Final Truth Remnant if you picked its room",
+   "pl": "Zapisuje każde zmienione pole i stawia Final Truth Remnant, jeśli wybrano dla niego pokój",
+   "sites": [
+    "investigation:3018"
+   ]
+  },
+  "newRemnantTooltip": {
+   "key": "DRPG.Tips.Case.newRemnantTooltip",
+   "en": "Places a Remnant of your own in a room you pick",
+   "pl": "Stawia własny Remnant w wybranym pokoju",
+   "sites": [
+    "investigation:3026"
+   ]
+  },
+  "issueAutopsyTruthBulletTooltip": {
+   "key": "DRPG.Tips.Case.issueAutopsyTruthBulletTooltip",
+   "en": "Hands the Autopsy Truth Bullet to the students you pick",
+   "pl": "Wydaje Autopsy Truth Bullet wybranym uczniom",
+   "sites": [
+    "investigation:3035"
+   ]
+  },
+  "bodyFoundTooltip": {
+   "key": "DRPG.Tips.Case.bodyFoundTooltip",
+   "en": "Announces to the whole table that a body was found, in a room you pick",
+   "pl": "Ogłasza całemu stołowi znalezienie ciała w wybranym pokoju",
+   "sites": [
+    "investigation:3040"
+   ]
+  },
+  "realizationPreviewTooltip": {
+   "key": "DRPG.Tips.Case.realizationPreviewTooltip",
+   "en": "Shows where the planned Key Remnants would go",
+   "pl": "Pokazuje, gdzie trafią zaplanowane Key Remnanty",
+   "sites": [
+    "investigation:3043"
+   ]
+  },
+  "undoRealizationTooltip": {
+   "key": "DRPG.Tips.Case.undoRealizationTooltip",
+   "en": "Removes what the realization placed, except what a student found or Monokuma revealed. Asks first.",
+   "pl": "Usuwa to, co postawiła realizacja, poza tym, co ktoś znalazł albo co ujawnił Monokuma. Najpierw pyta.",
+   "sites": [
+    "investigation:3049"
+   ]
+  },
+  "nodeOnTheMapTooltip": {
+   "key": "DRPG.Tips.Case.nodeOnTheMapTooltip",
+   "en": "Opens this node's fields to edit it",
+   "pl": "Otwiera pola tego węzła do edycji",
+   "sites": [
+    "case-map:108"
+   ]
+  },
+  "onANodeTooltip": {
+   "key": "DRPG.Tips.Case.onANodeTooltip",
+   "en": "Marks this point as reached in the Class Trial; a ticked one goes into the players' case summary",
+   "pl": "Oznacza ten punkt jako osiągnięty w Class Trial; zaznaczony trafi do podsumowania sprawy dla graczy",
+   "sites": [
+    "case-map:172"
+   ]
+  },
+  "notTiedToTheTooltip": {
+   "key": "DRPG.Tips.Case.notTiedToTheTooltip",
+   "en": "Shows or hides these Remnants on the map",
+   "pl": "Pokazuje albo chowa te Remnanty na mapie",
+   "sites": [
+    "case-map:183"
+   ]
+  },
+  "moveUpMoveDownTooltip": {
+   "key": "DRPG.Tips.Case.moveUpMoveDownTooltip",
+   "en": "Moves this node one place in its column; the order becomes By hand",
+   "pl": "Przesuwa ten węzeł o jedno miejsce w kolumnie; kolejność zmienia się na Ręcznie",
+   "sites": [
+    "case-map:236"
+   ]
+  },
+  "checkConsistencyTooltip": {
+   "key": "DRPG.Tips.Case.checkConsistencyTooltip",
+   "en": "Lists what in the case does not hold together",
+   "pl": "Wypisuje, co w sprawie się nie zgadza",
+   "sites": [
+    "case-map:263"
+   ]
+  },
+  "addDeductionCounterSolutionTooltip": {
+   "key": "DRPG.Tips.Case.addDeductionCounterSolutionTooltip",
+   "en": "Adds it to the case at once, with no need to Save",
+   "pl": "Dodaje to do sprawy od razu, bez klikania Zapisz",
+   "sites": [
+    "case-map:332"
+   ]
+  },
+  "placeOnTheMap2Tooltip": {
+   "key": "DRPG.Tips.Case.placeOnTheMap2Tooltip",
+   "en": "Opens New Remnant with this Remnant's room, name and words filled in",
+   "pl": "Otwiera Nowy Remnant z wpisanym pokojem, nazwą i opisem",
+   "sites": [
+    "case-map:492"
+   ]
+  },
+  "showTooltip": {
+   "key": "DRPG.Tips.Case.showTooltip",
+   "en": "Opens the Investigation's Map on this Remnant",
+   "pl": "Otwiera Mapę w Investigation na tym Remnancie",
+   "sites": [
+    "case-map:493"
+   ]
+  },
+  "finderTextTooltip": {
+   "key": "DRPG.Tips.Case.finderTextTooltip",
+   "en": "What a student reads when they find this Remnant; New Remnant opens with it",
+   "pl": "To, co przeczyta uczeń, który znajdzie ten Remnant; z tym tekstem otworzy się Nowy Remnant",
+   "sites": [
+    "investigation:2454"
+   ],
+   "c7": true
+  }
+ },
+ "Gm": {
+  "minusTooltip": {
+   "key": "DRPG.Tips.Gm.minusTooltip",
+   "en": "Takes one Despair from this pool",
+   "pl": "Zabiera jeden Despair z tej puli",
+   "sites": [
+    "despair:1230"
+   ]
+  },
+  "plusTooltip": {
+   "key": "DRPG.Tips.Gm.plusTooltip",
+   "en": "Adds one Despair to this pool",
+   "pl": "Dodaje jeden Despair do tej puli",
+   "sites": [
+    "despair:1232"
+   ]
+  },
+  "whichStudentTooltip": {
+   "key": "DRPG.Tips.Gm.whichStudentTooltip",
+   "en": "Whose items are listed below",
+   "pl": "Czyje przedmioty są wypisane niżej",
+   "sites": [
+    "gm-items:231"
+   ]
+  },
+  "whichTableTooltip": {
+   "key": "DRPG.Tips.Gm.whichTableTooltip",
+   "en": "The table to pick the item from; the item it lists sets the category and tier below",
+   "pl": "Tabela, z której wybierasz przedmiot; to on ustala kategorię i Tier poniżej",
+   "sites": [
+    "gm-items:496"
+   ]
+  },
+  "categoryTooltip": {
+   "key": "DRPG.Tips.Gm.categoryTooltip",
+   "en": "What kind of item it is, which decides how the student can use it",
+   "pl": "Jakiego rodzaju to przedmiot, co decyduje, jak uczeń może go użyć",
+   "sites": [
+    "gm-items:525"
+   ]
+  },
+  "tierTooltip": {
+   "key": "DRPG.Tips.Gm.tierTooltip",
+   "en": "A tool or weapon: how many bad rolls it takes; Tier 0 goes after its first roll. A usable: how much it restores",
+   "pl": "Narzędzie lub broń: ile złych rzutów wytrzyma; Tier 0 znika po pierwszym rzucie. Przedmiot użytkowy: ile przywraca",
+   "sites": [
+    "gm-items:528"
+   ]
+  },
+  "whatThePlayerIsTooltip": {
+   "key": "DRPG.Tips.Gm.whatThePlayerIsTooltip",
+   "en": "Whether the holder sees its real type or has to analyze it first",
+   "pl": "Czy posiadacz widzi prawdziwy typ, czy musi go najpierw przeanalizować",
+   "sites": [
+    "gm-items:987"
+   ]
+  },
+  "whichRemnantTooltip": {
+   "key": "DRPG.Tips.Gm.whichRemnantTooltip",
+   "en": "The Remnant on the map this Truth Bullet copies",
+   "pl": "Remnant na mapie, z którego ten Truth Bullet powstaje jako kopia",
+   "sites": [
+    "gm-items:1003"
+   ]
+  },
+  "whatItReallyIsTooltip": {
+   "key": "DRPG.Tips.Gm.whatItReallyIsTooltip",
+   "en": "Its true type, which a passed Analyze or the chapter's end reveals",
+   "pl": "Jego prawdziwy typ, który ujawnia udane Analyze albo koniec rozdziału",
+   "sites": [
+    "gm-items:1022"
+   ]
+  },
+  "howHardTheOriginalTooltip": {
+   "key": "DRPG.Tips.Gm.howHardTheOriginalTooltip",
+   "en": "Sets how hard this Truth Bullet is to analyze",
+   "pl": "Ustala, jak trudno przeanalizować ten Truth Bullet",
+   "sites": [
+    "gm-items:1024"
+   ]
+  },
+  "tellThePlayerTooltip": {
+   "key": "DRPG.Tips.Gm.tellThePlayerTooltip",
+   "en": "Untick it to take the item without telling the player",
+   "pl": "Odznacz, żeby zabrać przedmiot bez informowania gracza",
+   "sites": [
+    "gm-items:1498"
+   ]
+  },
+  "giveAnItemTooltip": {
+   "key": "DRPG.Tips.Gm.giveAnItemTooltip",
+   "en": "Gives it at once. With Tell the player ticked, they get a message.",
+   "pl": "Daje przedmiot od razu. Z zaznaczonym „Powiedz graczowi” gracz dostaje wiadomość.",
+   "sites": [
+    "gm-items:866"
+   ]
+  },
+  "giveATruthBulletTooltip": {
+   "key": "DRPG.Tips.Gm.giveATruthBulletTooltip",
+   "en": "Gives it at once, unless this student already holds a copy of that Remnant",
+   "pl": "Daje go od razu, chyba że ten uczeń ma już kopię tego Remnantu",
+   "sites": [
+    "gm-items:1284"
+   ]
+  },
+  "poolNameTooltip": {
+   "key": "DRPG.Tips.Gm.poolNameTooltip",
+   "en": "The name this Despair pool shows at the table",
+   "pl": "Nazwa, pod którą ta pula Despair widnieje przy stole",
+   "sites": [
+    "gm-team-dialog:430"
+   ]
+  },
+  "revokeThePoolFromTooltip": {
+   "key": "DRPG.Tips.Gm.revokeThePoolFromTooltip",
+   "en": "The Assistant GM who loses the pool, and the Despair in it",
+   "pl": "Asystent GM-a, który traci pulę razem z jej Despair",
+   "sites": [
+    "gm-team-dialog:444"
+   ]
+  },
+  "despairPoolTooltip": {
+   "key": "DRPG.Tips.Gm.despairPoolTooltip",
+   "en": "The GM pool this Monokuma spends Despair from",
+   "pl": "Pula GM-a, z której ten Monokuma wydaje Despair",
+   "sites": [
+    "gm-team-dialog:474"
+   ]
+  },
+  "tabsPoolsMonokumasStudentsTooltip": {
+   "key": "DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip",
+   "en": "Names each GM's Despair pool, and grants or revokes an Assistant GM's",
+   "pl": "Nazywa pulę Despair każdego GM-a i przyznaje albo odbiera ją Asystentowi GM-a",
+   "sites": [
+    "gm-team-dialog:524"
+   ]
+  },
+  "undoKeepTooltip": {
+   "key": "DRPG.Tips.Gm.undoKeepTooltip",
+   "en": "Puts back what the player changed by hand, unless it changed again since",
+   "pl": "Przywraca to, co gracz zmienił ręcznie, chyba że od tamtej pory znów się zmieniło",
+   "sites": [
+    "sheet-audit:2804"
+   ]
+  },
+  "showAgainTooltip": {
+   "key": "DRPG.Tips.Gm.showAgainTooltip",
+   "en": "Shows this silenced warning again: {warning}",
+   "pl": "Znowu pokazuje to wyciszone ostrzeżenie: {warning}",
+   "sites": [
+    "diagnostics:2213"
+   ]
+  },
+  "openTooltip": {
+   "key": "DRPG.Tips.Gm.openTooltip",
+   "en": "Opens the Season checklist",
+   "pl": "Otwiera Listę kontrolną sezonu",
+   "sites": [
+    "gm-panel:1030"
+   ]
+  },
+  "copyToClipboardTooltip": {
+   "key": "DRPG.Tips.Gm.copyToClipboardTooltip",
+   "en": "Copies the whole log, in more detail than shown here",
+   "pl": "Kopiuje cały dziennik, dokładniej niż widać tutaj",
+   "sites": [
+    "gm-panel:760"
+   ]
+  },
+  "clearTheLogTooltip": {
+   "key": "DRPG.Tips.Gm.clearTheLogTooltip",
+   "en": "Empties this browser's log for good",
+   "pl": "Opróżnia na dobre dziennik tej przeglądarki",
+   "sites": [
+    "gm-panel:761"
+   ]
+  },
+  "doNotMentionFoundTooltip": {
+   "key": "DRPG.Tips.Gm.doNotMentionFoundTooltip",
+   "en": "The Diagnostics report can bring the warning back",
+   "pl": "Ostrzeżenie przywrócisz z raportu diagnostycznego",
+   "sites": [
+    "requirements:398"
+   ]
+  },
+  "monokumaPoolTooltip": {
+   "key": "DRPG.Tips.Gm.monokumaPoolTooltip",
+   "en": "The Monokuma whose Despair pays. The number is what that pool can spend now",
+   "pl": "Monokuma, którego Despair płaci. Liczba mówi, ile ta pula może teraz wydać",
+   "sites": [
+    "gm-students:95"
+   ]
+  },
+  "giveTooltip": {
+   "key": "DRPG.Tips.Gm.giveTooltip",
+   "en": "Gives the Hope now. The Monokuma's pool pays at the next time of day.",
+   "pl": "Daje Hope od razu. Pula Monokumy płaci przy następnej porze dnia.",
+   "sites": [
+    "gm-students:97"
+   ]
+  },
+  "stateTooltip": {
+   "key": "DRPG.Tips.Gm.stateTooltip",
+   "en": "Corrects the state on Apply with no announcement; a death the GMs held becomes known, and its body's Truth Bullets go",
+   "pl": "Poprawia stan przy Zastosuj bez ogłoszenia; śmierć ukrywana przez GM-ów staje się znana, a Truth Bullety z ciała przepadają",
+   "sites": [
+    "gm-students:125"
+   ]
+  },
+  "aCharacterDiesTooltip": {
+   "key": "DRPG.Tips.Gm.aCharacterDiesTooltip",
+   "en": "Opens the full death procedure for this student",
+   "pl": "Otwiera pełną procedurę śmierci tego ucznia",
+   "sites": [
+    "gm-students:131"
+   ]
+  },
+  "inviteAsAMonocubTooltip": {
+   "key": "DRPG.Tips.Gm.inviteAsAMonocubTooltip",
+   "en": "Makes this dead student a Monocub now: no Hope, with Health and Sanity full",
+   "pl": "Od razu robi z tego martwego ucznia Monocuba: bez Hope, z pełnym Health i Sanity",
+   "sites": [
+    "gm-students:134"
+   ]
+  },
+  "roleTooltip": {
+   "key": "DRPG.Tips.Gm.roleTooltip",
+   "en": "Changes the character's role without waiting for Apply; a player's character asks first",
+   "pl": "Zmienia rolę postaci bez czekania na Zastosuj; przy postaci gracza najpierw pyta",
+   "sites": [
+    "gm-students:173"
+   ]
+  },
+  "amountTooltip": {
+   "key": "DRPG.Tips.Gm.amountTooltip",
+   "en": "How much Despair turns into Hope, one for one",
+   "pl": "Ile Despair zamienia się w Hope, jeden do jednego",
+   "sites": [
+    "gm-students:96"
+   ]
+  },
+  "campaignNameTooltip": {
+   "key": "DRPG.Tips.Gm.campaignNameTooltip",
+   "en": "Shown to everyone on the HUD; left empty, the world's name is used",
+   "pl": "Wszyscy widzą ją w HUD; gdy pole jest puste, widać nazwę świata",
+   "sites": [
+    "gm-campaign:166"
+   ]
+  },
+  "phaseTooltip": {
+   "key": "DRPG.Tips.Gm.phaseTooltip",
+   "en": "Moving it to Class Trial opens the trial; you are asked first",
+   "pl": "Zmiana na Class Trial otwiera rozprawę; najpierw padnie pytanie",
+   "sites": [
+    "gm-campaign:171"
+   ]
+  },
+  "chapterTooltip": {
+   "key": "DRPG.Tips.Gm.chapterTooltip",
+   "en": "Corrects the number only; End the chapter below ends a chapter",
+   "pl": "Poprawia tylko numer; rozdział kończy przycisk Zakończ rozdział niżej",
+   "sites": [
+    "gm-campaign:170"
+   ]
+  },
+  "keepTheMastermindTooltip": {
+   "key": "DRPG.Tips.Gm.keepTheMastermindTooltip",
+   "en": "The picked student stays the Mastermind, and their player's door to the lair opens again",
+   "pl": "Wybrany uczeń zostaje Mastermindem, a jego gracz znów ma dostęp do kryjówki",
+   "sites": [
+    "gm-stores:2363"
+   ]
+  },
+  "restoreFromAFileTooltip": {
+   "key": "DRPG.Tips.Gm.restoreFromAFileTooltip",
+   "en": "Opens a backup file and shows what it brings back before anything changes",
+   "pl": "Otwiera plik kopii i pokazuje, co przywróci, zanim cokolwiek się zmieni",
+   "sites": [
+    "gm-stores:2366",
+    "gm-stores:2462"
+   ]
+  },
+  "clearTheMastermindTooltip": {
+   "key": "DRPG.Tips.Gm.clearTheMastermindTooltip",
+   "en": "Nobody is the Mastermind until you pick one again",
+   "pl": "Nikt nie jest Mastermindem, dopóki nie wybierzesz go ponownie",
+   "sites": [
+    "gm-stores:2371"
+   ]
+  },
+  "backUpTooltip": {
+   "key": "DRPG.Tips.Gm.backUpTooltip",
+   "en": "Saves every GM secret of this world to a file no player should see",
+   "pl": "Zapisuje każdy sekret GM-a w tym świecie do pliku, którego żaden gracz nie powinien zobaczyć",
+   "sites": [
+    "gm-stores:2461"
+   ]
+  },
+  "enterTooltip": {
+   "key": "DRPG.Tips.Gm.enterTooltip",
+   "en": "Records the cast; nothing is written without a killer and a victim",
+   "pl": "Zapisuje obsadę; bez zabójcy i ofiary nic nie zostaje zapisane",
+   "sites": [
+    "gm-stores:2496"
+   ]
+  }
+ },
+ "Setup": {
+  "roomPictureThumbnailTooltip": {
+   "key": "DRPG.Tips.Setup.roomPictureThumbnailTooltip",
+   "en": "Opens this room's picture at full size",
+   "pl": "Otwiera zdjęcie tego pokoju w pełnym rozmiarze",
+   "sites": [
+    "room-tile:329"
+   ]
+  },
+  "resetTheSeasonTooltip": {
+   "key": "DRPG.Tips.Setup.resetTheSeasonTooltip",
+   "en": "Opens the season reset, which asks before it clears anything. Unsaved changes in this window are lost",
+   "pl": "Otwiera reset sezonu, który pyta, zanim cokolwiek wyczyści. Niezapisane zmiany w tym oknie przepadają",
+   "sites": [
+    "season-setup:1177"
+   ]
+  },
+  "setThemToObserverTooltip": {
+   "key": "DRPG.Tips.Setup.setThemToObserverTooltip",
+   "en": "Every player gets Observer on these sheets: they can open them and cannot edit them. Each sheet's own player keeps it",
+   "pl": "Obniża uprawnienia każdego gracza do tych arkuszy do Obserwatora: może je otworzyć, ale nie edytować. Właściciel arkusza zachowuje swoje prawa",
+   "sites": [
+    "anonymity:821"
+   ]
+  },
+  "onALootedItemTooltip": {
+   "key": "DRPG.Tips.Setup.onALootedItemTooltip",
+   "en": "Ticked items are taken together with one Hand roll, and a Shadow roll if someone else is here",
+   "pl": "Zaznaczone przedmioty bierzesz razem jednym rzutem na Hand, a gdy ktoś jeszcze tu jest, także na Shadow",
+   "sites": [
+    "anonymity:310"
+   ]
+  },
+  "chatNoteTabsTooltip": {
+   "key": "DRPG.Tips.Setup.chatNoteTabsTooltip",
+   "en": "A note for the GMs, read before every session",
+   "pl": "Notatka dla GM-ów, czytana przed każdą sesją",
+   "sites": [
+    "messenger-app:269"
+   ]
+  },
+  "useTheTemplateTooltip": {
+   "key": "DRPG.Tips.Setup.useTheTemplateTooltip",
+   "en": "Puts the GMs' questions in the box, in place of what is typed there",
+   "pl": "Wpisuje do pola pytania od GM-ów w miejsce tego, co już tam jest",
+   "sites": [
+    "messenger-app:319"
+   ]
+  },
+  "sectionTooltip": {
+   "key": "DRPG.Tips.Setup.sectionTooltip",
+   "en": "How many settings this section holds",
+   "pl": "Liczba ustawień w tej sekcji",
+   "sites": [
+    "settings-window:238"
+   ]
+  },
+  "goThroughTooltip": {
+   "key": "DRPG.Tips.Setup.goThroughTooltip",
+   "en": "From beside one end, takes you to the other. It costs what a door costs.",
+   "pl": "Gdy stoisz przy jednym końcu, przenosi cię na drugi. Kosztuje tyle, co przejście przez drzwi.",
+   "sites": [
+    "sheet:2936"
+   ]
+  },
+  "showThePassageTooltip": {
+   "key": "DRPG.Tips.Setup.showThePassageTooltip",
+   "en": "Lets a student in the same room use the passage too. It costs no action; the GMs are told",
+   "pl": "Pozwala uczniowi w tym samym pokoju też korzystać z tajnego przejścia. Nie kosztuje akcji; GM-owie się o tym dowiedzą",
+   "sites": [
+    "sheet:2937"
+   ]
+  },
+  "iPickThePlayerTooltip": {
+   "key": "DRPG.Tips.Setup.iPickThePlayerTooltip",
+   "en": "Who chooses this student's improvements: you, here, or the player on their sheet",
+   "pl": "Kto wybiera ulepszenia tego ucznia: ty tutaj albo gracz na swoim arkuszu postaci",
+   "sites": [
+    "level-up:1208"
+   ]
+  },
+  "applyTooltip": {
+   "key": "DRPG.Tips.Setup.applyTooltip",
+   "en": "Spends the Level Up and writes the chosen improvements onto the sheet",
+   "pl": "Wykorzystuje Level Up i zapisuje wybrane ulepszenia na arkuszu postaci",
+   "sites": [
+    "level-up:597"
+   ]
+  },
+  "handThemOutTooltip": {
+   "key": "DRPG.Tips.Setup.handThemOutTooltip",
+   "en": "Gives each Level Up as its row says. Yours open here, one after another.",
+   "pl": "Przyznaje każdy Level Up tak, jak mówi jego wiersz. Twoje otworzą się tutaj, jeden po drugim.",
+   "sites": [
+    "level-up:1228"
+   ]
+  },
+  "allThePlayersPickTooltip": {
+   "key": "DRPG.Tips.Setup.allThePlayersPickTooltip",
+   "en": "Hands every Level Up to its player, whatever the rows say. One with no player opens here",
+   "pl": "Oddaje każdy Level Up graczowi, niezależnie od wierszy. Level Up ucznia bez gracza otworzy się tutaj",
+   "sites": [
+    "level-up:1229"
+   ]
+  },
+  "aStudentSNameTooltip": {
+   "key": "DRPG.Tips.Setup.aStudentSNameTooltip",
+   "en": "Gives this student the passage now; their player is told",
+   "pl": "Od razu daje temu uczniowi tajne przejście; jego gracz się o tym dowie",
+   "sites": [
+    "passages-tab:100"
+   ]
+  },
+  "aStudentWhoKnowsTooltip": {
+   "key": "DRPG.Tips.Setup.aStudentWhoKnowsTooltip",
+   "en": "Takes the passage away from this student. If they are in a room it joins, asks: now or when they leave",
+   "pl": "Odbiera temu uczniowi tajne przejście. Jeśli jest w pokoju, który ono łączy, pyta: teraz czy przy wyjściu",
+   "sites": [
+    "passages-tab:132"
+   ]
+  },
+  "aStudentKnownAtTooltip": {
+   "key": "DRPG.Tips.Setup.aStudentKnownAtTooltip",
+   "en": "Takes this student off the season-start list. What they know now stays.",
+   "pl": "Zdejmuje tego ucznia z listy startu sezonu. To, co zna teraz, zostaje.",
+   "sites": [
+    "passages-tab:135"
+   ]
+  },
+  "playlistForAStateTooltip": {
+   "key": "DRPG.Tips.Setup.playlistForAStateTooltip",
+   "en": "The playlist that plays in this state. Saves at once.",
+   "pl": "Playlista, która gra w tym stanie. Zapisuje się od razu.",
+   "sites": [
+    "sound-panel:100"
+   ]
+  },
+  "playTooltip": {
+   "key": "DRPG.Tips.Setup.playTooltip",
+   "en": "Plays the chosen track on repeat for the whole table, until Reset music or a state with its own music",
+   "pl": "Odtwarza wybrany utwór w pętli dla całego stołu, aż do kliknięcia Resetuj muzykę albo do stanu z własną muzyką",
+   "sites": [
+    "sound-panel:177"
+   ]
+  },
+  "closeXTooltip": {
+   "key": "DRPG.Tips.Setup.closeXTooltip",
+   "en": "Dismisses this notice; the notice history keeps it",
+   "pl": "Zamyka to powiadomienie; zostaje w historii powiadomień",
+   "sites": [
+    "popup:924"
+   ]
+  },
+  "nameInATableTooltip": {
+   "key": "DRPG.Tips.Setup.nameInATableTooltip",
+   "en": "Saved as soon as you leave the field",
+   "pl": "Zapisuje się, gdy tylko opuścisz pole",
+   "sites": [
+    "tables-editor:338",
+    "tables-editor:343"
+   ]
+  },
+  "categoryTooltip": {
+   "key": "DRPG.Tips.Setup.categoryTooltip",
+   "en": "With the tier, decides which table the item joins. The icon changes with it unless you pick a picture",
+   "pl": "Razem z Tier wybiera tabelę, do której trafi przedmiot. Ikona zmienia się z kategorią, dopóki nie wybierzesz obrazka",
+   "sites": [
+    "tables-editor:963"
+   ]
+  },
+  "deleteTableTooltip": {
+   "key": "DRPG.Tips.Setup.deleteTableTooltip",
+   "en": "Deletes the shown table and every item in it, after asking",
+   "pl": "Najpierw pyta, potem usuwa widoczną tabelę razem ze wszystkimi jej przedmiotami",
+   "sites": [
+    "tables-editor:1053"
+   ]
+  },
+  "tabsTierPoolsRoomTooltip": {
+   "key": "DRPG.Tips.Setup.tabsTierPoolsRoomTooltip",
+   "en": "One table for each category and tier. A Search draws from them when its room's own table has nothing to give",
+   "pl": "Po jednej tabeli na kategorię i Tier. Search losuje z nich, gdy tabela pokoju nie ma nic do dania",
+   "sites": [
+    "tables-editor:1653"
+   ]
+  },
+  "addAnItemTooltip": {
+   "key": "DRPG.Tips.Setup.addAnItemTooltip",
+   "en": "Adds it to its tier table and to every room table ticked",
+   "pl": "Dodaje go do jego tabeli Tier i do każdej zaznaczonej tabeli pokoju",
+   "sites": [
+    "tables-editor:1664"
+   ]
+  },
+  "createTableTooltip": {
+   "key": "DRPG.Tips.Setup.createTableTooltip",
+   "en": "Creates an empty table with the name typed on this tab",
+   "pl": "Tworzy pustą tabelę o nazwie wpisanej na tej zakładce",
+   "sites": [
+    "tables-editor:1668"
+   ]
+  },
+  "installReinstallTooltip": {
+   "key": "DRPG.Tips.Setup.installReinstallTooltip",
+   "en": "Builds the default tables; asks before rebuilding yours",
+   "pl": "Tworzy domyślne tabele; pyta, zanim przebuduje twoje",
+   "sites": [
+    "tables-editor:1679"
+   ]
+  },
+  "resetMusicTooltip": {
+   "key": "DRPG.Tips.Setup.resetMusicTooltip",
+   "en": "Stops the chosen track and brings back the music it interrupted",
+   "pl": "Zatrzymuje wybrany utwór i przywraca muzykę, którą przerwał",
+   "sites": [
+    "sound-panel:177"
+   ]
+  },
+  "aStudentSNameStartTooltip": {
+   "key": "DRPG.Tips.Setup.aStudentSNameStartTooltip",
+   "en": "Known again after each season reset, not now",
+   "pl": "Zna je znowu po każdym resecie sezonu, ale nie teraz",
+   "sites": [
+    "passages-tab:100"
+   ]
+  }
+ },
+ "More": {
+  "volumeTooltip": {
+   "key": "DRPG.Tips.More.volumeTooltip",
+   "en": "How loud this person is for you alone, and unmutes them; the others hear them as before",
+   "pl": "Jak głośno słyszysz tę osobę, tylko u siebie, i wyłącza jej wyciszenie; inni słyszą ją jak wcześniej",
+   "sites": [
+    "voice-tile:1353"
+   ]
+  },
+  "changeTheKeyTooltip": {
+   "key": "DRPG.Tips.More.changeTheKeyTooltip",
+   "en": "Opens Foundry's controls, where you set the push-to-talk key",
+   "pl": "Otwiera sterowanie Foundry, gdzie ustawiasz klawisz mówienia",
+   "sites": [
+    "voice-panel:140"
+   ]
+  }
+ }
+}

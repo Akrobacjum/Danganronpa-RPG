@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.111, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.112, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -80,6 +80,8 @@ The roll window is locked for players: dice, statistic, advantage, experiences a
 
 The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls or Level Ups, and nobody counts you anywhere. Other players do not see your token. Your microphone is off; **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and **Go back to your room** brings you back. If the GM turned the voice tile off, that button is not there. Drag your token to move, at no cost; whether walls stop you has not been tried at a table yet. You see every room the class has found, everybody's token and every project, secret ones too. At the day's end you see only the end of the day and the school's mood. You have no chat.
 
+When your character dies, you watch the same way, with a Spectator of your own: it has your character's name and pictures and stands where your body lies. Drag it anywhere, at no cost; other players do not see it. You still see only what a dead student sees. If you become a Monocub, its token becomes your Monocub. At your death the glass on your screen goes grey, batch by batch, with the Death fade sound; it stays grey while you are dead and lights up again if you become a Monocub or are brought back. Only your screen shows it.
+
 
 ---
 
@@ -115,7 +117,7 @@ A darkened time of day (see the overflow, chapter 6) can pull the crossings down
 
 ### Full-screen moments
 
-A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off.
+A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off. If you join or reload within 10 minutes of one, it plays for you once.
 
 - **The Class Trial's entry.** The screen closes on **CLASS TRIAL** and opens onto the trial.
 - **The Class Trial's end.** The screen closes on **TRIAL ADJOURNED** and opens onto the school.
@@ -138,10 +140,10 @@ The school is drawn as rooms. Everything - movement, Search, Listen, who can hea
 | First crossing into a connected room this time of day | your **Free Move** |
 | Every further crossing | **1 action** each |
 | Up or down the stairs into another room | a crossing like any other; changing floor inside a stairwell is moving inside your own room |
-| A crossing bought with the Sprint Hope Call | free |
-| A crossing with no Free Move and no Sprint left, while you hold a Burst | your **Burst**, before an action |
+| A crossing while you hold a free crossing (bought with the Sprint Hope Call, run with a Dash, or given by a Facilities room action) | that free crossing |
+| A crossing with no Free Move and no free crossing left, while you hold a Burst | your **Burst**, before an action |
 
-Drag your token; the cost is applied when you arrive. The Move briefing says what the next room takes - the Free Move, a Sprint, your Burst or an action. A crossing that you cannot pay for is refused and the token goes back.
+Drag your token; the cost is applied when you arrive. The Move briefing says what the next room takes - the Free Move, a free crossing, your Burst or an action. A crossing that you cannot pay for is refused and the token goes back.
 
 You are turned back by:
 
@@ -227,7 +229,7 @@ What you can ask for:
 
 What turns up is what the room holds: a room the GM has stocked answers first, so what you find can be another kind of thing than you asked for, or of a lower tier - never of a higher one than your roll earned.
 
-Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one with one more step of disadvantage on your roll (one of your bonus dice set aside, or one more penalty die). The window does not show that step, because it would tell you a hidden stash is here before you had spent anything: it is taken once the dice have fallen, and your card says what it did.
+Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. A Search draws from the room alone: it never reaches into somebody's stash, open or hidden.
 
 > [!WARNING]
 > Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a trace that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
@@ -374,9 +376,9 @@ Run: a Leg roll gives free crossings until the time of day ends, spent like a Fr
 | Roll | Free crossings |
 |---|---|
 | under 12 | none |
-| 12+ | 1 |
-| 18+ | 2 |
-| critical | 3 |
+| 12+ | 2 |
+| 18+ | 3 |
+| critical | 4 |
 
 The GM's browser throws the dice and grants the crossings; with no GM connected nothing is paid and nothing happens.
 
@@ -447,7 +449,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. A rolled-again roll counts what the GM counted the first time. A Reroll of a Find Passage or a Find Stash searches again with the new dice (in the room its roll was thrown in, and only while you still stand there - else the Reroll is given back whole): going up, it finds once; going down, a stash it opened stays open, and a passage only that roll found is taken back. |
 | **Resolve** | 2 | For one roll, pick any statistic yourself: nobody is asked, even where the action lists several. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
-| **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
+| **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. Breath is greyed in it: it would give back less Hope than Relief costs. |
 | **Loaded Die** | 6 | On the next roll one of the two dice, at random, is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. When it is the Despair die that is set, the roll comes out with Despair. If the die does not hold - a dice setting at the table that ignores it - you get the Call back for your next roll, and a whisper says so. |
 | **Bribe** | 1 | Offer a Monocub 1 Hope for a favour you two agree. You pay only if the Monocub accepts, into its purse; an offer nobody answered lapses at the next time of day. Nobody else is told. |
 
@@ -539,8 +541,8 @@ An item can also serve as another category (a screwdriver under Tools that is al
 - One student, one bedroom. The **door is locked** to everyone but the owner; anybody else needs a **key**. You hold your own key and can give a copy to somebody - the owner keeps theirs. A key opens its door whoever holds it: one Palmed off somebody, lifted from a stash or taken from a body works like one that was given. Only a key in your hand opens the door: one in your stash opens nothing. When the GM gives a bedroom to somebody else, its old owner's keys go, and so does every copy somebody else was given; you are told if you lose one. In an Investigation the bedroom of someone whose death is known stands open.
 - Your bedroom comes with a **stash**. A stash holds **3** things, and you have to be standing in the room to put things in or take them out. Truth Bullets cannot be stashed.
 - An **open** stash is a drawer: anyone standing in the room can go through it for free and take one thing from it, once each time of day. Your bedroom's stash is open unless a hiding place has been built for it (a project the GM approves).
-- A **hidden** stash has to be found first: a Search in the room, with one more step of disadvantage (your card tells you after the roll), or Analyze's *Find Stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
-- Somebody helping themselves from a stash of yours is not announced. Only a thief whose Search came up with Despair leaves it disturbed enough to notice: you are told somebody has been in it - never who.
+- A **hidden** stash has to be found first, and only Analyze's *Find Stash* at 16+ finds it; that opens it to you for good, and from then on you go through it as you would an open one. If the GM removes a stash, whoever had found it forgets it.
+- Somebody helping themselves from a stash of yours is not announced when it happens. The next time you enter that room, you are told somebody has been in your stash - never who, nor when. You are told once however many times it happened, only when something was taken, and never for what was taken while you stood in the room.
 - The GM may give you a stash in another room. It does not come with a key to that room.
 - Your hands were full when something reached you - found, stolen, lifted out of a stash or taken off a body? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused, and so is something slipped into full pockets: it stays with whoever tried, and you are told nothing. From a stack, one piece moves at a time.
 
@@ -657,7 +659,7 @@ A death by one's own hand uses the killer's roll and skips straight to the clean
 
 ### If you are the victim
 
-The incident is turn-based. **You go first**. Alone with a trap, you roll every crisis action with advantage, and every turn is yours: nobody acts against you, and each turn you end comes back to you. Every other tile on your sheet goes dark; **Fight back** opens your crisis actions, and is dimmed while it is not your turn. Pick an action and it unfolds what it costs, what it rolls and who picks the statistic, and what a miss does; **Roll it** sends it on - to the GM's pick first, where it lists several statistics. Hope Calls still work.
+The incident is turn-based. **You go first**. Alone with a trap, you roll every crisis action with advantage, and every turn is yours: nobody acts against you, and each turn you end comes back to you. Every other tile on your sheet goes dark; **Fight back** opens your crisis actions, and is dimmed while it is not your turn. Pick an action and it unfolds what it costs, what it rolls and who picks the statistic, and what a miss does; **Roll** sends it on - to the GM's pick first, where it lists several statistics. Hope Calls still work.
 
 > [!WARNING]
 > From your second turn on, every turn costs you: **1 Sanity** in a direct murder, **2** when you are alone with a trap - Sanity until it runs out, then Health.
@@ -665,7 +667,7 @@ The incident is turn-based. **You go first**. Alone with a trap, you roll every 
 | Crisis action | Roll | What it does |
 |---|---|---|
 | **Leave a Clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Body / Hand / Leg, and Hope leaves a Reinforced trace, a critical two. |
-| **Secure a Trace** | Hand / Leg / Shadow, 15 | Take something off the killer and turn it into a trace tied to their identity. Same shape as above. |
+| **Secure a Trace** | Hand / Leg / Shadow, 15 | Leaves a trace tied to the crime at the scene, **Reinforced** on every hit, so the killer cannot erase it (Evident on Hope, Subtle on Despair, Obvious on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Body / Hand / Leg, and a critical leaves two. |
 | **Self-Defense** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role Reversal, Despair opens Role Reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. If all it would open is a Role Reversal you cannot take, it is not spent and you may try again. |
 | **Survive** | Leg, 18 | Withdraw. The incident ends and the drain stops. Despair adds a hint about who they were; a critical also gives immunity for this chapter and the next. A failure costs 1 extra. Needs Self-Defense first. |
 | **Role Reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope or a critical also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-Defense first. Not available against a trap, or once somebody has joined the killer. |
@@ -813,7 +815,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 ## 13. Death, and after
 
 - The dead take no actions and spend no Hope. You keep your sheet and your voice at the table - in a Class Trial you listen (chapter 12).
-- Your voice after you die in an incident: while that incident runs you stay in the room you died in. Once it ends, or your body is found, or a living student from outside the incident walks in, you are moved to a channel of the dead that is yours alone, whether or not your death is known: the living do not hear you there and you hear nobody, not even the other dead; your microphone stays yours. In the Class Trial you are back in the main room with everybody, and listen. Outside an incident this happens at once. As a Monocub you talk as a Monocub.
+- Your voice after you die in an incident: while that incident runs you stay in the room you died in. Once it ends, or your body is found, or a living student from outside the incident walks in, you talk with the Spectators, whether or not your death is known: the living do not hear you, and you hear the Spectators and the other dead; your microphone stays yours. In the Class Trial you are back in the main room with everybody, and listen. Outside an incident this happens at once. As a Monocub you talk as a Monocub.
 - Your **Truth Bullets die with you**, carried and stashed alike, unless the GM keeps them - once your death is known. Everything else stays on the body to be found, as it was: the dead do not use, ready, throw away, put away or take out anything, and a Monocub's things are its body's too.
 - Going through a body's pockets: open its sheet while you stand in its room, alive, outside a Class Trial and an Eclipse, and press **Take** on a thing. Until the body is found, only those who know of the death can. A Take you cannot make is greyed, with the reason beside it. A Take that took nothing - the GM's side refused it (you had walked out, somebody else took it first), no GM answered, or you play no character - says only why, and opens again, or is greyed with the reason when it still cannot be made; one that took something stays pressed.
 - If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet.", and your Truth Bullets stay on it until then. Until then the table may take you for alive - but in a Class Trial your microphone is off like every dead student's, and you hold no ballot, so the table learns that somebody has died. A correct verdict's Level Up is still yours too.
@@ -822,10 +824,10 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 ### Playing a Monocub
 
-Once your death is known to the table, the GMs may invite you to play on as a **Monocub**. A window shows you **the Monocub Rule** - *You never tell the living what only the dead know: who killed you, how, or what you see from now on.* - and what follows if it is broken: the first time a talk with the GM, the second time the Monocub role is taken away, the third time you leave the game. **I accept the Rule** makes you a Monocub; **Not now** closes the invitation, and the GMs are told. Same actor, same sheet; the action panel becomes **Move**, **Confusion**, **Redeem**, **Ask for Hope**, **Tinker** and **Ghost Bet**.
+Once your death is known to the table, the GMs may invite you to play on as a **Monocub**. A window shows you **the Monocub Rule** - *You never tell the living what only the dead know: who killed you, how, or what you see from now on.* - and what follows if it is broken: the first time a talk with the GM, the second time the Monocub role is taken away, the third time you leave the game. **I accept the Rule** makes you a Monocub; **Not now** closes the invitation, and the GMs are told. Same actor, same sheet; the action panel becomes **Confusion**, **Redeem**, **Ask for Hope**, **Tinker** and **Ghost Bet**. You move by dragging your token, as before; there is no Move tile.
 
 - You start with 0 Hope and all your Health and Sanity left, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. Your rolls are shown to everyone standing in your room.
-- **You move freely.** Crossing to a connected room costs you no action and no Free Move, in an Eclipse too; the room where a murder is under way refuses you, with the Seal's words.
+- **You move freely.** Crossing to a connected room costs you no action and no Free Move, in an Eclipse too; the room where a murder is under way refuses you, with the Seal's words. The two feet on your sheet and your status strip always show the Move as yours to take.
 - **You see every room the class has found**, without knowing who found which; the Mastermind's finds are not among them.
 - **Confusion** costs **1 action and 1 Hope**, and your Hope comes from a Monokuma converting Despair into it (Fuel a Monocub) or from the moves below. It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you. Nothing is paid until the GM's side carries the move out; a move it refuses costs you nothing (*Confusion doesn't reach them. You keep your action and Hope.*).
 - **One student, two moves a day.** A student can be the target of one Monocub move per time of day and two per game day, counted over every Monocub at the table; a move that fails counts too.
@@ -899,7 +901,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 **The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it. The panel keeps one size whatever it holds; a card longer than it scrolls inside it (since 1.2.101).
 
-**The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs - a foot for each crossing left, or, in a placement where you may pick any room, one full foot that stays available; a Monocub's actions read *Placement only.* there. A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
+**The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs - a foot for each crossing left, or, in a placement where you may pick any room, one full foot that stays available; a Monocub's actions read *Placement only.* there. A Monocub's feet are always solid, since its crossings cost nothing. A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 
 **The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16). Each project is one row, its name and its count on one line; with more than five, the list scrolls and its foot fades while there are more below (since 1.2.101).
 
@@ -908,7 +910,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 **On a narrow screen** (a tablet, a phone, a narrow window) the clock, the room tile, the Despair rows, the Event panel, your status strip and the Projects tray stand in one column at the top, and the board stays visible and playable under it (since 1.2.101). Your status strip and the Projects tray come first, before the Despair rows. When the column is longer than its room, it scrolls, and its foot fades while there is more below.
 
 **Your sheet:**
-- *Actions* - the ten tiles, Hope Calls below; under Stained Glass a tile you cannot use or pay for now is dark with a dashed edge, whatever it would cost (since 1.2.101); during an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them; Move and Confusion here as a Monocub.
+- *Actions* - the ten tiles, Hope Calls below; under Stained Glass a tile you cannot use or pay for now is dark with a dashed edge, whatever it would cost (since 1.2.101); during an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them; a Monocub's tiles here as a Monocub (no Move tile: you drag your token).
 - *Inventory* - Usables, Gear (with *hold ready*), Truth Bullets (Analyze, Present, Share; group them by Chapter or Location), Room Keys, and your stash when you stand in that room.
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left. Level Up, when you earned one.

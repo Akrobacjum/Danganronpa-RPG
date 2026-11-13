@@ -34,8 +34,8 @@ export { MAP_GEOMETRY, mapPlace, edgePath, TILE_GUTTER, placeTileControls } from
  */
 export function nodeState(node, finders = null) {
     if (!node?.evidence) return "schema";
-    // a planned Autopsy once sent (13.11.2026)
-    if (node.kind === "autopsy") return node.sent ? "sent" : "planned";
+    // a planned Autopsy once sent (13.11.2026), a planned Truth Bullet once given (E104)
+    if (node.kind === "autopsy" || node.kind === "bullet") return node.sent ? "sent" : "planned";
     if (node.planned) return "planned";
     const names = finders?.get?.(tokenIdOf(node.trace)) ?? null;
     return names && names.size ? "held" : "onMap";
@@ -59,6 +59,9 @@ export function kindLabel(node) {
             // numbered where the chapter plans more than one (13.11.2026)
             return node.of > 1 && Number.isInteger(node.n) ? F("DRPG.CaseMap.autopsyNth", { label, n: node.n }) : label;
         }
+        if (node.planned && node.kind === "final") return REMNANT_TYPES.final?.label ?? L("DRPG.CaseMap.kind.remnant");
+        // a planned Truth Bullet by its real type (E104)
+        if (node.kind === "bullet") return TRUTH_BULLET_TYPES[node.realType]?.label ?? L("DRPG.CaseMap.kind.remnant");
         if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES[node.type ?? "incident"]?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
         return REMNANT_TYPES[node.type]?.label ?? REMNANT_TYPES[node.kind]?.label ?? L("DRPG.CaseMap.kind.remnant");
     }
@@ -208,7 +211,10 @@ export function problemText(p, graph) {
         const n = (graph?.nodes ?? []).find(x => x.id === id);
         return n ? nameOf(n) : String(id ?? "");
     };
-    return F(`DRPG.CaseMap.problem.${p.code}`, { node: nameOfId(p.node), ref: p.code === "badMode" || p.code === "tooManyKeys" ? String(p.ref ?? "") : nameOfId(p.ref) });
+    // an incomplete plan's field by its word (E104, `DRPG.CaseMap.needs`)
+    const ref = p.code === "incomplete" ? L(`DRPG.CaseMap.needs.${p.ref}`)
+        : p.code === "badMode" || p.code === "tooManyKeys" ? String(p.ref ?? "") : nameOfId(p.ref);
+    return F(`DRPG.CaseMap.problem.${p.code}`, { node: nameOfId(p.node), ref });
 }
 
 /**
@@ -343,7 +349,7 @@ export function neighbourOf(points, from, key) {
 
 /**
  * THE MAP'S TOOLS, ONE ROW OVER THE GRAPH (E97 C6, out of the side panel by the E97 fix): add a deduction, a counter,
- * the solution or an Incident Remnant, and the column order (case-layout.mjs LAYOUT_SORTS). Written at once to the GMs'
+ * the solution or a plan (a Remnant, a Final Truth or a Truth Bullet, E104), and the column order (case-layout.mjs LAYOUT_SORTS). Written at once to the GMs'
  * store, never through Save, as a GM's arrangement of the map. A node's own arrows (up and down its column) and Remove
  * are on the node, with its fields; the camera's buttons in the graph's corner (`cameraHtml`).
  */
@@ -351,7 +357,15 @@ export function caseToolsHtml({ sort = "kind", sorts = [] } = {}) {
     const b = (attr, value, key, extra = "") => `<button type="button" ${attr}="${esc(value)}"${extra}>${esc(L(key))}</button>`;
     return `<div class="drpg-case-tools" role="toolbar" aria-label="${esc(L("DRPG.CaseMap.toolsLabel"))}">`
         + `<div class="drpg-case-tools-row">${b("data-drpg-case-add", "deduction", "DRPG.CaseMap.addDeduction")}${b("data-drpg-case-add", "counter", "DRPG.CaseMap.addCounter")}`
-        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}${b("data-drpg-case-add", "incident", "DRPG.CaseMap.addIncident")}</div>`
+        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}`
+        /* THE PLANS IN ONE SELECT (E104): a planned Remnant, Final Truth or Truth Bullet. As three buttons the row went to two
+           lines and took the graph's viewport from 297 to 226 px under the glass and from 319 to 273 under Legacy at
+           1366x768 (audit/case-map-sweep.mjs, investigation--map-planned, Polish and English alike); a pick adds that
+           plan and the select goes back to its first line */
+        + `<select class="drpg-case-add-plan" data-drpg-case-add-plan aria-label="${esc(L("DRPG.CaseMap.addPlan"))}" title="${esc(L("DRPG.CaseMap.addPlan"))}">`
+        + `<option value="" selected>${esc(L("DRPG.CaseMap.addPlan"))}</option>`
+        + ["incident", "final", "bullet"].map(k => `<option value="${k}">${esc(L(`DRPG.CaseMap.plan.${k}`))}</option>`).join("")
+        + `</select></div>`
         /* the order's picker named by `aria-label` and its title, not a visible label: with one, the row was 1005 px under
            the glass at 1366x768, over the 972 px it has, and took a second row from the graph (the E97 fix's sweep) */
         + `<select class="drpg-case-sort" data-drpg-case-sort aria-label="${esc(L("DRPG.CaseMap.sortLabel"))}" title="${esc(L("DRPG.CaseMap.sortLabel"))}">`
@@ -408,6 +422,11 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
             if (add) onAdd(add.dataset.drpgCaseAdd);
         });
         tools.querySelector("[data-drpg-case-sort]")?.addEventListener("change", event => onSort(event.target.value));
+        tools.querySelector("[data-drpg-case-add-plan]")?.addEventListener("change", event => {
+            const kind = event.target.value;
+            event.target.value = "";
+            if (kind) onAdd(kind);
+        });
     }
     const overview = root?.querySelector?.("[data-drpg-case-overview]");
     if (overview && !overview.dataset.drpgWired) {
@@ -497,7 +516,8 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
  */
 export function incidentAsksHtml(chapter) {
     if (!game.user?.isGM) return "";
-    const rows = Object.entries(caseRows(chapter).rows).map(([id, raw]) => [id, caseNodeOf(raw)]).filter(([, n]) => n?.kind === "incident");
+    // a planned Final Truth waits here too (E104)
+    const rows = Object.entries(caseRows(chapter).rows).map(([id, raw]) => [id, caseNodeOf(raw)]).filter(([, n]) => n?.kind === "incident" || n?.kind === "final");
     if (!rows.length) return "";
     const placed = n => {
         if (!n.trace) return false;

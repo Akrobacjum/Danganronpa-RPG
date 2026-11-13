@@ -25,6 +25,8 @@ import { drpgWindow } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /**
  * The asks this primary GM holds, by ask id (`askToFrisk` writes them): who asks whom, where (`sceneId`, `level`,
  * `room`), who answers (`answerUserIds`, `byGms`, `silent`), the snapshot's `lines`, `at`, `expiresAt`, `forceUntil`
@@ -1083,7 +1085,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
             rejectClose: false,
             footer: {
                 primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse") },
-                secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow") }]
+                secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow"), tooltip: tipText("DRPG.Tips.Actions.letThemLookTooltip") }]
             },
             render: (event, dialog) => {
                 open.dialog = dialog;
@@ -1119,7 +1121,7 @@ async function askToForce(def, forceMs) {
             body: `<p>${plural("DRPG.Frisk.forceText", { force: esc(def?.frisk?.threshold ?? ""), s: Math.round(forceMs / 1000) }, "s")}</p>`,
             rejectClose: false,
             footer: {
-                primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave") },
+                primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), tooltip: tipText("DRPG.Tips.Actions.leaveItTooltip") },
                 secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force") }]
             },
             render: (event, dialog) => {

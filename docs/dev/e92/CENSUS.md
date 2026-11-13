@@ -22,7 +22,7 @@ cast, the trial's floor, the investigation's suspects, the Calls' targets, the d
 the Despair pools) and leaves the Spectator by C1's change to `studentActors` and `studentCensus`. R3850 reads the main
 ones.
 
-## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1, 75 in 36 after C4; 77 in 38 in the 1.2.109 line after 1.2.108 was merged in, with dh-settings.mjs and trial-zones-ui.mjs; still 77 in 38 in 1.2.110 after E72, one more in gm-stores.mjs and one fewer in monocub.mjs; 79 in 40 once the E93 train, built before E92, was merged with it on 13.11.2026, with action-tail.mjs and facilities-gm.mjs)
+## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1, 75 in 36 after C4; 77 in 38 in the 1.2.109 line after 1.2.108 was merged in, with dh-settings.mjs and trial-zones-ui.mjs; still 77 in 38 in 1.2.110 after E72, one more in gm-stores.mjs and one fewer in monocub.mjs; 79 in 40 once the E93 train, built before E92, was merged with it on 13.11.2026, with action-tail.mjs and facilities-gm.mjs; 80 in 40 in 1.2.112 once r112 was merged, one more in gm-team-dialog.mjs)
 
 | File:line (at 59d1935) | What it is | Class |
 | --- | --- | --- |
@@ -43,7 +43,8 @@ ones.
 | gm-stores.mjs `fogSectionFor` (from E72 C10, merged 12.11 into 1.2.110) | the Monocubs a player owns, sent the rooms the class found | character here: a Spectator is never a Monocub (it never dies, C1) |
 | gm-stores.mjs:2405 `enterCastByHand` | the GM's killer/victim pick | leave it out (C1) |
 | gm-students.mjs:437 | the Students window's other characters | character here: the Spectators' group (C1) |
-| gm-team-dialog.mjs:269 | assigning characters to accounts | character here: the GM gives the account its Spectator |
+| gm-team-dialog.mjs:258 | assigning characters to accounts | character here: the GM gives the account its Spectator |
+| gm-team-dialog.mjs:424 `despairFlowMarkup` (E101, merged in r112 13.11) | the same list, for the suite's read of the window (R4051) | character here, as :258 |
 | hud.mjs:1384 | the GM's Monokuma | character here |
 | monocub.mjs:99, 105, 742 | the Monocubs; the dead who may become one; the dead's roster (742 went with the old Monocubs window, E72 C6, merged 12.11 into 1.2.110) | character here: a Spectator never dies (no State on its row, C1) |
 | monokuma.mjs:12 | a comment | - |
@@ -70,6 +71,7 @@ ones.
 | sfx.mjs:299 | whether this account is in the incident | character here |
 | sheet-audit.mjs:783, 803, 927, 1215, 3226, 3320 | the audit's marks | character here: its flag is held there (C1, `GM_FLAGS`) |
 | sheet.mjs:783, 805, 2871, 2959 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
+| spectator-dead.mjs `ownStudentOf` (E62 C3b fix, 13.11.2026) | the player's own student a moment names, on that player's browser | leave it out: a Spectator's flag is read beside it |
 | spectator.mjs `watcherOf` (new in C4) | the account's own Spectator, for its map | character here |
 | states.mjs:498 | a token's reserves | character here |
 | trial-scene.mjs:195 `castActors` | the trial's cast | leave it out (C1) |

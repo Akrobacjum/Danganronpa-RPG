@@ -1002,6 +1002,65 @@
       "file": "class-trial.html"
     },
     {
+      "id": "zone-picker",
+      "client": "gm",
+      "opener": "trial-zones-ui.mjs m.openZonePicker({ mode: \"dive\" })",
+      "captured": true,
+      "title": "Hall zones",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-zone-picker",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "start",
+          "label": "Start",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "zone-picker.html"
+    },
+    {
+      "id": "dive-editor",
+      "client": "gm",
+      "opener": "trial-zones-ui.mjs m.editDiveSet(\"probe08set\")",
+      "captured": true,
+      "title": "Edit a Logic Dive set",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-dive-editor",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save the set",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "dive-editor.html"
+    },
+    {
       "id": "reveal-confirm",
       "client": "gm",
       "opener": "trial-floor-ui.mjs m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })",
@@ -1840,6 +1899,36 @@
       "file": "drpg-settings-player.html"
     },
     {
+      "id": "drpg-settings-player-voice",
+      "client": "p1",
+      "opener": "settings-window.mjs m.openSettingsWindow()",
+      "captured": true,
+      "title": "DRPG Settings",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save changes",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "drpg-settings-player-voice.html"
+    },
+    {
       "id": "notices-player",
       "client": "p1",
       "opener": "notice-history-app.mjs m.openNotices()",
@@ -2131,6 +2220,179 @@
       "width": 480,
       "buttons": [],
       "file": "room-window.html"
+    },
+    {
+      "id": "palm-frisk",
+      "client": "p1",
+      "opener": "palm.mjs m.choosePalm(game.actors.find(a => a.type === \"character\" && a.isOwner), C.ACTIONS.palm, [other], [])",
+      "captured": true,
+      "title": "Palm",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Do it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "palm-frisk.html"
+    },
+    {
+      "id": "ballot",
+      "client": "p1",
+      "opener": "vote.mjs onBallotOpened (the GM's vote.open to p1)",
+      "captured": true,
+      "title": "Who did it?",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ballot",
+        "drpg-ui",
+        "drpg-prompt"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Cast it",
+          "default": true
+        }
+      ],
+      "file": "ballot.html"
+    },
+    {
+      "id": "season-reset",
+      "client": "gm",
+      "opener": "season-wipe.mjs m.resetSeason()",
+      "captured": true,
+      "title": "Reset the season",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-season-reset",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": true
+        },
+        {
+          "action": "reset",
+          "label": "Reset the season",
+          "default": false
+        }
+      ],
+      "file": "season-reset.html"
+    },
+    {
+      "id": "use-item-pick",
+      "client": "p1",
+      "opener": "use-items.mjs (a => m.useItem(a, a.items.find(i => i.name === \"Probe odd vial\")))(game.actors.find(a => a.type === \"character\" && a.isOwner))",
+      "captured": true,
+      "title": "Use Probe odd vial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Use it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "use-item-pick.html"
+    },
+    {
+      "id": "level-up-queue",
+      "client": "gm",
+      "opener": "level-up.mjs m.runAdvancementBatch(game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 3), \"standard\", { onGiving: () => { throw new Error(\"probe 08: the window is captured, nothing is given\"); } })",
+      "captured": true,
+      "title": "The class's Level Ups",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-advance-queue",
+        "drpg-ui",
+        "drpg-prompt"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Hand them out",
+          "default": true
+        },
+        {
+          "action": "allPlayers",
+          "label": "All: the players pick",
+          "default": false
+        }
+      ],
+      "file": "level-up-queue.html"
+    },
+    {
+      "id": "rest-pick",
+      "client": "p1",
+      "opener": "rest.mjs m.takeRest(game.actors.find(a => a.type === \"character\" && a.isOwner), \"short\", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true })",
+      "captured": true,
+      "title": "Short Rest",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-rest",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Do it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rest-pick.html"
     }
   ]
 }

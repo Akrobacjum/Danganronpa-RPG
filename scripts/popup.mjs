@@ -44,6 +44,9 @@ import { play, BEAT, ARRIVE, SNAP, reducedMotion } from "./motion.mjs";
 import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
 import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
+
+import { setTip } from "./ui-kit.mjs";
+
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
 const CORNER_ID = "drpg-notices-corner";
@@ -924,6 +927,8 @@ export function showPopup(bodyHtml, {
         const close = document.createElement("button");
         close.type = "button";
         close.className = "drpg-popup-close";
+        // Only a card the notice history keeps says so: a record: false card (showWaiting, the ready round's) is kept nowhere.
+        if (record) setTip(close, "DRPG.Tips.Setup.closeXTooltip");
         close.innerHTML = `<i class="fa-solid fa-xmark" inert></i>`;
         close.setAttribute("aria-label", game.i18n.localize("DRPG.Panel.close"));
         head.append(close);

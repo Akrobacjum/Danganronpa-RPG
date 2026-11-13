@@ -45,6 +45,7 @@ import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from "./utils.mjs";
 // The card a project token opens stays true while it is open (E44 C9). live.mjs imports config.mjs and utils.mjs alone (R161).
 import { keepLive } from "./live.mjs";
+import { discoveryStore, fogCopy } from "./gm-stores.mjs";
 
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
@@ -800,9 +801,10 @@ export async function syncProjectTokens() {
  * Countdowns (the name, the bar, who may see it) draws it again on every browser that holds it open, each from what it
  * holds (a secret project's description, since E44 fix FG6, from the private card that told it: the region hears a card's
  * words stored as well), and `draw` asks `knowsProject` again each time - a player taken off a secret project sees the card that names
- * nothing. A discovery is not heard (the fog's record is no setting this watches), so a card opened while this browser
- * did not know its project turns into the project's when it is opened again: E43's, which takes up who knows a project
- * (E44's Open 96). Both are world settings, so `updateSetting` reaches every browser with no socket of the module's (sync.mjs's
+ * nothing. A discovery is heard since E43 (13.11.2026; E44's Open 96, R5204): the discovery record - the GMs' store, a
+ * player's copy of it, each a client setting live.mjs hears by its handle - and a move settled on this browser
+ * (movement.mjs `drpgRouteSettled`), so a card opened while this browser did not know its project turns into the
+ * project's when its character walks in; until E43 only a second opening did. projectMeta and the Countdowns are world settings, so `updateSetting` reaches every browser with no socket of the module's (sync.mjs's
  * `SYNC.projects` redraws the tray, the sheets, the HUD and the visibility, never this sheet). One region an open card:
  * a render of the same sheet stops the region the last render started.
  */
@@ -827,7 +829,8 @@ function showProjectCard(app, element) {
         region: ".drpg-project-card",
         build: draw,
         // ... and a card's words stored (secret.mjs `drpgSecretStored`): a secret project's description reaches its players on one (E44 fix FG6).
-        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored"] },
+        // ... and the discovery record and a move settled here, so a card opened while its project was unknown turns into it (E43; Open 96).
+        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled"], stores: [discoveryStore, fogCopy] },
         after: wireProjectCard
     }));
     // Sized for a stat block; this is a card, exactly as the trace's is - and a frame
