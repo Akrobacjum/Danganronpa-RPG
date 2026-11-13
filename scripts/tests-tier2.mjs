@@ -57327,6 +57327,267 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a rewind during an Eclipse was not refused before it acted (what it answered, the clock unchanged, the assembly standing, the refusal warned)");
     }],
 
+    ["a repair moves the flags and says nothing: markDeceased writes the record and the dead marker and posts, tells and deletes nothing; the Students window's dead is no death procedure; setMonocub tells only a change it made, and clears a silence mark either way (E40 item 4: R67's rule, driven; was R67)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R67 (tier 0, its killCharacter and incidentVictimDied orders kept there as a text guard)
+         * read chapter.mjs `markDeceased` and monocub.mjs `setMonocub` as text: the flag and the marker named, four loud
+         * calls not named, `const was = isMonocub(actor)` and `if (was === Boolean(value))`. It passed a markDeceased that
+         * posted a card through any other name than the four, and a setMonocub whose `was` read nothing (mutants m3 and m2,
+         * docs/dev/e40/ITEM4-C.md). Here the repair is driven on a living student with a token on the scene on screen:
+         * `markDeceased` - the record, the dead marker, and no card, no notice, no item gone; revived, then the Students
+         * window's "dead" (gm-students.mjs `applyAliveStates`, F16) - no card; then on the dead student who is no Monocub,
+         * a silence mark planted in the GMs' row and `setMonocub(false)` - nothing told, the mark cleared; made a Monocub
+         * (told once), made one again (told nothing), unmade (told once). Put back: the flag, the row, the tracks
+         * `setMonocub` empties, the student revived, the cards made.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, where the death lays its body");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const { applyAliveStates } = await import("./gm-students.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const scene = canvas.scene;
+        const who = C.livingStudents().find(a => !M.isMonocub(a) && scene?.tokens?.some(t => t.actorId === a.id));
+        must(who, "no living student who is no Monocub has a token on the scene on screen - this would measure nothing");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const fresh = () => game.messages.contents.filter(m => !had.has(m.id)).length;
+        const items = () => who.items.size;
+        const R = "system.resources";
+        const tracks = ["hope", "hitPoints", "stress"].map(k => [`${R}.${k}.value`, foundry.utils.getProperty(who, `${R}.${k}.value`)]);
+        const flagWas = who.getFlag(MODULE_ID, FLAGS.monocub);
+        const rowWas = foundry.utils.deepClone(cubStore.get(who.id) ?? null);
+        const told = [], info = ui.notifications.info, warn = ui.notifications.warn;
+        const take = () => told.splice(0);
+        const read = {};
+        try {
+            ui.notifications.info = (text, ...rest) => { told.push(String(text)); return info.call(ui.notifications, text, ...rest); };
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const itemsBefore = items();
+            const record = await C.markDeceased(who);
+            await settle();
+            read.marked = [Boolean(record), C.isDeceased(who), Boolean(who.statuses?.has?.("dead")), fresh(), take(), items() === itemsBefore];
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            take();
+            must(await applyAliveStates({ [who.id]: { state: "dead" } }), `${who.name}'s death from the Students window was not recorded - this would measure nothing`);
+            await settle();
+            read.window = [C.isDeceased(who), fresh()];
+            take();
+            await cubStore.patch(who.id, { witness: { chapter: getClock().chapter } });
+            await M.setMonocub(who, false);
+            await settle();
+            read.unchanged = [M.isMonocub(who), cubStore.get(who.id)?.witness ?? null, take()];
+            await M.setMonocub(who, true);
+            await settle();
+            read.made = [M.isMonocub(who), take()];
+            await M.setMonocub(who, true);
+            await settle();
+            read.again = take();
+            await M.setMonocub(who, false);
+            await settle();
+            read.unmade = [M.isMonocub(who), take(), fresh()];
+        } finally {
+            ui.notifications.info = info;
+            ui.notifications.warn = warn;
+            if (flagWas === undefined) { if (who.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub); }
+            else await who.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            await who.update(Object.fromEntries(tracks));
+            if (rowWas) await cubStore.patch(who.id, rowWas);
+            else if (cubStore.has(who.id)) await cubStore.drop(who.id);
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        const L = (key, name) => game.i18n.format(key, { name });
+        equal(stableJson(read), stableJson({
+            marked: [true, true, true, 0, [], true], window: [true, 0],
+            unchanged: [false, null, []], made: [true, [L("DRPG.Monocub.opted", who.name)]], again: [], unmade: [false, [L("DRPG.Monocub.unopted", who.name)], 0]
+        }), "a repair said or did more than it moved ([marked: a record, deceased, the dead marker, cards posted, notices, the items kept]; [window: deceased, cards posted]; "
+            + "[unchanged: a Monocub, the silence mark, notices]; [made: a Monocub, notices]; again: notices; [unmade: a Monocub, notices, cards posted])");
+    }],
+
+    ["the body's gather leaves the dead where they lie and walks the living and a Monocub (E40 item 4: R29's rule, driven; was R29)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R29 (tier 0, the body rule and the discovery queue kept there as a text guard) read
+         * call-world.mjs `gatherEveryone` for a death's predicate named anywhere in it (`isDeceased(` or `isDeadForGm(`),
+         * and passed a filter that turned the Monocub's exception round - the dead walked and the Monocub stayed - with
+         * both names still in it (mutant m2, docs/dev/e40/ITEM4-C.md). Here the gather is driven: three students with a
+         * token on the scene on screen, one dead (chapter.mjs `markDeceased`), one dead and a Monocub, one living, and a
+         * room none of them stands in; `gatherEveryone(room, scene)`. Read: whether each token moved, and whether the
+         * gather's packet to the clients names it (not where it lands: the harness's regions have no `teleportTokens`, and
+         * the fallback's ring can leave a token outside a small room - "the gather tells each client where its token
+         * went", measured 10.10.2026). Put back: every token the gather moved, the Monocub's flag, both revived.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students with a token on the scene on screen: a body, a Monocub and the living");
+        needs(world.atLeast("namedRooms", 2), "a room none of the three stands in");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const { gatherEveryone } = await import("./call-world.mjs");
+        const { roomOfToken, allRooms } = await import("./movement.mjs");
+        const scene = canvas.scene;
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id);
+        const [body, cub, living] = C.livingStudents().filter(a => !M.isMonocub(a) && tokenOf(a)).slice(0, 3);
+        must(living, "fewer than three living students with a token on the scene on screen - this would measure nothing");
+        const tokens = [body, cub, living].map(tokenOf);
+        const room = allRooms(scene).find(r => tokens.every(t => roomOfToken(t) !== r));
+        must(room, "every named room on the scene on screen holds one of the three - this would measure nothing");
+        const was = new Map([...scene.tokens].map(t => [t.id, { x: t.x, y: t.y }]));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const lay = { room: roomOfToken(tokens[0]) };
+        const flagWas = cub.getFlag(MODULE_ID, FLAGS.monocub);
+        let read = null;
+        try {
+            must(await C.markDeceased(body) && await C.markDeceased(cub), "a death could not be written - this would measure nothing");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            must(C.isDeadForGm(body) && C.isDeadForGm(cub) && M.isMonocub(cub), "the body and the Monocub do not read as such - this would measure nothing");
+            const socket = game.socket, emit = socket.emit, sent = [];
+            socket.emit = function (event, packet, ...rest) {
+                if (packet?.action === "sync" && packet.kind === "gather") sent.push(...(packet.data?.tokenIds ?? []));
+                return emit.call(this, event, packet, ...rest);
+            };
+            let moved = 0;
+            try {
+                moved = await gatherEveryone(room, scene);
+                await settle();
+            } finally {
+                socket.emit = emit;
+            }
+            const [b, c, l] = tokens.map(t => scene.tokens.get(t.id));
+            const stood = t => t.x === was.get(t.id).x && t.y === was.get(t.id).y;
+            read = [moved > 0 && moved === sent.length, [stood(b), sent.includes(b.id), roomOfToken(b) === lay.room],
+                [stood(c), sent.includes(c.id)], [stood(l), sent.includes(l.id)]];
+        } finally {
+            for (const [id, at] of was) {
+                const t = scene.tokens.get(id);
+                if (t && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            }
+            if (flagWas === undefined) { if (cub.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); }
+            else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            for (const a of [body, cub]) if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, [true, false, true], [false, true], [false, true]]),
+            "the gather moved a body, or left the living or a Monocub behind ([it moved anybody, as many as it told; the body [standing where it lay, "
+            + "told, in its room]; the Monocub [standing, told]; the living [standing, told]])");
+    }],
+
+    ["in an Eclipse the body's window is refused before its form, and only to a GM: a GM is told the Eclipse, a console is told it is a GM's (E40 item 4: R56's rule, driven; was R56)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R56 (tier 0, the case dashboard's half kept there as a text guard) read chapter.mjs
+         * `openBodyDiscoveryDialog` for the order of three words - `game.user.isGM`, `isEclipse()`, `placeScenes(` - and
+         * passed an Eclipse check whose condition could never hold, the word still standing in its place (mutant m2,
+         * docs/dev/e40/ITEM4-C.md). Here the window is opened in an Eclipse (the clock's `eclipse` written, as Season
+         * setup's test writes it, so nothing an Eclipse's start does runs), with DialogV2's `wait` counted: on this GM,
+         * then from a console (`asConsole`). Read: what each answered, whether any form was drawn, and what each was
+         * told. The clock is put back.
+         */
+        needs(env.primaryGm(), "the body window opens on the primary GM alone (`discoveryHere`)");
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const clock = foundry.utils.deepClone(getSetting(SETTINGS.clock));
+        must(!clock?.eclipse, "an Eclipse was already running - this would measure nothing");
+        const told = [], warn = ui.notifications.warn;
+        let forms = 0;
+        const read = {};
+        try {
+            D.wait = async () => { forms += 1; return "cancel"; };
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            await settle();
+            must(isEclipse(), "the Eclipse did not read as running - this would measure nothing");
+            read.gm = [await openBodyDiscoveryDialog() ?? null, forms, told.splice(0)];
+            read.console = [await asConsole(() => openBodyDiscoveryDialog()) ?? null, forms, told.splice(0)];
+        } finally {
+            ui.notifications.warn = warn;
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await settle();
+        }
+        const L = key => game.i18n.localize(key);
+        equal(stableJson(read), stableJson({ gm: [null, 0, [L("DRPG.Eclipse.bodyLocked")]], console: [null, 0, [L("DRPG.Panel.gmOnly")]] }),
+            "the body's window in an Eclipse drew a form, or told a GM or a console the wrong refusal ({gm, console: [its answer, forms drawn so far, what was told]})");
+    }],
+
+    ["the trial console hears every change of the vote after the record holds it: a vote opened, a ballot, a reminder and the close, a close with nobody voting too (E40 item 4: R58's rule, driven; was R58)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R58 (tier 0, the console's tick, its watch, its view and the +30 s's road kept there as a
+         * text guard) read vote.mjs for four `Hooks.callAll("drpgBallotsChanged")` and their places: in `recordBallot`
+         * after `ballotStore.patch(`, in `closeRound` after the first "open: false" and before "nobodyVoted". It passed a
+         * ballot written to the store a tick after its event, and a close whose record was written after its event, each
+         * keeping every word in its place (mutants m2 and m3, docs/dev/e40/ITEM4-C.md). Here the vote is driven on the
+         * primary GM with the ballots caught and never sent, as "a ballot naming one student twice ..." drives it, and
+         * every `drpgBallotsChanged` heard reads what a console would redraw from: the voter's row in the GMs' store and
+         * whether the record says the vote is open. A vote opened, the voter's ballot recorded (`recordBallot`), a
+         * reminder, the close; then a vote no one answers, closed. The record, the row and the cards are put back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a voter with a connected player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which records the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const record = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const lists = new Map();
+        let voter = null;
+        const rowHeld = () => {
+            const row = voter ? ballotStore.get(voter) : null;
+            return Boolean(row && row.chapter === getClock().chapter && row.round === V.trialProgress().vote?.round);
+        };
+        const heard = [];
+        const hook = Hooks.on("drpgBallotsChanged", () => heard.push([rowHeld(), V.trialProgress().vote?.open ?? null]));
+        const read = {};
+        try {
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    for (const userId of options?.recipients ?? []) lists.set(userId, (packet.candidates ?? []).map(c => c.id));
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await settle();
+            heard.length = 0;
+            await V.openVote();
+            const { round, picks, issued } = V.trialProgress().vote ?? {};
+            voter = issued?.[0] ?? null;
+            const list = lists.get(voter) ?? [];
+            must(voter && list.length >= picks && picks > 0, `the voter's ballot lists ${list.length} name(s) for a vote that asks for ${picks} - this would measure nothing`);
+            read.opened = heard.splice(0).some(([, open]) => open === true);
+            const answer = await V.recordBallot(game.users.get(voter), round, list.slice(0, picks));
+            read.cast = [answer?.reply?.round === round, heard.splice(0)];
+            await V.remindVoters();
+            await settle();
+            read.reminded = heard.splice(0).length > 0;
+            await V.closeVote();
+            await settle();
+            read.closed = heard.splice(0).map(([, open]) => open);
+            await ballotStore.dropMany([voter]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await settle();
+            await V.openVote();
+            heard.length = 0;
+            const nobody = await V.closeVote();
+            await settle();
+            read.nobody = [nobody, V.trialProgress().voteClosed === true, heard.splice(0).map(([, open]) => open)];
+        } finally {
+            Hooks.off("drpgBallotsChanged", hook);
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (voter) await ballotStore.dropMany([voter]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ opened: true, cast: [true, [[true, true]]], reminded: true, closed: [false], nobody: [null, true, [false]] }),
+            "the console was not told of a change of the vote, or was told before the record held it ([opened: told with the vote open]; "
+            + "[cast: answered for the round, [[the row held, the vote open]] as told]; [reminded: told]; [closed: the vote open as told]; "
+            + "[nobody: what the close answered, the record closed, the vote open as told])");
+    }],
+
     ["a console's call of a newly gated GM function changes nothing: syncStates", async () => {
         /* E33 C1a, 06.10.2026; R220's census. `game.drpg.syncStates` brings a student's two
            conditions into line with their tracks, and every road to it is a GM's; on a player's

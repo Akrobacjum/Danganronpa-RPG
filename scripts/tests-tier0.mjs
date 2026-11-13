@@ -2399,6 +2399,11 @@ const REGRESSIONS = [
     }],
 
     ["R29 - a body is this chapter's dead, discovered once, and never gathered", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays is one rule every reader asks (checkBodyFound asks
+           `bodiesToDiscover`, whose cases R347 drives on fakes, and the rule's two exclusions named in it) and the one
+           queue both announcements wait in, whose outcome is a race of two discovery checks. "Never gathered" is driven in
+           tier 2's "the body's gather leaves the dead where they lie and walks the living and a Monocub (E40 item 4: R29's
+           rule, driven; was R29)", which the gather's line here read as text until E40. */
         /*
          * FIVE CARDS FOR ONE BODY, AND A CORPSE CARRIED INTO THE ASSEMBLY (16.09).
          *
@@ -2410,7 +2415,6 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
-        const world = stripComments(sources.get("call-world.mjs") ?? "");
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         // Since E11 C1 (1.2.73) the body rule is `bodiesToDiscover`, which checkBodyFound asks and R347 holds case by case.
@@ -2422,11 +2426,13 @@ const REGRESSIONS = [
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the automatic discovery check no longer waits in the discovery queue");
-        const gather = fnSource(world, "gatherEveryone");
-        ok(/(?:isDeceased|isDeadForGm)\(/.test(gather), "gatherEveryone moves the dead again");
     }],
 
     ["R30 - a verdict is locked before it does anything", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order inside verdict.mjs `applyVerdict` - the one refusal of both verdicts asked, then the lock written,
+           before anything else - whose outcome is a race of two verdicts; the refusal itself is driven in tier 2's E41-T2
+           (a verdict asked again, and asked while the first one's card is on its way, refused). Since E70 C4 no verdict
+           executes, so the kill this order is measured to is carryOutSentence's, read after applyVerdict in voteText. */
         /*
          * F2, and the review that followed it. The lock used to be written after every Level Up
          * window and the Blackened's rule had closed, so a second verdict could start in the
@@ -2724,6 +2730,10 @@ const REGRESSIONS = [
     }],
 
     ["R42 - the trial gate sits below the guards that outrank it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order of refusals inside action-rolls.mjs `performAction` and movement.mjs `crossingVerdict` (which
+           sentence a dead or fighting student is told in a trial) and a branch calls.mjs `hopeCallBarred` deliberately
+           does not have; `hopeCallBarred` is not exported, so driving the Hope half would need an export of
+           hopeCallBarred. The tile and the press per phase are driven in tier 2's E40-T3. */
         /*
          * ORDER IS THE RULE HERE, not the presence of a line (T-1). A trial gate
          * placed beside the Eclipse refusal would tell somebody in a fight, and a
@@ -2783,6 +2793,10 @@ const REGRESSIONS = [
     }],
 
     ["R43 - the trial's budget follows the phase, not the window", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the rule is "only there": one caller of actions.mjs `openTrialBudget` (clock.mjs `reconcilePhase`'s entry),
+           reached only on a write that moves the phase, and no door into the trial paying it again - a census of callers.
+           Driving the entry's refill would drive the whole entry (the record blanked, the hall activated, the Key fee);
+           not converted in this slice. */
         /*
          * MORE THAN ONE ROAD INTO A CLASS TRIAL, and only one of them has a window
          * (T-1). `openDebate` calls `startFloor`, which moves the phase itself, so a
@@ -2817,6 +2831,9 @@ const REGRESSIONS = [
     }],
 
     ["R44 - one admission rule, two questions, and every reader asks it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): one rule every reader must ask - trial-floor.mjs `floorRefusal` and `targetRefusal`, asked by openObjection,
+           the primary's objectOnPrimary, the button's preview and the window - and a call nothing may make (`hasGm(`) in
+           the action family; a census of the readers, not an outcome. */
         /*
          * THE RULE USED TO EXIST TWICE (T-1). trial.mjs carried
          * `objectionBlockedReason`, a copy of half of `openObjection`'s rules, with
@@ -2881,6 +2898,9 @@ const REGRESSIONS = [
     }],
 
     ["R45 - the floor is seized once, paid for, and never by a card with nothing behind it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trial.mjs `seizeFloor` is not exported (would need an export of seizeFloor) and runs from a card hook on the
+           primary GM; what is read is its shape - one queue key, the price taken before the floor moves, the gate, and
+           that openObjection, which macros and fixtures call, pays nothing. */
         /*
          * T-1. The charge lives in the card hook and not in `openObjection`, which
          * the API, the suite and the harness all call and all must keep free. What
@@ -3433,6 +3453,11 @@ const REGRESSIONS = [
     }],
 
     ["R56 - the body discovery refuses the dark before it asks anything, and the button says so", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays is the case dashboard's half - which button the footer leads
+           with, the greyed button's reason and that the greying rides `keepFresh`, not `wireCase` - the shape of a window
+           whose outcome only a drawn dashboard shows. The window's own refusal is driven in tier 2's "in an Eclipse the
+           body's window is refused before its form, and only to a GM ... (E40 item 4: R56's rule, driven; was R56)", which
+           the window's three guards here read as text until E40. */
         /*
          * F12, 19.09. "A body is discovered" moved from a GM panel tile into the case
          * dashboard's footer and the Eclipse greying stayed behind with the tile, so
@@ -3443,19 +3468,7 @@ const REGRESSIONS = [
          * pressed, then what the map happens to have.
          */
         const sources = new Map(await otherSources());
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
-
-        const open = bodyOf(chapter, "export async function openBodyDiscoveryDialog", { until: "function allBullets" });
-        ok(open.length > 200, "openBodyDiscoveryDialog is gone or has moved past allBullets");
-        const gm = open.indexOf("game.user.isGM");
-        const dark = open.indexOf("isEclipse()");
-        const rooms = open.indexOf("placeScenes(");   // E12 C5: the room list is every place scene's, not `allRooms(canvas.scene)`
-        ok(gm > 0 && dark > 0 && rooms > 0, "the body-discovery window lost one of its three guards");
-        ok(gm < dark, "the body-discovery window asks about the Eclipse before it asks who is pressing");
-        ok(dark < rooms,
-            "the window builds its room list before it refuses an Eclipse, so a GM fills in a form "
-            + "that cannot be submitted");
 
         ok(inv.includes('button[data-action="bodyFound"]'),
             "the dashboard no longer greys the button that reaches the discovery");
@@ -3523,6 +3536,11 @@ const REGRESSIONS = [
     }],
 
     ["R58 - the trial console counts the seconds, a ballot is an event, and +30 s means thirty", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays is the console's own shape - a once-a-second tick that ends with
+           its window and paints through the live region, the hooks and the watch it wakes on, the overrun's words - and the
+           +30 s's road through the floor's machine, whose arithmetic tier 1's R1024 drives. That the vote's four events come
+           after the record holds what they report is driven in tier 2's "the trial console hears every change of the vote
+           after the record holds it ... (E40 item 4: R58's rule, driven; was R58)", which these lines read as text until E40. */
         /*
          * F8 and F9, 19.09. Two kinds of change and neither reached this window: the
          * seconds are the passage of time, which no document hook will ever report,
@@ -3556,28 +3574,6 @@ const REGRESSIONS = [
         const view = bodyOf(ui2, "function trialConsoleHtml(", { until: "function trialSignature(" });
         ok(view.includes("DRPG.Floor.holdingDebateOver") && view.includes("Math.max(left, 0)"),
             "an overrun mode prints a clock running backwards again");
-
-        // `drpgBallotsChanged` is 1.2.47's name for this event, fired where a
-        // ballot is cast, a vote opens and voters are reminded; F8 adds the close.
-        // Since E10 C1 (1.2.71) a ballot is a row of the GMs' store and the count is
-        // the primary's `closeRound`, which writes the vote closed before it counts;
-        // since E10 C2 a ballot is recorded by the bridge's run (`recordBallot`).
-        // E41 C10a (1.2.97): vote.mjs's record and sentence left it for trial-progress.mjs, its verdict for verdict.mjs; the vote's family's text (the kit's `voteText`).
-        const vote = stripComments(voteText(sources));
-        const EMIT = 'Hooks.callAll("drpgBallotsChanged")';
-        ok(vote.split(EMIT).length - 1 >= 4,
-            "one of the four vote events stopped being reported");
-        const cast = fnSource(vote, "recordBallot");
-        ok(cast.length > 200 && cast.includes(EMIT), "recordBallot is gone, or no longer reports a ballot");
-        ok(cast.includes("ballotStore.patch(") && cast.indexOf("ballotStore.patch(") < cast.indexOf(EMIT),
-            "the ballot is reported before it is in the tally, so a listener redraws the stale list");
-        const close = fnSource(vote, "closeRound");
-        ok(close.length > 200 && close.includes(EMIT), "closeRound is gone, or no longer reports the closing");
-        ok(close.indexOf("open: false") > 0 && close.indexOf("open: false") < close.indexOf(EMIT),
-            "the vote is reported closed before the record says it is");
-        ok(close.indexOf(EMIT) < close.indexOf("nobodyVoted"),
-            "the closing is reported after the road that returns early, so a vote nobody answered "
-            + "leaves the console printing its voters");
 
         // Since E70 C1 the arithmetic is floor-machine.mjs `nextFloor`'s `adjust` row, which `extendFloorInStep` asks;
         // tier 1 R1024 drives it (+30 s on a debate 40 s over leaves 30 s).
@@ -3945,14 +3941,18 @@ const REGRESSIONS = [
     }],
 
     ["R67 - a repair moves the flags and says nothing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what stays here is an order inside killCharacter and incidentVictimDied
+           with no outcome a call can see apart from a running incident's Stage 6 (the bullets perish while the items
+           still exist to be read, then the record, then who is told, then the chapter's traces, then Stage 6), and the
+           repair calling the helper and not the procedure. The quiet half - markDeceased, the Students window's "dead",
+           setMonocub - is driven in tier 2's "a repair moves the flags and says nothing ... (E40 item 4: R67's rule,
+           driven; was R67)", which these lines read as text until E40. */
         /*
          * F16, 20.09. The Players window's dropdown is documented as the tool that
          * "moves the two flags and nothing else" and it called `killCharacter` - the
          * whole death procedure: the "A student is dead" card whispered to every GM
          * and to the owners of everyone in a running incident, the death chapter
-         * stamped, this chapter's traces tied off, Stage 6 offered. And clearing the
-         * Monocub flag announced "X is no longer a Monocub" about students who never
-         * were one.
+         * stamped, this chapter's traces tied off, Stage 6 offered.
          *
          * THE ORDER INSIDE `killCharacter` IS READ TOO. Nothing else guards it, and
          * the extraction is only reviewable if the sequence is stated: the bullets
@@ -3966,16 +3966,6 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
-        const cub = stripComments(sources.get("monocub.mjs") ?? "");
-
-        ok(/export async function markDeceased\(/.test(chapter),
-            "markDeceased is gone, so a repair has nothing quiet to call");
-        const mark = bodyOf(chapter, "export async function markDeceased", { until: "export async function killCharacter" });
-        ok(/FLAGS\.deceased/.test(mark) && /toggleStatusEffect\("dead"/.test(mark),
-            "markDeceased does not write the record and the token marker");
-        for (const loud of ["whisperToGms", "tieChapterTraces", "offerStageSix", "bulletsOf"]) {
-            ok(!mark.includes(loud), `markDeceased ${loud}s - it is meant to be the quiet half`);
-        }
 
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
@@ -4003,16 +3993,6 @@ const REGRESSIONS = [
         const repair = fnSource(panel, "applyAliveStates");
         ok(/incidentVictimDied\(/.test(repair) && !/killCharacter\(/.test(repair),
             "the repair does not offer Stage 6 for the running incident's victim, or runs the whole death procedure (F16, D13)");
-
-        const set = bodyOf(cub, "export async function setMonocub", { until: "export async function setSilenced" });
-        ok(/const was = isMonocub\(actor\)/.test(set),
-            "setMonocub does not read what it is about to change");
-        ok(/if \(was === Boolean\(value\)\)/.test(set),
-            "setMonocub still announces a change it did not make");
-        // Since E72 C2 the mark is the GMs' row (`patchCubRow`), not the flag; cleared before the change is asked, as the flag was.
-        ok(set.indexOf("patchCubRow(actor.id, { witness: null })") > -1 && set.indexOf("patchCubRow(actor.id, { witness: null })") < set.indexOf("was === Boolean(value)"),
-            "the silence mark is now cleared only on a real change - a cub who stopped being "
-            + "one keeps their silence");
     }],
 
     ["R68 - Edit campaign offers the chapter the clock is actually on", async () => {
@@ -4022,37 +4002,36 @@ const REGRESSIONS = [
          * wrote it: a GM who opened this window to fix a typo in the campaign name
          * rewound the campaign five chapters.
          *
-         * The weaker assertions all pass on the defect: the options already carry
-         * `selected` when they match (it simply never matched), and
-         * CHAPTERS_PER_SEASON already appears. Only the widening and the coercion
-         * tell the fix from the bug.
+         * E40 item 4 (13.11.2026): driven, not read. Until then this read gm-campaign.mjs `campaignRows` as text (the
+         * widening `Math.max(CHAPTERS_PER_SEASON`, a `Number.isFinite`, the stepper's `value: now`), and passed a
+         * coercion that kept every word and answered 1 for a chapter past the season (mutant m2, docs/dev/e40/ITEM4-C.md).
+         * Here both windows' rows are drawn from clocks handed in - no world is read or written - and the chapter field's
+         * value and cap are read off the markup: a clock past the season's last chapter, the same chapter stored as a
+         * string, one inside the season, and two a world should never hold (0 and a word) that fall back to 1.
          */
-        const sources = new Map(await otherSources());
-        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
-        const panel = stripComments(panelText(sources));
-        // E49 A1e: the fields left the window's body for `campaignRows`, which Edit campaign and Season setup both draw.
-        const clockWin = bodyOf(panel, "export function campaignRows");
-        const list = bodyOf(clockWin, "const stated", { until: "return [" });
-        ok(list.length > 80, "the chapter list has moved or gone");
-        ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(clockWin),
-            "the chapter list is six long whatever the clock says, so a campaign past "
-            + "chapter 6 opens this window on chapter 1 and Apply writes it");
-        ok(/Number\.isFinite/.test(list),
-            "the length of that array comes straight out of a world setting");
-        // E47-C2, 09.11.2026: the list is a kit stepper (the owner's Q-E47-1) whose value and `max` read the coerced `now`.
-        const chapterField = bodyOf(clockWin, 'stepper({ name: "chapter"', { length: 200 });
-        ok(/\bvalue:\s*now\b/.test(chapterField) && /\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON,\s*now\)/.test(chapterField),
-            "the chapter field reads the raw setting, so a chapter stored as a "
-            + "string widens nothing and matches nothing");
-
-        // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
-        // whose value is out of range fails constraint validation, so Apply there
-        // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
-        // E49 A1e: Season setup draws Edit campaign's own rows, so its chapter is the field read above.
-        const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const fields = bodyOf(season, "export function campaignFieldsHtml(", { until: "export function seasonTilesHtml(" });
-        ok(/\bcampaignRows\(/.test(fields) && !/stepper\(\{ name: "chapter"/.test(season),
-            "the Season setup window draws a chapter field of its own again, which this cap does not reach");
+        const { campaignRows } = await import("./gm-campaign.mjs");
+        const { campaignFieldsHtml } = await import("./season-setup.mjs");
+        const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
+        const { getClock } = await import("./settings.mjs");
+        must(Number.isInteger(CHAPTERS_PER_SEASON) && CHAPTERS_PER_SEASON >= 2, "the season has no chapter count to widen past - this would measure nothing");
+        const past = CHAPTERS_PER_SEASON + 1;
+        const fieldsOf = html => {
+            const el = document.createElement("div");
+            el.innerHTML = html;
+            return [...el.querySelectorAll('input[name="chapter"]')].map(input => [input.getAttribute("value"), input.getAttribute("max")]);
+        };
+        const clockAt = chapter => ({ ...getClock(), chapter });
+        const editCampaign = chapter => fieldsOf(campaignRows(clockAt(chapter)).map(row => row.field ?? row.full ?? "").join(""));
+        const seasonSetup = chapter => fieldsOf(campaignFieldsHtml(clockAt(chapter), ""));
+        const cap = String(CHAPTERS_PER_SEASON), wide = String(past);
+        const cases = [past, String(past), 2, 0, "seven"];
+        equal(JSON.stringify({ editCampaign: cases.map(editCampaign), seasonSetup: cases.map(seasonSetup) }),
+            JSON.stringify({
+                editCampaign: [[[wide, wide]], [[wide, wide]], [["2", cap]], [["1", cap]], [["1", cap]]],
+                seasonSetup: [[[wide, wide]], [[wide, wide]], [["2", cap]], [["1", cap]], [["1", cap]]]
+            }),
+            "the chapter field does not open on the clock's chapter, widened past the season, coerced from a string, and 1 for what is no chapter "
+            + `([value, max] of each chapter field for the chapters ${JSON.stringify(cases)}, in Edit campaign and in Season setup)`);
     }],
 
     ["R70 - Enter in a field that names a button presses that button", async () => {
@@ -4063,19 +4042,71 @@ const REGRESSIONS = [
          * Hope at all. DialogV2 renders every footer button as a submit and implicit
          * submission takes the first one in tree order however `default` is set -
          * the trap this module has paid for twice already.
+         *
+         * E40 item 4 (13.11.2026): the guard is driven, not read. Until then this read utils.mjs `guardTextFields` as
+         * text (the marker, `focus()` before `click()`, the disabled check), and passed a guard that looked the button up
+         * across the whole window instead of the field's own fieldset (mutant m2, docs/dev/e40/ITEM4-C.md). Here the guard
+         * is put on a window of its own, built in this browser's page and taken away after (no world is read or
+         * written): two give-Hope rows, each a select and a number naming its row's button, a row whose button is
+         * disabled, a textarea and a field naming nothing. Read: which button each Enter pressed, whether focus stood on
+         * it when it was pressed, and whether the Enter was taken from the form. Where the windows put the marker is R5150.
          */
+        const { guardTextFields } = await import("./utils.mjs");
+        const root = document.createElement("div");
+        root.className = "drpg-ui";
+        root.innerHTML = `<form>
+            <fieldset data-row="a"><select data-drpg-enter="[data-drpg-give]"><option>1</option></select>
+                <input type="number" value="1" data-drpg-enter="[data-drpg-give]"><button type="button" data-drpg-give>a</button></fieldset>
+            <fieldset data-row="b"><input type="number" value="2" data-drpg-enter="[data-drpg-give]"><button type="button" data-drpg-give>b</button></fieldset>
+            <fieldset data-row="c"><input type="number" value="3" data-drpg-enter="[data-drpg-give]"><button type="button" data-drpg-give disabled>c</button></fieldset>
+            <fieldset data-row="d"><textarea data-drpg-enter="[data-drpg-give]"></textarea><button type="button" data-drpg-give>d</button></fieldset>
+            <input type="text" data-row="e" value="plain"></form>`;
+        document.body.append(root);
+        const pressed = [];
+        try {
+            must(guardTextFields(root) && !guardTextFields(root), "the guard was not put on the window once - this would measure nothing");
+            for (const button of root.querySelectorAll("button")) {
+                button.addEventListener("click", ev => {
+                    ev.preventDefault();
+                    pressed.push([button.textContent, document.activeElement === button]);
+                });
+            }
+            const enter = field => {
+                field.focus();
+                const from = pressed.length;
+                const ev = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+                field.dispatchEvent(ev);
+                return [pressed.slice(from), ev.defaultPrevented];
+            };
+            const read = {
+                select: enter(root.querySelector('[data-row="a"] select')),
+                number: enter(root.querySelector('[data-row="a"] input')),
+                otherRow: enter(root.querySelector('[data-row="b"] input')),
+                disabled: enter(root.querySelector('[data-row="c"] input')),
+                textarea: enter(root.querySelector('[data-row="d"] textarea')),
+                plain: enter(root.querySelector('[data-row="e"]'))
+            };
+            equal(JSON.stringify(read), JSON.stringify({
+                select: [[["a", true]], true], number: [[["a", true]], true], otherRow: [[["b", true]], true],
+                disabled: [[], false], textarea: [[], false], plain: [[], false]
+            }), "Enter in a field that names a button did not press that button, focused, in its own row, and nothing else "
+                + "({field: [[the button pressed, focused when pressed]], the Enter taken from the form]})");
+        } finally {
+            root.remove();
+        }
+    }],
+
+    ["R5150 - the windows that need Enter to press a button name it: the Mastermind's give-Hope row and the Sound window's cue picker", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): mastermind.mjs `mastermindHopeBox` is not exported and the Sound window's
+           cue picker is drawn inside `soundPlayPane` from the world's playlists, so where the marker stands is read in the
+           source; driving the row would need an export of mastermindHopeBox. What the marker does is R70's, driven. Split
+           out of R70 (MM-02, 20.09), whose text these assertions were until E40. */
         const sources = new Map(await otherSources());
         const utils = stripComments(sources.get("utils.mjs") ?? "");
         const guard = bodyOf(utils, "export function guardTextFields", { until: "export function registerTextGuard" });
         ok(guard.length > 200, "guardTextFields has moved or gone");
-        ok(/data-drpg-enter/.test(guard), "nothing reads the marker, so Enter still submits");
-        ok(/button\.focus\(\)[\s\S]{0,60}button\.click\(\)/.test(guard),
-            "the button is clicked with the caret still in the field, so keepLive defers the "
-            + "redraw and the donation looks as if it did nothing");
-        ok(/if \(!button \|\| button\.disabled\) return;/.test(guard),
-            "Enter presses a disabled button, which is a window's way of saying not now");
         ok(guard.indexOf("data-drpg-field") < guard.indexOf("data-drpg-enter"),
-            "the field rule moved below the button rule - R44 reads the first one's position");
+            "the field rule moved below the button rule");
 
         const mm = stripComments(sources.get("mastermind.mjs") ?? "");
         const box = bodyOf(mm, "function mastermindHopeBox(", { until: "function wireMastermindGive(" });
@@ -4207,6 +4238,7 @@ const REGRESSIONS = [
     }],
 
     ["R74 - a Season setup row hands over instead of answering", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): season-setup.mjs `wireSetupSteps` and `wireSeasonTiles` are not exported (would need an export of wireSetupSteps), and what they guard - a row handing its window off (`handOff`) instead of closing it under the opener's DialogV2.wait, and the opener returning the round trip - is an order of a window chain a GM panel tile awaits; read as the openers' and the rows' shape. */
         /*
          * SEASON-02, 20.09. A row button ran its step and then did
          * `await dialog.close(); openSeasonSetup();` - and that close resolves the
@@ -6967,6 +6999,7 @@ const REGRESSIONS = [
     }],
 
     ["R178 - no migration runs from a ready hook", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over every module file: no lift of old data is called outside its migration clause, each clause after forgetMonokumaWalks and since its version; tier 2 runs the lifts that remove world data, this holds where they may be called. */
         /*
          * E04 C10, 26.09.2026; audit S01-31. Four lifts of old data into the GM stores
          * ran from ready hooks - on every load, on every GM, before the other GMs'
@@ -12193,6 +12226,7 @@ const REGRESSIONS = [
             + "name enterTrialScene or leaveTrialScene, or write the clock; setClock writes it; who calls enterTrialScene and leaveTrialScene; who activates a scene in trial-scene.mjs]");
     }],
     ["R436 - the gather after the trial has one door: End the trial asks for a room and cannot skip it, closeTrial holds the choice for its one write, and only leaveTrialScene gathers, after the hall is hidden, reading held", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of every call of `gatherEveryone` with its arguments, who may call `returnTheLiving` and `setTrialExit`, and orders inside `leaveTrialScene`, `stageHall` and `closeTrial` whose outcome is a stop half way; the reader is shown a fixture first. Tier 2's "End the trial moves the living to the GM's room" moves the tokens. */
         /*
          * E13 C3b, 12.10.2026; the owner's answer f of 09.10 and items 3 and 6 of 10.10, plan-E13 3.2 and the ledger's
          * Af, O3 and O6. Until this commit End the trial moved no token: the table went back to the school (C3) with
@@ -12611,6 +12645,7 @@ const REGRESSIONS = [
     }],
 
     ["R355 - a Level Up's experience is written down in the write that adds it, as a GM's flag, and the reset reads it as the GMs hold it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the same shape for a Level Up's experience: written down in its one write from the list the GMs hold, a GM's flag, and the reset's restore reading held in one write; a reset is not the suite's to run (the plan's M10), and tier 2's "a reset takes a Level Up's experience and keeps the GM's" and "a player's write of the Level Up's experiences is put back ..." drive its halves. */
         /*
          * E11 C11, 1.2.73; audit S03-21, D12 option 1, the owner's Q1 (a); the plan's 1b.2 and E10 C8's owed (3).
          * Until 1.2.73 the season reset restored the values of the experiences the season began with and kept every
@@ -12776,6 +12811,7 @@ const REGRESSIONS = [
     }],
 
     ["R315 - Enter in the verdict window presses Cancel, its executed select opens on nobody, and a right verdict executes the Blackened", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the verdict window's footer as its slots build it (Cancel first, the default; the verdicts destructive), the executed select's first option and `read` answering a right verdict before it reads the select: a window's shape. What these do is driven in tier 2's "the verdict window opens on the accused", "Enter in the verdict window executes nobody" and "a right verdict without the register executes the Blackened the GM names". */
         /*
          * E10 C4, 1.2.71; audit S06-04; the guard of the stage's doneWhen "Werdyktu nie da się
          * wykonać na przypadkowej osobie" (a verdict cannot be carried out on somebody by chance).
@@ -12809,6 +12845,7 @@ const REGRESSIONS = [
     }],
 
     ["R316 - a verdict writes its lock once, executes on the GMs' held reading, and its public card reads no Blackened", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the verdict family's writes (the lock written once in each verdict, twice in all), an order inside carryOutSentence (the audit awaited, the held reading, then the kill) and words a card's builder must not name; tier 2's "a wrong verdict's card names the executed and never the Blackened" and "a verdict that stops halfway is finished by Finish the verdict" drive the card and a verdict stopped. */
         /*
          * E10 C5, 1.2.71; audit S06-39, S06-06; ledger G2. Until C5 `applyVerdict` wrote
          * `verdictApplied: true` first and again after its last consequence - a consequence that
@@ -12839,6 +12876,7 @@ const REGRESSIONS = [
     }],
 
     ["R317 - a verdict's Level Ups are one window with the players' choice, and its line is said after it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order inside level-up.mjs `runAdvancementBatch` (the class's one window asked before any picker) and verdict.mjs `verdictLevelUps` (the line built after the batch answers), and words the line must not carry; tier 2's "a correct verdict opens one Level Up window ..." and "a Level Up picker the GM closes becomes an offer ..." drive both. */
         /*
          * E10 C7, 1.2.71; audit S06-25, S03-32, S06-32; ledger D3 (the stage's doneWhen: "the Level
          * Ups open in one window with 'the player picks'"). `runAdvancementBatch` opened one picker per
@@ -12871,6 +12909,7 @@ const REGRESSIONS = [
     }],
 
     ["R318 - a Level Up reads the sheet the GMs hold, writes it once, and refuses a pick the sheet cannot take", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): readers' shape across level-up.mjs, bridge-runs-acts.mjs and character.mjs: one write in the student's queue, numbers read as the GMs hold them and never off the prepared sheet, and each refusal before the latch or the send; tier 2's "a Level Up pick the sheet cannot take is refused and told ...", "an experience to raise with none named is refused ..." and "a season's starting sheet is stamped as the GMs hold it ..." drive what they refuse and stamp. */
         /*
          * E10 C8, 1.2.71; audit S03-23, S03-22; ledger G3 (the plan's "a Level Up reads the held sheet", a kept guard
          * of E29 r2-H24/H25) and the plan's 1b.2 rows of `applyAdvancement`, `handleAdvancement` and
@@ -13059,6 +13098,7 @@ const REGRESSIONS = [
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of character.mjs: every function that writes is exported behind the GM gate before its first write, or private and called only from such a one; the reader is shown planted writers first. */
         /*
          * E29 C2, 05.10.2026; audit S03-45 (its code part). `initCharacter` writes a student's
          * maxima, Health, Sanity and Hope and stamps the season's baseline; `restoreStartingSheet`
@@ -13699,6 +13739,7 @@ const REGRESSIONS = [
     }],
 
     ["R377 - the reset is the primary GM's when its window closes, takes its word exactly, names a cast it could not place and pans each player to their token", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): season-wipe.mjs `resetSeason` is a reset, which is not the suite's to run (the plan's M10), and `placeCastStep` and the typed word's compare sit inside it; what is read is an order (the primary asked again between the window and the plan, the pan after the moves) and a compare's shape. Scenario 65's U drives it on five browsers. */
         /*
          * E11 fix r2-H4, 1.2.73; round 2's sec S4 and COR2-8, the goal's census K4 and D3 / S06-49 (b). Until
          * then `resetSeason` asked `isPrimaryGm()` once, before its window: a GM with a lower id arriving while
@@ -14826,6 +14867,7 @@ const REGRESSIONS = [
     }],
 
     ["R583 - the trial hall's facts for the room tile have one writer and one reader: setHallRoom, a GM's, writes the hall's flag it is handed, its picture through safeRoomImage, called by the Scenes tab's Apply alone; hallRoom reads the flag and judges the picture again; the room tile reads the facts only through hallRoom, and the flag's name is named in trial-scene.mjs and the tile's repaint alone", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): one writer and one reader of the hall's flag, counted over every module file (the writer's one caller, the flag's one read and one literal, the files naming it), with five planted faults the reader must see first. */
         /*
          * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026). The hall's name, picture and words are a flag of
          * the hall scene every browser holds (trial-scene.mjs `HALL_ROOM_FLAG`), so what a console writes there is
@@ -15103,6 +15145,7 @@ const REGRESSIONS = [
         + "the still word's top and right with the ticker off and under reduced motion (the module's switch or the system's, one class since E23 C5c), the rules of the word under a media query of the system's (none); the least width of a face shown in the row, Legacy and Stained Glass]");
     }],
     ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): censuses of the Objection's roads: the files that hear LiveKit's speakers, where three functions are declared, which branch of `objectOnPrimary` reads the packet's target, who calls it, which functions read a bullet's data, and hud.mjs's static imports; tier 2's named tests drive the road on the primary GM. */
         /*
          * E79 C16 (1.2.79), the source half of the owner's 17.10 rule; R590 is the record's behaviour and tier 2's
          * named tests the road on the primary GM. What this holds:
@@ -17567,6 +17610,7 @@ const REGRESSIONS = [
             "the sentence is carried out somewhere other than the trial's end, the verdict still executes, or a road out of the trial asks for it too late or not at all (read: cut, [vote.mjs's killers, mastermind.mjs's], steps, reconcile, close, reset)");
     }],
     ["R1035 - the dead's microphones are the trial's alone (E70 C5, S18-78, S18-87; amend 6, answer 3 (b)): `permissions.BROADCAST_AUDIO` is written only by voice-tile.mjs `toggleBlock` (a GM's hand) and voice.mjs `blockForTrial` and `restoreTrialBlock`, the restore removes a key that was absent with `forcedDeletion()` and never `-=`; settings.mjs `isMutedDead` reads the trial's list and the phase; vote.mjs `trialParticipants` replaces `eligibleVoters` and asks `isMutedDead` and the Monocub flag; clock.mjs `reconcilePhase` settles the voices after the trial's record is blanked at the entry and before the sentence at the exit; gm-bridge.mjs \"trial.enter\" is a GM's request that carries nothing; gm-stores.mjs `trialMuteStore` is synced between the GMs and emptied by a reset", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the writers of `permissions.BROADCAST_AUDIO` (shown a clean twin and a planted writer first), the restore's spelling of a deletion, and orders inside clock.mjs `reconcilePhase`, the bridge row's shape and the store's declaration. */
         /*
          * E70 C5, 28.10.2026; E70-18, E70-20, E70-21. The harm: the module turning somebody's microphone off where the
          * owner did not ask for it, keeping it off after the trial, or putting back over a GM's own block; and a list
@@ -20035,6 +20079,7 @@ const REGRESSIONS = [
             `[each grid's longest word within its Base length, English and Polish; LONGEST_TILE_WORD built from the four tables, split at spaces; the tiles' longest word] - the words: ${JSON.stringify(words)}`);
     }],
     ["R1192 - one cast (E37 C2, E37-08; S10-45): monokuma.mjs `actingStudents({ dead })` is the roster of the students who spend a budget, and the GM's strip, the panel's Next line, the Eclipse's placement and its whispers and the trial's ballots and size read it; no other module function walks the students filtering by death and the Monocub flag but those that ask another question", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over every module file: the one roster (`actingStudents`) and its readers, and no other function that walks the students filtering by death and the Monocub flag but those listed with another question. It reads names, not data flow. */
         /*
          * E37 C2, 01.11.2026; E37-08, audit S10-45. The students who still spend a budget - the living, and the dead back
          * as a Monocub - were spelled four ways: monokuma.mjs `actingStudents()` (the panel's Next line and its table),
@@ -20878,6 +20923,7 @@ const REGRESSIONS = [
             "resetInStep does not write the table's entry patch, or trialProgress does not build its blank from the table");
     }],
     ["R1259 - E42's two records are the primary's to write (E42 fix FG4; the end review's S-M4): every write of the world setting `chapterEnd` in the module is in chapter.mjs, inside a step of the end's queue `chapterEnds` - in the step's own body, or in a function every road to which runs through one - at least 4, measured at 86aa7ac1; every write of `seasonReset` is in season-wipe.mjs, inside `wipeSeason`'s record writer behind its `isPrimaryGm()`, at least 1, measured there", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the writes of two world settings, each on its one road (the chapter's end in its queue, the reset's record behind the primary's gate); the reader is shown a planted write first. */
         /*
          * E42 fix FG4, 03.11.2026; the end review's S-M4. E42 C2 and C4 made two world settings every browser reads,
          * each written by the primary GM alone - the chapter's end in its queue (`chapterEnds`, so one end runs at a time
@@ -22467,6 +22513,7 @@ const REGRESSIONS = [
     /* ---- E47 C1 (09.11.2026) ---- */
 
     ["R2054 - the slots E70 and E73 fill (E47 C1; E47-04, S18-89): trial-floor-ui.mjs `trialSignature` reads no mode and reads the floor's family (R1026 kept), the GM's bar (`trialBar`) is drawn inside the console's live region (`.drpg-trial-console`) and never in its footer (`trialButtons`, `trialFooter`, `consoleFooter`); and the window sites of the console, the vote and the verdict that E21 homed in E47 are on the kit's boxes (`box(\"warning\")`, `box(\"info\")`), no `drpg-warning` left in them", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): where the GM's bar is drawn (the console's live region, never its footer), what the signature reads, and which kit boxes eight window sites use: a census of markup and its builders, with a planted bar in the footer shown first. */
         /*
          * E47 C1, 09.11.2026. The bar's buttons are the ones that depend on the floor's mode (E70 C1); in the live region
          * they follow every second, in the footer they would move with the mode and bring the reopening back. Read in the
