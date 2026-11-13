@@ -41,7 +41,8 @@ async function until(read, done, ms = 6000, step = 150) {
 }
 
 export async function run(api) {
-    const { gm, gm2, p1, check, phase, settle, connect, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
+    const { gm, gm2, p1, p2, check, note, phase, settle, connect, reload, makePrimary, primaryOn, repoUrl: REPO, IDS } = api;
+    const MOD = "danganronpa-rpg";
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const GM2 = accounts[0].id;
     const allRead = (on, id) => Object.keys(on).length >= 5 && Object.values(on).every(v => v === id);
@@ -107,5 +108,185 @@ export async function run(api) {
     check("B3: each GM's removal of the other's row is a removal on both",
         onGm?.a !== null && goneGm?.a === null && goneGm.b === null && goneGm2?.a === null && goneGm2.b === null, J({ goneGm, goneGm2 }));
 
-    return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2 } };
+    /* ------------------------------------------------------------------ C */
+    /* One card, one settlement, across a primary's reload (plan E38 1: "one settlement of a card through card.claim, a
+       change of primary"). p1 asks the GM (call-gm.mjs `callGm`); gm2 claims the card (bridge-asks.mjs `claimCard`,
+       `card.claim` on the primary) and holds its work open while the primary reloads; then it settles the card, and
+       the primary, back, presses the same card: its work never runs. 89-proposal-card E has two GMs pressing at once
+       with no reload. */
+    phase("C card across a reload");
+    const WORDS_C = "E38 C one card two GMs";
+    await p1.eval(`const B = ${imp("gm-bridge.mjs")};
+        return await B.callGm(game.actors.get("${IDS.aiko}"), { title: "E38 C", request: ${J(WORDS_C)} });`, { timeout: 60000 });
+    const FIND = `const S = ${imp("secret.mjs")};
+        const card = () => game.messages.find(m => (S.contentOf(m) ?? "").includes(${J(WORDS_C)})) ?? null;`;
+    const seen = await until(() => gm2.eval(`${FIND} return card()?.id ?? null;`), id => Boolean(id));
+    await gm2.eval(`${FIND} const B = ${imp("gm-bridge.mjs")};
+        globalThis.__e38Work = 0; globalThis.__e38Go = false;
+        globalThis.__e38Claim = B.claimCard(card(), async () => {
+            globalThis.__e38Work++;
+            for (let i = 0; i < 300 && !globalThis.__e38Go; i++) await new Promise(r => setTimeout(r, 100));
+            await B.settleCall(card(), "E38 C ruled on gm2");
+            return { settled: true };
+        }).then(out => out, err => ({ err: String(err) }));
+        return true;`);
+    const holding = await until(() => gm2.eval(`return globalThis.__e38Work;`), n => n === 1);
+    const r3 = await reload("gm");
+    await gm2.eval(`globalThis.__e38Go = true; return true;`);
+    const claimed = await gm2.eval(`const out = await globalThis.__e38Claim; delete globalThis.__e38Claim; return out;`, { timeout: 60000 });
+    await settle(1500);
+    const gmPress = await gm.eval(`${FIND} const B = ${imp("gm-bridge.mjs")}; let ran = 0;
+        const out = await B.claimCard(card(), async () => { ran++; return { settled: true }; });
+        return { out: out ?? null, ran };`, { timeout: 60000 });
+    const ROW = `${FIND} const St = ${imp("gm-stores.mjs")}, m = card();
+        return { id: m?.id ?? null, settled: Boolean(m && (S.cardFlag(m, "settled") || S.cardMeta?.(m, "settled"))),
+            row: m ? St.ruledCardStore.get(m.id) : null, work: globalThis.__e38Work ?? null };`;
+    const onGmC = await until(() => gm.eval(ROW), v => v?.row && v.row.pending === false);
+    const onGm2C = await gm2.eval(ROW);
+    check("C1: p1's card reaches gm2, which claims it and holds its work open (one run)", Boolean(seen) && holding === 1, J({ seen, holding }));
+    check("C2: the primary reloads while gm2 holds the claim; gm2's work then ends and the card is settled once, by gm2",
+        r3.back === true && claimed?.settled === true && onGm2C.settled === true && onGm2C.work === 1, J({ r3, claimed, onGm2C }));
+    check("C3: the primary, back, presses the same card: its work never runs, and both GMs hold the card ruled by gm2",
+        gmPress.ran === 0 && gmPress.out === null && onGmC?.row?.by === GM2 && onGmC.row.pending === false
+            && onGm2C.row?.by === GM2 && onGm2C.row.pending === false,
+        J({ gmPress, onGmC, onGm2C }));
+
+    /* ------------------------------------------------------------------ D */
+    /* One roll, one record, whichever GM is the primary (plan E38 1: "one rollId record"). p1 throws Aiko's Eye (an
+       action roll, drawn on the primary: roll-draw.mjs, the store `rolls`) with gm the primary, then with gm2 the
+       primary while gm is away, then gm comes back. Read: the rows of the store `rolls` each GM holds for Aiko that
+       were not there before. */
+    phase("D a roll's record across a change of primary");
+    const ROLLS = `const St = ${imp("gm-stores.mjs")};
+        return Object.entries(St.rollStore.entries() ?? {}).filter(([, r]) => r.actorId === "${IDS.aiko}").map(([id, r]) => ({ id, total: r.total ?? null })).sort((a, b) => a.id < b.id ? -1 : 1);`;
+    const aikoWas = await gm.eval(`const a = game.actors.get("${IDS.aiko}"); return { hope: a.system.resources.hope.value, actions: game.drpg.actionsLeft(a) };`);
+    const rollsBefore = new Set((await gm.eval(ROLLS)).map(r => r.id));
+    const ROLL = `const A = ${imp("action-rolls.mjs")}; const r = await A.rollTrait(game.actors.get("${IDS.aiko}"), "eye", {}); return { total: r?.total ?? null };`;
+    const fresh = rows => rows.filter(r => !rollsBefore.has(r.id));
+    const d1 = await p1.eval(ROLL, { timeout: 90000 });
+    const d1Gm = await until(async () => fresh(await gm.eval(ROLLS)), rows => rows.length >= 1);
+    const d1Gm2 = await until(async () => fresh(await gm2.eval(ROLLS)), rows => rows.length >= 1);
+    check("D1: with gm the primary, p1's roll is one record, and gm2 holds the same one",
+        d1?.total !== null && d1Gm.length === 1 && J(d1Gm2) === J(d1Gm), J({ d1, d1Gm, d1Gm2 }));
+    const toGm2 = await makePrimary("gm2");
+    const d2 = await p1.eval(ROLL, { timeout: 90000 });
+    const d2Gm2 = await until(async () => fresh(await gm2.eval(ROLLS)), rows => rows.length >= 2);
+    await connect("gm");
+    const d2Gm = await until(async () => fresh(await gm.eval(ROLLS)), rows => rows.length >= 2, 10000);
+    const d2Gm2After = fresh(await gm2.eval(ROLLS));
+    check("D2: with gm2 the primary, p1's next roll is drawn there - one more record, two in all - and gm, back, holds both, each once",
+        toGm2.agreed === true && d2?.total !== null && d2Gm2.length === 2 && new Set(d2Gm2.map(r => r.id)).size === 2
+            && J(d2Gm) === J(d2Gm2After) && d2Gm.length === 2,
+        J({ toGm2: toGm2.left, d2, d2Gm2, d2Gm, d2Gm2After }));
+    await until(primaryOn, on => allRead(on, IDS.gm));
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"), was = ${J(aikoWas)};
+        if (a.system.resources.hope.value !== was.hope) await a.update({ "system.resources.hope.value": was.hope });
+        if (game.drpg.actionsLeft(a) !== was.actions) await game.drpg.setActions(a, was.actions);
+        return true;`);
+
+    /* ------------------------------------------------------------------ F */
+    /* A Frisk whose primary leaves mid-ask (decision of 13.10, A11: "a primary change mid-request"). The ask lives in the
+       primary's memory (frisk.mjs `friskAsks`): when that GM leaves for another who takes over, the searcher's wait ends
+       at once and its browser hands the action back, with no dice thrown (bridge-asks.mjs `requestFriskAsk`; the
+       design's risk 3). p1 frisks Botan openly (40-flow 6h's recipe); p2 holds the ask's window; the primary leaves. */
+    phase("F a Frisk's ask when the primary leaves", { flow: "frisk-openly" });
+    const FR = `const M = ${imp("movement.mjs")}, F = ${imp("frisk.mjs")};
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const tokenOf = id => canvas.scene.tokens.find(t => t.actorId === id) ?? null;`;
+    const fSet = await gm.eval(`${FR}
+        const actors = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"].map(id => game.actors.get(id)), toks = actors.map(a => tokenOf(a.id));
+        if (toks.some(t => !t)) return { err: "no token" };
+        const room = M.allRooms(canvas.scene).find(r => M.othersInNamedRoom(r).length === 0) ?? null;
+        if (!room) return { err: "no empty room" };
+        globalThis.__e38Frisk = { was: toks.map(t => [t.id, { x: t.x, y: t.y }]), actions: game.drpg.actionsLeft(actors[0]),
+            force: game.settings.get("${MOD}", "friskForce") };
+        for (const t of toks) await t.update(M.positionIn(room, t), PLACE);
+        if (game.settings.get("${MOD}", "friskForce") !== false) await game.settings.set("${MOD}", "friskForce", false);
+        F.forgetFriskAsks();
+        await game.drpg.setActions(actors[0], 2);
+        return { room, others: M.othersInRoom(actors[0]).map(a => a.id).sort() };`, { timeout: 60000 });
+    await settle(800);
+    const askTitle = await p2.eval(`return game.i18n.localize("DRPG.Frisk.askTitle");`);
+    await p2.eval(`globalThis.__e38Windows = globalThis.__dialogWindows; globalThis.__dialogWindows = true; return true;`);
+    await p1.eval(`const actor = game.actors.get("${IDS.aiko}");
+        for (let i = 0; i < 50 && game.drpg.actionsLeft(actor) !== 2; i++) await new Promise(r => setTimeout(r, 100));
+        globalThis.__dialogAnswers.push(() => ({ value: "frisk", form: { querySelector: sel => sel.includes("who") ? { value: "${IDS.botan}" }
+            : sel.includes("friskMode") ? { value: "openly" } : null } }));
+        globalThis.__e38Thrown = 0;
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        actor.rollTrait = async function (key, options) { globalThis.__e38Thrown++; return own.call(actor, key, options); };
+        globalThis.__e38Run = game.drpg.performAction(actor, "palm", {}).then(r => ({ r }), e => ({ err: String(e?.stack ?? e).slice(0, 300) }))
+            .finally(() => { delete actor.rollTrait; });
+        return true;`);
+    const asking = await until(async () => ({
+        state: await gm.eval(`${FR} return [...F.friskAsks.values()].find(r => r.searcherId === "${IDS.aiko}")?.state ?? null;`),
+        drawn: await p2.eval(`return globalThis.__dialogLog.some(d => d.title === ${J(askTitle)});`)
+    }), v => v.state === "asking" && v.drawn, 15000);
+    const fT0 = Date.now();
+    const fMoved = await makePrimary("gm2");
+    const fOut = await p1.eval(`const out = await globalThis.__e38Run; delete globalThis.__e38Run;
+        await new Promise(r => setTimeout(r, 500));
+        return { err: out.err ?? null, asked: out.r?.asked ?? null, left: game.drpg.actionsLeft(game.actors.get("${IDS.aiko}")), thrown: globalThis.__e38Thrown };`,
+        { timeout: 120000 });
+    const fMs = Date.now() - fT0;
+    const fGm2Rows = await gm2.eval(`${FR} return F.friskAsks.size;`);
+    check("F1: p1's open Frisk of Botan is asking on the primary and drawn on p2's page before the primary leaves",
+        !fSet.err && asking.state === "asking" && asking.drawn === true, J({ fSet, asking }));
+    check("F2: the primary leaves for gm2 mid-ask: p1's wait ends well before the ask's own clock, the action is handed back, no dice are thrown, and gm2 holds no ask",
+        fMoved.agreed === true && fOut.err === null && fOut.left === 2 && fOut.thrown === 0 && fMs < 30000 && fGm2Rows === 0,
+        J({ fMoved: fMoved.left, fOut, fMs, fGm2Rows }));
+    await connect("gm");
+    await until(primaryOn, on => allRead(on, IDS.gm));
+    await p2.eval(`globalThis.__dialogWindows = globalThis.__e38Windows; delete globalThis.__e38Windows; globalThis.__dialogAnswers.length = 0; return true;`);
+    await p1.eval(`globalThis.__dialogAnswers.length = 0; delete globalThis.__e38Thrown; return true;`);
+    await gm.eval(`${FR} const set = globalThis.__e38Frisk; delete globalThis.__e38Frisk; F.forgetFriskAsks();
+        if (set) {
+            for (const [id, was] of set.was) await canvas.scene.tokens.get(id)?.update(was, PLACE);
+            const aiko = game.actors.get("${IDS.aiko}");
+            if (game.drpg.actionsLeft(aiko) !== set.actions) await game.drpg.setActions(aiko, set.actions);
+            if (game.settings.get("${MOD}", "friskForce") !== set.force) await game.settings.set("${MOD}", "friskForce", set.force);
+        }
+        return true;`, { timeout: 60000 });
+    await settle(800);
+
+    /* ------------------------------------------------------------------ G */
+    /* D153 across two GMs' browsers (E60's Open 50; plan E38 3.3). A Give from a Remnant runs on the GM whose window it
+       is (gm-items.mjs `giveBullet`), an Observe's find on the primary (observe.mjs `mintFindCopy`); each runs in the
+       receiver's finds' queue, which is that browser's memory. Here both, for Chie and the seeded trace, at the same
+       moment, gm's find and gm2's give. Q-E38-2's default (the plan; default taken, the owner to confirm): the fix, a
+       bridge row carrying the give to the primary, stays with the verification chat, so this records what happens -
+       a note, not a verdict - and checks only that it measured something. */
+    phase("G D153: a give and a find on two GMs at once", { flow: "truth-bullets" });
+    const TB = `const T = ${imp("truth-bullets.mjs")};
+        const copies = () => T.bulletsOf(game.actors.get("${IDS.chie}")).filter(i => T.secretOf(i.uuid)?.remnantId === "${IDS.trace}");`;
+    const gBefore = await gm.eval(`${TB} return copies().length;`);
+    const at = Date.now() + 1500;
+    const [gFound, gGave] = await Promise.all([
+        gm.eval(`const O = ${imp("observe.mjs")}, R = ${imp("remnants.mjs")};
+            const ref = R.remnantById("${IDS.annex}", "${IDS.trace}");
+            const data = ref ? R.remnantData(ref) : null;
+            while (Date.now() < ${at}) await new Promise(r => setTimeout(r, 5));
+            const out = data ? await O.mintFindCopy(game.actors.get("${IDS.chie}"), { tokenId: "${IDS.trace}", sceneId: "${IDS.annex}", room: null, data },
+                { name: "E38 G found", playerText: "E38 G", tell: false }) : null;
+            return { data: Boolean(data), made: Boolean(out?.id) };`, { timeout: 60000 }),
+        gm2.eval(`const G = ${imp("gm-items.mjs")};
+            while (Date.now() < ${at}) await new Promise(r => setTimeout(r, 5));
+            const out = await G.giveBullet(game.actors.get("${IDS.chie}"), { name: "E38 G given", realType: "prep", visibility: "evident",
+                playerText: "E38 G", remnantId: "${IDS.trace}", sceneId: "${IDS.annex}" });
+            return out === G.GIVEN_ALREADY ? "given already" : out?.id ? "a bullet" : String(out);`, { timeout: 60000 })
+    ]);
+    await settle(2000);
+    const gAfter = await gm.eval(`${TB} return copies().length;`);
+    const gAfter2 = await gm2.eval(`${TB} return copies().length;`);
+    note("G: D153 across two GMs - Chie's copies of the seeded trace after gm's find and gm2's give at the same moment (Q-E38-2: the fix stays with the verification chat; one copy is the rule, two the known edge)",
+        J({ before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave }));
+    check("G1: D153 measured - the find ran on gm with the trace's answer key and gm2's give answered, and Chie holds at least one copy on both GMs",
+        gBefore === 0 && gFound?.data === true && typeof gGave === "string" && gAfter >= 1 && gAfter2 === gAfter,
+        J({ gBefore, gFound, gGave, gAfter, gAfter2 }));
+    await gm.eval(`${TB} for (const item of copies()) { const uuid = item.uuid; await item.delete().catch(() => {}); await T.dropSecret(uuid).catch(() => {}); }
+        return copies().length;`, { timeout: 60000 });
+    await settle(1500);
+
+    return { primary: { before, joined, afterGmReload, moved, backAgain }, reloads: { p1: r1, gm: r2, card: r3 },
+        d153: { before: gBefore, onGm: gAfter, onGm2: gAfter2, found: gFound, gave: gGave } };
 }
