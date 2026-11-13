@@ -1969,11 +1969,18 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const out = await L.performEchoes(aiko);
         await new Promise(r => setTimeout(r, 400));
         return { answered: out !== null, room: out?.room ?? null, actions: aiko.system.resources.actions.value };`, { timeout: 60000 });
+    // The harness's scene draws no doors: Aiko's room and another are made neighbours (Room Setup's word), put back below.
     e69c.begun = await gm.eval(`const E = await import("${repoUrl}/scripts/eavesdrop-gm.mjs"); const M = await import("${repoUrl}/scripts/movement.mjs");
+        const R = await import("${repoUrl}/scripts/rooms.mjs");
         const a = game.actors.get("${IDS.aiko}"); const place = M.locateActor(a);
-        const into = M.neighbouringRooms(place.scene, place.room)[0] ?? null;
+        const into = M.allRooms(place.scene).find(r => r !== place.room) ?? null;
+        const flags = {};
+        for (const [room, list] of [[place.room, into], [into, place.room]]) for (const piece of R.roomRegions(place.scene, room)) {
+            flags[piece.id] = piece.getFlag("${MOD}", M.ROOM_FLAGS.neighbours) ?? null;
+            await piece.setFlag("${MOD}", M.ROOM_FLAGS.neighbours, list);
+        }
         const out = into ? await E.startEavesdrop({ actor: a, into, userId: "${IDS.p1}", rolled: true, voice: async () => true }) : null;
-        return { into, out };`, { timeout: 30000 });
+        return { into, out, sceneId: place.scene.id, flags };`, { timeout: 30000 });
     await settle(800);
     e69c.copy = await p1.eval(`const E = await import("${repoUrl}/scripts/eavesdrop-gm.mjs"); return E.myEavesdrop()?.into ?? null;`);
     e69c.stop = await p1.eval(`const B = await import("${repoUrl}/scripts/bridge-asks.mjs");
@@ -1987,6 +1994,13 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const V = await import("${repoUrl}/scripts/voice.mjs");
         if (S.eavesdropStore.get("${IDS.aiko}")) await S.eavesdropStore.drop("${IDS.aiko}");
         await V.settleTrialVoices();
+        const scene = game.scenes.get(${JSON.stringify(e69c.begun?.sceneId ?? "")});
+        for (const [id, list] of Object.entries(${JSON.stringify(e69c.begun?.flags ?? {})})) {
+            const piece = scene?.regions?.get(id);
+            if (!piece) continue;
+            const key = (await import("${repoUrl}/scripts/movement.mjs")).ROOM_FLAGS.neighbours;
+            if (list === null) await piece.unsetFlag("${MOD}", key); else await piece.setFlag("${MOD}", key, list);
+        }
         const was = ${JSON.stringify(e69c.before ?? {})};
         const user = game.users.get("${IDS.p1}");
         if ((user._source.permissions ?? {}).BROADCAST_AUDIO === false && was.perms?.BROADCAST_AUDIO !== false) {
