@@ -70,8 +70,11 @@ export async function closeForAll(key, mark) {
     });
 }
 
-/** Who an effect falls on: the user, everyone in the room now, or everyone there but the user (characters only). */
-async function targetsOf(actor, scope, place) {
+/**
+ * Who an effect falls on: the user, everyone in the room now, or everyone there but the user (characters only). No
+ * Spectator: `occupantsOf` counts none present (movement.mjs `countsAsPresent`, E92 C1). Exported for the suite.
+ */
+export async function targetsOf(actor, scope, place) {
     if (scope === "self") return [actor];
     const { occupantsOf } = await import("./movement.mjs");
     const others = occupantsOf(place.room, actor, place.scene).filter(a => a?.type === "character");
