@@ -1474,11 +1474,6 @@ body.drpg-theme-stained-glass #countdowns i.fa-minus { --drpg-glyph: var(--drpg-
 body.drpg-theme-stained-glass #countdowns i.fa-plus { --drpg-glyph: var(--drpg-pix-plus); }
 body.drpg-theme-stained-glass #countdowns i.fa-eye-slash { --drpg-glyph: var(--drpg-pix-unseen); }
 body.drpg-theme-stained-glass #countdowns i.fa-repeat { --drpg-glyph: var(--drpg-pix-countdown-loop); }
-/* END THE CHAPTER'S FLAG, ON THE BUTTON'S ::after (12.11.2026; the owner's report at a real table on 1.2.109: in Season
-   setup and Edit campaign the flag covered the "E"). It was the button's own ::before, which under the glass is the
-   brush's (stained-glass.css, "the brush": absolute, inset, behind the label - 0,5,3 against this rule's 0,2,2), so the
-   flag became a 22 px box laid over the first letter. The ::before stays the brush's; the button is a row and the flag
-   its ::after, put first (`order: -1`). R4403. */
 body.drpg-theme-stained-glass [data-drpg-end-chapter] { display: inline-flex; align-items: center; gap: 0.35em; }
 body.drpg-theme-stained-glass [data-drpg-end-chapter]::after {
     content: "";
