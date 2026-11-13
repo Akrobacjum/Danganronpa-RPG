@@ -61,8 +61,22 @@ function sizeOf(sizes, id, g) {
  * the first column, where the gap's line and fold stand from its middle down, as much as the gap's measured height
  * `gapH` needs (E99 round 5: under glass the fold took two lines, 60 px, of the 39 the row left under the line, and lay
  * over the first unrelated Remnant). `sizes` (optional) the measured `{ w, h }` of each node. Pure.
+ *
+ * A DEDUCTION CENTRES ON WHAT IT RESTS ON (the owner, 13.11.2026: "Deductions should also centre themselves in height
+ * relative to the clues they require"). With `edges` given (`[{ from, to, kind }]`), each node past the first column
+ * whose "input" edges come from earlier columns aims its middle at the mean of those inputs' middles, as already placed -
+ * the columns left to right, so a deduction centres on earlier deductions where they finally stand. The mean (the
+ * coordinator's default; the middle of the topmost and bottommost input was not measured). Chromium, a built case of five
+ * columns and 42 lines at colGap 200, glass: a deduction's middle from its inputs' mean 176 px on average and 405 at most
+ * before, 24 and 92 after (0 wherever no neighbour was in the way), the steepest line 72 -> 61 degrees, no overlap. Where
+ * two aims collide, the column is packed in the order of its aims (ties by row)
+ * with the column's row gap (`pitch - nodeH`, so least nodes stand `pitch` apart) between boxes, at the least total
+ * squared shift from the aims (adjacent blocks pooled while they overlap: one sweep down, each block centred on its
+ * members' aims), and never above the column's top. A node with no input from an earlier column (a counter beside
+ * what it refutes, a deduction resting on nothing) keeps its row order under the placed ones. The first column, and a
+ * layout given no edges, stand as before. Deterministic: the same layout, sizes and edges give the same places.
  */
-export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0 } = {}) {
+export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0, edges = null } = {}) {
     const at = {};
     const rowGap = g.pitch - g.nodeH;
     const byCol = [];
@@ -79,6 +93,57 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0 } = 
         x += w + g.colGap;
     }
     const top = g.head + g.pad;
+    const colOf = new Map();
+    byCol.forEach((list, c) => { for (const n of list ?? []) colOf.set(n.id, c); });
+    /* Each node's aim in column `c`: the mean middle of its inputs from earlier columns, as placed. */
+    const aimsOf = (list, c) => {
+        const out = new Map();
+        for (const n of list) {
+            const mids = edges.filter(e => e?.to === n.id && (e.kind ?? "input") === "input" && colOf.get(e.from) < c && at[e.from])
+                .map(e => at[e.from].y + at[e.from].h / 2);
+            if (mids.length) out.set(n.id, mids.reduce((a, b) => a + b, 0) / mids.length);
+        }
+        return out;
+    };
+    /* The column packed (pooled adjacent violators): the aimed nodes by aim, then the rest by row under them. Answers the
+       y under the last node, its row gap included. */
+    const packColumn = (list, aims, top, c) => {
+        const aimed = list.filter(n => aims.has(n.id)).sort((a, b) => aims.get(a.id) - aims.get(b.id) || a.row - b.row);
+        const blocks = [];
+        for (const n of aimed) {
+            const h = sizeOf(sizes, n.id, g).h;
+            // a block: its nodes, its height with the gaps between them, and the sum of each member's wanted top less
+            // its offset in the block, whose mean is the block's best top
+            let b = { ids: [n.id], hs: [h], height: h, sum: aims.get(n.id) - h / 2, count: 1 };
+            b.y = b.sum / b.count;
+            while (blocks.length) {
+                const p = blocks[blocks.length - 1];
+                if (p.y + p.height + rowGap <= b.y) break;
+                blocks.pop();
+                const shift = p.height + rowGap;
+                b = { ids: [...p.ids, ...b.ids], hs: [...p.hs, ...b.hs], height: p.height + rowGap + b.height,
+                    sum: p.sum + b.sum - shift * b.count, count: p.count + b.count };
+                b.y = b.sum / b.count;
+            }
+            blocks.push(b);
+        }
+        let y = top;
+        for (const b of blocks) {
+            let by = Math.max(y, Math.round(b.y));
+            b.ids.forEach((id, i) => {
+                const s = sizeOf(sizes, id, g);
+                at[id] = { x: cols[c].x, y: by, w: s.w, h: s.h };
+                by += b.hs[i] + rowGap;
+            });
+            y = by;
+        }
+        for (const n of list.filter(m => !aims.has(m.id))) {
+            const s = sizeOf(sizes, n.id, g);
+            at[n.id] = { x: cols[c].x, y, w: s.w, h: s.h };
+            y += s.h + rowGap;
+        }
+        return y;
+    };
     const gapRow = Number.isInteger(layout?.gapAt) && (layout?.unrelated?.length ?? 0) > 0 ? layout.gapAt : null;
     let gapY = null, bottom = top + g.pitch;
     for (let c = 0; c < colCount; c++) {
@@ -94,6 +159,12 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0 } = 
                 y += g.pitch;
             }
         };
+        const aims = c > 0 && Array.isArray(edges) ? aimsOf(list, c) : null;
+        if (aims && aims.size) {
+            y = packColumn(list, aims, top, c);
+            bottom = Math.max(bottom, y);
+            continue;
+        }
         for (const n of list) {
             skipTo(n.row);
             const s = sizeOf(sizes, n.id, g);
@@ -243,7 +314,13 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         sizes.set(id, { w: Math.max(b.offsetWidth || 0, f?.offsetWidth || 0), h: (b.offsetHeight || 0) + (f ? f.offsetHeight || 0 : 0) });
     }
     const gap = canvas.querySelector(":scope > .drpg-case-gap");
-    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes, { gapH: gap?.offsetHeight || 0 });
+    // the edges as drawn (each path names its ends and its kind), so a deduction centres on its inputs at their measured places
+    const drawn = [...canvas.querySelectorAll(":scope > svg.drpg-case-edges path[data-drpg-ends]")].map(p => {
+        const [from, to] = JSON.parse(p.dataset.drpgEnds || "[]");
+        return { from, to, kind: p.classList.contains("drpg-case-edge--input") ? "input" : "other" };
+    });
+    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes,
+        { gapH: gap?.offsetHeight || 0, edges: drawn });
     if (data.fold && place.gapY !== null) place.height = Math.max(place.height, place.gapY + Math.max(g.pitch, (gap?.offsetHeight || 0) + g.pad));
     for (const [id, b] of buttons) {
         const p = place.at[id];

@@ -142,7 +142,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
     const shown = fold && unrelated.size
         ? { ...layout, positions: Object.fromEntries(Object.entries(layout.positions).filter(([id]) => !unrelated.has(id))), unrelated: [...unrelated] }
         : layout;
-    const place = mapPlace(shown);
+    const place = mapPlace(shown, MAP_GEOMETRY, null, { edges: graph?.edges ?? [] });
     if (fold && unrelated.size) place.height = Math.max(place.height, (place.gapY ?? 0) + MAP_GEOMETRY.pitch);
     const heads = [];
     const cols = (layout?.columns ?? []).length;

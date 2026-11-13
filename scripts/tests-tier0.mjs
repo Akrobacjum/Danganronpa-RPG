@@ -23792,6 +23792,8 @@ const REGRESSIONS = [
         });
         const layout = layoutCase(graph, { sort: "kind" });
         const place = M.mapPlace(layout);
+        // the drawing centres each deduction on its inputs (fix-113d, 13.11.2026; R5823): the buttons stand where the edges put them
+        const centred = M.mapPlace(layout, g, null, { edges: graph.edges });
         const finders = new Map([["T1", new Set(["R3651 Aiko"])]]);
         const authors = new Map([["S.T1", "R3651 Botan"]]);
         const read = html => {
@@ -23823,7 +23825,7 @@ const REGRESSIONS = [
             states: [["S.T1", "held"], ["S.T2", "onMap"], ["key:0", "planned"], ["d-a", "schema"], ["c-b", "schema"]],
             open: {
                 buttons: layout.columns.flat().map(id => {
-                    const n = graph.nodes.find(x => x.id === id), p = place.at[id];
+                    const n = graph.nodes.find(x => x.id === id), p = centred.at[id];
                     const label = {
                         "S.T1": `Prep Remnant, R3651 knife, ${L("DRPG.CaseMap.state.held")}, ${game.i18n.format("DRPG.CaseMap.leftBy", { name: "R3651 Botan" })}`,
                         "S.T2": `Neutral Remnant, R3651 dust, ${L("DRPG.CaseMap.state.onMap")}`,
@@ -24020,7 +24022,8 @@ const REGRESSIONS = [
         });
         const layout = layoutCase(graph, { sort: "kind" });
         const sizes = new Map([["S.T1", { w: 196, h: 140 }], ["S.T2", { w: 196, h: 90 }], ["d-a", { w: 352, h: 400 }], ["d-b", { w: 196, h: 54 }], ["s-c", { w: 196, h: 60 }]]);
-        const place = V.mapPlace(layout, g, sizes);
+        // with the edges, as the relayout reads them off the drawn paths (a deduction centred on its inputs since fix-113d, R5823)
+        const place = V.mapPlace(layout, g, sizes, { edges: graph.edges });
         const boxes = Object.entries(place.at);
         const overlaps = [];
         for (const [a, p] of boxes) for (const [b, q] of boxes) {
@@ -24370,6 +24373,73 @@ const REGRESSIONS = [
             curve: /^M\d+ \d+ C\d+ \d+ \d+ \d+ \d+ \d+$/.test(curve)
         }), JSON.stringify({ apart: [true, true, true], inGap: [true, true], curve: true }),
             `{brackets of one, three and nine rows each further out, nine and twelve at the most (x ${short}, ${mid}, ${long}, ${longer}); the shortest left of its column, the longest 8 px or more right of the column before (${before}); a curve between columns}`);
+    }],
+    ["R5823 - a deduction centres on what it rests on (the owner, 13.11.2026: \"Deductions should also centre themselves in height relative to the clues they require\"; case-view.mjs `mapPlace` given `edges`): its middle at the mean of its inputs' middles - two inputs at a and b put it at (a+b)/2 - the columns left to right, so the next column centres on where the first ended; a deduction with no input from an earlier column stands under the placed ones in row order; a layout given no edges stands as before", async () => {
+        /*
+         * fix-113d, 13.11.2026. Pure. Red at 221e342d: `mapPlace` read no edges and put each node in its column's next row.
+         */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const top = g.head + g.pad, mid = (row, h = g.nodeH) => top + row * g.pitch + h / 2;
+        const layout = { positions: { a: { col: 0, row: 0 }, b: { col: 0, row: 1 }, c: { col: 0, row: 2 }, d: { col: 0, row: 3 }, e: { col: 0, row: 4 },
+            x: { col: 1, row: 0 }, loose: { col: 1, row: 1 }, y: { col: 2, row: 0 } }, gapAt: null, unrelated: [] };
+        const edges = [{ from: "a", to: "x", kind: "input" }, { from: "e", to: "x", kind: "input" }, { from: "x", to: "y", kind: "input" }, { from: "d", to: "y", kind: "input" },
+            { from: "loose", to: "x", kind: "refutes" }];
+        const p = V.mapPlace(layout, g, null, { edges });
+        const centre = id => p.at[id].y + p.at[id].h / 2;
+        const plain = V.mapPlace(layout, g, null);
+        equal(JSON.stringify({
+            x: centre("x"), y: centre("y"), loose: [p.at.loose.y >= p.at.x.y + p.at.x.h + (g.pitch - g.nodeH), p.at.loose.x === p.at.x.x],
+            plain: [plain.at.x.y, plain.at.loose.y, plain.at.y.y]
+        }), JSON.stringify({
+            x: (mid(0) + mid(4)) / 2, y: (((mid(0) + mid(4)) / 2) + mid(3)) / 2, loose: [true, true],
+            plain: [top, top + g.pitch, top]
+        }), "{x on the mean of a (row 0) and e (row 4); y on the mean of x as placed and d (row 3); a node with no input under the placed ones, in its column; the same layout with no edges: row by row}");
+    }],
+    ["R5824 - deductions whose aims collide do not overlap and keep their order (case-view.mjs `mapPlace`): two aiming at one height stand a row gap apart, in row order, shifted by the least total amount about that height; a taller node (its measured height, an open node's fields) pushes its neighbour clear of its whole box; none stands above the column's top", async () => {
+        /*
+         * fix-113d, 13.11.2026. Pure. Red at 221e342d (no centring: both stood at their rows from the top, so the pair's
+         * middle was not their aim).
+         */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const top = g.head + g.pad, gap = g.pitch - g.nodeH, mid = row => top + row * g.pitch + g.nodeH / 2;
+        const layout = { positions: { a: { col: 0, row: 0 }, b: { col: 0, row: 1 }, c: { col: 0, row: 2 }, d: { col: 0, row: 3 }, e: { col: 0, row: 4 }, f: { col: 0, row: 5 }, h: { col: 0, row: 6 },
+            p: { col: 1, row: 0 }, q: { col: 1, row: 1 } }, gapAt: null, unrelated: [] };
+        // p and q both rest on d alone: one aim
+        const edges = [{ from: "d", to: "p", kind: "input" }, { from: "d", to: "q", kind: "input" }];
+        const one = V.mapPlace(layout, g, null, { edges });
+        const pairMid = (one.at.p.y + one.at.q.y + one.at.q.h) / 2;
+        // p tall (an open node, 300 px measured), q under it
+        const tall = V.mapPlace(layout, g, new Map([["p", { w: g.nodeW, h: 300 }]]), { edges });
+        // both aiming at a: the pack would start above the column's top
+        const high = V.mapPlace(layout, g, null, { edges: [{ from: "a", to: "p", kind: "input" }, { from: "a", to: "q", kind: "input" }] });
+        equal(JSON.stringify({
+            order: one.at.p.y < one.at.q.y, apart: one.at.q.y - (one.at.p.y + one.at.p.h), centred: Math.abs(pairMid - mid(3)) <= 1,
+            tall: tall.at.q.y - (tall.at.p.y + tall.at.p.h), high: [high.at.p.y, high.at.q.y]
+        }), JSON.stringify({ order: true, apart: gap, centred: true, tall: gap, high: [top, top + g.pitch] }),
+            "{p before q; the row gap between them; the pair's middle on their one aim; a 300 px p and q a row gap under its box; a pack aiming above the column's top starts at it}");
+    }],
+    ["R5825 - the centred layout is deterministic (case-view.mjs `mapPlace`): the same layout, sizes and edges give the same places, called twice and with the edges given in another order", async () => {
+        /*
+         * fix-113d, 13.11.2026. Pure. Red at 221e342d as a measure of the centring: the edges' order changed nothing then
+         * because nothing read them, so the check of a centred place (the first deduction off row 0) fails there.
+         */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const positions = {}, edges = [];
+        for (let i = 0; i < 9; i++) positions[`e${i}`] = { col: 0, row: i };
+        ["d0", "d1", "d2", "d3"].forEach((id, i) => { positions[id] = { col: 1, row: i }; });
+        positions.s = { col: 2, row: 0 };
+        [["e7", "d0"], ["e8", "d0"], ["e2", "d1"], ["e3", "d1"], ["e2", "d2"], ["e4", "d2"], ["e0", "d3"], ["d0", "s"], ["d3", "s"], ["e5", "s"]]
+            .forEach(([from, to]) => edges.push({ from, to, kind: "input" }));
+        const layout = { positions, gapAt: null, unrelated: [] };
+        const a = JSON.stringify(V.mapPlace(layout, g, null, { edges }));
+        const b = JSON.stringify(V.mapPlace(layout, g, null, { edges }));
+        const c = JSON.stringify(V.mapPlace(layout, g, null, { edges: [...edges].reverse() }));
+        const placed = JSON.parse(a).at;
+        equal(JSON.stringify({ same: [a === b, a === c], centred: placed.d0.y > g.head + g.pad }), JSON.stringify({ same: [true, true], centred: true }),
+            "{the places called twice, and with the edges reversed; d0 (resting on rows 7 and 8) off the column's top}");
     }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
