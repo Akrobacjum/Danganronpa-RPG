@@ -470,6 +470,118 @@ async function accentProbe() {
     } finally { host.remove(); }
     return out;
 }
+/* THE TRIAL'S CURTAIN, ONE LAYOUT AND CLOSED UNTIL THE SCENE (fix-113r, 13.11.2026; the owner at a table on 1.2.112:
+   "between covering the screen and uncovering it, the curtain's layout changes" and "the closed curtain should last until
+   the next scene has switched"). `--trial-layout` runs this instead of the sweep: at 1366x768 and 1920x1080, Stained
+   Glass, the trial's entry and exit, with the interface moved under the clock's change (the HUD 70 px taller, as its
+   trial row and the room tile move it at a table) and moved again while the curtain is closed, with the glass recut
+   under it (`refreshGlass`, as a scene's `canvasReady` does). The scene is a stand-in settled at 5000 ms. Read:
+   - the layout: each pane's box (the standing panes' shapes, sequence.mjs `drpgEntry.standing`, and each new pane at
+     the offset its last frame drew) at the close's end (`slideAt` past its length), while it is held, and at the
+     opening's first frame - every pane of each with one of the other within 1 px;
+   - the pixels: the held curtain's pieces composed against the opening's first frame, the same composition - 0 pixels
+     changed by more than 48 (the four channels' sum);
+   - the wait: at 4500 ms, past the frames' 2500, the curtain still held and the opening not shown; after the scene, it
+     opens and the sequence ends.
+   THE CONTROL: once a run, the opening's first piece planted 3 px right before its first frame - the layout reading
+   and the pixels must both see it. Exit 1 on a failure or a control that passed. Before the fix, read with the same
+   probe on ceb9e9c8: 34 of 39 panes off at the close's end against the closed curtain (worst 111.7 px) and 11.3 % of
+   the frame's pixels changed at 900 ms, both edges at 1366x768. */
+async function trialLayoutProbe([kind, plant]) {
+    const S = await import("/scripts/sequence.mjs"), C = await import("/scripts/glass-close.mjs"), G = await import("/scripts/glass.mjs");
+    S.registerSequences();
+    const boxOf = poly => { const xs = poly.map(q => q[0]), ys = poly.map(q => q[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+    const moved = (fill, off) => fill.map((f, i) => (off?.[i] ? boxOf(f.poly.map(([x, y]) => [x + off[i][0], y + off[i][1]])) : null)).filter(Boolean);
+    const compose = (layer, grow) => {
+        const c = document.createElement("canvas"); c.width = innerWidth; c.height = innerHeight; const g = c.getContext("2d");
+        for (const el of layer.querySelectorAll(".drpg-seq-piece")) { const cv = el.querySelector("canvas:not(.drpg-seq-old)"); if (cv) g.drawImage(cv, parseFloat(el.style.left), parseFloat(el.style.top)); }
+        g.drawImage(grow.canvas, 0, 0);
+        return g.getImageData(0, 0, c.width, c.height).data;
+    };
+    const diff = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) + Math.abs(a[i + 3] - b[i + 3]) > 48) n++; return n; };
+    const hud = document.getElementById("drpg-hud");
+    hud.style.minHeight = `${hud.offsetHeight + 70}px`;
+    let open = null;
+    const scene = new Promise(res => { open = res; });
+    const t0 = performance.now();
+    const clock = kind === "trialExit" ? { phase: "dailyLife", chapter: 2, timeOfDay: "afternoon", trialEndedAt: Date.now() } : { phase: "classTrial", chapter: 2, timeOfDayStartedAt: Date.now() };
+    const out = { why: [] };
+    const played = await (kind === "trialExit" ? S.playTrialExit(clock, { on: true, scene }) : S.playTrialEntry(clock, { scene }));
+    const host = document.getElementById("drpg-sequence"), e = host?.drpgEntry;
+    if (played !== "motion" || !e?.standing) { out.why.push(`no glass played (${played}, ${host?.dataset.drpgSequenceLook ?? "no host"})`); return out; }
+    const closeLayer = host.querySelector(".is-close"), openLayer = host.querySelector(".is-open");
+    out.panes = e.standing[0].length + e.fill[0].length;
+    const closeEnd = [...e.standing[0].map(boxOf), ...moved(e.fill[0], C.slideAt(e.fill[0], 1e6))];
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+    await new Promise(res => { const w = () => (e.phase === "held" ? res() : setTimeout(w, 20)); w(); });
+    const held = [...e.standing[0].map(boxOf), ...moved(e.fill[0], e.growIn.offsets)];
+    const heldPx = compose(closeLayer, e.growIn);
+    // a scene's load under the closed curtain: the interface moves again and the glass is recut
+    hud.style.minHeight = `${hud.offsetHeight + 40}px`;
+    G.refreshGlass();
+    await sleep(Math.max(0, 4500 - (performance.now() - t0)));
+    out.waited = { held: e.phase === "held", openShown: !openLayer.hidden, gate: S.sequenceGate?.() ?? null };
+    const first = new Promise(res => {
+        const draw = e.growOut.draw;
+        let once = true;
+        e.growOut.draw = offs => {
+            if (once && plant) { const el = openLayer.querySelector(".drpg-seq-piece"); el.style.left = `${parseFloat(el.style.left) + 3}px`; }
+            const n = draw(offs);
+            if (once) {
+                once = false;
+                const shift = plant ? [3, 0, 3, 0] : [0, 0, 0, 0];
+                res({ boxes: [...e.standing[1].map((p, i) => boxOf(p).map((v, k) => v + (i === 0 ? shift[k] : 0))), ...moved(e.fill[1], offs)], px: compose(openLayer, e.growOut), at: performance.now() - t0 });
+            }
+            return n;
+        };
+    });
+    await sleep(Math.max(0, 5000 - (performance.now() - t0)));
+    open("drawn");
+    const f = await Promise.race([first, sleep(8000).then(() => null)]);
+    if (!f) { out.why.push("the curtain never opened after the scene"); return out; }
+    out.openedAt = Math.round(f.at);
+    const near = (a, b) => { let worst = 0, off = 0; for (const [x, y] of [[a, b], [b, a]]) for (const p of x) { const d = Math.min(...y.map(q => Math.max(...p.map((v, k) => Math.abs(v - q[k]))))); worst = Math.max(worst, d); if (d > 1) off++; } return { off, worst: Math.round(worst * 10) / 10 }; };
+    out.closeHeld = near(closeEnd, held);
+    out.heldOpen = near(held, f.boxes);
+    out.px = diff(heldPx, f.px);
+    await new Promise(res => { const w = () => (document.getElementById("drpg-sequence") ? setTimeout(w, 50) : res()); w(); });
+    out.ended = Math.round(performance.now() - t0);
+    return out;
+}
+if (args.includes("--trial-layout")) {
+    let bad = 0, controlled = false;
+    try {
+        for (const [vw, vh] of [[1366, 768], [1920, 1080]]) for (const kind of ["trialEntry", "trialExit"]) for (const plant of vw === 1366 && kind === "trialEntry" ? [false, true] : [false]) {
+            const page = await browser.newPage({ viewport: { width: vw, height: vh } });
+            await page.goto(`${base}/${page0}`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(trialLayoutProbe, [kind, plant]);
+            const why = [...r.why];
+            if (!r.why.length) {
+                if (r.closeHeld.off) why.push(`close's end vs held: ${r.closeHeld.off} pane(s) off, worst ${r.closeHeld.worst} px`);
+                if (r.heldOpen.off) why.push(`held vs the opening's first frame: ${r.heldOpen.off} pane(s) off, worst ${r.heldOpen.worst} px`);
+                if (r.px) why.push(`${r.px} pixel(s) changed from the held curtain to the opening's first frame`);
+                if (!r.waited.held || r.waited.openShown) why.push(`at 4500 ms, before the scene: held ${r.waited.held}, the opening shown ${r.waited.openShown}`);
+                if (!(r.openedAt >= 5000)) why.push(`opened at ${r.openedAt} ms, before the scene at 5000`);
+            }
+            const line = r.why.length ? r.why.join("; ") : `${r.panes} panes; close's end vs held ${r.closeHeld.off} off (worst ${r.closeHeld.worst} px), held vs opening ${r.heldOpen.off} off (worst ${r.heldOpen.worst} px), ${r.px} px changed; at 4500 ms held ${r.waited.held}, opening shown ${r.waited.openShown}, gate ${JSON.stringify(r.waited.gate)}; opened at ${r.openedAt} ms, ended at ${r.ended} ms`;
+            if (plant) {
+                const saw = !r.why.length && r.heldOpen.off > 0 && r.px > 0;
+                if (saw) controlled = true; else bad++;
+                console.log(`${vw}x${vh} ${kind.padEnd(10)} control: ${line}${saw ? "  - the planted 3 px is seen, as it must be" : "  - FAIL: the plant was not seen"}`);
+            } else {
+                if (why.length) bad++;
+                console.log(`${vw}x${vh} ${kind.padEnd(10)} ${line}${why.length ? `  - FAIL: ${why.join("; ")}` : ""}`);
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (!controlled) { bad++; console.log("FAIL: the control never ran"); }
+    console.log(`TRIAL LAYOUT ${bad ? "RED" : "GREEN"}: Stained Glass at 1366x768 and 1920x1080, the trial's entry and exit, one layout from the close to the opening, closed until the scene`);
+    process.exit(bad ? 1 : 0);
+}
+
 if (args.includes("--accents")) {
     let bad = 0;
     try {

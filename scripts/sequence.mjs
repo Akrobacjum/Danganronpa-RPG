@@ -31,6 +31,9 @@
  *     on top"), and `#drpg-popups` keeps its cards. Foundry tools and Map tools are hidden for the span by a body
  *     attribute - never `toggleFoundryTools(false)`, which collapses the sidebar - and stand as they were after it (A8).
  *   NO WORLD STATE. Nothing here writes a setting, a document or a flag; R3700 reads the harness's write log over a run.
+ *   CLOSED UNTIL THE SCENE (fix-113r, 13.11.2026). A trial's edge moves the table to another scene; its curtain stays
+ *     closed until this browser has drawn that scene (`canvasReady`), 15 s at most (`SCENE_WAIT_MS`), and then opens -
+ *     each browser on its own canvas, so a slow one opens later rather than show the switch.
  *   COUNTED. `sequence.started`, `.still`, `.off`, `.skipped`, `.ended`, `.cut` through perf-counters.mjs, for E53's
  *     budget and scenario 86 (at rest nothing moves them).
  *
@@ -121,6 +124,13 @@ export function sequenceNow() {
     return running ? { kind: running.kind, key: running.key, mode: running.mode } : null;
 }
 
+/** The gate of the sequence playing here (`playSequence`'s `gate`): `{ waiting, why }` - `why` "drawn", "timeout" or
+    "none" once it opened - or null when none plays or it has none. For the suite and the scenarios. */
+export function sequenceGate() {
+    const g = running?.gate;
+    return g ? { waiting: g.opened === null, why: g.why } : null;
+}
+
 /** Whether this browser has started the sequence of `kind` for the event `key` (one start per event). */
 export function sequenceStarted(kind, key) {
     return started.has(`${kind}\u0000${key}`);
@@ -158,8 +168,11 @@ export function endSequence(why = "cut") {
  * the event started nothing (before ready, or heard again). Never throws to its caller. `on` is the table's switch as
  * read now (`sequencesOn`); the suite hands in false, since tiers 0-1 write no setting. `then` is called once the sequence
  * has ended on its own or been skipped (or at once with the switch off), never when another one cut it (E94 C3).
+ * `gate` (fix-113r), `{ at, ready }`: every frame from `at` ms on waits until `ready` - a promise, or a function asked for
+ * one only when the sequence is drawn, whose `cancel` is called however the sequence ends - has settled; the trial's
+ * edges hand the wait for this browser's next scene (`sceneGateFor`), so the closed curtain stands until it is drawn.
  */
-export function playSequence(kind, key, draw, { sound = null, on = sequencesOn(), then = null, onEnd = null } = {}) {
+export function playSequence(kind, key, draw, { sound = null, on = sequencesOn(), then = null, onEnd = null, gate = null } = {}) {
     const times = SEQUENCE_TIMES[kind];
     if (!ready || !times || key == null) return null;
     const id = `${kind}\u0000${key}`;
@@ -184,14 +197,37 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     host.dataset.drpgSequenceMode = still ? "still" : "motion";
     // the event is told to a screen reader by its own card and the HUD (a11y.mjs hears the phase); this is a picture
     host.setAttribute("aria-hidden", "true");
-    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then, onEnd };
+    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then, onEnd, gate: null };
     running = run;
+    /* THE GATE (fix-113r, the owner at a table on 1.2.112, 13.11.2026: "the closed curtain should last until the next
+       scene has switched"). A frame at or after `gate.at` ms is played that long after the later of `gate.at` and the
+       moment `gate.ready` settles, so everything from the opening on waits, in order, for the scene; what comes before
+       plays on time. Without a gate every frame is at its own time, as before. */
+    const t0 = performance.now(), waiting = [];
+    if (gate) {
+        run.gate = { at: gate.at, opened: null, settled: null, why: null };
+        // a function is asked only now, when the sequence is drawn; however the sequence ends, the wait is let go
+        const ready = typeof gate.ready === "function" ? gate.ready() : gate.ready;
+        run.undo.push(() => ready?.cancel?.());
+        Promise.resolve(ready).catch(() => "failed").then(why => {
+            if (running !== run) return;
+            run.gate.settled = performance.now() - t0;
+            run.gate.opened = Math.max(gate.at, run.gate.settled);
+            run.gate.why = why ?? "none";
+            for (const go of waiting.splice(0)) go();
+        });
+    }
+    const later = (ms, fn) => run.timers.push(setTimeout(() => { if (running === run) fn(); }, Math.max(0, ms)));
     document.body.setAttribute(SEQUENCE_ATTR, kind);
     document.body.append(host);
     const ctx = {
         host, still, times,
         /** Run `fn` at `ms` from the start, while this sequence is the one playing. */
-        at: (ms, fn) => { run.timers.push(setTimeout(() => { if (running === run) fn(); }, Math.max(0, ms))); },
+        at: (ms, fn) => {
+            if (!run.gate || ms < run.gate.at) return later(ms, fn);
+            const go = () => later(run.gate.opened + (ms - run.gate.at) - (performance.now() - t0), fn);
+            if (run.gate.opened !== null) go(); else waiting.push(go);
+        },
         /** Keyframes on an element of the sequence (`fill: both`: the host goes as a whole at the end). */
         anim: (el, frames, opts) => {
             if (still || !el?.animate) return null;
@@ -212,7 +248,11 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     if (still) {
         count("sequence.still");
         sound?.();
-        ctx.at(times.still, () => endSequence("ended"));
+        // still, the frame stands its hold and, behind a gate, until the gate opens too
+        if (run.gate) {
+            const go = () => later(Math.max(times.still, run.gate.settled) - (performance.now() - t0), () => endSequence("ended"));
+            if (run.gate.opened !== null) go(); else waiting.push(go);
+        } else ctx.at(times.still, () => endSequence("ended"));
     } else {
         if (sound) ctx.at(times.sound, sound);
         ctx.at(times.end, () => endSequence("ended"));
@@ -237,6 +277,81 @@ export function edgeShown(clock) {
 /** The event's key: the clock's stamp of the trial's edge (clock.mjs stamps `timeOfDayStartedAt` on every road in). */
 export function trialEntryKey(clock = getClock()) {
     return clock?.phase === "classTrial" ? `classTrial:${clock.timeOfDayStartedAt ?? clock.writtenAt ?? "?"}` : null;
+}
+
+/* ========================================================================== *
+ *  THE SCENE UNDER THE CLOSED CURTAIN (fix-113r, 13.11.2026)
+ * ========================================================================== */
+
+/**
+ * How long a closed curtain waits for this browser to draw the scene a trial's edge moves the table to, in ms: past it
+ * the curtain opens anyway and a warning is logged, so a browser that never gets the scene is not left behind a
+ * closed curtain (the coordinator's default for the owner's report of 13.11.2026).
+ */
+export const SCENE_WAIT_MS = 15000;
+
+/**
+ * Which scene a crossing of the trial's edge moves this table to, as a test of a scene, or null when it moves it
+ * nowhere this browser can wait for. Into the trial, the linked hall (trial-scene.mjs `enterTrialScene` activates it);
+ * out of it, any scene but the hall (`leaveTrialScene` activates the scene the GM chose at End the trial, else the school
+ * or the scene the trial was opened from - a player's browser cannot know which, so any but the hall). No hall linked,
+ * nothing activates a scene, so null; and null with no canvas on this browser (Foundry's "no canvas" setting), which
+ * never draws one. Plain arguments, so the suite can ask it of stand-ins.
+ */
+export function sceneTargetOf(kind, { hall = null, noCanvas = false } = {}) {
+    if (!hall?.id || noCanvas) return null;
+    if (kind === "trialEntry") return scene => scene?.id === hall.id;
+    if (kind === "trialExit") return scene => Boolean(scene?.id) && scene.id !== hall.id;
+    return null;
+}
+
+/* The hook a closed curtain listens on: Foundry's `canvasReady`, which fires on this browser once it has drawn a
+   scene (every browser draws the activated scene on its own, so each waits for its own). */
+function listenCanvasReady(fn) {
+    const id = Hooks.on("canvasReady", fn);
+    return () => Hooks.off("canvasReady", id);
+}
+
+/**
+ * A promise settled once this browser shows a scene `isTarget` accepts, drawn: at once when the canvas already is
+ * (`canvas.ready` on such a scene), else at the first `canvasReady` on one - "drawn"; or after `ms` - "timeout", with a
+ * warning on the console. With no target, "none" at once. `listen` and `view` are the hook and the canvas, stand-ins
+ * in the suite.
+ */
+export function whenSceneDrawn(isTarget, { ms = SCENE_WAIT_MS, listen = listenCanvasReady, view = () => globalThis.canvas } = {}) {
+    if (typeof isTarget !== "function") return Promise.resolve("none");
+    const shown = c => Boolean(c?.ready) && isTarget(c.scene ?? null);
+    try { if (shown(view())) return Promise.resolve("drawn"); } catch { /* a canvas not built yet reads as not drawn */ }
+    let done = () => null;
+    const wait = new Promise(resolve => {
+        let stop = () => null, timer = 0;
+        done = why => { clearTimeout(timer); try { stop(); } catch { /* a hook already gone */ } resolve(why); };
+        stop = listen(c => { try { if (shown(c ?? view())) done("drawn"); } catch { /* not this scene */ } }) ?? (() => null);
+        timer = setTimeout(() => {
+            console.warn(`${MODULE_ID} | the curtain waited ${ms} ms for this browser to draw the next scene and opens without it`);
+            count("sequence.sceneTimeout");
+            done("timeout");
+        }, ms);
+    });
+    // a sequence ended before its scene came lets the wait go, with no warning
+    wait.cancel = () => done("cancelled");
+    return wait;
+}
+
+/* The scene's gate for a trial's edge on this browser: the test of `sceneTargetOf` read from the world (rooms.mjs, read
+   lazily: it is a leaf, but the sequences load early) and the wait on it. */
+function sceneGateFor(kind) {
+    let inner = null, cancelled = false;
+    const wait = (async () => {
+        let hall = null, noCanvas = false;
+        try { hall = (await import("./rooms.mjs")).trialScene?.() ?? null; } catch { hall = null; }
+        try { noCanvas = game.settings?.get?.("core", "noCanvas") === true; } catch { noCanvas = false; }
+        if (cancelled) return "cancelled";
+        inner = whenSceneDrawn(sceneTargetOf(kind, { hall, noCanvas }));
+        return inner;
+    })();
+    wait.cancel = () => { cancelled = true; inner?.cancel?.(); };
+    return wait;
 }
 
 /* The title's words by the edge: into the trial "CLASS TRIAL" and the courtroom, out of it "TRIAL ADJOURNED" and back
@@ -296,8 +411,9 @@ function slideCanvas(fill, W, H, acc) {
     canvas.className = "drpg-seq-grow";
     canvas.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;`;
     const g = canvas.getContext("2d");
-    let shown = 0;
+    let shown = 0, last = [];
     const draw = offsets => {
+        last = offsets.map(o => (o ? [o[0], o[1]] : null));
         if (!g) return 0;
         g.clearRect(0, 0, W, H);
         shown = 0;
@@ -313,7 +429,8 @@ function slideCanvas(fill, W, H, acc) {
         });
         return shown;
     };
-    return { canvas, draw, get shown() { return shown; } };
+    // `offsets`: what the last frame drew, each pane's offset (null: not drawn) - what the layout's reading reads
+    return { canvas, draw, get shown() { return shown; }, get offsets() { return last; } };
 }
 
 /** The closed curtain's look as an element over the screen. */
@@ -383,14 +500,14 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
     host.append(curtain, top);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
-        const closed = closedCanvas(glass.closed);
         /* THE HAND-OVER (the owner at the table, 12.11.2026: "calosc blyska"; glass.mjs `holdCurtain`): the live curtain
            and its glow go to 0 under the copies and come back under them at the end, both ends crossing over in `hand`
            ms; however the sequence ends, the hold is let go. Still, the closed curtain stands over a curtain at 0. */
         ctx.undo(() => glass.release?.());
         if (still) {
             glass.hold?.(0);
-            curtain.append(closed);
+            // still, the closed curtain's own paint of the cut it would close on, held over a curtain at 0
+            curtain.append(closedCanvas(glass.closed));
         } else {
             glass.hold?.(T.handIn);
             anim(curtain, [{ opacity: 0 }, { opacity: 1 }], { duration: T.handIn, easing: "linear" });
@@ -402,39 +519,48 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
             const growIn = slideCanvas(glass.close.fill, glass.W, glass.H, glass.acc), growOut = slideCanvas(glass.open.fill, glass.W, glass.H, glass.acc);
             close.layer.append(growIn.canvas);
             open.layer.append(growOut.canvas);
-            closed.hidden = true;
             open.layer.hidden = true;
-            curtain.append(close.layer, closed, open.layer);
-            host.drpgEntry = { growIn, growOut, fill: [glass.close.fill, glass.open.fill] };
+            curtain.append(close.layer, open.layer);
+            /* what the layout's reading reads in Chromium (audit/glass-sweep.mjs --trial-layout): the fills and their last
+               offsets, the standing panes' shapes, the closed curtain's cut and which part plays */
+            host.drpgEntry = { growIn, growOut, fill: [glass.close.fill, glass.open.fill], standing: [glass.close.panes.map(p => p.poly), glass.open.panes.map(p => p.poly)], closedCut: glass.closedCut ?? null, get phase() { return phase; } };
             glass.close.panes.forEach(p => anim(p.old, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, delay: p.batch * FADE_STEP, easing: "linear" }));
             const t0 = performance.now();
-            let frame = 0, phase = "close";
+            let frame = 0, phase = "close", opened = 0;
             const step = now => {
                 if (!host.isConnected) return;
                 // a frame's stamp is its start, which can fall before `t0` when the pieces' cut held the thread
                 const ms = Math.max(0, now - t0);
                 if (phase === "close") growIn.draw(slideAt(glass.close.fill, ms));
                 else if (phase === "open") {
-                    if (!growOut.draw(slideAt(glass.open.fill, ms - T.titleOut, { open: true })) && ms > T.titleOut + 50) return;
+                    // from the opening's own start: behind the scene's gate it can come later than `titleOut`
+                    const since = Math.max(0, now - opened);
+                    if (!growOut.draw(slideAt(glass.open.fill, since, { open: true })) && since > 50) return;
                 }
                 if (phase !== "held") frame = requestAnimationFrame(step);
             };
             frame = requestAnimationFrame(step);
             ctx.undo(() => globalThis.cancelAnimationFrame?.(frame));
-            /* closed: the curtain's own paint of the whole cut until the title goes. No wash over it: the pulse of 420 ms
-               laid 10 % Bone over the whole screen above the closed curtain, and the probe read it as a flash of +19 on
-               the whole frame (the seam report, 12.11.2026); the curtain's own pulse is in its paint. */
+            /* closed: the closing panes themselves, every new one at its place, until the scene is drawn (the gate) and
+               the title goes. Until fix-113r a canvas of the closed curtain's own paint was laid in their place at 900 ms
+               and the opening's panes in its place at 2500: two swaps, and the closed canvas was another cut where the
+               interface had moved (glass.mjs `entryPieces`) and, on the same cut, another stroke of the lead - in
+               Chromium 11.3 % of the frame's pixels changed at 900 ms, 2.7 % at 2500. Now the same pieces stand still,
+               and the opening's are cut from the same paint on the same shapes, so its first frame is this one. No
+               wash over it: the pulse of 420 ms laid 10 % Bone over the whole screen above the closed curtain, and the
+               probe read it as a flash of +19 on the whole frame (the seam report, 12.11.2026); the curtain's own pulse
+               is in its paint. */
             at(T.closed, () => {
                 phase = "held";
                 globalThis.cancelAnimationFrame?.(frame);
-                close.layer.remove();
-                closed.hidden = false;
+                growIn.draw(glass.close.fill.map(() => [0, 0]));
             });
             at(T.titleOut, () => {
-                closed.remove();
+                close.layer.remove();
                 open.layer.hidden = false;
                 growOut.draw(glass.open.fill.map(() => [0, 0]));
                 phase = "open";
+                opened = performance.now();
                 frame = requestAnimationFrame(step);
             });
         }
@@ -464,7 +590,7 @@ function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
  * curtain's pieces (glass.mjs `entryPieces`), asked here and not by the hook's caller: the glass is only moved when the
  * sequence is drawn, so the table's switch off and a second hearing of the event leave the curtain's own turn alone.
  */
-export async function playTrialEntry(clock = getClock(), { pieces = undefined } = {}) {
+export async function playTrialEntry(clock = getClock(), { pieces = undefined, scene = undefined } = {}) {
     const key = trialEntryKey(clock);
     if (!key || !edgeShown(clock) || sequenceStarted("trialEntry", key) || !ready) return null;
     let glass = pieces ?? null;
@@ -474,7 +600,7 @@ export async function playTrialEntry(clock = getClock(), { pieces = undefined } 
         try { glass = (await import("./glass.mjs")).entryPieces?.() ?? null; } catch { glass = null; }
     }
     // `pieces`: the suite's stand-in for the curtain's (R3917); a start that plays nothing lets the curtain's hold go
-    const played = playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart") });
+    const played = playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart"), gate: { at: SEQUENCE_TIMES.trialEntry.titleOut, ready: scene === undefined ? () => sceneGateFor("trialEntry") : scene } });
     if (played === null || played === "off") glass?.release?.();
     return played;
 }
@@ -510,15 +636,15 @@ export function whenTrialExitEnds() {
  * Nothing when the crossing was Edit campaign's (`edgeShown`), heard again, or before ready. `pieces`, the suite's
  * stand-in for the curtain's. Answers what `playSequence` answered.
  */
-export function playTrialExit(clock = getClock(), { pieces = undefined, on = sequencesOn() } = {}) {
+export function playTrialExit(clock = getClock(), { pieces = undefined, on = sequencesOn(), scene = undefined } = {}) {
     const key = trialExitKey(clock);
     if (!key || !on || !edgeShown(clock) || sequenceStarted("trialExit", key) || !ready) return Promise.resolve(null);
     let settle = null;
     const wait = new Promise(r => { settle = r; });
     const done = why => { settle(why); if (exitWait === wait) exitWait = null; };
     exitWait = wait;
-    // never longer than the exit could stand, whatever happens to it
-    setTimeout(() => done("timeout"), SEQUENCE_TIMES.trialExit.end + 2000);
+    // never longer than the exit could stand, whatever happens to it: its frames and the longest wait for the scene
+    setTimeout(() => done("timeout"), SEQUENCE_TIMES.trialExit.end + SCENE_WAIT_MS + 2000);
     return (async () => {
         let glass = pieces ?? null;
         if (pieces === undefined && document.body.classList.contains("drpg-theme-stained-glass")) {
@@ -526,7 +652,7 @@ export function playTrialExit(clock = getClock(), { pieces = undefined, on = seq
             document.body.dataset.drpgPhase = clock.phase ?? "dailyLife";
             try { glass = (await import("./glass.mjs")).exitPieces?.() ?? null; } catch { glass = null; }
         }
-        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, clock, "trialExit"), { on, onEnd: done });
+        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, clock, "trialExit"), { on, onEnd: done, gate: { at: SEQUENCE_TIMES.trialExit.titleOut, ready: scene === undefined ? () => sceneGateFor("trialExit") : scene } });
         if (played === null || played === "off") { glass?.release?.(); done(played ?? "none"); }
         return played;
     })().catch(err => { done("failed"); console.error(`${MODULE_ID} | the trial's exit failed`, err); return null; });
