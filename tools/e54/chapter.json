@@ -1,0 +1,90 @@
+{
+  "about": "E54's chapter cut (the plan's D1 and D2; chapter.mjs is over 1300 lines, so the split applies): \"DEATH\" (`livingStudents` .. `chooseFirst`) into death.mjs and \"THE BODY IS FOUND\" (`faintPrepCandidates` .. `openBodyDiscoveryDialog`) into body.mjs; chapter.mjs keeps \"CHAPTER END AND THE NEXT SESSION\", the re-export of settings.mjs's death predicates and the season registry's two rows. One manifest, two targets: D1 and D2 as one run. Run as windows.json's about says, with this manifest.",
+  "source": "scripts/chapter.mjs",
+  "facadeNote": [
+    "E54 (the plan's D1, D2): a death lives in death.mjs and a body found in body.mjs, both re-exported here; this",
+    "file keeps the chapter's end and the next session."
+  ],
+  "keep": "*",
+  "targets": [
+    {
+      "file": "scripts/death.mjs",
+      "header": [
+        "A death (E54, the plan's D1): who is alive (`livingStudents`, `livingStudentsForGm`), a death marked, kept secret,",
+        "published and taken back (`markDeceased`, `killCharacter`, `recordSecretDeath`, `publishDeath`, `reviveCharacter`),",
+        "the victim's Truth Bullets (`bulletsHeldBy`, `keepBulletDeletions`, `destroyBullets`), the season's deaths and bodies",
+        "cleared and counted, and the death window (`openDeathDialog`, `chooseFirst`). Moved out of chapter.mjs, which",
+        "re-exports every name it exported; the predicates stay settings.mjs's (code.md, \"Death is two predicates\")."
+      ],
+      "names": {
+        "livingStudents": "function",
+        "livingStudentsForGm": "function",
+        "verdictBefore": "function",
+        "markDeceased": "async function",
+        "killCharacter": "async function",
+        "incidentVictimDied": "async function",
+        "isIncidentVictim": "async function",
+        "bulletsHeldBy": "async function",
+        "keepBulletDeletions": "async function",
+        "destroyBullets": "async function",
+        "recordSecretDeath": "async function",
+        "tellDeathKnowers": "async function",
+        "publishDeath": "async function",
+        "tellUnfoundDeaths": "function",
+        "offerStageSix": "async function",
+        "reviveCharacter": "async function",
+        "clearSeasonDeaths": "async function",
+        "tallySeasonDeaths": "function",
+        "clearSeasonBodies": "async function",
+        "openDeathDialog": "async function",
+        "chooseFirst": "function"
+      }
+    },
+    {
+      "file": "scripts/body.mjs",
+      "header": [
+        "A body found (E54, the plan's D2): the prep traces promoted (`faintPrepCandidates`, `promoteFaintPrep`), the discovery",
+        "and its queue (`discoverBody`, `runDiscovery`), the bodies published (`publishFoundBodies`), the announcement and its",
+        "hook (`announceBody`, `BODY_ANNOUNCED_HOOK`, `registerBodyAnnounced`), who finds a body and who saw it",
+        "(`bodiesToDiscover`, `witnessesOf`, `checkBodyFound`, `tellLoneFinder`) and the discovery window",
+        "(`openBodyDiscoveryDialog`). Moved out of chapter.mjs, which re-exports every name it exported. Not body-tile.mjs, E63's tile."
+      ],
+      "names": {
+        "faintPrepCandidates": "function",
+        "promoteFaintPrep": "async function",
+        "bodyWorkQueue": "let",
+        "enqueueBodyWork": "function",
+        "discoverBody": "function",
+        "discoveryHere": "function",
+        "announcedAlready": "function",
+        "deathAnnounced": "async function",
+        "runDiscovery": "async function",
+        "promotionQueue": "let",
+        "askPromotion": "function",
+        "publishFoundBodies": "async function",
+        "announceBody": "async function",
+        "BODY_ANNOUNCED_HOOK": "const",
+        "BODY_ANNOUNCED_WAIT_MS": "const",
+        "BODY_ANNOUNCED_STALE_MS": "const",
+        "announcedSeen": "const",
+        "announcedPrimed": "let",
+        "announcedReadyAt": "let",
+        "announcedRowKey": "function",
+        "bodyAnnouncedPayload": "function",
+        "callBodyAnnounced": "async function",
+        "stampsHeld": "function",
+        "announceArrivedBodies": "function",
+        "registerBodyAnnounced": "function",
+        "announcedIn": "function",
+        "bodiesToDiscover": "function",
+        "witnessesOf": "function",
+        "maybeBodyFound": "function",
+        "checkBodyFound": "async function",
+        "tellLoneFinder": "async function",
+        "openBodyDiscoveryDialog": "async function"
+      }
+    }
+  ],
+  "textMapNamed": [],
+  "textMapNamedWhy": "none needed"
+}

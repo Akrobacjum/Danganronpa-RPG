@@ -1,0 +1,32 @@
+{
+  "about": "E54's remnants migrations (the plan's F3; the owner's Q-E54-3, the default (a): leave them). Written to measure the refusal, not to be applied: `migrateRemnants` .. `seedPublicIfMissing` moved out of remnants.mjs read ten names the facade keeps, which a new file may not import. split.mjs refuses this manifest at the base, by name; that is the proof the default stands on.",
+  "source": "scripts/remnants.mjs",
+  "facadeNote": [],
+  "keep": "*",
+  "targets": [
+    {
+      "file": "scripts/remnants-migrate.mjs",
+      "header": [
+        "Not to be written: the manifest that measures F3's refusal."
+      ],
+      "names": {
+        "migrateRemnants": "async function",
+        "migrateRemnantsOnce": "async function",
+        "TOKEN_KEEPS": "const",
+        "ANSWER_KEY_FLAGS": "const",
+        "answerKeyOnToken": "function",
+        "migrateRemnantToken": "async function",
+        "moveIntoLedger": "async function",
+        "oldFieldIn": "function",
+        "carryPromotion": "async function",
+        "promoteAtMark": "async function",
+        "leftOnToken": "function",
+        "stripAnswerKey": "async function",
+        "neutraliseDeltaName": "async function",
+        "seedPublicIfMissing": "async function"
+      }
+    }
+  ],
+  "textMapNamed": [],
+  "textMapNamedWhy": "none needed"
+}

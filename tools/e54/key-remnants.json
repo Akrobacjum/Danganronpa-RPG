@@ -1,0 +1,71 @@
+{
+  "about": "E54's Key Remnants cut (the plan's K1, F4; the owner's Q-E54-4, the default): investigation.mjs's \"THE PLAN\" through `same`, `randomPointIn`, and the placing road (`createKeyRemnant` .. `placeKeyRow`) into key-remnants.mjs; investigation.mjs keeps `openNewTrace` and the dashboard. Run as windows.json's about says, with this manifest.",
+  "source": "scripts/investigation.mjs",
+  "facadeNote": [
+    "E54 (the plan's K1): the Key Remnants - the plan and its store, the fee, the placing road - live in key-remnants.mjs,",
+    "re-exported here; this file keeps `openNewTrace` and the dashboard."
+  ],
+  "keep": "*",
+  "stay": {
+    "openNewTrace": "async function"
+  },
+  "stayWhy": "openNewTrace stands between the plan and the placing road at the base and stays: a hand-placed trace, opened from the dashboard (the plan's F4, 3.2)",
+  "targets": [
+    {
+      "file": "scripts/key-remnants.mjs",
+      "header": [
+        "The Key Remnants (E54, the plan's K1): the plan and its store (`keyPlan`, `setKeyPlan`, `archiveKeyPlan`, `liftKeyPlan` ...),",
+        "the keys a case holds and those still to place (`caseKeyCount`, `keysToPlace`, `keyPlanStatus`, `missingKeyRows`), the fee for",
+        "a key not found (`keyFeeOf`, `chargeForUnfoundKeys`), the plan saved (`saveKeyPlan`), and the placing road (`randomPointIn`,",
+        "`createKeyRemnant`, `openKeyRemnantHere`, `placeInSlot`, `placeKeyRow`). Moved out of investigation.mjs, which re-exports",
+        "every name it exported and keeps `openNewTrace` and the dashboard. The bedroom keys are bedroom-keys.mjs's (F4)."
+      ],
+      "names": {
+        "ICON": "const",
+        "SCALE_LABELS": "const",
+        "PLAN_FIELDS": "const",
+        "planKey": "const",
+        "caseKey": "const",
+        "isCaseKey": "const",
+        "revealKey": "const",
+        "isRevealKey": "const",
+        "keyRevealRecord": "function",
+        "recordKeyRevealed": "async function",
+        "blank": "const",
+        "worthKeeping": "const",
+        "chapterRows": "function",
+        "closedCaseChapters": "function",
+        "keyPlan": "function",
+        "setKeyPlan": "async function",
+        "archiveKeyPlan": "async function",
+        "liftKeyPlan": "async function",
+        "clearKeyPlan": "async function",
+        "keepOnlyKeyPlanChapter": "async function",
+        "clearSeasonKeyPlan": "async function",
+        "keepSeasonKeyPlan": "async function",
+        "recordCaseKeys": "async function",
+        "caseKeyCount": "function",
+        "keysToPlace": "function",
+        "placedKeyRemnants": "function",
+        "findersByRemnant": "function",
+        "keyPlanStatus": "function",
+        "missingKeyRows": "function",
+        "keyFeeOf": "async function",
+        "chargeForUnfoundKeys": "async function",
+        "askToChargeForUnfoundKeys": "async function",
+        "saveKeyPlan": "async function",
+        "keyRowShows": "function",
+        "keyRowLabel": "function",
+        "writable": "function",
+        "same": "function",
+        "randomPointIn": "function",
+        "createKeyRemnant": "async function",
+        "openKeyRemnantHere": "async function",
+        "placeInSlot": "async function",
+        "placeKeyRow": "async function"
+      }
+    }
+  ],
+  "textMapNamed": [],
+  "textMapNamedWhy": "none needed"
+}

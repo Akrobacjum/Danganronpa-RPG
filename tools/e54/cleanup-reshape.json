@@ -1,0 +1,48 @@
+{
+  "about": "E54's reshape cut (the plan's P1, F5; the owner's Q-E54-5, the default): cleanup.mjs's veiled `whisperToOwner`, `findRemnantToken`, the reshape road (`askTransform` .. `askTransformChange`) and the clean-up receipt store (`RECEIPT_FIELDS` .. `recreationDataFor`) into cleanup-reshape.mjs; cleanup.mjs imports `whisperToOwner` back. Run as windows.json's about says, with this manifest.",
+  "source": "scripts/cleanup.mjs",
+  "facadeNote": [
+    "E54 (the plan's P1): the reshape road and the clean-up receipt store live in cleanup-reshape.mjs, re-exported",
+    "here; this file imports the veiled `whisperToOwner` back from it."
+  ],
+  "keep": "*",
+  "targets": [
+    {
+      "file": "scripts/cleanup-reshape.mjs",
+      "header": [
+        "The reshape road (E54, the plan's P1): the killer's change asked (`askTransform`, `askTransformChange`), the words",
+        "bounded (`plainText`), the reshape proposed and ruled on by a GM (`proposeReshape`, `claimRuling`, `applyReshapeRuling`,",
+        "`declineReshapeRuling`, `ruleReshape`), the Remnant's token found (`findRemnantToken`), the veiled whisper to the",
+        "killer (`whisperToOwner`), and the clean-up receipt store the Reroll's undo reads too (`RECEIPT_FIELDS`, `keepAttempt`,",
+        "`forgetAttempt`, `keepAttemptFact`, `recreationDataFor`). Moved out of cleanup.mjs, which re-exports every name it",
+        "exported and imports `whisperToOwner` back."
+      ],
+      "names": {
+        "whisperToOwner": "const",
+        "RECEIPT_FIELDS": "const",
+        "attemptOf": "async function",
+        "keepAttempt": "function",
+        "forgetAttempt": "async function",
+        "keepAttemptFact": "async function",
+        "recreationDataFor": "function",
+        "findRemnantToken": "function",
+        "askTransform": "async function",
+        "reshapeFields": "function",
+        "enterMovesOn": "function",
+        "plainText": "function",
+        "reshapeTrace": "async function",
+        "reshapeCardParts": "function",
+        "proposeReshape": "async function",
+        "tellHere": "function",
+        "claimRuling": "function",
+        "applyReshapeRuling": "async function",
+        "declineReshapeRuling": "async function",
+        "ruleReshape": "async function",
+        "askTransformChange": "async function"
+      },
+      "order": "the receipt store first, then findRemnantToken, then the reshape road: a function's cut runs to the next function or `const X = {`, and RECEIPT_FIELDS (an array) ends neither askTransformChange's nor findRemnantToken`s; a tier file reads both (moved-only part cuts, 13.11.2026)"
+    }
+  ],
+  "textMapNamed": [],
+  "textMapNamedWhy": "none needed"
+}

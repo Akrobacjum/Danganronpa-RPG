@@ -1,0 +1,25 @@
+{
+  "about": "E54's window geometry, its first half (the plan's W1): the two window measures of utils.mjs move into windows.mjs, which the settings half joins only after the behaviour commit W2 hands `scaleWindow` its readers (F2) - at the base it reads `sliderScale`, `layoutHeight` and `settingsRegistered` of settings.mjs, a read of its facade split.mjs refuses. Run: node tools/e54/split.mjs --manifest tools/e54/windows.json, then node tools/e54/repoint.mjs --manifest tools/e54/windows.json.",
+  "source": "scripts/utils.mjs",
+  "facadeNote": [
+    "E54 (the plan's W1): `windowWidthFor` and `eachPane` live in windows.mjs, re-exported here; this file keeps the rest."
+  ],
+  "keep": "*",
+  "targets": [
+    {
+      "file": "scripts/windows.mjs",
+      "header": [
+        "One place for a module window's size (E54, the plan's W1): the width that shows a table of a given width",
+        "(`windowWidthFor`, ui-kit.mjs `fitKitWidth`'s) and each tab pane measured in turn (`eachPane`). Moved out of",
+        "utils.mjs, which re-exports both; the settings half (`scaleWindow` and its box) joins once W2 hands it its readers.",
+        "A leaf: it imports nothing."
+      ],
+      "names": {
+        "windowWidthFor": "function",
+        "eachPane": "function"
+      }
+    }
+  ],
+  "textMapNamed": [],
+  "textMapNamedWhy": "none needed"
+}

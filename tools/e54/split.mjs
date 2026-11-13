@@ -59,14 +59,20 @@ const ast = espree.parse(text, { ecmaVersion: "latest", sourceType: "module", ra
 /* ---- the top-level statements and what each declares ---- */
 const kindOf = d => d.type === "FunctionDeclaration" ? (d.async ? "async function" : "function")
     : d.type === "VariableDeclaration" ? d.kind : d.type === "ClassDeclaration" ? "class" : null;
+/* `"keep": "*"`: the facade keeps everything the manifest does not move - for a file of which a small cut moves (a list
+   of every declaration it keeps would be the file's index, and a line that adds one would refuse for nothing). An export
+   list and a statement that declares nothing stay with it; a moved declaration that reads them still refuses below. */
+const KEEP_REST = manifest.keep === "*";
 const statements = [];
 for (const [i, s] of ast.body.entries()) {
     if (s.type === "ImportDeclaration") { statements.push({ i, s, import: true }); continue; }
     const exported = s.type === "ExportNamedDeclaration";
     const d = exported ? s.declaration : s;
+    if (!d && KEEP_REST) { statements.push({ i, s, kind: "export list", names: [], group: "facade" }); continue; }
     if (!d) { refuse(`line ${s.loc.start.line}: an export list (${text.slice(...s.range).slice(0, 60)}) - not written for`); continue; }
     if (s.type === "ExportDefaultDeclaration" || s.type === "ExportAllDeclaration") { refuse(`line ${s.loc.start.line}: ${s.type} - not written for`); continue; }
     const kind = kindOf(d);
+    if (!kind && KEEP_REST) { statements.push({ i, s, d, kind: "statement", names: [], group: "facade" }); continue; }
     if (!kind) { refuse(`line ${s.loc.start.line}: a top-level ${d.type} that declares nothing - place it by hand, or list it`); continue; }
     const names = d.type === "VariableDeclaration" ? d.declarations.map(x => x.id.type === "Identifier" ? x.id.name : null) : [d.id.name];
     if (names.some(n => n === null)) { refuse(`line ${s.loc.start.line}: a destructuring declaration - not written for`); continue; }
@@ -76,7 +82,9 @@ for (const [i, s] of ast.body.entries()) {
 /* ---- the manifest against the source ---- */
 const groupOf = new Map();
 const want = new Map();
-for (const [name, kind] of Object.entries(manifest.keep)) { groupOf.set(name, "facade"); want.set(name, kind); }
+if (!KEEP_REST) for (const [name, kind] of Object.entries(manifest.keep)) { groupOf.set(name, "facade"); want.set(name, kind); }
+// `stay`, with `"keep": "*"`: a declaration that stands inside a moved section and stays in the facade by decision.
+for (const [name, kind] of Object.entries(manifest.stay ?? {})) { groupOf.set(name, "facade"); want.set(name, kind); }
 for (const t of manifest.targets) {
     for (const [name, kind] of Object.entries(t.names)) {
         if (groupOf.has(name)) refuse(`the manifest lists ${name} twice`);
@@ -86,12 +94,28 @@ for (const t of manifest.targets) {
 }
 const declared = new Map();
 for (const st of statements.filter(x => !x.import)) {
+    if (!st.names.length) continue;
+    if (KEEP_REST) for (const n of st.names) if (!groupOf.has(n)) groupOf.set(n, "facade");
     for (const n of st.names) declared.set(n, st);
     const groups = new Set(st.names.map(n => groupOf.get(n)));
     if (st.names.some(n => !groupOf.has(n))) refuse(`line ${st.s.loc.start.line}: ${st.names.join(", ")} (${st.kind}) is listed nowhere in the manifest - a line added it; decide its file`);
     else if (groups.size > 1) refuse(`line ${st.s.loc.start.line}: ${st.names.join(", ")} are listed in two files - one statement cannot be split`);
     else st.group = [...groups][0];
     for (const n of st.names) if (want.has(n) && want.get(n) !== st.kind) refuse(`${n} is a ${st.kind} in the source, the manifest says ${want.get(n)} - its shape changed`);
+}
+/* Under `"keep": "*"`, a declaration the manifest lists nowhere stays in the facade - unless it stands between two
+   declarations moved to the same file: a line wrote it into a moved section, and where it goes is a decision (a
+   target's `names`, or the manifest's `stay`). */
+if (KEEP_REST) {
+    const decls = statements.filter(x => !x.import && x.names.length);
+    decls.forEach((st, k) => {
+        if (st.names.some(n => manifest.targets.some(t => n in t.names) || n in (manifest.stay ?? {}))) return;
+        const before = decls.slice(0, k).reverse().find(x => x.group !== "facade"), after = decls.slice(k + 1).find(x => x.group !== "facade");
+        const nearBefore = decls.slice(0, k).at(-1), nearAfter = decls[k + 1];
+        if (before && after && before.group === after.group && nearBefore?.group === before.group && nearAfter?.group === after.group) {
+            refuse(`line ${st.s.loc.start.line}: ${st.names.join(", ")} (${st.kind}) stands between two declarations moved to ${path.basename(before.group)} and is listed nowhere - a line added it; decide its file`);
+        }
+    });
 }
 for (const n of want.keys()) if (!declared.has(n)) refuse(`${n} (${want.get(n)}) is not a top-level declaration of ${manifest.source} any more - it was removed or renamed`);
 

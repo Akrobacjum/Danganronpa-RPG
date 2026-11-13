@@ -1,0 +1,26 @@
+{
+  "about": "E54's window geometry, its second half (the plan's W3), written to measure F2 at the base, not to be applied: the settings half of the window size moved out of settings.mjs reads `sliderScale`, `layoutHeight` and `settingsRegistered`, which settings.mjs keeps, and settings.mjs's `applyTheme` calls `scaleWindow` back. split.mjs refuses it, by name, until the behaviour commit W2 hands `scaleWindow` its readers (`registerWindows(readers)`); after W1, windows.mjs exists, and this half would be appended to it, which split.mjs does not do yet.",
+  "source": "scripts/settings.mjs",
+  "facadeNote": [],
+  "keep": "*",
+  "targets": [
+    {
+      "file": "scripts/windows.mjs",
+      "header": [
+        "Not to be written: the manifest that measures F2's refusal."
+      ],
+      "names": {
+        "rescaleSheets": "function",
+        "scaledBox": "function",
+        "DAGGERHEART_SHEET": "const",
+        "scaleMemo": "function",
+        "sheetBox": "function",
+        "SHEET_BELOW_BAND": "const",
+        "sheetBandFoot": "function",
+        "scaleWindow": "function"
+      }
+    }
+  ],
+  "textMapNamed": [],
+  "textMapNamedWhy": "none needed"
+}
