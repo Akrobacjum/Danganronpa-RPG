@@ -70,8 +70,15 @@ function stateDiff(a, b, at = "", out = []) {
    35 runs of `node run-tests.mjs --tier 1` on this container between 04:57 and 14:57 UTC read 341.4-375.4 s of wall
    (boot and shutdown included; each run's t01.log of the session's quick runs), five more ended at 376.5-378.2 s with "0 tests ran": the
    eval had hit this bound, with nothing hung, each time while other harness runs shared the machine. So 1.5 times the
-   slowest reading that ran, 375 s, is 562 s: 560 s. */
-const READ_ONLY_MS = 560000;
+   slowest reading that ran, 375 s, is 562 s: 560 s.
+   14.11.2026 (t2-restore, for 1.2.113): the same rule read a third time. Tiers 0-1 had grown to 1617 tests, and the
+   day's lines read `node run-tests.mjs --tier 1` at 455, 485, 499, 504, 512, 531 and 557 s of wall (the coordinator's
+   collection of their reports); two more runs ended at 566 s with nothing hung (T13a, claude/e57-t13a-113 at 3602492):
+   the eval had hit this bound, so 566 s is not a reading but the least the slowest run would have read. This line's
+   three runs on 8f8aed2b, nothing else running on the container, read 491.9, 502.1 and 499.4 s (1602 passed, 0
+   failed, 16 skipped each). So 1.5 times the slowest, the 566 s bound counted as a reading, is 849 s: 850 s. A run
+   that hits 850 s has grown by half again over the bound's own reading - read the runs before raising it again. */
+const READ_ONLY_MS = 850000;
 
 /*
  * THE PRIMARY'S BEAT IS THE ONE LEAF THAT MAY TICK (E17 fix ci-2, 26.10.2026; CI run 40402423765 on f7ac1e9d, suite
