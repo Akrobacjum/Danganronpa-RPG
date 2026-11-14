@@ -98,6 +98,13 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
   moments (the Final Trial or Mastermind, an Objection lapse, Tinker, Ghost Bet, a Bribe, a Spectator move, a door
   forced told to the room); a separate Night Eclipse music state. No audio file is added.
 
+- **Q-E110-16** (the coordinator's 14.11, numbered 16 here: 12 was taken) A murder's mask in the Class Trial: the trial's
+  own muting decides and the mask's silent room does not apply there (voice.mjs `masksInForce`, the settle's mask block
+  and `micHold`'s "masked" line outside the trial alone; `maskedRow`'s comment fixed). In an Eclipse it stands as before.
+  Default: as written. R7109.
+- **Shard 1/8 (01-runtests parts A1/A2):** my muting copies no voice row (`placeVoices` rows are untouched by it); the
+  mask's rows are no longer made in the trial. Run before the final report, see below.
+
 ## Not fixed, with the reason
 
 - A disconnected Scrum speaker is passed by `speakerGone` on `userConnected`; the harness cannot disconnect a player, so

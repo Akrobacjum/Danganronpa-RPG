@@ -896,8 +896,9 @@ export async function voiceTargets() {
     const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
     // Listen's eavesdrops that stand (E69 C6; eavesdrop-gm.mjs, which ends on the primary the ones that do not).
     const listens = eclipse || trial ? new Map() : await (await import("./eavesdrop-gm.mjs")).listensInForce();
-    // The killers behind a "?" (E69 C8; mask-gm.mjs): each in a silent room of their own while the mask stands.
-    const masks = new Set(Object.keys(maskStore.entries() ?? {}));
+    // The killers behind a "?" (E69 C8; mask-gm.mjs): each in a silent room of their own while the mask stands - outside
+    // the trial (Q-E110-16): there the floor says who speaks.
+    const masks = masksInForce(maskStore.entries() ?? {}, { trial });
     const { rows, byUser, claims, waits, held } = await placeVoices({
         listens, masks,
         actors: game.actors.filter(a => a.type === "character" && !watchesForTheDead(a)), eclipse, trial,
@@ -1126,14 +1127,26 @@ export function listeningRow(row, listens = new Map()) {
  * THE KILLER BEHIND A "?", THE RULE (E69 C8, 13.11.2026; the coordinator's answer of 13.11: a name in the victim's voice
  * list would defeat the mask). An account whose voice character is a killer the GMs hold masked (`masks`, killer actor
  * ids) is sent to a silent room of its own (voice-client.mjs `silentRoomFor`, the word its browser leaves voice on, as
- * in an Eclipse): it neither speaks to the room nor hears it, and no list in the room names it. Outside an Eclipse and
- * the trial only (`placeVoices` is not asked them there); the account goes back to its token's room when the mask
- * ends. Pure (R6032).
+ * in an Eclipse): it neither speaks to the room nor hears it, and no list in the room names it. The account goes back
+ * to its token's room when the mask ends. Pure (R6032).
+ *
+ * NOT IN THE CLASS TRIAL (E110, 14.11.2026; Q-E110-16, the coordinator's default). This comment said "outside an Eclipse
+ * and the trial only (`placeVoices` is not asked them there)", and the code asked it in both: `voiceTargets` handed the
+ * masks to `placeVoices` in the trial too. A mask ends at the next time of day, so at a table it rarely reaches a trial;
+ * the harness reaches it (01-runtests A2 changes the phase and not the time of day). In the trial the floor decides who
+ * speaks (`settleTrialVoices`, floor-machine.mjs `floorSpeakers`), so `masksInForce` hands no mask there, the settle's
+ * mask block stands outside the trial alone, and `micHold` says no "masked" line in it. In an Eclipse the mask's silent
+ * room stands as before: an Eclipse holds every player out of voice either way (R7109).
  */
 export function maskedRow(row, masks = new Set()) {
     if (!row?.actor || !row.user || row.user.isGM || !masks.has(row.actor.id)) return row;
     return { ...row, room: null, target: silentRoomFor(row.user.id), claim: CLAIM.inRoom, masked: true, kept: false, keep: false,
         why: "behind a \"?\" after a murder's opening - a silent room of its own" };
+}
+
+/** The killers behind a "?" whose silent room stands (the GMs' rows `entries`, keyed by killer): none in the trial (Q-E110-16). Pure. */
+export function masksInForce(entries = {}, { trial = false } = {}) {
+    return trial ? new Set() : new Set(Object.keys(entries ?? {}));
 }
 
 /** On a GM: the accounts whose character stands behind a "?" now, from the GMs' rows (E69 C8). */
@@ -1316,7 +1329,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     if (spectatorAccount(user, { actors })) return room === SPECTATOR_ROOM ? { reason: "spectatorTalk", held: false } : { reason: "spectator", held: true };
     // Behind a "?" after a murder's opening (E69 C8): HELD - out of voice in a silent room of its own, named before the
     // Eclipse's reading of that same silent room, until the reveal or the end of the time of day.
-    if (masked) return { reason: "masked", held: true };
+    // Not in the Class Trial, where the floor decides (Q-E110-16): `trial` is the trial's facts there, null outside it.
+    if (masked && !trial) return { reason: "masked", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
     // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
     if (!connected && !eclipse) return { reason: "offline", held: false };
@@ -1365,7 +1379,7 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     dead = isDeadForGm, listening = listeningIds(), masked = maskedIds() } = {}) {
     if (!game.user?.isGM || !user) return null;
     // Behind a "?" (E69 C8): the mask's block, which the GM's own is not offered over either.
-    if (masked.has(user.id)) return { reason: "masked", held: true };
+    if (masked.has(user.id) && !trial) return { reason: "masked", held: true };
     // Listening at a door (E69 C6): the eavesdrop's block, which the GM's own is not offered over.
     if (listening.has(user.id)) return { reason: "listening", held: true };
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
@@ -1731,7 +1745,8 @@ export async function settleTrialVoices({ release = false } = {}) {
             // While it talks in the Spectators' room the block is lifted (E92 C6), and written again when it leaves.
             const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
-            const masked = !release && mask.maskMutedIds().has(user.id);
+            // The mask's block outside the trial alone (Q-E110-16): in the trial the floor's speakers decide.
+            const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);
             const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !speakers.includes(voice.id)
                 && !spectatorAccount(user, { held: flagsHeldNow }));
             if (watching || listening || masked || floorHeld || (voice && listed.has(voice.id))) {

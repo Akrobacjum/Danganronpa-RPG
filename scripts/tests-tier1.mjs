@@ -59653,6 +59653,24 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ off: [true, true, true, false, false], on: [false, false], road: true, line: true, words: [true, true] }),
             "{off: muted with the switch off [chatSend, chatReceive, gmAsk, despairCall, safeword]; on: with it on; road: the card's road asks it; line: the safeword's row says it has no file; words: [English, Polish]}");
     }],
+    ["R7109 - in the Class Trial the floor decides who speaks, not a murder's mask (Q-E110-16, the coordinator's 14.11.2026 with its default): voice.mjs `masksInForce` hands `placeVoices` no killer behind a \"?\" in the trial and every one outside it, `micHold` gives a masked player's own browser no \"masked\" line in the trial, and the settle's mask block (`settleTrialVoices`) stands outside the trial alone", async () => {
+        /* Pure, then one source read. Red at e7a4fece: no masksInForce; the masked line and block stood in the trial (the
+           comment on `maskedRow` said otherwise). */
+        const V = await import("./voice.mjs");
+        must(typeof V.masksInForce === "function", "voice.mjs has no masksInForce");
+        const entries = { K1: { userIds: ["u1"] }, K2: { userIds: ["u2"] } };
+        const user = { id: "u1", isGM: false };
+        const trial = { clock: { phase: "classTrial", chapter: 1 }, floor: null, record: {}, epoch: 0 };
+        const hold = facts => V.micHold({ user, room: "x", external: false, connected: true, canBroadcastAudio: true, actors: [], listening: null, masked: true, trial: facts })?.reason ?? null;
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const read = {
+            masks: [[...V.masksInForce(entries, { trial: false })].sort(), [...V.masksInForce(entries, { trial: true })]],
+            line: [hold(null), hold(trial)],
+            settle: /const masked = !release && !inTrial && mask\.maskMutedIds\(\)\.has\(user\.id\)/.test(fnSource(src, "settleTrialVoices"))
+        };
+        equal(stableJson(read), stableJson({ masks: [["K1", "K2"], []], line: ["masked", null], settle: true }),
+            "{masks: [outside the trial, in it]; line: a masked player's own line [outside the trial, in it]; settle: the mask's block outside the trial alone}");
+    }],
 ];
 
 /**
