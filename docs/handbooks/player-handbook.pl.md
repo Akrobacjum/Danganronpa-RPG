@@ -173,7 +173,7 @@ Zawraca cię:
 | **piętro**, na które schody z twojego pokoju nie prowadzą | na mapie ze schodami tylko one zabiorą cię w górę lub w dół |
 | **zamknięte drzwi** | GM zamknął pokój |
 | **zapieczętowany pokój** | Despair Call Behind Closed Doors, na jedną porę dnia |
-| **Przykuty** przez Despair Call Chained | nie wyjdziesz z pokoju do końca pory dnia |
+| **Chained** od Despair Calla | nie wyjdziesz z pokoju do końca pory dnia |
 | **cudza sypialnia** | gdy nie masz do niej klucza |
 | twoja postać **nie żyje** | ciało zostaje tam, gdzie upadło |
 | **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu, dopóki nie pozwoli mu akcja kryzysowa: Survive, Escape Together, Finishing Blow albo Averted Eyes, jeśli tylko wszedłeś w trakcie |
@@ -669,7 +669,7 @@ Karta Truth Bulletu pokazuje:
 - jak widoczny był oryginał (Obvious, Evident, Subtle albo Hidden),
 - rozdział,
 - pokój, w którym go podniosłeś,
-- *Analiza na nic*, gdy twoja analiza się na nim w tym rozdziale nie powiodła.
+- *Nieudana analiza*, gdy twoja analiza się na nim w tym rozdziale nie powiodła.
 
 Truth Bullety możesz grupować według **Rozdziału** albo **Lokacji**. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trial.
 

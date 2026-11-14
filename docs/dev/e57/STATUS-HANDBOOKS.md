@@ -11,7 +11,7 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 | 1 | E25's handbook part: contradictions, D13, D14, D5, D33c-D33f, the Polish glossary, features since the plan | done (d8fbb34f D33c; 68f80f8c player and brochure; ce38e5ab the GM pair and the tests' D33c forms) |
 | 2 | E57 C6-C8: the English handbooks by the guide | done: rewritten (1c1d818e); seven reviews (English, cold, mechanics) applied by ten fix agents (b2362972 GM, 2cdd9a25 player and brochure); the facts of the final English in `docs/handbook-facts.<book>.en.json` (7222 / 2744 / 280 facts, `handbook-facts.mjs check` 0 problems on all three at 5d5c50a6) |
 | 3 | E57 C9-C11: the Polish handbooks from the facts and the old Polish | done: 21 writers from the facts and the old Polish, never the new English sentences (DB26); the Polish read in three steps (grammar and the glossary, naturalness by text-style.md section 12, the facts against the code) and fixed (4ba36475 player and brochure, 5d5c50a6 GM); pairs "ids, kinds and lines as in English: yes" for all three |
-| 4 | Reviews, labels brought up to date, tier 1 | reviews done; LABELS.md regenerated at 5d5c50a6; the text lines' merges: e71-c merged (dfb0fe29); groups B and D waiting for the coordinator's sha |
+| 4 | Reviews, labels brought up to date, tier 1 | reviews done; LABELS.md regenerated at 5d5c50a6; the text lines' merges: e71-c merged (dfb0fe29), e71-b merged at 226cfb95 (6d8c5c92) and its 31 changed quotes brought up to date; group D waiting for the coordinator's sha |
 
 ## Readings taken at the base (1463f22b, 14.11.2026)
 
@@ -53,6 +53,9 @@ more than words (GM 1411 -> 2459) because long paragraphs were split and prose b
 R620's Polish GM Palm row ("Body 12 po odmowie") was dropped by the Polish fix pass and put back in 5d5c50a6: red on the fix pass's row, green on the committed one (`--only R620`, 14.11). No test changed for it.
 
 ## Where this line follows the UI, not the decision, until the text lines land
+
+- "Neighbours": the Room setup column is **Neighbors** since group B (Vault.neighboursColumn) and the handbooks quote it so. The prose "Neighbours list" (GM 706, 734, 738) and Vault.neighboursNote ("“Neighbours” is where a door overrules the map") stay British: R431 pins two of those sentences, and the coordinator gave that rename to group D's commit, which brings them and the note together.
+- The merge of e71-b: one key changed on both sides, DRPG.Bridge.what.overflow.add (B "Add to the Overflow", C "Add Despair to the Overflow"); C's value kept, as it holds B's capital too. Every other key is the side that changed it (checked key by key, 0 mismatches).
 
 - "pool" (Tier pools, Room pools, The global pool, `DRPG.Tables.*`, `DRPG.Vault.globalPool`): D33d says "table", but the
   UI still says "pool"; the handbook names what the GM sees, so the GM handbook keeps "pool" in both languages (40 words

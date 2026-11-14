@@ -6,7 +6,7 @@ several keys share lists them all (first five). Brought up to date after the tex
 changed is a handbook line to change. The second table is the bold spans that are no lang value (game names,
 emphasis, labels drawn by Foundry or Daggerheart, or a label that drifted).
 
-Quoted labels: 3051 (EN 1477, PL 1574).
+Quoted labels: 3054 (EN 1478, PL 1576).
 
 | Handbook | Line | Label | Key(s) |
 | --- | --- | --- | --- |
@@ -271,10 +271,12 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 367 | Infiltrate | `DRPG.Remnant.action.infiltrate` |
 | gm-handbook.en | 380 | Which statistic do you propose? | `DRPG.TraitRuling.proposeLabel` |
 | gm-handbook.en | 380 | How do you do it? (optional) | `DRPG.TraitRuling.howLabel` |
-| gm-handbook.en | 380 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+1) |
+| gm-handbook.en | 380 | Approve | `DRPG.Calls.approveYes` |
+| gm-handbook.en | 380 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
+| gm-handbook.en | 380 | Approve | `DRPG.Calls.approveYes` |
 | gm-handbook.en | 380 | Cancel | `DRPG.Passage.pick.cancel`, `DRPG.Kit.cancel`, `DRPG.Advance.cancel`, `DRPG.Tests.cancel` |
-| gm-handbook.en | 380 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+1) |
-| gm-handbook.en | 380 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+1) |
+| gm-handbook.en | 380 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
+| gm-handbook.en | 380 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
 | gm-handbook.en | 382 | Roll | `DRPG.Action.roll`, `DRPG.Murder.briefRoll` |
 | gm-handbook.en | 382 | I'll pass (nothing spent) | `DRPG.TraitRuling.pass` |
 | gm-handbook.en | 382 | Approved by the GM. | `DRPG.RollDialog.traitApproved` |
@@ -283,7 +285,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 396 | Players' statistics without approval | `DRPG.Settings.autoApproveTraits.name` |
 | gm-handbook.en | 396 | Approved automatically. | `DRPG.TraitRuling.autoApproved` |
 | gm-handbook.en | 398 | Set the difficulty | `DRPG.Action.dynamicSet` |
-| gm-handbook.en | 398 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+1) |
+| gm-handbook.en | 398 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
 | gm-handbook.en | 411 | Rest | `DRPG.Action.restNow` |
 | gm-handbook.en | 411 | Long Rest | `DRPG.Rest.long`, `DRPG.Rest.longColumn` |
 | gm-handbook.en | 411 | Short Rest | `DRPG.Rest.short`, `DRPG.Rest.shortColumn` |
@@ -307,8 +309,8 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 470 | Reroll | `DRPG.Bridge.what.reroll.ask`, `DRPG.Reroll.title` |
 | gm-handbook.en | 470 | Replace the Daggerheart Fear tracker | `DRPG.Settings.hideSystemFear.name` |
 | gm-handbook.en | 470 | Rolls grant Despair | `DRPG.Settings.despairFromRolls.name` |
-| gm-handbook.en | 476 | It applies | `DRPG.Calls.approveYes` |
-| gm-handbook.en | 476 | Not this time | `DRPG.Calls.approveNo` |
+| gm-handbook.en | 476 | Approve | `DRPG.Calls.approveYes` |
+| gm-handbook.en | 476 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
 | gm-handbook.en | 508 | Motive | `DRPG.Events.ticker.motive`, `DRPG.Motive.title` |
 | gm-handbook.en | 508 | Killing game rules | `DRPG.Rules.manageTitle` |
 | gm-handbook.en | 508 | Season setup | `DRPG.Diagnostics.title.season`, `DRPG.Season.title` |
@@ -321,9 +323,8 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 522 | Nobody answered in time. You can ask again. | `DRPG.Bridge.settledExpired` |
 | gm-handbook.en | 522 | The player was no longer waiting. | `DRPG.Bridge.settledGone` |
 | gm-handbook.en | 526 | A private card. Its words did not reach this browser. | `DRPG.Secret.wordsElsewhere` |
-| gm-handbook.en | 530 | Rolls made while no GM was connected | `DRPG.Rolls.awayTitle` |
-| gm-handbook.en | 530 | Thrown with no GM connected - the GM will see it. | `DRPG.Rolls.unwitnessed` |
-| gm-handbook.en | 530 | Rolls made while no GM was connected | `DRPG.Rolls.awayTitle` |
+| gm-handbook.en | 530 | Rolls with no GM connected | `DRPG.Rolls.awayTitle` |
+| gm-handbook.en | 530 | Rolls with no GM connected | `DRPG.Rolls.awayTitle` |
 | gm-handbook.en | 530 | Grant all | `DRPG.Rolls.grantAll` |
 | gm-handbook.en | 530 | Grant none | `DRPG.Rolls.grantNone` |
 | gm-handbook.en | 542 | Undo | `DRPG.Audit.undo` |
@@ -416,7 +417,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 713 | Locked | `DRPG.Mastermind.lair.locked`, `DRPG.Vault.lockedColumn` |
 | gm-handbook.en | 713 | Locked at start | `DRPG.Vault.lockedAtStartColumn` |
 | gm-handbook.en | 713 | Broken | `DRPG.Items.broken`, `DRPG.Vault.brokenColumn` |
-| gm-handbook.en | 713 | Neighbours | `DRPG.Vault.neighboursColumn` |
+| gm-handbook.en | 713 | Neighbors | `DRPG.Vault.neighboursColumn` |
 | gm-handbook.en | 714 | + New passage | `DRPG.Passage.pick.new` |
 | gm-handbook.en | 714 | + Tunnel or stairs | `DRPG.Passage.pick.tunnel` |
 | gm-handbook.en | 714 | Show | `DRPG.Passage.tab.show`, `DRPG.Tables.roomFilter`, `DRPG.Season.showRulers` |
@@ -450,7 +451,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 722 | Description | `DRPG.DhSettings.description`, `DRPG.Room.describe`, `DRPG.Vault.tabDescription`, `DRPG.TrialScene.hallRoom.words`, `DRPG.Project.description` (+1) |
 | gm-handbook.en | 724 | No privacy | `DRPG.Vault.notSharedColumn`, `DRPG.Fog.check.piecesDiffer.field.notShared` |
 | gm-handbook.en | 726 | Broken | `DRPG.Items.broken`, `DRPG.Vault.brokenColumn` |
-| gm-handbook.en | 730 | Neighbours | `DRPG.Vault.neighboursColumn` |
+| gm-handbook.en | 730 | Neighbors | `DRPG.Vault.neighboursColumn` |
 | gm-handbook.en | 746 | Search Tokens | `DRPG.SearchTokens.title` |
 | gm-handbook.en | 746 | Search Tokens per room | `DRPG.Settings.searchTokensPerRoom.name` |
 | gm-handbook.en | 746 | The search was not counted. | `DRPG.SearchTokens.timeout` |
@@ -508,9 +509,9 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 857 | A player's token moved through a wall | `DRPG.Settings.moveAudit.name` |
 | gm-handbook.en | 857 | Note it in the Debug log | `DRPG.Settings.moveAudit.log` |
 | gm-handbook.en | 857 | Send the token back | `DRPG.Settings.moveAudit.sendBack` |
-| gm-handbook.en | 885 | Works - apply an effect | `DRPG.Items.itemWorks` |
-| gm-handbook.en | 885 | Works, no effect - use it up | `DRPG.Items.itemNoEffect` |
-| gm-handbook.en | 885 | It does not work | `DRPG.Items.itemRefuse` |
+| gm-handbook.en | 885 | Works: apply an effect | `DRPG.Items.itemWorks` |
+| gm-handbook.en | 885 | Works, no effect: use it up | `DRPG.Items.itemNoEffect` |
+| gm-handbook.en | 885 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
 | gm-handbook.en | 887 | Single use | `DRPG.Items.singleUse` |
 | gm-handbook.en | 889 | Repair an item | `DRPG.Project.preset.repairItem` |
 | gm-handbook.en | 893 | Item tables | `DRPG.Tables.editorTitle` |
@@ -561,8 +562,8 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 976 | Projects | `DAGGERHEART.UI.Countdowns.title`, `DAGGERHEART.APPLICATIONS.CombatTracker.openCountdowns`, `DAGGERHEART.APPLICATIONS.CountdownEdit.viewTitle`, `DRPG.Project.manageTitle`, `DRPG.Explain.projects.window` |
 | gm-handbook.en | 976 | Look past the obvious | `DRPG.Observe.nonObvious` |
 | gm-handbook.en | 978 | Work on a project | `DRPG.Roll.project` |
-| gm-handbook.en | 978 | Progress to the room's oldest project | `DRPG.Facility.effect.projectProgress` |
-| gm-handbook.en | 980 | Room action | `DRPG.Facility.editor.projectButton`, `DRPG.Bridge.what.facility.use` |
+| gm-handbook.en | 978 | Progress to the room's oldest unfinished project | `DRPG.Facility.effect.projectProgress` |
+| gm-handbook.en | 980 | Edit room action | `DRPG.Facility.editor.projectButton` |
 | gm-handbook.en | 980 | Costs an action | `DRPG.Facility.editor.costsAction` |
 | gm-handbook.en | 982 | Knows it is there | `DRPG.Project.cardKnownBy` |
 | gm-handbook.en | 986 | Propose a project | `DRPG.Project.startNew` |
@@ -584,12 +585,12 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 1066 | Start the Eclipse | `DRPG.Panel.goEclipseStartButton` |
 | gm-handbook.en | 1066 | Start it | `DRPG.Hud.eclipseAskYes` |
 | gm-handbook.en | 1066 | Cancel | `DRPG.Passage.pick.cancel`, `DRPG.Kit.cancel`, `DRPG.Advance.cancel`, `DRPG.Tests.cancel` |
-| gm-handbook.en | 1069 | A body has been found - start the Investigation first. | `DRPG.Eclipse.bodyFirst` |
-| gm-handbook.en | 1070 | An incident is running - close it first. | `DRPG.Eclipse.incidentFirst` |
+| gm-handbook.en | 1069 | A body has been found. Start the Investigation first. | `DRPG.Eclipse.bodyFirst` |
+| gm-handbook.en | 1070 | An incident is running. Close it first. | `DRPG.Eclipse.incidentFirst` |
 | gm-handbook.en | 1079 | Skip the Eclipse | `DRPG.Panel.advance` |
 | gm-handbook.en | 1081 | Skip the Eclipse | `DRPG.Panel.advance` |
 | gm-handbook.en | 1087 | Direct Murder | `DRPG.Action.directMurder`, `DRPG.Bridge.what.murder.park` |
-| gm-handbook.en | 1090 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+1) |
+| gm-handbook.en | 1090 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
 | gm-handbook.en | 1094 | End the Eclipse | `DRPG.Panel.goEclipseEndButton` |
 | gm-handbook.en | 1094 | Done | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
 | gm-handbook.en | 1096 | End and move the clock | `DRPG.Eclipse.endAndAdvance` |
@@ -604,7 +605,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 1104 | Done | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
 | gm-handbook.en | 1104 | One moment | `DRPG.Ready.wait`, `DRPG.Ready.status.wait` |
 | gm-handbook.en | 1104 | No answer yet | `DRPG.Ready.status.none` |
-| gm-handbook.en | 1104 | Not connected - counts as Done | `DRPG.Ready.status.away` |
+| gm-handbook.en | 1104 | Not connected (counts as Done) | `DRPG.Ready.status.away` |
 | gm-handbook.en | 1104 | Start it | `DRPG.Hud.eclipseAskYes` |
 | gm-handbook.en | 1104 | End and move the clock | `DRPG.Eclipse.endAndAdvance` |
 | gm-handbook.en | 1104 | End without advancing | `DRPG.Eclipse.endOnly` |
@@ -624,7 +625,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 1122 | a hindrance die | `DRPG.RollDialog.source.hindrance` |
 | gm-handbook.en | 1124 | Ask for the opening roll again | `DRPG.Murder.openingReask` |
 | gm-handbook.en | 1126 | Which statistic do you propose? | `DRPG.TraitRuling.proposeLabel` |
-| gm-handbook.en | 1126 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+1) |
+| gm-handbook.en | 1126 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
 | gm-handbook.en | 1128 | Ask for the opening roll again | `DRPG.Murder.openingReask` |
 | gm-handbook.en | 1137 | Stay hidden? | `DRPG.Mask.askTitle` |
 | gm-handbook.en | 1137 | Reveal yourself | `DRPG.Mask.reveal`, `DRPG.Bridge.what.mask.reveal` |
@@ -770,7 +771,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 1419 | Close | `DRPG.Passage.tab.close`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
 | gm-handbook.en | 1419 | Start the Final Trial | `DRPG.Mastermind.startFinalTrial` |
 | gm-handbook.en | 1419 | Start the Class Trial | `DRPG.Floor.startTrial` |
-| gm-handbook.en | 1421 | Nonstop Debate | `DRPG.Floor.mode.debate` |
+| gm-handbook.en | 1421 | Nonstop Debate | `DRPG.Hud.trial.debate`, `DRPG.Floor.mode.debate` |
 | gm-handbook.en | 1421 | Testimony | `DRPG.Hud.trial.testimony`, `DRPG.Floor.mode.testimony` |
 | gm-handbook.en | 1421 | Panic Round | `DRPG.Hud.trial.panic`, `DRPG.Floor.mode.panic`, `DRPG.Floor.startPanic` |
 | gm-handbook.en | 1421 | Closing Argument | `DRPG.Hud.trial.closing`, `DRPG.Floor.mode.closing`, `DRPG.Floor.startClosing` |
@@ -919,7 +920,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | 1589 | Camps confer | `DRPG.Zones.confer.name` |
 | gm-handbook.en | 1589 | End the confer | `DRPG.Zones.confer.conferOver` |
 | gm-handbook.en | 1589 | Separate voice in each room | `DRPG.Settings.voiceEnabled.name` |
-| gm-handbook.en | 1590 | Debate | `DRPG.Hud.trial.debate`, `DRPG.Music.state.trialDebate` |
+| gm-handbook.en | 1590 | Debate | `DRPG.Music.state.trialDebate` |
 | gm-handbook.en | 1594 | Findings | `DRPG.Zones.findings.title` |
 | gm-handbook.en | 1594 | Monokuma confirms | `DRPG.Zones.findings.confirmedMark`, `DRPG.Zones.findings.confirm` |
 | gm-handbook.en | 1600 | CLASS TRIAL | `DRPG.Sequence.trialTitle` |
@@ -1376,7 +1377,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 287 | Zakończ rozdział | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.pl | 308 | Pomiń Eclipse | `DRPG.Panel.advance` |
 | gm-handbook.pl | 310 | Pomiń Eclipse | `DRPG.Panel.advance` |
-| gm-handbook.pl | 312 | Trwa Eclipse. Najpierw go zakończ. | `DRPG.Hud.rewindEclipse`, `DRPG.Clock.rewindDuringEclipse` |
+| gm-handbook.pl | 312 | Trwa Eclipse. Najpierw je zakończ. | `DRPG.Hud.rewindEclipse`, `DRPG.Clock.rewindDuringEclipse` |
 | gm-handbook.pl | 316 | Edytuj kampanię | `DRPG.Panel.jump` |
 | gm-handbook.pl | 316 | Zdanie na następny poranek | `DRPG.Clock.morningLine` |
 | gm-handbook.pl | 316 | Odnów też akcje i Search Tokens | `DRPG.Panel.alsoReset` |
@@ -1412,10 +1413,12 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 367 | Infiltrate | `DRPG.Remnant.action.infiltrate`, `DRPG.Config.ACTIONS.listen.label` |
 | gm-handbook.pl | 380 | Którą statystykę proponujesz? | `DRPG.TraitRuling.proposeLabel` |
 | gm-handbook.pl | 380 | Jak to robisz? (opcjonalnie) | `DRPG.TraitRuling.howLabel` |
-| gm-handbook.pl | 380 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse`, `DRPG.Bridge.refuseAttempt` (+1) |
+| gm-handbook.pl | 380 | Zatwierdź | `DRPG.Calls.approveYes` |
+| gm-handbook.pl | 380 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
+| gm-handbook.pl | 380 | Zatwierdź | `DRPG.Calls.approveYes` |
 | gm-handbook.pl | 380 | Anuluj | `DRPG.Passage.pick.cancel`, `DRPG.Kit.cancel`, `DRPG.Advance.cancel`, `DRPG.Tests.cancel` |
-| gm-handbook.pl | 380 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse`, `DRPG.Bridge.refuseAttempt` (+1) |
-| gm-handbook.pl | 380 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse`, `DRPG.Bridge.refuseAttempt` (+1) |
+| gm-handbook.pl | 380 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
+| gm-handbook.pl | 380 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
 | gm-handbook.pl | 382 | Rzuć | `DRPG.Action.roll`, `DRPG.Murder.briefRoll` |
 | gm-handbook.pl | 382 | Rezygnuję (nic nie schodzi) | `DRPG.TraitRuling.pass` |
 | gm-handbook.pl | 382 | Zatwierdzone przez GM-a. | `DRPG.RollDialog.traitApproved` |
@@ -1424,8 +1427,8 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 396 | Statystyki graczy bez zatwierdzania | `DRPG.Settings.autoApproveTraits.name` |
 | gm-handbook.pl | 396 | Zatwierdzone automatycznie. | `DRPG.TraitRuling.autoApproved` |
 | gm-handbook.pl | 398 | Ustal trudność | `DRPG.Action.dynamicSet` |
-| gm-handbook.pl | 398 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse`, `DRPG.Bridge.refuseAttempt` (+1) |
-| gm-handbook.pl | 409 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse`, `DRPG.Bridge.refuseAttempt` (+1) |
+| gm-handbook.pl | 398 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
+| gm-handbook.pl | 409 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
 | gm-handbook.pl | 411 | Odpocznij | `DRPG.Action.restNow` |
 | gm-handbook.pl | 411 | Long Rest | `DRPG.Rest.long`, `DRPG.Rest.longColumn` |
 | gm-handbook.pl | 411 | Short Rest | `DRPG.Rest.short`, `DRPG.Rest.shortColumn` |
@@ -1443,13 +1446,13 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 445 | Monokuma | `DRPG.Assign.monokuma`, `DRPG.Vote.monokuma`, `DRPG.Monokuma.isMonokuma`, `DRPG.Secret.speaker` |
 | gm-handbook.pl | 445 | Anonimowe karty postaci | `DRPG.Settings.enforceAnonymity.name` |
 | gm-handbook.pl | 445 | ? | `DRPG.Remnant.tieShortOpen`, `DRPG.Overflow.hiddenValue` |
-| gm-handbook.pl | 455 | Silence | `DRPG.Overflow.name.silence`, `DRPG.Config.DESPAIR_CALLS.silence.label` |
+| gm-handbook.pl | 455 | Silence | `DRPG.Calls.silencedBadge`, `DRPG.Overflow.name.silence`, `DRPG.Config.DESPAIR_CALLS.silence.label` |
 | gm-handbook.pl | 463 | Reroll | `DRPG.Bridge.what.reroll.ask`, `DRPG.Reroll.title`, `DRPG.Config.HOPE_CALLS.reroll.label` |
 | gm-handbook.pl | 470 | Reroll | `DRPG.Bridge.what.reroll.ask`, `DRPG.Reroll.title`, `DRPG.Config.HOPE_CALLS.reroll.label` |
 | gm-handbook.pl | 470 | Rzuty dają Despair | `DRPG.Settings.despairFromRolls.name` |
 | gm-handbook.pl | 470 | Zastąp licznik Fear z Daggerheart | `DRPG.Settings.hideSystemFear.name` |
-| gm-handbook.pl | 476 | Stosuje się | `DRPG.Calls.approveYes` |
-| gm-handbook.pl | 476 | Nie tym razem | `DRPG.Calls.approveNo` |
+| gm-handbook.pl | 476 | Zatwierdź | `DRPG.Calls.approveYes` |
+| gm-handbook.pl | 476 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
 | gm-handbook.pl | 508 | Motive | `DRPG.Events.ticker.motive`, `DRPG.Motive.title`, `DRPG.Season.group.motive`, `DRPG.Config.DESPAIR_CALLS.motive.label`, `DRPG.Config.SFX_EVENTS.motive.label` |
 | gm-handbook.pl | 508 | Zasady killing game | `DRPG.Rules.manageTitle` |
 | gm-handbook.pl | 508 | Ustawienia sezonu | `DRPG.Season.title` |
@@ -1463,9 +1466,8 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 522 | Nikt nie odpowiedział na czas. Możesz zapytać jeszcze raz. | `DRPG.Bridge.settledExpired` |
 | gm-handbook.pl | 522 | Gracz już nie czekał. | `DRPG.Bridge.settledGone` |
 | gm-handbook.pl | 526 | Prywatna karta. Jej treść nie dotarła do tej przeglądarki. | `DRPG.Secret.wordsElsewhere` |
-| gm-handbook.pl | 530 | Rzuty wykonane bez połączonego GM-a | `DRPG.Rolls.awayTitle` |
-| gm-handbook.pl | 530 | Rzucono bez połączonego GM-a - GM to zobaczy. | `DRPG.Rolls.unwitnessed` |
-| gm-handbook.pl | 530 | Rzuty wykonane bez połączonego GM-a | `DRPG.Rolls.awayTitle` |
+| gm-handbook.pl | 530 | Rzuty graczy pod nieobecność GM-a | `DRPG.Rolls.awayTitle` |
+| gm-handbook.pl | 530 | Rzuty graczy pod nieobecność GM-a | `DRPG.Rolls.awayTitle` |
 | gm-handbook.pl | 530 | Przyznaj wszystkie | `DRPG.Rolls.grantAll` |
 | gm-handbook.pl | 530 | Nie przyznawaj | `DRPG.Rolls.grantNone` |
 | gm-handbook.pl | 534 | Cofnięte | `DRPG.Rules.announceRevoked` |
@@ -1604,6 +1606,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 724 | Bez prywatności | `DRPG.Vault.notSharedColumn`, `DRPG.Fog.check.piecesDiffer.field.notShared` |
 | gm-handbook.pl | 726 | Zepsute | `DRPG.Vault.brokenColumn` |
 | gm-handbook.pl | 730 | Sąsiedzi | `DRPG.Vault.neighboursColumn` |
+| gm-handbook.pl | 746 | Search Tokeny | `DRPG.Facility.effect.searchToken` |
 | gm-handbook.pl | 746 | Search Tokens na pokój | `DRPG.Settings.searchTokensPerRoom.name` |
 | gm-handbook.pl | 746 | Przeszukanie nie zostało policzone. | `DRPG.SearchTokens.timeout` |
 | gm-handbook.pl | 750 | Pokoje decydują, co widzą gracze | `DRPG.Settings.regionFog.name` |
@@ -1660,8 +1663,8 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 857 | Żeton gracza przesunięty przez ścianę | `DRPG.Settings.moveAudit.name` |
 | gm-handbook.pl | 857 | Zapisz to w Dzienniku debugowania | `DRPG.Settings.moveAudit.log` |
 | gm-handbook.pl | 857 | Cofnij żeton | `DRPG.Settings.moveAudit.sendBack` |
-| gm-handbook.pl | 885 | Działa - zastosuj efekt | `DRPG.Items.itemWorks` |
-| gm-handbook.pl | 885 | Działa, bez efektu - zużyj | `DRPG.Items.itemNoEffect` |
+| gm-handbook.pl | 885 | Działa i daje efekt | `DRPG.Items.itemWorks` |
+| gm-handbook.pl | 885 | Działa bez efektu i się zużywa | `DRPG.Items.itemNoEffect` |
 | gm-handbook.pl | 885 | Nie działa | `DRPG.Items.itemRefuse` |
 | gm-handbook.pl | 887 | Jednorazowy | `DRPG.Items.singleUse` |
 | gm-handbook.pl | 889 | Repair an item | `DRPG.Project.preset.repairItem` |
@@ -1715,8 +1718,8 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 976 | Projects | `DAGGERHEART.UI.Countdowns.title`, `DAGGERHEART.APPLICATIONS.CombatTracker.openCountdowns`, `DAGGERHEART.APPLICATIONS.CountdownEdit.viewTitle`, `DRPG.Project.manageTitle`, `DRPG.Explain.projects.window` (+1) |
 | gm-handbook.pl | 976 | Spójrz poza oczywiste | `DRPG.Observe.nonObvious` |
 | gm-handbook.pl | 978 | Praca nad projektem | `DRPG.Roll.project` |
-| gm-handbook.pl | 978 | Postęp najstarszego projektu w pomieszczeniu | `DRPG.Facility.effect.projectProgress` |
-| gm-handbook.pl | 980 | Akcja w pokoju | `DRPG.Facility.editor.projectButton`, `DRPG.Bridge.what.facility.use` |
+| gm-handbook.pl | 978 | Postęp najstarszego niedokończonego projektu w pokoju | `DRPG.Facility.effect.projectProgress` |
+| gm-handbook.pl | 980 | Edytuj akcję w pokoju | `DRPG.Facility.editor.projectButton` |
 | gm-handbook.pl | 980 | Kosztuje akcję | `DRPG.Facility.editor.costsAction` |
 | gm-handbook.pl | 982 | Wie, że tu jest | `DRPG.Project.cardKnownBy` |
 | gm-handbook.pl | 986 | Zaproponuj projekt | `DRPG.Project.startNew` |
@@ -1738,19 +1741,18 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 1066 | Zacznij Eclipse | `DRPG.Panel.goEclipseStartButton` |
 | gm-handbook.pl | 1066 | Zacznij | `DRPG.Hud.eclipseAskYes`, `DRPG.Zones.picker.start` |
 | gm-handbook.pl | 1066 | Anuluj | `DRPG.Passage.pick.cancel`, `DRPG.Kit.cancel`, `DRPG.Advance.cancel`, `DRPG.Tests.cancel` |
-| gm-handbook.pl | 1069 | Znaleziono ciało - najpierw rozpocznij Investigation. | `DRPG.Eclipse.bodyFirst` |
-| gm-handbook.pl | 1070 | Trwa incydent - najpierw go zamknij. | `DRPG.Eclipse.incidentFirst` |
+| gm-handbook.pl | 1069 | Znaleziono ciało. Najpierw rozpocznij Investigation. | `DRPG.Eclipse.bodyFirst` |
+| gm-handbook.pl | 1070 | Trwa incydent. Najpierw go zakończ. | `DRPG.Eclipse.incidentFirst` |
 | gm-handbook.pl | 1079 | Pomiń Eclipse | `DRPG.Panel.advance` |
 | gm-handbook.pl | 1081 | Pomiń Eclipse | `DRPG.Panel.advance` |
 | gm-handbook.pl | 1087 | Direct Murder | `DRPG.Action.directMurder`, `DRPG.Bridge.what.murder.park`, `DRPG.Config.ACTIONS.directMurder.label` |
 | gm-handbook.pl | 1090 | Pozwól | `DRPG.Frisk.allow` |
-| gm-handbook.pl | 1090 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse`, `DRPG.Bridge.refuseAttempt` (+1) |
+| gm-handbook.pl | 1090 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
 | gm-handbook.pl | 1090 | Pozwól | `DRPG.Frisk.allow` |
 | gm-handbook.pl | 1094 | Zakończ Eclipse | `DRPG.Panel.goEclipseEndButton` |
 | gm-handbook.pl | 1094 | Gotowe | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
 | gm-handbook.pl | 1096 | Zakończ i przesuń zegar | `DRPG.Eclipse.endAndAdvance` |
 | gm-handbook.pl | 1097 | Zakończ bez przesuwania zegara | `DRPG.Eclipse.endOnly` |
-| gm-handbook.pl | 1097 | Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia. | `DRPG.Clock.takenBack` |
 | gm-handbook.pl | 1098 | Anuluj | `DRPG.Passage.pick.cancel`, `DRPG.Kit.cancel`, `DRPG.Advance.cancel`, `DRPG.Tests.cancel` |
 | gm-handbook.pl | 1104 | Zacznij Eclipse | `DRPG.Panel.goEclipseStartButton` |
 | gm-handbook.pl | 1104 | Zakończ Eclipse | `DRPG.Panel.goEclipseEndButton` |
@@ -1761,7 +1763,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 1104 | Gotowe | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
 | gm-handbook.pl | 1104 | Jeszcze chwila | `DRPG.Ready.wait`, `DRPG.Ready.status.wait` |
 | gm-handbook.pl | 1104 | Jeszcze bez odpowiedzi | `DRPG.Ready.status.none` |
-| gm-handbook.pl | 1104 | Brak połączenia - liczy się jako „Gotowe” | `DRPG.Ready.status.away` |
+| gm-handbook.pl | 1104 | Bez połączenia, liczy się jako „Gotowe” | `DRPG.Ready.status.away` |
 | gm-handbook.pl | 1104 | Zacznij | `DRPG.Hud.eclipseAskYes`, `DRPG.Zones.picker.start` |
 | gm-handbook.pl | 1104 | Zakończ i przesuń zegar | `DRPG.Eclipse.endAndAdvance` |
 | gm-handbook.pl | 1104 | Zakończ bez przesuwania zegara | `DRPG.Eclipse.endOnly` |
@@ -1779,7 +1781,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 1122 | kość utrudnienia | `DRPG.RollDialog.source.hindrance` |
 | gm-handbook.pl | 1124 | Poproś o rzut otwarcia ponownie | `DRPG.Murder.openingReask` |
 | gm-handbook.pl | 1126 | Którą statystykę proponujesz? | `DRPG.TraitRuling.proposeLabel` |
-| gm-handbook.pl | 1126 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse`, `DRPG.Bridge.refuseAttempt` (+1) |
+| gm-handbook.pl | 1126 | Odmów | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Calls.approveNo`, `DRPG.Project.declineButton`, `DRPG.TraitRuling.refuse` (+2) |
 | gm-handbook.pl | 1126 | Pozwól | `DRPG.Frisk.allow` |
 | gm-handbook.pl | 1128 | Poproś o rzut otwarcia ponownie | `DRPG.Murder.openingReask` |
 | gm-handbook.pl | 1137 | Zostać w ukryciu? | `DRPG.Mask.askTitle` |
@@ -1807,15 +1809,15 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 1220 | Znasz ten Remnant: jest na twoim arkuszu. | `DRPG.Cleanup.authorsCopy` |
 | gm-handbook.pl | 1220 | Nowy rzut zabiera Truth Bullet Remnantu, który po tobie został. | `DRPG.Reroll.authorsCopyBack` |
 | gm-handbook.pl | 1239 | Incydent zakończony - co teraz | `DRPG.Murder.afterTitle` |
-| gm-handbook.pl | 1239 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Events.ticker.body`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
+| gm-handbook.pl | 1239 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
 | gm-handbook.pl | 1239 | Przejdź do Investigation | `DRPG.Murder.afterGoInvestigation` |
 | gm-handbook.pl | 1239 | Wydaj Autopsy Truth Bullet | `DRPG.TruthBullet.autopsyTitle` |
-| gm-handbook.pl | 1241 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Events.ticker.body`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
+| gm-handbook.pl | 1241 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
 | gm-handbook.pl | 1243 | Uczniowie znaleźli ciało | `DRPG.Chapter.pendingTitle` |
 | gm-handbook.pl | 1243 | Ogłoś | `DRPG.Chapter.pendingAnnounce` |
 | gm-handbook.pl | 1243 | Jeszcze nie | `DRPG.Chapter.pendingNotYet` |
-| gm-handbook.pl | 1243 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Events.ticker.body`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
-| gm-handbook.pl | 1245 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Events.ticker.body`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
+| gm-handbook.pl | 1243 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
+| gm-handbook.pl | 1245 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
 | gm-handbook.pl | 1250 | Postać umiera | `DRPG.Chapter.deathTitle` |
 | gm-handbook.pl | 1252 | nie żyje | `DRPG.Chapter.deadShort` |
 | gm-handbook.pl | 1252 | Nie żyje, ciała nie znaleziono | `DRPG.Chapter.deadUnfound` |
@@ -1845,14 +1847,14 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 1298 | Kto co ma | `DRPG.Investigation.whoHasWhat` |
 | gm-handbook.pl | 1300 | Nowy Remnant | `DRPG.Investigation.newTraceTitle`, `DRPG.CaseMap.newLabel.incident` |
 | gm-handbook.pl | 1300 | Wydaj Autopsy Truth Bullet | `DRPG.TruthBullet.autopsyTitle` |
-| gm-handbook.pl | 1300 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Events.ticker.body`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
+| gm-handbook.pl | 1300 | Znaleziono ciało | `DRPG.Events.bodyTitle`, `DRPG.Chapter.bodyTitle`, `DRPG.Config.SFX_EVENTS.bodyFound.label` |
 | gm-handbook.pl | 1300 | Podgląd realizacji | `DRPG.CaseRealize.preview` |
 | gm-handbook.pl | 1300 | Nowy Remnant | `DRPG.Investigation.newTraceTitle`, `DRPG.CaseMap.newLabel.incident` |
 | gm-handbook.pl | 1300 | Zakończ rozdział | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.pl | 1302 | Zapisz | `DRPG.Assign.save`, `DRPG.Zones.findings.save`, `DRPG.Tables.placeSave`, `DRPG.Note.save` |
 | gm-handbook.pl | 1302 | Zamknij | `DRPG.Passage.tab.close`, `DRPG.Passage.list.seal`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
 | gm-handbook.pl | 1302 | Postaw | `DRPG.Monocub.bet`, `DRPG.Investigation.finalAskPlace`, `DRPG.Investigation.place` |
-| gm-handbook.pl | 1307 | Zostawił (tylko GM-owie) | `DRPG.Remnant.authorLabel`, `DRPG.CaseMap.panelAuthor` |
+| gm-handbook.pl | 1307 | Zostawił (tylko GM-owie) | `DRPG.CaseMap.panelAuthor` |
 | gm-handbook.pl | 1307 | Follow My Traces | `DRPG.Observe.followTraces` |
 | gm-handbook.pl | 1311 | Tabela | `DRPG.Tables.col.table`, `DRPG.CaseMap.viewTable` |
 | gm-handbook.pl | 1313 | Zamknij | `DRPG.Passage.tab.close`, `DRPG.Passage.list.seal`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
@@ -1927,7 +1929,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 1419 | Zamknij | `DRPG.Passage.tab.close`, `DRPG.Passage.list.seal`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
 | gm-handbook.pl | 1419 | Zacznij Final Trial | `DRPG.Mastermind.startFinalTrial` |
 | gm-handbook.pl | 1419 | Zacznij Class Trial | `DRPG.Floor.startTrial` |
-| gm-handbook.pl | 1421 | Nonstop Debate | `DRPG.Floor.mode.debate` |
+| gm-handbook.pl | 1421 | Nonstop Debate | `DRPG.Hud.trial.debate`, `DRPG.Floor.mode.debate` |
 | gm-handbook.pl | 1421 | Testimony | `DRPG.Hud.trial.testimony`, `DRPG.Floor.mode.testimony` |
 | gm-handbook.pl | 1421 | Panic Round | `DRPG.Hud.trial.panic`, `DRPG.Floor.mode.panic`, `DRPG.Floor.startPanic`, `DRPG.Config.SFX_EVENTS.panicStart.label` |
 | gm-handbook.pl | 1421 | Closing Argument | `DRPG.Hud.trial.closing`, `DRPG.Floor.mode.closing`, `DRPG.Floor.startClosing`, `DRPG.Config.SFX_EVENTS.closingStart.label` |
@@ -2079,7 +2081,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | 1589 | Narada obozów | `DRPG.Zones.confer.name` |
 | gm-handbook.pl | 1589 | Zakończ naradę | `DRPG.Zones.confer.conferOver` |
 | gm-handbook.pl | 1589 | Głos osobno w każdym pokoju | `DRPG.Settings.voiceEnabled.name` |
-| gm-handbook.pl | 1590 | Debata | `DRPG.Hud.trial.debate`, `DRPG.Floor.sectionDebate`, `DRPG.Music.state.trialDebate` |
+| gm-handbook.pl | 1590 | Debata | `DRPG.Floor.sectionDebate`, `DRPG.Music.state.trialDebate` |
 | gm-handbook.pl | 1594 | Monokuma potwierdza | `DRPG.Zones.findings.confirmedMark`, `DRPG.Zones.findings.confirm` |
 | gm-handbook.pl | 1600 | CLASS TRIAL | `DRPG.Sequence.trialTitle` |
 | gm-handbook.pl | 1601 | KONIEC ROZPRAWY | `DRPG.Sequence.exitTitle` |
@@ -2456,13 +2458,13 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.en | 615 | Gear | `DRPG.Sheet.groupGear`, `DRPG.Project.glyph.gear` |
 | player-handbook.en | 616 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Case.store.bullets`, `DRPG.CaseMap.studentBullets` |
 | player-handbook.en | 617 | Room Keys | `DRPG.Sheet.groupKeys` |
-| player-handbook.en | 624 | Hand it over | `DRPG.Handover.give`, `DRPG.Observe.describeConfirm` |
+| player-handbook.en | 624 | Hand it over | `DRPG.Handover.give` |
 | player-handbook.en | 624 | Share a copy | `DRPG.Handover.share` |
 | player-handbook.en | 628 | Share a copy | `DRPG.Handover.share` |
 | player-handbook.en | 632 | hidden | `DRPG.Vault.concealedShort`, `DRPG.Remnant.report.hidden` |
 | player-handbook.en | 632 | Find Stash | `DRPG.Analyze.findStash`, `DRPG.Bridge.what.vault.findStash` |
 | player-handbook.en | 644 | Remnant | `DRPG.Cleanup.gmTrace`, `DRPG.Remnant.cardWhat`, `DRPG.Remnant.tokenName`, `DRPG.CaseMap.kind.remnant` |
-| player-handbook.en | 644 | Reinforced | `DRPG.Cleanup.gmReinforced`, `DRPG.Remnant.reinforcedColumn` |
+| player-handbook.en | 644 | Reinforced | `DRPG.Cleanup.gmReinforced`, `DRPG.Remnant.reinforcedShort`, `DRPG.Remnant.reinforcedColumn` |
 | player-handbook.en | 650 | Key Remnant | `DRPG.Reveal.defaultName` |
 | player-handbook.en | 662 | Truth Bullet | `DRPG.Items.whatBullet`, `DRPG.Trial.objectionPickLabel`, `DRPG.TruthBullet.title` |
 | player-handbook.en | 662 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Case.store.bullets`, `DRPG.CaseMap.studentBullets` |
@@ -2482,7 +2484,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.en | 746 | victim | `DRPG.Murder.side.victim` |
 | player-handbook.en | 761 | Fight back | `DRPG.Murder.tileFightBack` |
 | player-handbook.en | 761 | Roll | `DRPG.Action.roll`, `DRPG.Murder.briefRoll` |
-| player-handbook.en | 773 | Reinforced | `DRPG.Cleanup.gmReinforced`, `DRPG.Remnant.reinforcedColumn` |
+| player-handbook.en | 773 | Reinforced | `DRPG.Cleanup.gmReinforced`, `DRPG.Remnant.reinforcedShort`, `DRPG.Remnant.reinforcedColumn` |
 | player-handbook.en | 786 | Crisis actions | `DRPG.Murder.tileCrisis` |
 | player-handbook.en | 805 | Erase a Trace | `DRPG.Cleanup.action`, `DRPG.Tamper.cover`, `DRPG.Tamper.coverAction` |
 | player-handbook.en | 806 | Reshape a Trace | `DRPG.Cleanup.transformAction` |
@@ -2499,7 +2501,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.en | 857 | Shadow | `DAGGERHEART.CONFIG.Traits.presence.name` |
 | player-handbook.en | 874 | Presented | `DRPG.Trial.presentShort`, `DRPG.CaseTrial.presented` |
 | player-handbook.en | 874 | Show it with my Analyze result | `DRPG.Trial.presentWithAnalysis` |
-| player-handbook.en | 876 | Nonstop Debate | `DRPG.Floor.mode.debate` |
+| player-handbook.en | 876 | Nonstop Debate | `DRPG.Hud.trial.debate`, `DRPG.Floor.mode.debate` |
 | player-handbook.en | 876 | OBJECTION! | `DRPG.Trial.objection`, `DRPG.Trial.objectionBanner` |
 | player-handbook.en | 876 | You can raise an Objection only in a Class Trial. | `DRPG.Trial.objectionOutside` |
 | player-handbook.en | 889 | Overrule | `DRPG.Floor.bar.overrule`, `DRPG.Floor.overrule.title` |
@@ -2687,7 +2689,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.pl | 145 | Początek dnia | `DRPG.Config.SFX_EVENTS.dayStart.label` |
 | player-handbook.pl | 160 | Free Move | `DRPG.Facility.effect.freeMove`, `DRPG.Panel.freeMove`, `DRPG.Explain.status.moveTitle` |
 | player-handbook.pl | 164 | Burst | `DRPG.Config.HOPE_CALLS.burst.label` |
-| player-handbook.pl | 176 | Przykuty | `DRPG.Calls.chainedBadge` |
+| player-handbook.pl | 176 | Chained | `DRPG.Calls.chainedBadge`, `DRPG.Config.DESPAIR_CALLS.chained.label` |
 | player-handbook.pl | 178 | nie żyje | `DRPG.Chapter.deadShort` |
 | player-handbook.pl | 180 | Class Trial | `DRPG.Floor.manageTrial`, `DRPG.Floor.sectionTrial`, `DRPG.Events.ticker.trial`, `DRPG.Config.PHASES.classTrial.label` |
 | player-handbook.pl | 182 | Zwróć ostatnie przejście | `DRPG.Panel.refundCrossing` |
@@ -2783,7 +2785,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.pl | 616 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Config.ITEM_CATEGORIES.truthBullet.plural` |
 | player-handbook.pl | 617 | Klucze do pokoi | `DRPG.Sheet.groupKeys`, `DRPG.Config.ITEM_CATEGORIES.bedroomKey.plural` |
 | player-handbook.pl | 622 | W ręku. | `DRPG.Items.readyTooltip` |
-| player-handbook.pl | 624 | Przekaż | `DRPG.Handover.give`, `DRPG.Observe.describeConfirm` |
+| player-handbook.pl | 624 | Przekaż | `DRPG.Handover.give` |
 | player-handbook.pl | 624 | Podziel się kopią | `DRPG.Handover.share` |
 | player-handbook.pl | 628 | Drzwi są zamknięte. | `DRPG.Move.locked`, `DRPG.Bridge.why.doorLocked` |
 | player-handbook.pl | 628 | Podziel się kopią | `DRPG.Handover.share` |
@@ -2795,7 +2797,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.pl | 650 | Key Remnant | `DRPG.Config.REMNANT_TYPES.key.label`, `DRPG.Reveal.defaultName` |
 | player-handbook.pl | 662 | Truth Bullet | `DRPG.Items.whatBullet`, `DRPG.Trial.objectionPickLabel`, `DRPG.TruthBullet.title`, `DRPG.Config.ITEM_CATEGORIES.truthBullet.label` |
 | player-handbook.pl | 662 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Config.ITEM_CATEGORIES.truthBullet.plural` |
-| player-handbook.pl | 672 | Analiza na nic | `DRPG.TruthBullet.locked` |
+| player-handbook.pl | 672 | Nieudana analiza | `DRPG.TruthBullet.locked` |
 | player-handbook.pl | 674 | Rozdziału | `DRPG.Sheet.bulletsByChapter` |
 | player-handbook.pl | 674 | Lokacji | `DRPG.Sheet.bulletsByRoom` |
 | player-handbook.pl | 697 | Morderstwo pośrednie | `DRPG.Project.indirect` |
@@ -2833,13 +2835,14 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.pl | 852 | Analyze | `DRPG.Bridge.what.analyze.resolve`, `DRPG.Config.ACTIONS.analyze.label` |
 | player-handbook.pl | 852 | Podziel się kopią | `DRPG.Handover.share` |
 | player-handbook.pl | 853 | Key Remnanty | `DRPG.Investigation.tabKeyRemnants` |
+| player-handbook.pl | 854 | Ciało | `DRPG.Events.ticker.body` |
 | player-handbook.pl | 854 | Take from the Body | `DRPG.Bridge.what.body.loot`, `DRPG.Loot.windowTitle`, `DRPG.Loot.open` |
 | player-handbook.pl | 854 | Weź | `DRPG.Vault.take`, `DRPG.Loot.take` |
 | player-handbook.pl | 855 | Hand | `DAGGERHEART.CONFIG.Traits.finesse.name`, `DRPG.Config.TRAITS.hand.label` |
 | player-handbook.pl | 857 | Shadow | `DAGGERHEART.CONFIG.Traits.presence.name`, `DRPG.Config.TRAITS.shadow.label` |
 | player-handbook.pl | 858 | Tamper | `DRPG.Config.ACTIONS.tamper.label` |
 | player-handbook.pl | 874 | Pokaż z wynikiem mojego Analyze | `DRPG.Trial.presentWithAnalysis` |
-| player-handbook.pl | 876 | Nonstop Debate | `DRPG.Floor.mode.debate` |
+| player-handbook.pl | 876 | Nonstop Debate | `DRPG.Hud.trial.debate`, `DRPG.Floor.mode.debate` |
 | player-handbook.pl | 876 | OBJECTION! | `DRPG.Trial.objection`, `DRPG.Trial.objectionBanner` |
 | player-handbook.pl | 876 | Objection możesz wnieść tylko podczas Class Trial. | `DRPG.Trial.objectionOutside` |
 | player-handbook.pl | 889 | Oddalenie | `DRPG.Floor.bar.overrule`, `DRPG.Floor.overrule.title`, `DRPG.Config.SFX_EVENTS.overrule.label` |
@@ -2853,7 +2856,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.pl | 893 | Ktoś inny | `DRPG.Trial.claim.no` |
 | player-handbook.pl | 893 | Pasuję | `DRPG.Trial.turn.pass` |
 | player-handbook.pl | 893 | Gotowe | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
-| player-handbook.pl | 897 | Twój głos oddany. | `DRPG.Events.voteCast`, `DRPG.Vote.castConfirmed` |
+| player-handbook.pl | 897 | Twój głos oddany. | `DRPG.Vote.castConfirmed` |
 | player-handbook.pl | 897 | Żaden GM nie ma jeszcze twojego głosu. Trafi do GM-a, gdy tylko się połączy. | `DRPG.Vote.notReceived` |
 | player-handbook.pl | 904 | Level Up | `DRPG.Bridge.what.advancement.apply`, `DRPG.Panel.levelUpColumn`, `DRPG.Advance.buttonTooltip`, `DRPG.Advance.caption`, `DRPG.Config.SFX_EVENTS.levelUp.label` |
 | player-handbook.pl | 909 | WERDYKT | `DRPG.Vote.verdictCardTitle` |
@@ -3062,7 +3065,7 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-brochure.pl | 104 | Gotowe | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
 | player-brochure.pl | 104 | Pasuję | `DRPG.Trial.turn.pass` |
 
-## Bold spans with no lang value (1018)
+## Bold spans with no lang value (1014)
 
 | Handbook | Span | Times |
 | --- | --- | --- |
@@ -3135,7 +3138,6 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.en | An end that stops | 1 |
 | gm-handbook.en | An older starting sheet. | 1 |
 | gm-handbook.en | Anyone may press it | 1 |
-| gm-handbook.en | Approve | 2 |
 | gm-handbook.en | Approve: Body | 1 |
 | gm-handbook.en | Approving Experience and Ultimate. | 1 |
 | gm-handbook.en | Approving on its own. | 1 |
@@ -3664,7 +3666,6 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | Schemat sprawy na rozprawie. | 1 |
 | gm-handbook.pl | Schody | 1 |
 | gm-handbook.pl | Search Tokeny (9.1). | 1 |
-| gm-handbook.pl | Search Tokeny. | 1 |
 | gm-handbook.pl | Sekret serwera głosu. | 1 |
 | gm-handbook.pl | Shift+C | 1 |
 | gm-handbook.pl | Skrytki w sypialniach (9.1). | 1 |
@@ -3725,7 +3726,6 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | gm-handbook.pl | Zaplanowanego Remnantu | 1 |
 | gm-handbook.pl | Zasłonięta karta i szept do GM-ów. | 1 |
 | gm-handbook.pl | Zatwierdzanie Experience i Ultimate. | 1 |
-| gm-handbook.pl | Zatwierdź | 2 |
 | gm-handbook.pl | Zatwierdź: Body | 1 |
 | gm-handbook.pl | Zbuduj salę | 1 |
 | gm-handbook.pl | Zdejmij z mapy Key Remnanty tego rozdziału | 1 |
@@ -3990,7 +3990,6 @@ Quoted labels: 3051 (EN 1477, PL 1574).
 | player-handbook.pl | Breakdown i Wounded są na twoim arkuszu, dla wszystkich. | 1 |
 | player-handbook.pl | Błędnie | 1 |
 | player-handbook.pl | Chwile na cały ekran | 1 |
-| player-handbook.pl | Ciało | 1 |
 | player-handbook.pl | Co może przeczytać inny gracz. | 1 |
 | player-handbook.pl | Co zostało. | 1 |
 | player-handbook.pl | Disadvantage | 1 |
