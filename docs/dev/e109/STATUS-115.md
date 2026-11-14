@@ -16,11 +16,11 @@ Branch `claude/e109-115` from main 9e7e3d78. R numbers R7120-R7149. Kept as the 
 | #40 Q-NC-7 Analyze's card order | the roll card is posted (awaited) before `analyze.resolve` is asked, as Find Stash's; `Analyze.sent` reworded to be true before the answer | R7122 | daba7d5c |
 | #48 H11 Move the Body's floor | `atLeastFloor` (CLEANUP.minDc 8) in `resolveStageSix`; no tier reaches it today | R7123 | daba7d5c |
 | #60 Q-E43-6 the session log | a ring of the newest 60 (`keepNewest`), the dropped counted (`sessionFailuresDropped`), named first in diagnose()'s "Failures" part | R7124 | daba7d5c |
-| #56 Q-E99-9 the GM's replay | "Replay the summary" on the trial console once the summary is out; plays this trial's card's board on this browser only, writes nothing | R7125 | (next commit) |
-| Leftover 1: check live | reads any LIVE-<id>-<n> but LIVE-REOPEN-01; a planted control of each form; red with the old patterns (the control: three items not read, two unwritten citations not caught), green after: 522 items (516 before: +3 PV, +2 113R, +1 R4420), 979 citations | `check live` | (below) |
-| Leftover 2: KEYS.json | the four Polish tooltips 7de81166 reworded (tiedToCrime, roomPlannedIncidentRemnant, roomPlannedFinal, placeOnTheMap) brought to lang/pl.json | - | (below) |
-| Leftover 3: NEEDSCODE.md:21 | "row 1.2.122" is "row 1.2.113", as text-style.md writes it 30 times and stages.json plans E71; the rows Q-NC-7, Q-NC-10, H11, H13, H20 marked answered | - | (below) |
-| Leftover 4: radio sweep in Polish | made: audit/windows-pl, probe 08 with DRPG_CAPTURE_LANG=pl DRPG_CAPTURE_OUT=../windows-pl on f85a0071 (114 s; 102 of 104 rows captured, action-palm and action-loot--long answered null, as their rows read); `node audit/radio-sweep.mjs --pl-windows audit/windows-pl --chromium /opt/pw-browsers/chromium-1243/chrome-linux64/chrome` (the bundled headless shell 1194 is not on this machine): 42 windows, 1488 radio readings, RED, 112 problems, all one finding (below) | radio sweep | (next commit) |
+| #56 Q-E99-9 the GM's replay | "Replay the summary" on the trial console once the summary is out; plays this trial's card's board on this browser only, writes nothing | R7125 | f85a0071 |
+| Leftover 1: check live | reads any LIVE-<id>-<n> but LIVE-REOPEN-01; a planted control of each form; red with the old patterns (the control: three items not read, two unwritten citations not caught), green after: 522 items (516 before: +3 PV, +2 113R, +1 R4420), 979 citations | `check live` | f85a0071 |
+| Leftover 2: KEYS.json | the four Polish tooltips 7de81166 reworded (tiedToCrime, roomPlannedIncidentRemnant, roomPlannedFinal, placeOnTheMap) brought to lang/pl.json | - | f85a0071 |
+| Leftover 3: NEEDSCODE.md:21 | "row 1.2.122" is "row 1.2.113", as text-style.md writes it 30 times and stages.json plans E71; the rows Q-NC-7, Q-NC-10, H11, H13, H20 marked answered | - | f85a0071 |
+| Leftover 4: radio sweep in Polish | made: audit/windows-pl, probe 08 with DRPG_CAPTURE_LANG=pl DRPG_CAPTURE_OUT=../windows-pl on f85a0071 (114 s; 102 of 104 rows captured, action-palm and action-loot--long answered null, as their rows read); `node audit/radio-sweep.mjs --pl-windows audit/windows-pl --chromium /opt/pw-browsers/chromium-1243/chrome-linux64/chrome` (the bundled headless shell 1194 is not on this machine): 42 windows, 1488 radio readings, RED, 112 problems, all one finding (below) | radio sweep | 769ffc61 |
 | #81, #77 | not this line's (the tips line; the coordinator) | | |
 
 ## #27 D-NIEZG, the disagreements
@@ -52,8 +52,8 @@ from those lines and says so: the writer's full text is not in the repository.
   lang files now say "{n} Despair" (EN and PL alike, not 7de81166's), and `Tips.Case.undoRealizationTooltip` and
   `finderTextTooltip` are no longer in lang/. Left as they are: the leftover named the four.
 - Tamper: what was renamed is the stage's name; "a clean-up attempt", "clean-up roll", the Cleaning Tool, the Clean-up
-  window's title (`Cleanup.title`) and `Bridge.what.murder.cleanup` stay. The handbooks still say "the clean-up" for the
-  stage (7 lines of "the clean-up" in the English handbooks, read by grep, not one by one): the handbook line's.
+  window's title (`Cleanup.title`) and `Bridge.what.murder.cleanup` stay. The handbooks still hold "the clean-up" in 7
+  English lines (grep, not read one by one, so some may name the attempts): the handbook line's.
 - The glossary's source rule took two-digit stages only (`E\d\d plan`); it takes `E\d{2,3} plan` now, for "E109 plan".
 
 ## Every row of DRPG-Q113 (140), with the owner's answer of 14.11.2026
@@ -204,3 +204,31 @@ by the row's name on the page, not by its asking line's file.
 | 139 | Q-E59-9 / Q-E59-10 | keep | kept, owner 14.11 |
 | 140 | group-rest release | keep | kept, owner 14.11; owner's or coordinator's |
 
+
+## Checked (this machine, 4 cores, 14.11.2026)
+
+| What | Tree | Result |
+| --- | --- | --- |
+| tier 1, whole (`node run-tests.mjs --tier 1`) | daba7d5c (with edits in the tree while it ran) | 1677 passed, 0 failed, 16 skipped, 0 red, 568 s |
+| tier 1, whole, the final run | 769ffc61 | 1678 passed, 0 failed, 16 skipped, 0 red, 522 s |
+| tier 2 by name (`--only` Analyze, "Move the body", E99, critical, Reroll, "debug log") | f85a0071's tree before its commit | 251 passed, 0 failed, 0 skipped, 594 s |
+| R7120-R7125 alone, red at the tree without their change, green with it | each commit's message | as written there |
+| scenarios (`node cluster.mjs scenarios/<n>.mjs`, one at a time) | 769ffc61 | 63-class-trial 79/79; 89-proposal-card 12/12; 13-murder-signals 87/87; 17-assistant 47/47; 62-investigation 52/52; 50-lang 45/45; 30-security 302/304, 2 expected red (Foundry limits); 72-canary 162/165, 3 expected red (Foundry limits); 40-flow 89/89; 0 failed in each |
+| `npm run quick` | before every push | green each time (lint 405 files, check 24 parts, gate 37/37) |
+
+## Needs a local Foundry
+
+- The case summary's replay at a table: a GM presses "Replay the summary" and only their screen plays the board, with
+  its sound, in both themes, and under reduced motion the still frame (headless: R7125 reads the road with the
+  switch off and no sound; nothing was drawn or heard).
+- Analyze's roll card above its result card in a real chat log on v14 (the order follows from the awaits; read off the
+  source, R7122, not seen in a real chat).
+- The Polish checkbox label in Item tables' Room pools at a table with Foundry's core sheet (the finding above).
+
+## Questions, with the default taken
+
+| Question | Default taken |
+| --- | --- |
+| Q-E109-1: #11's "Tamper" - does it rename only the stage (tracker, Remnant's stage, the cards that name the stage), or also the attempts' words ("clean-up roll", the Clean-up window, Cleaning Tool)? | the stage only; the attempts keep their words. The handbooks still say "the clean-up" in 7 English lines (grep; not read one by one, so some may name the attempts), and their Polish: the handbook line's |
+| Q-E109-2: #48 (H11) and #11 were built on the coordinator's default while the coordinator confirms them with the owner | built; each is one commit's lines (56c85378 for #11, daba7d5c for #48) |
+| Q-E109-3: the replay plays with the table's sequences switch off, since the GM asked for it | plays; the live board still follows the switch |
