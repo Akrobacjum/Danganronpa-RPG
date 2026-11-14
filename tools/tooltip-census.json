@@ -810,7 +810,7 @@
    "why": "none needed: Its label already says what tying it does (survives the chapter-end sweep)."
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "select",
    "key": "DRPG.Investigation.visibility",
@@ -818,7 +818,7 @@
    "why": "E102 C6: How hard it is to spot with Observe"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "select",
    "key": "DRPG.Remnant.authorLabel",
@@ -826,7 +826,7 @@
    "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.traceName",
@@ -834,7 +834,7 @@
    "why": "E102 C6: The name a student sees once they find it"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.notePlaceholder",
@@ -842,7 +842,7 @@
    "why": "E102 C6: What a student reads the moment they find it"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
@@ -850,7 +850,7 @@
    "why": "E102 C6: What a student reads only after a successful Analyze"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.keyNotePlaceholder",
@@ -858,7 +858,7 @@
    "why": "none needed: Its label and placeholder (Only you read this) say everything."
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "select",
    "key": "DRPG.Investigation.whichSlot",
@@ -866,7 +866,7 @@
    "why": "E102 C6: The planned clue it fills, so the plan counts it"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "placeKeyRow",
    "kind": "select",
    "key": "DRPG.Investigation.visibility",
