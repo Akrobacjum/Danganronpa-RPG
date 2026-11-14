@@ -133,3 +133,42 @@ tests 2/2 with `--only`. Scenarios at 867f3e0b (only test files changed after): 
 66-rooms 77/77, 74-room-tile 46/46, 76-passages 118/119 (1 expected red, as on main), 51-lang-mixed 38/38, 65-season
 58/60 (2 expected red, as on main). The first tier 1 after the fixes read 2 failures: R503 (above) and one whose name
 the run's kept tail does not show; the next run, with R503 fixed, read R503 alone.
+
+## 10. "A completed project's action does not show in Facilities" (the owner, 14.11.2026, on 1.2.114)
+
+The coordinator's five roads, each read on the GM's and on a player's browser (throwaway probe scenarios on the
+harness's four clients, then the tests below). The row needs: project complete, not an indirect murder,
+`standsAtProject`, `canSee`, a facility this browser can read, `facilityLive`.
+
+| Road | Read headless | Result |
+| --- | --- | --- |
+| 1 public; completed by the module's progress, by p1's Work rolls through the bridge, and by the countdown written to its end; p1 opens Facilities; the GM reads the same actor | every link true on both browsers; the drawn window shows the row | green; held by scenario 99's facilities check (7b90cf10) |
+| 2 secret, p1 an insider | the same | green; held by the same check |
+| 3 action set before / after completion | both shown | green. Found beside it: a secret project REVEALED before it was completed got no `completedAt`, so a limited lifetime never ran out - fixed d949b11d (`bothHalves`) |
+| 4 a project with no room | never shown (`standsAtProject` false) | the coordinator's default built, d77329e4: shown in every room to whoever `canSee` lets read it; both handbooks say it (Q-T115-3) |
+| 5 two copies of "complete" | a countdown made in Daggerheart's own window flips direction on the module's first write to it (a room or an action from the manager): complete at once, and not complete once Daggerheart's tray shows it run out | fixed 50bab172 (`countsUp: false` stamped on the first row) |
+
+**Which of these was the owner's case is not known.** Road 5 matches "it does not show" for a project the GM made in
+Daggerheart's own Countdowns window and then gave a room or an action in the manager; road 4 for a project with no
+room. Neither can be told from here.
+
+**What the harness assumes that a real table may not** (what the owner should check at the table, on 1.2.115):
+- A player's browser holds every scene with its regions and tokens (`game.scenes`): `standsAtProject` compares the
+  scene the character's token stands on with the project's (its token's scene, else the first scene with a room of
+  its name). With two scenes holding a room of the same name, or the project's token on another scene than the
+  character's, the row is (rightly) not drawn - check that the project's token and the character stand on the same map.
+- Daggerheart's own countdown controls: the harness writes the setting as its window would (current at the max for a
+  module project, at 0 for one of Daggerheart's); how v14's Daggerheart window moves a module project's bar was not
+  read here.
+- The action's lifetime: an action of N times of day ends N times of day after completion and at the chapter's end;
+  a project completed in an earlier session may simply have run out (the Projects window's line says how long it lasts).
+
+To check at the table: a public project in the room the character stands in, completed, its action set in the manager
+(Edit room action, a name typed, Save); the player opens Facilities. Then the same with a project made in
+Daggerheart's own Countdowns window (fixed in 1.2.115, road 5).
+
+## 11. Questions with defaults (continued)
+
+| # | Question | Default taken |
+| --- | --- | --- |
+| Q-T115-3 | A completed project with no room ("abstract work anywhere"): where does its room action show? | in every room, to whoever knows the project (its insiders, or everyone if public) - the coordinator's default, built in d77329e4 |
