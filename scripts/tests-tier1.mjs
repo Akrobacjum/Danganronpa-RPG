@@ -60549,12 +60549,14 @@ const INVARIANTS = [
          * What a player's browser draws when it walks in is not measured headless here: the harness's player opens no
          * sheet window (a live check, FINDINGS E43-F8). Red at 736e55eb: [false,false,true,true,"string","undefined"] -
          * neither store nor the hook in the watch, and the copy's handle carried no `spec` for live.mjs to hear it by.
+         * The list may hold more stores after the two (14.11.2026: 4a8d9c0c adds `projectSightCopy`, R7110's, and this
+         * read, which wanted the two alone, went red on it in tier 1 on bcdb7e02).
          */
         const S = await import("./gm-stores.mjs");
         const source = stripComments((await moduleSources()).get("projects-map.mjs") ?? "");
         const body = fnSource(source, "showProjectCard");
         const watch = bodyOf(body, "watch:", { until: "\n" });
-        equal(stableJson([/stores:\s*\[\s*discoveryStore,\s*fogCopy\s*\]/.test(watch), /hooks:\s*\[[^\]]*"drpgSecretStored"[^\]]*"drpgRouteSettled"/.test(watch),
+        equal(stableJson([/stores:\s*\[\s*discoveryStore,\s*fogCopy\s*[,\]]/.test(watch), /hooks:\s*\[[^\]]*"drpgSecretStored"[^\]]*"drpgRouteSettled"/.test(watch),
             /settings:\s*\["projectMeta"\]/.test(watch), /settingKeys:\s*\[COUNTDOWNS_KEY\]/.test(watch),
             typeof S.discoveryStore?.spec?.key, typeof S.fogCopy?.spec?.key]),
             stableJson([true, true, true, true, "string", "string"]),
