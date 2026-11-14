@@ -439,6 +439,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         killerSight.murder === true && killerSight.room === "Storage" && JSON.stringify(killerSight.row) === JSON.stringify([true, "Storage"])
         && bystanderSight.murder === false && bystanderSight.room === null && (bystanderSight.row === null || JSON.stringify(bystanderSight.row) === JSON.stringify([false, null])),
         JSON.stringify({ p3: killerSight, p1: bystanderSight }));
+    /* THE WORK'S BRIEFING NAMES THE MURDER'S CONCEALMENT TO ITS KILLER, AND TO NOBODY ELSE (the leak-pm line, the
+       coordinator's item of 14.11.2026). action-briefing.mjs's "project" facts add `DRPG.Action.dcIndirect` when an indirect
+       murder stands where the character does - asked with the project's row, not its id, so it never did (red at
+       df3d602a). A second murder of Chie's, unfinished, in the room she stands in; her briefing read on p3, whose sight of
+       it carries `murder` (projects.mjs `sightFor`), and on p1, who is not in on it - p1's `isIndirectMurder` reads false off
+       no sight copy, and its list holds no secret project it cannot see. The probe is deleted after. */
+    const probe = await gm.eval(`${PROJ} const { locateActor } = await import("${repoUrl}/scripts/movement.mjs");
+        const room = locateActor(game.actors.get("${IDS.chie}"))?.room ?? null;
+        if (!room) return { id: null, room };
+        const p = await P.createProject({ name: "Canary briefing probe", indirectMurder: true, secret: true, killerId: "${IDS.chie}", room });
+        return { id: p?.id ?? null, room };`, { timeout: 60000 });
+    const briefOn = c => c.eval(`${PROJ} const B = await import("${repoUrl}/scripts/action-briefing.mjs"); const C = await import("${repoUrl}/scripts/config.mjs");
+        const line = game.i18n.format("DRPG.Action.dcIndirect", { n: C.INDIRECT_MURDER.concealIntent.threshold });
+        const html = B.briefingBlock(game.actors.get("${IDS.chie}"), "project", C.ACTIONS.project);
+        return { murder: P.isIndirectMurder("${probe.id ?? "none"}"), shows: String(html ?? "").includes(foundry.utils.escapeHTML(line)) };`);
+    const briefP3 = await settled("brief", async () => { const v = await briefOn(p3); return v.murder ? v : null; }) ?? await briefOn(p3);
+    const briefP1 = await briefOn(p1);
+    check("p3's Work briefing in Chie's room names an indirect murder's concealment; p1's does not, and p1 reads no murder",
+        Boolean(probe.id) && briefP3.murder === true && briefP3.shows === true && briefP1.murder === false && briefP1.shows === false,
+        JSON.stringify({ probe, p3: briefP3, p1: briefP1 }),
+        { expectedRed: { stage: "E54", why: "the leak-pm line's red first: the briefing asks isIndirectMurder with a row" }, measured: Boolean(probe.id) && briefP3.murder === true });
+    await gm.eval(`${PROJ} if ("${probe.id ?? ""}") await P.deleteProject("${probe.id ?? ""}"); return true;`, { timeout: 60000 });
     await scanned("trap", KILLER_CHAT);
     /* The trap's receipt (E06 C8): a veiled thread card. Found on the GM in Chie's player's
        thread by its title, then read by id on p3 - listed in her own thread from the meta its
