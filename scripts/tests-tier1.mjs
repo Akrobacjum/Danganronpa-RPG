@@ -61284,6 +61284,75 @@ const INVARIANTS = [
             ["Zaciemnienie blokuje Hope o tej porze dnia.", true, "Tamper", "Tamper", [], true, true]
         ]), "[hopeBlocked, propose = Bridge.send, the stage label, the Remnant's stage label, the cards not naming the Tamper stage, Prepare the Weapon's note without the tool, resetKeeps without who watches whom] in English, then Polish");
     }],
+    ["R7121 - the critical's hint line is on Observe's and Analyze's critical cards only (E109, DRPG-Q113 #43, Q-NC-10; the owner, 14.11.2026: \"Ograniczyc\"): call-gm.mjs `callCardHtml` draws DRPG.Bridge.criticalHint only when its caller says the card owes one (`criticalHint`), action-observe.mjs and action-analyze.mjs say so, and the Reroll's re-asked ruling says so for an Observe or an Analyze alone", async () => {
+        /* Red at 9e7e3d78: a critical roll drew the line on every card (a Dynamic action's, a Search's), whatever the caller. */
+        const B = await import("./gm-bridge.mjs");
+        const hint = game.i18n.localize("DRPG.Bridge.criticalHint");
+        const roll = { trait: "instinct", total: 22, isCritical: true };
+        const drawn = opts => {
+            const card = document.createElement("template");
+            card.innerHTML = B.callCardHtml({ name: "R7121 Student" }, { title: "R7121", ...opts });
+            return card.content.textContent.includes(hint);
+        };
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const callOf = (text, fn) => (fnSource(text, fn).match(/callGm\(actor, \{[\s\S]*?\n {4}\}\);/)?.[0] ?? "");
+        const observe = callOf(await src("action-observe.mjs"), "ruleObserve"), analyze = callOf(await src("action-analyze.mjs"), "askForHint");
+        const reroll = fnSource(await src("reroll.mjs"), "settleGmRuling");
+        equal(stableJson([drawn({ roll }), drawn({ roll, criticalHint: true }), drawn({ roll: { ...roll, isCritical: false }, criticalHint: true }),
+            /criticalHint:\s*true/.test(observe), /criticalHint:\s*true/.test(analyze),
+            /criticalHint:\s*\[\s*"observe",\s*"analyze"\s*\]\.includes\(bookmark\.actionKey\)/.test(reroll)]),
+        stableJson([false, true, false, true, true, true]),
+            "[a critical card that owes no hint draws the line, one that owes it, a card that owes it on a roll no critical, Observe's call says it owes, Analyze's, the Reroll's re-asked ruling by the action]");
+    }],
+    ["R7122 - Analyze's roll card comes before its result card, as Find Stash's does (E109, DRPG-Q113 #40, Q-NC-7; the owner, 14.11.2026: \"Zmienic kolejnosc\"): action-analyze.mjs `analyseBullet` reads the roll in hand, then posts the roll card (`whisperToOwner`, awaited, so its message exists on the server before the request leaves), then asks `requestAnalyzeResolve`, whose result card the GM's client posts only on that request", async () => {
+        /*
+         * Red at 9e7e3d78: the roll card was posted after `requestAnalyzeResolve` had answered, so it landed under the
+         * result card. Not the bridge's timing: the order follows from the awaits, read here off the source. A refusal is
+         * still said after the card (the bridge's toast), as Find Stash's and Find Passage's are.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-analyze.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "analyseBullet");
+        const at = needle => body.indexOf(needle);
+        const [hand, card, ask] = [at("rollInHand(actor)"), at("await whisperToOwner("), at("await requestAnalyzeResolve(")];
+        const stash = fnSource(src, "locateStash");
+        equal(stableJson([hand >= 0 && card >= 0 && ask >= 0, hand < card, card < ask, /rollId(?:,|\s*\})/.test(body.slice(ask)),
+            stash.indexOf("await whisperToOwner(") < stash.indexOf("await requestStashSearch(")]),
+        stableJson([true, true, true, true, true]),
+            "[analyseBullet reads the roll in hand, posts its card and asks, the roll read before the card, the card before the ask, the ask sends the roll read first, Find Stash's card before its ask]");
+    }],
+    ["R7123 - Move the Body's number to beat has the clean-up's floor, `CLEANUP.minDc`, as every other clean-up roll's (E109, DRPG-Q113 #48, H11; the owner, 14.11.2026: change): cleanup.mjs `resolveStageSix` takes the tool's relief off the threshold through `atLeastFloor`, not `Math.max(0, ...)`", async () => {
+        /*
+         * Red at 9e7e3d78: the relief stopped at 0. No tier reaches the floor today (16 less a tier of at most 3), so the
+         * change moves no roll a table can make; it is the one rule written once. Read off the source, as no fixture can
+         * reach the floor; `atLeastFloor` itself is asked with a relief that would.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "resolveStageSix");
+        const C = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        equal(stableJson([/const threshold = atLeastFloor\(\(def\.threshold \?\? 0\) - relief\)/.test(body), /Math\.max\(0,\s*\(def\.threshold/.test(body),
+            C.atLeastFloor(16 - 12), CLEANUP.minDc]),
+        stableJson([true, false, 8, 8]),
+            "[resolveStageSix floors the threshold with atLeastFloor, it still floors at 0, atLeastFloor(16 - 12), CLEANUP.minDc]");
+    }],
+    ["R7124 - the GM's session log keeps the newest 60 rows and counts the ones it dropped, and diagnose()'s text says so (E109, DRPG-Q113 #60, Q-E43-6, E43-F7; the owner, 14.11.2026: \"Zmieniamy\"): utils.mjs `keepNewest` drops the oldest row of a full log, `record` keeps through it, and diagnostics.mjs `failureText` names the count dropped", async () => {
+        /*
+         * Red at 9e7e3d78: a full log refused every new row, so a burst of refusals left the newest out (E43's matrix read
+         * 17 of its 73 as unlogged). Asked on a log of its own, never this browser's: tier 1 writes nothing, and a GM's
+         * real log at a table is theirs.
+         */
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const log = [];
+        let dropped = 0;
+        for (let i = 1; i <= 75; i++) dropped += U.keepNewest(log, { level: "warn", message: `row ${i}`, stack: null, at: i, count: 1 }, 60);
+        const text = D.failureText([{ level: "warn", message: "row 75", stack: null, at: 0, count: 1 }], 15);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson([log.length, log[0]?.message, log.at(-1)?.message, dropped, /keepNewest\(sessionLog,/.test(fnSource(src, "record")),
+            typeof U.sessionFailuresDropped === "function", /15 older rows? (?:were|was) dropped/.test(text), D.failureText([], 0)]),
+        stableJson([60, "row 16", "row 75", 15, true, true, true, "Nothing has failed since this page loaded."]),
+            "[rows kept, the oldest kept, the newest kept, rows dropped, record keeps through keepNewest, the dropped count is read, the report names it, an empty log's report]");
+    }],
 ];
 
 /**

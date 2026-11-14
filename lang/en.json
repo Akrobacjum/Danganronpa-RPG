@@ -1075,7 +1075,7 @@
       "whichBullet": "Which Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "You have nothing left to analyze.",
-      "sent": "The result for {name} is on a card of its own.",
+      "sent": "You analyze {name}. The result comes on a card of its own.",
       "identifiedTitle": "Identified",
       "identified": "{name} is {a} {type}.",
       "failedTitle": "You get nowhere",

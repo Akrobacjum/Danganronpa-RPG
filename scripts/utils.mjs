@@ -264,14 +264,32 @@ export function forgeAsset(url) {
  * something the GM can act on now, and a log that accumulates across weeks is a
  * log nobody opens.
  *
- * Capped, because a failure inside a render loop produces thousands. The cap
- * keeps the FIRST ones - the first occurrence is the one that explains the
- * cause; the ten thousandth only proves it kept happening - and counts repeats
- * instead of listing them.
+ * Capped, because a failure inside a render loop produces thousands, and
+ * repeats are counted instead of listed. The cap kept the FIRST 60 until 1.2.115,
+ * on the reading that the first occurrence explains the cause; E43's matrix
+ * (13.11.2026, E43-F7) read the other side of it: a burst of refusals filled the
+ * log and the newest 17 of its 73 were never listed, so a GM's diagnostics showed
+ * the start of the trouble and not where it stood. It keeps the NEWEST 60 now
+ * (`keepNewest`, a ring) and counts the rows it dropped (`sessionFailuresDropped`),
+ * which diagnose()'s text names (E109, DRPG-Q113 #60, Q-E43-6; the owner,
+ * 14.11.2026: "Zmieniamy"; R7124). A repeat still lands on its own row, wherever
+ * it stands, so a first failure that keeps happening is not dropped while it does.
  * ========================================================================== */
 
 const SESSION_LOG_CAP = 60;
 const sessionLog = [];
+let sessionDropped = 0;
+
+/**
+ * Push `entry` onto `log`, dropping the oldest rows while the log holds `cap` or more: answers how many it dropped.
+ * Its own function so a test asks it on a log of its own (R7124), never this browser's.
+ */
+export function keepNewest(log, entry, cap = SESSION_LOG_CAP) {
+    let dropped = 0;
+    while (log.length >= cap && log.length) { log.shift(); dropped++; }
+    log.push(entry);
+    return dropped;
+}
 
 function record(level, args) {
     try {
@@ -290,10 +308,8 @@ function record(level, args) {
             last.at = Date.now();
             return;
         }
-        if (sessionLog.length >= SESSION_LOG_CAP) return;
-
         const stack = args.find(a => a instanceof Error)?.stack ?? null;
-        sessionLog.push({ level, message, stack, at: Date.now(), count: 1 });
+        sessionDropped += keepNewest(sessionLog, { level, message, stack, at: Date.now(), count: 1 }, SESSION_LOG_CAP);
     } catch {
         // A logger that throws while logging a throw is how a session ends.
     }
@@ -304,8 +320,14 @@ export function sessionFailures() {
     return sessionLog.map(e => ({ ...e }));
 }
 
+/** How many rows the log dropped, oldest first, to keep the newest `SESSION_LOG_CAP` since the page loaded or was cleared. */
+export function sessionFailuresDropped() {
+    return sessionDropped;
+}
+
 export function clearSessionFailures() {
     sessionLog.length = 0;
+    sessionDropped = 0;
 }
 
 export function warn(...args) {

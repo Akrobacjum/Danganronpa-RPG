@@ -1106,7 +1106,7 @@
       "whichBullet": "Który Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "Nie masz teraz żadnego Truth Bulletu do analizy.",
-      "sent": "Analizujesz Truth Bullet „{name}”. Wynik pokazuje osobna karta.",
+      "sent": "Analizujesz Truth Bullet „{name}”. Wynik przyjdzie na osobnej karcie.",
       "identifiedTitle": "Zidentyfikowano",
       "identified": "{name} to {type}.",
       "failedTitle": "Donikąd",

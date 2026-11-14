@@ -782,6 +782,7 @@ wzór; jej „po” zastępuje odpowiedź właściciela z 14.11.
 | `DRPG.Murder.afterInterrupted` (PL) | karta przerwanego incydentu (#11) | - | „przed etapem Tamper” | było „przed sprzątaniem” |
 | `DRPG.Config.ITEM_CATEGORIES.crimeTool.hint` | podpowiedź kategorii (#11) | “when the Tamper stage ends” | „gdy kończy się etap Tamper” | było “when the clean-up ends” / „gdy kończy się sprzątanie” |
 | `DRPG.Config.INDIRECT_MURDER.subProjects.0.note` | Prepare the Weapon (#49, H13: „Tekst zmienic”) | “May need a room with the right equipment.” | „Może wymagać konkretnego pokoju z właściwym sprzętem.” | bez “unless the killer already has the tool”: nic tego nie sprawdza |
+| `DRPG.Analyze.sent` | karta rzutu Analyze, teraz przed kartą wyniku (#40, Q-NC-7: „Zmienic kolejnosc”) | “You analyze {name}. The result comes on a card of its own.” | „Analizujesz Truth Bullet „{name}”. Wynik przyjdzie na osobnej karcie.” | było “The result for {name} is on a card of its own.” / „...Wynik pokazuje osobna karta.”: karta idzie przed wynikiem |
 
 ## 13. Why so much is rebuilt
 

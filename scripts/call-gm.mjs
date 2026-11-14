@@ -744,7 +744,7 @@ export async function receivedOnPrimary(requestId, senderId) {
  * player's own words quoted, the caller's body, the GM's reference, "awaiting a ruling"
  * and the GM's buttons. Its own function so the card is read without posting one (R838).
  */
-export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null, receipt = false } = {}) {
+export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null, receipt = false, criticalHint = false } = {}) {
     const parts = [];
     parts.push(`<h3>${esc(title)}</h3>`);
     parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
@@ -758,8 +758,11 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
         }</p>`);
 
         // The guide owes the player a substantial hint on a critical Observe or
-        // Analyze. Say so loudly rather than leaving the GM to remember it.
-        if (roll.isCritical) {
+        // Analyze. Say so loudly rather than leaving the GM to remember it - on those
+        // two cards alone (E109, DRPG-Q113 #43, Q-NC-10; the owner, 14.11.2026:
+        // "Ograniczyc"): until 1.2.115 a Dynamic action's or a Search's critical card
+        // said it too, and owed nothing. The caller says the card owes one (R7121).
+        if (roll.isCritical && criticalHint) {
             parts.push(`<div class="drpg-gm-only">${cardWarn(`<strong>${
                 game.i18n.localize("DRPG.Bridge.criticalHint")
             }</strong>`)}</div>`);
@@ -912,7 +915,9 @@ export async function callGm(actor, {
      * question; the watched trap's receipt was the one caller (projects.mjs `announceTrapReady`), and since E51 C1 a
      * Dynamic miss's card is another (action-dynamic.mjs `offerDynamicFind`).
      */
-    receipt = false
+    receipt = false,
+    /** The card owes a substantial hint on a critical (Observe's and Analyze's, R7121): `callCardHtml` says so on it. */
+    criticalHint = false
 } = {}) {
     /*
      * NO GM, NO CARD (E18 C0, 19.10.2026; audit S10-26). With no GM connected this posted
@@ -926,7 +931,7 @@ export async function callGm(actor, {
         sayNotDone(what, "noGm", { nothingSpent });
         return false;
     }
-    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires, receipt });
+    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires, receipt, criticalHint });
     const owner = gmOnly ? null : threadOf(actor, thread);
 
     if (!owner) {
