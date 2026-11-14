@@ -8411,7 +8411,37 @@
         "many": "Daggerheart gracza {name} zmienił Fear {steps} razy w ciągu dziesięciu sekund i moduł przepuścił każdą zmianę. Sprawdź na czacie, czy było tyle rzutów.",
         "other": "Daggerheart gracza {name} zmienił Fear {steps} razy w ciągu dziesięciu sekund i moduł przepuścił każdą zmianę. Sprawdź na czacie, czy było tyle rzutów."
       },
-      "backstop": "Strażnik przekaźnika GM-a nie mógł zastąpić słuchacza Daggerhearta {version}, więc każdą zmianę przed wykonaniem sprawdza tryb awaryjny. Prośby graczy nadal są sprawdzane. Daj znać autorowi modułu."
+      "backstop": "Strażnik przekaźnika GM-a nie mógł zastąpić słuchacza Daggerhearta {version}, więc każdą zmianę przed wykonaniem sprawdza tryb awaryjny. Prośby graczy nadal są sprawdzane. Daj znać autorowi modułu.",
+      "what": {
+        "transfer": "przekazanie przedmiotu, które w tej grze czeka na GM-a",
+        "region": "obszar Daggerhearta (Region) postawiony przez gracza",
+        "gmEffect": "efekt, który nakłada tylko GM",
+        "setting": "ustawienie „{setting}”",
+        "unreviewed": "„{name}”, czego ten moduł jeszcze nie sprawdził",
+        "sceneField": "zmiana „{field}” na scenie {name}",
+        "partyField": "zmiana „{field}” w drużynie {name}",
+        "field": "zmiana „{field}” w dokumencie {name}",
+        "noResource": "„{field}”, którego postać {name} nie ma",
+        "overMax": "ustawienie {field} postaci {name} powyżej maksimum",
+        "badValue": "ustawienie {field} postaci {name} na {value}",
+        "otherStudent": "zasoby postaci {name}, czyli innego ucznia",
+        "raisedNoRoll": "podniesienie {fields} postaci {name} bez rzutu tego gracza, który by to dawał",
+        "notHeld": "przedmiot {name}, którego ten gracz nie ma",
+        "charges": "ustawienie ładunków przedmiotu {name} na {value}",
+        "quantity": "ustawienie liczby sztuk przedmiotu {name} na {value}",
+        "moreOf": "więcej sztuk przedmiotu {name}",
+        "environments": "zmiana środowisk sceny {name}, która nie jest samą zmianą kolejności",
+        "partyUnlisted": "drużyna {name}, której członków ten Daggerheart nie podaje",
+        "partyNotOwn": "drużyna {name}, w której nie ma żadnej postaci tego gracza",
+        "fear": "ustawienie Fear na {value}",
+        "countdownsWhole": "całe ustawienie Countdowns",
+        "newCountdowns": "nowe odliczania ({names})",
+        "countdownsOdd": "zmiana odliczań, którą robi tylko GM",
+        "saveNotOwn": "rzut obronny tokena, którym ten gracz nie gra",
+        "newDocument": "nowy dokument typu {type}",
+        "otherDocument": "zmiana dokumentu typu {type}",
+        "unnamed": "zmiana, której ten moduł nie pozwala robić graczowi"
+      }
     },
     "GmStore": {
       "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób teraz kopię zapasową (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",

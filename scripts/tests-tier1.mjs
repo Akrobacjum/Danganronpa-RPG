@@ -5093,6 +5093,89 @@ const INVARIANTS = [
         equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
     }],
 
+    ["R7050 - every relay refusal a GM is told of is said in the GM's language", async () => {
+        /*
+         * E57 T13 group 3, 14.11.2026. A relay judge answers its reason in English, the GM's record, and until this the
+         * toast (DRPG.Relay.refused) and the GMs' whisper (DRPG.Relay.forged) put that English into a Polish GM's
+         * sentence. They say it through relay-guard.mjs `RELAY_WHAT` now, a closed list as the bridge's REASONS are. Held
+         * here: each refusal road of the judges, asked with made-up packets and a made-up world, is taken by a pattern
+         * (never `unnamed`), every pattern's code has its key, and a reason no judge writes is `unnamed`. The judges
+         * whose reason only a world of the GMs' can raise (an item a sender holds less of, a gain no roll covers) are
+         * asked with that world's answer made up.
+         */
+        const { judgeRelay, relayWhat, RELAY_WHAT } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00002", name: "Suite player", isGM: false };
+        const owns = doc => ({ testUserPermission: user => user?.id === player.id, ...doc });
+        const not = doc => ({ testUserPermission: () => false, ...doc });
+        const res = { hope: { value: 2, max: 6 }, hitPoints: { value: 3, max: 6 } };
+        const docs = {
+            mine: owns({ documentName: "Actor", type: "character", name: "Mine", system: { resources: res } }),
+            theirs: not({ documentName: "Actor", type: "character", name: "Theirs", system: { resources: res } }),
+            knife: owns({ documentName: "Item", name: "Knife", parent: { documentName: "Actor" }, system: { quantity: 1 }, _source: { flags: { "danganronpa-rpg": { category: "tool" } } } }),
+            spoon: not({ documentName: "Item", name: "Spoon", parent: { documentName: "Actor" } }),
+            party: not({ documentName: "Actor", type: "party", name: "Party", system: { partyMembers: ["theirs"] } }),
+            scene: { documentName: "Scene", name: "Floor", flags: { daggerheart: { sceneEnvironments: ["a", "b"] } } },
+            journal: { documentName: "JournalEntry", name: "Notes" }
+        };
+        const countdowns = { countdowns: { P1: { name: "Project", progress: { current: 2, start: 6, type: "custom", looping: "noLooping" } } } };
+        const world = {
+            doc: uuid => docs[uuid] ?? null,
+            countdowns: () => foundry.utils.deepClone(countdowns),
+            isProject: id => id === "P1", levelOf: () => 2, automationOn: () => true,
+            fear: () => 4, fearSteps: () => 1, fearChangedAt: () => 0, changedAt: () => 0,
+            message: id => (id === "M1" ? { id: "M1" } : null),
+            tokenFor: (message, tokenId) => (tokenId === "TOKTHEIRS" ? { actor: docs.theirs } : null),
+            itemHeld: () => null,
+            gainRefusal: () => "hope raised on Mine with no roll of theirs to give it",
+            now: () => 1e12
+        };
+        const judge = (action, data) => judgeRelay({ action, data }, player, world);
+        const doc = (uuid, data) => judge("DhGMUpdate", { action: "DhGMUpdateDocument", uuid, data });
+        const roads = {
+            transfer: judgeRelay({ action: "DhTransferItem", data: {} }, player, world),
+            region: judge("DhGMCreate", { documentType: "Region", data: {} }),
+            newDocument: judge("DhGMCreate", { documentType: "Actor", data: {} }),
+            gmEffect: judge("DhGMUpdate", { action: "DhGMUpdateEffect", uuid: "mine", data: {} }),
+            setting: judge("DhGMUpdate", { action: "DhGMUpdateSetting", uuid: "Automation", data: {} }),
+            unreviewed: judge("DhGMUpdate", { action: "DhGMUpdateSomethingNew", data: {} }),
+            field: doc("mine", { name: "Other" }),
+            noResource: doc("mine", { "system.resources.armor.value": 1 }),
+            badValue: doc("mine", { "system.resources.hope.value": -1 }),
+            overMax: doc("mine", { "system.resources.hope.value": 9 }),
+            otherStudent: doc("theirs", { "system.resources.hitPoints.value": 0 }),
+            raisedNoRoll: doc("mine", { "system.resources.hope.value": 1 }),
+            notHeld: doc("spoon", { "system.quantity": 0 }),
+            charges: doc("knife", { "system.resource.value": -1 }),
+            quantity: doc("knife", { "system.quantity": -1 }),
+            moreOf: doc("knife", { "system.quantity": 2 }),
+            sceneField: doc("scene", { name: "Other floor" }),
+            environments: doc("scene", { "flags.daggerheart.sceneEnvironments": ["a", "z"] }),
+            partyField: doc("party", { name: "Other party" }),
+            // Its road whispers to the GMs (partyRefusal's shapeWarning, a write tier 1 may not make), so its English is asked.
+            partyUnlisted: { verdict: "refuse", why: "the party Bare party, whose members this Daggerheart does not list" },
+            partyNotOwn: doc("party", { "system.groupRoll.aidedBy": "x" }),
+            otherDocument: doc("journal", { name: "x" }),
+            fear: judge("DhGMUpdate", { action: "DhGMUpdateFear", data: "lots" }),
+            countdownsWhole: judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: {} }),
+            newCountdowns: judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: { countdowns: { ...countdowns.countdowns,
+                N1: { name: "New", progress: { current: 1, start: 1, type: "custom" } } } } }),
+            countdownsOdd: judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: { countdowns: {
+                P1: { ...countdowns.countdowns.P1, progress: { ...countdowns.countdowns.P1.progress, current: 6 } } } } }),
+            saveNotOwn: judge("DhGMUpdate", { action: "DhGMUpdateSaveMessage", data: { message: "M1", token: "TOKTHEIRS", result: { roll: { total: 12 } } } })
+        };
+        const wrong = Object.entries(roads).map(([want, v]) => {
+            if (v?.verdict !== "refuse") return `${want}: not refused (${v?.verdict}: ${v?.why})`;
+            const got = relayWhat(v.why).code;
+            return got === want ? null : `${want}: said as ${got} (${v.why})`;
+        }).filter(Boolean);
+        equal(JSON.stringify(wrong), "[]", "a relay refusal not said by the pattern of its road");
+        const codes = RELAY_WHAT.map(([code]) => code);
+        equal(JSON.stringify(codes.filter(c => !Object.hasOwn(roads, c))), "[]", "a pattern of RELAY_WHAT that no road of this test reaches");
+        equal(JSON.stringify([...codes, "unnamed"].filter(c => !game.i18n.has(`DRPG.Relay.what.${c}`, false))), "[]", "a code with no DRPG.Relay.what key");
+        equal(relayWhat("a reason no judge writes").code, "unnamed", "a reason no pattern takes is said as something else than unnamed");
+        ok(!/\{\w+\}/.test(relayWhat(roads.badValue.why).text), `the said reason left a placeholder: ${relayWhat(roads.badValue.why).text}`);
+    }],
+
     ["R3600 - a player's save is judged in Daggerheart's shape up to 2.12.4 and in 2.12.5's, and forwarded in both", async () => {
         /*
          * E76 C2, 12.11.2026. Daggerheart 2.12.5 changed what a player's save sends: chatMessage.mjs

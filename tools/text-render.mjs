@@ -104,7 +104,7 @@ export const PLACEHOLDERS = Object.freeze({
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },
-    code: { names: ["fn", "id", "path", "field", "row", "sub", "given", "roll"], values: both(["openRoomSetupDialog"]), note: "a name in code: the GM's console" }
+    code: { names: ["fn", "id", "path", "field", "row", "sub", "given", "roll", "setting"], values: both(["openRoomSetupDialog"]), note: "a name in code: the GM's console" }
 });
 
 /* Read 31.10 off the files' sentences: one fixture value, more than one sense. */

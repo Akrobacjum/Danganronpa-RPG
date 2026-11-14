@@ -670,7 +670,7 @@ function partyRefusal(doc, flat, sender, world) {
     if (!members) {
         // A Daggerheart whose party no longer lists its members: nothing to
         // judge the sender against, so it is refused rather than let through.
-        shapeWarning("party members");
+        shapeWarning("system.partyMembers");
         return { refused: `the party ${doc.name}, whose members this Daggerheart does not list` };
     }
     // Asked of each member document itself, so the judgement reads only what it
@@ -1102,6 +1102,57 @@ export function plainWhat(text) {
     return flat.length > 160 ? `${flat.slice(0, 159)}…` : flat;
 }
 
+/*
+ * WHAT A GM IS TOLD WAS REFUSED, IN THE GM'S LANGUAGE (E57 T13, 14.11.2026). A judge above answers its reason in English,
+ * the GM's record: the console's line, the `sheetWrites()` row and the suite read it as it is. The toast and the GMs'
+ * whisper say it through this closed list instead, as the bridge's reasons reach a player through `REASONS`: each pattern
+ * takes one judge's English whole, and its named groups - the packet's own names and values, read off it as they are - fill
+ * `DRPG.Relay.what.<code>`. A fragment after a colon (docs/text-style.md section 14: nominative). A reason no pattern takes
+ * is said as `unnamed`, and R7050 holds every refusal of the suite's cases to a pattern. `countdownsOdd` takes the countdowns'
+ * changes `judgeCountdowns` lists apart (several joined), named in the console alone.
+ */
+export const RELAY_WHAT = Object.freeze([
+    ["transfer", /^an item transfer, which waits for the GM in this game$/],
+    ["region", /^a Daggerheart area \(a Region\) placed by a player$/],
+    ["gmEffect", /^an effect applied by the GM's hand$/],
+    ["setting", /^the setting "(?<setting>.*)"$/],
+    ["unreviewed", /^"(?<name>.*)", which this module has not reviewed$/],
+    ["sceneField", /^"(?<field>[^"]*)" on the scene (?<name>.+)$/],
+    ["partyField", /^"(?<field>[^"]*)" on the party (?<name>.+)$/],
+    ["field", /^"(?<field>[^"]*)" on (?<name>.+)$/],
+    ["noResource", /^"(?<field>[^"]*)", which (?<name>.+) does not have$/],
+    ["overMax", /^(?<field>[\w-]+) on (?<name>.+) set above its maximum$/],
+    ["badValue", /^(?<field>[\w-]+) on (?<name>.+) set to (?<value>.*)$/],
+    ["otherStudent", /^the resources of (?<name>.+), another student$/],
+    ["raisedNoRoll", /^(?<fields>.+) raised on (?<name>.+) with no roll of theirs to give it$/],
+    ["notHeld", /^(?<name>.+), an item the sender does not hold$/],
+    ["charges", /^the charges of (?<name>.+) set to (?<value>.*)$/],
+    ["quantity", /^the quantity of (?<name>.+) set to (?<value>.*)$/],
+    ["moreOf", /^more of (?<name>.+)$/],
+    ["environments", /^the environments of (?<name>.+), which is not a reordering$/],
+    ["partyUnlisted", /^the party (?<name>.+), whose members this Daggerheart does not list$/],
+    ["partyNotOwn", /^the party (?<name>.+), which has none of the sender's characters$/],
+    ["fear", /^Fear set to (?<value>.*)$/],
+    ["countdownsWhole", /^the whole Countdowns setting$/],
+    ["newCountdowns", /^new countdowns \((?<names>.*)\)$/],
+    ["countdownsOdd", /^(?:(?:the settings of|the project|the countdown|the removal of) .+|"(?:hideNewCountdowns|defaultOwnership)")(?:, .+)?$/],
+    ["saveNotOwn", /^a save for a token the sender does not play$/],
+    ["newDocument", /^a new (?<type>.+)$/],
+    ["otherDocument", /^a change to a (?<type>\w+)$/]
+]);
+
+/** A refusal's reason as the GM's toast says it: its code of `RELAY_WHAT` (or `unnamed`) and the packet's names in it. */
+export function relayWhat(why) {
+    const text = textOf(why ?? "");
+    for (const [code, pattern] of RELAY_WHAT) {
+        const match = pattern.exec(text);
+        if (!match) continue;
+        const data = Object.fromEntries(Object.entries(match.groups ?? {}).map(([k, v]) => [k, plainWhat(v)]));
+        return { code, text: game.i18n.format(`DRPG.Relay.what.${code}`, data) };
+    }
+    return { code: "unnamed", text: game.i18n.localize("DRPG.Relay.what.unnamed") };
+}
+
 function reportRefusal(verdict, sender) {
     // An unreviewed name is one bucket, not one per name a packet can invent.
     const sub = verdict.kind === "shape" ? "unreviewed" : (verdict.sub ?? "?");
@@ -1117,11 +1168,12 @@ function reportRefusal(verdict, sender) {
     if (due) {
         if (verdict.once) saidOnce.add(sub);
         else lastWarned.set(key, now);
-        ui.notifications?.warn(game.i18n.format("DRPG.Relay.refused", { name: plainWhat(sender.name), what }));
+        const said = plainWhat(relayWhat(verdict.why).text);
+        ui.notifications?.warn(game.i18n.format("DRPG.Relay.refused", { name: plainWhat(sender.name), what: said }));
         if (verdict.kind === "forged") {
             whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Relay.forged", {
                 name: foundry.utils.escapeHTML(sender.name),
-                what: foundry.utils.escapeHTML(what)
+                what: foundry.utils.escapeHTML(said)
             })}</p>` }).catch(err => debug("Could not tell the GMs about a refused relay packet", err));
         }
     }
