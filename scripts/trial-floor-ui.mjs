@@ -27,6 +27,8 @@ import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box } from "./
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
    `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
    destructive ones on the left, the primary on the right and first in the tree, so Enter presses it (the kit's header). The
@@ -190,7 +192,7 @@ export async function startClassTrial() {
     // editor, `setPhase` and a debate opened outside a trial open one the same
     // way this does. A null is `setClock` refusing a trial in an Eclipse begun while this button's
     // windows stood open (E10 fix r2-G5): it told the GM, and no trial is announced.
-    if (await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow() }) === null) return null;
+    if (await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow(), trialCut: true }) === null) return null;
 
     // The refill is announced rather than done quietly: a rule the table cannot
     // see is a rule the table does not use, and "you have your actions again" is
@@ -399,7 +401,7 @@ export async function openRoundWindow(mode) {
     const range = turnRange(mode);
     const offered = mode === FLOOR_MODES.panic ? T.panicSuggest(actors.length) : T.testimonyOffer();
     const row = actor => `<li data-drpg-round-id="${esc(actor.id)}"><span>${esc(actor.name)}</span>
-                    <button type="button" data-drpg-round-up>${esc(game.i18n.localize("DRPG.Floor.roundWindow.up"))}</button></li>`;
+                    <button type="button" data-drpg-round-up${tipAttr("DRPG.Tips.Trial.upTooltip")}>${esc(game.i18n.localize("DRPG.Floor.roundWindow.up"))}</button></li>`;
     const byId = new Map(actors.map(a => [a.id, a]));
     const drawn = drawOrder(actors.map(a => a.id)).map(id => byId.get(id));
     const secondsId = stepperId();
@@ -668,7 +670,7 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
     try {
         // The floor closes with the phase - `reconcilePhase` in clock.mjs - which
         // is what makes ending a trial from the clock editor end it properly too.
-        await setClock({ phase: "dailyLife", timeOfDayStartedAt: serverNow() });
+        await setClock({ phase: "dailyLife", timeOfDayStartedAt: serverNow(), trialCut: true });
     } catch (err) {
         /* A WRITE THAT THREW ENDED NOTHING (E10 C12, 1.2.71; audit S06-36). This said "the floor is
            shut either way" and went on to announce the trial over and answer true - but the floor
@@ -834,7 +836,9 @@ const TRIAL_LEADS = {
     finishVerdict: "DRPG.Floor.lead.finishVerdict",
     finishElsewhere: "DRPG.Floor.lead.finishElsewhere",
     verdictElsewhere: "DRPG.Floor.lead.verdictElsewhere",
-    chapterEnd: "DRPG.Floor.lead.chapterEnd"
+    chapterEnd: "DRPG.Floor.lead.chapterEnd",
+    // E99: the case summary before the chapter's end (trial-floor.mjs `TRIAL_NEXT_STEPS`).
+    caseSummary: "DRPG.Floor.lead.caseSummary"
 };
 
 /*
@@ -861,14 +865,19 @@ const BAR_LABELS = {
  * A bar button's label. -30 s and +30 s carry the step they move the clock by, `TRIAL.modes.gm.adjustSeconds` (a Panic
  * Round's `panicAdjustSeconds` by the other pair of keys), not "30" written in (E66 C4, 01.11.2026; E66-18).
  */
-export function barLabel(op, step = TRIAL.modes.gm.adjustSeconds) {
+export function barLabel(op, step = TRIAL.modes.gm.adjustSeconds, floor = null) {
+    // A Scrum Debate's Skip ends its phase early (the owner's 13.11.2026): "Sides set" in Sides, "End the confer" in Camps confer.
+    const scrum = floor?.mode === FLOOR_MODES.scrum ? floor.zone?.phase : null;
+    if (op === "skip" && (scrum === "setup" || scrum === "confer")) {
+        return game.i18n.localize(scrum === "setup" ? "DRPG.Zones.confer.sidesSet" : "DRPG.Zones.confer.conferOver");
+    }
     if (op !== "minus" && op !== "plus") return game.i18n.localize(BAR_LABELS[op]);
     const key = step === TRIAL.modes.gm.adjustSeconds ? BAR_LABELS[op] : op === "minus" ? "DRPG.Floor.bar.minusSeconds" : "DRPG.Floor.bar.plusSeconds";
     return game.i18n.format(key, { seconds: step });
 }
 
 /** Whether an Objection or its rebuttal holds the floor in a running Class Trial: Enter presses nothing then. */
-export function exchangeRuns(floor = trialFloor()) {
+function exchangeRuns(floor = trialFloor()) {
     return getClock().phase === "classTrial" && Boolean(floor) && floor.mode !== FLOOR_MODES.debate;
 }
 
@@ -922,7 +931,7 @@ function closingNames() {
 /** A button of the Closing's row. */
 function closingButton(op, label, actorId = null) {
     return `<button type="button" class="drpg-trial-bar-op" data-drpg-bar="closing" data-drpg-closing="${op}"${actorId
-        ? ` data-drpg-actor="${esc(actorId)}"` : ""}>${esc(label)}</button>`;
+        ? ` data-drpg-actor="${esc(actorId)}"` : ""}${op === "confirm" ? tipAttr("DRPG.Tips.Trial.aClosingArgumentTooltip") : ""}>${esc(label)}</button>`;
 }
 
 /**
@@ -989,7 +998,7 @@ async function pickClosingDialog() {
         body: `<form><label>${game.i18n.localize("DRPG.Floor.closing.pickLabel")}
             <select name="actor">${actors.map(option).join("")}</select></label></form>`,
         footer: {
-            primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"),
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"), tooltip: tipText("DRPG.Tips.Trial.pickASpeakerTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=actor]")?.value ?? null },
             close: "cancel"
         },
@@ -1085,7 +1094,7 @@ function trialBar({ floor, running, barNext }) {
     const now = serverNow();
     const buttons = barOpsFor(floor).map(op => {
         const refused = barRefusal(op, floor, { running, now });
-        const label = barLabel(op, adjustStep(floor));
+        const label = barLabel(op, adjustStep(floor), floor);
         const next = op === barNext ? " drpg-bar-next" : "";
         const target = op === "overrule" && !refused ? overruleTargetId(floor) : null;
         return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${target ? ` data-drpg-target="${esc(target)}"` : ""}${refused
@@ -1106,8 +1115,8 @@ function trialBar({ floor, running, barNext }) {
 function logButton(view = {}) {
     // The trial's Findings (E73 C6) beside the log: the zone modes' and the GM's, each press public.
     const n = Array.isArray(view.progress?.findings) ? view.progress.findings.length : 0;
-    return `<p class="drpg-trial-log"><button type="button" data-drpg-console="log">${esc(game.i18n.localize("DRPG.Trial.logTitle"))}</button>
-                <button type="button" data-drpg-console="findings">${esc(game.i18n.format("DRPG.Zones.findings.button", { n }))}</button></p>`;
+    return `<p class="drpg-trial-log"><button type="button" data-drpg-console="log"${tipAttr("DRPG.Tips.Trial.trialEvidenceLogTooltip")}>${esc(game.i18n.localize("DRPG.Trial.logTitle"))}</button>
+                <button type="button" data-drpg-console="findings"${tipAttr("DRPG.Tips.Trial.findingsNTooltip")}>${esc(game.i18n.format("DRPG.Zones.findings.button", { n }))}</button></p>`;
 }
 
 /**
@@ -1419,17 +1428,18 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // pressable, and Send the ballots would have opened a vote outside a trial.
                 { action: "vote", label: game.i18n.localize("DRPG.Vote.openTitle"),
                   disabled: !running, default: isDefault("vote") },
-                // Disabled rather than hidden, so the order of the trial is
-                // visible from the first time this window is opened.
-                // Closed again once it is applied (17.09, F2): a second verdict
-                // executed the dropdown's default, refilled every pool and handed
-                // out a second round of Level Ups.
-                // In a Final Trial it is the Final Trial's verdict, and says so
-                // (E10 C10, S06-16): `TRIAL_ACTIONS.verdict` opens that window then.
-                { action: "verdict", label: game.i18n.localize(finalNow
-                    ? "DRPG.Mastermind.verdictTitle" : "DRPG.Vote.verdictTitle"),
-                  disabled: !progress.voteClosed || progress.verdictApplied,
-                  default: isDefault("verdict") },
+                /* THE VERDICT IS THE VOTE'S NEXT STAGE, NOT A STANDING BUTTON (the owner, 12.11.2026, through the
+                   coordinator: "czy werdykt nie powinien byc usunietym przyciskiem z konsoli trial? Zamiast tego byc
+                   kolejnym etapem glosowania?"). It stands in the footer only while it is the trial's next step - the vote
+                   counted, no floor open (trial-floor.mjs `TRIAL_NEXT_STEPS`) - as the primary; until E99's round 7 it
+                   stood greyed in every state "so the order of the trial is visible", and once applied it closed again
+                   (17.09, F2: a second verdict executed the dropdown's default, refilled every pool and handed out a
+                   second round of Level Ups) - the step's table now never offers it after the verdict. In a Final Trial
+                   it is the Final Trial's verdict, and says so (E10 C10, S06-16). Its road is unchanged:
+                   `TRIAL_ACTIONS.verdict`, the verdict's window and its runner on the primary. */
+                ...(isDefault("verdict") && progress.voteClosed && !progress.verdictApplied
+                    ? [{ action: "verdict", label: game.i18n.localize(finalNow ? "DRPG.Mastermind.verdictTitle" : "DRPG.Vote.verdictTitle"), default: true }]
+                    : []),
                 // Only while a verdict stands stopped halfway: the lock above
                 // keeps a second verdict out, and this runs the steps the first
                 // one did not finish (E10 C5, S06-39).
@@ -1438,11 +1448,15 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                         default: isDefault("finishVerdict") }]
                     : []),
                 // The case's summary for the players (E99 C7): after the verdict, not in a Final Trial (Q-E99-5)
-                { action: "caseSummary", label: game.i18n.localize("DRPG.CaseSummary.show"), disabled: !progress.verdictApplied || Boolean(finalNow) },
-                // Reachable before the verdict (a chapter can end without
-                // one). Never the default since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so
-                // after the verdict, when it is the next step, the lead names it and Enter presses Close.
-                { action: "chapterEnd", role: "destructive", label: game.i18n.localize("DRPG.Chapter.endTitle") }
+                // Greyed and named as sent once this trial's summary is out (the record's `summaryShown`), on every GM's console
+                { action: "caseSummary", label: game.i18n.localize(progress.summaryShown ? "DRPG.CaseSummary.shown" : "DRPG.CaseSummary.show"),
+                  disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault("caseSummary") },
+                /* END OF CHAPTER, THE LAST STEP (the owner, 12.11.2026: "Tak samo end the chapter"): only while it is
+                   the trial's next step - after the verdict and, in an ordinary trial, the case summary. Never the default
+                   since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so the lead names it and Enter
+                   presses Close. A chapter that ends without a verdict ends from the part at the bottom of Edit campaign
+                   (gm-campaign.mjs `openClockDialog`), as since E49 A2; the window and its steps are the same road. */
+                ...(isDefault("chapterEnd") ? [{ action: "chapterEnd", role: "destructive", label: game.i18n.localize("DRPG.Chapter.endTitle") }] : [])
               ]
             : []),
         // The table's door (E13 C6), labelled by what it does now, as the Final Trial's switch below.
@@ -1460,9 +1474,12 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
         // Ending it puts the flag back, and is a secondary.
         // GREYED WITH ITS REASON while no Mastermind is set (E47 C1, 09.11.2026; S13-36 (1)): it answered with
         // `toggleFinalTrialFlag`'s toast, which stays as that door's own refusal (mastermind.mjs).
-        { action: "toggleFinal", ...(finalNow ? {} : { role: "destructive" }), label: game.i18n.localize(finalNow
+        // NOT INSIDE AN ORDINARY TRIAL (the owner, 12.11.2026: "A start final trial w ogole tez nie powinno byc w trakcie
+        // trwania zwyklego class triala opcja"): Start the Final Trial is offered with no trial running, as before, and
+        // End the Final Trial during one; while an ordinary Class Trial runs the switch is not drawn at all.
+        ...(running && !finalNow ? [] : [{ action: "toggleFinal", ...(finalNow ? {} : { role: "destructive" }), label: game.i18n.localize(finalNow
             ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial"),
-          ...(finalNow || mastermind ? {} : { disabled: true, tooltip: game.i18n.localize("DRPG.Mastermind.noneSet") }) },
+          ...(finalNow || mastermind ? {} : { disabled: true, tooltip: game.i18n.localize("DRPG.Mastermind.noneSet") }) }]),
         { action: "close", role: "close", label: game.i18n.localize("DRPG.Panel.close") }
     ];
 }
@@ -1523,9 +1540,9 @@ const TRIAL_ACTIONS = {
     startClosing: () => startClosing(),
     endClosing: () => endMode(),
     // E73: the zone modes' window, opened on `mode` when the case's schema names one (Scrum Debate after a split); their end.
-    zones: async (mode = null) => {
+    zones: async (mode = null, extra = {}) => {
         const { trialProgress } = await import("./vote.mjs");
-        return openZonePicker({ mode: mode ?? (trialProgress().strawPoll?.split ? FLOOR_MODES.scrum : FLOOR_MODES.straw) });
+        return openZonePicker({ mode: mode ?? (trialProgress().strawPoll?.split ? FLOOR_MODES.scrum : FLOOR_MODES.straw), plan: extra?.plan ?? null });
     },
     endZone: () => endMode(),
     closeDebate: () => closeDebate(),
@@ -1809,12 +1826,13 @@ export async function manageClassTrial() {
  * A trial mode started from the case's schema (E99 C5): only a start trial-floor.mjs MODE_STARTS names, on a GM, through
  * the console's own action; answers its result, or null. The console is not reopened: the schema's window stays.
  */
-export async function startTrialMode(action, mode = null) {
+export async function startTrialMode(action, mode = null, extra = {}) {
     if (!game.user?.isGM) return null;
     const { MODE_STARTS } = await import("./trial-floor.mjs");
     if (!Object.values(MODE_STARTS).some(row => row.action === action) || !TRIAL_ACTIONS[action]) return null;
     // The zone modes share one start (E73): the node's own mode opens the window on it.
-    return TRIAL_ACTIONS[action](MODE_STARTS[mode]?.action === action ? mode : undefined);
+    // `extra.plan`: a node's planned minigame, the zones' window filled in with it (case-trial.mjs `startFromNode`, 13.11.2026)
+    return TRIAL_ACTIONS[action](MODE_STARTS[mode]?.action === action ? mode : undefined, extra);
 }
 
 /**

@@ -146,6 +146,31 @@ etykiet)”]
   Example: `DRPG.Observe.specificHint` on page E66-B01A-R1 ended “... picks the Remnant in this room your search finds.
   With no GM online, your action comes back.” / „... Bez GM-a online akcja do ciebie wraca.”; on R2, approved,
   it ends at “your search finds.” (B01a, `docs/dev/text-batch-B01a.json` `removed`).
+- **T29** No overexplaining, and the shortest natural wording. A player reads what their action does - in the fiction
+  and in game terms: what it costs, what happens, what they can do next - never how the module works: no stores,
+  sockets, browsers or clients, "the primary GM", flags, setting keys, ledgers, the console, timings or internal names. A
+  GM reads what matters to run the game - what happened, what to decide, what the players see, what to watch for - and
+  a technical limit a GM must know stays as one plain sentence ("Only the primary GM can ..."), without the reason the
+  code has for it. A sentence that explains the mechanism, repeats the label or justifies a rule is cut; the rule and
+  its effect stay, and no number, rule or promise changes. Of the wordings that keep the facts, the shortest that still
+  reads as natural everyday speech wins, in both languages: no telegraph style (X6), no officialese, no calques from
+  English in the Polish (O17). The handbooks take the same rule: the player handbook most strictly; the GM handbook
+  keeps rules and procedures and moves code detail out of the rule sections into the sections marked for a GM who
+  debugs. No detector yet: T29 is read in review, and a text cut by it is logged "overexplains (T29)". [the owner,
+  12.11.2026, through the coordinator: „upewnienie sie ze teksty nie overexplainuja, tzn nie mowia za duzo o dzialaniu,
+  zwlaszcza graczowi. Gracz ma rozumiec dzialanie tego co robi (np skutki akcji) a nie dzialanie modulu. To samo z gmem -
+  ma czytac to, co istotne, a nie o kodzie”; „Generalnie im krotsze teksty, tym lepiej, przy zachowaniu naturalnosci
+  jezyka codziennego.”]
+  Examples (the texts line's early pass, 12.11.2026):
+  - `DRPG.Hud.nowPlaying` “Playing here: {track}. This is what your own browser is playing, which is not always what
+    somebody else's is.” -> “Playing here: {track}.” / „Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie
+    zawsze to samo, co przeglądarka kogoś innego.” -> „Gra tutaj: {track}.”
+  - `DRPG.Chapter.endPrimaryOnly` (a GM's refusal) “Only the primary GM, {name}, can end the chapter, so that one browser
+    counts it once. Ask {name}, ...” -> “Only the primary GM, {name}, can end the chapter. Ask {name}, ...”: the limit
+    stays, its reason goes.
+  - `DRPG.Vote.notReceived` (a player's card) “No GM has your vote yet. This browser keeps it and sends it when a GM
+    connects.” -> “No GM has your vote yet. It goes out as soon as a GM connects.” / „... Ta przeglądarka go zachowa i
+    wyśle, gdy połączy się GM.” -> „... Trafi do GM-a, gdy tylko się połączy.”
 
 ## 3. Surfaces and the surface matrix
 
@@ -347,6 +372,8 @@ dało się je policzyć.
   zachowanych źródłach); Hope i Despair są męskie (PL-b, D191). [survives: DB4]
   Przykład: `DRPG.Trial.notInTrial` „Dowody przedstawia się w Class Trial.”; znalezione: `DRPG.Action.dcAnalyze`
   „Identyfikacja Truth Bulleta, ...”.
+  Remnant w liczbie mnogiej też po polsku: „Remnanty”, „Remnantów”, także „Key Remnanty”, „Faint Remnanty” - angielskie
+  „Remnants” nie stoi w polskim zdaniu. [the owner, 12.11.2026, through the coordinator: DB4's inflection, as decided]
 - **PL-b** Rodzaj: zasoby, Overflow, Eclipse, fazy i stany nijakie; Class Trial, Free Move, Rebuttal, Truth Bullet,
   Remnant, Search Token męskie; Nonstop Debate żeńska; Objection nijakie, jak dziś w UI. Hope i Despair są męskie i
   nieodmienne („twój Hope”, „cały Despair”): nijaki rodzaj zasobów z DB28 ich nie obejmuje. [survives: DB28; Hope and
@@ -710,6 +737,32 @@ rzucie go nie zrobisz.” w B18 (wpis `reroll` w glosariuszu).
 | B49 | `DRPG.Action.dynamicDescription` | config-description | “Do anything you describe, if a GM accepts it; the GM picks the statistic and how hard it is. A hit leaves a Remnant, and the easier the task, the more visible it is; a miss leaves none.” | „Opisujesz, co robisz, a GM wybiera próg trudności i statystykę albo odrzuca pomysł. Trafienie zostawia Remnant, tym widoczniejszy, im łatwiejsze zadanie, a pudło nie zostawia nic.” | E66 |
 | B50 | `DRPG.Assign.footnote` | gm-diagnostics | “Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody.” | „Despair z rzutów ucznia trafia do puli tego Monokumy, do którego jest tu przypisany. „(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Przypisania dostaje przeglądarka każdego gracza, więc gracz może odczytać, kto jest ustawiony na „- nikt -”.” | E66 |
 | B51 | `DRPG.Season.hint.assignments` | gm-diagnostics | “In Despair Flow, assign each student a Monokuma; Despair from their rolls goes to that Monokuma's pool. A student with no Monokuma assigned falls back to the first pool and is named here until assigned. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody. The step is done when every student is assigned by hand or set to “- nobody -”.” | „Despair z rzutów ucznia trafia do puli tego Monokumy, do którego przypiszesz go w Despair Flow. Uczeń bez przypisania zasila pierwszą pulę i jest tu wymieniony, dopóki go nie przypiszesz. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC i szablonów. Przeglądarka każdego gracza może odczytać, kto jest tak ustawiony. Ten krok jest gotowy, gdy każdy uczeń ma pulę wybraną ręcznie albo ustawienie „- nikt -”.” | E66 |
+
+### E100: słowa przycisków i teksty ekranów gracza (12.11.2026)
+
+Teksty nowe i zmienione przez E100 (porządki ekranów gracza; sześć punktów przeglądu zatwierdzonych przez właściciela
+12.11.2026). Przyciski według reguły punktu 6, która dla przycisków okien akcji zastępuje O11: jedno słowo na rodzaj
+przycisku, bez dopełnienia. Przycisk, który rzuca, mówi „Rzuć”; przycisk, po którym decyduje GM, „Wyślij do GM-a”;
+przycisk, który tylko prowadzi do następnego okna, „Dalej”. Okno Infiltrate (przegląd r112, G1, 13.11.2026): „Rzuć” na
+wierszach, które rzucają od razu (Dash, Shut the Door, Keep Watch), „Dalej” na tych, po których jest okno (Listen, Tail,
+Force, Pick). Lista okien jest w `docs/dev/e100/STATUS.md`.
+
+| Klucz | Gdzie | EN | PL | Zmiana |
+| --- | --- | --- | --- | --- |
+| `DRPG.Action.roll` | przycisk okna akcji, która rzuca | “Roll” | „Rzuć” | PL było „Rzut” |
+| `DRPG.Action.next` | przycisk okna, po którym jest następne okno | “Next” | „Dalej” | nowy |
+| `DRPG.Action.restNow` | przycisk okna wyboru odpoczynku | “Rest” | „Odpocznij” | nowy |
+| `DRPG.Action.askThem` | przycisk jawnego Frisk | “Ask them” | „Poproś” | nowy |
+| `DRPG.Bridge.send` | przycisk okna prośby do GM-a | “Send to the GM” | „Wyślij do GM-a” | EN było “Send to GM” |
+| `DRPG.Project.proposeButton` | przycisk propozycji projektu | “Send to the GM” | „Wyślij do GM-a” | EN było “Send it to the GM” |
+| `DRPG.Murder.briefRoll` | przycisk akcji kryzysowej z rzutem | “Roll” | „Rzuć” | EN było “Roll it” |
+| `DRPG.Action.gotIt` | przycisk okna Move | - | - | usunięty z oknem |
+| `DRPG.Move.drag` | dymek wiersza Move na HUD-zie | “To move to another room, drag your token there.” | „Żeby przejść do innego pokoju, przeciągnij tam swój token.” | nowy |
+| `DRPG.Move.dragShort` | linia na kaflu Move | “Drag your token” | „Przeciągnij token” | nowy |
+| `DRPG.Move.free` | linia pod kaflami Monocuba (zamiast opisu Move) | “Free” | „Za darmo” | nowy |
+| `DRPG.Notices.filter.more` | pierwsza pozycja menu filtrów | “More filters” | „Więcej filtrów” | nowy |
+| `DRPG.Notices.filter.moreLabel` | nazwa menu dla czytnika ekranu | “More filters” | „Więcej filtrów” | nowy |
+| `DRPG.Notices.filter.withCount` | pozycja menu z liczbą | “{label} ({n})” | „{label} ({n})” | nowy |
 
 ## 13. Why so much is rebuilt
 

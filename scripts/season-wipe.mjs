@@ -453,7 +453,7 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
             const { setMonocub } = await import("./monocub.mjs");
             // Quiet (E51 C6; audit S06-46): the reset's own report says what it did, not a toast per Monocub.
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false, { quiet: true });
-            if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
+            if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true, silent: true });
             // Everybody comes back whole, the living too: `reverse` resources, 0 is unharmed.
             await trustedWrite(actor, { "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 },
                 { reason: "setup" });
@@ -472,6 +472,9 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
             const { restoreStartingSheet } = await import("./character.mjs");
             const restored = await restoreStartingSheet(actor);
             if (restored?.left?.length && Array.isArray(left)) left.push({ name: actor.name, experiences: restored.left });
+            // The DA39 rises go with the season they were given in (the 1.2.110 review, E64 reader F5): a migration still
+            // pending across the reset would read them as covering the new season's points (level-up.mjs `da39Row`).
+            if (actor.getFlag(MODULE_ID, FLAGS.da39Rises) !== undefined) await actor.unsetFlag(MODULE_ID, FLAGS.da39Rises);
             await initCharacter(actor, { resetValues: false, quiet: true });
         },
         // A stamp keyed to a clock that is about to read session 1, day 1 again: "rested this
@@ -574,7 +577,7 @@ export async function placeCast(choice, actors = studentActors()) {
     return placed;
 }
 
-/**
+/*
  * THE RESET'S OWN ENTRIES (E42 C3). Six groups have no owner but the reset: three cast groups whose part on each
  * student's sheet is `wipeStudent`'s, the chat in two groups, and the clock. Each a named function, registered below
  * like any owner's; their bodies and their comments are the runs of `wipeSeason` they were until C3. And the cast's

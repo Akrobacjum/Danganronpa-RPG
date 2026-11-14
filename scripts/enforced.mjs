@@ -327,7 +327,7 @@ async function rtcDockOn(row) {
  * @param {object} [was]     the record so far (`rtcDockBefore`); `{}` or nothing before the first hold
  * @returns {object}
  */
-export function rtcDockRecord(client, row, was) {
+function rtcDockRecord(client, row, was) {
     const had = was && typeof was === "object" ? was : {};
     const fields = { ...(had.fields ?? {}) }, users = { ...(had.users ?? {}) };
     let added = false;
@@ -356,7 +356,7 @@ export function rtcDockRecord(client, row, was) {
  *
  * @returns {[string, *][]}
  */
-export function rtcDockGiveBack(client, record) {
+function rtcDockGiveBack(client, record) {
     const out = [];
     for (const [key, value] of Object.entries(record?.fields ?? {})) {
         if (value !== null && value !== undefined && client?.[key] !== value) out.push([key, value]);
@@ -529,7 +529,7 @@ const LOST_PERMISSIONS = { FILES_BROWSE: "DRPG.Enforced.lost.browse", FILES_UPLO
  *
  * @returns {{ role: string, permissions: string[] }[]}
  */
-export function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind === "permissions")) {
+function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind === "permissions")) {
     const roles = CONST.USER_ROLES;
     const before = name => Array.isArray(stored?.[name]) ? stored[name]
         : Array.isArray(inForce?.[name]) ? inForce[name] : [roles.ASSISTANT, roles.GAMEMASTER];
@@ -677,7 +677,7 @@ export const FOUNDRY_WRITES = [
     { id: "rtcDock", text: "DRPG.GiveBack.what.rtcDock" },
     { id: "sceneVision", text: "DRPG.GiveBack.what.sceneVision" },
     /* The one dice look (dice-sync.mjs, E20 fix round, the goal review's G-7): forced on every player and Assistant GM
-       while "One dice look for the table" is on, as that setting says, and not given back by this window - the looks
+       while "Dice look for the table" holds one look for the table, as that setting says, and not given back by this window - the looks
        it replaced were never kept, so the row says so instead. */
     { id: "diceLook", text: "DRPG.GiveBack.what.diceLook",
       reach: { kind: "flag", owner: "dice-so-nice", key: "appearance", file: "dice-sync.mjs", symbol: "holdSource",
@@ -878,7 +878,7 @@ export async function giveBackFoundry({ user = game.user } = {}) {
 }
 
 /** Let the module hold its settings again (a GM): the switch off; each browser's `onChange` holds them. */
-export async function holdFoundryAgain() {
+async function holdFoundryAgain() {
     if (!game.user?.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, false);
     await onGivenBackChanged();
@@ -992,7 +992,9 @@ export async function offerHoldAgain({ user = game.user, givenBack = foundryGive
 
 /** The question `offerHoldAgain` asks: Hold them again, or Not now. */
 async function askHoldAgain() {
-    // "Not now" is the question withdrawn: Cancel, the role's word (E21 rule 3), the answer still "close".
+    // "Not now" is the question withdrawn: Cancel, the role's word (E21 rule 3), its action still "close" - so at a table
+    // Foundry's own close takes the press and the wait answers null, as a closed window (ui-kit.mjs `footerButtons`;
+    // LIVE-E21-06). `offerHoldAgain` reads only "hold", so either answer is Not now.
     return drpgWindow({
         title: game.i18n.localize("DRPG.GiveBack.title"),
         classes: ["drpg-panel", "drpg-window-give-back"],

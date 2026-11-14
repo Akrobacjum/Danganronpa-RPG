@@ -243,7 +243,7 @@ const COALESCE_MS = TIMING.coalesceMs;
  * a setting's change and the GM's broadcast is no server's. The reading is LIVE-E17-11
  * (audit/AUDIT-1.2.42.md 9.2, item 316), to be written here.
  */
-export const COALESCE_MAX_WAIT_MS = COALESCE_MS * 3;
+const COALESCE_MAX_WAIT_MS = COALESCE_MS * 3;
 
 /**
  * A trailing debounce per kind (E17 C6; R995): `push(kind, data)` returns at once, and

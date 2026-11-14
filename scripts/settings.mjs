@@ -42,6 +42,13 @@ export const SETTINGS = {
      * written by that browser alone and held as the switches are; every browser lays it on its throws (dice-look.mjs).
      */
     diceDualityLook: "diceDualityLook",
+    /**
+     * Which look the forced dice take (E108), read only with `forceDiceLook` on (`diceLookChoice`): "dsn", the source full
+     * Gamemaster's Dice So Nice look (the switch's look before E108), or "daggerheart", that look with Daggerheart's own
+     * colorsets on every Hope, Despair, advantage and disadvantage die (dice-look.mjs `DAGGERHEART_DICE`). Held as the
+     * switches are (dice-sync.mjs `SWITCHES`).
+     */
+    diceLookKind: "diceLookKind",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
     searchTokens: "searchTokens",
@@ -89,6 +96,21 @@ export const SETTINGS = {
      */
     gmConfusions: "gmConfusions",
     mineConfusions: "mineConfusions",
+    /**
+     * THE MONOCUBS' RECORD (E72 C2, 12.11.2026; audit S18-51, S18-57): a GM store (gm-stores.mjs `cubStore`), a row per
+     * Monocub - the crime witness's mark `{ chapter, epoch }` today, the invitation, the caps and the log as part A adds
+     * them - and each owner's copy of their own characters' rows (`cubCopy`), read by monocub.mjs `cubRowOf`. Until
+     * E72 the witness's mark was the actor flag `silencedChapter`, which every browser holds: who saw the crime. The
+     * clause `liftCubWitness` (migrate.mjs) moves a world's marks, and world-secrets.mjs holds the flag empty.
+     */
+    gmCubs: "gmCubs",
+    mineCubs: "mineCubs",
+    /** The Monocubs' moves on each student this day (E72 C4): a GM store (gm-stores.mjs `cubTargetStore`), no copy. */
+    gmCubTargets: "gmCubTargets",
+    /** Who worked on each project this time of day (E72 C13): a GM store (gm-stores.mjs `projectWorkStore`), no copy. */
+    gmProjectWork: "gmProjectWork",
+    /** The open Bounties (E72 C16): a GM store (gm-stores.mjs `bountyStore`); the Monocubs' owners read them in their copy. */
+    gmBounties: "gmBounties",
     /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
@@ -446,6 +468,94 @@ export const SETTINGS = {
      */
     gmRifles: "gmRifles",
     /**
+     * A SECRET PASSAGE'S "FINISHED" HELD FOR ITS FINDER (PV, 13.11.2026; the owner's rule #3): a GM store (gm-stores.mjs
+     * `foundDoneStore`), a row per finder and project `<userId>:<countdownId>`: `{ name, room, sceneId, at }`, posted
+     * and dropped by the primary when one of that user's characters next stands in the room (projects-seen.mjs
+     * `tellFoundOnEntry`). Synced and backed up; no player copy: the finder's browser holds nothing until the card.
+     */
+    gmFoundDone: "gmFoundDone",
+    /**
+     * WHAT THIS BROWSER'S PLAYER SAW LAST (PV, 13.11.2026; the owner's rules #2-#4): a client setting, a section per
+     * world and user (`<worldId>/<userId>`), each `{ projects, rooms, ghosts }` - a project as it stood when one of the
+     * user's characters was last in its room, the projects each visited room held, and the erased traces still drawn
+     * where they were found (projects-seen.mjs). Written by this browser alone, from what it already holds.
+     */
+    seenProjects: "seenProjects",
+    /**
+     * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3) and its 05.11 limits): a GM store
+     * (gm-stores.mjs `facilityUseStore`), a row per GM's action (`g:<sceneId>:<room>:<actionId>`, closed for everyone
+     * once used) and per project's action and character (`p:<projectId>:<actorId>`), each `{ mark, actorId, userId,
+     * at, success }` - the time of day of its use (facilities.mjs `facilityMark`). Synced, not backed up; no player
+     * copy: who used what, where, is the GMs'.
+     */
+    gmFacilityUses: "gmFacilityUses",
+    /**
+     * THE TAILS UNDER WAY (E69 C3, 12.11.2026): a GM store (gm-stores.mjs `tailStore`), a row per tailer `{ tailerId,
+     * targetId, total, critical, day, at, userId }`. Synced, not backed up; no player copy: who tails whom is the GMs'.
+     */
+    gmTails: "gmTails",
+    /**
+     * THE BARRICADES STANDING (E74 C2, 12.11.2026): a GM store (gm-stores.mjs `barricadeStore`), a row per barricaded
+     * room `{ sceneId, room, authorId, strength, at, userId }`. Synced, not backed up; no player copy.
+     */
+    gmBarricades: "gmBarricades",
+    /**
+     * THE BEDROOM NOTES WAITING (privacy line 1, 13.11.2026; the owner's rule #1): a GM store (gm-stores.mjs
+     * `bedroomNoteStore`), a row per owner, scene and bedroom `{ ownerId, sceneId, room, picked, forced, breached, mended,
+     * unsealed }` - what happened to that bedroom's door or wall while its owner was elsewhere, told when they next walk in
+     * (doors-gm.mjs `tellBedroomNotes`). Synced, not backed up; no player copy.
+     */
+    gmBedroomNotes: "gmBedroomNotes",
+    /** THE WATCHES KEPT (E74 C6, 12.11.2026): a GM store (gm-stores.mjs `watchStore`), a row per watcher. Synced, not backed up. */
+    gmWatches: "gmWatches",
+    /**
+     * THE DISCOVERIES WAITING FOR THE GM'S WORD (1.2.113; the owner's decision A of 13.11.2026): a GM store (gm-stores.mjs
+     * `pendingBodyStore`), a row per room where the witnesses reached the count `{ room, sceneId, victimId, deathId,
+     * witnessIds, chapter, epoch, at }`. Synced and backed up; no player copy.
+     */
+    gmPendingBodies: "gmPendingBodies",
+    /**
+     * THE BODIES EACH CHARACTER HAS HEARD (1.2.113; the owner's decision B of 13.11.2026): a GM store (gm-stores.mjs
+     * `bodyHeardStore`), a row per character and body `<actorId>:<bodyId>` `{ deathId, at }`, so the discovery sound plays
+     * once per body and death. Synced and backed up; no player copy.
+     */
+    gmBodiesHeard: "gmBodiesHeard",
+    /**
+     * THE PICK'S PASSES (E74, 12.11.2026; DA9 as the plan has it): a GM store (gm-stores.mjs `lockpickStore`), a row per
+     * picker `{ actorId, sceneId, room, mark, entered, at }`, and each owner's copy of their own characters' passes
+     * (`mineLockpicks`, gm-stores.mjs `lockpickCopy`), which their move veto reads. Synced and backed up.
+     */
+    gmLockpicks: "gmLockpicks",
+    mineLockpicks: "mineLockpicks",
+    /**
+     * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a)): a GM store (gm-stores.mjs `eavesdropStore`), a row per
+     * listener `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, and each owner's copy of their own
+     * characters' rows (`mineEavesdrops`, `eavesdropCopy`), which the voice tile's Stop listening and the Listen window
+     * read. Synced and backed up.
+     */
+    gmEavesdrops: "gmEavesdrops",
+    mineEavesdrops: "mineEavesdrops",
+    /**
+     * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c)): a GM store (gm-stores.mjs `maskStore`), a row per killer
+     * behind a "?" `{ killerId, victimId, userIds, mark, tokens, at }`, `tokens` each masked token's look as it was. No
+     * player copy: a player reads the one token flag. Synced and backed up.
+     */
+    gmMasks: "gmMasks",
+    /**
+     * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
+     * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
+     * characters' rows (`mineTimedEffects`, `timedEffectCopy`), which their sheet reads. Synced and backed up.
+     */
+    gmTimedEffects: "gmTimedEffects",
+    mineTimedEffects: "mineTimedEffects",
+    /**
+     * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
+     * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
+     * `closeForAll`). A world setting every browser holds, so an honest Facilities window greys a closed action
+     * before its price is paid; it names no character and no user - who used it stays in `gmFacilityUses`.
+     */
+    facilityClosed: "facilityClosed",
+    /**
      * THE LAST CROSSINGS (E17 C3, 26.10.2026; audit S07-16, D18): a GM store (gm-stores.mjs `crossingStore`), a row per
      * character - its newest crossing the primary GM saw or made, what it cost and where the token stood before it -
      * which the Students window's "Refund last crossing" gives back (movement.mjs `refundLastCrossing`). Synced, not
@@ -530,6 +640,8 @@ export const SETTINGS = {
     gmDiceLooks: "gmDiceLooks",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
+    /** Whether this world's past +1 Health and +1 Sanity Level Up picks were brought under DA39 (E64; level-up.mjs `offerDa39Migration`). */
+    levelUpsMigrated: "levelUpsMigrated",
     /** Whether this browser's GM was told where to start on a world with no season yet (E20 C4, S01-61; season-setup.mjs `offerStartHere`). */
     startHereShown: "startHereShown",
     /** The handbook this browser last had open, read again after an F5 (E51 C8, E51-46; handbooks.mjs `openingBook`). */
@@ -583,6 +695,13 @@ export const SETTINGS = {
      * the migration clause `liftProjectSecrets`, which reads them back first.
      */
     projectSecrets: "gmProjectSecrets",
+    /**
+     * A PLAYER'S SIGHT OF THE SECRET PROJECTS (E101's review of S17-31, R2, 13.11.2026): each player's copy of what
+     * the GMs' rows say of the secret projects they see - `{ countdownId: { in, name } }`, in on it or (a Spectator)
+     * only watching, and its name (gm-stores.mjs `projectSightCopy`). Until then a GM's private card, read off the
+     * chat log, which a cleared log took away.
+     */
+    mineProjectSight: "mineProjectSight",
     /**
      * THE KEY REMNANT PLAN (E05, 1.2.64; audit S01-01, S05-02): a GM store
      * (gm-stores.mjs `keyPlanStore`), a row per chapter and slot,
@@ -1013,7 +1132,7 @@ const SEASON_SETTINGS = [
     SETTINGS.murderState, SETTINGS.sealedRooms, SETTINGS.restrictions, SETTINGS.projectMeta, SETTINGS.trialQueue,
     SETTINGS.trialProgress, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.discoveredRooms, SETTINGS.searchTokens,
     SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.gmAssignments, SETTINGS.despairPools,
-    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd
+    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd, SETTINGS.facilityClosed
 ];
 /*
  * The campaign's. The remembered exceptions and the scenes' roles, Room Setup's players' regions, the item tables' music
@@ -1034,11 +1153,11 @@ const CAMPAIGN_SETTINGS = [
  * their before-values, the migration's version, and the frozen keys a GM store's claim reads once (`legacy*`).
  */
 const TABLE_SETTINGS = [
-    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.diceDualityLook, SETTINGS.enforceAnonymity,
+    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookKind, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.diceDualityLook, SETTINGS.enforceAnonymity,
     SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
     SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
-    SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
+    SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
     SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
@@ -1123,10 +1242,31 @@ export const DEFAULT_CLOCK = {
     mood: null,
     /**
      * THE GM'S MORNING LINE, or null (E94 C1): the draft (`morningLineDraft`, a client setting) folded in by the
-     * Night-to-Morning advance and shown on the start-of-day board; cleared by the next move of the clock
-     * (`dayStartPatch`).
+     * Night-to-Morning advance - or, since 13.11.2026, by the Morning Eclipse's start (eclipse.mjs `startEclipse`) - and
+     * shown on the start-of-day board; cleared by the next move of the clock after the morning (`dayStartPatch`).
      */
     morningLine: null,
+    /**
+     * THE START-OF-DAY BOARD'S STAMP, or null (12.11.2026; the owner's report at a real table on 1.2.109 and their rule
+     * of that day): the day a real roll-over moved the clock to - Next time of day, the Morning Eclipse's end (clock.mjs
+     * `advanceTimeOfDay` through sequence.mjs `dayStartPatch`) - or the chapter end's next morning (chapter.mjs), and
+     * since 13.11.2026 the day the Morning Eclipse leads into, stamped at its start (eclipse.mjs `startEclipse`), and
+     * nothing else's. The start-of-day board plays on a clock that carries it (transitions.mjs `boardsOf`; at a chapter's
+     * end the end-of-day board too); a write that moves the day without naming it takes it away (clock.mjs `setClock`),
+     * so Edit campaign's correction is silent. Named here so tier 2's restore of a whole clock writes it back (see
+     * `dayStartedAt`). Public: a day number, on the HUD already.
+     */
+    dayBoard: null,
+    /**
+     * THE END-OF-DAY BOARD'S STAMP, or null (13.11.2026; the owner's rule of that day: the board "after the Night Eclipse
+     * (that is, at the start of Night)"): the day a real move into Night was made on - Next time of day from Evening, the
+     * Night Eclipse's end with the advance (clock.mjs `advanceTimeOfDay` through sequence.mjs `dayStartPatch`) - or the
+     * day a chapter's end closes, written with its next morning (chapter.mjs; both boards play there) - and nothing
+     * else's. The end-of-day board plays on Night's start that carries it (transitions.mjs `boardsOf`); a write
+     * that moves the time of day or the day without naming it takes it away (clock.mjs `setClock`), so Edit campaign's
+     * Night is silent. Named here for tier 2's restore, as `dayBoard`. Public: a day number.
+     */
+    nightBoard: null,
     /**
      * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
      * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
@@ -1270,6 +1410,46 @@ export function staleSilencesCleared() {
     return [...staleCleared];
 }
 
+/*
+ * THE TABLE'S DICE LOOK, ONE CHOICE OF THREE (E108, 13.11.2026; the owner's report of 13.11, "Chcialbym miec wybor kostek z
+ * dice so nice vs z daggerheart", and the coordinator's default, owner to confirm). The game's settings window shows one
+ * choice where the switch stood: each player's own look, one look for the table that is Dice So Nice's, or one that is
+ * Daggerheart's. It is held in two world settings, not one: `forceDiceLook` (off is each player's own) and `diceLookKind`.
+ * So a world from before reads `true` as Dice So Nice's and `false` as each player's own, with no write - a read-time
+ * mapping, not a migration - and every rule of the forced look, the Assistant's put-back and the tests that read the
+ * Boolean read it as before (docs/dev/e108/STATUS.md, "How an existing world reads it").
+ */
+export const DICE_LOOK_CHOICES = Object.freeze(["own", "dsn", "daggerheart"]);
+
+/** The table's dice look: "own", "dsn" or "daggerheart". `read` is a setting's reader, `game.settings.get` by default. */
+export function diceLookChoice(read = key => game.settings.get(MODULE_ID, key)) {
+    try {
+        if (read(SETTINGS.forceDiceLook) !== true) return "own";
+    } catch {
+        return "own";
+    }
+    let kind = "dsn";
+    try { kind = read(SETTINGS.diceLookKind); } catch { kind = "dsn"; }
+    return kind === "daggerheart" ? "daggerheart" : "dsn";
+}
+
+/**
+ * The writes that make `choice` the table's dice look, as `[key, value]` in order - the kind before the switch, so a world
+ * that reloads on the switch reads the kind it was given. None for the look already chosen, nor for a choice not of the
+ * three. Each player's own leaves the kind as it was, for the day the switch is on again.
+ */
+export function diceLookWrites(choice, read = key => game.settings.get(MODULE_ID, key)) {
+    if (!DICE_LOOK_CHOICES.includes(choice)) return [];
+    let on = false, kind = "dsn";
+    try { on = read(SETTINGS.forceDiceLook) === true; } catch { on = false; }
+    if (choice === "own") return on ? [[SETTINGS.forceDiceLook, false]] : [];
+    try { kind = read(SETTINGS.diceLookKind); } catch { kind = undefined; }
+    const out = [];
+    if (kind !== choice) out.push([SETTINGS.diceLookKind, choice]);
+    if (!on) out.push([SETTINGS.forceDiceLook, true]);
+    return out;
+}
+
 export function registerSettings() {
     staleCleared = clearStaleSilences();
     // The hint names the one roll this leaves public: a GM's `game.drpg.publicRoll` (E33 C12), a macro
@@ -1292,6 +1472,14 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         requiresReload: true
+    });
+
+    // The look the switch forces (E108): read through `diceLookChoice`, written with it by the game's settings window.
+    game.settings.register(MODULE_ID, SETTINGS.diceLookKind, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: "dsn"
     });
 
     game.settings.register(MODULE_ID, SETTINGS.diceLookSource, {
@@ -1472,16 +1660,17 @@ export function registerSettings() {
     });
 
     /* WIDE PROJECT WINDOWS (E47-C6, 09.11.2026; the owner's O4 of the E47-M mockup round, "Moze jako ustawienie w panelu
-       ustawien?", and its scope, "Kazdy dla siebie": each person's own). Off by default: Create a project, Edit project
-       and Propose a project open at the width they had; on, at the kit's `wide` (projects-ui.mjs `projectWindowWidth`).
-       Read when a window opens, so no onChange. */
+       ustawien?", and its scope, "Kazdy dla siebie": each person's own). On by default since 1.2.110 (the owner, 13.11.2026:
+       "Wide project windows w ustawieniach gracza - niech bedzie domyslnie zaznaczone"; R4404): Create a project, Edit
+       project and Propose a project open at the kit's `wide` (projects-ui.mjs `projectWindowWidth`); off, at the width
+       they had. A browser that saved its own choice keeps it. Read when a window opens, so no onChange. */
     game.settings.register(MODULE_ID, SETTINGS.wideProjectWindows, {
         name: "DRPG.Settings.wideProjectWindows.name",
         hint: "DRPG.Settings.wideProjectWindows.hint",
         scope: "client",
         config: false,
         type: Boolean,
-        default: false
+        default: true
     });
 
     /* ---- the language of this layer, per browser. English by default, and
@@ -2075,6 +2264,131 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // A Secret Passage's "finished" held for its finder (PV): no `onChange` - read by the primary at a move and at ready.
+    game.settings.register(MODULE_ID, SETTINGS.gmFoundDone, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // What this browser's player saw last (PV): the tray, the project card and the ghosts are drawn again on a change.
+    game.settings.register(MODULE_ID, SETTINGS.seenProjects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgSeenChanged")
+    });
+    // The room actions used (E93 C1): no `onChange` - shown nowhere, read by the next use on the GM that serves it
+    // (facilities-gm.mjs `handleFacilityUse`).
+    game.settings.register(MODULE_ID, SETTINGS.gmFacilityUses, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The watches kept (E74 C6): no `onChange` - read by the primary at an Eclipse and a crossing (watch-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmWatches, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The discoveries waiting for the GM's word and the bodies each character has heard (1.2.113): no `onChange` - read by
+    // the primary at a walk, at its stores' opening and when a GM leaves (chapter.mjs `askPendingBodies`, `checkBodySound`).
+    game.settings.register(MODULE_ID, SETTINGS.gmPendingBodies, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmBodiesHeard, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The timed effects (Q-E93-3): the GMs' store and each owner's copy; the sheets redraw on either, as their line reads it.
+    game.settings.register(MODULE_ID, SETTINGS.gmTimedEffects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineTimedEffects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
+    });
+    // The pick's passes (E74, DA9): the GMs' store and each owner's copy; no `onChange` - read by the move veto and the
+    // GMs' audit when a crossing is judged (movement.mjs `holdsPass`).
+    game.settings.register(MODULE_ID, SETTINGS.gmLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The eavesdrops (E69 C6): the GMs' store, read by the primary's voice pass, and each owner's copy, whose change
+    // repaints the voice tile (its Stop listening, voice-tile.mjs `paintStopListening`).
+    game.settings.register(MODULE_ID, SETTINGS.gmEavesdrops, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineEavesdrops, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgEavesdropCopy")
+    });
+    // The masks (E69 C8): no `onChange` - read by the primary (mask-gm.mjs) and by every GM's cast copies.
+    game.settings.register(MODULE_ID, SETTINGS.gmMasks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The barricades standing (E74 C2): no `onChange` - the table reads the public flag (doors-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmBarricades, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The bedroom notes waiting (privacy line 1): no `onChange` - read by the primary on the owner's crossing (doors-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmBedroomNotes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The tails under way (E69 C3): no `onChange` - read by the primary on a settled crossing (tail-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmTails, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The GM room actions closed this time of day (E93 C1): every browser's sheets redraw, so the Facilities tile and
+    // its window grey what was used.
+    game.settings.register(MODULE_ID, SETTINGS.facilityClosed, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
+    });
     // The last crossings (E17 C3): the Students window redraws its Refund buttons on `drpgCrossingsChanged`, on every GM
     // the store reaches.
     game.settings.register(MODULE_ID, SETTINGS.gmCrossings, {
@@ -2177,6 +2491,15 @@ export function registerSettings() {
     /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
        by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
        the relay warning above. */
+    /* THE DA39 MIGRATION, ONCE PER WORLD (E64; the owner's DRPG-D1 of 12.11.2026, "Rekompensujemy by lvl upy byly
+       spojne"). Set by the primary GM when the pass is applied, or when it finds nothing to do (level-up.mjs
+       `offerDa39Migration`); a world flag, not a GM's own, so a second GM's load asks nothing again. */
+    game.settings.register(MODULE_ID, SETTINGS.levelUpsMigrated, {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false
+    });
     game.settings.register(MODULE_ID, SETTINGS.rollDrawWarned, {
         scope: "client",
         config: false,
@@ -2237,7 +2560,8 @@ export function registerSettings() {
     /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
        "log" until a table has shown that "sendBack" puts nobody back wrongly. E17 kept "log" (session 0's "tylko log"
        for the table of 26.10.2026), and since E17 C1 the rules' refusals are put back in either mode; the
-       default after a table's session is E82's. */
+       default after a table's session is the owner's to choose: no stage holds it (E82, named here until E64 C8, is
+       not a row of tools/stages.json; the orphan D193, 12.11.2026). */
     game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
         name: "DRPG.Settings.moveAudit.name",
         hint: "DRPG.Settings.moveAudit.hint",
@@ -2301,6 +2625,14 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // A player's sight of the secret projects (E101 R2): the tray and the project tokens ask again whom they show.
+    game.settings.register(MODULE_ID, SETTINGS.mineProjectSight, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgProjectSightChanged")
     });
 
     // The Key Remnant plan: a GM store since E05 (`keyPlanStore`), a row per chapter
@@ -2866,6 +3198,43 @@ export function registerSettings() {
         default: {},
         onChange: onConfusionsChange
     });
+    // The Monocubs' record (E72 C2): the GMs' store and each owner's copy. The sheet's badge and the Students window
+    // read the witness's mark, and the flag's own `updateActor` redrew them until the mark left the actor.
+    game.settings.register(MODULE_ID, SETTINGS.gmCubs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onCubsChange
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineCubs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onCubsChange
+    });
+    // The Monocubs' moves on each student this day (E72 C4): the GMs' store alone; nothing redraws from it.
+    game.settings.register(MODULE_ID, SETTINGS.gmCubTargets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The open Bounties (E72 C16): the GMs' store; the Monocubs' owners are sent them with their copy.
+    game.settings.register(MODULE_ID, SETTINGS.gmBounties, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Who worked on each project this time of day (E72 C13): the GMs' store alone; nothing redraws from it.
+    game.settings.register(MODULE_ID, SETTINGS.gmProjectWork, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
     // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is
     // told to voice, the traps and the Players window by `drpgDeathsChanged`, which the
@@ -3047,6 +3416,12 @@ function onConfusionsChange() {
     import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
 }
 
+/* The Monocubs' record changed on this browser (E72 C2): the sheets, and the hook the Students window listens on. */
+function onCubsChange() {
+    import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+    Hooks.callAll("drpgCubsChanged");
+}
+
 /* A death kept by the GMs changed on this browser: the sheets, the HUD and the map
    (the "visibility" kind redraws all three), and the hook the death's own readers
    listen on - voice, the traps' map, the Players window. */
@@ -3055,25 +3430,6 @@ function onDeathsChange() {
     Hooks.callAll("drpgDeathsChanged");
 }
 
-/**
- * Who is in the incident, as a bare list of actor ids.
- *
- * HERE, AND NOT IN murder.mjs, for exactly the reason `iAmTheMastermind` lives
- * in this file: movement.mjs and private-rolls.mjs both need it, both are
- * imported by murder.mjs's own graph, and an import the other way would be a
- * cycle. This file is a leaf and reads the client-scoped store directly.
- *
- * Both callers used to read `SETTINGS.murderState` themselves and pick
- * `killerId`, `victimId` and `thirdId` out of it. Those names left world data
- * with LIVE-001, so the list comes from `incidentCast` now - which means a
- * bystander's client gets an empty array, and that is the whole point: a
- * student who is not in the incident is not stopped from walking, and their
- * rolls are not whispered to anybody.
- *
- * A LIST, not the roles. Neither caller ever needed to know which of the three
- * is the killer - one asks "is this actor one of them" and the other asks "who
- * are the others" - so neither is given the answer.
- */
 /**
  * The discovery ledger as THIS client may know it: the union on a GM's
  * browser, this player's own rows on theirs. Shaped
@@ -3167,6 +3523,25 @@ export function sameSeason(record, epoch = seasonEpoch()) {
     return !(epoch > 0 && Number.isFinite(at) && at > 0 && at < epoch);
 }
 
+/**
+ * Who is in the incident, as a bare list of actor ids.
+ *
+ * HERE, AND NOT IN murder.mjs, for exactly the reason `iAmTheMastermind` lives
+ * in this file: movement.mjs and private-rolls.mjs both need it, both are
+ * imported by murder.mjs's own graph, and an import the other way would be a
+ * cycle. This file is a leaf and reads the client-scoped store directly.
+ *
+ * Both callers used to read `SETTINGS.murderState` themselves and pick
+ * `killerId`, `victimId` and `thirdId` out of it. Those names left world data
+ * with LIVE-001, so the list comes from `incidentCast` now - which means a
+ * bystander's client gets an empty array, and that is the whole point: a
+ * student who is not in the incident is not stopped from walking, and their
+ * rolls are not whispered to anybody.
+ *
+ * A LIST, not the roles. Neither caller ever needed to know which of the three
+ * is the killer - one asks "is this actor one of them" and the other asks "who
+ * are the others" - so neither is given the answer.
+ */
 export function incidentParticipants() {
     const cast = incidentCast();
     return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
@@ -3731,7 +4106,7 @@ export function moduleLanguage() {
 /*
  * THE LANGUAGE THIS PAGE WAS BUILT IN (E51 C8, 31.10.2026; audit S12-38; E51-45). The setting changes the moment a
  * player picks another language in the Look window, and the page does not: everything on it was built in the old one
- * until the reload `confirmLanguageReload` offers, which a player may decline. A reader that asked the setting then
+ * until the reload the settings window asks for (settings-window.mjs `askReload`), which a player may decline. A reader that asked the setting then
  * mixed the two - an open handbook kept its English tabs and loaded the next book in Polish. Set by i18n.mjs
  * `prefetchLanguage`, the first thing `init` does (`registerLanguage`), so after a reload it is the new one; and by an
  * `applyModuleLanguage` that fetches a file, whose strings are then the page's. A first form kept the first reading
@@ -4246,7 +4621,7 @@ export function applyTheme() {
  * `vw` x `vh` less 48 px: what `scaleWindow` hands `setPosition`. Pure, so the fit sweep's sheet stand-in reads the
  * same numbers (E21 C1c, `sheetBox`). Answers the dimensions it could read, each a whole number of pixels.
  */
-export function scaledBox(want, vw, vh, scale) {
+function scaledBox(want, vw, vh, scale) {
     const size = {};
     for (const dim of ["width", "height"]) {
         const n = Number(want?.[dim]);
@@ -4264,11 +4639,6 @@ export function scaledBox(want, vw, vh, scale) {
 const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
 
 /**
- * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
- * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
- * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
- */
-/**
  * The memo a window's scaled box is kept under (E21 C5a): the slider and the layout height (`layoutHeight`, which an
  * on-screen keyboard does not lower), so a resize that changes the height sizes the window again and a second render
  * at the same numbers writes nothing. Until C5a the key was the slider alone.
@@ -4277,6 +4647,11 @@ export function scaleMemo(scale, h = layoutHeight()) {
     return `${scale}@${Math.round(Number(h) || 0)}`;
 }
 
+/**
+ * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
+ * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
+ * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
+ */
 export function sheetBox(vw, vh, scale = 1, theme = "glass") {
     return scaledBox(theme === "glass" ? SHEET_SIZE.glass : DAGGERHEART_SHEET, vw, vh, scale);
 }

@@ -9,9 +9,15 @@
  *     never from a client's clock; the same event heard twice (the bus and the setting's `onChange` both describe a
  *     write) starts it once (`started`, by the event's key). Nothing waits for it: it is called from the listener and
  *     never awaited by a writer, so the phase, the turn clock and the first mode card are live from the write.
- *   NOT BEFORE READY, AND NOT AFTER A RELOAD. A browser that loads during a trial is not told the phase moved (sync.mjs
- *     `heard` is read at ready) and a card in the log is not created again, so a client that came late, or reloaded in
- *     the middle of a sequence, plays nothing and shows the end state (the plan's Q-E61-1 default; E62's rule).
+ *   NOT BEFORE READY; LATE FOR 10 MINUTES (gaps-111, 13.11.2026: the owner's answer to Q-E61-1 and Q-E94-4, "Przez 10
+ *     minut"). A browser that loads during a trial is not told the phase moved (sync.mjs `heard` is read at ready) and a
+ *     card in the log is not created again, so no hook plays the event there. Instead, once at ready, `catchUpSequences`
+ *     plays the newest event under 10 minutes old (`LATE_PLAY_MS`) - the trial's entry, the verdict's cut-in, the
+ *     start-of-day board - that this browser would have seen live and has not played (`lateSequence`); past 10 minutes,
+ *     nothing, and the end state stands. Once per event per browser: every start is written to this browser's own
+ *     record (`localStorage`, `drpg-sequences-played`, kept 10 minutes), which a reload reads; nothing goes to the world.
+ *     The end-of-day board is not played late: its rows are the day that ended, whose start the new clock no longer
+ *     holds. E62's transitions (the curtain's turn, the discovery's flicker) are not sequences and play nothing late.
  *   ONE AT A TIME, CUT NOT QUEUED. A new sequence, or a phase change, ends the running one at once (the owner's 05.11).
  *   ESCAPE ENDS IT HERE. A capture listener on `window`, registered before foundry-windows.mjs's (module.mjs orders the
  *     two), acts only while a sequence plays and takes the key from the windows behind it; the next Escape reaches
@@ -25,6 +31,9 @@
  *     on top"), and `#drpg-popups` keeps its cards. Foundry tools and Map tools are hidden for the span by a body
  *     attribute - never `toggleFoundryTools(false)`, which collapses the sidebar - and stand as they were after it (A8).
  *   NO WORLD STATE. Nothing here writes a setting, a document or a flag; R3700 reads the harness's write log over a run.
+ *   CLOSED UNTIL THE SCENE (fix-113r, 13.11.2026). A trial's edge moves the table to another scene; its curtain stays
+ *     closed until this browser has drawn that scene (`canvasReady`), 15 s at most (`SCENE_WAIT_MS`), and then opens -
+ *     each browser on its own canvas, so a slow one opens later rather than show the switch.
  *   COUNTED. `sequence.started`, `.still`, `.off`, `.skipped`, `.ended`, `.cut` through perf-counters.mjs, for E53's
  *     budget and scenario 86 (at rest nothing moves them).
  *
@@ -34,11 +43,11 @@
  * when the still frame is drawn.
  */
 
-import { MODULE_ID, TIME_OF_DAY_LABELS, MOOD_SHARES } from "./config.mjs";
+import { MODULE_ID, TIME_OF_DAY_LABELS, TIMES_OF_DAY, MOOD_SHARES } from "./config.mjs";
 import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
-import { esc } from "./utils.mjs";
+import { esc, serverNow } from "./utils.mjs";
 import { slideAt } from "./glass-close.mjs";
 import { spectatorViewer } from "./spectator.mjs";
 
@@ -47,13 +56,19 @@ export const SEQUENCE_ATTR = "data-drpg-sequence";
 
 /**
  * Each sequence's frames in ms (the mockups' storyboards), and its still frame's hold. E61-A: the panes close by 900,
- * one pulse of the seams under the closed curtain while the hall changes under it, the title with its impact at 1400,
- * the panes open from 2500 and the hall stands at 3400. E61-B: the band at 0, the portrait at 250, the votes at 900,
+ * the title with its impact at 1400, the panes open from 2500 and the hall stands at 3400; the copies of the curtain
+ * cross over with the live one in the first `handIn` ms (500) and the last `hand` ms (400: at 300, the seam report's
+ * 200-300, the probe read the exit's last frames +4.4 apart, at 400 at most +2.9). E61-B: the band at 0, the portrait
+ * at 250, the votes at 900,
  * the stamp's hit at 1700 (MK-R2: earlier than round 1's 2500, so the verdict does not wait), the card's sentence at
  * 1950, frame 5 held to 3500, then a 180 ms fade (MK-R1 #10).
  */
 export const SEQUENCE_TIMES = Object.freeze({
-    trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400 }),
+    trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400, handIn: 500, hand: 400 }),
+    /* The trial's exit (the owner's decision of 12.11.2026, every default accepted): the entry's frames and length, the
+       still frame 1.5 s; no sound of its own - the table hears End the trial's card (`trialClose`) - so `sound` is never
+       played (`playTrialExit` hands none). */
+    trialExit: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 0, handIn: 500, hand: 400 }),
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
        from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
     dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
@@ -72,6 +87,29 @@ let ready = false;
 let running = null;
 const started = new Set();
 
+/** How long after its event a browser that loads still plays a sequence (the owner's "Przez 10 minut", 13.11.2026). */
+export const LATE_PLAY_MS = 10 * 60 * 1000;
+/* This browser's own record of the sequences it started, `{ id: when }` (server time), so a reload inside the 10 minutes
+   plays nothing twice. The browser's storage, never the world's; anything older than the window is dropped as it is
+   written, and a browser whose storage cannot be read plays as if it had played nothing. */
+export const PLAYED_KEY = "drpg-sequences-played";
+function playedRecord() {
+    try {
+        const record = JSON.parse(globalThis.localStorage?.getItem(PLAYED_KEY) ?? "{}");
+        return record && typeof record === "object" && !Array.isArray(record) ? record : {};
+    } catch {
+        return {};
+    }
+}
+function notePlayed(id, now = serverNow()) {
+    try {
+        const record = playedRecord();
+        for (const [k, at] of Object.entries(record)) if (!(now - Number(at) < LATE_PLAY_MS)) delete record[k];
+        record[id] = now;
+        globalThis.localStorage?.setItem(PLAYED_KEY, JSON.stringify(record));
+    } catch { /* a browser that keeps nothing plays again on a reload, within the window */ }
+}
+
 /** The table's switch: whether sequences are drawn at this table (a world setting, on unless a GM turned it off). */
 export function sequencesOn() {
     try {
@@ -84,6 +122,13 @@ export function sequencesOn() {
 /** The sequence playing on this browser now - `{ kind, key, mode }` - or null. For the suite and the scenarios. */
 export function sequenceNow() {
     return running ? { kind: running.kind, key: running.key, mode: running.mode } : null;
+}
+
+/** The gate of the sequence playing here (`playSequence`'s `gate`): `{ waiting, why }` - `why` "drawn", "timeout" or
+    "none" once it opened - or null when none plays or it has none. For the suite and the scenarios. */
+export function sequenceGate() {
+    const g = running?.gate;
+    return g ? { waiting: g.opened === null, why: g.why } : null;
 }
 
 /** Whether this browser has started the sequence of `kind` for the event `key` (one start per event). */
@@ -111,6 +156,8 @@ export function endSequence(why = "cut") {
        own or was skipped: one cut by another sequence or a phase change hands on nothing, so a trial's entry is never
        followed by a board it cut. */
     if (run.then && (why === "ended" || why === "skipped")) queueMicrotask(() => { try { run.then(why); } catch { /* never let what follows break this */ } });
+    // and whoever waits for it to be over, however it ended (the trial's exit: the day's boards wait for it)
+    if (run.onEnd) queueMicrotask(() => { try { run.onEnd(why); } catch { /* never let what follows break this */ } });
     return true;
 }
 
@@ -121,13 +168,17 @@ export function endSequence(why = "cut") {
  * the event started nothing (before ready, or heard again). Never throws to its caller. `on` is the table's switch as
  * read now (`sequencesOn`); the suite hands in false, since tiers 0-1 write no setting. `then` is called once the sequence
  * has ended on its own or been skipped (or at once with the switch off), never when another one cut it (E94 C3).
+ * `gate` (fix-113r), `{ at, ready }`: every frame from `at` ms on waits until `ready` - a promise, or a function asked for
+ * one only when the sequence is drawn, whose `cancel` is called however the sequence ends - has settled; the trial's
+ * edges hand the wait for this browser's next scene (`sceneGateFor`), so the closed curtain stands until it is drawn.
  */
-export function playSequence(kind, key, draw, { sound = null, on = sequencesOn(), then = null } = {}) {
+export function playSequence(kind, key, draw, { sound = null, on = sequencesOn(), then = null, onEnd = null, gate = null } = {}) {
     const times = SEQUENCE_TIMES[kind];
     if (!ready || !times || key == null) return null;
     const id = `${kind}\u0000${key}`;
     if (started.has(id)) return null;
     started.add(id);
+    notePlayed(id);
     endSequence("cut");
     count("sequence.started");
     // and by kind, so a reading can tell the trial's entry from the cut-in (E61 C6: scenario 63 counts each per browser)
@@ -146,14 +197,37 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     host.dataset.drpgSequenceMode = still ? "still" : "motion";
     // the event is told to a screen reader by its own card and the HUD (a11y.mjs hears the phase); this is a picture
     host.setAttribute("aria-hidden", "true");
-    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then };
+    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then, onEnd, gate: null };
     running = run;
+    /* THE GATE (fix-113r, the owner at a table on 1.2.112, 13.11.2026: "the closed curtain should last until the next
+       scene has switched"). A frame at or after `gate.at` ms is played that long after the later of `gate.at` and the
+       moment `gate.ready` settles, so everything from the opening on waits, in order, for the scene; what comes before
+       plays on time. Without a gate every frame is at its own time, as before. */
+    const t0 = performance.now(), waiting = [];
+    if (gate) {
+        run.gate = { at: gate.at, opened: null, settled: null, why: null };
+        // a function is asked only now, when the sequence is drawn; however the sequence ends, the wait is let go
+        const ready = typeof gate.ready === "function" ? gate.ready() : gate.ready;
+        run.undo.push(() => ready?.cancel?.());
+        Promise.resolve(ready).catch(() => "failed").then(why => {
+            if (running !== run) return;
+            run.gate.settled = performance.now() - t0;
+            run.gate.opened = Math.max(gate.at, run.gate.settled);
+            run.gate.why = why ?? "none";
+            for (const go of waiting.splice(0)) go();
+        });
+    }
+    const later = (ms, fn) => run.timers.push(setTimeout(() => { if (running === run) fn(); }, Math.max(0, ms)));
     document.body.setAttribute(SEQUENCE_ATTR, kind);
     document.body.append(host);
     const ctx = {
         host, still, times,
         /** Run `fn` at `ms` from the start, while this sequence is the one playing. */
-        at: (ms, fn) => { run.timers.push(setTimeout(() => { if (running === run) fn(); }, Math.max(0, ms))); },
+        at: (ms, fn) => {
+            if (!run.gate || ms < run.gate.at) return later(ms, fn);
+            const go = () => later(run.gate.opened + (ms - run.gate.at) - (performance.now() - t0), fn);
+            if (run.gate.opened !== null) go(); else waiting.push(go);
+        },
         /** Keyframes on an element of the sequence (`fill: both`: the host goes as a whole at the end). */
         anim: (el, frames, opts) => {
             if (still || !el?.animate) return null;
@@ -174,7 +248,11 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     if (still) {
         count("sequence.still");
         sound?.();
-        ctx.at(times.still, () => endSequence("ended"));
+        // still, the frame stands its hold and, behind a gate, until the gate opens too
+        if (run.gate) {
+            const go = () => later(Math.max(times.still, run.gate.settled) - (performance.now() - t0), () => endSequence("ended"));
+            if (run.gate.opened !== null) go(); else waiting.push(go);
+        } else ctx.at(times.still, () => endSequence("ended"));
     } else {
         if (sound) ctx.at(times.sound, sound);
         ctx.at(times.end, () => endSequence("ended"));
@@ -186,16 +264,110 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
  *  E61-A: INTO THE CLASS TRIAL
  * ========================================================================== */
 
+/**
+ * Whether the table plays this crossing of the trial's edge (the owner's rule of 12.11.2026: "edytuj kampanie nie ma
+ * odpalac animacji"): not when the clock says the last crossing was written by Edit campaign or another road that plays
+ * nothing (clock.mjs `trialCutOf`, `clock.trialCut` false). A clock without the mark - one from before it, the suite's
+ * own - plays as before.
+ */
+export function edgeShown(clock) {
+    return clock?.trialCut !== false;
+}
+
 /** The event's key: the clock's stamp of the trial's edge (clock.mjs stamps `timeOfDayStartedAt` on every road in). */
 export function trialEntryKey(clock = getClock()) {
     return clock?.phase === "classTrial" ? `classTrial:${clock.timeOfDayStartedAt ?? clock.writtenAt ?? "?"}` : null;
 }
 
-function titleBand(chapter) {
-    const band = document.createElement("div");
-    band.className = "drpg-seq-title";
-    const sub = chapter != null ? game.i18n.format("DRPG.Sequence.trialSubtitle", { chapter }) : game.i18n.localize("DRPG.Sequence.trialSubtitleNoChapter");
-    band.innerHTML = `<div class="drpg-seq-title-band">${esc(game.i18n.localize("DRPG.Sequence.trialTitle"))}</div><div class="drpg-seq-title-sub">${esc(sub)}</div>`;
+/* ========================================================================== *
+ *  THE SCENE UNDER THE CLOSED CURTAIN (fix-113r, 13.11.2026)
+ * ========================================================================== */
+
+/**
+ * How long a closed curtain waits for this browser to draw the scene a trial's edge moves the table to, in ms: past it
+ * the curtain opens anyway and a warning is logged, so a browser that never gets the scene is not left behind a
+ * closed curtain (the coordinator's default for the owner's report of 13.11.2026).
+ */
+export const SCENE_WAIT_MS = 15000;
+
+/**
+ * Which scene a crossing of the trial's edge moves this table to, as a test of a scene, or null when it moves it
+ * nowhere this browser can wait for. Into the trial, the linked hall (trial-scene.mjs `enterTrialScene` activates it);
+ * out of it, any scene but the hall (`leaveTrialScene` activates the scene the GM chose at End the trial, else the school
+ * or the scene the trial was opened from - a player's browser cannot know which, so any but the hall). No hall linked,
+ * nothing activates a scene, so null; and null with no canvas on this browser (Foundry's "no canvas" setting), which
+ * never draws one. Plain arguments, so the suite can ask it of stand-ins.
+ */
+export function sceneTargetOf(kind, { hall = null, noCanvas = false } = {}) {
+    if (!hall?.id || noCanvas) return null;
+    if (kind === "trialEntry") return scene => scene?.id === hall.id;
+    if (kind === "trialExit") return scene => Boolean(scene?.id) && scene.id !== hall.id;
+    return null;
+}
+
+/* The hook a closed curtain listens on: Foundry's `canvasReady`, which fires on this browser once it has drawn a
+   scene (every browser draws the activated scene on its own, so each waits for its own). */
+function listenCanvasReady(fn) {
+    const id = Hooks.on("canvasReady", fn);
+    return () => Hooks.off("canvasReady", id);
+}
+
+/**
+ * A promise settled once this browser shows a scene `isTarget` accepts, drawn: at once when the canvas already is
+ * (`canvas.ready` on such a scene), else at the first `canvasReady` on one - "drawn"; or after `ms` - "timeout", with a
+ * warning on the console. With no target, "none" at once. `listen` and `view` are the hook and the canvas, stand-ins
+ * in the suite.
+ */
+export function whenSceneDrawn(isTarget, { ms = SCENE_WAIT_MS, listen = listenCanvasReady, view = () => globalThis.canvas } = {}) {
+    if (typeof isTarget !== "function") return Promise.resolve("none");
+    const shown = c => Boolean(c?.ready) && isTarget(c.scene ?? null);
+    try { if (shown(view())) return Promise.resolve("drawn"); } catch { /* a canvas not built yet reads as not drawn */ }
+    let done = () => null;
+    const wait = new Promise(resolve => {
+        let stop = () => null, timer = 0;
+        done = why => { clearTimeout(timer); try { stop(); } catch { /* a hook already gone */ } resolve(why); };
+        stop = listen(c => { try { if (shown(c ?? view())) done("drawn"); } catch { /* not this scene */ } }) ?? (() => null);
+        timer = setTimeout(() => {
+            console.warn(`${MODULE_ID} | the curtain waited ${ms} ms for this browser to draw the next scene and opens without it`);
+            count("sequence.sceneTimeout");
+            done("timeout");
+        }, ms);
+    });
+    // a sequence ended before its scene came lets the wait go, with no warning
+    wait.cancel = () => done("cancelled");
+    return wait;
+}
+
+/* The scene's gate for a trial's edge on this browser: the test of `sceneTargetOf` read from the world (rooms.mjs, read
+   lazily: it is a leaf, but the sequences load early) and the wait on it. */
+function sceneGateFor(kind) {
+    let inner = null, cancelled = false;
+    const wait = (async () => {
+        let hall = null, noCanvas = false;
+        try { hall = (await import("./rooms.mjs")).trialScene?.() ?? null; } catch { hall = null; }
+        try { noCanvas = game.settings?.get?.("core", "noCanvas") === true; } catch { noCanvas = false; }
+        if (cancelled) return "cancelled";
+        inner = whenSceneDrawn(sceneTargetOf(kind, { hall, noCanvas }));
+        return inner;
+    })();
+    wait.cancel = () => { cancelled = true; inner?.cancel?.(); };
+    return wait;
+}
+
+/* The title's words by the edge: into the trial "CLASS TRIAL" and the courtroom, out of it "TRIAL ADJOURNED" and back
+   to school (the owner's decision of 12.11.2026), each with the chapter's line when the clock has a chapter - the exit's
+   the trial's own chapter, its record's (`playTrialExit`; A113-C2-3). */
+const TITLE_KEYS = Object.freeze({
+    trialEntry: ["DRPG.Sequence.trialTitle", "DRPG.Sequence.trialSubtitle", "DRPG.Sequence.trialSubtitleNoChapter"],
+    trialExit: ["DRPG.Sequence.exitTitle", "DRPG.Sequence.exitSubtitle", "DRPG.Sequence.exitSubtitleNoChapter"]
+});
+function titleBand(chapter, kind = "trialEntry") {
+    const [title, line, bare] = TITLE_KEYS[kind] ?? TITLE_KEYS.trialEntry;
+    const band = document.createElement("div"), words = game.i18n.localize(title);
+    // a title longer than CLASS TRIAL's eleven letters stands smaller (TRIAL ADJOURNED ran out of its band under Legacy's wide face)
+    band.className = `drpg-seq-title${String(words).length > 12 ? " is-long" : ""}`;
+    const sub = chapter != null ? game.i18n.format(line, { chapter }) : game.i18n.localize(bare);
+    band.innerHTML = `<div class="drpg-seq-title-band">${esc(words)}</div><div class="drpg-seq-title-sub">${esc(sub)}</div>`;
     return band;
 }
 
@@ -240,8 +412,10 @@ function slideCanvas(fill, W, H, acc) {
     canvas.className = "drpg-seq-grow";
     canvas.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;`;
     const g = canvas.getContext("2d");
-    let shown = 0;
+    let shown = 0, last = [];
     const draw = offsets => {
+        last = offsets.map(o => (o ? [o[0], o[1]] : null));
+        if (!g) return 0;
         g.clearRect(0, 0, W, H);
         shown = 0;
         offsets.forEach((o, i) => {
@@ -256,7 +430,8 @@ function slideCanvas(fill, W, H, acc) {
         });
         return shown;
     };
-    return { canvas, draw, get shown() { return shown; } };
+    // `offsets`: what the last frame drew, each pane's offset (null: not drawn) - what the layout's reading reads
+    return { canvas, draw, get shown() { return shown; }, get offsets() { return last; } };
 }
 
 /** The closed curtain's look as an element over the screen. */
@@ -265,8 +440,46 @@ function closedCanvas(look) {
     c.width = look.width; c.height = look.height;
     c.className = "drpg-seq-closed";
     c.style.cssText = `position:absolute;left:0;top:0;width:100%;height:100%;`;
-    c.getContext("2d").drawImage(look, 0, 0);
+    c.getContext("2d")?.drawImage(look, 0, 0);
     return c;
+}
+
+/* What goes under the closed curtain with its glass and comes back as it opens (A8; the entry's hand-over): the room and
+   voice tiles and the interface's blocks - the clock, Despair, the event panel, the status, the tray, the corner's
+   launchers (glass.mjs `LAUNCHERS`). danganronpa.css hides them by the body's `-cover` mark. */
+export const COVERED = "#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art, #drpg-hud, #drpg-despair, #drpg-events, #drpg-player-status, #countdowns, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
+
+/* The cover, the mark and in motion the fades (the entry's hand-over, 12.11.2026): each block fades out over the
+   sequence's first `handIn` ms and back in over `handIn` from the opening, by an animation of its own from the opacity it
+   stood at - the mark alone took the HUD away in one frame, and gave it back in one. */
+function coverBlocks(ctx) {
+    const { still, times: T, anim, at } = ctx;
+    const els = still ? [] : [...document.querySelectorAll(COVERED)].map(el => [el, getComputedStyle(el).opacity]);
+    document.body.setAttribute(`${SEQUENCE_ATTR}-cover`, "");
+    ctx.undo(() => document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`));
+    if (still) return;
+    const out = els.map(([el, o]) => anim(el, [{ opacity: o }, { opacity: 0 }], { duration: T.handIn, easing: "linear", fill: "forwards" }));
+    at(T.titleOut, () => {
+        out.forEach(a => a?.cancel());
+        document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`);
+        els.forEach(([el, o]) => anim(el, [{ opacity: 0 }, { opacity: o }], { duration: T.handIn, easing: "linear", fill: "none" }));
+    });
+}
+
+/* THE CURTAIN UNDER THE WINDOWS, THE TITLE OVER THEM (E105, the owner's ask of 13.11.2026: "zamkniecie kurtyny niech
+   bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach"). The trial's edges draw in two layers of their own,
+   each fixed over the screen and stacked by danganronpa.css (THE SEQUENCES): the curtain's - the panes, the closed
+   curtain, the lids - under Foundry's window layer and over the board and the interface, so an open window, and one
+   opened while it plays, stands over the closing curtain and takes its clicks; and the title's - the band with its
+   background and the chapter's line - over every window. The host is no box of its own there (`display: contents`): a
+   fixed box is a stacking context, and its children could not stand on both sides of the windows. Until E105 the host
+   was one layer at 99980 and its children with it, over every window. The other sequences - the verdict's cut-in, the
+   day's boards - close no curtain and keep the one host. */
+function seqLayer(cls) {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.setAttribute("aria-hidden", "true");
+    return el;
 }
 
 /**
@@ -275,58 +488,80 @@ function closedCanvas(look) {
  * glass already there (glass.mjs `entryPieces`, glass-close.mjs; the owner's reviews of rounds 1 to 3, 12.11.2026); closed, the
  * curtain is the curtain's own paint of the whole cut; it opens the same way in reverse onto the trial's cut.
  * Otherwise - Monokuma Legacy, a narrow screen, a curtain not cut yet - two lids close from above and below (MK-R1:
- * "two black panels with a red edge"). Both carry the title.
+ * "two black panels with a red edge"). Both carry the title. The trial's exit is the same frames on the cut it leaves,
+ * closing in Daily Life's colour and opening onto the hour's cut, with its own title (`kind`).
  */
-function drawTrialEntry(ctx, glass, clock = getClock()) {
+function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
     const { host, still, times: T, anim, at, ARRIVE: IN } = ctx;
     const chapter = clock?.chapter ?? null;
     host.dataset.drpgSequenceLook = glass ? "glass" : "lids";
-    const title = titleBand(chapter);
+    const title = titleBand(chapter, kind);
+    // the curtain's layer under the windows, the title's over them (above); the fades in and out are the curtain's
+    const curtain = seqLayer("drpg-seq-curtain"), top = seqLayer("drpg-seq-top");
+    host.append(curtain, top);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
-        const closed = closedCanvas(glass.closed);
+        /* THE HAND-OVER (the owner at the table, 12.11.2026: "calosc blyska"; glass.mjs `holdCurtain`): the live curtain
+           and its glow go to 0 under the copies and come back under them at the end, both ends crossing over in `hand`
+           ms; however the sequence ends, the hold is let go. Still, the closed curtain stands over a curtain at 0. */
+        ctx.undo(() => glass.release?.());
         if (still) {
-            host.append(closed);
+            glass.hold?.(0);
+            // still, the closed curtain's own paint of the cut it would close on, held over a curtain at 0
+            curtain.append(closedCanvas(glass.closed));
         } else {
+            glass.hold?.(T.handIn);
+            anim(curtain, [{ opacity: 0 }, { opacity: 1 }], { duration: T.handIn, easing: "linear" });
+            at(T.end - T.hand, () => {
+                anim(curtain, [{ opacity: 1 }, { opacity: 0 }], { duration: T.hand, easing: "linear", fill: "forwards" });
+                glass.handBack?.(T.hand);
+            });
             const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
             const growIn = slideCanvas(glass.close.fill, glass.W, glass.H, glass.acc), growOut = slideCanvas(glass.open.fill, glass.W, glass.H, glass.acc);
             close.layer.append(growIn.canvas);
             open.layer.append(growOut.canvas);
-            closed.hidden = true;
             open.layer.hidden = true;
-            host.append(close.layer, closed, open.layer);
-            host.drpgEntry = { growIn, growOut, fill: [glass.close.fill, glass.open.fill] };
+            curtain.append(close.layer, open.layer);
+            /* what the layout's reading reads in Chromium (audit/glass-sweep.mjs --trial-layout): the fills and their last
+               offsets, the standing panes' shapes, the closed curtain's cut and which part plays */
+            host.drpgEntry = { growIn, growOut, fill: [glass.close.fill, glass.open.fill], standing: [glass.close.panes.map(p => p.poly), glass.open.panes.map(p => p.poly)], closedCut: glass.closedCut ?? null, get phase() { return phase; } };
             glass.close.panes.forEach(p => anim(p.old, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, delay: p.batch * FADE_STEP, easing: "linear" }));
             const t0 = performance.now();
-            let frame = 0, phase = "close";
+            let frame = 0, phase = "close", opened = 0;
             const step = now => {
                 if (!host.isConnected) return;
                 // a frame's stamp is its start, which can fall before `t0` when the pieces' cut held the thread
                 const ms = Math.max(0, now - t0);
                 if (phase === "close") growIn.draw(slideAt(glass.close.fill, ms));
                 else if (phase === "open") {
-                    if (!growOut.draw(slideAt(glass.open.fill, ms - T.titleOut, { open: true })) && ms > T.titleOut + 50) return;
+                    // from the opening's own start: behind the scene's gate it can come later than `titleOut`
+                    const since = Math.max(0, now - opened);
+                    if (!growOut.draw(slideAt(glass.open.fill, since, { open: true })) && since > 50) return;
                 }
                 if (phase !== "held") frame = requestAnimationFrame(step);
             };
             frame = requestAnimationFrame(step);
             ctx.undo(() => globalThis.cancelAnimationFrame?.(frame));
-            // closed: the curtain's own paint of the whole cut, under the pulse, until the title goes
+            /* closed: the closing panes themselves, every new one at its place, until the scene is drawn (the gate) and
+               the title goes. Until fix-113r a canvas of the closed curtain's own paint was laid in their place at 900 ms
+               and the opening's panes in its place at 2500: two swaps, and the closed canvas was another cut where the
+               interface had moved (glass.mjs `entryPieces`) and, on the same cut, another stroke of the lead - in
+               Chromium 11.3 % of the frame's pixels changed at 900 ms, 2.7 % at 2500. Now the same pieces stand still,
+               and the opening's are cut from the same paint on the same shapes, so its first frame is this one. No
+               wash over it: the pulse of 420 ms laid 10 % Bone over the whole screen above the closed curtain, and the
+               probe read it as a flash of +19 on the whole frame (the seam report, 12.11.2026); the curtain's own pulse
+               is in its paint. */
             at(T.closed, () => {
                 phase = "held";
                 globalThis.cancelAnimationFrame?.(frame);
-                close.layer.remove();
-                closed.hidden = false;
-                const pulse = document.createElement("div");
-                pulse.className = "drpg-seq-pulse";
-                host.append(pulse);
-                anim(pulse, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: 420, easing: "linear" });
+                growIn.draw(glass.close.fill.map(() => [0, 0]));
             });
             at(T.titleOut, () => {
-                closed.remove();
+                close.layer.remove();
                 open.layer.hidden = false;
                 growOut.draw(glass.open.fill.map(() => [0, 0]));
                 phase = "open";
+                opened = performance.now();
                 frame = requestAnimationFrame(step);
             });
         }
@@ -334,7 +569,7 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
         const lids = ["top", "bottom"].map(side => {
             const lid = document.createElement("div");
             lid.className = `drpg-seq-lid is-${side}`;
-            host.append(lid);
+            curtain.append(lid);
             return lid;
         });
         if (!still) {
@@ -342,13 +577,10 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
             at(T.titleOut, () => lids.forEach((lid, i) => anim(lid, [{ transform: "translateY(0)" }, { transform: `translateY(${i ? 100 : -100}%)` }], { duration: T.open, easing: ctx.LEAVE })));
         }
     }
-    // the room tile and the voice tile go with their glass, and come back with it (A8)
-    document.body.setAttribute(`${SEQUENCE_ATTR}-cover`, "");
-    ctx.undo(() => document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`));
-    if (!still) at(T.titleOut, () => document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`));
-    if (still) { host.append(title); return; }
+    coverBlocks(ctx);
+    if (still) { top.append(title); return; }
     at(T.title, () => {
-        host.append(title);
+        top.append(title);
         anim(title, [{ transform: "rotate(-3deg) scale(1.12)", opacity: 0 }, { transform: "rotate(-3deg) scale(1)", opacity: 1 }], { duration: T.titleIn, easing: IN });
     });
     at(T.titleOut, () => anim(title, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: "linear" }));
@@ -359,16 +591,81 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
  * curtain's pieces (glass.mjs `entryPieces`), asked here and not by the hook's caller: the glass is only moved when the
  * sequence is drawn, so the table's switch off and a second hearing of the event leave the curtain's own turn alone.
  */
-export async function playTrialEntry(clock = getClock()) {
+export async function playTrialEntry(clock = getClock(), { pieces = undefined, scene = undefined } = {}) {
     const key = trialEntryKey(clock);
-    if (!key || sequenceStarted("trialEntry", key) || !ready) return null;
-    let glass = null;
-    if (sequencesOn() && document.body.classList.contains("drpg-theme-stained-glass")) {
+    if (!key || !edgeShown(clock) || sequenceStarted("trialEntry", key) || !ready) return null;
+    let glass = pieces ?? null;
+    if (pieces === undefined && sequencesOn() && document.body.classList.contains("drpg-theme-stained-glass")) {
         // the attribute the HUD writes from the same clock row; written here too, so the curtain reads the trial's colour
         document.body.dataset.drpgPhase = "classTrial";
         try { glass = (await import("./glass.mjs")).entryPieces?.() ?? null; } catch { glass = null; }
     }
-    return playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart") });
+    // `pieces`: the suite's stand-in for the curtain's (R3917); a start that plays nothing lets the curtain's hold go
+    const played = playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart"), gate: { at: SEQUENCE_TIMES.trialEntry.titleOut, ready: scene === undefined ? () => sceneGateFor("trialEntry") : scene } });
+    if (played === null || played === "off") glass?.release?.();
+    return played;
+}
+
+/* ========================================================================== *
+ *  OUT OF THE CLASS TRIAL (the owner's decision of 12.11.2026, every default accepted)
+ * ========================================================================== */
+
+/**
+ * The exit's key: the clock's stamp of the trial's end (clock.mjs stamps `trialEndedAt` on every road out), so a chapter's
+ * end whose next morning lands in the same run of the clock's row still names its exit by the trial's end and not by
+ * the morning's own stamp. Null while the clock is in the trial.
+ */
+export function trialExitKey(clock = getClock()) {
+    if (!clock || clock.phase === "classTrial") return null;
+    return `trialExit:${clock.trialEndedAt ?? clock.timeOfDayStartedAt ?? clock.writtenAt ?? "?"}`;
+}
+
+/* The exit's end, for whoever waits on it (the day's boards: transitions.mjs). Set as the exit is asked for, before its
+   pieces are taken, so a new day heard in between waits too; settled however the exit ends or does not start. */
+let exitWait = null;
+
+/** A promise settled once the trial's exit asked for on this browser has ended, or at once with none. */
+export function whenTrialExitEnds() {
+    return exitWait ?? Promise.resolve(null);
+}
+
+/**
+ * The trial's exit on this browser (transitions.mjs, from the clock's move out of the Class Trial): the entry's frames on
+ * the cut the trial leaves - the panes close in Daily Life's colour, TRIAL ADJOURNED and the chapter's line on the
+ * closed curtain, and they open onto the hour's cut - for the entry's 3.4 s, still 1.5 s under reduced motion, Escape
+ * earlier; the lids under Monokuma Legacy and on a stacked screen. No sound: End the trial's card carries `trialClose`.
+ * Nothing when the crossing was Edit campaign's (`edgeShown`), heard again, or before ready. `pieces`, the suite's
+ * stand-in for the curtain's. Answers what `playSequence` answered. The closed curtain waits for this browser's next
+ * scene (`scene`, the suite's stand-in), unless the clock says the way out switches none (`trialExitScene` false,
+ * clock.mjs): then it opens at its own time, whatever stand-in is handed.
+ */
+export function playTrialExit(clock = getClock(), { pieces = undefined, on = sequencesOn(), scene = undefined } = {}) {
+    const key = trialExitKey(clock);
+    if (!key || !on || !edgeShown(clock) || sequenceStarted("trialExit", key) || !ready) return Promise.resolve(null);
+    let settle = null;
+    const wait = new Promise(r => { settle = r; });
+    const done = why => { settle(why); if (exitWait === wait) exitWait = null; };
+    exitWait = wait;
+    // never longer than the exit could stand, whatever happens to it: its frames and the longest wait for the scene
+    setTimeout(() => done("timeout"), SEQUENCE_TIMES.trialExit.end + SCENE_WAIT_MS + 2000);
+    return (async () => {
+        let glass = pieces ?? null;
+        if (pieces === undefined && document.body.classList.contains("drpg-theme-stained-glass")) {
+            // the HUD writes it from the same clock row; written here too, so the curtain closes in the new phase's colour
+            document.body.dataset.drpgPhase = clock.phase ?? "dailyLife";
+            try { glass = (await import("./glass.mjs")).exitPieces?.() ?? null; } catch { glass = null; }
+        }
+        /* THE TRIAL'S OWN CHAPTER (A113-C2-3, 13.11.2026; the coordinator's default, the owner may override). End of
+           chapter with "end the trial" moves the clock to chapter N+1 while the phase is still the trial, then closes it
+           (chapter.mjs's `clock` step, then `trial`), so the clock this exit is drawn from names N+1 for chapter N's
+           trial. The trial's record names the chapter it is about (trial-progress.mjs `trialProgressChapter`, stamped
+           by every write of it, the entry's among them); the clock's where it names none. */
+        let chapter = clock?.chapter ?? null;
+        try { chapter = (await import("./trial-progress.mjs")).trialProgressChapter() ?? chapter; } catch { /* the clock's */ }
+        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, { ...clock, chapter }, "trialExit"), { on, onEnd: done, gate: { at: SEQUENCE_TIMES.trialExit.titleOut, ready: clock?.trialExitScene === false ? "none" : scene === undefined ? () => sceneGateFor("trialExit") : scene } });
+        if (played === null || played === "off") { glass?.release?.(); done(played ?? "none"); }
+        return played;
+    })().catch(err => { done("failed"); console.error(`${MODULE_ID} | the trial's exit failed`, err); return null; });
 }
 
 /* ========================================================================== *
@@ -515,16 +812,47 @@ function drawDayStart(ctx, board) {
     anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
 }
 
+/** The start-of-day board's event key: the season, the day and the session. */
+export function dayStartKey(clock) {
+    return `day:${clock?.season ?? ""}:${Number(clock?.day) || 0}:${clock?.session ?? ""}`;
+}
+
 /**
- * The start-of-day board on this browser, from the clock's one event of a new day (transitions.mjs, E62's `newDay`):
- * on every connected browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). `students` defaults to the cast as
- * monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
+ * The clock the start-of-day board shows (13.11.2026; the owner's rule of that day: "The start-of-day animation should
+ * show at the start of the Morning Eclipse"). While the Morning Eclipse stands the clock is still at Night of the day
+ * that ended - the day's number moves at the Eclipse's end (eclipse.mjs `endEclipse`), and no rule's day boundary moved
+ * with the board - so the board reads the day that is beginning: the day + 1, the session + 1 and the Morning, as
+ * clock.mjs `clockAfter` will write them. Its key (`dayStartKey`) is then the one the Eclipse's end lands on, so a
+ * browser that played the board at the start never plays it again for that day. Any other clock is its own. Pure.
+ */
+export function dayStartClock(clock) {
+    if (!clock || clock.eclipse !== true || clock.timeOfDay !== TIMES_OF_DAY[TIMES_OF_DAY.length - 1]) return clock;
+    const session = Number(clock.session);
+    return { ...clock, day: (Number(clock.day) || 0) + 1, session: Number.isFinite(session) ? session + 1 : clock.session, timeOfDay: TIMES_OF_DAY[0] };
+}
+
+/**
+ * Whether `clock` carries the start-of-day board's stamp for the day it begins (`dayBoard`): a real roll-over's on its
+ * own day, or the Morning Eclipse's start, which stamps the day it leads into (eclipse.mjs `startEclipse`). Edit
+ * campaign writes none, and a stamp from an older day matches nothing. Pure.
+ */
+export function startBoardStamped(clock) {
+    if (!clock || clock.dayBoard == null) return false;
+    return Number(clock.dayBoard) === Number(dayStartClock(clock).day);
+}
+
+/**
+ * The start-of-day board on this browser, from the clock's one event that begins a day (transitions.mjs `boardsOf`: the
+ * Morning Eclipse's start, or the roll-over when no Morning Eclipse was held; since 13.11.2026): on every connected
+ * browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). It shows the day `dayStartClock` reads. `students`
+ * defaults to the cast as monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
  */
 export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn() } = {}) {
     if (!clock || !ready) return null;
+    const shown = dayStartClock(clock);
     const cast = students ?? (await import("./monokuma.mjs")).studentActors();
-    const board = dayStartBoard(clock, cast, clock.morningLine ?? "");
-    return playSequence("dayStart", `day:${clock.season ?? ""}:${board.day}:${clock.session ?? ""}`, ctx => drawDayStart(ctx, board),
+    const board = dayStartBoard(shown, cast, shown.morningLine ?? "");
+    return playSequence("dayStart", dayStartKey(shown), ctx => drawDayStart(ctx, board),
         { sound: () => playSound("dayStart"), on });
 }
 
@@ -537,18 +865,49 @@ export function morningLineOf(text) {
     const line = String(text ?? "").replace(/\s+/g, " ").trim().slice(0, MORNING_LINE_MAX);
     return line || null;
 }
-export const MORNING_LINE_MAX = 200;
+const MORNING_LINE_MAX = 200;
 
 /**
  * What a move of the clock folds into its one write for the morning line and the mood (E94 C1, C4; clock.mjs
  * `advanceTimeOfDay`): at the day's roll-over the GM's line (`draft`, kept on that GM's browser until then, so it is in
- * no world data before the day starts) and the mood's word; at any other move both cleared, so neither outlives the
- * morning they were written for. Pure.
+ * no world data before the day starts) and the mood's word; at any other move only the morning line is cleared (when
+ * one stands), so it does not outlive the morning it was written for, and the mood is left as it is until the next
+ * roll-over writes it again. And at the roll-over the new `day`, when handed in, as the start-of-day board's stamp
+ * (`dayBoard`, 12.11.2026; the owner's rule of that day): the board plays on a clock that carries it (transitions.mjs
+ * `boardsOf`), so the real roll-over plays it and Edit campaign's day + 1, which writes no stamp, does not. Since
+ * 13.11.2026 the Morning Eclipse's start writes this roll-over patch for the day it leads into (eclipse.mjs
+ * `startEclipse`), and its end only keeps the stamp (`opened`); a move into Night works the mood out and stamps the
+ * end-of-day board (`nightFalls`, `nightBoard`). Pure.
  */
-export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {} } = {}) {
-    if (rolledOver) return { morningLine: morningLineOf(draft), mood: MOOD_BANDS.includes(mood) ? mood : null };
+export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {}, day = null, opened = false, nightFalls = false } = {}) {
+    const stamp = day != null && Number.isFinite(Number(day)) ? Number(day) : null;
+    /* THE MORNING ECLIPSE OPENED THIS DAY ALREADY (13.11.2026; the owner's rule of that day: the start-of-day board at the
+       Morning Eclipse's start). Its start wrote the line, the mood and the stamp of the day it leads into (eclipse.mjs
+       `startEclipse`), and the board showed them; the roll-over at its end writes neither again - the draft is empty by
+       then, and written again it would put the line out - and keeps the stamp, which `setClock` would otherwise take
+       away from a write that moves the day. A line the GM wrote after an Eclipse ended without advancing still goes in. */
+    if (rolledOver && opened) {
+        const patch = {};
+        if (stamp != null) patch.dayBoard = stamp;
+        const line = morningLineOf(draft);
+        if (line) patch.morningLine = line;
+        return patch;
+    }
+    if (rolledOver) {
+        const patch = { morningLine: morningLineOf(draft), mood: MOOD_BANDS.includes(mood) ? mood : null };
+        if (stamp != null) patch.dayBoard = stamp;
+        return patch;
+    }
     const patch = {};
     if (before?.morningLine != null) patch.morningLine = null;
+    /* NIGHT FALLS (13.11.2026; the owner's rule of that day: the end-of-day board "after the Night Eclipse (that is, at the
+       start of Night)"). The board reads the mood off the clock it is heard with, so the mood is worked out here, at the
+       day's end as before, and the move is stamped for the board (`nightBoard`, its day): Next time of day from Evening
+       and the Night Eclipse's end with the advance write it; Edit campaign's Night writes none and plays nothing. */
+    if (nightFalls) {
+        patch.mood = MOOD_BANDS.includes(mood) ? mood : null;
+        if (stamp != null) patch.nightBoard = stamp;
+    }
     return patch;
 }
 
@@ -570,18 +929,19 @@ export function moodBand({ hope = 0, monocubHope = 0, despair = 0, overflow = 0 
 /**
  * The mood's four inputs as this GM's browser holds them (E94 C4): the Hope of every student of the class who is neither
  * dead by the published flag nor a Monocub - a death nobody has found leaves its Hope in, so the mood the table sees does
- * not move on it -, the Monocubs' Hope, the Despair of every Monokuma (`getDespair`, the pools the HUD shows) and the
+ * not move on it -, the Monocubs' Hope - the sheet's and the purse's, E72's `cubHopeTotal` (the owner's rule counts "hope
+ * monocubow"; the audit of 1.2.113, A113-C5-4: the purse was left out) -, the Despair of every Monokuma (`getDespair`, the pools the HUD shows) and the
  * Overflow count, which only a GM holds. On a player, null. Never written anywhere: `moodBand` turns it into the word.
  */
 export async function moodInputs() {
     if (!game.user?.isGM) return null;
-    const [{ actingStudents }, { isMonocub }, D, O] = await Promise.all([
+    const [{ actingStudents }, { isMonocub, cubHopeTotal }, D, O] = await Promise.all([
         import("./monokuma.mjs"), import("./monocub.mjs"), import("./despair.mjs"), import("./overflow.mjs")]);
     const hopeOf = a => { const v = Number(a?.system?.resources?.hope?.value); return Number.isFinite(v) && v > 0 ? v : 0; };
     let hope = 0, monocubHope = 0;
     // the one cast (R1192), by the published death: the living students, and the dead back only as a Monocub
     for (const a of actingStudents({ dead: isDeceased })) {
-        if (isMonocub(a)) monocubHope += hopeOf(a);
+        if (isMonocub(a)) monocubHope += Math.max(0, Number(cubHopeTotal(a)) || 0);
         else hope += hopeOf(a);
     }
     const despair = D.monokumas().reduce((t, u) => t + (Number(D.getDespair(u.id)) || 0), 0);
@@ -694,11 +1054,12 @@ export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(
 }
 
 /**
- * The end-of-day board on this browser, at the day's roll-over (transitions.mjs, E62's `newDay`), before the start-of-day
- * board, which it hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off, nothing
- * plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays until
- * closed (the plan's C3), and stands in for the Night's own summary (Q-E94-5's default; day-summary.mjs). `before` is the
- * clock of the day that ended, `clock` the new one; a Spectator's browser shows the heading and the mood alone
+ * The end-of-day board on this browser, when Night begins (transitions.mjs `boardsOf`, since 13.11.2026: the Night
+ * Eclipse's end, or Evening to Night with none) and at a chapter's end with the next morning, before the start-of-day
+ * board, which it then hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off,
+ * nothing plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays
+ * until closed (the plan's C3), and stands in for the Evening's own summary (Q-E94-5's default; day-summary.mjs
+ * `eveningFoldsIntoBoard`). `before` is the clock of the day that ends, `clock` the new one; a Spectator's browser shows the heading and the mood alone
  * (`dayEndBoardFor`). `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and
  * the notice history is a setting). Answers what `playSequence` answered.
  */
@@ -744,20 +1105,73 @@ function onEscape(event) {
 }
 
 /** The phase moved on this browser (sync.mjs's clock row): a running sequence ends - the entry itself excepted, when
-    the trial is what it was heard for - and the trial's phase starts the entry. Answers the entry's promise or null. */
+    the trial is what it was heard for, and the exit when the trial is what it left - and the trial's phase starts the
+    entry, unless Edit campaign moved it (`edgeShown`, in `playTrialEntry`). Answers the entry's promise or null. */
 export function onPhaseChanged(phase, clock = getClock()) {
-    if (running && !(running.kind === "trialEntry" && phase === "classTrial")) endSequence("cut");
+    // the trial's exit is the phase's own event too (transitions.mjs starts it from the same clock row)
+    if (running && !(running.kind === "trialEntry" && phase === "classTrial") && !(running.kind === "trialExit" && phase !== "classTrial")) endSequence("cut");
     if (phase !== "classTrial") return null;
     return playTrialEntry(clock).catch(err => { console.error(`${MODULE_ID} | the trial's entry failed`, err); return null; });
 }
 
 /**
+ * THE EVENT A LATE BROWSER STILL PLAYS (gaps-111; the header's "LATE FOR 10 MINUTES"). From what this browser holds -
+ * the clock and the chat it was sent - the newest of: the trial's entry (the clock in a Class Trial, its edge stamped
+ * `timeOfDayStartedAt`), a GM's verdict card (its `verdictAt`, at the message's time; one this user cannot see is not
+ * theirs, as it never reached them live) and the start-of-day board (a day the real roll-over stamped, `dayBoard`, at
+ * `dayStartedAt`; a correction writes no stamp and plays nothing, as live). An event counts while `now` is under
+ * `LATE_PLAY_MS` after it - one stamped a little ahead of this browser's server time is the writer's skew, and new - and
+ * when `played` (this browser's record) does not hold it. Every connected browser plays these three live, the GMs, the
+ * dead and a Spectator included (Q-E61-9; a Spectator's start-of-day board is everybody's), so the gate is the one the
+ * live hooks have: what reached this browser. Pure. Answers `{ kind, key, at, message? }` or null. R4934.
+ */
+export function lateSequence({ clock = null, messages = [], now = 0, played = {} } = {}) {
+    const found = [];
+    const trialKey = trialEntryKey(clock);
+    if (trialKey) found.push({ kind: "trialEntry", key: trialKey, at: Number(clock?.timeOfDayStartedAt) });
+    if (startBoardStamped(clock)) {
+        // during the Morning Eclipse the board is the next day's, from the Eclipse's start (`dayStartClock`)
+        const opening = dayStartClock(clock) !== clock;
+        found.push({ kind: "dayStart", key: dayStartKey(dayStartClock(clock)),
+            at: Number(opening ? clock.eclipseStartedAt : (clock.dayStartedAt ?? clock.timeOfDayStartedAt)) });
+    }
+    for (const message of messages ?? []) {
+        if (!message?.author?.isGM || message.visible === false) continue;
+        const at = message.getFlag?.(MODULE_ID, "verdictAt");
+        if (at == null) continue;
+        found.push({ kind: "verdictCut", key: `verdict:${at}`, at: Number(message.timestamp), message });
+    }
+    const fresh = found.filter(e => Number.isFinite(e.at) && now - e.at < LATE_PLAY_MS && !(`${e.kind}\u0000${e.key}` in (played ?? {})));
+    return fresh.sort((a, b) => b.at - a.at)[0] ?? null;
+}
+
+/**
+ * Once at ready, after `registerSequences` (the header's "LATE FOR 10 MINUTES"): play the event `lateSequence` picks,
+ * through the same road its live hook takes, so the table's switch, reduced motion and the sound are as live: the
+ * trial's entry and the cut-in go through `playSequence` (off: the sound alone; still: the still frame), and the
+ * start-of-day board, which the table's switch off never plays live, is not played late either. Writes nothing to the
+ * world. Answers what the road answered, or null.
+ */
+export async function catchUpSequences({ now = serverNow(), on = sequencesOn() } = {}) {
+    if (!ready) return null;
+    const late = lateSequence({ clock: getClock(), messages: game.messages?.contents ?? [], now, played: playedRecord() });
+    if (!late) return null;
+    count("sequence.late");
+    if (late.kind === "trialEntry") return playTrialEntry(getClock());
+    if (late.kind === "verdictCut") return playVerdictCut(late.message);
+    if (late.kind === "dayStart" && on) return playDayStart(getClock(), { on });
+    return null;
+}
+
+/**
  * Once at ready, before foundry-windows.mjs's own Escape listener (module.mjs): from now on an event starts a
- * sequence. The phase's hook starts the entry and ends anything else that plays; a GM's verdict card starts the cut-in.
+ * sequence. The phase's hook starts the entry and ends anything else that plays; a GM's verdict card starts the cut-in;
+ * and an event of the last 10 minutes this browser missed plays once (`catchUpSequences`).
  */
 export function registerSequences() {
     if (ready) return;
     ready = true;
+    setTimeout(() => { catchUpSequences().catch(err => console.error(`${MODULE_ID} | a late sequence failed`, err)); }, 0);
     import("./vault-store.mjs").then(m => { safeImage = m.safeRoomImage; }).catch(() => null);
     window.addEventListener("keydown", onEscape, { capture: true });
     Hooks.on("drpgPhaseChanged", onPhaseChanged);

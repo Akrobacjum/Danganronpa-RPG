@@ -534,7 +534,7 @@ function ringShown(token) {
  * ledger change passed over. Exported for the suite (E90-T3), which runs it on the canvas on screen. Answers how many
  * tokens it painted.
  */
-export function ringPassNow({ ledger = false, placeables = canvas?.tokens?.placeables ?? [] } = {}) {
+function ringPassNow({ ledger = false, placeables = canvas?.tokens?.placeables ?? [] } = {}) {
     count(ledger ? "remnantRing.ledgerPass" : "remnantRing.sightPass");
     let painted = 0;
     for (const token of placeables) {

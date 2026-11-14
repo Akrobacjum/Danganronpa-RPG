@@ -63,6 +63,8 @@ import { contentOf } from "./secret.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /** Flags that make a chat message a presentation. */
 export const TRIAL_FLAGS = {
     /** Marks the message as a presented Truth Bullet. */
@@ -1171,7 +1173,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
  * The run of `trial.evidence` (gm-bridge.mjs) on the primary GM: put `itemId` on `actorId`'s pending Objection.
  * Only the objector's own Objection, still pending, inside its seconds (trial-floor.mjs `pendingFor`), with a Truth
  * Bullet the character holds as the GMs hold it; anything else is refused and changes nothing. The card is filled
- * from the bullet as its holder knows it (`holderView`), and the minute starts here (`fillObjection`).
+ * from the bullet as its holder knows it (`holderView`), and the minute starts here (trial-floor.mjs `fillObjectionInStep`).
  *
  * The card's words are the bullet as the GMs hold it (E79 fix r4-G2; the round-4 review's SEC4-1): `itemAsHeld`
  * decides only that the item is a bullet, and the shown fields were read off the document, where a player's write
@@ -1428,7 +1430,7 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
             ${analysisChoice(offer)}
             <label>${game.i18n.localize("DRPG.Trial.comment")}
                 <textarea name="comment" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"${tipAttr("DRPG.Tips.Trial.saySomethingWithItTooltip")}></textarea></label>
             <p class="drpg-warning">${plural("DRPG.Trial.objectionWarning", { objection: TRIAL.objectionSeconds }, "objection")} ${
                 plural("DRPG.Trial.objectionWarningRebuttal", { rebuttal: TRIAL.rebuttalSeconds }, "rebuttal")}</p>
             ${decisionLine}
@@ -1520,7 +1522,7 @@ export async function repointDialog() {
                     student.id === floor.targetId ? " selected" : ""}>${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
         </form>`,
         footer: {
-            primary: { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"),
+            primary: { action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint"), tooltip: tipText("DRPG.Tips.Trial.rePointTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=target]")?.value ?? "" },
             close: "cancel"
         },
@@ -1635,7 +1637,7 @@ export async function openObjectionLog() {
                         : e.withdrawn ? ` <em>${game.i18n.localize("DRPG.Trial.logWithdrawn")}</em>`
                             : e.overruled ? ` - <em>${game.i18n.localize("DRPG.Trial.logOverruled")}</em>` : ""}${
                     !named.refused && named.messageId === e.id
-                        ? ` <button type="button" data-drpg-overrule="${e.id}">${
+                        ? ` <button type="button" data-drpg-overrule="${e.id}"${tipAttr("DRPG.Tips.Trial.overruleTooltip")}>${
                             game.i18n.localize("DRPG.Floor.bar.overrule")}</button>` : ""}`
                 : game.i18n.localize("DRPG.Trial.presentShort")}</td>
             <td>${foundry.utils.escapeHTML(e.presenter)}</td>

@@ -8,14 +8,18 @@ export const layers = ["ci"];
    line, one run alone under the harness lock - seven minutes stands. E51 fix FG5 (31.10.2026) adds a console's discard:
    374.8 s green and 389.0 s red (each of D1, D3 and D4 waits its 5 s for a row that never comes), one run each alone
    under the harness lock on 4 cores, against 365 s before it (the end review's run) - 31 s from the bound on a red
-   run, so eight minutes. */
-export const timeoutMs = 480000;
+   run, so eight minutes. E43 C4 (13.11.2026) adds the fuzz, its last part: 17 s alone in a probe of its own on 4 cores
+   (630 table packets and 126 others, then its waits); the whole scenario 454.6 s and 467.1 s, two runs alone on 4 cores
+   with it - 13% under nine minutes, so ten. */
+export const timeoutMs = 600000;
 
 import { MARK, standE15, sitE15, proposeE15, approveE15 } from "./76-passages.mjs";
+import { fuzz } from "../lib/fuzz.mjs";
+import { REPO } from "../lib/shim.mjs";
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissionDenials, repoUrl, canary, IDS }) {
+export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissionDenials, repoUrl, canary, IDS, opLog, settingLog }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
@@ -1235,7 +1239,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     /* 7b'. A SECRET PROJECT'S SABOTAGE (E06 C10, 28.09.2026; audit S09-01, L20). Its repair was a
        public countdown named "Repair: <the project>", and its end was announced to the table. p2
        can see "SEC hidden work" and sabotages it; p1 cannot. p1's copy of Daggerheart's countdowns
-       holds the repair under a name that is not the project's and keeps p1 out of it; the GM
+       holds the repair under a name that is not the project's and keeps p1 out of it (since
+       S17-31 by the module alone: the map tells no player apart); the GM
        finishes the repair, and the cards that reach p1 since - documents and any words p1 holds -
        name no project, while p2, who can see it, is told. Then the chat scan for the name. */
     const SECRET_WORK = "SEC hidden work";
@@ -1244,8 +1249,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     { timeout: 60000 });
     const hiddenRepair = await sabotageFromP2(hiddenWork);
     await settle(1000);
+    /* Since S17-31 (1.2.111) a secret countdown's map gives every player one level, so it tells nobody apart: p1's entry
+       is p2's, and what keeps p1 out is the module (canSee, the tray), read here as well. */
     const repairOnP1 = await p1.eval(`const c = game.settings.get("daggerheart", "Countdowns")?.countdowns?.["${hiddenRepair}"] ?? null;
-        return c ? { name: c.name, p1: c.ownership?.[game.user.id] ?? null } : null;`);
+        const P = await import("${repoUrl}/scripts/projects.mjs");
+        return c ? { name: c.name, p1: c.ownership?.[game.user.id] ?? null, p2: c.ownership?.["${p2.userId}"] ?? null,
+            sees: P.canSee("${hiddenRepair}") } : null;`);
     const countOn = c => c.eval(`return game.messages.size;`);
     const heldBefore = { p1: await countOn(p1), p2: await countOn(p2) };
     const thawed = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
@@ -1257,7 +1266,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return { cards: fresh.length, veiled: fresh.filter(m => S.isVeiled(m)).length, named: fresh.filter(names).length };`);
     const repairEnd = { p1: await endOn(p1, heldBefore.p1), p2: await endOn(p2, heldBefore.p2) };
     check("SECURITY: a secret project's repair reaches p1 under no name of the project, sealed, and its end is told to p2 alone",
-        Boolean(hiddenWork && hiddenRepair) && typeof repairOnP1?.name === "string" && !repairOnP1.name.includes(SECRET_WORK) && repairOnP1.p1 === 0
+        Boolean(hiddenWork && hiddenRepair) && typeof repairOnP1?.name === "string" && !repairOnP1.name.includes(SECRET_WORK)
+        && repairOnP1.p1 === repairOnP1.p2 && repairOnP1.sees === false
         && thawed && repairEnd.p1.veiled >= 1 && repairEnd.p1.named === 0 && repairEnd.p2.named >= 1,
         JSON.stringify({ hiddenWork, hiddenRepair, repairOnP1, thawed, repairEnd }));
     await canary.chatScan({ who: ["p1"], titles: [SECRET_WORK], phase: "projects: a secret project's sabotage" });
@@ -3000,6 +3010,37 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: a Listen's Reroll names whom the roller's own browser hears - a death only the GMs hold is not told by it",
         Boolean(listened) && armed.row && armed.gmDead && heard.made && heard.sees.includes("Botan Kage")
         && Boolean(heard.card) && heard.card.includes("Botan Kage"), JSON.stringify({ rooms, listened, armed, heard }));
+
+    /*
+     * 7n'. A TAMPER'S NUMBER TELLS NO BODY THE ROLLER MAY NOT KNOW (the E101 line's review of 1.2.110, V3, 13.11.2026).
+     * E64 C1a gave the fresh scene's -3 to an unfound body of this chapter; a GM counted its whole deaths store and a
+     * player's browser its own copy, so a hit between the two numbers told the player a body lies unfound. Here a death of
+     * this chapter the GMs keep and p1 may not know (Botan's, no row naming p1): p1's own browser reads its default (no
+     * arguments) and the GM scores Aiko's threshold; the two must be one number. Read only where the fresh scene can stand
+     * on the body alone (no incident, no body found, a phase with a fresh scene). Red at 12a7e309: the GM 9, p1 12.
+     */
+    const freshPlant = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { CLEANUP } = await import("${repoUrl}/scripts/config.mjs");
+        const { murderState } = await import("${repoUrl}/scripts/murder.mjs");
+        const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        const clock = (await import("${repoUrl}/scripts/clock.mjs")).getClock() ?? {};
+        const p1 = game.users.find(u => !u.isGM && game.actors.get("${ids.aiko}").testUserPermission(u, "OWNER"));
+        const open = !murderState()?.active && !bodyDiscovery() && !(CLEANUP.freshScene?.until ?? []).includes(clock.phase)
+            && !game.actors.get("${ids.botan}").testUserPermission(p1, "OWNER");
+        if (open) await S.deathStore.patch("${ids.botan}", { chapter: clock.chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+        return { open };`, { timeout: 30000 });
+    await settle(800);
+    const freshOnP1 = await p1.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        return { bonus: C.freshSceneBonus(), dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")) };`);
+    const freshOnGm = await gm.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const read = { dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")), whole: C.freshSceneBonus() };
+        await S.deathStore.drop("${ids.botan}");
+        return read;`, { timeout: 30000 });
+    await settle(300);
+    check("SECURITY: a Tamper's threshold on the GM is the one its roller's own browser shows - no body the roller may not know lowers it",
+        freshPlant.open && freshOnGm.whole > 0 && freshOnP1.bonus === 0 && freshOnP1.dc === freshOnGm.dc,
+        JSON.stringify({ freshPlant, freshOnP1, freshOnGm }));
 
     /*
      * 7o. A CONSOLE'S STARTING SHEET (E29 C2, 05.10.2026; audit S03-45, its code part). Setting
@@ -5605,6 +5646,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: the GM's copy of a bullet's fields is not written into the Truth Bullet answer key",
         inLedger === 0 && guardRan.bullets > 0, JSON.stringify({ inLedger, bullets: guardRan.bullets }));
 
+    /* The bullet's edits' last leftover (E40 C3, 13.11.2026). The guard's copy keeps every guarded field, one the bullet
+       never had as null (truth-bullets.mjs `guardedValues`), and the GM's put-right above wrote that copy back whole, so
+       Botan's bullet ends the phase holding `remnantRef: null` - a key world-secrets.mjs says no Item may carry, which the
+       cluster's state check reads after this scenario. The checks of the phase need the key in that copy (taken out of
+       the put-right, the three whole-list checks read "no record to restore", measured 13.11.2026), so it goes here, once
+       they have run, by the GM's own `unsetFlag`. Nothing after this reads the bullet. */
+    const leftover = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        const had = b ? Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent" : "no bullet";
+        if (had === null) await b.unsetFlag("${MOD}", "remnantRef");
+        return { had, now: b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet" };`);
+    note("the bullet's remnantRef left by the put-right, taken off (E40 C3)", JSON.stringify(leftover));
+
     /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).
      *
@@ -6186,6 +6239,178 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await settle(300);
 
     /*
+     * FORGERIES OF A DEAD STUDENT'S ANSWER TO THE INVITATION (E72 C6, 12.11.2026; DC17, DC18). The Monocub Rule is taken
+     * by the dead student's own player: `monocub.answer` is judged on its owner (`owns`), and on the GMs' row of the
+     * invitation (`cubStore`), never on the packet. The GM marks Botan (p2's) dead and invites him, with p2's windows
+     * held shut so p2 does not answer first. Then p1's console accepts for Botan in p2's name (refused for ownership,
+     * told; Botan no Monocub, the invitation still open); the GM withdraws the invitation; and p2's console accepts for
+     * Botan with none open (refused, told `refused`; Botan no Monocub). The control - p2's yes from the Rule's window -
+     * is 33-bridge-paths A20.
+     */
+    phase("forgeries of a dead student's answer to the invitation", { flow: "monocub-invite" });
+    const p2Auto = await p2.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readInvite = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}"); const row = S.cubStore.get(b.id) ?? null;
+        return { cub: Mc.isMonocub(b), invite: Boolean(row?.invite), accepted: row?.acceptedRule ?? null };`;
+    const inviteSetup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}");
+        globalThis.__s30inviteRow = foundry.utils.deepClone(S.cubStore.get(b.id) ?? null);
+        await C.markDeceased(b);
+        return { open: await Mc.offerMonocub(b) };`, { timeout: 60000 });
+    await settle(800);
+    const inviteForged = await forge("monocub.answer", { actorId: ids.botan, accept: true }, readInvite);
+    check("SECURITY: p1 accepting the Monocub Rule for p2's dead Botan is refused for ownership and told - Botan no Monocub, the invitation still open",
+        inviteSetup.open === true && inviteForged.unchanged && inviteForged.forOwnership && inviteForged.after.cub === false
+            && inviteForged.after.invite === true && inviteForged.told.some(r => r.what === "monocub.answer"),
+        JSON.stringify({ inviteSetup, inviteForged }), { flow: "monocub-invite" });
+    await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); return await Mc.cancelMonocubOffer(game.actors.get("${ids.botan}"));`);
+    await settle(500);
+    const inviteBefore = await gm.eval(readInvite);
+    await p2.eval(`
+        if (!globalThis.__inviteToldHook) {
+            globalThis.__inviteToldHook = true; globalThis.__inviteTold = [];
+            game.socket.on("${SOCKET}", payload => {
+                if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__inviteTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+            });
+        }
+        globalThis.__inviteTold.length = 0;
+        game.socket.emit("${SOCKET}", { action: "monocub.answer", userId: game.user.id, requestId: "SECINVITENONE", actorId: "${ids.botan}", accept: true },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(900);
+    const inviteNone = { before: inviteBefore, after: await gm.eval(readInvite),
+        told: await p2.eval(`return globalThis.__inviteTold.filter(t => t[0] === "SECINVITENONE");`) };
+    check("SECURITY: p2 accepting the Monocub Rule for its own Botan with no invitation open is refused and told - Botan no Monocub",
+        JSON.stringify(inviteNone.before) === JSON.stringify(inviteNone.after) && inviteNone.after.cub === false && inviteNone.after.invite === false
+            && JSON.stringify(inviteNone.told) === JSON.stringify([["SECINVITENONE", "bridge.refused", "refused"]]),
+        JSON.stringify(inviteNone), { flow: "monocub-invite" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}");
+        if (Mc.isMonocub(b)) await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        const was = globalThis.__s30inviteRow; delete globalThis.__s30inviteRow;
+        if (was) await S.cubStore.patch(b.id, was);
+        else if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        return true;`, { timeout: 60000 });
+    await p2.eval(`const was = ${JSON.stringify(p2Auto)}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(300);
+
+    /*
+     * FORGERIES OF A BRIBE (E72 C15 and its end review, 12.11.2026). `bribe.offer` is judged on the payer's owner (`owns`
+     * actorId) and `bribe.answer` on the Monocub's (`owns` cubId), the offer read from the GMs' row (`cubStore`'s
+     * `bribes`), never the packet. The GM makes Botan (p2's), dead, a Monocub and gives Chie (p3's) 2 Hope, with p2's
+     * windows held shut so p2 answers nothing. From consoles: p1 offers Botan a Bribe in Chie's name (refused for
+     * ownership, told; no offer open, Chie's Hope as it was); the GM opens an offer of Chie's itself, and p1 accepts it
+     * for Botan (refused for ownership, told; the offer still open, nothing paid); p2 accepts for its own Botan an offer
+     * not open (refused, told `refused`; nothing paid). The control - p1's offer and p2's yes in the window - is
+     * 33-bridge-paths A21.
+     */
+    phase("forgeries of a Bribe", { flow: "monocub-bribe" });
+    const p2BribeAuto = await p2.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readBribe = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        return { open: Object.keys(S.cubStore.get(b.id)?.bribes ?? {}).length, purse: Mc.purseOf(b), hope: c.system.resources.hope.value };`;
+    const bribeSetup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        globalThis.__s30bribe = { row: foundry.utils.deepClone(S.cubStore.get(b.id) ?? null), hope: c.system.resources.hope.value, bHope: b.system.resources.hope.value };
+        await C.markDeceased(b);
+        await Mc.setMonocub(b, true);
+        await RG.trustedWrite(c, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+        return { cub: Mc.isMonocub(b) };`, { timeout: 60000 });
+    await settle(800);
+    const offerForged = await forge("bribe.offer", { actorId: ids.chie, cubId: ids.botan }, readBribe);
+    check("SECURITY: p1 offering p2's Monocub Botan a Bribe in p3's Chie's name is refused for ownership and told - no offer open, Chie's Hope as it was",
+        bribeSetup.cub === true && offerForged.unchanged && offerForged.forOwnership && offerForged.after.open === 0
+            && offerForged.told.some(r => r.what === "bribe.offer"),
+        JSON.stringify({ bribeSetup, offerForged }), { flow: "monocub-bribe" });
+    const bribeId = await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        return (await Mc.offerBribeOnGm({ actorId: "${ids.chie}", cubId: "${ids.botan}" }))?.bribeId ?? null;`, { timeout: 60000 });
+    await settle(800);
+    const answerForged = await forge("bribe.answer", { cubId: ids.botan, bribeId, accept: true }, readBribe);
+    check("SECURITY: p1 accepting for p2's Monocub Botan a Bribe open to him is refused for ownership and told - the offer still open, nothing paid",
+        Boolean(bribeId) && answerForged.unchanged && answerForged.forOwnership && answerForged.after.open === 1 && answerForged.after.purse === 0
+            && answerForged.after.hope === 2 && answerForged.told.some(r => r.what === "bribe.answer"),
+        JSON.stringify({ bribeId, answerForged }), { flow: "monocub-bribe" });
+    const bribeBefore = await gm.eval(readBribe);
+    await p2.eval(`
+        if (!globalThis.__bribeToldHook) {
+            globalThis.__bribeToldHook = true; globalThis.__bribeTold = [];
+            game.socket.on("${SOCKET}", payload => {
+                if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__bribeTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+            });
+        }
+        globalThis.__bribeTold.length = 0;
+        game.socket.emit("${SOCKET}", { action: "bribe.answer", userId: game.user.id, requestId: "SECBRIBENONE", cubId: "${ids.botan}", bribeId: "SECBRIBENONE0000", accept: true },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(900);
+    const bribeNone = { before: bribeBefore, after: await gm.eval(readBribe),
+        told: await p2.eval(`return globalThis.__bribeTold.filter(t => t[0] === "SECBRIBENONE");`) };
+    check("SECURITY: p2 accepting for its own Monocub Botan a Bribe that is not open is refused and told - nothing paid",
+        JSON.stringify(bribeNone.before) === JSON.stringify(bribeNone.after)
+            && JSON.stringify(bribeNone.told) === JSON.stringify([["SECBRIBENONE", "bridge.refused", "refused"]]),
+        JSON.stringify(bribeNone), { flow: "monocub-bribe" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        const was = globalThis.__s30bribe; delete globalThis.__s30bribe;
+        if (Mc.isMonocub(b)) await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        if (was?.row) await S.cubStore.patch(b.id, was.row);
+        await RG.trustedWrite(c, { "system.resources.hope.value": was?.hope ?? 0 }, { reason: "gmRuling" });
+        await RG.trustedWrite(b, { "system.resources.hope.value": was?.bHope ?? 0 }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await p2.eval(`const was = ${JSON.stringify(p2BribeAuto)}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(300);
+
+    /*
+     * FORGED ASKS AT THE MASTERMIND'S DOOR (E91 C4, C5; D038, 12.11.2026). `mastermind.lairLock` and `passage.lairSeal` are
+     * judged on the sender's own character (`owns` actorId), then on the primary whether that character is the Mastermind
+     * and the sender the owner the door names (`actsAsMastermind`), the lair the GMs' record's. The GM makes Chie (p3's)
+     * the Mastermind with a room of the scene as the lair and cuts a tunnel from it to another room. From p1's console:
+     * each action in Chie's name (refused for ownership, told) and in Aiko's, p1's own, who is not the Mastermind
+     * (refused, told `refused` and nothing more: the role is not said); the lair's lock and the tunnel as they were each
+     * time. The control - p3 locks the Gym and seals its tunnel - is 33-bridge-paths A22.
+     */
+    phase("forged asks at the Mastermind's door", { flow: "mastermind-door" });
+    const doorSetup = await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const R = await import("${repoUrl}/scripts/rooms.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        const centre = name => { const r = R.roomRegions(scene, name)[0]?.shapes?.[0]; return r?.type === "rectangle" ? { x: r.x + r.width / 2, y: r.y + r.height / 2, level: null } : null; };
+        const rooms = R.roomNames(scene).filter(n => centre(n) && !M.isLocked(scene, n));
+        const [lair, beyond] = rooms;
+        globalThis.__s30door = { actorId: MM.mastermindActor()?.id ?? null, room: MM.mastermindLair(), lair };
+        await MM.setMastermind(game.actors.get("${ids.chie}"), { room: lair });
+        const passageId = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [centre(lair), centre(beyond)] }, { scene });
+        globalThis.__s30door.passageId = passageId;
+        return { lair, beyond, passageId };`, { timeout: 60000 });
+    await settle(800);
+    const readLairDoor = `const M = await import("${repoUrl}/scripts/movement.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        return { locked: M.isLocked(game.scenes.get("${IDS.scene}"), ${JSON.stringify(doorSetup?.lair ?? "")}), state: P.PASSAGE_STORES.map.get(${JSON.stringify(doorSetup?.passageId ?? "")})?.state ?? null };`;
+    const lockForChie = await forge("mastermind.lairLock", { actorId: ids.chie, lock: true }, readLairDoor);
+    const lockForAiko = await forge("mastermind.lairLock", { actorId: ids.aiko, lock: true }, readLairDoor);
+    const sealForChie = await forge("passage.lairSeal", { actorId: ids.chie, passageId: doorSetup?.passageId ?? "" }, readLairDoor);
+    const sealForAiko = await forge("passage.lairSeal", { actorId: ids.aiko, passageId: doorSetup?.passageId ?? "" }, readLairDoor);
+    const plainRefusal = (f, action) => f.unchanged && !f.forOwnership && f.reasons.length === 1 && /nothing was carried out/.test(f.reasons[0])
+        && f.told.some(t => t.what === action);
+    check("SEC-D038: p1's forged lock of the Mastermind's room and seal of the passage at its door, in Chie's name and in Aiko's, change nothing - Chie's refused for ownership, Aiko's refused with nothing carried out and no reason (E91 C4, C5)",
+        Boolean(doorSetup?.passageId) && lockForChie.before.locked === false && lockForChie.before.state === "secret"
+            && lockForChie.unchanged && lockForChie.forOwnership && sealForChie.unchanged && sealForChie.forOwnership
+            && plainRefusal(lockForAiko, "mastermind.lairLock") && plainRefusal(sealForAiko, "passage.lairSeal"),
+        JSON.stringify({ doorSetup, lockForChie, lockForAiko, sealForChie, sealForAiko }), { flow: "mastermind-door" });
+    await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const was = globalThis.__s30door; delete globalThis.__s30door;
+        if (was?.passageId) await P.deletePassage(was.passageId);
+        if (was?.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room ?? null });
+        else await MM.clearMastermind();
+        return true;`, { timeout: 60000 });
+    await settle(300);
+
+    /*
      * FORGERIES OF AN OBJECTION (E79 C16, 1.2.79; the owner, 17.10.2026). OBJECTION! is aimed at whoever the primary
      * GM's LiveKit Room counts as speaking (trial.mjs `objectOnPrimary`), its Truth Bullet is chosen after it on the
      * objector's own pending Objection inside its 30 s (`evidenceOnPrimary`), and the card is the primary's. The
@@ -6589,6 +6814,285 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     for (const c of [p1, p3]) await c.eval(`globalThis.__dialogAuto = ${JSON.stringify(readyAuto[c.who])} ?? undefined; if (globalThis.__dialogAuto === undefined) delete globalThis.__dialogAuto; return true;`);
     await settle(500);
 
+    /* FORGERIES OF A ROOM ACTION (E93 C3, 12.11.2026; the owner's audit entry E93 (2)-(5)). `facility.use` from p1's console:
+       Botan's character (not p1's), an action of the Gym while Aiko stands in the Cafeteria, a GM's action named with no roll
+       and with a roll that does not exist - each refused, nothing written: no Hope moved on anyone in the room, no use kept,
+       nothing closed. Then the draw: a Facilities roll naming the Gym's action is not drawn, and one naming the Cafeteria's
+       claimed on Hand is drawn on the Eye the GM set, its record naming that action. The legal road is 33's E93-A. */
+    phase("forgeries of a room action", { flow: "facility" });
+    const facSetup = await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        await F.setRoomActions(scene, "Cafeteria", [{ id: "SECfac", label: "SEC tea", trait: "eye", dc: 10, effects: [{ kind: "hope", n: 3, scope: "present" }] }]);
+        await F.setRoomActions(scene, "Gym", [{ id: "SECgym", label: "SEC weights", trait: "body", dc: 10, effects: [{ kind: "hope", n: 3 }] }]);
+        return { closed: foundry.utils.deepClone(game.settings.get("${MOD}", "facilityClosed") ?? {}) };`, { timeout: 60000 });
+    await settle(500);
+    const readFac = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { hope: ["${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id).system.resources.hope.value),
+            uses: Object.keys(S.facilityUseStore.entries() ?? {}).length, closed: game.settings.get("${MOD}", "facilityClosed") ?? {} };`;
+    const fac = {
+        theirs: await forge("facility.use", { actorId: ids.botan, actionId: "SECfac", total: 30 }, readFac),
+        elsewhere: await forge("facility.use", { actorId: ids.aiko, actionId: "SECgym", total: 30 }, readFac),
+        noRoll: await forge("facility.use", { actorId: ids.aiko, actionId: "SECfac", total: 30, isCritical: true }, readFac),
+        noSuchRoll: await forge("facility.use", { actorId: ids.aiko, actionId: "SECfac", total: 30, rollId: "SECnoSuchRoll000" }, readFac)
+    };
+    const facDraw = {
+        gym: await drawnRoll(p1, ids.aiko, "facility", "body", { hope: 9, fear: 3 }, { context: { facilityId: "SECgym" } }),
+        hand: await drawnRoll(p1, ids.aiko, "facility", "hand", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } })
+    };
+    facDraw.record = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = Object.values(S.rollStore.entries() ?? {}).find(r => r?.messageId === "${facDraw.hand?.messageId ?? ""}") ?? null;
+        return row ? { facility: row.facility ?? null, trait: row.scored?.trait ?? row.legal?.trait ?? null } : null;`);
+    check("SECURITY: a console's room action is refused for another's character, for an action of another room, and for a GM's action with no roll or a roll that does not exist - no Hope moved, no use kept, nothing closed - and each refusal is logged on the GM and told to p1",
+        Object.values(fac).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && fac.theirs.forOwnership && fac.elsewhere.reasons[0].includes("that action is not in the character's room")
+            && fac.noRoll.reasons[0].includes("no roll the GM drew is named") && fac.noSuchRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(fac).slice(0, 3000), { flow: "facility" });
+    check("SECURITY: the GM draws no Facilities roll for an action not in the character's room, and draws one claimed on Hand on the Eye the GM set, its record naming the action",
+        facDraw.gym?.messageId === null && Boolean(facDraw.hand?.messageId) && facDraw.record?.facility === "SECfac" && facDraw.record?.trait === "eye",
+        JSON.stringify(facDraw), { flow: "facility" });
+    /* A FORGED SINGLE PAYMENT UNDER TOLL (the coordinator's fix of 12.11.2026, from E93's watched gap). Under the Overflow's
+       Toll a GM's room action costs two actions, and the GM draws its roll only on a payment of the whole price, read on the
+       GM (roll-draw.mjs `ticketCovers`, the price facilities.mjs `facilityCost` with the Toll the GM reads). p1's console
+       pays one action and asks the draw: not drawn. The control: p1 pays two in one write, as the Facilities window does,
+       and the roll is drawn. Red at 30ad52a: the one-action payment was drawn. */
+    const tollWas = await gm.eval(`const o = await import("${repoUrl}/scripts/overflow.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const clock = getClock();
+        const stored = foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {});
+        const rules = foundry.utils.deepClone(game.settings.get("${MOD}", "overflowRules") ?? {});
+        const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, { on: key === "toll" }]));
+        await game.settings.set("${MOD}", "overflowRules", { ...rules, effects });
+        await game.settings.set("${MOD}", "overflow", { ...stored, active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "toll" } });
+        return { stored, rules, toll: o.overflowFacilityToll() };`, { timeout: 60000 });
+    await settle(500);
+    const payTwo = `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${ids.aiko}");
+        if (actionsLeft(who) < 2) await trustedWrite(who, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        await new Promise(r => setTimeout(r, 400));
+        await spendAction(who, 2, { quiet: true }); }`;
+    const tollDraw = {
+        toll: tollWas?.toll ?? null,
+        one: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }),
+        two: await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            ${payTwo}
+            globalThis.__forceRoll = { hope: 9, fear: 3 };
+            let out = null;
+            try { out = await A.rollTrait(game.actors.get("${ids.aiko}"), "eye", { actionKey: "facility", remember: false, context: { facilityId: "SECfac" } }); }
+            catch {} finally { delete globalThis.__forceRoll; }
+            return { messageId: out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null };`, { timeout: 60000 })
+    };
+    await gm.eval(`await game.settings.set("${MOD}", "overflowRules", ${JSON.stringify(tollWas?.rules ?? {})});
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(tollWas?.stored ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
+    check("SECURITY: under Toll the GM draws no roll of a GM's room action on a console's payment of one action, and draws it on a payment of two",
+        tollDraw.toll === 1 && tollDraw.one?.messageId === null && Boolean(tollDraw.two?.messageId),
+        JSON.stringify(tollDraw), { flow: "facility" });
+    /* A ROOM ACTION SHUT BY LOCKDOWN IS NOT DRAWN (the coordinator's check of 12.11.2026: each new state read where a roll
+       is drawn). Its use was refused after the roll (facilities.mjs `facilityShut` in `handleFacilityUse`), but the GM drew
+       the roll a console paid for. Now refused at the draw (roll-draw.mjs `facilityOfDraw`). Red at ca2a649: drawn. */
+    const lockWas = await gm.eval(`const o = await import("${repoUrl}/scripts/overflow.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const clock = getClock();
+        const stored = foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {});
+        const rules = foundry.utils.deepClone(game.settings.get("${MOD}", "overflowRules") ?? {});
+        const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, { on: key === "lockdown" }]));
+        await game.settings.set("${MOD}", "overflowRules", { ...rules, effects });
+        await game.settings.set("${MOD}", "overflow", { ...stored, active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "lockdown" } });
+        return { stored, rules, lockdown: Boolean(o.overflowFacilityStates()?.lockdown) };`, { timeout: 60000 });
+    await settle(500);
+    const lockDraw = { lockdown: lockWas?.lockdown ?? null,
+        shut: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }) };
+    await gm.eval(`await game.settings.set("${MOD}", "overflowRules", ${JSON.stringify(lockWas?.rules ?? {})});
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(lockWas?.stored ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
+    check("SECURITY: under Lockdown the GM draws no roll of a GM's room action, though a console paid for it",
+        lockDraw.lockdown === true && lockDraw.shut?.messageId === null,
+        JSON.stringify(lockDraw), { flow: "facility" });
+    await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const scene = game.scenes.get("${IDS.scene}");
+        await F.setRoomActions(scene, "Cafeteria", []); await F.setRoomActions(scene, "Gym", []);
+        await game.settings.set("${MOD}", "facilityClosed", ${JSON.stringify(facSetup?.closed ?? {})});
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* FORGERIES OF A DASH (E69 C5, 12.11.2026). `dash.settle` from p1's console: for Botan's character, and for Aiko with
+       no roll named - each refused, no free crossing granted. The legal road is 33's E69-A. */
+    phase("forgeries of a Dash", { flow: "dash" });
+    const readDash = `return ["${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id).getFlag("${MOD}", "freeMoveGrants") ?? 0);`;
+    const dash = {
+        theirs: await forge("dash.settle", { actorId: ids.botan, total: 30, isCritical: true }, readDash),
+        noRoll: await forge("dash.settle", { actorId: ids.aiko, total: 30, isCritical: true }, readDash)
+    };
+    check("SECURITY: a console's Dash is refused for another's character and with no roll named - no free crossing granted - and each refusal is logged on the GM and told to p1",
+        Object.values(dash).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && dash.theirs.forOwnership && dash.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(dash).slice(0, 2000), { flow: "dash" });
+
+    /* A CONSOLE'S EAVESDROP AND ECHOES (E69 C6, C7, 13.11.2026). From p1's console: `listen.eavesdrop` for Botan's
+       character, and for Aiko with no roll named and no eavesdrop of this time of day to repeat; `listen.stop` for Botan's;
+       `listen.echoes` for Botan's - each refused, no eavesdrop kept on the GM. The legal roads are 33's E69-C. */
+    phase("a console's eavesdrop and Echoes", { flow: "eavesdrop" });
+    const readEars = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.eavesdropStore.entries() ?? {}).sort() : [];`;
+    const ears = {
+        theirs: await forge("listen.eavesdrop", { actorId: ids.botan, room: "Gym", total: 30, isCritical: true }, readEars),
+        noRoll: await forge("listen.eavesdrop", { actorId: ids.aiko, room: "Gym", total: 30, isCritical: true }, readEars),
+        stopTheirs: await forge("listen.stop", { actorId: ids.botan }, readEars),
+        echoesTheirs: await forge("listen.echoes", { actorId: ids.botan }, readEars)
+    };
+    check("SECURITY: a console's eavesdrop is refused for another's character and with no roll and nothing to repeat, its Stop and its Echoes for another's character - no eavesdrop kept - and each refusal is logged on the GM and told to p1",
+        Object.values(ears).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && ears.theirs.forOwnership && ears.stopTheirs.forOwnership && ears.echoesTheirs.forOwnership
+            && /nothing was carried out: |not standing in any room/.test(ears.noRoll.reasons[0] ?? "") && !ears.noRoll.forOwnership,
+        JSON.stringify(ears).slice(0, 2000), { flow: "eavesdrop" });
+
+    /* THE KILLER BEHIND A "?", FROM A CONSOLE (E69 C8, 13.11.2026; mask-gm.mjs). The GM hides Aiko (p1's) as the killer of
+       Botan (p2's), as an opening on Hope does (`maskKiller`, the incident's state handed in). p2, the victim, and p3, a
+       witness, then read what a console reads: Aiko's tokens' name, picture and the module's flags on them, and every
+       packet of the module's socket that reached them while the mask went up. None may name Aiko by her name or her actor
+       id. What does: a token document keeps its actorId (Foundry's limit, known leak foundry-masked-token-actor). p2's
+       console's reveal is refused. Put back: the mask, p1's microphone. */
+    phase("the killer behind a \"?\", read from a console", { flow: "mask" });
+    const killerName = await gm.eval(`return game.actors.get("${ids.aiko}").name;`);
+    const startListen = `globalThis.__maskPackets = []; game.socket.on("${SOCKET}", p => globalThis.__maskPackets.push(JSON.stringify(p))); return true;`;
+    await p2.eval(startListen);
+    await p3.eval(startListen);
+    const maskWas = await gm.eval(`const perms = foundry.utils.deepClone(game.users.get("${p1.userId}")._source.permissions ?? {});
+        const K = await import("${repoUrl}/scripts/mask-gm.mjs");
+        const done = await K.maskKiller({ active: true, stage: "incident", killerId: "${ids.aiko}", victimId: "${ids.botan}", indirect: false });
+        return { perms, done };`, { timeout: 30000 });
+    await settle(1200);
+    const consoleView = `const tokens = game.scenes.contents.flatMap(s => s.tokens.filter(t => t.actorId === "${ids.aiko}"));
+        return { tokens: tokens.map(t => ({ name: t.name, src: t.texture?.src ?? null, flags: JSON.stringify(t.flags?.["${MOD}"] ?? {}) })),
+            packets: globalThis.__maskPackets.slice(), viaActor: tokens.map(t => game.actors.get(t.actorId)?.name ?? null) };`;
+    const maskView = { p2: await p2.eval(consoleView), p3: await p3.eval(consoleView) };
+    const names = view => JSON.stringify({ tokens: view?.tokens ?? [], packets: view?.packets ?? [] });
+    const named = view => names(view).includes(killerName) || names(view).includes(ids.aiko);
+    // p2's console asks the reveal of a character p2 does not own: the GMs' masks must not move.
+    const readMasks = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return Object.keys(S.maskStore.entries() ?? {}).sort();`;
+    const masksBefore = await gm.eval(readMasks);
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "mask.reveal", userId: "${p2.userId}", requestId: "forge-mask-reveal", actorId: "${ids.aiko}" },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+    await settle(900);
+    const masksAfter = await gm.eval(readMasks);
+    const revealRefusals = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "mask.reveal"')).map(e => e.message);`);
+    maskView.revealTheirs = { masksBefore, masksAfter, unchanged: JSON.stringify(masksBefore) === JSON.stringify(masksAfter) && masksBefore.includes(ids.aiko),
+        forOwnership: revealRefusals.some(r => /sender does not own/.test(r)) };
+    await gm.eval(`const K = await import("${repoUrl}/scripts/mask-gm.mjs"); await K.endMask("${ids.aiko}", "suite");
+        const V = await import("${repoUrl}/scripts/voice.mjs"); await V.settleTrialVoices();
+        const user = game.users.get("${p1.userId}"); const was = ${JSON.stringify(maskWas?.perms ?? {})};
+        if ((user._source.permissions ?? {}).BROADCAST_AUDIO === false && was.BROADCAST_AUDIO !== false) {
+            const gone = (await import("${repoUrl}/scripts/utils.mjs")).forcedDeletion();
+            await user.update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(was, "BROADCAST_AUDIO") ? was.BROADCAST_AUDIO : gone });
+        }
+        for (const m of game.messages.filter(m => m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000 && m.content?.includes("?"))) await m.delete();
+        return true;`, { timeout: 30000 });
+    await settle(800);
+    check("SECURITY: behind the \"?\" a victim's and a witness's console read Aiko's tokens as \"?\" with the mystery man, and neither her name nor her id in the tokens' name, picture, the module's flags on them or any packet that reached them; p2's console's reveal is refused",
+        maskWas?.done === true && ["p2", "p3"].every(k => maskView[k]?.tokens?.length > 0
+            && maskView[k].tokens.every(t => t.name === "?" && t.src === "icons/svg/mystery-man.svg") && !named(maskView[k]))
+            && maskView.revealTheirs.unchanged && maskView.revealTheirs.forOwnership,
+        JSON.stringify({ maskWas, p2: maskView.p2, p3: maskView.p3, revealTheirs: maskView.revealTheirs }).slice(0, 3000), { flow: "mask" });
+    /* The known leak, a Foundry limit: the token document keeps its actor, so a console resolves the "?" to the killer. */
+    check("a masked token's actor is read from a player's console - on p2 and p3 the \"?\" token's actorId resolves to the killer's name",
+        !["p2", "p3"].some(k => (maskView[k]?.viaActor ?? []).includes(killerName)),
+        JSON.stringify({ p2: maskView.p2?.viaActor, p3: maskView.p3?.viaActor }),
+        { knownLeak: "foundry-masked-token-actor", measured: maskWas?.done === true });
+
+    /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
+       tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */
+    phase("forgeries of a tail", { flow: "tail" });
+    const readTails = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.tailStore.entries() ?? {}).sort() : [];`;
+    const tail = {
+        theirs: await forge("tail.start", { tailerId: ids.botan, targetId: ids.aiko, total: 30, isCritical: true, unseenTotal: 30 }, readTails),
+        noRoll: await forge("tail.start", { tailerId: ids.aiko, targetId: ids.botan, total: 30, isCritical: true, unseenTotal: 30 }, readTails)
+    };
+    check("SECURITY: a console's tail is refused for another's character and with no roll named - no tail kept - and each refusal is logged on the GM and told to p1",
+        Object.values(tail).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && tail.theirs.forOwnership && tail.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(tail).slice(0, 2000), { flow: "tail" });
+
+    /* FORGERIES OF SHUT THE DOOR (E74 C2, 12.11.2026). `door.shut` from p1's console: for Botan's character, and for Aiko
+       with no roll named - each refused, no barricade kept and no flag set. The legal road is 33's E74-A. */
+    phase("forgeries of Shut the Door", { flow: "door-shut" });
+    const readBarricades = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.barricadeStore.entries() ?? {}).sort() : [];`;
+    const shut = {
+        theirs: await forge("door.shut", { actorId: ids.botan, total: 30 }, readBarricades),
+        noRoll: await forge("door.shut", { actorId: ids.aiko, total: 30 }, readBarricades)
+    };
+    check("SECURITY: a console's Shut the Door is refused for another's character and with no roll named - no barricade kept - and each refusal is logged on the GM and told to p1",
+        Object.values(shut).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && shut.theirs.forOwnership && shut.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(shut).slice(0, 2000), { flow: "door-shut" });
+
+    /* FORGERIES OF FORCE THE DOOR (E74 C3, 12.11.2026). `door.force` from p1's console at Dorm B: for Botan's character, and
+       for Aiko with no roll named - each refused, nothing broken. The legal road is tier 2's E74-T2. */
+    phase("forgeries of Force the Door", { flow: "door-force" });
+    // The rooms of the scene on screen, each [name, broken]: a list that cannot be empty, so "unchanged" compares something.
+    const readBroken = `const M = await import("${repoUrl}/scripts/movement.mjs"); const scene = canvas.scene; return M.allRooms(scene).map(r => [r, M.roomBroken(scene, r)]);`;
+    const force = {
+        theirs: await forge("door.force", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true }, readBroken),
+        noRoll: await forge("door.force", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true }, readBroken)
+    };
+    check("SECURITY: a console's Force the Door is refused for another's character and with no roll named - nothing broken - and each refusal is logged on the GM and told to p1",
+        Object.values(force).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && force.theirs.forOwnership && force.noRoll.reasons[0].includes("no roll the GM drew is named") && force.theirs.before?.length > 0,
+        JSON.stringify(force).slice(0, 2000), { flow: "door-force" });
+
+    /* FORGERIES OF PICK THE LOCK (E74 C4, 12.11.2026). `door.pick` from p1's console at Dorm B: for Botan's character, and for
+       Aiko with no roll named - each refused, nobody walked anywhere. The legal road is tier 2's E74-T3. */
+    phase("forgeries of Pick the Lock", { flow: "door-pick" });
+    const readPlaces = `return ["${ids.aiko}", "${ids.botan}"].map(id => { const t = canvas.scene.tokens.find(t => t.actorId === id); return t ? [t.x, t.y] : null; });`;
+    const pickLock = {
+        theirs: await forge("door.pick", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces),
+        noRoll: await forge("door.pick", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces)
+    };
+    check("SECURITY: a console's Pick the Lock is refused for another's character and with no roll named - nobody walked in - and each refusal is logged on the GM and told to p1",
+        Object.values(pickLock).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && pickLock.theirs.forOwnership && pickLock.noRoll.reasons[0].includes("no roll the GM drew is named")
+            && pickLock.theirs.before?.every(place => Array.isArray(place)),
+        JSON.stringify(pickLock).slice(0, 2000), { flow: "door-pick" });
+
+    /* FORGERIES OF KEEP WATCH (E74 C6, 12.11.2026). `watch.declare` from p1's console: for Botan's character, and for Aiko
+       with no roll named - each refused, no watch kept. The legal road is tier 2's E74-T4. */
+    phase("forgeries of Keep Watch", { flow: "keep-watch" });
+    const readWatches = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.watchStore.entries() ?? {}).sort() : [];`;
+    const watch = {
+        theirs: await forge("watch.declare", { actorId: ids.botan, total: 30, isCritical: true }, readWatches),
+        noRoll: await forge("watch.declare", { actorId: ids.aiko, total: 30, isCritical: true }, readWatches)
+    };
+    check("SECURITY: a console's Keep Watch is refused for another's character and with no roll named - no watch kept - and each refusal is logged on the GM and told to p1",
+        Object.values(watch).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && watch.theirs.forOwnership && watch.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(watch).slice(0, 2000), { flow: "keep-watch" });
+
+    /* FORGERIES OF A KNOCK (E74, 12.11.2026). `door.knock` from p1's console: for Botan's character, and for Aiko at Dorm B,
+       which nobody has barricaded - each refused and logged on the GM, nothing told to anyone (a report nobody waits on:
+       `quiet`). The legal road is 33's E74-B. */
+    phase("forgeries of a knock", { flow: "door-knock" });
+    const readCards = `return game.messages.filter(m => m.whisper?.length && ["${ids.aiko}", "${ids.botan}"].includes(m.speaker?.actor)).length;`;
+    const knock = {
+        theirs: await forge("door.knock", { actorId: ids.botan, room: "Dorm A" }, readCards),
+        open: await forge("door.knock", { actorId: ids.aiko, room: "Dorm B" }, readCards)
+    };
+    check("SECURITY: a console's knock is refused for another's character and at a door nobody barricaded - no card - and each refusal is logged on the GM",
+        Object.values(knock).every(f => f.unchanged && f.reasons.length === 1) && knock.theirs.forOwnership
+            && knock.open.reasons[0].includes("the character is not in that room"),
+        JSON.stringify(knock).slice(0, 2000), { flow: "door-knock" });
+
+    /* A FORGED PASS (E74, 12.11.2026; DA9 as the plan has it). The pick's pass reaches its owner as a GM's packet
+       (lockpick-gm.mjs, `lockpick.passes`), which the owner's move veto reads. p2's console sends p1 one, for Aiko into the
+       locked Dorm B, addressed to p1 and stamped far ahead: p1's browser takes a pass only from a GM, so its copy holds
+       nothing and its veto reads no pass. The legal road is 33's E74-C. */
+    phase("a forged pass", { flow: "door-pick" });
+    const forgedPass = await p2.eval(`game.socket.emit("module.${MOD}", { action: "lockpick.passes", userId: "USERP10000000000",
+        passes: { "${ids.aiko}": { sceneId: canvas.scene.id, room: "Dorm B" } }, stamps: { "${ids.aiko}": Date.now() + 86400000 } },
+        { recipients: ["USERP10000000000"] }); return true;`);
+    await settle(800);
+    const passOnP1 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { copy: Object.keys(S.lockpickCopy.read() ?? {}), holds: M.holdsPass(game.actors.get("${ids.aiko}"), canvas.scene, "Dorm B") };`);
+    check("SECURITY: a pass a player's console sends another player is not taken - the copy holds nothing and the veto reads no pass",
+        forgedPass === true && JSON.stringify(passOnP1) === JSON.stringify({ copy: [], holds: false }),
+        JSON.stringify({ forgedPass, passOnP1 }), { flow: "door-pick" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the
@@ -6631,6 +7135,27 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify({ noticeCard, ...noticeSeen }));
     if (noticeCard) await gm.eval(`await game.messages.get("${noticeCard}")?.delete(); return true;`);
     await settle(300);
+
+    /* THE FUZZ (E43 C4, 13.11.2026; the plan's item 3, its "31-fuzz"; lib/fuzz.mjs says what is sent and measured). From
+       p1's console: every request of the four tables the primary GM judges, in six shapes - bare, every field null, every
+       field of a type it is not, every field too long or too big, every id one that names nothing, the null and ghost
+       shapes again with own `__proto__` and `constructor` keys - and every other packet name a module listener reads, in
+       three junk shapes, to every browser. Red-first by mutants, run on a copy of the tree (docs/dev/e43/STATUS.md). */
+    phase("the fuzz: junk from a player's console to every request and listener");
+    const fz = await fuzz({ gm, p1, p2, p3, settle, opLog, settingLog, repoUrl, repo: REPO });
+    const fzEvidence = JSON.stringify({ counts: fz.counts, codes: fz.codes, writes: fz.writes, errors: fz.errors, unanswered: fz.unanswered,
+        handlerFailed: fz.handlerFailed, handlerFailedOnGm: fz.handlerFailedOnGm, badCodes: fz.badCodes, answered: fz.answered,
+        polluted: fz.polluted, note: fz.note });
+    check("SECURITY (fuzz): every request of the four tables was sent in its shapes, and every other listener's packet name in its three",
+        fz.counts.actions >= 80 && fz.counts.tablePackets >= fz.counts.actions * 6 && fz.counts.others >= 30, fzEvidence);
+    check("SECURITY (fuzz): no exception escaped the module on any browser, and nothing was polluted through a prototype key",
+        Object.keys(fz.errors).length === 0 && fz.polluted.length === 0, fzEvidence);
+    check("SECURITY (fuzz): nothing in the world was written but p1's own pre-session note, which note.save takes from any text, and it is put back",
+        fz.writes.every(w => w === `gm update User ${fz.p1}`) && fz.note.putBack, fzEvidence);
+    check("SECURITY (fuzz): every request p1 waits on was answered - a refusal with a code of the closed list, logged on the GM, or note.save's done - and none ended as a handler that threw",
+        fz.unanswered.length === 0 && fz.handlerFailed.length === 0 && fz.handlerFailedOnGm.length === 0 && fz.badCodes.length === 0
+            && fz.counts.refused > fz.counts.tablePackets / 2 && fz.refusalsLogged > 0 && fz.answered.every(a => a.startsWith("note.save ")),
+        fzEvidence);
 
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));

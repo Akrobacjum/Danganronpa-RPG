@@ -72,7 +72,7 @@
 
 import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VARIATION, GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { log, error, ownerOf, esc, plural, markLanguage } from "./utils.mjs";
+import { log, error, playerOwns, esc, plural, markLanguage } from "./utils.mjs";
 import { wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
 import { dataTable, iconButton } from "./ui-kit.mjs";
 import {
@@ -263,7 +263,8 @@ async function onFloorChanged() {
     const overruled = floor?.gmNote?.key === "DRPG.Floor.gmNoteOverrule";
     if (worldWas.known && into(FLOOR_MODES.rebuttal) && !overruled) playSfx("rebuttal");
     /* A ROUND (E70 C7; E70-45, amend 0): a Panic Round's start for the whole table, and `yourTurn` for the speaker's
-       player alone, once a turn - a GM owns every student, so the question is whose character it is (`ownerOf`). */
+       player alone, once a turn - a GM owns every student, so the question is whose character it is (`playerOwns`:
+       any of its owners since E91 C6). */
     if (worldWas.known && into(FLOOR_MODES.panic)) playSfx("panicStart");
     /* THE CLOSING ARGUMENT (E70 C8; amend 0): its start for the whole table, once a Closing (its volunteers' window, by
        its stamp - the Closing's mode stands through its phases, so `into` would sound again after every exchange), and
@@ -275,7 +276,7 @@ async function onFloorChanged() {
         ? `closing|${floor.closing.openedAt ?? "-"}|${floor.closing.step ?? "-"}` : null;
     const roundTurn = (mode === FLOOR_MODES.testimony || mode === FLOOR_MODES.panic) && floor?.holderId
         ? `${floor.round?.openedAt ?? "-"}|${floor.round?.step ?? "-"}` : closingTurn;
-    const mineNow = Boolean(roundTurn) && ownerOf(game.actors.get(floor.holderId))?.id === game.user.id;
+    const mineNow = Boolean(roundTurn) && playerOwns(game.actors.get(floor.holderId));
     if (worldWas.known && mineNow && worldWas.turnStep !== roundTurn) playSfx("yourTurn");
     worldWas.turnStep = roundTurn;
 
@@ -288,8 +289,8 @@ async function onFloorChanged() {
  *
  * `isOwner` is useless for this: a GM owns every actor in the world, so asking
  * it would give a GM "your turn" on every player's turn. The question is whose
- * character it is, which is what `ownerOf` answers - the same helper the
- * whispers use to decide who a card belongs to.
+ * character it is, which is what `playerOwns` answers: any player who owns it,
+ * a co-owner as well since E91 C6 (D078), as a card goes to every owner.
  */
 async function onIncidentChanged() {
     const { murderState, isTheirTurn } = await import("./murder.mjs");
@@ -297,7 +298,7 @@ async function onIncidentChanged() {
 
     const mine = Boolean(state) && game.actors.some(actor =>
         actor.type === "character"
-        && ownerOf(actor)?.id === game.user.id
+        && playerOwns(actor)
         && isTheirTurn(actor));
 
     if (worldWas.known && mine && !worldWas.myTurn) playSfx("yourTurn");
@@ -313,7 +314,7 @@ async function onIncidentChanged() {
 function onActorFlagged(actor, changes) {
     const changed = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAGS.monocub}`);
     if (changed === undefined) return;
-    if (game.user.isGM || ownerOf(actor)?.id === game.user.id) playSfx("monocub");
+    if (game.user.isGM || playerOwns(actor)) playSfx("monocub");
 }
 
 /**
@@ -573,7 +574,7 @@ export function soundSlidersHtml() {
  * floor (R2027). The chooseHint, testHint and clearHint tooltips went with the owner's "Test and Clear as buttons whose
  * words are in aria-label and the tooltip"; the file box keeps its title (`DRPG.Sound.severalHint`). GM only.
  */
-export function soundEffectsHtml() {
+export function soundEffectsHtml({ lead = "" } = {}) {
     const L = key => game.i18n.localize(key);
     const keys = Object.keys(SFX_EVENTS);
     const groups = Object.entries(SFX_CATEGORIES).map(([category, meta]) => ({ group: meta.label, count: groupCountLine(category), category, hint: meta.hint }));
@@ -600,6 +601,7 @@ export function soundEffectsHtml() {
         <p class="drpg-help">${L("DRPG.Sound.autosave")}</p>
         <p class="drpg-help" data-drpg-sfx-count>${countLine()}</p>
         ${legend}
+        ${lead}
         ${markGroups(table, groups)}`;
 }
 
@@ -662,18 +664,6 @@ function countLine() {
 }
 
 /**
- * Wire the panel from the dialog's `render`, never before it.
- *
- * DialogV2 stringifies its content, so listeners attached to markup do not
- * survive the trip - the same reason `wirePortraitPickers` documents, and the
- * reason the FilePicker here has to be opened from a live element.
- *
- * EVERYTHING HERE SAVES AS IT IS TOUCHED, and there is no Apply for it. The
- * volumes are this browser's and want to be heard while being dragged; a
- * mapping wants to be testable the moment it is chosen, and a Test button that
- * needs the window closed and reopened first is a Test button nobody trusts.
- */
-/**
  * Every `[data-drpg-slider]` under `root` wired: its range writes its volume as it moves (`setSfxVolume`), its output
  * follows. The Sound window's (below) and the settings window's Sound section's (E49 A1d) - the one writer of both.
  */
@@ -694,6 +684,18 @@ export function wireVolumeSliders(root) {
     }
 }
 
+/**
+ * Wire the panel from the dialog's `render`, never before it.
+ *
+ * DialogV2 stringifies its content, so listeners attached to markup do not
+ * survive the trip - the same reason `wirePortraitPickers` documents, and the
+ * reason the FilePicker here has to be opened from a live element.
+ *
+ * EVERYTHING HERE SAVES AS IT IS TOUCHED, and there is no Apply for it. The
+ * volumes are this browser's and want to be heard while being dragged; a
+ * mapping wants to be testable the moment it is chosen, and a Test button that
+ * needs the window closed and reopened first is a Test button nobody trusts.
+ */
 export function wireSoundPanel(root) {
     /* ---- volumes ---------------------------------------------------- */
     wireVolumeSliders(root);

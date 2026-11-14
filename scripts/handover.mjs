@@ -362,17 +362,6 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
 }
 
 /**
- * Move an item from one character to another.
- *
- * Refused when the receiver is already carrying their limit. A GM handing
- * something over is making a ruling and may go over the cap; two players
- * swapping crowbars are not, and letting them would make the guide's limits
- * a formality anyone could route around.
- *
- * Created before deleted, deliberately. If the create fails the giver still has
- * their item; the other order can lose it entirely.
- */
-/**
  * Take something off a body.
  *
  * A handover with nobody on the other side of it: the dead cannot refuse, so
@@ -489,7 +478,7 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
  * time of day - and what it adds is an end: a roll thrown and never taken counts for no Take of a later time of day,
  * where without it a console could throw one in a quiet hour and hold it for days. Pure, but for the clock's default.
  */
-export function lootMark(clock = getClock()) {
+function lootMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
 }
 
@@ -926,6 +915,17 @@ async function mintLootBullet(taker, body, loot) {
     }
 }
 
+/**
+ * Move an item from one character to another.
+ *
+ * Refused when the receiver is already carrying their limit. A GM handing
+ * something over is making a ruling and may go over the cap; two players
+ * swapping crowbars are not, and letting them would make the guide's limits
+ * a formality anyone could route around.
+ *
+ * Created before deleted, deliberately. If the create fails the giver still has
+ * their item; the other order can lose it entirely.
+ */
 export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!game.user.isGM) return null;
 

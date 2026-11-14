@@ -87,6 +87,34 @@ export const GMS_ACTIONS = Object.freeze({ hello: "gms.hello", state: "gms.state
 const FORMAT = 1;
 /** The key of a record-kind store's one entry. */
 export const RECORD = "record";
+
+/*
+ * THE FIELDS ONLY THE GMS HOLD, IN ONE REGISTRY (E43, 13.11.2026; the plan's item 2). A secret project's fields
+ * (projects-secrecy.mjs PROJECT_SECRET_FIELDS), an incident's cast (gm-stores.mjs CAST_FIELDS) and a trace's answer key
+ * (world-secrets.mjs, everySetting's fields) were three lists in three files, and world-secrets.mjs said E43 would make
+ * them one. This file imports config.mjs alone (above), so it holds none of them: each file that owns a list registers it
+ * (`registerSecretFields`), once, at import, and SECRET_FIELDS answers the owners and the names. R5203 holds each owner's
+ * list to its file's and every name apart from the keys the world sends every browser - a module world setting's key, a
+ * FLAGS name, a flag a module file writes by its literal name.
+ */
+const secretOwners = new Map();
+
+/** `owner`'s secret fields, registered by the file that holds them; a second registration of an owner throws. */
+export function registerSecretFields(owner, fields) {
+    if (secretOwners.has(owner)) throw new Error(`the secret fields of ${owner} are registered twice`);
+    secretOwners.set(owner, Object.freeze([...fields]));
+}
+
+export const SECRET_FIELDS = Object.freeze({
+    /** The owners, sorted. */
+    owners: () => [...secretOwners.keys()].sort(),
+    /** One owner's fields, or an empty list. */
+    of: owner => [...(secretOwners.get(owner) ?? [])],
+    /** Every name, once, sorted. */
+    names: () => [...new Set([...secretOwners.values()].flat())].sort(),
+    /** Whether `name` is one of them. */
+    has: name => [...secretOwners.values()].some(list => list.includes(name))
+});
 /*
  * A `gms.state` larger than this, serialized, is sent in parts cut by key. What a
  * real server carries in one packet has not been measured (LIVE-E04-02); the
@@ -108,7 +136,7 @@ export function stableJson(value) {
 }
 
 /** FNV-1a over a text, 32 bits as hex: a digest two GMs compare before sending a whole section. */
-export function fnv1a(text) {
+function fnv1a(text) {
     let h = 0x811c9dc5;
     for (let i = 0; i < text.length; i++) {
         h ^= text.charCodeAt(i);
@@ -521,7 +549,7 @@ export function fileSection(section, { now = Infinity, skew = 0, otherWorld = fa
 }
 
 /** How many rows an old store holds: a spec may say (a record is one row); else an array's length or an object's keys. */
-export function legacyRows(spec, legacy) {
+function legacyRows(spec, legacy) {
     if (spec?.legacyCount) return spec.legacyCount(legacy);
     if (Array.isArray(legacy)) return legacy.length;
     return isPlain(legacy) ? Object.keys(legacy).length : 0;
@@ -580,7 +608,7 @@ export function copyStamps(s) {
 }
 
 /** The newest of a copy's stamps, 0 for none. */
-export const newestStamp = stamps => Math.max(0, ...Object.values(stamps ?? {}));
+const newestStamp = stamps => Math.max(0, ...Object.values(stamps ?? {}));
 
 /**
  * Whether `next` is newer than `held`, part by part: at least as new in every part
@@ -1556,7 +1584,9 @@ export function createGmStoreEngine(env) {
     }
     function defineCopy(spec) {
         if (!copies.has(spec.name)) copies.set(spec.name, { spec: Object.freeze({ fallback: null, ...spec }), cache: new Map(), writing: false, seenCuts: new Map() });
-        return { name: spec.name, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), stamps: () => mineStamps(spec.name),
+        /* `spec` as a store's handle has it (E43, 13.11.2026): live.mjs hears a copy as a store, by `spec.key` (`watch.stores`;
+           projects-map.mjs's project card, R5204). */
+        return { name: spec.name, spec: copies.get(spec.name).spec, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), stamps: () => mineStamps(spec.name),
             receive: (v, s) => receiveCopy(spec.name, v, s), claim: () => claimCopy(spec.name), forget: () => forgetCopy(spec.name) };
     }
 

@@ -69,8 +69,8 @@ import { isMonokuma, isSpectator, poolUserFor } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
-import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection } from "./gm-stores.mjs";
-import { spectatorViewer, watcherOf, flaggedSpectator } from "./spectator.mjs";
+import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection, mastermindStore } from "./gm-stores.mjs";
+import { spectatorViewer, watcherOf, flaggedSpectator, isMonocubCorpse } from "./spectator.mjs";
 import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
 import {
@@ -1005,11 +1005,7 @@ export function diagnoseScenes({ lastChecks = new Map(), scenes = game.scenes ??
         const { pct: uncovered, floor } = sceneUncoveredShare(scene);
         const errors = Number(lastChecks.get(scene.id)) || 0;
 
-        const off = fogDisabledValue();
-        const ready = scene.tokenVision === false
-            && scene.environment?.globalLight?.enabled === true
-            && (scene.fog?.mode === undefined || scene.fog.mode === off)
-            && uncovered <= UNCOVERED_LIMIT_PCT && !errors;
+        const ready = sceneVisionReady(scene) && uncovered <= UNCOVERED_LIMIT_PCT && !errors;
 
         // In the table's language, marked as the cast report marks its rows (E20 C2, S01-23): "ok" and "!!"
         // and "% of the map belongs to no room" were English on a Polish table.
@@ -1060,6 +1056,19 @@ export function fogOffPatch(scene) {
 
     // v13 and earlier: a boolean.
     return fog.exploration === false ? {} : { "fog.exploration": false };
+}
+
+/**
+ * Whether a scene stands as the room fog needs it: Foundry's own token vision off, its global light on and its fog
+ * exploration off - otherwise the players see black there and nothing says why. Out of `diagnoseScenes` (E101 item 2),
+ * so the Season checklist's rooms row asks the same question Pre-season's report asked before the two were one window.
+ */
+export function sceneVisionReady(scene) {
+    if (!scene) return false;
+    const off = fogDisabledValue();
+    return scene.tokenVision === false
+        && scene.environment?.globalLight?.enabled === true
+        && (scene.fog?.mode === undefined || scene.fog.mode === off);
 }
 
 /** Whichever member of Foundry's fog-mode enum means "do not explore". */
@@ -1222,7 +1231,7 @@ export async function resetLedger() {
  * still carry. Both are the group - the same fact, stored in two places - each tried (`everyPart`), and the store's
  * players are sent the cleared rows (`resetLedger`).
  */
-export async function clearSeasonDiscovered() {
+async function clearSeasonDiscovered() {
     await everyPart(() => game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {}), () => resetLedger());
 }
 
@@ -1386,6 +1395,9 @@ function registerLedgerRoad() {
                     // Asked while tier 2 holds the stores: answered once it lets them go, from this world's cells.
                     await whenGmStoresAudible();
                     await discoveryStore.whenHydrated();
+                    // The Mastermind's record too (the 1.2.110 review, E72 reader #8): it leaves the Mastermind's row out
+                    // of a Monocub's and a Spectator's fog (gm-stores.mjs `cubFogSection`, `spectatorFogSection`).
+                    await mastermindStore.whenHydrated();
                     sendStoreTo(sender);
                     return;
                 case FOG_SHARE_ASK:
@@ -1870,7 +1882,8 @@ function isMine(token, gm = game.user.isGM) {
 
     if (gm) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
     // A Spectator stands in no room of the viewer's (E92 C4): its fog is the class's map (`fogSets`), its walk finds nothing.
-    return Boolean(token.isOwner) && actor.type === "character" && !flaggedSpectator(actor);
+    // Nor a Monocub's corpse beside the token it walks (E62 C3b fix): the body discovers nothing.
+    return Boolean(token.isOwner) && actor.type === "character" && !flaggedSpectator(actor) && !isMonocubCorpse(token.document);
 }
 
 /* ==========================================================================
@@ -3933,7 +3946,7 @@ function stopDrift() {
  */
 
 /** The fewest milliseconds between two pictures of the drift: ten a second at most (E88-08). */
-export const RASTER_STEP_MS = 100;
+const RASTER_STEP_MS = 100;
 
 /** The drift's state: the offset as it accumulates (`raw`) and the one the tiles show (`shown`), on a clock of its own. */
 export function driftState() {
@@ -4061,7 +4074,7 @@ function onScreen(node) {
 
 /**
  * Let `node` (the raster's group or the backdrop) draw its picture in its place: its own render, kept, draws it live
- * whenever the picture is not the frame's, and the render into the picture itself (`heldBusy` on the node).
+ * whenever the picture is not the frame's, and the render into the picture itself (`drpgHeldDrawing` on the node).
  */
 export function holdStill(node, kind) {
     if (!node || node.drpgHeldRender) return;
@@ -4290,6 +4303,9 @@ async function reactToMove(tokenDoc) {
         const room = roomOfToken(tokenDoc);
         if (!room) return;
         await recordDiscovery(scene, actor, room);
+        /* A Secret Passage's "finished" card held for this character's player since it was finished elsewhere (PV,
+           13.11.2026; the owner's rule #3): posted on this entry. By `import()`: projects-seen.mjs reaches this file. */
+        await (await import("./projects-seen.mjs")).tellFoundOnEntry(actor, scene?.id ?? null, room);
     } catch (err) {
         error("Could not record a room discovery", err);
     }

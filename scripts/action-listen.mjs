@@ -14,13 +14,16 @@
  * family it reads the shared layer alone.
  */
 
-import { spendAction } from "./actions.mjs";
-import { roomOfActor, locateActor } from "./movement.mjs";
+import { ACTIONS, INFILTRATE } from "./config.mjs";
+import { spendAction, actionsLeft } from "./actions.mjs";
+import { roomOfActor, locateActor, neighbouringRooms } from "./movement.mjs";
 import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { actionWindow } from "./action-menus.mjs";
+import { actionWindow, chooseVariant } from "./action-menus.mjs";
+import { watchShutWhy } from "./action-watch.mjs";
+import { isEclipse } from "./settings.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -40,6 +43,51 @@ export function listenLabels(neighbours, known) {
         : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
 }
 
+/** Each row's icon in the Infiltrate window. */
+const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", echoes: "fa-tower-broadcast", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-road-barrier", force: "fa-hand-fist", pick: "fa-key", keepWatch: "fa-eye" });
+/** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
+const BUILT = new Set(["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"]);
+
+/**
+ * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
+ * (config.mjs `INFILTRATE`'s order), each with its price and why it is shut: Listen in a room with no neighbour (until
+ * C1 that was a warning after the tile was pressed), a row not built yet. Read by `performListen` and by tier 1's R3756.
+ */
+export function infiltrateRows(actor) {
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = neighbouringRooms(scene, roomOfActor(actor));
+    return (ACTIONS.listen.variants ?? ["listen"]).map(key => {
+        const row = INFILTRATE[key] ?? {};
+        const why = !BUILT.has(key) ? game.i18n.localize("DRPG.Infiltrate.notBuilt")
+            : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours")
+                : key === "keepWatch" ? watchShutWhy()
+                    : key === "echoes" ? echoesShutWhy() : null;
+        return {
+            value: key, icon: ROW_ICONS[key] ?? "fa-circle",
+            label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
+            hint: `${plural("DRPG.Action.willCost", { n: row.cost ?? 1, left: actionsLeft(actor) })} · ${
+                game.i18n.localize(`DRPG.Infiltrate.row.${key}.hint`)}`,
+            disabled: Boolean(why), why: why ?? "",
+            /* One word per kind of button (E100 item 6; the r112 review's G1, the coordinator's default of 13.11.2026): a
+               row that rolls from this press says Roll, one that opens a window of its own (which says Roll) says Next.
+               With no `confirm` the window said `chooseVariant`'s fallback, Do it (R4105). */
+            confirm: game.i18n.localize(ROLLS_FROM_THE_ROW.has(key) ? "DRPG.Action.roll" : "DRPG.Action.next")
+        };
+    });
+}
+
+/** Infiltrate's rows that roll from the window's own press: no window of their own follows (R4105). Echoes rolls
+ *  nothing, but its press is the action and no window of its own follows, so it says Roll with them (E69 C7). */
+const ROLLS_FROM_THE_ROW = new Set(["dash", "shut", "keepWatch", "echoes"]);
+
+/**
+ * Why Echoes' row is shut now, or null (E69 C7; Q-E69-3's default): struck through with its reason in an Eclipse, as the
+ * window's `showShut` draws a shut row. The GM refuses it there as well (echoes-gm.mjs `echoesRefusal`). R6024.
+ */
+export function echoesShutWhy({ eclipse = isEclipse() } = {}) {
+    return eclipse ? game.i18n.localize("DRPG.Infiltrate.echoes.notInEclipse") : null;
+}
+
 /**
  * Listen - fully automatic, no GM.
  *
@@ -53,8 +101,23 @@ export function listenLabels(neighbours, known) {
  * line deliberately.
  */
 export async function performListen(actor, def, options) {
+    // The Infiltrate window first (E69 C1): its rows, the first usable one picked; Listen goes on to its room below.
+    const variant = options.variant ?? (await chooseVariant({
+        actor, title: def.label, intro: briefingBlock(actor, "listen", def), options: infiltrateRows(actor), showShut: true
+    }))?.value ?? null;
+    if (variant === "dash") return performDash(actor, options);
+    if (variant === "echoes") return performEchoes(actor, options);
+    if (variant === "tail") return (await import("./action-tail.mjs")).performTail(actor, options);
+    if (variant === "shut") return (await import("./action-doors.mjs")).performShut(actor, options);
+    if (variant === "force") return (await import("./action-doors.mjs")).performForce(actor, options);
+    if (variant === "pick") return (await import("./action-doors.mjs")).performPick(actor, options);
+    if (variant === "keepWatch") return (await import("./action-watch.mjs")).performWatch(actor, options);
+    if (variant !== "listen") return null;
     const cost = options.free ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
+    // A free repeat of this time of day's eavesdrop (E69 C6) needs no action: the price is asked once the room is picked.
+    const { ownEavesdropRow, markNow } = await import("./eavesdrop-gm.mjs");
+    const repeat = ownEavesdropRow(actor.id)?.mark === markNow();
+    if (!repeat && !canAfford(actor, cost)) return null;
 
     const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
     const here = roomOfActor(actor);
@@ -97,6 +160,11 @@ export async function performListen(actor, def, options) {
     if (!target || target === "cancel") return null;
     const shownAs = labelOf.get(target) ?? target;
 
+    // A FREE REPEAT (E69 C6): an eavesdrop on this room earlier in this time of day is repeated with no action and no
+    // roll; the primary GM holds it to its own row (eavesdrop-gm.mjs `freeRepeat`).
+    if (await eavesdropAgain(actor, scene, target, shownAs)) return { success: true, room: target, free: true };
+
+    if (repeat && !canAfford(actor, cost)) return null;
     // Paid before the dice - see `abort` and ACT-07 above it.
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
@@ -154,6 +222,106 @@ export async function performListen(actor, def, options) {
 
     await whisperToOwner(actor, `${rollHead(def, roll)}${lines.join("")}`, rollCardFlags(def, roll));
 
+    // The card first, then the eavesdrop on the room picked (Q-E69-2's default; E69 C6, eavesdrop-gm.mjs).
+    if (outcome.success) await eavesdropAfter(actor, { room: target, shownAs, roll });
+
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "listen", roll, outcome });
     return outcome;
+}
+
+/**
+ * LISTEN'S EAVESDROP, ASKED (E69 C6, 13.11.2026; the owner's 10.11 (a)). After a good roll the primary GM is asked to move
+ * this player's voice into `room`'s channel with the microphone blocked (`listen.eavesdrop`, the roll named so the GM
+ * reads its own record of it); a line says so when it did. With no GM connected nothing is asked: Listen stays the card
+ * it was. Without voice per room the GM answers that nothing moved and nothing is said here (the GMs are told).
+ */
+async function eavesdropAfter(actor, { room, shownAs, roll }) {
+    const { gmOnline } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) return null;
+    const { requestEavesdrop } = await import("./bridge-asks.mjs");
+    const { rollInHand } = await import("./action-pipeline.mjs");
+    const res = await requestEavesdrop({ actorId: actor.id, room, total: roll.total, isCritical: Boolean(roll.isCritical),
+        rollId: rollInHand(actor)?.messageId ?? null });
+    if (res.ok && res.value?.moved) await tellEavesdrop(actor, shownAs);
+    return res.ok ? res.value ?? null : null;
+}
+
+/** Whether `room` is a free repeat for `actor` this time of day, by the owner's copy; if so it is asked, and answers true. */
+async function eavesdropAgain(actor, scene, room, shownAs) {
+    const { ownEavesdropRow, freeRepeat, markNow } = await import("./eavesdrop-gm.mjs");
+    if (!freeRepeat(ownEavesdropRow(actor.id), { mark: markNow(), sceneId: scene?.id ?? null, into: room })) return false;
+    const { gmOnline } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) return false;
+    const { requestEavesdrop } = await import("./bridge-asks.mjs");
+    const res = await requestEavesdrop({ actorId: actor.id, room });
+    if (!res.ok) return true;
+    if (res.value?.moved) await tellEavesdrop(actor, shownAs);
+    return true;
+}
+
+/** The listener's line under the Infiltrate tile's glyph: where they listen, and where Stop listening is. */
+function tellEavesdrop(actor, shownAs) {
+    return whisperToOwner(actor, { glyph: "ACTIONS.listen",
+        body: `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Listen.eavesdrop.started", { room: shownAs }))}</p>` });
+}
+
+/**
+ * ECHOES (E69 C7, 13.11.2026; the owner's 10.11 (b); echoes-gm.mjs). One action, no roll: the primary GM names the nearest
+ * room by crossings that holds a living student of another player, or none. Refused here in an Eclipse (Q-E69-3's
+ * default) before anything is paid; with no GM connected nothing is paid; a refusal on the GM gives the action back.
+ */
+export async function performEchoes(actor, options = {}) {
+    const shut = echoesShutWhy();
+    if (shut) {
+        ui.notifications.warn(shut);
+        return null;
+    }
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) {
+        sayNotDone("listen.echoes", "noGm", { nothingSpent: true });
+        return null;
+    }
+    const cost = options.free ? 0 : INFILTRATE.echoes.cost;
+    if (!canAfford(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
+    const { requestEchoes } = await import("./bridge-asks.mjs");
+    const res = await requestEchoes({ actorId: actor.id });
+    if (!res.ok) return abort(actor, paid);
+    const room = typeof res.value?.room === "string" ? res.value.room : null;
+    const text = room ? game.i18n.format("DRPG.Infiltrate.echoes.found", { room }) : game.i18n.localize("DRPG.Infiltrate.echoes.nobody");
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${foundry.utils.escapeHTML(text)}</p>` });
+    return { room };
+}
+
+/**
+ * DASH (E69 C5, 12.11.2026; config.mjs `INFILTRATE.dash`). One action paid here, a Leg roll the primary GM draws (its
+ * statistic the GM's config's, `actionKey` "dash"), then `dash.settle`: the GM reads the total off its own record of the
+ * roll and grants the free crossings its band earns (bridge-runs-acts.mjs `handleDash`). With no GM connected nothing is
+ * paid. The card says how many came.
+ */
+export async function performDash(actor, options = {}) {
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) {
+        sayNotDone("dash.settle", "noGm", { nothingSpent: true });
+        return null;
+    }
+    const cost = options.free ? 0 : INFILTRATE.dash.cost;
+    if (!canAfford(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
+    const roll = await rollTrait(actor, INFILTRATE.dash.traits[0], {
+        actionKey: "dash", title: game.i18n.localize("DRPG.Infiltrate.row.dash.label"),
+        dc: INFILTRATE.dash.bands.map(b => b.min).join(" / ")
+    });
+    if (!roll) return abort(actor, paid);
+    const { requestDash } = await import("./bridge-asks.mjs");
+    const { rollInHand } = await import("./action-pipeline.mjs");
+    const res = await requestDash({ actorId: actor.id, total: roll.total, isCritical: Boolean(roll.isCritical),
+        rollId: rollInHand(actor)?.messageId ?? null });
+    if (!res.ok) return null;
+    const moves = Number(res.value?.moves) || 0;
+    // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${plural("DRPG.Infiltrate.dashResult", { n: moves })}</p>` });
+    return { roll, moves };
 }

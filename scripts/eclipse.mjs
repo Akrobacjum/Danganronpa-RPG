@@ -16,19 +16,19 @@
  * advance while one is running; it sits between them.
  */
 
-import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
+import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS, TIMES_OF_DAY } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
-import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack } from "./clock.mjs";
+import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack, openingDayPatch, clearMorningDraft } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, log, error, plural, cardHead, esc, isPrimaryGm,
+import { announce, whisperToOwner, whisperToOwnerOnly, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
-import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
+import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy, timedCrossingsOf } from "./gm-stores.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
@@ -79,6 +79,15 @@ export function eclipseAllowance(clock = getClock()) {
 }
 
 /**
+ * Crossings `actor` may make in the Eclipse: the Eclipse's allowance (`eclipseAllowance`) and the extra crossings a room
+ * action gave that character (Q-E93-3; gm-stores.mjs `timedCrossingsOf`). `null` stays unlimited.
+ */
+export function eclipseAllowanceFor(actor, clock = getClock()) {
+    const base = eclipseAllowance(clock);
+    return base === null ? null : base + (actor?.id ? timedCrossingsOf(actor.id) : 0);
+}
+
+/**
  * Crossings used in the running Eclipse, keyed by actor id: the GMs' store on a GM's
  * browser, the owner's copy of their own characters on a player's (E05, audit S10-39 -
  * until 1.2.64 a world setting every browser held). A row of another Eclipse counts
@@ -107,7 +116,7 @@ export function movesUsed(actor) {
  * (`eclipseAllowance`). `game.drpg.eclipseMovesLeft` (E52 C6, S18-90).
  */
 export function movesLeft(actor, clock = getClock()) {
-    const allowance = eclipseAllowance(clock);
+    const allowance = eclipseAllowanceFor(actor, clock);
     if (allowance === null) return null;
     return Math.max(0, allowance - movesUsed(actor));
 }
@@ -124,6 +133,18 @@ export function movesLeft(actor, clock = getClock()) {
  * (the API's road too) still refuses itself. Each refusal keeps its record below.
  */
 export async function startRefusal(clock = getClock()) {
+    const { murderState } = await import("./murder.mjs");
+    return startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() });
+}
+
+/**
+ * `startRefusal`'s three refusals over what it reads handed in, synchronous: the body's record (`bodyDiscovery()`) and
+ * the incident (`murderState()`). ONE ANSWER FOR THE GATE AND THE CHEVRON (A113-C2-7, 13.11.2026): hud.mjs
+ * `buildTimeRow` dimmed the GM's chevron by its own copy of the body and incident checks, which agreed with these and
+ * would not have followed a change to them; it reads this now, with the HUD's clock. Pure, so R6002 asks it over
+ * every state the two checked.
+ */
+export function startRefusalOf(clock, { body = null, incident = null } = {}) {
     /*
      * NOT OVER A BODY NOBODY HAS ANSWERED (E11 C3, 1.2.73; audit S06-05). A body found holds the
      * game until the Investigation starts (`bodyDiscovery`, whose record lasts until the phase
@@ -141,7 +162,7 @@ export async function startRefusal(clock = getClock()) {
      * Investigation was refused with "start the Investigation first" (E11 fix r1-G3; early review
      * EARLY-C3-1; tier 2 "a body announced in the Investigation holds no Eclipse").
      */
-    if (bodyDiscovery() && clock.phase !== "investigation") return "DRPG.Eclipse.bodyFirst";
+    if (body && clock.phase !== "investigation") return "DRPG.Eclipse.bodyFirst";
 
     /*
      * NOT OVER A RUNNING INCIDENT (E17 C7, 26.10.2026; audit S10-07, the owner's Q3 (a) of 19.10: "najpierw zamknij
@@ -161,8 +182,7 @@ export async function startRefusal(clock = getClock()) {
      * offer comes back and the betrayer is told" opens it there; measured 26.10.2026, it failed with "the Eclipse did
      * not start" while the refusal took Stage 6 too). So the refusal holds while the stage is not `resolution`.
      */
-    const { murderState } = await import("./murder.mjs");
-    if (murderState() && murderState().stage !== "resolution") return "DRPG.Eclipse.incidentFirst";
+    if (incident && incident.stage !== "resolution") return "DRPG.Eclipse.incidentFirst";
 
     /*
      * NOT IN A CLASS TRIAL (E13 fix r1-F3, 12.10.2026; the orchestrator's default of the same day,
@@ -246,8 +266,15 @@ export async function startEclipse() {
     // the `refilledFor` it found and the boundary before it (clock.mjs `boundaryMemory`). On the server's clock (E37 fix FG2;
     // the end review's C-m4): the day summary closes the time of day there (day-summary.mjs `summaryWindow`), and its start
     // and its cards are stamped on that clock - a GM's clock behind it cut the last cards off, or every one.
-    await setClock({ eclipse: true, eclipseStartedAt: serverNow(), refilledFor: boundary,
+    /* THE MORNING ECLIPSE OPENS THE DAY ON THE BOARDS (13.11.2026; the owner's rule of that day: "The start-of-day
+       animation should show at the start of the Morning Eclipse"). The GM's morning line, the mood and the stamp of the
+       day it leads into go into this one write (clock.mjs `openingDayPatch`), so every browser's start-of-day board shows
+       them as the Eclipse begins (transitions.mjs `boardsOf`); its end keeps them and writes neither again (sequence.mjs
+       `dayStartPatch`, `opened`). The day's number, the session and every rule's day boundary still move at its end. */
+    const morning = await openingDayPatch(opening);
+    const opened = await setClock({ ...morning.patch, eclipse: true, eclipseStartedAt: serverNow(), refilledFor: boundary,
         lastAdvance: boundaryMemory(opening, boundary, snapshot) });
+    if (opened && morning.draft) await clearMorningDraft();
 
     /*
      * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
@@ -437,8 +464,27 @@ export async function endEclipse({ advance = true } = {}) {
            come here. */
         const closing = await withTakeBack(getClock());
         const last = takeBackFor(closing, boundaryStamp(closing));
-        await setClock({ eclipse: false, ...afterTakeBack(closing, last) });
+        /* AND A MORNING ECLIPSE ENDED WITHOUT ADVANCING TAKES BACK THE DAY IT OPENED ON THE BOARDS (13.11.2026): its start
+           wrote the next day's stamp and the GM's morning line (`openingDayPatch`); the line goes back to this GM's draft
+           and the stamp goes, so the roll-over that comes later writes both as if no Eclipse had been held. The start-of-day
+           board it played stays played on each browser (one start per key: sequence.mjs `dayStartKey`). */
+        const undoOpening = closing.dayBoard != null && Number(closing.dayBoard) === (Number(closing.day) || 0) + 1
+            && closing.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+        if (undoOpening && closing.morningLine) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, closing.morningLine).catch(() => null);
+        await setClock({ eclipse: false, ...afterTakeBack(closing, last), ...(undoOpening ? { dayBoard: null, morningLine: null } : {}) });
         if (last) await takeBackBoundary(last);
+        /* AND WHAT ITS START ENDED (A113-C2-6, the coordinator's follow-up, 13.11.2026): the timed effects and the unused
+           lock passes end as an Eclipse starts since C2-6, so they come back with the rest - a misclick costs them no
+           more than before. A barricade is not put back, as before. */
+        if (last) {
+            try {
+                const stamp = boundaryStamp(closing);
+                await (await import("./timed-effects.mjs")).putBackAtTakeBack(stamp);
+                await (await import("./lockpick-gm.mjs")).putBackPassesAtTakeBack(stamp);
+            } catch (err) {
+                error("Could not put back what the Eclipse's start ended", err);
+            }
+        }
         await announce({
             flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
             content: `<p><strong>${timeOfDayLabel()}</strong> - ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
@@ -967,9 +1013,10 @@ export function placementStatus() {
         actor: a,
         room: roomOfActor(a),
         moved: used[a.id] ?? 0,
-        // `null` on a free-placement Eclipse: there is no budget to have left.
-        left: allowance === null ? null : Math.max(0, allowance - (used[a.id] ?? 0)),
-        allowance
+        // `null` on a free-placement Eclipse: there is no budget to have left. Each character's own, a room action's extra
+        // crossings counted (Q-E93-3, `eclipseAllowanceFor`).
+        left: allowance === null ? null : Math.max(0, eclipseAllowanceFor(a) - (used[a.id] ?? 0)),
+        allowance: eclipseAllowanceFor(a)
     }));
 }
 
@@ -1009,7 +1056,7 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
      * the same question the rest of the file already asks, and `null` still
      * means what it always meant.
      */
-    const allowance = eclipseAllowance(clock ?? getClock());
+    const allowance = eclipseAllowanceFor(actor, clock ?? getClock());
     const free = allowance === null;
 
     if (!free) {
@@ -1098,7 +1145,8 @@ async function recordMove(actor, to = null) {
  * With `card: false` the card is not posted here but handed back as `tell`, for a crossing
  * this GM has still to write (E80 fix r1-G2; the review's E80-C2-5 = E80-C3-9): a 'Go through'
  * is counted before the primary moves the token (movement.mjs `settleCrossingOnGm`), and a
- * card posted then stayed when the write failed and the count was taken back (`unrecordMove`),
+ * card posted then stayed when the write failed and the count was taken back (`uncountCrossingInStep`,
+ * through movement.mjs `refundCrossingOnGm`),
  * telling the owner the student had crossed into a room the token never reached. The caller
  * calls `tell()` once the write stands (passages-gm.mjs `crossTunnel`).
  *
@@ -1130,7 +1178,7 @@ export async function countCrossingInStep(actorId, { to = null, card = true, mad
     const actor = game.actors.get(actorId);
     const id = eclipseId();
     if (!actor || !id) return null;
-    const allowance = eclipseAllowance();
+    const allowance = eclipseAllowanceFor(actor);
     /* A CROSSING SEEN IS COUNTED ONCE (E17 C2, 26.10.2026; audit S10-44). The primary counts a player's crossing where it
        sees one (`seen`, movement.mjs `judgeArrival`), whether or not the owner's browser asks, and an honest one is both
        seen and asked: the count is the larger of the two (settings.mjs `eclipseCountOf`). An ask the sightings already
@@ -1168,15 +1216,10 @@ export async function countCrossingInStep(actorId, { to = null, card = true, mad
  * Take one counted crossing back, GM side (E80 C2, 18.10.2026): a 'Go through' the primary counted
  * (`applyRecordedMove`, movement.mjs `settleCrossingOnGm`) and could not write, so the token never moved.
  * The owner is sent their copy again. That crossing's veiled card was never posted: it waits for the write
- * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back.
+ * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back. Runs inside a
+ * step of the character's `crossingKey`, `crossTunnel`'s (movement.mjs `refundCrossingOnGm`, its one road; the
+ * step of its own beside it, which nothing called, went in E56 C6).
  */
-export async function unrecordMove(actorId) {
-    if (!game.user.isGM) return false;
-    await eclipseMoveStore.whenHydrated();
-    return serialWrite(crossingKey(actorId), () => uncountCrossingInStep(actorId));
-}
-
-/** `unrecordMove`'s, inside a step of the character's `crossingKey`: its own, or `crossTunnel`'s (`refundCrossingOnGm`). */
 export async function uncountCrossingInStep(actorId) {
     if (!game.user.isGM) return false;
     await eclipseMoveStore.whenHydrated();
@@ -1374,7 +1417,7 @@ export async function liftEclipseMoves() {
 }
 
 /** Every crossing this GM's browser holds, of any Eclipse, taken away (the season reset). */
-export async function clearEclipseMoves() {
+async function clearEclipseMoves() {
     if (!game.user.isGM) return;
     if (isPrimaryGm()) await eclipseMoveStore.clear();
     else await eclipseMoveStore.dropMany(Object.keys(eclipseMoveStore.entries()));
@@ -1385,7 +1428,7 @@ export async function clearEclipseMoves() {
  * crossings are a GM store since E05: the reset's cut takes them on every GM and every owner's copy, and this clears
  * what this browser holds. Each is named for its Eclipse, so none would count in the new season.
  */
-export async function clearSeasonEclipseMoves() {
+async function clearSeasonEclipseMoves() {
     await clearEclipseMoves();
 }
 

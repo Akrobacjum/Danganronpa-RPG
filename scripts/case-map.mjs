@@ -19,11 +19,9 @@
  *
  * E99 READS: `caseGraphHtml` (the graph alone, any size of container), `mapPlace`, `edgePath` and `nodeState`.
  */
-import { esc, plural } from "./utils.mjs";
-import { REMNANT_TYPES } from "./config.mjs";
-import { caseRows, caseNodeOf } from "./case-schema.mjs";
-import { remnantById } from "./remnants.mjs";
-import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
+import { esc } from "./utils.mjs";
+import { REMNANT_TYPES, TRUTH_BULLET_TYPES } from "./config.mjs";
+import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
    places the drawn nodes at their measured size and moves the camera; read here, and by E99, under these names. */
@@ -34,13 +32,15 @@ export { MAP_GEOMETRY, mapPlace, edgePath, TILE_GUTTER, placeTileControls } from
  */
 export function nodeState(node, finders = null) {
     if (!node?.evidence) return "schema";
+    // a planned Autopsy once sent (13.11.2026), a planned Truth Bullet once given (E104)
+    if (node.kind === "autopsy" || node.kind === "bullet") return node.sent ? "sent" : "planned";
     if (node.planned) return "planned";
     const names = finders?.get?.(tokenIdOf(node.trace)) ?? null;
     return names && names.size ? "held" : "onMap";
 }
 
 /** The token id of a ledger key `sceneId.tokenId` (the bullets' answer keys name the token, investigation.mjs). */
-export function tokenIdOf(key) {
+function tokenIdOf(key) {
     const s = String(key ?? "");
     const dot = s.indexOf(".");
     return dot < 0 ? s : s.slice(dot + 1);
@@ -52,7 +52,15 @@ const F = (key, data) => game.i18n.format(key, data);
 /** A node's kind as its strip reads: the Remnant's type for evidence, the schema's kind otherwise. */
 export function kindLabel(node) {
     if (node.evidence) {
-        if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES.incident?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
+        if (node.kind === "autopsy") {
+            const label = TRUTH_BULLET_TYPES.autopsy?.label ?? L("DRPG.CaseMap.kind.remnant");
+            // numbered where the chapter plans more than one (13.11.2026)
+            return node.of > 1 && Number.isInteger(node.n) ? F("DRPG.CaseMap.autopsyNth", { label, n: node.n }) : label;
+        }
+        if (node.planned && node.kind === "final") return REMNANT_TYPES.final?.label ?? L("DRPG.CaseMap.kind.remnant");
+        // a planned Truth Bullet by its real type (E104)
+        if (node.kind === "bullet") return TRUTH_BULLET_TYPES[node.realType]?.label ?? L("DRPG.CaseMap.kind.remnant");
+        if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES[node.type ?? "incident"]?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
         return REMNANT_TYPES[node.type]?.label ?? REMNANT_TYPES[node.kind]?.label ?? L("DRPG.CaseMap.kind.remnant");
     }
     return L(`DRPG.CaseMap.kind.${node.kind}`);
@@ -64,8 +72,12 @@ export function modeLabel(mode) {
     return game.i18n.has?.(key) ? L(key) : String(mode ?? "");
 }
 
-const STATE_KEYS = { held: "DRPG.CaseMap.state.held", onMap: "DRPG.CaseMap.state.onMap", planned: "DRPG.CaseMap.state.planned" };
-const STATE_GLYPHS = { held: "held", onMap: "on-map", planned: "planned" };
+/* A state's word and glyph, each state `nodeState` answers but "schema". "sent" since audit A113-C3-1 (13.11.2026): 6964661f
+   taught `nodeState` the answer and both files its word, and this table neither, so a sent Autopsy or a given Truth Bullet
+   lost its state on the node and its State row on the panel (R5902 reads the states off `nodeState` itself). */
+const STATE_KEYS = { held: "DRPG.CaseMap.state.held", onMap: "DRPG.CaseMap.state.onMap", planned: "DRPG.CaseMap.state.planned",
+    sent: "DRPG.CaseMap.state.sent" };
+const STATE_GLYPHS = { held: "held", onMap: "on-map", planned: "planned", sent: "send" };
 /**
  * A glyph's slot (E48's inventory names the drawing: tests-glyphs.mjs rows 33, 34, 92-94). The drawings of E97's and E98's
  * rows are in tools/glyphs.json but not yet declared as `--drpg-pix-*` in styles/pixel-icons.css, which tools/glyph-map.mjs
@@ -90,7 +102,7 @@ function reachOf(node, reach) {
 /** The trial's marks on a node (E99 C5; case-trial.mjs): a class each, and its words in the node's label. */
 const MARK_KEYS = Object.freeze({ presented: "DRPG.CaseTrial.presented", hinted: "DRPG.CaseTrial.hint", ticked: "DRPG.CaseTrial.ticked" });
 
-function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [], controlled = false }) {
+function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [], controlled = false, editing = false }) {
     const kind = kindLabel(node);
     const name = nameOf(node);
     const stateText = STATE_KEYS[state] ? L(STATE_KEYS[state]) : "";
@@ -100,7 +112,7 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
     const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : "", text,
         ...marks.filter(m => MARK_KEYS[m]).map(m => L(MARK_KEYS[m]))].filter(Boolean).join(", ");
     const cls = ["drpg-case-node", `drpg-case-node--${node.kind}`, `is-${state}`, ...(loose ? ["is-loose"] : []),
-        ...(selected ? ["is-selected"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(controlled ? ["has-controls"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
+        ...(selected ? ["is-selected"] : []), ...(editing ? ["is-editing"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(controlled ? ["has-controls"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
     const mode = !node.evidence && node.mode ? `<span class="drpg-case-node-mode">${esc(modeLabel(node.mode))}</span>` : "";
     /* THE WHOLE CONTENT, ALWAYS (E97 fix; the owner's "zawsze wyswietlaly cala swoja zawartosc"): the head's parts wrap
        onto a second line rather than cut the kind, the name is whole, and the node's own words (a schema node's note, a
@@ -132,7 +144,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
     const shown = fold && unrelated.size
         ? { ...layout, positions: Object.fromEntries(Object.entries(layout.positions).filter(([id]) => !unrelated.has(id))), unrelated: [...unrelated] }
         : layout;
-    const place = mapPlace(shown);
+    const place = mapPlace(shown, MAP_GEOMETRY, null, { edges: graph?.edges ?? [] });
     if (fold && unrelated.size) place.height = Math.max(place.height, (place.gapY ?? 0) + MAP_GEOMETRY.pitch);
     const heads = [];
     const cols = (layout?.columns ?? []).length;
@@ -151,7 +163,10 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         if (!node) continue;
         const state = nodeState(node, finders);
         buttons.push(nodeButton(node, p, { state, selected: id === selected, loose: unrelated.has(id), author: authors?.get?.(id) ?? null,
-            reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [], controlled: Boolean(controls?.[id]) }));
+            reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [], controlled: Boolean(controls?.[id]),
+            // THE OPEN NODE IS ITS EDITOR (the owner at a real table, 12.11.2026): on the Map its face is hidden while open
+            // (`is-editing`, components.css) and its fields take its place (`nodeEditHtml`).
+            editing: Boolean(editors) && id === selected }));
         if (editors) fields.push(nodeEditHtml({ graph, node, p, open: id === selected, state, finders, authors, reach, problems, html: editors.get?.(id) ?? "" }));
     }
     /* THE TRIAL'S CONTROLS ON THE TILE (E99 C5, round 4; the owner's 12:00: "jako przycisk na kaflu"): `controls` by node
@@ -198,34 +213,42 @@ export function problemText(p, graph) {
         const n = (graph?.nodes ?? []).find(x => x.id === id);
         return n ? nameOf(n) : String(id ?? "");
     };
-    return F(`DRPG.CaseMap.problem.${p.code}`, { node: nameOfId(p.node), ref: p.code === "badMode" || p.code === "tooManyKeys" ? String(p.ref ?? "") : nameOfId(p.ref) });
+    // an incomplete plan's field by its word (E104, `DRPG.CaseMap.needs`)
+    const ref = p.code === "incomplete" ? L(`DRPG.CaseMap.needs.${p.ref}`)
+        : p.code === "badMode" || p.code === "tooManyKeys" ? String(p.ref ?? "") : nameOfId(p.ref);
+    return F(`DRPG.CaseMap.problem.${p.code}`, { node: nameOfId(p.node), ref });
 }
 
 /**
  * WHAT A NODE SAYS WHEN IT IS OPEN (the side panel's reading until the E97 fix, now on the node itself): its state, room,
  * who left it and who holds a copy, its trial mode and reach, "only the culprit", and each problem naming it. Text only.
  */
-export function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [] } = {}) {
+export function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [], rows = true } = {}) {
     if (!node) return "";
     const r = reachOf(node, reach?.[node.id]);
     const ev = node.evidence ? reach?.[node.id] : null;
     const state = nodeState(node, finders);
     const names = node.evidence && !node.planned ? [...(finders?.get?.(tokenIdOf(node.trace)) ?? [])] : [];
     const lines = [];
-    if (STATE_KEYS[state]) lines.push(row(L("DRPG.CaseMap.panelState"), L(STATE_KEYS[state])));
-    if (node.room) lines.push(row(L("DRPG.CaseMap.panelRoom"), node.room));
-    if (node.evidence) lines.push(row(L("DRPG.CaseMap.panelAuthor"), authors?.get?.(node.id) || L("DRPG.Remnant.authorUnknown")));
-    if (node.evidence && !node.planned) lines.push(row(L("DRPG.CaseMap.panelWhoHas"), names.length ? names.join(", ") : L("DRPG.CaseMap.nobodyYet")));
-    if (!node.evidence && node.mode) lines.push(row(L("DRPG.CaseMap.panelMode"), modeLabel(node.mode)));
-    if (r) lines.push(row(L("DRPG.CaseMap.panelReach"), F(r.reachable ? "DRPG.CaseMap.reachYes" : "DRPG.CaseMap.reachNo", { held: r.held, of: r.of })));
+    // `rows` false: the notes alone (an open node with fields of its own shows no read-only rows, the owner, 12.11.2026)
+    if (rows) {
+        if (STATE_KEYS[state]) lines.push(row(L("DRPG.CaseMap.panelState"), L(STATE_KEYS[state])));
+        if (node.room) lines.push(row(L("DRPG.CaseMap.panelRoom"), node.room));
+        if (node.evidence) lines.push(row(L("DRPG.CaseMap.panelAuthor"), authors?.get?.(node.id) || L("DRPG.Remnant.authorUnknown")));
+        if (node.evidence && !node.planned) lines.push(row(L("DRPG.CaseMap.panelWhoHas"), names.length ? names.join(", ") : L("DRPG.CaseMap.nobodyYet")));
+        if (!node.evidence && node.mode) lines.push(row(L("DRPG.CaseMap.panelMode"), modeLabel(node.mode)));
+        if (r) lines.push(row(L("DRPG.CaseMap.panelReach"), F(r.reachable ? "DRPG.CaseMap.reachYes" : "DRPG.CaseMap.reachNo", { held: r.held, of: r.of })));
+    }
     if (ev?.culpritOnly) lines.push(`<p class="drpg-case-info-note">${esc(L("DRPG.CaseMap.culpritOnly"))}</p>`);
     for (const p of (problems ?? []).filter(x => x.node === node.id)) lines.push(`<p class="drpg-case-info-note drpg-case-info-warn">${esc(problemText(p, graph))}</p>`);
     return lines.length ? `<div class="drpg-case-info">${lines.join("")}</div>` : "";
 }
 
 /**
- * A NODE'S FIELDS, ON THE NODE (E97 fix; the owner's "edycja ... na samych modulach"; until the fix in the side panel,
- * E97 C6). One fieldset per node, drawn in the canvas under its node at the open width: what the node says (`nodeInfoHtml`),
+ * A NODE'S FIELDS, IN THE NODE'S PLACE (E97 fix; the owner's "edycja ... na samych modulach"; until the fix in the side
+ * panel, E97 C6). One fieldset per node, drawn in the canvas at its node's place and the open width - the open node's face
+ * hidden (`is-editing`; the owner at a real table, 12.11.2026: "the editing part replaces the node entirely", no read-only
+ * part above it; until then the fields stood under the face and opened with the node's facts): the node's own warnings,
  * the Table's own cells for it (`html`, built by investigation.mjs from the Table's functions, so each field keeps the
  * Table's name and the value it was drawn with), and its column's arrows. Every node's fields stay in the form, the open
  * one's shown and the rest `hidden` (a hidden field is still the form's: `readDashboardForm` reads what the GM changed,
@@ -234,10 +257,14 @@ export function nodeInfoHtml({ graph, node, finders = null, authors = null, reac
  */
 function nodeEditHtml({ graph, node, p, open, finders, authors, reach, problems, html }) {
     const b = (step, key) => `<button type="button" data-drpg-case-move="${step}">${esc(L(key))}</button>`;
-    const moves = `<div class="drpg-case-edit-actions drpg-case-edit-moves">${b(-1, "DRPG.CaseMap.moveUp")}${b(1, "DRPG.CaseMap.moveDown")}</div>`;
+    // Close beside the arrows: the face that closed the fields by a second click is hidden while they are open
+    const close = `<button type="button" data-drpg-case-close>${esc(L("DRPG.Panel.close"))}</button>`;
+    const moves = `<div class="drpg-case-edit-actions drpg-case-edit-moves">${b(-1, "DRPG.CaseMap.moveUp")}${b(1, "DRPG.CaseMap.moveDown")}${close}</div>`;
+    const cells = String(html ?? "");
+    // The node's facts only where it has no field of its own (another chapter's Remnant); otherwise its warnings alone
+    const said = nodeInfoHtml({ graph, node, finders, authors, reach, problems, rows: !cells.trim() });
     return `<fieldset class="drpg-case-edit" data-drpg-edit="${esc(node.id)}" aria-label="${esc(F("DRPG.CaseMap.editLabel", { name: nameOf(node) }))}"`
-        + ` style="left: ${p.x}px; top: ${p.y + MAP_GEOMETRY.nodeH}px"${open ? "" : " hidden"}>`
-        + nodeInfoHtml({ graph, node, finders, authors, reach, problems }) + String(html ?? "") + moves + `</fieldset>`;
+        + ` style="left: ${p.x}px; top: ${p.y}px"${open ? "" : " hidden"}>` + said + cells + moves + `</fieldset>`;
 }
 
 /**
@@ -324,7 +351,7 @@ export function neighbourOf(points, from, key) {
 
 /**
  * THE MAP'S TOOLS, ONE ROW OVER THE GRAPH (E97 C6, out of the side panel by the E97 fix): add a deduction, a counter,
- * the solution or an Incident Remnant, and the column order (case-layout.mjs LAYOUT_SORTS). Written at once to the GMs'
+ * the solution or a plan (a Remnant, a Final Truth or a Truth Bullet, E104), and the column order (case-layout.mjs LAYOUT_SORTS). Written at once to the GMs'
  * store, never through Save, as a GM's arrangement of the map. A node's own arrows (up and down its column) and Remove
  * are on the node, with its fields; the camera's buttons in the graph's corner (`cameraHtml`).
  */
@@ -332,7 +359,15 @@ export function caseToolsHtml({ sort = "kind", sorts = [] } = {}) {
     const b = (attr, value, key, extra = "") => `<button type="button" ${attr}="${esc(value)}"${extra}>${esc(L(key))}</button>`;
     return `<div class="drpg-case-tools" role="toolbar" aria-label="${esc(L("DRPG.CaseMap.toolsLabel"))}">`
         + `<div class="drpg-case-tools-row">${b("data-drpg-case-add", "deduction", "DRPG.CaseMap.addDeduction")}${b("data-drpg-case-add", "counter", "DRPG.CaseMap.addCounter")}`
-        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}${b("data-drpg-case-add", "incident", "DRPG.CaseMap.addIncident")}</div>`
+        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}`
+        /* THE PLANS IN ONE SELECT (E104): a planned Remnant, Final Truth or Truth Bullet. As three buttons the row went to two
+           lines and took the graph's viewport from 297 to 226 px under the glass and from 319 to 273 under Legacy at
+           1366x768 (audit/case-map-sweep.mjs, investigation--map-planned, Polish and English alike); a pick adds that
+           plan and the select goes back to its first line */
+        + `<select class="drpg-case-add-plan" data-drpg-case-add-plan aria-label="${esc(L("DRPG.CaseMap.addPlan"))}" title="${esc(L("DRPG.CaseMap.addPlan"))}">`
+        + `<option value="" selected>${esc(L("DRPG.CaseMap.addPlan"))}</option>`
+        + ["incident", "final", "bullet"].map(k => `<option value="${k}">${esc(L(`DRPG.CaseMap.plan.${k}`))}</option>`).join("")
+        + `</select></div>`
         /* the order's picker named by `aria-label` and its title, not a visible label: with one, the row was 1005 px under
            the glass at 1366x768, over the 972 px it has, and took a second row from the graph (the E97 fix's sweep) */
         + `<select class="drpg-case-sort" data-drpg-case-sort aria-label="${esc(L("DRPG.CaseMap.sortLabel"))}" title="${esc(L("DRPG.CaseMap.sortLabel"))}">`
@@ -389,6 +424,11 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
             if (add) onAdd(add.dataset.drpgCaseAdd);
         });
         tools.querySelector("[data-drpg-case-sort]")?.addEventListener("change", event => onSort(event.target.value));
+        tools.querySelector("[data-drpg-case-add-plan]")?.addEventListener("change", event => {
+            const kind = event.target.value;
+            event.target.value = "";
+            if (kind) onAdd(kind);
+        });
     }
     const overview = root?.querySelector?.("[data-drpg-case-overview]");
     if (overview && !overview.dataset.drpgWired) {
@@ -418,6 +458,7 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
             const edit = t?.closest?.(".drpg-case-edit[data-drpg-edit]");
             if (edit) {
                 const id = edit.dataset.drpgEdit;
+                if (t.closest("[data-drpg-case-close]")) { onClose(id); return; }
                 const move = t.closest("[data-drpg-case-move]");
                 if (move && !move.disabled) { onMove(id, Number(move.dataset.drpgCaseMove)); return; }
                 const drop = t.closest("[data-drpg-case-drop]");
@@ -469,30 +510,3 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
     return camera;
 }
 
-/**
- * THE CASE'S INCIDENT REMNANTS TO PLACE, IN THE GM PANEL (E97 C12; the goal: "the list of Incident Remnants still to
- * place is in the GM panel"). The chapter's planned Incident Remnants: each not on the map yet with "Place on the map"
- * (New Remnant, filled in), each placed with "Show" (the Investigation panel on its node). Nothing when the case plans
- * none. A GM's (the schema is a GM store; a player's panel has no standing block).
- */
-export function incidentAsksHtml(chapter) {
-    if (!game.user?.isGM) return "";
-    const rows = Object.entries(caseRows(chapter).rows).map(([id, raw]) => [id, caseNodeOf(raw)]).filter(([, n]) => n?.kind === "incident");
-    if (!rows.length) return "";
-    const placed = n => {
-        if (!n.trace) return false;
-        const [sceneId, tokenId] = n.trace.split(".");
-        return Boolean(remnantById(sceneId, tokenId));
-    };
-    const waiting = rows.filter(([, n]) => !placed(n)).length;
-    const line = ([id, n]) => {
-        const on = placed(n);
-        const what = [n.label || L("DRPG.CaseMap.noName"), n.room].filter(Boolean).join(" · ");
-        return `<li class="drpg-case-ask${on ? " is-placed" : ""}"><span>${esc(what)}</span>`
-            + (on ? `<button type="button" class="drpg-mini-button" data-drpg-case-show="${esc(n.trace)}">${esc(L("DRPG.CaseMap.showOnMap"))}</button>`
-                : `<button type="button" class="drpg-mini-button" data-drpg-case-place="${esc(`${chapter}:${id}`)}">${esc(L("DRPG.CaseMap.placeOnMap"))}</button>`)
-            + `</li>`;
-    };
-    const head = waiting ? plural("DRPG.CaseMap.waiting", { n: waiting }) : L("DRPG.CaseMap.waitingNone");
-    return `<div class="drpg-case-asks"><p><strong>${esc(head)}</strong></p><ul>${rows.map(line).join("")}</ul></div>`;
-}

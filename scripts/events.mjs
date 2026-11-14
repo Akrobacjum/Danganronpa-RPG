@@ -9,9 +9,9 @@
  * under the rail's).
  *
  * WHO SEES THE INCIDENT. The killing is shown to its participants and to the
- * GM, and to nobody else - the same rule `buildIncident` in hud.mjs applied,
- * read from ownership rather than from `game.user.character` (see the note
- * there). A spectator's screen shows no card at all, not a redacted one: the
+ * GM, and to nobody else - the rule hud.mjs's incident row applied before it
+ * moved here (hud.mjs, the note on the rows that went), read from ownership
+ * rather than from `game.user.character`. A spectator's screen shows no card at all, not a redacted one: the
  * fact that an incident is running is itself part of what the killer is
  * hiding.
  *
@@ -19,14 +19,15 @@
  * rows, so that theme stays exactly the look it was.
  */
 
-import { MODULE_ID, TRIAL } from "./config.mjs";
+import { MODULE_ID, TRIAL, MONOCUB } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { error, plural, tickerRuns } from "./utils.mjs";
+import { error, plural, tickerRuns, trialModeLabel } from "./utils.mjs";
+import { isZoneMode, zoneOf, conferLineOf } from "./zone-machine.mjs";
 import { pairOf, reserveLine } from "./murder-ui.mjs";
 import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
-import { roomOfActor, locateActor } from "./movement.mjs";
+import { locateActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
@@ -36,6 +37,7 @@ import { overflowEffect, overflowStatus, overflowRules, overflowWhat } from "./o
 import { SAFEWORD_FLAG } from "./safeword.mjs";
 import { trialProgress, votesIn, pendingVoters, ballotInHere } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
+import { isMonocub, cubBlockSaid, cubPanelLines } from "./monocub.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -45,8 +47,8 @@ const WIDGET_ID = "drpg-events";
  * This panel used to be Stained Glass only, and the four standing threats went
  * back to being rows of the clock under Monokuma Legacy so that theme "stayed
  * exactly the look it was". What that actually bought was two implementations
- * of the same four facts - `motiveCard` here and `buildMotive` in hud.mjs, and
- * so on - and a Legacy screen that was missing information, not just styling:
+ * of the same four facts - `motiveCard` here and a motive row in hud.mjs, and
+ * so on (hud.mjs's rows went in that change) - and a Legacy screen that was missing information, not just styling:
  *
  *   the opening roll     no row at all
  *   the Despair overflow no row at all
@@ -65,7 +67,7 @@ const WIDGET_ID = "drpg-events";
  * a11y sweep and the suite name when they ask whether this panel is a thing,
  * and a predicate that is true everywhere is cheaper to read than an absence.
  */
-export function eventsWindowActive() {
+function eventsWindowActive() {
     return true;
 }
 
@@ -132,11 +134,6 @@ function assemblyCard() {
 }
 
 /**
- * The open incident, for its participants and the GM only. Ownership decides
- * who is a participant - see hud.mjs `buildIncident` for why not
- * `game.user.character`.
- */
-/**
  * A murder that has opened but not yet reached its incident: the GM's own card, and the
  * participants'. The panel showed nothing for the whole opening stage, which on the GM's
  * screen read as "the Event panel does not show at a murder".
@@ -187,6 +184,11 @@ function openingCard() {
         meta: game.i18n.localize("DRPG.Events.openingMeta")
     };
 }
+/**
+ * The open incident, for its participants and the GM only. Ownership decides
+ * who is a participant, not `game.user.character` (the rule of the header's
+ * "WHO SEES THE INCIDENT").
+ */
 function incidentCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
     /*
@@ -482,55 +484,82 @@ export function trialCard(clock) {
         const floor = trialFloor();
         const after = floor ? null : afterVerdictCard(clock);
         if (after) return after;
-
-        const key = floor ? floor.mode : "discussion";
-        const unknown = "-";
-        /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a
-           Rebuttal; an Objection read "Everyone has the floor" under the speaker's own name, and Debate
-           and Discussion read the same "EVERYONE" over "EVERYONE HAS THE FLOOR", so two different modes
-           looked alike and neither told a player what to do. Now: a mode nobody holds has no speaker line
-           (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
-           Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
-           row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
-        /* THE DEBATE'S QUESTION IS ITS SUBTITLE (E70 C3, 27.10.2026; S18-70): the line under "Debate" that names nobody,
-           as the games put the question at the top of the screen - the floor's, so every browser reads the same words,
-           drawn as text. An Objection and its rebuttal keep the speaker's name there. */
-        let speaker = floor?.mode === FLOOR_MODES.debate ? (floor.topic ?? null) : null;
-        let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
-            ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
-        if (floor?.mode === FLOOR_MODES.objection) {
-            speaker = floorHolder(floor)?.name ?? unknown;
-            meta = game.i18n.format("DRPG.Events.trialObjectionFloor", { who: speaker });
-        } else if (floor?.mode === FLOOR_MODES.rebuttal) {
-            speaker = floorTarget(floor)?.name ?? unknown;
-            meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
-        } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
-            /* A ROUND (E70 C7; E70-45): the speaker under the mode, and who speaks next - "Next: {name}" - or that this
-               is the last turn, from the order frozen at the round's start. */
-            speaker = floorHolder(floor)?.name ?? unknown;
-            const order = floor.round?.order ?? [];
-            const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
-            meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
-                : game.i18n.localize("DRPG.Events.trialLastTurn");
-        } else if (floor?.mode === FLOOR_MODES.closing) {
-            // The Closing Argument (E70 C8): the speaker, or nobody, and the phase's line for the table.
-            speaker = floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null;
-            meta = closingLine(floor) ?? meta;
-        }
-        return {
-            kind: "trial",
-            title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
-            sub: speaker,
-            meta,
-            note: gmNoteText(floor),
-            // The debate's countdown, only while a floor is open: a trial in session
-            // with nobody holding the floor has no clock running (see `paintTrialClock`).
-            clock: Boolean(floor)
-        };
+        return trialFloorCard(floor);
     } catch (err) {
         error("Could not read the trial's state for the Event panel", err);
         return null;
     }
+}
+
+/**
+ * THE TRIAL'S CARD FOR `floor` (null: the trial's discussion), `trialCard`'s answer once no vote and no verdict's card
+ * stands. Its own function since the owner's report of 13.11.2026 (R5900): a zone mode's card read its raw key and the
+ * Discussion's line, and a test that writes nothing could not hand `trialCard` a floor.
+ */
+export function trialFloorCard(floor) {
+    const key = floor ? floor.mode : "discussion";
+    const unknown = "-";
+    /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a
+       Rebuttal; an Objection read "Everyone has the floor" under the speaker's own name, and Debate
+       and Discussion read the same "EVERYONE" over "EVERYONE HAS THE FLOOR", so two different modes
+       looked alike and neither told a player what to do. Now: a mode nobody holds has no speaker line
+       (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
+       Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
+       row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
+    /* THE DEBATE'S QUESTION IS ITS SUBTITLE (E70 C3, 27.10.2026; S18-70): the line under "Debate" that names nobody,
+       as the games put the question at the top of the screen - the floor's, so every browser reads the same words,
+       drawn as text. An Objection and its rebuttal keep the speaker's name there. */
+    let speaker = floor?.mode === FLOOR_MODES.debate ? (floor.topic ?? null) : null;
+    let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
+        ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
+    if (floor?.mode === FLOOR_MODES.objection) {
+        speaker = floorHolder(floor)?.name ?? unknown;
+        meta = game.i18n.format("DRPG.Events.trialObjectionFloor", { who: speaker });
+    } else if (floor?.mode === FLOOR_MODES.rebuttal) {
+        speaker = floorTarget(floor)?.name ?? unknown;
+        meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
+    } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
+        /* A ROUND (E70 C7; E70-45): the speaker under the mode, and who speaks next - "Next: {name}" - or that this
+           is the last turn, from the order frozen at the round's start. */
+        speaker = floorHolder(floor)?.name ?? unknown;
+        const order = floor.round?.order ?? [];
+        const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
+        meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
+            : game.i18n.localize("DRPG.Events.trialLastTurn");
+    } else if (floor?.mode === FLOOR_MODES.closing) {
+        // The Closing Argument (E70 C8): the speaker, or nobody, and the phase's line for the table.
+        speaker = floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null;
+        meta = closingLine(floor) ?? meta;
+    } else if (isZoneMode(floor?.mode)) {
+        /* A ZONE MODE (E73; the owner's report of 13.11.2026, R5900): it read the Discussion's "Talk it through - the GM
+           opens the debate" under its raw key. Its line is what a player does in the phase - the seconds are the card's
+           clock (`paintTrialClock` reads the floor's `seconds`: 45 for a Scrum's setup, a turn's own after it) - and its
+           subtitle the zone's question, as the debate's is its topic; in a Scrum's turn, the speaker. */
+        const zone = zoneOf(floor) ?? {};
+        const phaseKey = `DRPG.Events.trialZone.${floor.mode}.${zone.phase}`;
+        speaker = floor.mode === FLOOR_MODES.scrum && zone.phase === "speak" ? (floorHolder(floor)?.name ?? unknown) : (zone.question || null);
+        meta = game.i18n.has(phaseKey) ? game.i18n.format(phaseKey, {
+            n: (Number(zone.set?.index) || 0) + 1, total: zone.set?.total ?? 1, turn: zone.turn ?? 0, turns: zone.turns ?? 0,
+            zone: String(zone.side ?? "").toUpperCase()
+        }) : null;
+    }
+    /* A SCRUM DEBATE'S CAMPS CONFER (the owner's 13.11.2026): "Camps confer" under the mode, and which camp this
+       player talks with, or the GM's "Zone A and Zone B confer apart."; the clock below counts the Confer down. */
+    const confer = conferLineOf(floor, { gm: game.user.isGM, owns: id => game.actors?.get?.(id ?? "")?.isOwner === true });
+    if (confer) {
+        speaker = game.i18n.localize("DRPG.Zones.confer.name");
+        meta = game.i18n.format(confer.key, confer.words);
+    }
+    return {
+        kind: "trial",
+        title: trialModeLabel(key),
+        sub: speaker,
+        meta,
+        note: gmNoteText(floor),
+        // The debate's countdown, only while a floor is open: a trial in session
+        // with nobody holding the floor has no clock running (see `paintTrialClock`).
+        clock: Boolean(floor)
+    };
 }
 
 /**
@@ -593,7 +622,8 @@ export function bodyCard(clock) {
     if (!victims.length && !room) return null;
     if (!room && victims.length) {
         // A room's name: `roomOfToken` answers the name, not the region (65-season B1 compares it with the hold's `room`).
-        try { room = roomOfActor(victims[0]) ?? null; } catch { /* a victim outside every room */ }
+        // Where the body lies (E62 C3b fix; the e93 review's F4): a victim made a Monocub walks another token.
+        try { room = locateActor(victims[0], { body: true })?.room ?? null; } catch { /* a victim outside every room */ }
     }
     const names = victims.map(a => a.name).join(", ");
 
@@ -667,6 +697,90 @@ function overflowCard() {
         error("Could not read the overflow for the Event panel", err);
         return null;
     }
+}
+
+/**
+ * REDEEM IS WAITING (E72 C9, 12.11.2026; audit S18-62, the plan's C9). A Monocub's Redeem comes back once a day, and
+ * only the sheet's tile said whether it had. The card is for the Monocub's own player: the Monocubs `user` owns whose
+ * Redeem none of its blocks shuts, read as the tile reads them (monocub.mjs `cubBlockSaid`, from the owner's copy of the
+ * Monocubs' record). A GM's screen draws none: the Students window carries the Monocubs for the GMs. One card, the
+ * first such Monocub's name on it; a player who plays two Monocubs is not a case the rules name.
+ */
+export function redeemCard(user = game.user) {
+    if (!user || user.isGM) return null;
+    const row = MONOCUB.abilities?.redeem;
+    if (!row) return null;
+    const cub = game.actors?.find(a => isMonocub(a) && a.testUserPermission(user, "OWNER") && !cubBlockSaid(a, row));
+    if (!cub) return null;
+    return {
+        kind: "redeemHope",
+        title: game.i18n.localize("DRPG.Events.redeemTitle"),
+        sub: cub.name,
+        meta: game.i18n.localize("DRPG.Events.redeemMeta"),
+        // Its line when another state leads the Monocub's card (`cubCardOf`).
+        line: game.i18n.localize("DRPG.Events.redeemLine")
+    };
+}
+
+/**
+ * PART B ON THE PANEL (E72 C19, 12.11.2026; the owner's option A, relayed by the coordinator): a Monocub's own player is
+ * told, as the Redeem card tells it, while a Bribe waits for its answer and while its Ghost Bet stands - read off the
+ * owner's copy of the Monocubs' record as the sheet's panel reads it (monocub.mjs `cubPanelLines`). Both are secret to
+ * their parties (DC39), so a GM's screen and every other player's draws neither; the GMs have the Students window. The
+ * first such Monocub of the user's; a player who plays two Monocubs is not a case the rules name.
+ */
+function cubLineFor(user, kind) {
+    if (!user || user.isGM) return null;
+    for (const cub of game.actors?.filter(a => isMonocub(a) && a.testUserPermission(user, "OWNER")) ?? []) {
+        const line = cubPanelLines(cub).find(l => l.kind === kind);
+        if (line) return { cub, line };
+    }
+    return null;
+}
+
+/** A Bribe waits for this Monocub's player's answer (E72 C19): who offers it. */
+export function bribeWaitCard(user = game.user) {
+    const found = cubLineFor(user, "offer");
+    if (!found) return null;
+    return {
+        kind: "bribeHope",
+        title: game.i18n.localize("DRPG.Events.bribeWaitTitle"),
+        sub: found.cub.name,
+        meta: game.i18n.format("DRPG.Events.bribeWaitMeta", { name: found.line.name || "?" }),
+        line: game.i18n.format("DRPG.Events.bribeWaitLine", { name: found.line.name || "?" })
+    };
+}
+
+/** This Monocub's Ghost Bet stands (E72 C19): whom it names. */
+export function betCard(user = game.user) {
+    const found = cubLineFor(user, "bet");
+    if (!found) return null;
+    return {
+        kind: "betHope",
+        title: game.i18n.localize("DRPG.Events.betTitle"),
+        sub: found.cub.name,
+        meta: game.i18n.format("DRPG.Events.betMeta", { name: found.line.name || "?" }),
+        line: game.i18n.format("DRPG.Events.betLine", { name: found.line.name || "?" })
+    };
+}
+
+/**
+ * ONE CARD FOR A MONOCUB (E72 C19 fix, 12.11.2026; the owner: the cards were cut off at the bottom). The panel's box is
+ * capped (`--drpg-events-h`: 192 px under Monokuma Legacy at 1366x768, measured in Chromium on the glass harness, where
+ * one card is 101 px), so Redeem, a Bribe and a Ghost Bet as three cards put the second and third below its fold. The
+ * states are one card: the first state's kind (its glyph), title and Monocub, its own line, and each other state's line
+ * under it. audit/events-fit.mjs measures it whole at three sizes in both themes; R3824 holds the shape. Pure.
+ */
+export function cubCardOf(states = []) {
+    const [first, ...rest] = (states ?? []).filter(Boolean);
+    if (!first) return null;
+    const { line, ...card } = first;
+    return { ...card, meta: [first.meta, ...rest.map(s => s.line)] };
+}
+
+/** The Monocub's one card for `user` (`cubCardOf` over `redeemCard`, `bribeWaitCard` and `betCard`), or null. */
+export function cubCard(user = game.user) {
+    return cubCardOf([redeemCard(user), bribeWaitCard(user), betCard(user)]);
 }
 
 /* ---- the panel ------------------------------------------------------------ */
@@ -866,7 +980,7 @@ export function renderEvents() {
         /* The safeword is first because it outranks everything: while the scene
            is stopped, nothing else on this panel is happening. */
         const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
-            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), cubCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

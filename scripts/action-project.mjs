@@ -31,6 +31,7 @@
  */
 
 import { MODULE_ID, ACTIONS, TRAITS, INDIRECT_MURDER, PROJECT_SCALE, SABOTAGE_CONCEAL } from "./config.mjs";
+import { facilityLineFor } from "./facilities.mjs";
 import { spendAction, refundAction } from "./actions.mjs";
 import { carriedFor, repairable } from "./inventory.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
@@ -50,6 +51,8 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * PROJECTS
@@ -110,6 +113,8 @@ export async function performProject(actor, def, options) {
         title: def.label,
         intro: briefingBlock(actor, "project", def),
         prompt: game.i18n.localize("DRPG.Project.choosePrompt"),
+        // Work and Sabotage roll; Propose leads to the proposal's window, whose button sends it (E100 item 6, R4105).
+        confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
             {
                 value: "work", icon: "fa-hammer",
@@ -122,7 +127,7 @@ export async function performProject(actor, def, options) {
                     : game.i18n.localize("DRPG.Action.noRoomNote")
             },
             {
-                value: "start", icon: "fa-lightbulb", gmRoute: true,
+                value: "start", icon: "fa-lightbulb", gmRoute: true, confirm: game.i18n.localize("DRPG.Action.next"),
                 label: game.i18n.localize("DRPG.Project.startNew"),
                 hint: game.i18n.localize("DRPG.Project.startNewHint")
             },
@@ -227,8 +232,13 @@ export async function startProject(actor) {
         return rooms.map(r => (r ? labels.get(r) ?? r : "-")).join(" - ");
     };
     const mendable = (actor.items?.contents ?? [...(actor.items ?? [])]).filter(repairable);
+    /* REPAIR THE LOCK (E74 C5): offered where a door of this room - the room itself or a neighbour - has a lock forced open
+       (the public flag every browser holds, movement.mjs `roomBroken`); the GM's approval judges it again, with whether a
+       project repairs it already, which this browser cannot see. */
+    const { roomBroken, neighbouringRooms } = await import("./movement.mjs");
+    const lockable = here?.room ? [here.room, ...neighbouringRooms(here.scene, here.room)].filter(room => roomBroken(here.scene, room)) : [];
     const kinds = [...(offer ? ["secretPassage", "breach"] : []), ...(owned.seal.length ? ["sealPassage"] : []),
-        ...(owned.breaches.length ? ["closeBreach"] : []), ...(mendable.length ? ["repairItem"] : [])];
+        ...(owned.breaches.length ? ["closeBreach"] : []), ...(mendable.length ? ["repairItem"] : []), ...(lockable.length ? ["repairLock"] : [])];
     const esc1 = text => foundry.utils.escapeHTML(String(text ?? ""));
     /* ON THE KIT'S `formGrid` (E47-C6, 09.11.2026; card M19, approved by the owner on 09.11 with one change): a field with
        a caption is a row of the grid - the caption, then the field with its notes in the kit's fine print - and the rest
@@ -248,7 +258,8 @@ export async function startProject(actor) {
         ...(owned.seal.length ? [choose("seal", "DRPG.Project.sealWhich", owned.seal.map(p => named(p.rooms)), ["DRPG.Project.sealNote"])] : []),
         ...(owned.breaches.length ? [choose("unbreach", "DRPG.Project.unbreachWhich", owned.breaches.map(b => named(b.rooms)), ["DRPG.Project.unbreachNote"])] : []),
         ...(mendable.length ? [choose("mend", "DRPG.Project.repairWhich", mendable.map(i => game.i18n.format("DRPG.Project.repairOption", { item: i.name, tier: tierOf(i) })),
-            ["DRPG.Project.repairNote"])] : [])] : [];
+            ["DRPG.Project.repairNote"])] : []),
+        ...(lockable.length ? [choose("lockfix", "DRPG.Project.repairLockWhich", lockable.map(r => named([r])), ["DRPG.Project.repairLockNote"])] : [])] : [];
 
     // On the kit's frame (E21 C5a): the proposal is the GM's road (D11), its one answer; Cancel withdraws it.
     const result = await drpgWindow({
@@ -262,9 +273,9 @@ export async function startProject(actor) {
             { label: game.i18n.localize("DRPG.Project.name"), id: idOf("name"),
                 field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus />` },
             descriptionField(""),
-            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${scaleOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}">${roomOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required>${projectTraitOptions()}</select>` },
+            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${scaleOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.roomTooltip")}>${roomOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWorkTooltip")}>${projectTraitOptions()}</select>` },
             { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>` },
             { label: game.i18n.localize("DRPG.Project.condition"), id: idOf("condition"),
@@ -296,6 +307,7 @@ export async function startProject(actor) {
                         seal: f.seal?.value ?? null,
                         unbreach: f.unbreach?.value ?? null,
                         mend: f.mend?.value ?? null,
+                        lockfix: f.lockfix?.value ?? null,
                         // As typed; a preset's own label stands in for an empty one below (E44 C9, fix FG1).
                         description: d.element.querySelector('[name="description"]')?.value ?? "",
                         // The player's sentence for the GM, from this window (E22 C5c): the card's quote.
@@ -327,10 +339,11 @@ export async function startProject(actor) {
     const presetKey = kinds.includes(result.preset) ? result.preset : null;
     const preset = presetKey ? PASSAGE_PRESETS[presetKey] : null;
     const walled = presetKey === "secretPassage" || presetKey === "breach";
-    const field = { secretPassage: "to", breach: "to", sealPassage: "seal", closeBreach: "unbreach", repairItem: "mend" }[presetKey];
+    const field = { secretPassage: "to", breach: "to", sealPassage: "seal", closeBreach: "unbreach", repairItem: "mend", repairLock: "lockfix" }[presetKey];
     const toIndex = preset ? Number(result[field]) : NaN;
     const chosen = !preset || !Number.isInteger(toIndex) ? null
-        : walled ? offer.neighbours[toIndex] : presetKey === "sealPassage" ? owned.seal[toIndex] : presetKey === "closeBreach" ? owned.breaches[toIndex] : mendable[toIndex];
+        : walled ? offer.neighbours[toIndex] : presetKey === "sealPassage" ? owned.seal[toIndex] : presetKey === "closeBreach" ? owned.breaches[toIndex]
+            : presetKey === "repairLock" ? lockable[toIndex] : mendable[toIndex];
     if (preset) {
         if (!chosen) return null;
         const scale = presetKey === "repairItem" ? presetScale(presetKey, { tier: tierOf(chosen) }) : preset.scale;
@@ -355,7 +368,8 @@ export async function startProject(actor) {
        sent. */
     const presetLine = walled ? game.i18n.format(presetKey === "breach" ? "DRPG.Project.breachSummary" : "DRPG.Project.passageSummary",
         { to: beyond.get(offer.neighbours[toIndex]) ?? "-" })
-        : preset ? game.i18n.format(`DRPG.Project.${presetKey}Summary`, { target: presetKey === "repairItem" ? chosen.name : named(chosen.rooms) })
+        : preset ? game.i18n.format(`DRPG.Project.${presetKey}Summary`, { target: presetKey === "repairItem" ? chosen.name
+            : presetKey === "repairLock" ? named([chosen]) : named(chosen.rooms) })
         : null;
     result.description = String(result.description ?? "").trim() || (preset ? presetDescription(presetKey) : "");
     const descriptionWhy = projectDescriptionProblem(result.description);
@@ -428,7 +442,7 @@ export async function startProject(actor) {
                     description: result.description,
                     // A Secret Passage (E15 part 2 C2) or a breach (C3): the preset and the neighbour's index, never its name.
                     // The owner's three (C5): the passage's, the breach's or the item's id, held by this browser already.
-                    ...(preset ? { preset: presetKey, to: walled ? String(toIndex) : String(chosen.id) } : {})
+                    ...(preset ? { preset: presetKey, to: walled ? String(toIndex) : presetKey === "repairLock" ? String(chosen) : String(chosen.id) } : {})
                 }
             },
             {
@@ -804,20 +818,6 @@ export async function hideProjectTraces(actor, project, progress, lines) {
 }
 
 /**
- * Pick a project from an explicit list, and - only when at least one
- * candidate leaves the required trait open - the trait to use for it, in the
- * SAME window instead of a second one immediately after.
- *
- * Used to be two sequential dialogs every time: which project, then (when
- * the project had no fixed trait) which trait. The trait field costs nothing
- * to show up front - it is simply ignored once the chosen project turns out
- * to have one fixed, exactly as the old second dialog would never have
- * appeared in that case either.
- *
- * @returns {Promise<{project: object, trait: string}|null>} null on cancel,
- *   or if the resolved trait is empty (no trait allowed at all).
- */
-/**
  * One project as an <option>: its name, how far along it is, and where.
  *
  * `disableComplete` is only ever set by Work on Project. A finished project is
@@ -849,8 +849,10 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
         // drawn by a browser that will not style an <option>. The statistic its
         // roll takes (C11d): the project's own, said before it is picked. One
         // formatter for every list of projects (`projectLabel`, E51 C1).
+        // A finished project that gives a room action says so, and for how long (E93 C4; the owner's 05.11 option A).
+        const facility = p.complete ? facilityLineFor(p.id) : "";
         return `<option value="${p.id}"${mark}>${
-            foundry.utils.escapeHTML(projectLabel(p, { scale: true, room: true, stat: true, complete: done }))}</option>`;
+            foundry.utils.escapeHTML(`${projectLabel(p, { scale: true, room: true, stat: true, complete: done })}${facility ? ` · ${facility}` : ""}`)}</option>`;
     }).join("");
 }
 
@@ -907,6 +909,20 @@ async function proposeProjectTrait(actor, project, listed) {
     return answer?.proposed ? answer : null;
 }
 
+/**
+ * Pick a project from an explicit list, and - only when at least one
+ * candidate leaves the required trait open - the trait to use for it, in the
+ * SAME window instead of a second one immediately after.
+ *
+ * Used to be two sequential dialogs every time: which project, then (when
+ * the project had no fixed trait) which trait. The trait field costs nothing
+ * to show up front - it is simply ignored once the chosen project turns out
+ * to have one fixed, exactly as the old second dialog would never have
+ * appeared in that case either.
+ *
+ * @returns {Promise<{project: object, trait: string}|null>} null on cancel,
+ *   or if the resolved trait is empty (no trait allowed at all).
+ */
 async function chooseProject(list, promptKey, actor, def, { disableComplete = false } = {}) {
     const projectOptions = projectOptionsHtml(list, { disableComplete });
 
@@ -925,7 +941,7 @@ async function chooseProject(list, promptKey, actor, def, { disableComplete = fa
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"),
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
                 callback: (e, b, d) => ({ id: d.element.querySelector("[name=project]").value })
             },
             close: "cancel"
@@ -1285,7 +1301,8 @@ export function sabotageRepairScale(roll, score, relief) {
         ? PROJECT_SCALE.desperate.progress
         : score >= complex - relief
             ? PROJECT_SCALE.complex.progress
-            : PROJECT_SCALE.trivial.progress;
+            // The simple repair, its own number since E64 (S02-75): `ACTIONS.sabotage.simpleRepair`.
+            : ACTIONS.sabotage.simpleRepair;
 }
 
     // Sabotage always leaves a trace, success or not.

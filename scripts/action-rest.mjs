@@ -2,7 +2,8 @@
  * Danganronpa RPG - Rest, the action's window.
  * ---------------------------------------------------------------------------
  * `performRest`: the short or the long rest picked in one window, each with
- * its price and its reason for being shut; the rest itself is rest.mjs's.
+ * its price and its reason for being shut; the rest itself is rest.mjs's. Since E93 C3 the window lists the room's
+ * actions after them (action-facilities.mjs), and a picked one is carried out there.
  *
  * WHERE IT SITS. Moved out of action-rolls.mjs by E41 C4 (1.2.97), a pure move
  * that `node tools/moved-only.mjs` proves line by line. `performRest` is
@@ -21,19 +22,23 @@ import { chooseVariant } from "./action-menus.mjs";
  * you are standing in actually allows it, so the choice is informed.
  */
 export async function performRest(actor) {
-    const { takeRest, restVariants } = await import("./rest.mjs");
-    // One row per rest, each with its price and its reason for being unavailable (rest.mjs `restVariants`, which the
-    // sheet's tile reads too). With both shut the window still opens, the two rows greyed with their reasons
+    const { takeRest } = await import("./rest.mjs");
+    // One row per rest, each with its price and its reason for being unavailable (rest.mjs `restVariants`). With both shut the window still opens, the two rows greyed with their reasons
     // (`showShut`; E16 part 2 C4, 26.10.2026, audit S02-26): it used to answer "Nothing here can be done right now."
     // alone, and a player was not told where a rest could be taken, nor that it was taken already.
+    // E93 C3: the room's actions after the two rests - the GM's for this room, then the completed projects' standing in
+    // it (action-facilities.mjs `facilityRows`), each greyed with its reason as the rests are. The whole list is
+    // action-facilities.mjs `facilitiesRows`, which the sheet's tile is judged on too (fix line 113f, 13.11.2026).
+    const { facilitiesRows, useFacility } = await import("./action-facilities.mjs");
     const picked = await chooseVariant({
         actor,
         title: ACTIONS.rest.label,
         intro: briefingBlock(actor, "rest", ACTIONS.rest),
-        options: restVariants(actor),
+        options: facilitiesRows(actor),
         showShut: true
     });
 
     if (!picked) return null;
-    return takeRest(actor, picked.value);
+    if (picked.value === "short" || picked.value === "long") return takeRest(actor, picked.value);
+    return useFacility(actor, picked.value);
 }

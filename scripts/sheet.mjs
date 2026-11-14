@@ -12,19 +12,19 @@
  */
 
 import {
-    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
-    ECLIPSE_MOVES, TIMES_OF_DAY,
+    MODULE_ID, FLAGS, ACTIONS, ACTION_GRID, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
+    TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
-import { SETTINGS, isMutedDead } from "./settings.mjs";
+import { SETTINGS, isMutedDead, myMastermindLair } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
-    canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
+    canPayFor, freeActionsLeft, freeMovesLeft, nextCrossingPrice } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
     from "./character.mjs";
 import { standingOffers, advanceKindName } from "./level-up.mjs";
 import { isMonokuma, isNotInClass, isSpectator, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
-import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
+import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor, callAsksGm } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import {
     isTruthBullet, truthBulletData, isAnalysable, isIdentified, TRUTH_BULLET_FLAGS
@@ -33,7 +33,7 @@ import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { presentRefusal, trialFloor } from "./trial-floor.mjs";
 import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
-import { restShutReason } from "./rest.mjs";
+import { facilitiesShutReason } from "./action-facilities.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-murder.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
@@ -43,17 +43,16 @@ import { incidentTurnText, actingActor } from "./events.mjs";
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
 // day ends). Until then both arrived under one bare name and were renamed at this door,
 // which is how a reader of this file took one for the other.
-import { isMonocub, isCrimeSilenced } from "./monocub.mjs";
+import { isMonocub, isCrimeSilenced, cubBlockSaid, purseOf, cubPanelLines } from "./monocub.mjs";
 import { isCallSilenced, isChained, pendingGather, armedCallsShown, alreadyArmed } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
-import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
-    durabilityLeft } from "./inventory.mjs";
+import { isStashed, ITEM_FLAGS, isBroken, durabilityOf,
+    durabilityLeft, countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
 import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, noDiscardNow, usedCreatively }
     from "./use-items.mjs";
-import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
 // now (action-rolls.mjs), because that is where the body tile lives.
 import { isCleaner, tamperQuote, witnessesTo, freeTonightText } from "./cleanup.mjs";
@@ -61,13 +60,13 @@ import { isCleaner, tamperQuote, witnessesTo, freeTonightText } from "./cleanup.
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy } from "./movement.mjs";
-import { isMoveChange, levelOf } from "./rooms.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy, isLocked } from "./movement.mjs";
+import { isMoveChange, levelOf, roomRegions } from "./rooms.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
 import { passagesKnownBy, passageSpot, viewPassage, tunnelEndsFor } from "./passages.mjs";
 import { isMastermindActor } from "./passages-gm.mjs";
-import { listenLabels } from "./action-rolls.mjs";
+import { listenLabels, moveLine } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
 // exists; the question is asked in action-rolls.mjs now, where the menu is.
@@ -81,6 +80,9 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 import { stateHeld } from "./states.mjs";
+import { effectBadges as timedBadges } from "./timed-effects.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
@@ -151,6 +153,8 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
         groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,
         passages: owner && !monokuma, mastermind: gm && isMastermindActor(actor),
+        // The Mastermind's own room, on their player's browser alone (E91 C4, C5; D038; `injectKnownPassages`).
+        lair: owner && !gm && !monokuma ? myMastermindLair() : null,
         present,
         get presentShown() {
             return presentFor();
@@ -441,18 +445,6 @@ function dropTypeHeading(root) {
  */
 
 /**
- * Say what kind of thing this is, under its name.
- *
- * The window showed a name, a picture and a description, and nothing at all
- * about which of the four kinds it was - so a Murder Weapon and a Usable looked
- * identical once opened, and the only place the difference appeared was the
- * group header back on the inventory tab.
- *
- * A Truth Bullet gets more than a word: it gets the SAME badges its row on the
- * character sheet carries, from the same function, because a player who opens a
- * piece of evidence must not be shown a second, differently-worded account of it.
- */
-/**
  * How many bad rolls are left in a thing, drawn where it is carried.
  *
  * DURABILITY WAS INVISIBLE (Dawid, 29.08). It was recorded on the item, spent
@@ -530,6 +522,18 @@ export function wearMarkup(item) {
         foundry.utils.escapeHTML(tip)}">${pips}</span>`;
 }
 
+/**
+ * Say what kind of thing this is, under its name.
+ *
+ * The window showed a name, a picture and a description, and nothing at all
+ * about which of the four kinds it was - so a Murder Weapon and a Usable looked
+ * identical once opened, and the only place the difference appeared was the
+ * group header back on the inventory tab.
+ *
+ * A Truth Bullet gets more than a word: it gets the SAME badges its row on the
+ * character sheet carries, from the same function, because a player who opens a
+ * piece of evidence must not be shown a second, differently-worded account of it.
+ */
 function labelItemKind(root, item) {
     if (!item || root.querySelector(".drpg-item-kind")) return;
 
@@ -779,7 +783,7 @@ export function renderPlan(args, { rendered = true } = {}) {
 }
 
 /** The mark the sheet's own `render` carries, read by the contract (patches.mjs `sheet-render-guard`). */
-export const RENDER_PLAN = Symbol.for("drpgRenderPlan");
+const RENDER_PLAN = Symbol.for("drpgRenderPlan");
 
 /** Every open character sheet for this actor. */
 function sheetsFor(actor) {
@@ -823,6 +827,27 @@ export function installRenderPlan(app) {
 }
 
 /**
+ * The Hope slots of a sheet's header redrawn for `hope` held, as Daggerheart draws them: a held slot
+ * `<i class="fa-solid fa-diamond">`, an empty one `<i class="fa-regular fa-circle">`. Both pairs, not the weight alone
+ * (13.11.2026; the owner's table on 1.2.112, held Hope drawn spent): until then only fa-solid and fa-regular were
+ * toggled, so a slot that became held without a render carried `fa-solid fa-circle`, a glyph Daggerheart never draws,
+ * and stained-glass.css's spent rule, which read `.fa-circle`, drew it at 0.34. The sheets read the state from
+ * `fa-solid` alone since; the glyph matches the system's so that nothing else that reads it is misled. R5720.
+ */
+export function paintHopeGlyphs(element, hope) {
+    for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
+        const n = Number(slot.dataset.value);
+        const glyph = slot.querySelector("i");
+        if (!glyph || !Number.isFinite(n)) continue;
+        const held = n <= hope;
+        glyph.classList.toggle("fa-solid", held);
+        glyph.classList.toggle("fa-diamond", held);
+        glyph.classList.toggle("fa-regular", !held);
+        glyph.classList.toggle("fa-circle", !held);
+    }
+}
+
+/**
  * Everything a render would have redrawn for a resource-only update, drawn here instead (the wrapper's
  * "repaint", `installRenderPlan`).
  *
@@ -836,14 +861,7 @@ export function installRenderPlan(app) {
 function repaintInPlace(actor, element, app = null) {
     paintReserves(app, element, actor);
 
-    const hope = Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0);
-    for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
-        const n = Number(slot.dataset.value);
-        const glyph = slot.querySelector("i");
-        if (!glyph || !Number.isFinite(n)) continue;
-        glyph.classList.toggle("fa-solid", n <= hope);
-        glyph.classList.toggle("fa-regular", n > hope);
-    }
+    paintHopeGlyphs(element, Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0));
 
     // AND THE CALLS, WHICH ARE WHAT THE NUMBER DECIDES (Dawid, 28.08).
     //
@@ -934,25 +952,16 @@ function refreshCallsPanels(actor, element) {
 
 /**
  * A Monocub's grid rebuilt from what it now holds (E45 C2): the tiles `injectMonocubPanel` draws, from the same
- * `monocubTiles`. A tile in flight - `disabled` by the delegate while its action runs, as `refreshPricedTiles` reads
- * it - is kept as it is, so a second click cannot fire it again.
+ * `monocubTiles`. Until E103 a tile in flight was kept as it was: the Move, the one tile the delegate disables while its
+ * action runs (`[data-drpg-action]`, as `refreshPricedTiles` reads it). The ability tiles carry no action key and open
+ * their own window (`cubAbilityDialog`), so with the Move gone there is nothing in flight to keep.
  */
 function refreshMonocubTiles(actor, element) {
-    for (const grid of element.querySelectorAll(".drpg-monocub-panel .drpg-action-grid")) {
-        const busy = new Map([...grid.querySelectorAll("[data-drpg-action]")]
-            .filter(node => node.disabled).map(node => [node.dataset.drpgAction, node]));
-        grid.replaceChildren(...monocubTiles(actor).map(tile => busy.get(tile.dataset?.drpgAction) ?? tile));
-    }
+    for (const grid of element.querySelectorAll(".drpg-monocub-panel .drpg-action-grid")) grid.replaceChildren(...monocubTiles(actor));
+    // Move's line follows the Free Move (the r112 review's P2).
+    for (const note of element.querySelectorAll(".drpg-monocub-panel .drpg-monocub-move")) note.replaceWith(monocubMoveNote(actor));
 }
 
-/**
- * @param {object} options  The render's own options. `isFirstRender` is the one
- *   that matters here: it is set by ApplicationV2 itself from the app's state,
- *   and closing a sheet drops that state - so reopening one counts as a first
- *   render again. That is exactly the line the spend flashes need. Without it,
- *   opening a sheet would replay every action spent while it was shut, as
- *   though they had just happened.
- */
 /**
  * Run the module's injections with the system's transitions held still.
  *
@@ -1040,6 +1049,14 @@ function runSheetSteps(ctx) {
     return failed;
 }
 
+/**
+ * @param {object} options  The render's own options. `isFirstRender` is the one
+ *   that matters here: it is set by ApplicationV2 itself from the app's state,
+ *   and closing a sheet drops that state - so reopening one counts as a first
+ *   render again. That is exactly the line the spend flashes need. Without it,
+ *   opening a sheet would replay every action spent while it was shut, as
+ *   though they had just happened.
+ */
 function onRenderCharacterSheet(app, element, context, options) {
     try {
         if (app?.document?.type !== "character") return;
@@ -1326,7 +1343,7 @@ function fitActionTiles(element) {
  * Calls agree with the Hope Calls.
  *
  * So the constraint is the longest word ANY tile in the module can carry -
- * `LONGEST_TILE_WORD`, taken from the definitions themselves - and every grid
+ * `longestTileWord`, taken from the definitions themselves - and every grid
  * on the sheet gets the answer. That also makes the size stable: it does not
  * change when a panel happens to be on a hidden tab, and a Monokuma's sheet
  * and a student's come out the same.
@@ -1346,8 +1363,14 @@ const TILE_TEXT_FLOOR = 0.68;
  * From the definitions rather than a constant, so renaming a Call moves this
  * with it - which is exactly what happened on 28.08, when "Determination"
  * became "Resolve" and stopped being the word every other tile was paying for.
+ *
+ * READ AT EACH FIT, NOT AT IMPORT (E56 C12, 13.11.2026; R5471). It was worked out once when this file was imported,
+ * from the English labels: i18n.mjs `localizeConfig` writes the language file's labels into these same tables later
+ * (at `i18nInit`, and again when a language file is applied on the same page), so a Polish word longer than every
+ * English one was never the word measured. Some sixty short labels split at spaces, beside the layout reads
+ * `fitTileText` already makes. Exported for the suite.
  */
-const LONGEST_TILE_WORD = (() => {
+export function longestTileWord() {
     const labels = [
         ...Object.values(ACTIONS ?? {}),
         ...Object.values(HOPE_CALLS ?? {}),
@@ -1363,7 +1386,7 @@ const LONGEST_TILE_WORD = (() => {
         }
     }
     return longest;
-})();
+}
 
 function fitTileText(grids) {
     const live = grids.filter(g => g.querySelector(".drpg-action-button")?.clientWidth);
@@ -1383,7 +1406,7 @@ function fitTileText(grids) {
     // real tile - a probe rather than arithmetic, because the pixel font's
     // advance width is not something to hard-code.
     const probe = sample.cloneNode(false);
-    probe.textContent = LONGEST_TILE_WORD;
+    probe.textContent = longestTileWord();
     probe.style.cssText = "position:absolute;visibility:hidden;width:min-content;white-space:normal";
     tile.appendChild(probe);
     const needed = probe.getBoundingClientRect().width;
@@ -1655,10 +1678,22 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false, sti
  * `movesLeft`; a Call that grants a third shows two lit and says the number in the tooltip), and a free placement
  * (`null`, D197) is `anywhere` on both. Nothing appears, vanishes or moves when the Eclipse starts or ends.
  *
- * @param {{eclipse?: boolean, moves?: number|null, free?: boolean, fog?: boolean}} state
+ * A MONOCUB'S FEET ARE ALWAYS THERE TO TAKE (E103, 13.11.2026; the owner: "u monocuba zawsze zaznaczamy ruch w karcie
+ * postaci, ze jest dostepny (chodzi o glif)"). A Monocub pays nothing for a crossing and counts no Eclipse crossing
+ * (movement.mjs `cubStep`, `chargeRoute`, E72 C10), so `cub` reads neither `free`, `fog` nor a count: out of an Eclipse
+ * the first foot `available` and the second `off`, as everyone's (the stable layout); in one both `available`, and
+ * `anywhere` in free placement, where nothing holds a Monocub to the connected rooms either. Both of the Eclipse's
+ * defaults are the stage's, owner to confirm. Until E103 a Monocub's feet were a student's.
+ *
+ * @param {{eclipse?: boolean, moves?: number|null, free?: boolean, fog?: boolean, cub?: boolean}} state
  * @returns {{slot: "free"|"eclipse", state: "available"|"spent"|"fogged"|"off"|"anywhere"}[]}
  */
-export function moveSlots({ eclipse = false, moves = null, free = false, fog = false } = {}) {
+export function moveSlots({ eclipse = false, moves = null, free = false, fog = false, cub = false } = {}) {
+    if (cub) {
+        if (!eclipse) return [{ slot: "free", state: "available" }, { slot: "eclipse", state: "off" }];
+        const state = moves === null ? "anywhere" : "available";
+        return [{ slot: "free", state }, { slot: "eclipse", state }];
+    }
     if (!eclipse) return [{ slot: "free", state: free ? "available" : fog ? "fogged" : "spent" }, { slot: "eclipse", state: "off" }];
     if (moves === null) return [{ slot: "free", state: "anywhere" }, { slot: "eclipse", state: "anywhere" }];
     const n = Math.max(0, Number(moves) || 0);
@@ -1675,23 +1710,28 @@ export function moveLegend() {
     return game.i18n.localize("DRPG.Actions.moveLegend");
 }
 
-function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false }) {
+function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false, cub = false }) {
     const move = document.createElement("span");
+    // A Monocub's crossings cost nothing (E103; `moveSlots`): its feet are lit whatever the flag, Fog or the Eclipse's
+    // count. `cub` is the sheet mode's answer (`mode.monocub`, R1470: no mode predicate outside `sheetMode`).
     const freeMove = hasFreeMove(actor);
     /* FOG IS A THIRD STATE (E24 C3b, 08.11.2026; E24-24, audit S03-13). `hasFreeMove` answers no under the Overflow's
        Fog, and the pip said "Free Move used" of a Move nobody spent. Drawn as a spent one (it is not there to take),
-       with `drpg-fogged` and Fog's reason in the tooltip. */
-    const fog = !freeMove && overflowBlocksFreeMove();
+       with `drpg-fogged` and Fog's reason in the tooltip. Fog takes no Monocub's Move: its crossing never paid one. */
+    const fog = !cub && !freeMove && overflowBlocksFreeMove();
     const eclipse = isEclipse();
     const moves = eclipse ? eclipseMovesLeft(actor) : null;
-    const slots = moveSlots({ eclipse, moves, free: freeMove, fog: fog && !eclipse });
+    const slots = moveSlots({ eclipse, moves, free: freeMove, fog: fog && !eclipse, cub });
     const lit = slots.some(({ state }) => state === "available" || state === "anywhere");
     move.className = `drpg-free-move${lit ? " available" : " spent"}${fog && !eclipse ? " drpg-fogged" : ""}`;
-    markSpent(move, fresh || still ? null : spentMove);
+    // Nothing of a Monocub's goes out on a crossing, so nothing flashes: a flag reset under it is not a spend.
+    markSpent(move, fresh || still || cub ? null : spentMove);
     if (!viewer && !still) {
-        const says = eclipse
-            ? `${moves === null ? game.i18n.localize("DRPG.Actions.eclipseFreePlacement") : plural("DRPG.Actions.eclipseMovesLeft", { n: moves })}.`
-            : game.i18n.localize(freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent");
+        const says = cub
+            ? game.i18n.localize("DRPG.Actions.cubMovesFree")
+            : eclipse
+                ? `${moves === null ? game.i18n.localize("DRPG.Actions.eclipseFreePlacement") : plural("DRPG.Actions.eclipseMovesLeft", { n: moves })}.`
+                : game.i18n.localize(freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent");
         move.dataset.tooltip = `${says} ${moveLegend()}`;
     }
     // Solid while it is there, OUTLINED once it is gone - the same pair the
@@ -1720,7 +1760,7 @@ function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false })
 // Call or a Monocub's Meddle landing on them are two different facts about
 // the same turn, and the layout has room for both stacked without moving
 // anything else.
-function pendingStack(actor) {
+export function pendingStack(actor) {
     const stack = document.createElement("div");
     stack.className = "drpg-pending-stack";
 
@@ -1766,6 +1806,20 @@ function pendingStack(actor) {
                            <span>${foundry.utils.escapeHTML(label)}</span>`;
         stack.append(badge);
     }
+
+    // A room action's timed effects (the owner's answer to Q-E93-3; the owner's asks of 12.11.2026, "w podobnym miejscu co
+    // efekty hope calls", then a name of one or two words, the rest in the tooltip, and white): a Call's badge as a white
+    // chip, apart from the Hope Calls' gold - its short name on it, what it does and until when in the tooltip - read on a
+    // GM off the GMs' store and on an owner's browser off their copy (timed-effects.mjs `effectBadges`). Stained Glass
+    // wears the candle on it (tools/glyphs.json glass "timed-effect").
+    for (const { short, what, until } of timedBadges(actor)) {
+        const badge = document.createElement("div");
+        badge.className = "drpg-pending-call drpg-pending-timed drpg-timed-badge";
+        badge.dataset.tooltip = game.i18n.format("DRPG.Facility.timedBadge", { what, until });
+        badge.innerHTML = `<i class="fa-solid fa-hourglass-half" inert></i>
+                           <span>${foundry.utils.escapeHTML(short)}</span>`;
+        stack.append(badge);
+    }
     return stack;
 }
 
@@ -1791,7 +1845,8 @@ function injectActionBar(app, element, fresh = false, mode = modeOf(app)) {
     const still = !mode.header.acts;
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
-    const { wounded } = actionBudget(actor);
+    // The lost action's mark, not the state's (E64 C1c): Wounded takes no action in the Class Trial.
+    const { costsAction: wounded } = actionBudget(actor);
 
     // What went out since this sheet last drew itself. Recorded even when it is
     // not shown - a first draw still has to know where the count started, or
@@ -1816,7 +1871,7 @@ function injectActionBar(app, element, fresh = false, mode = modeOf(app)) {
 
     for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer, still, gm })) actions.append(pip);
 
-    actions.append(freeMovePip(actor, { spentMove, fresh, viewer, still }));
+    actions.append(freeMovePip(actor, { spentMove, fresh, viewer, still, cub: mode.monocub }));
 
     section.append(actions);
 
@@ -2601,21 +2656,6 @@ export function paintPartyReserves(app, element, user = game.user, find = uuid =
 }
 
 /**
- * Put the readied Crime and Cleaning Tool into the sidebar's Equipped list.
- *
- * That list is Daggerheart's `equippedItems`, which means its own weapons and
- * armour. This module's tools are `loot` with a category flag, so nothing put
- * them there - and "Equipped" showing everything except the two things the
- * module calls equipped is worse than not renaming the heading at all. It also
- * made the one mechanic that now depends on readying something (see
- * `equippedWeapon` in murder-rules.mjs) invisible in the place a player looks to
- * check it.
- *
- * Rows are built to match `daggerheart.inventory-item-compact` - same classes,
- * same order - so they inherit the system's styling instead of needing a
- * parallel set of rules that would drift from it.
- */
-/**
  * A row about something that has stopped existing (trap 91).
  *
  * A SILENT STEAL LEAVES ONE. An unseen steal or rifle (palm.mjs
@@ -2652,6 +2692,21 @@ function guardRow(li, item, app) {
     }, true);
 }
 
+/**
+ * Put the readied Crime and Cleaning Tool into the sidebar's Equipped list.
+ *
+ * That list is Daggerheart's `equippedItems`, which means its own weapons and
+ * armour. This module's tools are `loot` with a category flag, so nothing put
+ * them there - and "Equipped" showing everything except the two things the
+ * module calls equipped is worse than not renaming the heading at all. It also
+ * made the one mechanic that now depends on readying something (see
+ * `equippedWeapon` in murder-rules.mjs) invisible in the place a player looks to
+ * check it.
+ *
+ * Rows are built to match `daggerheart.inventory-item-compact` - same classes,
+ * same order - so they inherit the system's styling instead of needing a
+ * parallel set of rules that would drift from it.
+ */
 function injectEquippedTools(app, element, mode = modeOf(app)) {
     const actor = app.document;
     if (!mode.equipped) {
@@ -2689,8 +2744,10 @@ function injectEquippedTools(app, element, mode = modeOf(app)) {
         li.dataset.itemId = item.id;
         li.dataset.itemUuid = item.uuid;
         li.draggable = false;
+        /* The picture's box in both spellings: Daggerheart 2.12 spells its class `img-portrait` (inventory-item-compact.hbs:15,
+           inventory-item.less), older builds `img-portait`; with one only, the system's 40 px box missed the row (R5763). */
         li.innerHTML = `
-            <div class="img-portait" data-tooltip="#item#${item.uuid}">
+            <div class="img-portrait img-portait" data-tooltip="#item#${item.uuid}">
                 <img src="${foundry.utils.escapeHTML(item.img ?? "")}" class="item-img" alt="" />
             </div>
             <span class="item-name">${foundry.utils.escapeHTML(item.name)}</span>
@@ -2778,7 +2835,7 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
         // was read (H81 fix r1, movement.mjs `passageRooms`' note). The label's rooms are the map's, for no token.
         const elevation = from !== null && Number.isFinite(here?.tokenDoc?.elevation) ? here.tokenDoc.elevation : null;
         const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, elevation, ...given });
-        rows.push({ passage, label, shut, way });
+        rows.push({ passage, label, shut, way, rooms: [rooms[0] ?? null, rooms[1] ?? null] });
     }
     return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -2933,9 +2990,48 @@ export function knownPassageItem(row) {
         : `<span class="drpg-passage-note" data-drpg-passage-note="walk">${t("DRPG.Passage.list.walk")}</span>`;
     li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
         foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
-        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross"${tipAttr("DRPG.Tips.Setup.goThroughTooltip")}>${t("DRPG.Passage.list.cross")}</button>` : "")
+        + `<button type="button" class="drpg-mini-button drpg-passage-show"${tipAttr("DRPG.Tips.Setup.showThePassageTooltip")}>${t("DRPG.Passage.show.button")}</button>`
+        // The Mastermind's Seal on a passage at their door (E91 C5, D038; `injectKnownPassages` marks the row).
+        + (row.seal ? `<button type="button" class="drpg-mini-button drpg-passage-seal" data-tooltip="${t("DRPG.Passage.list.sealTip")}">${
+            t("DRPG.Passage.list.seal")}</button>` : "");
     return li;
+}
+
+/**
+ * THE MASTERMIND'S DOOR ON THEIR SHEET (E91 C4, C5; D038, 12.11.2026). On the browser of the player who holds the part
+ * (settings.mjs `myMastermindLair`; a GM locks rooms in Room Setup and closes passages in the tab): a line naming the
+ * room and whether its door is locked, with Lock or Unlock, and a Seal on every passage the sheet lists with a side in
+ * it. The lock is the GM's room lock (`isLocked`, as the door reads it), asked of the primary GM (bridge-asks.mjs
+ * `requestLairLock`, `requestLairSeal`). Nothing here is drawn on anybody else's browser.
+ */
+function lairLocked(room) {
+    return [...(game.scenes ?? [])].some(scene => roomRegions(scene, room).length && isLocked(scene, room));
+}
+
+function lairBlock(actor, room) {
+    const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
+    const locked = lairLocked(room);
+    const div = document.createElement("div");
+    div.className = "drpg-lair-line";
+    div.innerHTML = `<span class="drpg-lair-room">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Mastermind.lair.room", { room }))}</span>`
+        + `<span class="drpg-lair-state">${t(locked ? "DRPG.Mastermind.lair.locked" : "DRPG.Mastermind.lair.open")}</span>`
+        + `<button type="button" class="drpg-mini-button drpg-lair-lock">${t(locked ? "DRPG.Mastermind.lair.unlock" : "DRPG.Mastermind.lair.lock")}</button>`;
+    const button = div.querySelector(".drpg-lair-lock");
+    button.addEventListener("click", async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        button.disabled = true;
+        try {
+            const { requestLairLock } = await import("./gm-bridge.mjs");
+            await requestLairLock({ actorId: actor.id, lock: !locked });
+        } catch (err) {
+            error("Could not change the room's lock", err);
+        } finally {
+            actor.sheet?.render(false);
+        }
+    });
+    return div;
 }
 
 /** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
@@ -2947,17 +3043,31 @@ function injectKnownPassages(app, element, mode = modeOf(app)) {
     host.querySelector(".drpg-passages-section")?.remove();
     if (!actor || !mode.passages) return;
     const { mastermind } = mode;
-    const rows = knownPassageRows(actor, { mastermind });
-    if (!rows.length) return;
+    // The Mastermind's own room, on their player's browser alone (`lairBlock`).
+    const lair = mode.lair ?? null;
+    const rows = knownPassageRows(actor, { mastermind }).map(row => ({ ...row, seal: Boolean(lair) && row.rooms.includes(lair) }));
+    if (!rows.length && !lair) return;
 
     const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
     const section = document.createElement("div");
     section.className = "drpg-passages-section";
-    section.innerHTML = `<div class="title"><side-line-div class="invert"></side-line-div><h3>${t("DRPG.Passage.list.title")}</h3>`
-        + `<side-line-div></side-line-div></div><ul class="drpg-passage-list"></ul>`;
+    section.innerHTML = (rows.length ? `<div class="title"><side-line-div class="invert"></side-line-div><h3>${t("DRPG.Passage.list.title")}</h3>`
+        + `<side-line-div></side-line-div></div>` : "") + `<ul class="drpg-passage-list"></ul>`;
     const list = section.querySelector("ul");
+    if (lair) list.before(lairBlock(actor, lair));
     for (const row of rows) {
         const li = knownPassageItem(row);
+        li.querySelector(".drpg-passage-seal")?.addEventListener("click", async event => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.disabled = true;
+            try {
+                const { requestLairSeal } = await import("./gm-bridge.mjs");
+                await requestLairSeal({ actorId: actor.id, passageId: row.passage.id });
+            } catch (err) {
+                error("Could not seal a secret passage", err);
+            }
+        });
         const where = li.querySelector(".drpg-passage-where");
         const pan = event => {
             event.preventDefault();
@@ -3031,10 +3141,10 @@ function injectSafeword(app, element, mode = modeOf(app)) {
      * every open sheet - otherwise the button would keep offering the old word
      * to everyone who has not reopened their character since it changed.
      */
-    // The table's word, and above it what the button is (E49 B2, S03-31: "the safeword shows the table's word alone" -
-    // a word nobody has met reads as a name, not as the Stop).
+    // The table's word alone (E100, 12.11.2026; the owner at a table on 1.2.108: "SAFEWO RD MISIUBOMBO" wrapped across
+    // two lines in the narrow button - only the safeword's own name, as it was before E49 B2 put the caption above it).
+    // What the button is stays in its tooltip and its aria-label.
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
-        <span class="drpg-safeword-caption">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Safeword.title"))}</span>
         <span class="drpg-safeword-word">${foundry.utils.escapeHTML(safeword())}</span>`;
 
     button.addEventListener("click", async event => {
@@ -3104,7 +3214,7 @@ function plainBiography(html) {
  * followed by a close is one write, not two. Compared against the FLATTENED current value (`plainBiography`): a
  * formatted backstory merely opened, focused and left is not rewritten.
  */
-export function saveBiography(app) {
+function saveBiography(app) {
     const held = app?._drpgBiography;
     if (!held) return null;
     const actor = app.document ?? null;
@@ -3765,7 +3875,8 @@ function addUseButton(li, item, app) {
     // Hiding it would read as the item having changed into something else.
     const broken = isBroken(item);
     /* A TIER 0 THING'S USE IS A REQUEST TO THE GM (E22 C5c; A4, audit S03-26): it has no table row, so a GM rules on
-       what the player writes (use-items.mjs `useCreatively`) - red, with the GM's word in its tooltip, where "Use this
+       what the player writes (use-items.mjs `useCreatively`) - the GM's chip beside the flask (E107 part 2; until then a
+       `drpg-gm-route` class that painted nothing on this button) and the GM's word in its tooltip, where "Use this
        item." promised the item would simply work. In a fight it is a crisis action, which no GM rules (below), so it
        is the plain Use there. */
     const askGm = !broken && usedCreatively(item) && !inCrisis(app.document);
@@ -3779,7 +3890,8 @@ function addUseButton(li, item, app) {
     button.disabled = broken;
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-flask" inert></i>`;
+    // The GM's chip beside the flask (E107 part 2, R5434): the class alone painted nothing on this button.
+    button.innerHTML = `<i class="fa-solid fa-flask" inert></i>${askGm ? `<span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>` : ""}`;
 
     button.addEventListener("click", async () => {
         /*
@@ -3941,28 +4053,6 @@ function addStashButton(li, item, app, { stowing }) {
 }
 
 /**
- * One Truth Bullet, as a row.
- *
- * A bullet has no tier - the old `T2` pill was a visibility index the previous
- * macro smuggled through the tier field. What matters instead is what the player
- * currently believes it is, how hard the original was to spot (the number Analyze
- * will be rolled against), and which chapter it belongs to.
- *
- * The GM reading the same sheet gets one extra badge: the truth. It is drawn
- * from `truthBulletData`, which returns it only to a GM - a player's client
- * never had it to begin with.
- */
-/**
- * The badges a Truth Bullet wears, as one string.
- *
- * Extracted so the inventory row and the item window are not two descriptions of
- * one object that drift apart - they are the same call. A player comparing the
- * row on their sheet with the window they just opened from it must not find two
- * different accounts of the same piece of evidence; in a game whose endgame is
- * people comparing notes, that is a contradiction the table has to spend the
- * trial resolving.
- */
-/**
  * A value fit to stand in a `class` attribute: letters, digits, `-` and `_` only.
  *
  * E02, 24.09.2026; audit S03-05. A role key and a bullet's shown type were
@@ -3977,6 +4067,16 @@ function classSafe(value) {
     return String(value ?? "").replace(/[^A-Za-z0-9_-]/g, "");
 }
 
+/**
+ * The badges a Truth Bullet wears, as one string.
+ *
+ * Extracted so the inventory row and the item window are not two descriptions of
+ * one object that drift apart - they are the same call. A player comparing the
+ * row on their sheet with the window they just opened from it must not find two
+ * different accounts of the same piece of evidence; in a game whose endgame is
+ * people comparing notes, that is a contradiction the table has to spend the
+ * trial resolving.
+ */
 export function bulletBadges(data, { gm = false } = {}) {
     if (!data) return "";
 
@@ -4277,6 +4377,18 @@ function bulletFold(group, rowFor, actor, mode) {
     return details;
 }
 
+/**
+ * One Truth Bullet, as a row.
+ *
+ * A bullet has no tier - the old `T2` pill was a visibility index the previous
+ * macro smuggled through the tier field. What matters instead is what the player
+ * currently believes it is, how hard the original was to spot (the number Analyze
+ * will be rolled against), and which chapter it belongs to.
+ *
+ * The GM reading the same sheet gets one extra badge: the truth. It is drawn
+ * from `truthBulletData`, which returns it only to a GM - a player's client
+ * never had it to begin with.
+ */
 function buildBulletRow(li, item, app) {
     const data = truthBulletData(item);
     if (!data) return;
@@ -4693,11 +4805,15 @@ function injectActionPanel(app, element, mode = modeOf(app)) {
         callsGm: true
     };
 
-    // ONE LOOP, AND THE TABLE IS THE LAYOUT. The dynamic tile used to be
+    // ONE LOOP, AND ONE LIST IS THE LAYOUT. The dynamic tile used to be
     // appended after this, which is why it sat last whatever config.mjs said -
-    // and "last" is a position somebody has to be able to choose.
-    for (const [key, def] of Object.entries(ACTIONS)) {
-        if (def.kind !== "universal") continue;
+    // and "last" is a position somebody has to be able to choose. Since E103
+    // the place is config.mjs `ACTION_GRID`'s (the owner's order of 13.11.2026),
+    // not ACTIONS' key order; a key it names that is no universal entry draws
+    // nothing.
+    for (const key of ACTION_GRID) {
+        const def = ACTIONS[key];
+        if (def?.kind !== "universal") continue;
         grid.append(actionButton(actor, key, def.deferred ? dynamic : def));
     }
 
@@ -4710,11 +4826,10 @@ function injectActionPanel(app, element, mode = modeOf(app)) {
 }
 
 /**
- * Move and Meddle. Move reuses the normal action button and the generic
- * delegate - its click just shows the same briefing every player gets, since
- * the guide's Move is applied when a token crosses a room, not when a button
- * is pressed. Meddle is bespoke: it needs a target and a Help/Hinder choice
- * before there is anything to roll.
+ * The Monocub's abilities, one tile each (`monocubTiles`): bespoke, because Confusion needs a target and a Help/Hinder
+ * choice before there is anything to roll. No Move tile since E103 (the owner, 13.11.2026: "kafel move u monocuba
+ * usuwamy"): its click only showed the Move's briefing, and a Monocub's Move is its token crossing a room, which costs
+ * it nothing (movement.mjs `cubStep`, E72 C10) - the header's two feet say so (`freeMovePip`).
  */
 function injectMonocubPanel(tab, actor) {
     const panel = document.createElement("div");
@@ -4736,6 +4851,44 @@ function injectMonocubPanel(tab, actor) {
     grid.append(...monocubTiles(actor));
     panel.append(grid);
 
+    // THE PURSE (E72 C14; DC37): Hope a Bribe or a Bounty paid, kept by the GMs beside the sheet's and spent first.
+    const purse = purseOf(actor);
+    if (purse > 0) {
+        const line = document.createElement("p");
+        line.className = "notes drpg-monocub-purse";
+        line.textContent = game.i18n.format("DRPG.Monocub.purseLine", { n: purse });
+        panel.append(line);
+    }
+
+    /* PART B, UNDER THE TILES (E72 C19): each Bribe waiting with its Accept and Refuse (the same answer as the window,
+       monocub.mjs `openBribeOffer`), each open Bounty, and the Monocub's own Ghost Bet (`cubPanelLines`). Words only, as
+       the purse's line: no side, colour or title (DC39). */
+    for (const item of cubPanelLines(actor)) {
+        const line = document.createElement("p");
+        line.className = `notes drpg-monocub-${item.kind}`;
+        const words = document.createElement("span");
+        words.textContent = item.kind === "offer" ? game.i18n.format("DRPG.Monocub.panelOffer", { name: item.name, cost: item.cost })
+            : item.kind === "bounty" ? game.i18n.format("DRPG.Monocub.panelBounty", { name: item.name, reward: item.reward })
+                : game.i18n.format("DRPG.Monocub.panelBet", { name: item.name, n: item.value });
+        line.append(words);
+        // Wherever the panel is drawn (sheetMode's question, asked once above): the GM side judges the answer's sender.
+        if (item.kind === "offer") {
+            for (const accept of [true, false]) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "drpg-mini-button";
+                button.textContent = game.i18n.localize(accept ? "DRPG.Monocub.bribeAccept" : "DRPG.Monocub.bribeRefuse");
+                button.addEventListener("click", async () => {
+                    button.disabled = true;
+                    const { requestBribeAnswer } = await import("./gm-bridge.mjs");
+                    await requestBribeAnswer({ cubId: actor.id, bribeId: item.id, accept });
+                });
+                line.append(" ", button);
+            }
+        }
+        panel.append(line);
+    }
+
     if (isCrimeSilenced(actor)) {
         const note = document.createElement("p");
         note.className = "notes drpg-monocub-silenced";
@@ -4743,36 +4896,80 @@ function injectMonocubPanel(tab, actor) {
         panel.append(note);
     }
 
+    // Move's line, on screen (E100, R4107): its window is gone; the owner wants "Free" here, not the whole description.
+    panel.append(monocubMoveNote(actor));
+
     tab.prepend(panel);
 }
 
-/* A Monocub's tiles: the Move, then one tile per row of its table (E33 C10): Confusion today, a second ability a row.
-   The panel's build and the repaint's (`refreshMonocubTiles`, E45 C2) both draw these. */
+/*
+ * MOVE'S DESCRIPTION STAYS ON SCREEN (E100, 12.11.2026; the owner's rule on E100's review: an action's description is
+ * never hidden, folded or collapsed - "nie chowajmy w oknach akcji ... opisu akcji NIGDY"). Item 1 took Move's window
+ * away, the one place its description stood; the tile says the name, the price and "Drag your token", its tooltip the
+ * hint. The description is a line of the Monocub's panel under its tiles, as the silenced note is. R4107.
+ * CUT DOWN THE SAME DAY: the owner, passed on by the coordinator - on the Monocub's panel Move needs only "za darmo",
+ * not the whole description. The line reads `DRPG.Move.free` ("Free" / "Za darmo"), still a line of its own, not folded.
+ */
+export function monocubMoveNote(actor = null) {
+    const note = document.createElement("p");
+    note.className = "notes drpg-monocub-move";
+    /* "Free" for a Monocub whatever its purse (1.2.113, 13.11.2026; R5701). The r112 review's P2 made the line say the
+       next price once the Free Move was spent (action-briefing.mjs `moveLine`, actions.mjs `nextCrossingPrice`), on the
+       premise that a Monocub pays its crossings as a student does. It does not: movement.mjs `chargeRoute` lets a
+       Monocub's drag through with nothing taken - no Free Move, free crossing, Burst or action (E72 C10) - and tier 2
+       "1.2.113 a Monocub's crossing costs nothing ..." measured it with nothing left to pay with. A character that is no
+       Monocub, which the panel never holds, still reads the next price; with no character, the owner's word. Whether it
+       is a Monocub is `sheetMode`'s (R1470: one sheet mode). The panel's repaint draws the line again
+       (`refreshMonocubTiles`). */
+    note.textContent = !actor || sheetMode(actor).monocub || nextCrossingPrice(actor) === "free" ? game.i18n.localize("DRPG.Move.free") : moveLine(actor);
+    return note;
+}
+
+/**
+ * Whether Move's "drag your token" is true for this character now (the r112 review's P2, 13.11.2026): not in a Class
+ * Trial, where the drag is refused (movement.mjs `trialLocked`), nor in an incident the character is in
+ * (`lockedInIncident`); the tile is locked in both (`actionButton`). The HUD's Move row and the Monocub's Move tile ask
+ * it. `trial` and `incident` are for the suite (R4472).
+ */
+export function moveDragSaid(actor, { trial = inClassTrial(), incident = Boolean(murderState()?.stage === "incident" && sideOf(actor)) } = {}) {
+    return !trial && !incident;
+}
+
+/* A Monocub's tiles: one per row of its table (E33 C10), in the table's order - Confusion, Redeem, Ask for Hope,
+   Tinker, Ghost Bet. The Move drawn first until E103 is gone (the owner, 13.11.2026). The panel's build and the
+   repaint's (`refreshMonocubTiles`, E45 C2) both draw these. */
 function monocubTiles(actor) {
-    return [actionButton(actor, "move", ACTIONS.move),
-        ...Object.entries(MONOCUB.abilities).map(([key, def]) => abilityButton(actor, key, def))];
+    return Object.entries(MONOCUB.abilities).map(([key, def]) => abilityButton(actor, key, def));
 }
 
 function abilityButton(actor, key, def) {
-    const held = hopeHeld(actor);
+    // The sheet's Hope and the purse's (E72 C14; DC37): a price may be paid from either.
+    const held = hopeHeld(actor) + purseOf(actor);
     const affordable = actionsLeft(actor) >= def.cost && held >= def.hopeCost;
+    /* SHUT, AND WHY (E72 C9, 12.11.2026; audit S18-62, DC22): a row's blocks this browser can read - Redeem used today,
+       the Hope full, an Ask for Hope still open (monocub.mjs `cubBlockSaid`, the owner's copy of the GMs' row) - grey
+       the tile with the block's own sentence. The GM asks them again before the price; this is the courtesy. */
+    const shut = cubBlockSaid(actor, def);
+    const free = def.cost === 0 && def.hopeCost === 0;
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `drpg-action-button${affordable ? "" : " unaffordable"}`;
+    button.className = `drpg-action-button${affordable && !shut ? "" : " unaffordable"}`;
     // Counted on the actions (E66 C2; S18-36): Hope agrees with nothing in either language.
-    button.dataset.tooltip = `${plural("DRPG.Monocub.meddleCost", {
-        actions: def.cost, hope: def.hopeCost
-    }, "actions")}${affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Monocub.cannotMeddle")}</em>`}`;
+    // The grid's own words for a price with no Hope (`costLabelFor`): "free", "1 action".
+    const price = free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0 ? plural("DRPG.Action.costActions", { n: def.cost })
+        : plural("DRPG.Monocub.meddleCost", { actions: def.cost, hope: def.hopeCost }, "actions");
+    const why = shut ? game.i18n.localize(shut) : affordable ? "" : game.i18n.localize("DRPG.Monocub.cannotMeddle");
+    button.dataset.tooltip = `${foundry.utils.escapeHTML(price)}${why ? `<br><em>${foundry.utils.escapeHTML(why)}</em>` : ""}`;
     // "1 · 1◆" was unreadable without already knowing which number was which.
     // Confusion is the only action in the game that costs two different things,
     // so the tile spells both out in the same order the tooltip does.
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${plural("DRPG.Monocub.meddleCostShort", {
-            actions: def.cost, hope: def.hopeCost
-        }, "actions")}</span>`;
+        <span class="drpg-action-cost">${free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0
+            ? plural("DRPG.Action.costActions", { n: def.cost })
+            : plural("DRPG.Monocub.meddleCostShort", { actions: def.cost, hope: def.hopeCost }, "actions")}</span>`;
 
     button.addEventListener("click", async () => {
         const { cubAbilityDialog } = await import("./monocub.mjs");
@@ -4827,7 +5024,9 @@ export function budgetLine(actor, state = murderState()) {
     // Fog took it (E24 C3b; E24-24): said, so a Move that is not there reads as the weather's and not as spent.
     else if (overflowBlocksFreeMove()) parts.push(game.i18n.localize("DRPG.SheetNotes.fogBudget"));
 
-    // What Hope has already bought, next to what the day gave you.
+    // What is already banked, next to what the day gave you: a Burst bought with Hope, and the free crossings a Sprint,
+    // a Dash, a Facilities room action or Infiltrate banked into one counter (actions.mjs `grantFreeMoves`), which keeps
+    // no record of what filled it - so the line names the crossing, not what paid for it (the audit of 1.2.113, A113-C4-2).
     //
     // On the budget line rather than on the tiles, for the same reason the
     // action count is: the question a player is asking here is "what can I get
@@ -4918,11 +5117,6 @@ function injectCallsPanel(tab, actor, monokuma) {
 }
 
 /**
- * A Call tile, built to exactly the same template as an action tile: icon on
- * top, name, price underneath. Only the colour and the icon differ, so a player
- * reads the whole sheet the same way rather than learning two layouts.
- */
-/**
  * Why every Call on one drawer is grey right now, or null.
  *
  * One reader for the injection and the repaint, so the two cannot disagree about
@@ -4939,6 +5133,11 @@ function callLockNote(monokuma) {
     return null;
 }
 
+/**
+ * A Call tile, built to exactly the same template as an action tile: icon on
+ * top, name, price underneath. Only the colour and the icon differ, so a player
+ * reads the whole sheet the same way rather than learning two layouts.
+ */
 function callButton(call, monokuma, lockNote = null) {
     const button = document.createElement("button");
     button.type = "button";
@@ -4982,7 +5181,8 @@ function callButton(call, monokuma, lockNote = null) {
        (`needsGm`) wait for a GM's yes before anything is spent (calls.mjs: their window's Send is on the GM's road,
        `callWindow`'s `gmRoute`), and their tiles looked like every Call a player simply buys. The flag that makes the
        window's Send red makes the tile red, and the chip under the cost says who it waits for, as an action tile's. */
-    const askGm = Boolean(call.needsGm) && !pending;
+    // And Talent's tile, whose two Calls a GM rules (E72; calls.mjs `callAsksGm`).
+    const askGm = callAsksGm(call, monokuma ? "despair" : "hope") && !pending;
     button.className = `drpg-action-button drpg-call-button${
         pending ? " drpg-call-pending"
             : lockNote ? " drpg-locked-eclipse"
@@ -5079,8 +5279,20 @@ async function runCall(actor, key, kind) {
         await import("./calls.mjs");
 
     const despair = kind === "despair";
-    const call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
+    let call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return;
+    /* A tile of two Calls asks which first (call-pickers.mjs `pickChoice`, E72); the rest runs on the chosen Call's own
+       row. A tile whose two a GM rules (Talent) asks it in its confirmation instead, with the note (`confirmCall`'s
+       `choices`, R3818): the rest runs on the tile's row up to there. */
+    const table = despair ? DESPAIR_CALLS : HOPE_CALLS;
+    const ruled = Array.isArray(call.choices) && callAsksGm(call, despair ? "despair" : "hope");
+    if (Array.isArray(call.choices) && !ruled) {
+        const { pickChoice } = await import("./call-pickers.mjs");
+        const chosen = await pickChoice(call, despair ? "despair" : "hope");
+        if (!chosen) return;
+        key = chosen;
+        call = table[key];
+    }
 
     /*
      * ONE PURCHASE OF A CALL AT A TIME (E51 fix round FG7, 31.10.2026; review goal G2). A sheet redrawn while this
@@ -5198,8 +5410,21 @@ async function runCall(actor, key, kind) {
         }
     }
 
-    const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor });
+    /* Talent's rows (`ruled`, above): one shut with its reason - Experience with none on the sheet, a Call already held -
+       stays greyed in the window, as an action's row, and the checks below the window are asked again of the one picked. */
+    const shut = {};
+    if (ruled) for (const k of call.choices) {
+        if (table[k].grants === "experience" && !Object.keys(actor.system?.experiences ?? {}).length) shut[k] = game.i18n.localize("DRPG.Calls.rowNoExperiences");
+        else if (table[k].grants && alreadyArmed(actor, { ...table[k], key: k })) shut[k] = game.i18n.localize("DRPG.Calls.rowArmed");
+    }
+    let note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor, ...(ruled ? { choices: call.choices, shut } : {}) });
     if (note === null) return;
+    if (ruled) {
+        if (!call.choices.includes(note.key) || shut[note.key]) return;
+        key = note.key;
+        call = table[key];
+        note = note.note;
+    }
 
     if (despair) await spendDespairCallFor(actor, key, { note, choice });
     else await spendHopeCall(actor, key, { note, choice });
@@ -5227,10 +5452,13 @@ async function runCall(actor, key, kind) {
  */
 export function roomBlockFor(actor, key) {
     try {
-        // Rest is about the actor, and is dimmed only when neither of its rows can be taken: the tooltip names both
-        // reasons, and the window shows both rows greyed (E16 part 2 C4, 26.10.2026; audit S02-26). The tile looked
-        // live and its press answered "Nothing here can be done right now." alone.
-        if (key === "rest") return restShutReason(actor);
+        // Facilities (the tile keyed "rest") is dimmed only when no row of its window can be taken: the tooltip names
+        // every row's reason, and the window shows them all greyed (E16 part 2 C4, 26.10.2026; audit S02-26: the tile
+        // looked live and its press answered "Nothing here can be done right now." alone). Its rows are the two rests
+        // and, since E93, the room's actions; until fix line 113f (13.11.2026) the tile read the rests alone and was
+        // struck through while a GM's room action or a project's stood open (the owner's report at a table on 1.2.112).
+        // One list for both: action-facilities.mjs `facilitiesRows`.
+        if (key === "rest") return facilitiesShutReason(actor);
 
         // Only the five actions whose subject lives in the room can be blocked
         // by the room. Move and the rest are about the actor. Not Projects (E16 part 2 C4; audit S03-24): it
@@ -5344,7 +5572,7 @@ function tamperKey(actor) {
 }
 
 /** Drop every cached answer. Anything that could have changed a trace. */
-export function forgetTamper() {
+function forgetTamper() {
     tamperAnswers.clear();
 }
 
@@ -5497,8 +5725,8 @@ export function actionButton(actor, key, def) {
     // WHICH TILES ARE OUT, AND WHY EACH ONE IS.
     //
     // The Eclipse is placement-only - see the guard in action-rolls.mjs's
-    // `performAction`. Move is exempt there and stays exempt here, since it is
-    // the one thing the Eclipse actually is for.
+    // `performAction`. Move is exempt there; it was exempt here too while the
+    // Monocub's panel drew a Move tile, and no tile draws it since E103.
     //
     // Direct Murder is exempt the other way round, and this tile is the reason
     // the rule needs stating twice: the guard refuses the action, but a tile
@@ -5538,7 +5766,7 @@ export function actionButton(actor, key, def) {
 
     const locked = key === "directMurder"
         ? (!eclipse && !inIncident && !canBetray)
-        : (inIncident || (key !== "move" && eclipse) || (inTrial && key !== "analyze"));
+        : (inIncident || eclipse || (inTrial && key !== "analyze"));
 
     /*
      * AND THE OTHER HALF: WHICH TILE IS THE MOVE (D12, Dawid 29.08).
@@ -5693,7 +5921,36 @@ export function actionButton(actor, key, def) {
         fightTile ? "" : `
         <span class="drpg-action-cost">${costLabel}</span>`}${gmMark}`;
 
-    return button;
+    return key === "move" ? stillMoveTile(button, locked) : button;
+}
+
+/*
+ * THE MOVE TILE OPENS NOTHING (E100 item 1, 12.11.2026; the owner on the player-screens review, #2: the Move window had
+ * one button, Got it, and only said "drag your token"). The tile a Monocub's panel draws keeps its price and its
+ * tooltip, and says on its face what to do (`DRPG.Move.dragShort`); it is a `div`, not a button, with no
+ * `data-drpg-action`, so the delegate (`attachActionDelegate`) has nothing to press and the stylesheets' hover, which
+ * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R4100.
+ */
+export function stillMoveTile(button, locked = false) {
+    const tile = document.createElement("div");
+    tile.className = button.className;
+    tile.classList.add("drpg-action-still");
+    for (const [k, v] of Object.entries(button.dataset)) if (k !== "drpgAction") tile.dataset[k] = v;
+    tile.dataset.drpgTile = "move";
+    tile.innerHTML = button.innerHTML;
+    // No "Drag your token" where the tile is locked: a Class Trial or an incident refuses the drag (the r112 review's P2).
+    if (!locked) {
+        const line = document.createElement("span");
+        line.className = "drpg-action-cost";
+        line.textContent = game.i18n.localize("DRPG.Move.dragShort");
+        tile.append(line);
+    }
+    /* Reached by the keyboard (the r112 review's P4): a `div` takes no focus, and Foundry shows `data-tooltip` on focus, so
+       the hint and a lock's reason were the mouse's alone. Its words as its label, for a screen reader. Exported for R4472. */
+    tile.tabIndex = 0;
+    tile.setAttribute("role", "note");
+    tile.setAttribute("aria-label", [tile.textContent.replace(/\s+/g, " ").trim(), button.dataset.tooltip ?? ""].filter(Boolean).join(". "));
+    return tile;
 }
 
 /**
@@ -5725,9 +5982,10 @@ function callsGmFor(actor, def) {
 /**
  * What this action would cost right now.
  *
- * During an Eclipse the action economy is suspended entirely - crossings come
- * out of the two the placement window grants, not out of actions - so Move is
- * free regardless of whether the ordinary free Move has been spent.
+ * Until E103 a Move tile (the Monocub's) read its price here too - free in an
+ * Eclipse, else the free Move or an action. No tile draws the Move since
+ * (the owner, 13.11.2026), so every tile's price is its definition's, a chain's
+ * quote or Direct Murder's free cases.
  */
 function costOf(actor, key, def) {
     /*
@@ -5746,9 +6004,7 @@ function costOf(actor, key, def) {
     }
 
     if (key === "directMurder" && directMurderIsFree(actor)) return 0;
-    if (key !== "move") return def.cost ?? 1;
-    if (isEclipse()) return 0;
-    return hasFreeMove(actor) ? 0 : 1;
+    return def.cost ?? 1;
 }
 
 /**
@@ -5775,11 +6031,11 @@ function priceQuoteFor(actor, key) {
 }
 
 /**
- * Move shows its live state; everything else shows a flat price.
+ * A tile's price in words: a chain's step that will pay, else a flat price.
  *
- * In an Eclipse "Free" is true but useless - the number that decides whether
- * you can still get where you are going is how many of the two crossings are
- * left, and it was only visible in a whisper after each one.
+ * Until E103 the Monocub's Move tile showed its live state here, an Eclipse's
+ * crossings left ("1 / 2 crossings", "any room"); the header's two feet say that
+ * now (`freeMovePip`), and no tile draws the Move (the owner, 13.11.2026).
  */
 function costLabelFor(actor, key, def) {
     // The step that will pay, in words: "1 action", "1 Hope", "1 Sanity" (T-1).
@@ -5788,13 +6044,6 @@ function costLabelFor(actor, key, def) {
         return quote.blocked
             ? game.i18n.localize("DRPG.Action.costFree")
             : priceLabel(quote);
-    }
-
-    if (key === "move" && isEclipse()) {
-        const left = eclipseMovesLeft(actor);
-        return left === null
-            ? game.i18n.localize("DRPG.Action.costAnyRoom")
-            : plural("DRPG.Action.costCrossings", { left, max: ECLIPSE_MOVES }, "max");
     }
 
     const cost = costOf(actor, key, def);

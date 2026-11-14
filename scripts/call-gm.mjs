@@ -62,14 +62,14 @@ const askedByCard = new Set();
  * character, which Call and which purchase - what a GM's yes is kept for (`yesOnPrimary`), read
  * from the ask as it arrived and never from the card's buttons. The oldest go first.
  */
-export const callAsks = new Map();
-export const CALL_ASKS_KEPT = 100;
+const callAsks = new Map();
+const CALL_ASKS_KEPT = 100;
 
 /**
  * The Dynamic actions' asks this primary put on a card, by request (E18 C1): who asked, for which
  * character, and the card - what a GM's ruling is sent on for (`dynamicOnPrimary`). The oldest go first.
  */
-export const dynamicAsks = new Map();
+const dynamicAsks = new Map();
 
 /**
  * Keep an ask, and the card it was put on once it is posted (`messageId`, E18 C1); the oldest go first. With
@@ -534,7 +534,7 @@ export async function dynamicOnPrimary(requestId, asker, ruling, by, messageId =
  * GMs' record from the moment the primary sends it on" reads it before any receipt and after each end; at f547a92
  * each read was the older card's.
  */
-export async function keepRuling(messageId, ruling, sentOn = null, { quiet = false } = {}) {
+async function keepRuling(messageId, ruling, sentOn = null, { quiet = false } = {}) {
     const message = game.messages.get(messageId ?? "");
     if (!message?.getFlag(MODULE_ID, "secret")) {
         if (!quiet) warn("A GM's ruling on a Dynamic action was not sent on: its card is gone, so the GMs would keep no record of the difficulty.");
@@ -557,7 +557,7 @@ export async function keepRuling(messageId, ruling, sentOn = null, { quiet = fal
  * card's meta before it leaves (`keepRuling`, fix early-C1-G1). In memory, as the asks are: a primary
  * that reloads between the answer and the receipt holds neither.
  */
-export const answeredAsks = new Map();
+const answeredAsks = new Map();
 
 function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, ruling = null, at = Date.now() }) {
     game.socket.emit(SOCKET_EVENT, {
@@ -678,7 +678,7 @@ async function endSentOn(sent, { askerExpired = false } = {}) {
 }
 
 /** No receipt came for a ruling sent on (E18 C1): its card ends as what became of it (fix e1-G1), a Call's yes not used taken back. */
-export async function unreceivedOnPrimary(requestId) {
+async function unreceivedOnPrimary(requestId) {
     const sent = answeredAsks.get(requestId);
     if (!sent) return;
     answeredAsks.delete(requestId);

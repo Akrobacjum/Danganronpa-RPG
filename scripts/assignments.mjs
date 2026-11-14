@@ -15,7 +15,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { monokumas } from "./despair.mjs";
-import { isMonokuma, studentActors } from "./monokuma.mjs";
+import { studentActors } from "./monokuma.mjs";
 import { log, warn, plural } from "./utils.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
@@ -190,7 +190,7 @@ export async function pruneAssignments() {
  * for ("Every student has a Monokuma watching", `explicitPool`). Until 1.2.97 no group of the reset named the map and it
  * rode into every new season. The reset is the primary GM's, which writes it.
  */
-export async function clearSeasonAssignments() {
+async function clearSeasonAssignments() {
     if (!game.user.isGM) throw new Error("only a GM's browser writes Despair Flow's assignments");
     await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, {});
 }

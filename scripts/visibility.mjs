@@ -26,7 +26,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { flaggedSpectator, spectatorViewer } from "./spectator.mjs";
+import { flaggedSpectator, spectatorViewer, isMonocubCorpse } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
@@ -39,6 +39,8 @@ import { TRUTH_BULLET_FLAGS, ownBulletRefs } from "./truth-bullets.mjs";
 import { myLairRoom } from "./mastermind.mjs";
 import { knowsProject } from "./projects.mjs";
 import { projectIdOf } from "./projects-map.mjs";
+// What a player saw last (PV, 13.11.2026): a project's token as the tray shows its row. It reaches no file that imports this one.
+import { tokenShownAsSeen, forgetSeenPass, tintAsSeen } from "./projects-seen.mjs";
 import { debug } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -67,6 +69,10 @@ export function registerVisibility() {
     // And since E05 C13 the other half of that pair: which trace a bullet came from is the
     // owner's copy of the GMs' rows, and it can arrive after the bullet does.
     Hooks.on("drpgBulletRefsChanged", () => applyAll());
+    /* What this player saw last changed (PV): a project's token may come onto the map, as its tray row does - the project
+       tokens alone are asked again, never a whole pass: the snapshot is written on an own move into a room, and scenario
+       86's E89 C2 holds that move to no whole pass but the ledger's (a whole pass here read there on 13.11.2026). */
+    Hooks.on("drpgSeenChanged", () => projectTokensPass());
 
     /* E89 fix FG2 (30.10.2026; finding SEC-1): where the viewer's characters stand, read as rooms, and which characters
        are the viewer's, change on these with no token of theirs moving - see `roomsChangedOn` and `wholePassSoon`. */
@@ -596,14 +602,6 @@ export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
 }
 
 /**
- * A revealed Remnant is visible to the table by Foundry's own `hidden` flag,
- * but stays a secret from everyone except the finder - see the header note.
- * Unlike the room rule above, this does not depend on the `roomVisibility`
- * setting: it is not about rooms, it is about who has actually copied this
- * specific trace, and it holds regardless of whether the GM has room
- * enforcement switched on.
- */
-/**
  * A project's token, hidden from anybody who does not know it is there.
  *
  * The GM leaves before anything is asked, exactly as with a trace: they are
@@ -615,10 +613,42 @@ export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
 function applyToProjectToken(token, projectId) {
     if (game.user.isGM) return;
     if (token.document.hidden) return;     // a GM has hidden it by hand
-    if (knowsProject(projectId)) return;
+    /* AS LAST SEEN (PV, 13.11.2026; the owner's rule #2): a project made, or a sabotage's repair begun, while none of this
+       player's characters was in its room stays off their map until one of them is (projects-seen.mjs `asSeen`). */
+    if (knowsProject(projectId) && tokenShownAsSeen(projectId)) {
+        paintProjectTint(token, projectId);
+        return;
+    }
     hide(token);
 }
 
+/**
+ * A PROJECT TOKEN'S FINISH AS THIS PLAYER SAW IT (PV, 13.11.2026): the tint projects-seen.mjs `tintAsSeen` answers - the
+ * finished one only when the player's last sight of the room saw it finished - or, for a live row, the document's own,
+ * written back so a tint laid while the player was away does not outlast their return. Laid on the sprite of this
+ * browser alone, after Foundry's own refresh of it (this runs in the refresh's hook). No canvas in the harness: what is
+ * drawn is LIVE-PV-03; the tint chosen is R5652.
+ */
+function paintProjectTint(token, projectId) {
+    const mesh = token?.mesh;
+    if (!mesh) return;
+    const tint = tintAsSeen(projectId) ?? token.document?.texture?.tint ?? null;
+    if (tint === null || tint === undefined) return;
+    try {
+        mesh.tint = typeof tint === "number" ? tint : (foundry.utils.Color?.from?.(tint) ?? tint);
+    } catch {
+        // A tint the canvas cannot read leaves the sprite as Foundry drew it.
+    }
+}
+
+/**
+ * A revealed Remnant is visible to the table by Foundry's own `hidden` flag,
+ * but stays a secret from everyone except the finder - see the header note.
+ * Unlike the room rule above, this does not depend on the `roomVisibility`
+ * setting: it is not about rooms, it is about who has actually copied this
+ * specific trace, and it holds regardless of whether the GM has room
+ * enforcement switched on.
+ */
 function applyToRemnantToken(token) {
     if (game.user.isGM) return;
     // Still hidden: Foundry's own flag already keeps it off every screen but
@@ -899,6 +929,26 @@ export function applyAll() {
 }
 
 /**
+ * THE PROJECT TOKENS ALONE, ASKED AGAIN (PV, 13.11.2026): when what this player saw last changes (`drpgSeenChanged`).
+ * Each is handed back to Foundry's own visibility (`refreshVisibility`, the un-hide path `applyAll` explains) and asked
+ * `applyToProjectToken` again with the pass's reading of what was seen dropped. Nothing on a GM's browser.
+ */
+function projectTokensPass() {
+    if (!canvas?.ready || game.user?.isGM) return 0;
+    forgetSeenPass();
+    let n = 0;
+    for (const token of canvas.tokens?.placeables ?? []) {
+        const projectId = projectIdOf(token?.document);
+        if (!projectId) continue;
+        count("visibility.projectTokensPass");
+        token.renderFlags?.set?.({ refreshVisibility: true });
+        applyToProjectToken(token, projectId);
+        n += 1;
+    }
+    return n;
+}
+
+/**
  * Every room this user's characters are standing in.
  *
  * Memoised, because the cost was quadratic and the canvas felt it. `applyAll`
@@ -928,6 +978,7 @@ let myRemnantRefsCache = null;
 
 function forgetMyRooms() {
     count("visibility.forget");
+    forgetSeenPass();
     myRoomsCache = null;
     myRemnantRefsCache = null;
     incidentEntitled = null;
@@ -938,8 +989,17 @@ function myRooms() {
     count("visibility.myRooms.walk");
 
     const rooms = new Set();
+    /* A DEAD STUDENT'S SPECTATOR IS NO EYE (E62 C3b, 13.11.2026; the coordinator's scope B: "only what a dead student
+       sees today"). The player who owns a student and its Spectator (spectator-dead.mjs) is no Spectator viewer, so the
+       room rule holds for them - and the Spectator's token, which walks anywhere, would show them every room it walks
+       into. It is left out; a Spectator viewer (E92) returns before this rule in `tokenShownTo`. */
+    const watcherIsNoEye = !spectatorViewer();
     for (const token of canvas.tokens?.placeables ?? []) {
         if (!token.isOwner || token.actor?.type !== "character") continue;
+        if (watcherIsNoEye && flaggedSpectator(token.actor)) continue;
+        // Nor is a Monocub's corpse beside the token it walks (E62 C3b fix, the coordinator's 7): the body's room is no
+        // room the Monocub stands in.
+        if (isMonocubCorpse(token.document)) continue;
         const room = roomOfToken(token.document);
         if (room) rooms.add(room);
     }
@@ -958,6 +1018,19 @@ function myRemnantRefs() {
 
     myRemnantRefsCache = refs;
     return refs;
+}
+
+/**
+ * WHETHER THIS BROWSER SHOWED A TRACE AS FOUND (PV, 13.11.2026; the owner's rule #4): a Remnant's token not hidden by a
+ * GM's hand and shown here by `applyToRemnantToken` - a Truth Bullet of this user's copies it, or it is a trace of the
+ * live incident this user is in (D11). Read off the document, so it answers in `deleteToken`, after the token's
+ * placeable is gone (projects-seen.mjs `ghostOf`). False on a GM's browser: a GM leaves no ghost.
+ */
+export function shownAsFound(tokenDoc) {
+    if (!tokenDoc || game.user?.isGM || tokenDoc.hidden) return false;
+    const key = remnantKeyOf(tokenDoc);
+    if (!key) return false;
+    return myRemnantRefs().has(key) || myIncidentTrace(tokenDoc);
 }
 
 /**

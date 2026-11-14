@@ -23,12 +23,12 @@
  * exported before, so an importer of the HUD imports this file as before.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { error, debug, tickerRuns, markLanguage, plural } from "./utils.mjs";
+import { error, debug, tickerRuns, markLanguage, plural, trialModeLabel } from "./utils.mjs";
 import { launcher } from "./ui-kit.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
@@ -50,13 +50,14 @@ import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
 // The phase stamp's name for an Eclipse (E23 C2b): eclipse.mjs's static imports, walked to the end on 07.11.2026 on
 // f26d4467, never reach this file, so the import closes no cycle (R161).
-import { eclipseLabel } from "./eclipse.mjs";
+import { eclipseLabel, startRefusalOf } from "./eclipse.mjs";
 import { renderEvents } from "./events.mjs";
 // Added when the trial's own bar was folded into this widget. Walked and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
+import { zoneOf, conferLineOf } from "./zone-machine.mjs";
 import { trialVoiceLine } from "./voice.mjs";
 import { narrowColumn, narrowLayout } from "./narrow.mjs";
 import {
@@ -240,6 +241,19 @@ export function registerHud() {
     // render (`drpgHudRendered`, room-tile.mjs).
     Hooks.on("renderDhCountdowns", () => renderHud());
 
+    /* THE REDEEM CARD'S TWO SOURCES (E72 C9, 12.11.2026): whether a Monocub's Redeem is free is read off the owner's
+       copy of the Monocubs' record, which says when it arrives (`drpgCubsChanged`, settings.mjs), and off the Monocub's
+       own Hope and flag, which a write of the player's own student changes. Only the panel: nothing else here reads
+       either, and only a player's own student, whose card it is. */
+    Hooks.on("drpgCubsChanged", () => renderEvents());
+    Hooks.on("updateActor", (actor, changes) => {
+        if (game.user?.isGM || !actor?.isOwner) return;
+        // The flag's key as written, or with the prefix an unset puts before it.
+        const flag = Object.keys(changes?.flags?.[MODULE_ID] ?? {}).some(k => k.endsWith(FLAGS.monocub));
+        if (changes?.system?.resources?.hope === undefined && !flag) return;
+        renderEvents();
+    });
+
     // Foundry's token HUD, not this one: a student's bars are display-only for a player (E29 C7).
     Hooks.on("renderTokenHUD", stillTokenBars);
 }
@@ -261,7 +275,7 @@ export function registerHud() {
  * typed there would be written to the marks. This stays for any other bar a student's token is
  * pointed at (Hope, say), which the attribute leaves as Foundry answers it.
  */
-export function stillTokenBars(app, element) {
+function stillTokenBars(app, element) {
     try {
         if (game.user?.isGM || getSetting(SETTINGS.lockPlayerResources) === false) return;
         const actor = app?.actor ?? app?.document?.actor ?? null;
@@ -847,14 +861,16 @@ function measureEveryLabel(slot) {
                 widest = Math.max(widest, Math.ceil(probe.scrollWidth) + 2);
             }
         }
-        // …and the four words a Class Trial puts in the same slot. Measured for
+        // …and the words a Class Trial puts in the same slot. Measured for
         // the same reason the Eclipse forms are: the first time one of them
         // appears is a moment the whole table is watching, and the slot widening
         // under the new label is the jolt that turn-over animation exists to
         // avoid.
-        for (const key of ["discussion", "debate", "objection", "rebuttal"]) {
+        // Every mode of the floor since the owner's report of 13.11.2026 (R5900): the four of E10 were read, and the
+        // rounds, the Closing Argument and the zone modes widened the slot the first time they were shown.
+        for (const key of ["discussion", ...Object.values(FLOOR_MODES)]) {
             probe.className = "drpg-hud-time is-trial";
-            probe.textContent = game.i18n.localize(`DRPG.Hud.trial.${key}`);
+            probe.textContent = trialModeLabel(key);
             widest = Math.max(widest, Math.ceil(probe.scrollWidth) + 2);
         }
     } catch {
@@ -1109,38 +1125,56 @@ function line(className, text) {
 export function trialSlot() {
     try {
         if (getClock().phase !== "classTrial") return null;
-
-        const floor = trialFloor();
-        const key = floor ? floor.mode : "discussion";
-
-        // `holder` is whoever took the floor - the objector, in both restrictive
-        // modes - and `target` is who they aimed at. See `openObjection`.
-        const unknown = "-";
-        let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
-        let versus = null;
-
-        if (floor?.mode === FLOOR_MODES.objection) {
-            speaker = floorHolder(floor)?.name ?? unknown;
-        } else if (floor?.mode === FLOOR_MODES.rebuttal) {
-            speaker = floorTarget(floor)?.name ?? unknown;
-            versus = game.i18n.format("DRPG.Hud.trialVersus", {
-                who: floorHolder(floor)?.name ?? unknown
-            });
-        } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
-            // A round's speaker (E70 C7; E70-45): "{name} speaks" / "Mówi {name}".
-            speaker = game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
-        } else if (floor?.mode === FLOOR_MODES.closing) {
-            // The Closing Argument (E70 C8): its phase's line - the volunteers' count, the GM's choice, who speaks.
-            speaker = closingLine(floor) ?? unknown;
-        }
-
-        return { key, label: game.i18n.localize(`DRPG.Hud.trial.${key}`), speaker, versus };
+        return trialSlotFace(trialFloor());
     } catch (err) {
         // A clock that cannot work out the trial shows the time of day, which is
         // the state it was in for every session before this existed.
         error("Could not read the trial's state for the HUD", err);
         return null;
     }
+}
+
+/**
+ * THE ROW'S WORDS FOR `floor` (null: the trial's discussion, no floor open), `trialSlot`'s answer once the phase says a
+ * trial is in session. Its own function since the owner's report of 13.11.2026 (R5900): the row read
+ * "DRPG.Hud.trial.scrum" for a zone mode, and a test that writes nothing could not hand `trialSlot` a floor.
+ *
+ * @returns {{key: string, label: string, speaker: string, versus: string|null}}
+ */
+export function trialSlotFace(floor) {
+    const key = floor ? floor.mode : "discussion";
+
+    // `holder` is whoever took the floor - the objector, in both restrictive
+    // modes - and `target` is who they aimed at. See `openObjection`.
+    const unknown = "-";
+    let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
+    let versus = null;
+
+    if (floor?.mode === FLOOR_MODES.objection) {
+        speaker = floorHolder(floor)?.name ?? unknown;
+    } else if (floor?.mode === FLOOR_MODES.rebuttal) {
+        speaker = floorTarget(floor)?.name ?? unknown;
+        versus = game.i18n.format("DRPG.Hud.trialVersus", {
+            who: floorHolder(floor)?.name ?? unknown
+        });
+    } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic
+        || (floor?.mode === FLOOR_MODES.scrum && zoneOf(floor)?.phase === "speak")) {
+        // A round's speaker (E70 C7; E70-45): "{name} speaks" / "Mówi {name}". A Scrum Debate's turn is one too
+        // (zone-machine.mjs `scrumTurn` puts its speaker in `holderId`); every other zone phase is everybody's.
+        speaker = game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
+    } else if (floor?.mode === FLOOR_MODES.closing) {
+        // The Closing Argument (E70 C8): its phase's line - the volunteers' count, the GM's choice, who speaks.
+        speaker = closingLine(floor) ?? unknown;
+    }
+
+    return { key, label: trialModeLabel(key), speaker, versus };
+}
+
+/** The HUD's Confer line for this viewer, or null outside a Scrum Debate's Confer (zone-machine.mjs `conferLineOf`). */
+export function conferHudLine(isGM = game.user?.isGM === true, floor = trialFloor()) {
+    const line = conferLineOf(floor, { gm: isGM, owns: id => game.actors?.get?.(id ?? "")?.isOwner === true });
+    if (!line) return null;
+    return `${game.i18n.localize("DRPG.Zones.confer.name")}: ${game.i18n.format(line.key, line.words)}`;
 }
 
 function buildTimeRow(clock, isGM) {
@@ -1178,6 +1212,16 @@ function buildTimeRow(clock, isGM) {
             const line = document.createElement("div");
             line.className = "drpg-hud-trial-voice";
             line.textContent = game.i18n.format(`DRPG.Voice.held.${voice.reason}`, voice.data ?? {});
+            slot.append(line);
+        }
+        /* A SCRUM DEBATE'S CAMPS CONFER (the owner's 13.11.2026): the phase and which camp this player confers with -
+           "Camps confer: You confer with Zone A." - and the GM's "Zone A and Zone B confer apart.", under the mode, while
+           the camps talk in their own rooms (voice.mjs `placeVoices`). Its clock is the trial card's (events.mjs). */
+        const camp = conferHudLine(isGM);
+        if (camp) {
+            const line = document.createElement("div");
+            line.className = "drpg-hud-trial-voice drpg-hud-trial-camp";
+            line.textContent = camp;
             slot.append(line);
         }
         return row;
@@ -1257,13 +1301,13 @@ function buildTimeRow(clock, isGM) {
         // `releaseControls` after the next press.
         // And over a running incident's opening or fight (E17 C7; the owner's Q3 (a)), with `startEclipse`'s words,
         // after the hold, as there; not at Stage 6, whose betrayal is declared in an Eclipse.
-        const body = !eclipseRunning && Boolean(bodyDiscovery()) && clock.phase !== "investigation";
-        const incident = !eclipseRunning && Boolean(murderState()) && murderState().stage !== "resolution";
-        const held = body || incident;
+        // Both read from the gate's own answer, eclipse.mjs `startRefusalOf` (A113-C2-7, 13.11.2026; a hand copy of its
+        // checks until then): what dims the chevron is what refuses the press, in the same order and words.
+        const refusal = eclipseRunning ? null : startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() });
+        const held = Boolean(refusal);
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
-            : body ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
-            : incident ? game.i18n.localize("DRPG.Eclipse.incidentFirst")
+            : refusal ? game.i18n.localize(refusal)
             // The two that count the crossings are plural families on {n} (E66 C3; S10-69, E66-14): the last time of
             // day's said "(2 crossings)" whatever the count was. The free Eclipse names no count.
             : free && index !== TIMES_OF_DAY.length - 1

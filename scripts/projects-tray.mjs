@@ -26,13 +26,16 @@
  * `localiseRawKeys`, `paintProgress`, `applyCollapsed`, `addCollapseControl`),
  * because the render hook calls them; projects-ui.mjs does not re-export them.
  * E79 C12 adds a sixth the hook calls, `showTrayToPlayer`, on the same terms,
- * and E23 C3a two more, `labelTrayControls` and `markTrayMore`.
+ * and E23 C3a two more, `labelTrayControls` and `markTrayMore`, and the fix of
+ * 13.11.2026 one more, `addTrayTitle`.
  * No module state: the fold is a client setting.
  */
 
 import { MODULE_ID, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { allProjects, knowsProject } from "./projects.mjs";
+import { allProjects, isSecret } from "./projects.mjs";
+// What a player saw last (PV): the rows a player keeps and the bars they read. It does not import this file.
+import { asSeen, seenSection, standingNow, seesLive } from "./projects-seen.mjs";
 import { error, markLanguage } from "./utils.mjs";
 
 /**
@@ -96,6 +99,38 @@ export function leaveIconOnly(app, root) {
 }
 
 /**
+ * A PROJECT IS A "NARRATIVE" COUNTDOWN, AND THE TOGGLE THAT HID THAT TYPE IS GONE (A113-C1-2, 13.11.2026).
+ *
+ * projects-ui.mjs removes Daggerheart's "Short"/"Long" type toggles for everyone, and `createProject` makes every
+ * project a "narrative" countdown. In 2.12.8 which types a user's tray shows is the user flag
+ * `countdown-type-modes` (module/config/flagsConfig.mjs userFlags.countdownTypeModes), read by countdowns.mjs
+ * `visibleCountdownTypes`: a type left out has its category drawn `hidden` and, with no other type visible, no rows'
+ * container at all. The toggles (`#onToggleCountdownTypes`) were the only control that wrote it. So a user whose flag
+ * left "narrative" out - set before the module was enabled, or on a build that still drew the toggles - saw no
+ * project, permanently, with nothing to press. The audit found the road, not a user on it (suspected; LIVE-A113-C1-2).
+ *
+ * As `leaveIconOnly` does for the icon-only view: on the tray's render, on each user's own client and their own User,
+ * a flag that is an array without "narrative" is given it, and the tray drawn again. No flag is Daggerheart's default,
+ * every type, and is left alone; so is a flag holding it, and the other types the user chose stay as they are. Read
+ * from CONFIG rather than written out, so a Daggerheart that renames its flag or its types makes this a no-op. The
+ * user and the config are arguments so that the suite, which has no Daggerheart flags, can hand in both (R6001).
+ *
+ * @returns {boolean} whether the flag was written.
+ */
+export function keepNarrativeShown(app, user = game.user, dh = globalThis.CONFIG?.DH) {
+    const id = dh?.id;
+    const key = dh?.FLAGS?.userFlags?.countdownTypeModes;
+    const narrative = dh?.GENERAL?.countdownTypes?.narrative?.id;
+    if (!id || !key || !narrative || typeof user?.getFlag !== "function") return false;
+    const shown = user.getFlag(id, key);
+    if (!Array.isArray(shown) || shown.includes(narrative)) return false;
+    user.setFlag(id, key, [...shown, narrative])
+        .then(() => app?.render?.())
+        .catch(err => error("Could not show the projects in the projects tray again", err));
+    return true;
+}
+
+/**
  * Translate labels the system left as raw keys.
  *
  * The tray's own view-mode control announces itself as
@@ -154,22 +189,53 @@ export function localiseRawKeys(root) {
  *
  * @returns {number} how many rows were taken out - the suite's measurement.
  */
-export function hideUndiscovered(root, user = game.user) {
+export function hideUndiscovered(root, user = game.user, { section = null, standing = null, projects: given = null, seen = {} } = {}) {
     if (user?.isGM) return 0;
 
     const rows = root.querySelectorAll(".countdown-container");
     if (!rows.length) return 0;
-    const projects = allProjects();
+    // `given` and `seen` are the suite's (R5644): a list of rows and `asSeen`'s readers of the world, stubbed.
+    const projects = given ?? allProjects();
+    /* AS LAST SEEN (PV, 13.11.2026; the owner's rule #2): `knowsProject` was the whole question; a public project made
+       in a room after this player's last visit, and a sabotage's repair, were on the tray at once. projects-seen.mjs
+       `asSeen` keeps the row when the player knows it as they last saw that room (`section`, `standing`: the suite's,
+       read once here otherwise). */
+    const live = seesLive(user);
+    const held = live ? null : section ?? seenSection(user);
+    const here = live ? null : standing ?? standingNow(user);
 
     let removed = 0;
     for (const row of rows) {
         const project = projectForRow(row, projects);
         if (!project) continue;
-        if (knowsProject(project.id, user)) continue;
+        if (asSeen(project, { user, section: held, standing: here, live, ...seen })) continue;
         row.remove();
         removed += 1;
     }
     return removed;
+}
+
+/**
+ * A SECRET PROJECT'S ROW WEARS ITS NAME AGAIN (known leak S17-31). Its countdown carries a name that is no name
+ * (projects-secrecy.mjs `HIDDEN_NAME`), which every browser holds; a reader who may know it - a GM, or a player in on it
+ * after `hideUndiscovered` - reads its name as this browser holds it (`allProjects`: the GMs' store, the player's card)
+ * and the row's header is written with it, on every render. Matched by the row's id alone (`data-countdown`): every
+ * secret row has the same name. A browser that holds no name for it leaves the header as drawn. Answers how many rows
+ * were named.
+ */
+export function nameSecretRows(root) {
+    const rows = root?.querySelectorAll?.(".countdown-container[data-countdown]") ?? [];
+    if (!rows.length) return 0;
+    const byId = new Map(allProjects().map(p => [p.id, p]));
+    let n = 0;
+    for (const row of rows) {
+        const project = byId.get(row.dataset.countdown);
+        const header = row.querySelector(".countdown-content > header");
+        if (!project || !header || !isSecret(project.id) || !project.name || header.textContent.trim() === project.name) continue;
+        header.textContent = project.name;
+        n += 1;
+    }
+    return n;
 }
 
 /**
@@ -186,19 +252,28 @@ export function hideUndiscovered(root, user = game.user) {
  *
  * Takes the reader as an argument, as `hideUndiscovered` does, so the suite, which runs as a GM, can ask it.
  *
- * @returns {boolean|null} whether the line is drawn; null for a GM, or for a tray with no place for rows.
+ * WHERE NO ROWS' CONTAINER IS DRAWN (A113-C1-1, 13.11.2026). Daggerheart 2.12.8 draws `.countdowns-container` only
+ * `{{#if countdownTypesWithVisibleEntries.length}}` (templates/ui/countdowns/countdowns-view.hbs:24-28): with no
+ * countdown this player may see there is none at all, and the line, which went into it alone, was never drawn in the
+ * one case it was made for (scenario 74's stand-in had drawn the container always). Where there is none the line
+ * goes right after the tray's header, `.countdowns-header`, which the template draws always; a tray with neither has
+ * no place for it. The rows' container, where it is drawn with every row taken out by `hideUndiscovered`, keeps it.
+ *
+ * @returns {boolean|null} whether the line is drawn; null for a GM, or for a tray with no place for it.
  */
 export function showTrayToPlayer(root, user = game.user) {
     if (!root || user?.isGM) return null;
     root.hidden = false;
     root.querySelector(".drpg-projects-empty")?.remove();
     const rows = root.querySelector(".countdowns-container");
-    if (!rows) return null;
-    if (rows.querySelector(".countdown-container")) return false;
+    if (rows?.querySelector(".countdown-container")) return false;
+    const header = rows ? null : root.querySelector(".countdowns-header");
+    if (!rows && !header) return null;
     const line = document.createElement("p");
     line.className = "drpg-projects-empty";
     line.textContent = game.i18n.localize("DRPG.Project.trayEmpty");
-    rows.append(line);
+    if (rows) rows.append(line);
+    else header.after(line);
     return true;
 }
 
@@ -226,18 +301,28 @@ export function showTrayToPlayer(root, user = game.user) {
  * paint: it is eight metadata reads per project (projects.mjs), and this runs
  * on every client every time a countdown moves.
  */
-export function paintProgress(root) {
+export function paintProgress(root, user = game.user, { section = null, standing = null, projects: given = null, seen = {} } = {}) {
     const rows = root.querySelectorAll(".countdown-container");
     if (!rows.length) return;
-    const projects = allProjects();
+    const projects = given ?? allProjects();
+    // As this reader saw it (PV): read once for the pass; a GM's and a Spectator's rows are live and left as drawn.
+    const live = seesLive(user);
+    const held = live ? null : section ?? seenSection(user);
+    const here = live ? null : standing ?? standingNow(user);
 
     for (const row of rows) {
         const project = projectForRow(row, projects);
+        const shownAs = !live && project ? asSeen(project, { user, section: held, standing: here, live, ...seen }) : null;
+        if (shownAs && shownAs.seen !== "live") paintSeen(row, shownAs);
+        else delete row.dataset.drpgSeen;
 
         const tag = row.querySelector(".progress-tag")?.textContent ?? "";
         const m = tag.match(/(\d+)\s*\/\s*(\d+)/);
         let share = m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
-        if (share === null && project && project.start > 0) share = project.current / project.start;
+        // The row's own numbers when its tag cannot be read: the snapshot's for a row seen last, never the live bar.
+        const shown = shownAs && shownAs.seen !== "live" ? shownAs : project;
+        if (share === null && shown && shown.start > 0) share = (Number(shown.current) || 0) / shown.start;
+        if (shownAs?.seen === "unknown") share = 0;
 
         if (share === null) row.style.removeProperty("--w");
         else row.style.setProperty("--w", `${Math.round(Math.max(0, Math.min(1, share)) * 100)}%`);
@@ -252,6 +337,23 @@ export function paintProgress(root) {
         } else {
             row.style.removeProperty("--drpg-project-glyph");
         }
+    }
+}
+
+/**
+ * A ROW AS ITS READER LAST SAW IT (PV, 13.11.2026; the owner's rule #2). Daggerheart draws the row from the live
+ * countdown; the tag's numbers are written again with the snapshot's (`seen.current / seen.start`), or "?" for a
+ * project this browser has never seen (`seen: "unknown"`), and the row is marked (`data-drpg-seen`) with a tooltip
+ * that says which. The bar's width is read off the tag after this, so it follows. Exported for the suite (R5644).
+ */
+export function paintSeen(row, seen) {
+    row.dataset.drpgSeen = seen.seen;
+    const tag = row.querySelector(".progress-tag");
+    const words = game.i18n.localize(seen.seen === "unknown" ? "DRPG.Project.seenUnknown" : "DRPG.Project.seenAsLast");
+    if (tag) {
+        tag.textContent = `${seen.seen === "unknown" ? "?" : seen.current} / ${seen.start}`;
+        tag.dataset.tooltip = words;
+        tag.setAttribute("aria-label", words);
     }
 }
 
@@ -314,8 +416,13 @@ const watchedLists = new WeakSet();
 export function markTrayMore(root) {
     const list = root?.querySelector?.(".countdowns-container");
     if (!list) return false;
+    /* ROWS BELOW, NOT ANY OVERFLOW (gaps, the owner's table on 1.2.108: one project's name darker and fading). The mark
+       read any overflow past 1 px, and a list of one project that overflows by a few pixels of something that is no row
+       faded its only row. More stands below only when at least half a row overflows - the first row's own height, read
+       where there is a layout; with none (headless), past 1 px as before. A sixth row overflows by a whole row. R3983. */
     const mark = () => {
-        const more = list.scrollHeight - list.clientHeight - list.scrollTop > 1;
+        const row = list.querySelector(".countdown-container")?.offsetHeight || 0;
+        const more = list.scrollHeight - list.clientHeight - list.scrollTop > Math.max(1, row / 2);
         list.toggleAttribute("data-drpg-more", more);
         return more;
     };
@@ -367,6 +474,43 @@ export function applyCollapsed(root) {
     button.dataset.tooltip = label;
     button.setAttribute("aria-label", label);
     button.setAttribute("aria-expanded", String(!on));
+}
+
+/* ==========================================================================
+ * THE TRAY'S TITLE, WHERE DAGGERHEART NO LONGER DRAWS ONE (13.11.2026)
+ * --------------------------------------------------------------------------
+ * The owner's table on 1.2.112 (Foundry v14, Daggerheart 2.12.8): the tray had
+ * no title. Read in Daggerheart's source at head e9c61d7: 2.12.8's
+ * templates/ui/countdowns/countdowns-view.hbs draws `<header
+ * class="countdowns-header">` with the clock icon, `.header-type-toggles` and
+ * the header controls, and no `.window-title`. The module names the tray
+ * "Projects" through the i18n override on DAGGERHEART.UI.Countdowns.title, a key
+ * that template no longer reads, so the name was nowhere. Where the header has
+ * no `.window-title`, one is added here, after the icon (and so after the fold
+ * caret, which `addCollapseControl` puts first), with that same key - one name
+ * for the tray in both languages, the override's. A header that has one (older
+ * Daggerheart) is left as it is. projects-ui.mjs's header comment records an
+ * earlier heading injected outside the header that vanished on hover when the
+ * tray re-rendered; this one lives inside the header the render rebuilds, and is
+ * added again on each render, so a re-render cannot leave the tray without it.
+ * Idempotent: a second call on the same header finds the title and adds none.
+ * ========================================================================== */
+
+export function addTrayTitle(root) {
+    const host = root.querySelector(".countdowns-header")
+        ?? root.querySelector(".window-header")
+        ?? root.querySelector("header");
+    if (!host || host.querySelector(".window-title")) return;
+
+    const title = document.createElement("span");
+    title.className = "window-title drpg-projects-title";
+    title.textContent = game.i18n.localize("DAGGERHEART.UI.Countdowns.title");
+    // The module's word in Daggerheart's header, whose own are in Foundry's language (E66 fix r2; R1153).
+    markLanguage(title);
+
+    const after = host.querySelector(":scope > i") ?? host.querySelector(":scope > .drpg-projects-fold");
+    if (after) after.after(title);
+    else host.prepend(title);
 }
 
 export function addCollapseControl(root) {

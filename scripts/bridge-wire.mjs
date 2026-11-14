@@ -112,6 +112,30 @@ export const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 export const ACTION_OBSERVE_PICK = "observe.pick";
 export const ACTION_CLEANUP_TRACES = "cleanup.traces";
 export const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
+/** player -> primary GM: a room action of the Facilities tile used (E93 C3; facilities-gm.mjs `handleFacilityUse`). */
+export const ACTION_FACILITY_USE = "facility.use";
+/** player -> primary GM: a Dash's Leg roll settled into free crossings (E69 C5; bridge-runs-acts.mjs `handleDash`). */
+export const ACTION_DASH = "dash.settle";
+/** player -> primary GM: a tail begun, its two rolls on the GMs' record (E69 C3; tail-gm.mjs `startTail`). */
+export const ACTION_TAIL_START = "tail.start";
+/** player -> primary GM: an eavesdrop begun after a good Listen roll, or a free repeat (E69 C6; eavesdrop-gm.mjs `startEavesdrop`). */
+export const ACTION_LISTEN_EAVESDROP = "listen.eavesdrop";
+/** player -> primary GM: Stop listening, the eavesdrop of the sender's character ended (E69 C6; eavesdrop-gm.mjs `endEavesdrop`). */
+export const ACTION_LISTEN_STOP = "listen.stop";
+/** player -> primary GM: Echoes, the nearest room with a living student of another player (E69 C7; echoes-gm.mjs). */
+export const ACTION_LISTEN_ECHOES = "listen.echoes";
+/** player -> primary GM: a killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
+export const ACTION_MASK_REVEAL = "mask.reveal";
+/** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
+export const ACTION_DOOR_SHUT = "door.shut";
+/** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */
+export const ACTION_DOOR_FORCE = "door.force";
+/** player -> primary GM: a lock picked, its Hand roll and Shadow cover on the GMs' record (E74 C4; doors-gm.mjs `pickLock`). */
+export const ACTION_DOOR_PICK = "door.pick";
+/** player -> primary GM: a watch declared before an Eclipse, its Body roll on the GMs' record (E74 C6; watch-gm.mjs). */
+export const ACTION_WATCH_DECLARE = "watch.declare";
+/** player -> primary GM: a walk in refused at a barricade, told to its author as somebody at the door (E74; doors-gm.mjs `knockDoor`). */
+export const ACTION_DOOR_KNOCK = "door.knock";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw
@@ -126,6 +150,10 @@ export const ACTION_GIVE_ITEM = "handover.item";
 export const ACTION_PASSAGE_SHARE = "passage.share";
 /** player -> GM: my character at a tunnel's end goes through it (E80 C2) - see passages-gm.mjs `crossTunnel`. */
 export const ACTION_PASSAGE_CROSS = "passage.cross";
+/** player -> GM: the Mastermind seals a passage at their own door (E91 C5, D038) - see passages-gm.mjs `sealLairPassage`. */
+export const ACTION_PASSAGE_LAIR_SEAL = "passage.lairSeal";
+/** player -> GM: the Mastermind locks or opens their own room, with the GM's lock (E91 C4, D038) - see mastermind.mjs `lockLair`. */
+export const ACTION_LAIR_LOCK = "mastermind.lairLock";
 /** player -> GM: my character's Analyze was a Find Passage (E80 C3) - see passages-gm.mjs `resolvePassageSearch`. */
 export const ACTION_PASSAGE_FIND = "passage.find";
 /** GM -> primary GM: give back a character's last crossing, its price and its token (E17 C3) - see movement.mjs `refundLastCrossing`. */
@@ -153,6 +181,12 @@ export const ACTION_BETRAYAL = "murder.betrayal";
 export const ACTION_PARK_MURDER = "murder.park";
 /** player -> GM: a Monocub uses the ability under `key` (E33 C10) - see monocub.mjs `cubAbilityOnGm`. */
 export const ACTION_CUB_ABILITY = "monocub.ability";
+/** player -> GM: a dead student's player answers the GMs' invitation to become a Monocub (E72 C6) - see monocub.mjs `answerMonocubOffer`. */
+export const ACTION_CUB_ANSWER = "monocub.answer";
+/** player -> GM: a living student offers a Monocub a Bribe (E72 C15) - see monocub.mjs `offerBribeOnGm`. */
+export const ACTION_BRIBE_OFFER = "bribe.offer";
+/** player -> GM: a Monocub's player answers a Bribe (E72 C15) - see monocub.mjs `answerBribeOnGm`. */
+export const ACTION_BRIBE_ANSWER = "bribe.answer";
 /** GM -> player: a request carried out, with its answer - see `bridgeRequest` in bridge-guards.mjs. */
 export const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */
@@ -166,3 +200,6 @@ export const ACTION_REROLL = "reroll.ask";
 export const ACTION_CARD = "card.post";
 /** GM -> primary GM: a GM's click on a card to the GMs, claimed before it rules and marked ruled after (E18 C3; `claimCard`). */
 export const ACTION_CARD_CLAIM = "card.claim";
+
+/** GM -> primary GM: Give a Truth Bullet, carried to the primary so its copy is made in the one receiver's finds' queue (E38; D153). */
+export const ACTION_BULLET_GIVE = "bullet.give";

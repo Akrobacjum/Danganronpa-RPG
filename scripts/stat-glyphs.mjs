@@ -25,7 +25,7 @@
 import { TRAITS, TRAIT_BY_DH } from "./config.mjs";
 
 /** The class every statistic's glyph wears, beside its Font Awesome class. */
-export const STAT_GLYPH_CLASS = "drpg-stat-glyph";
+const STAT_GLYPH_CLASS = "drpg-stat-glyph";
 
 /** Each statistic's Font Awesome class: what Monokuma Legacy draws (Stained Glass masks it with `stat-<key>`). */
 export const STAT_ICONS = Object.freeze({
@@ -38,7 +38,7 @@ export function statOfTrait(dhKey) {
 }
 
 /** A new glyph element for the statistic `key`, in `doc`. */
-export function statGlyph(key, doc = document) {
+function statGlyph(key, doc = document) {
     const i = doc.createElement("i");
     i.className = `fa-solid ${STAT_ICONS[key]} ${STAT_GLYPH_CLASS}`;
     i.dataset.drpgStat = key;

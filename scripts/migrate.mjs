@@ -46,7 +46,7 @@
  * session is one people learn to click past.
  */
 
-import { MODULE_ID, TIME_OF_DAY_LABELS, moduleVersion } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIME_OF_DAY_LABELS, moduleVersion } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting, deathRecord, seasonEpoch } from "./settings.mjs";
 import { log, error, esc, isPrimaryGm, plural, whisperToGms, gmReport, gmIds, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
 import { ROOM_FLAG, ROOMS_MARKED_FLAG, hasBehaviours, playerRegionIds, roomDecided } from "./rooms.mjs";
@@ -1054,8 +1054,114 @@ const CLAUSES = [
             if (!isPrimaryGm()) return { notPrimary: true };      // a body on the map: the primary's, once a world
             return await layOpenCaseBodies();
         }
+    },
+    {
+        key: "liftCubWitness",
+        // E72's release, 1.2.110 (the coordinator's, 12.11.2026; the line planned 1.2.117): every version before it wrote
+        // the flag. Tier 0's R178 pins it.
+        since: "1.2.110",
+        /*
+         * THE CRIME WITNESS'S MARK, OFF THE ACTOR (E72 C2, 12.11.2026; audit S18-51). Until E72 the mark was the actor flag
+         * `silencedChapter`, which every browser holds: every console read which Monocub had seen the crime. It is the
+         * row's `witness` in the GMs' store `cubStore` now, with the owner's copy. Once, on the primary, after the store
+         * holds the other GMs' copies, with the rules written on `liftCubWitness` (monocub.mjs).
+         */
+        run: async () => {
+            const { liftCubWitness } = await import("./monocub.mjs");
+            return liftCubWitness();
+        }
+    },
+    {
+        key: "chapterRestStamps",
+        // This line's release, 1.2.110, as liftCubWitness's (the coordinator's, 12.11.2026; the line planned 1.2.117):
+        // every version before it read the old stamps. R3814 pins it.
+        since: "1.2.110",
+        /*
+         * THE REST STAMPS WRITTEN BEFORE E17 C9, ONCE (E91 C8, 12.11.2026; the owner's deferred item D068). A stamp with
+         * no chapter was read on every check as the current chapter's (rest.mjs `legacyRestStamp`); once, on the primary,
+         * one of the window now is given the clock's chapter and any other is dropped (`migratedRests`). A second run,
+         * forced, finds none.
+         */
+        run: async () => {
+            const { migrateRestStamps } = await import("./rest.mjs");
+            return migrateRestStamps();
+        }
+    },
+    {
+        key: "hideSecretProjects",
+        since: "1.2.111",
+        /*
+         * A SECRET PROJECT'S NAME AND WHO IS IN ON IT LEAVE DAGGERHEART'S COUNTDOWNS (known leak S17-31; the coordinator's
+         * task of 12.11.2026). Until 1.2.111 a secret project's countdown, in a world setting every browser holds, carried
+         * its name and a map with each player's own level - OBSERVER for those in on it -, so any console read the plan and,
+         * for an indirect murder, the killer's player. Once, on the primary: every secret project is resealed through the one
+         * change entry (projects.mjs `resealSecretProjects`), whose step lifts what an older seal left - the name into the
+         * GMs' store (`secretName`), the players the old map let in into it (`viewers`), the countdown left with
+         * `HIDDEN_NAME` and one level for every player - and then tells each player in on it by a private card
+         * (`tellSight`), so their tray keeps the row and its name. Idempotent: a lifted project reseals to nothing, and a
+         * second run, forced, changes none. It is the secrecy pass the boot runs as well, run here so the GMs are told how
+         * many projects it lifted; the header's rule holds - a clause that changes projects re-runs project secrecy.
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };      // the change entry runs on the primary
+            const { resealSecretProjects } = await import("./projects.mjs");
+            const lifted = await resealSecretProjects();
+            return lifted ? { lifted } : null;
+        }
+    },
+    {
+        key: "bodyTilesUnseen",
+        since: "1.2.113",
+        /*
+         * THE BODY TILES LAID AT 1.2.112 OR BEFORE, UNSEEN (the owner's report of 13.11.2026: "Killing a character makes 3
+         * tokens appear"; body-tile.mjs's header, THE TILE IS DATA). From this build a body tile is laid at alpha 0 and the
+         * caption is the corpse's token's; a tile laid before was laid at Foundry's default alpha and stays on the map until
+         * the next trial's end. Once, on the primary: every body tile (`FLAGS.bodyOf`) on every scene whose alpha is not 0
+         * is set to 0, read back (`hideBodyTiles`). Nothing else of the tile changes, so every reader answers as before.
+         * Idempotent: a second run, forced, finds none. Reported by count; a world with none says nothing.
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };      // a tile's write: the primary's, once a world
+            return await hideBodyTiles(game.scenes ?? []);
+        }
     }
 ];
+
+/**
+ * The updates `bodyTilesUnseen` writes (pure; tier 1 R5873): for each of `scenes`, the body tiles (`FLAGS.bodyOf`) whose
+ * alpha is not 0 - a tile with none is drawn at Foundry's default, 1 - as `{ scene, updates: [{ _id, alpha: 0 }] }`; a
+ * scene with none is left out.
+ */
+export function bodyTileAlphaPatches(scenes) {
+    const rows = [];
+    for (const scene of scenes ?? []) {
+        const updates = [...(scene?.tiles ?? [])].filter(tile => {
+            const mark = tile?.getFlag?.(MODULE_ID, FLAGS.bodyOf);
+            return mark && typeof mark === "object" && Number(tile.alpha ?? 1) !== 0;
+        }).map(tile => ({ _id: tile.id, alpha: 0 }));
+        if (updates.length) rows.push({ scene, updates });
+    }
+    return rows;
+}
+
+/**
+ * The clause `bodyTilesUnseen`'s pass, exported for the suite: writes `bodyTileAlphaPatches` over `scenes` and reads each
+ * tile back. Answers `{ hidden }`, the tiles at alpha 0 now, or null when there was none to write; throws when a tile read
+ * back is still drawn, so the world is not stamped and the next load tries again. GM only.
+ */
+export async function hideBodyTiles(scenes) {
+    if (!game.user?.isGM) return null;
+    const rows = bodyTileAlphaPatches(scenes);
+    if (!rows.length) return null;
+    let hidden = 0;
+    for (const { scene, updates } of rows) {
+        await scene.updateEmbeddedDocuments("Tile", updates);
+        const left = updates.filter(({ _id }) => Number(scene.tiles?.get?.(_id)?.alpha ?? 0) !== 0);
+        if (left.length) throw new Error(`${left.length} body tile(s) on ${scene.name} are still drawn after the write`);
+        hidden += updates.length;
+    }
+    return { hidden };
+}
 
 /**
  * The students a 1.2.104 world owes a body (pure; E63 C3, tier 1 R3405): of `actors`, each dead and public
@@ -1634,7 +1740,14 @@ export function runMigrationOnLoad() {
     // world: whether it was played before this load (S01-14).
     const wasInPlay = worldWasInPlay(worldAsFound());
     onLoad = migrate1_2_0({ quiet: true, wasInPlay })
-        .catch(err => error("The data migration could not run", err));
+        .catch(err => error("The data migration could not run", err))
+        /* THEN THE DA39 MIGRATION, ONCE PER WORLD (E64; the owner's DRPG-D1 of 12.11.2026): the plan read, and with
+           nothing to do the world marked done, inside this load's pass, so the suite's wait covers the write; with
+           something to do, the GM's window opens and is not waited on (level-up.mjs `startDa39Migration`). */
+        .then(report => import("./level-up.mjs").then(m => m.startDa39Migration())
+            .catch(err => error("The DA39 migration could not run", err))
+            // The pass's own report is what this load's promise answers (`migrationOnLoad`; scenario 65 V2 reads it).
+            .then(() => report));
 }
 
 /** The pass this load started - the primary GM's - or nothing to wait for. */

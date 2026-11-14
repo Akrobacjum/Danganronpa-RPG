@@ -34,6 +34,9 @@ import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
+
+import { tipText, setTip } from "./ui-kit.mjs";
+
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -268,7 +271,7 @@ export class DrpgMessengerApp extends DrpgApp() {
         const made = document.createElement("template");
         made.innerHTML = kitTabBar([
             { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat") },
-            { key: "note", label: game.i18n.localize("DRPG.Note.tab") }
+            { key: "note", label: game.i18n.localize("DRPG.Note.tab"), tooltip: tipText("DRPG.Tips.Setup.chatNoteTabsTooltip") }
         ], { active: this.tab });
         const bar = made.content.firstElementChild;
         if (context.note.trim()) {
@@ -319,6 +322,7 @@ export class DrpgMessengerApp extends DrpgApp() {
             const fill = document.createElement("button");
             fill.type = "button";
             fill.className = "drpg-messenger-note-template";
+            setTip(fill, "DRPG.Tips.Setup.useTheTemplateTooltip");
             fill.textContent = game.i18n.localize("DRPG.Note.useTemplate");
             fill.addEventListener("click", () => { area.value = noteTemplate(); area.focus(); });
             row.append(fill);
@@ -864,7 +868,7 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
-        description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null, proposed: data.proposed || null
+        description: data.desc ?? "", actorName: data.name ?? "?", actorId: data.by || null, room: data.room || null, proposed: data.proposed || null
     });
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
@@ -874,6 +878,18 @@ async function ruleSetDifficulty(action, data, message = null) {
 async function ruleRefuseDynamic(action, data, message = null) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
     return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null)) ? { held: true } : null;
+}
+
+/**
+ * The player whose thread a ruling goes to (E91 C6; the owner's deferred item D078): the one whose thread its card is in
+ * (`MESSENGER_FLAGS.thread`), when they own the character - a co-owner's question is asked in the co-owner's thread
+ * (call-gm.mjs `threadOf`, E18 fix e1-G7) and was answered in the first owner's - else the first owner (`ownerOf`).
+ */
+function rulingThread(actor, message) {
+    const id = message ? cardFlag(message, MESSENGER_FLAGS.thread) : null;
+    const user = id ? game.users.get(id) : null;
+    if (user && !user.isGM && actor?.testUserPermission?.(user, "OWNER")) return user;
+    return ownerOf(actor);
 }
 
     // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
@@ -913,14 +929,14 @@ async function ruleRefuseTrait(action, data) {
     // A Tier 0 item used creatively (ITEM-07). The ruling used to be a console
     // call - `game.drpg.grantItemEffect(...)` - and so was never made: the
     // "seemingly useless item" stayed in the bag holding a usable slot.
-async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data) {
+async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data, message = null) {
     const actor = game.actors.get(data.by);
     const item = actor?.items?.get(data.item);
     if (!actor || !item) return null;   // Handed over meanwhile; nothing to rule on.
     const { grantItemEffect, ruleCreativeUse } = await import("./use-items.mjs");
     if (action === "itemRefuse") {
         const { postToThread } = await import("./messenger.mjs");
-        const owner = ownerOf(actor);
+        const owner = rulingThread(actor, message);
         const note = `<p><em>${foundry.utils.escapeHTML(
             game.i18n.format("DRPG.Items.creativeRefused", { item: item.name }))}</em></p>`;
         if (owner) await postToThread(owner.id, note);
@@ -1029,13 +1045,13 @@ async function ruleApproveProject(action, data) {
     return made ? settled("DRPG.Bridge.settledApproved") : null;
 }
 
-async function ruleDeclineProject(action, data) {
+async function ruleDeclineProject(action, data, message = null) {
     // No action to refund: starting a project is a declaration, and the
     // cost is paid by working on it afterwards.
     const actor = game.actors.get(data.by);
     if (!actor) return null;
     const { postToThread } = await import("./messenger.mjs");
-    const owner = ownerOf(actor);
+    const owner = rulingThread(actor, message);
     const note = `<p><em>${foundry.utils.escapeHTML(
         game.i18n.format("DRPG.Project.declinedPlayer", { name: game.user.name }))}</em></p>`;
     if (owner) await postToThread(owner.id, note);
@@ -1057,7 +1073,7 @@ async function ruleApproveReshape(action, data) {
     const applied = await askReshapeRuling("approve", { by: data.by, trace: data.trace, attempt: data.attempt ?? "" });
     /* `false` is a ruling that went through - a Reroll had taken the attempt back,
        and the card says so - where `null` leaves the card open to be answered. The
-       same split `ruleApproveMurder` draws. */
+       same split `ruleApproveMurderOrRefuseMurder` draws. */
     if (applied === false) return settled("DRPG.Cleanup.reshapeVoided");
     return applied ? settled("DRPG.Bridge.settledApproved") : null;
 }
@@ -1102,7 +1118,7 @@ async function ruleRefuseObserveTrace(action, data) {
 // point of interest, a Listen, an Analyze hint and a Dynamic action all
 // arrived as a card with a roll on it and nothing to press - the GM read
 // the number and then went looking for the window that answers it.
-async function ruleReply(action, data) {
+async function ruleReply(action, data, message = null) {
     // A ruling in words. Most of these branches have no mechanical answer
     // at all - "what do you overhear", "what does that door tell you" - and
     // the module's own answer to that has always been the thread the card
@@ -1138,7 +1154,7 @@ async function ruleReply(action, data) {
     if (!text) return null;
 
     const { postToThread } = await import("./messenger.mjs");
-    const owner = ownerOf(actor);
+    const owner = rulingThread(actor, message);
     // Named, not "The GM": rulings land as `action`-kind bubbles, which
     // carry no author line - with two Gamemasters at the table the player
     // had no way to tell whose ruling this was (Dawid, 26.08). `game.user`
@@ -1160,11 +1176,11 @@ async function ruleReply(action, data) {
  * paid before the card was posted. `words` is the card's (the player's to rewrite), and picks
  * between two sentences only.
  */
-async function ruleSearchMiss(action, data) {
+async function ruleSearchMiss(action, data, message = null) {
     const actor = game.actors.get(data.by);
     if (!actor) return null;
     const { postToThread } = await import("./messenger.mjs");
-    const owner = ownerOf(actor);
+    const owner = rulingThread(actor, message);
     if (owner) {
         await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
             game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
@@ -1186,7 +1202,7 @@ async function ruleSearchMiss(action, data) {
  * The action is NOT refunded here, for the same reason it is not refunded on the
  * scored road: the character looked.
  */
-async function ruleObserveMiss(action, data) {
+async function ruleObserveMiss(action, data, message = null) {
     const actor = game.actors.get(data.by);
     if (!actor) return null;
 
@@ -1201,7 +1217,7 @@ async function ruleObserveMiss(action, data) {
        It speaks the way `ruleReply` speaks now: the GM's ruling, in the ruling's
        words, and the card settles as answered, not declined. */
     const { postToThread } = await import("./messenger.mjs");
-    const owner = ownerOf(actor);
+    const owner = rulingThread(actor, message);
     if (owner) {
         await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
             game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
@@ -1260,7 +1276,7 @@ function refundOnCard(data) {
     return { key: "analyze", pay: "action", amount: action.amount, grant: false };
 }
 
-async function ruleDecline(action, data) {
+async function ruleDecline(action, data, message = null) {
     // What was paid comes BACK. Same reasoning as `declineMurder`: a refusal
     // here is the GM overruling the declaration rather than the rules
     // resolving it, and a player who spent an action on a question that was
@@ -1270,7 +1286,7 @@ async function ruleDecline(action, data) {
 
     const receipt = refundOnCard(data);
     const { postToThread } = await import("./messenger.mjs");
-    const owner = ownerOf(actor);
+    const owner = rulingThread(actor, message);
     if (!receipt) {
         // Said out loud because the silence used to be a refund.
         debug("A refused ruling had nothing to refund: the card says nothing was paid.");
@@ -1348,7 +1364,7 @@ async function ruleKeyRemnantHere(action, data) {
     return placed ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
-async function ruleDeclineMurder(action, data) {
+async function ruleDeclineMurder(action, data, message = null) {
     // The refusal is the GM overruling the declaration, not the rules
     // resolving it - so the action comes back. A witness in the room is the
     // other thing, and that one keeps the attempt spent (see
@@ -1358,7 +1374,7 @@ async function ruleDeclineMurder(action, data) {
     const { refundAction } = await import("./actions.mjs");
     await refundAction(actor, 1);
     const { postToThread } = await import("./messenger.mjs");
-    const owner = ownerOf(actor);
+    const owner = rulingThread(actor, message);
     const note = `<p><em>${foundry.utils.escapeHTML(
         game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
     if (owner) await postToThread(owner.id, note);
@@ -1398,7 +1414,19 @@ const CARD_ACTIONS = {
     giveItem: ruleGiveItem,
     keyRemnantHere: ruleKeyRemnantHere,
     declineMurder: ruleDeclineMurder,
+    // E72 C5: a Monocub's Ask for Hope, answered once by whichever GM clicks (monocub.mjs `answerHopeAsk`).
+    cubGiveHope: ruleCubHope,
+    cubNotNow: ruleCubHope
 };
+
+/** Give 1, Give 2 or Not now on a Monocub's Ask for Hope (E72 C5): the GM's own Despair, or none. */
+async function ruleCubHope(action, data) {
+    const actor = game.actors.get(data.actor);
+    if (!actor) return null;
+    const { answerHopeAsk } = await import("./monocub.mjs");
+    const words = await answerHopeAsk(actor, action === "cubGiveHope" ? Number(data.n) || 0 : 0);
+    return words ? { settled: words } : null;
+}
 
 /** The rule of the button pressed, handed the card it is on (`message`, fix early-C2-G2), or null for none. */
 async function runCallAction(action, data, message = null) {

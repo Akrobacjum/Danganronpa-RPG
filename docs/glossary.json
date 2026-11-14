@@ -103,8 +103,8 @@
         "en": "Remnant",
         "pl": "Remnant",
         "gender": "m",
-        "inflection": "Inflected as a countable noun: Remnantu (DB4).",
-        "declension": {"countable": true, "gen": "Remnantu"},
+        "inflection": "Inflected as a countable noun: Remnantu, and in the plural Remnanty, Remnantów - also in \"Key Remnanty\", \"Faint Remnanty\", \"Final Truth Remnanty\" (DB4; the owner, 12.11.2026: the English plural \"Remnants\" does not stand in a Polish sentence).",
+        "declension": {"countable": true, "gen": "Remnantu", "plural": "Remnanty"},
         "forbidden": {"en": {"variants": [{"stem": "trace", "endings": ["", "s"]}], "scope": ["ui", "handbooks"], "case": "any", "except": ["Secure a Trace", "Erase a Trace", "Reshape a Trace", "Hide the Traces", "Follow My Traces"]}, "pl": {"variants": [{"stem": "ślad", "endings": ["", "u", "owi", "em", "zie", "y", "ów", "om", "ami", "ach"]}], "scope": ["ui", "handbooks"], "case": "any"}},
         "stage": "E71",
         "source": ["DB15", "DB6", "DB4", "DB28"],
@@ -736,6 +736,17 @@
         "note": "The Polish gloss stands only in the handbook (DB38)."
       },
       {
+        "id": "talent",
+        "en": "Talent",
+        "pl": "Talent",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E72",
+        "source": ["DB38"],
+        "note": "The Hope Call whose tile holds Experience and Ultimate; the player picks one in its window (E72; the owner's decision on DRPG-D1, 12.11.2026). English in both languages, as every Call (DB38)."
+      },
+      {
         "id": "bribe",
         "en": "Bribe",
         "pl": "Bribe",
@@ -778,6 +789,17 @@
         "stage": "E69",
         "source": ["DA27", "DA28"],
         "note": "The Listen tile's label; the key listen and the Listen row stay; the tile has no groups."
+      },
+  {
+        "id": "facilities",
+        "en": "Facilities",
+        "pl": "Facilities",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E93",
+        "source": ["E93 plan"],
+        "note": "The tile that was Rest (E93, the owner's audit entry E93 (1)): its window holds the Short and the Long Rest and the room's actions; the key rest and the Rest window's rows stay. A tile name in English in Polish, as the other tiles (D33a)."
       },
       {
         "id": "tail-someone",
@@ -1064,6 +1086,17 @@
         "stage": "E73",
         "source": ["DX5"],
         "note": "A place on the scene, not a mode: TR18 does not cover it."
+      },
+      {
+        "id": "camps-confer",
+        "en": "Camps confer",
+        "pl": "Narada obozów",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E73",
+        "source": ["E73 plan"],
+        "note": "The owner's word of 13.11.2026, after E73: Scrum Debate's second phase, between Sides and the debate: each camp talks in a voice room of its own. A phase, not a mode: TR18 does not cover it, so it is Polish in the Polish UI."
       },
       {
         "id": "discussion",

@@ -45,6 +45,8 @@ import { overflowBlocksHope } from "./overflow.mjs";
 import { whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 
 /** Flag marking the one item of its category the character is holding ready. */
 export const EQUIPPED_FLAG = "equipped";
@@ -81,27 +83,6 @@ export function equippedIn(actor, category) {
 }
 
 /**
- * What this character is holding ready that can do the job of `role`.
- *
- * The capability question, where `equippedIn` is the slot question. An item's
- * category is its HOME - which slot it takes, which row it sits in, which table
- * it came from - and `servesAs` is what it can actually do. A screwdriver filed
- * under Tools answers `equippedFor(actor, "crimeTool")` because it can be swung;
- * `equippedIn(actor, "crimeTool")` still says no, and `toggleEquipped` needs it
- * to, or readying the screwdriver would put the knife away.
- *
- * THE SPECIALIST WINS. Both can be readied at once - one per home, and the
- * homes are different - so this has to choose. It prefers the item whose home
- * IS the role: the knife is a better weapon than the screwdriver, and the
- * screwdriver wears out before the knife does when the roll goes badly. A rule
- * that is easy to say out loud at the table beats one that depends on which
- * item was picked up first.
- *
- * Broken and stashed are excluded here, for the same reason `equippedIn` does
- * it: this is what the incident asks for its weapon and what Stage 6 asks for
- * its gloves.
- */
-/**
  * How good a thing is, as a number, or 0 when nothing says.
  *
  * Returns 0 rather than null on purpose: every caller feeds it to arithmetic,
@@ -133,7 +114,7 @@ export function stowedInGroup(actor, group) {
  *
  * @returns {{ok: boolean, stowed: number, max: number|null}}
  */
-export function mayStow(actor, item) {
+function mayStow(actor, item) {
     const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
     const group = ITEM_CATEGORIES[category]?.limitGroup ?? null;
     const max = group ? LIMIT_GROUPS[group]?.maxStowed ?? null : null;
@@ -144,6 +125,27 @@ export function mayStow(actor, item) {
     return { ok: stowed < max, stowed, max };
 }
 
+/**
+ * What this character is holding ready that can do the job of `role`.
+ *
+ * The capability question, where `equippedIn` is the slot question. An item's
+ * category is its HOME - which slot it takes, which row it sits in, which table
+ * it came from - and `servesAs` is what it can actually do. A screwdriver filed
+ * under Tools answers `equippedFor(actor, "crimeTool")` because it can be swung;
+ * `equippedIn(actor, "crimeTool")` still says no, and `toggleEquipped` needs it
+ * to, or readying the screwdriver would put the knife away.
+ *
+ * THE SPECIALIST WINS. Both can be readied at once - one per home, and the
+ * homes are different - so this has to choose. It prefers the item whose home
+ * IS the role: the knife is a better weapon than the screwdriver, and the
+ * screwdriver wears out before the knife does when the roll goes badly. A rule
+ * that is easy to say out loud at the table beats one that depends on which
+ * item was picked up first.
+ *
+ * Broken and stashed are excluded here, for the same reason `equippedIn` does
+ * it: this is what the incident asks for its weapon and what Stage 6 asks for
+ * its gloves.
+ */
 export function equippedFor(actor, role) {
     // At most one, since E9 - but read as a list anyway. A world mid-upgrade
     // can still have several readied from the per-category rule, and the
@@ -162,11 +164,6 @@ export function readiedItems(actor) {
         i.getFlag(MODULE_ID, EQUIPPED_FLAG)
         && !isBroken(i)
         && !isStashed(i)) ?? [];
-}
-
-/** The one thing in their hands, whatever it is. */
-export function readiedItem(actor) {
-    return readiedItems(actor)[0] ?? null;
 }
 
 /**
@@ -317,7 +314,9 @@ function deadHands(actor) {
  * "this is the one I am using now", and making the player un-equip first would
  * be a second click for no decision.
  */
-export async function toggleEquipped(actor, item, { shape = false } = {}) {
+export async function toggleEquipped(actor, item, { shape = false, render = true } = {}) {
+    // `render` false: the writes redraw no sheet (inventory.mjs `keepGearShape` under quiet, E91 C8).
+    const quietly = render ? {} : { render: false };
     if (!actor || !item || !isEquippable(item)) return false;
     // A player's click on the dead's own hands (C3). Not the Gear shape's readying (`shape`, inventory.mjs
     // `keepGearShape`), which a GM's grant, give or Palm into a body asks on the GM: D4 holds on a body too, and the GM
@@ -359,10 +358,10 @@ export async function toggleEquipped(actor, item, { shape = false } = {}) {
             // first hand that picks something up has to tidy all of them.
             for (const previous of readiedItems(actor)) {
                 if (previous.id === item.id) continue;
-                await trustedWrite(previous, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: false }, { reason: "equip" });
+                await trustedWrite(previous, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: false }, { reason: "equip", ...quietly });
             }
         }
-        await trustedWrite(item, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: !wasEquipped }, { reason: "equip" });
+        await trustedWrite(item, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: !wasEquipped }, { reason: "equip", ...quietly });
     } catch (err) {
         error("Could not change what is held ready", err);
         return false;
@@ -423,17 +422,6 @@ export function usableKindOf(item) {
 }
 
 /**
- * Use a Usable Item.
- *
- * Consumed when actually used - the guide's usable items are one-shot, and an
- * item that restores nothing because the character was already whole is still
- * an item that has been opened. Cancelling either dialog spends nothing. The
- * dialogs used to say "the item is used up either way", which read as though
- * cancelling destroyed it too; the line is gone (Dawid, 2026-08-26).
- *
- * @returns {Promise<object|null>} what was restored, or null if it did not happen.
- */
-/**
  * What the GM needs on a "somebody used this" card to recognise a trap.
  *
  * THE FLAG IS ON THE CARD, NOT ON THE ITEM, and that is the whole shape of
@@ -458,6 +446,17 @@ function usedStamp(actor, item) {
     };
 }
 
+/**
+ * Use a Usable Item.
+ *
+ * Consumed when actually used - the guide's usable items are one-shot, and an
+ * item that restores nothing because the character was already whole is still
+ * an item that has been opened. Cancelling either dialog spends nothing. The
+ * dialogs used to say "the item is used up either way", which read as though
+ * cancelling destroyed it too; the line is gone (Dawid, 2026-08-26).
+ *
+ * @returns {Promise<object|null>} what was restored, or null if it did not happen.
+ */
 /*
  * `again` (E08+E28 C6b, 03.10.2026; audit S04-18): `{ resource }`, a use a Reroll's replay makes
  * again on a GM after its rewind gave the item and the heal back (murder-rules.mjs `afterCrisisRoll`).
@@ -646,7 +645,7 @@ async function askWhichResource(item, effect) {
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Items.useConfirm"),
+                action: "ok", label: game.i18n.localize("DRPG.Items.useConfirm"), tooltip: tipText("DRPG.Tips.Actions.useItTooltip"),
                 callback: (e, b, d) =>
                     d.element.querySelector('input[name="what"]:checked')?.value ?? null
             },
@@ -794,25 +793,6 @@ async function consume(item, { reason, held = item }) {
  * ========================================================================== */
 
 /**
- * Get rid of a broken item, somewhere, and leave the trace of having done it.
- *
- * The only route out of an inventory for something that has been used up, apart
- * from putting it in your own stash. Free - no action is charged, for the same
- * reason using an item is not: the guide charges actions for finding, making
- * and hiding things, and dropping a broken screwdriver in a bin is none of the
- * three. What it costs is not an action, it is a Remnant.
- *
- * How loud that Remnant is comes off a Shadow roll against the same table the
- * indirect murder's hide-traces roll uses (BROKEN_ITEMS.thresholds). A critical
- * leaves a Hidden trace: got rid of it, and nobody will ever prove where.
- *
- * The item goes for real at the end of this - a thrown-away thing is not in your
- * pockets any more. What is left on the map is the trace, and that is the
- * evidence the trial will be arguing about.
- *
- * @returns {Promise<object|null>} `{ visibility, told }`, or null if nothing happened.
- */
-/**
  * Which kind of trace throwing a broken thing away leaves.
  *
  * "Zazwyczaj robi się to po morderstwie" - and when it is after, the trace is a
@@ -883,6 +863,25 @@ export function noDiscardNow(clock = getClock()) {
     return clock?.phase === "classTrial" ? game.i18n.localize("DRPG.Items.noDiscardInTrial") : null;
 }
 
+/**
+ * Get rid of a broken item, somewhere, and leave the trace of having done it.
+ *
+ * The only route out of an inventory for something that has been used up, apart
+ * from putting it in your own stash. Free - no action is charged, for the same
+ * reason using an item is not: the guide charges actions for finding, making
+ * and hiding things, and dropping a broken screwdriver in a bin is none of the
+ * three. What it costs is not an action, it is a Remnant.
+ *
+ * How loud that Remnant is comes off a Shadow roll against the same table the
+ * indirect murder's hide-traces roll uses (BROKEN_ITEMS.thresholds). A critical
+ * leaves a Hidden trace: got rid of it, and nobody will ever prove where.
+ *
+ * The item goes for real at the end of this - a thrown-away thing is not in your
+ * pockets any more. What is left on the map is the trace, and that is the
+ * evidence the trial will be arguing about.
+ *
+ * @returns {Promise<object|null>} `{ visibility, told }`, or null if nothing happened.
+ */
 export async function discardBroken(actor, item) {
     if (!actor || !item) return null;
     if (deadHands(actor)) return null;

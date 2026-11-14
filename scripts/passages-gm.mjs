@@ -439,15 +439,19 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
  * the open or in secret as any project, D37). The owner's three of 15.10 since C5 (the owner, 15.10; the stage's Q2 of
  * 19.10: "Tak"): Seal the passage, Hand, and Close the breach, Body - the statistics of their counterparts, which the GM
  * may change at the approval - both Complex; Repair an item, Hand, whose size is the item's tier's (`byTier`: tier 0-1
- * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, is E68's
- * `PROJECT_KINDS`, which this table goes into.
+ * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, was to be a
+ * kind of E68's project table, which this table would go into; E68 shipped (1.2.104) with no such table, and the presets
+ * are read from here (action-project.mjs).
  */
 export const PASSAGE_PRESETS = Object.freeze({
     secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
     breach: Object.freeze({ trait: "body", scale: "complex", effect: "breachesWall" }),
     sealPassage: Object.freeze({ trait: "hand", scale: "complex", effect: "sealsPassage" }),
     closeBreach: Object.freeze({ trait: "body", scale: "complex", effect: "closesBreach" }),
-    repairItem: Object.freeze({ trait: "hand", scale: "trivial", byTier: Object.freeze(["trivial", "trivial", "complex", "complex"]), effect: "repairsItem" })
+    repairItem: Object.freeze({ trait: "hand", scale: "trivial", byTier: Object.freeze(["trivial", "trivial", "complex", "complex"]), effect: "repairsItem" }),
+    // Repair the Lock (E74 C5; DA28, Q-E74-1's default: a row here, no new table): Hand, Trivial, a lock Force the Door or
+    // a breach broke, on a door of the builder's room; its judges and its completion are doors-gm.mjs's.
+    repairLock: Object.freeze({ trait: "hand", scale: "trivial", effect: "repairsLock" })
 });
 
 /** A preset's size (a key of config.mjs `PROJECT_SCALE`): its `byTier` at the item's tier (0-3, clamped) where it has one, else its `scale`. */
@@ -802,8 +806,9 @@ async function unforceRoom(scene, forced, breachId, stores, { reseal = true } = 
  *   - in a room beside either (`neighbouringRooms`, the map's doors), `breachHeard`: a crash, never a name, from the
  *     breached room beside them as Listen names a room ("Unexplored room 1" for one they have not been in);
  * each to its owners and the GMs with the sound `wallBreached` (the players' only, the string form). Then the room's
- * card, as for a forced door: to the bedroom's owner (and the GMs) when the room beyond is somebody's bedroom, with no
- * builder's name, else to the GMs; a lifted seal is said on it. Answers how many cards were written.
+ * card, as for a forced door: to the GMs, and to the bedroom's owner when the room beyond is somebody's bedroom, with no
+ * builder's name - on walking back into it, or at once in it, never twice where they saw it (doors-gm.mjs `noteBedroom`;
+ * privacy line 1, the owner's rule #1, 13.11.2026); a lifted seal is said on it. Answers how many cards were written.
  */
 export async function tellBreach(made) {
     const scene = game.scenes?.get(made?.sceneId ?? "");
@@ -841,8 +846,15 @@ export async function tellBreach(made) {
     const seal = made.forced.unsealed ? ` ${game.i18n.localize("DRPG.Passage.card.breachUnsealed")}` : "";
     const { roomFlag } = await import("./rooms.mjs");
     const owner = studentOf(roomFlag(scene, beyond, ROOM_OWNER_FLAG));
-    if (owner && owner.id !== builder?.id) await whisperToOwner(owner, `<p>${game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(beyond) })}${seal}</p>`);
-    else await whisperToGms(`<p>${game.i18n.format("DRPG.Passage.card.breachForced", { room: esc(beyond) })}${seal}</p>`);
+    /* THE BEDROOM'S OWNER ON WALKING BACK IN (privacy line 1, 13.11.2026; the owner's rule #1). Until then the owner was
+       whispered the bedroom's card at once, wherever they stood, with the GMs' copy. Now an owner standing in either room
+       was sent its card above and is told nothing more; one elsewhere is told on walking into the bedroom, or at once in
+       it (doors-gm.mjs `noteBedroom`). The GMs are told at once, as for a room that is nobody's. */
+    if (owner && owner.id !== builder?.id) {
+        const saw = [from, beyond].includes(where(owner)) ? new Set([owner.id]) : new Set();
+        await (await import("./doors-gm.mjs")).noteBedroom({ scene, room: beyond, kind: "breached", told: saw, by: builder, unsealed: made.forced.unsealed ?? null });
+    }
+    await whisperToGms(`<p>${game.i18n.format("DRPG.Passage.card.breachForced", { room: esc(beyond) })}${seal}</p>`);
     return told + 1;
 }
 
@@ -975,7 +987,7 @@ export function passageResetTally({ stores = PASSAGE_STORES, scenes = game.scene
  * (D36). A project's breach (E15 part 2 C3) is a hole in a world's wall, not a row the cut can take: every one is
  * closed first, its wall given back, read off the walls themselves, before anything of the group's own goes.
  */
-export async function clearSeasonPassages() {
+async function clearSeasonPassages() {
     await closeEveryBreach();
     await passagesAfterReset();
 }
@@ -1064,6 +1076,26 @@ export async function sealPassageDone(projectId, { passageId = null, builderId =
     if (refused) return { refused };
     const done = await setState(passageId, "closed", ["secret"], stores, { sealedBy: projectId, actorId: builderId });
     return done ? { id: passageId, sealed: true } : { refused: "the passage could not be closed." };
+}
+
+/**
+ * THE MASTERMIND SEALS THE PASSAGE AT THEIR DOOR (E91 C5, D038 (2), 12.11.2026; the owner's "Budujemy"): an open passage
+ * with a side in the lair (`presetSideRefusal`, as a Seal the passage project's side is judged) closed by the tab's own
+ * close (`setState`: the knowers' cells kept, the copies sent without it, a GMs' log row naming the Mastermind), on the
+ * primary, for the one who acts as the Mastermind through that character (`actsAsMastermind`), the lair the GMs' record
+ * (never the packet's). A closed passage reads the same whoever closed it - the GM's Close, a finished Seal the passage,
+ * this - so a student learns nothing of who. A GM may open it again (the tab's Open). Every refusal is "nothing was carried
+ * out" and says nothing of which check failed. Answers `{ id, sealed: true }` or `{ refused }` with nothing written.
+ */
+export async function sealLairPassage({ actorId = null, passageId = null } = {}, { asker = game.user, stores = PASSAGE_STORES } = {}) {
+    const no = { refused: "nothing was carried out: the passage was not sealed" };
+    if (!isPrimaryGm() || typeof passageId !== "string" || !passageId) return no;
+    const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
+    if (!actor || !actsAsMastermind(actor, asker)) return no;
+    const lair = mastermindStore.get(RECORD)?.room;
+    if (typeof lair !== "string" || !lair || rowsOf(stores).get(passageId)?.state !== "secret") return no;
+    if (await presetSideRefusal({ passageId, room: lair }, stores)) return no;
+    return (await setState(passageId, "closed", ["secret"], stores, { actorId: actor.id })) ? { id: passageId, sealed: true } : no;
 }
 
 /**
@@ -1195,6 +1227,10 @@ const whyTable = () => new Map([
         [MAP_REFUSALS.otherRooms, "otherRooms"],
         [MAP_REFUSALS.short, "short"],
         ["that wall is a door.", "door"],
+        // Repair the Lock (E74 C5; doors-gm.mjs `repairLockRefusal`).
+        ["that lock is not broken.", "lockWhole"],
+        ["a project repairs that lock already.", "lockTaken"],
+        ["that lock is on no door of the builder's room.", "lockFar"],
         ["that wall does not block movement.", "noMove"],
         ["the stretch needs two different ends.", "sameEnds"],
         ["the stretch is not on that wall.", "offWall"],
@@ -1203,11 +1239,12 @@ const whyTable = () => new Map([
         ["the item is neither a usable nor a tool that is broken or worn.", "notRepairable"],
         ["nothing to cut again.", "nothingBack"],
         ["nothing to put back.", "itemBack"],
-        ["the item was broken or worn again since.", "brokenSince"]
+        ["the item was broken or worn again since.", "brokenSince"],
+        ["the item's tier asks a bigger repair than this one.", "repairTooSmall"]
 ]);
 
 /** The closed list of the codes `whyText` can say, each `DRPG.Passage.why.<code>` in both language files (R983). */
-export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "unknown"]);
+export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "repairTooSmall", "unknown"]);
 
 /** A judge's English reason's code, or null for one the table does not know. */
 export function whyCode(reason) {
@@ -1908,7 +1945,8 @@ export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, sc
 /**
  * On the primary, once a GM's rename of the room `from` on the scene `sceneId` to `to` is carried
  * (fog.mjs `carryRename`): each passage of that scene shows the new name (`rooms`), and a student who
- * keeps a passage until leaving the room (`leave`) keeps it until leaving the renamed room. Until review
+ * keeps a passage until leaving the room (`leave`) keeps it until leaving the renamed room; a breach's forced room and
+ * the room it was cut from are carried too (E91 C7). Until review
  * round 1 (cor F1; the goal reviewer's note on 'Revoke when they leave', 15.10.2026) neither was carried,
  * and `revokeLeavers`, which compares names, revoked the passage at the student's next route inside the
  * room. Answers how many rows and cells it carried.
@@ -1921,6 +1959,15 @@ export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_ST
         if (row?.sceneId !== sceneId) continue;
         here.add(id);
         if (Array.isArray(row.rooms) && row.rooms.includes(from)) rows[id] = { rooms: row.rooms.map(room => (room === from ? to : room)) };
+        /* A breach's forced room and the room it was cut from (E91 C7; the owner's deferred item D037): `forcingRows` and
+           the undo read `forced.room` by name, so after a full rename a standing breach of the room was not found - a
+           second breach read the room as broken by hand, the first's undo took the break off under it, and its reseal
+           named a room no longer drawn. Carried with the row's rooms, the rest of `breach` as it stands. */
+        const forced = row.breach?.forced;
+        if (forced && (forced.room === from || forced.from === from)) {
+            rows[id] = { ...(rows[id] ?? {}), breach: { ...row.breach, forced: { ...forced,
+                ...(forced.room === from ? { room: to } : {}), ...(forced.from === from ? { from: to } : {}) } } };
+        }
     }
     for (const [key, cell] of Object.entries(stores.access.entries())) {
         if (!key.startsWith("touch/") && cell?.leave === from && here.has(key.slice(0, key.lastIndexOf("/")))) cells[key] = { leave: to };
@@ -2493,8 +2540,8 @@ async function noteFindFact({ actorId, rollId, by, place = null }) {
  * measured: a fifth of a cell is a slip of the hand, half a cell reaches into the room beyond the
  * thickest wall the seeded maps draw. A stretch shorter than `PICK_SHORTEST` is a double click.
  */
-export const PICK_RADIUS = 20;
-export const PICK_REACH = 50;
+const PICK_RADIUS = 20;
+const PICK_REACH = 50;
 export const PICK_SHORTEST = 8;
 const PROBES = [0.35, 0.6, 0.85, 1];
 
@@ -2783,7 +2830,7 @@ async function tuck(dialog, away) {
 }
 
 /** The pick's stretch on the overlay's layer "pick": the start, the snapped pointer and the line between; nothing for none. */
-export function drawPickLayer({ first = null, at = null, ok = true } = {}) {
+function drawPickLayer({ first = null, at = null, ok = true } = {}) {
     const layer = overlayLayer("pick");
     if (!layer) return;
     clearLayer(layer);

@@ -24,7 +24,15 @@ import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerBodyMarks, registerBodyFollow } from "./body-tile.mjs";
-import { registerBodyAnnounced } from "./chapter.mjs";
+import { registerBodyAnnounced, registerPendingBodies } from "./chapter.mjs";
+import { registerTails } from "./tail-gm.mjs";
+import { registerDoors } from "./doors-gm.mjs";
+import { registerWatches } from "./watch-gm.mjs";
+import { registerLockpicks } from "./lockpick-gm.mjs";
+import { registerEavesdrops } from "./eavesdrop-gm.mjs";
+import { registerMasks } from "./mask-gm.mjs";
+import { registerArrivalNotices } from "./arrival-notices.mjs";
+import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerCaseAsk } from "./case-realize.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
@@ -38,6 +46,8 @@ import { registerMovement } from "./movement.mjs";
 import { registerRoomPieces } from "./vault.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
+import { registerSeen } from "./projects-seen.mjs";
+import { registerRemnantGhosts } from "./remnant-ghosts.mjs";
 import { registerProjectChanges } from "./projects.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
@@ -90,6 +100,7 @@ import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerConfusionCopy } from "./call-effects.mjs";
+import { registerCubCopy } from "./monocub.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerDiceLook } from "./dice-look.mjs";
 import { registerSync } from "./sync.mjs";
@@ -99,6 +110,8 @@ import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
 import { registerSpectatorUi } from "./spectator-ui.mjs";
+import { registerDeadSpectator } from "./spectator-dead.mjs";
+import { registerDeathFade } from "./death-fade.mjs";
 import { registerVoiceTile, registerVoiceKeybinding } from "./voice-tile.mjs";
 import { registerTrialSpeakers } from "./trial-speakers.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
@@ -108,6 +121,8 @@ import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerDhSettings } from "./dh-settings.mjs";
 import { registerApi } from "./api.mjs";
+import { registerFloatText } from "./float-text.mjs";
+import { registerOpenCost } from "./open-cost.mjs";
 import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
@@ -183,6 +198,9 @@ Hooks.once("init", () => {
     safely("the language", registerLanguage);
     // Every window the module opens says which language it is in (E66 C1; utils.mjs `markModuleWindow`).
     safely("the windows' language", () => Hooks.on("renderApplicationV2", markModuleWindow));
+    // A module textarea floats over its window while it is edited (float-text line, 13.11.2026): at init, so its Escape
+    // listener on `window` stands before foundry-windows.mjs's and sequence.mjs's, which ready registers.
+    safely("the floating text fields", registerFloatText);
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
@@ -212,6 +230,9 @@ Hooks.once("init", () => {
     safely("a piece renamed out of a room", registerRoomPieces);
     safely("the projects tray", registerProjectsUi);
     safely("projects on the map", registerProjectsMap);
+    // What each player last saw of a project and of an erased trace (PV, 13.11.2026; the owner's rules #2-#4).
+    safely("what a player saw last", registerSeen);
+    safely("the erased traces' ghosts", registerRemnantGhosts);
     // A completion a row keeps for a Reroll is let go when the GMs' bookmark of that roll changes (E36 C1).
     safely("the kept projects", registerProjectChanges);
     safely("inventory limits", registerInventoryLimits);
@@ -229,6 +250,22 @@ Hooks.once("init", () => {
     safely("the body with its corpse", registerBodyFollow);
     // The body's announcement, `drpgBodyAnnounced`, on every browser the stamp reaches (E95 C4; chapter.mjs).
     safely("the body's announcement", registerBodyAnnounced);
+    safely("the discoveries waiting for the GM's word", registerPendingBodies);
+    // Tail Someone's cards and ends (E69 C4), on the primary GM: a settled crossing, a body announced, a new day.
+    safely("the tails", registerTails);
+    // Shut the Door's barricades come down (E74 C2), on the primary GM: the author leaving, a new time of day, an Eclipse.
+    safely("the barricades", registerDoors);
+    // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
+    safely("the watches", registerWatches);
+    safely("the pick's passes", registerLockpicks);
+    // Listen's eavesdrop (E69 C6): the owner's copy, and on the primary GM every end of one.
+    safely("the eavesdrops", registerEavesdrops);
+    // The murder's privacy (E69 C8): the killer behind a "?", its end at a new time of day, the killer's question.
+    safely("the masks", registerMasks);
+    // The owner's notices on walking in - a stash gone through, a bedroom's note - on the primary GM, from a settled crossing
+    // (and from a GM's move of the token, movement.mjs `noteGmPosition`; the audit of 1.2.113, A113-C4-3).
+    safely("the notices on walking in", registerArrivalNotices);
+    safely("the timed effects", registerTimedEffects);
     // E97 C11: the case's question at a body, on the primary GM, once a chapter
     safely("the case's question at a body", registerCaseAsk);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
@@ -290,6 +327,7 @@ Hooks.once("init", () => {
     // at `ready`, and the key does nothing in a world without voice.
     safely("the microphone's key", () => registerVoiceKeybinding());
     safely("a Confusion's armed Calls", registerConfusionCopy);
+    safely("the Monocubs' record", registerCubCopy);
     // After popups: a presented Truth Bullet becomes one, so the container has
     // to exist by the time the first card lands.
     safely("the Class Trial", registerTrial);
@@ -363,6 +401,9 @@ Hooks.once("ready", () => {
     // wraps again at ready) among them, so the rows read the load as it stands. Writes nothing to the world. The road
     // also hands rooms.mjs the call for a Levels throw met later in the load (E52 fix round, G-2).
     if (isPrimaryGm()) import("./patches.mjs").then(m => m.announceAtReady()).catch(err => error("Could not run the contract with Foundry and Daggerheart", err));
+    // The state's invariants (E40 C3; plan E40 item 2): read once at the primary GM's start, each problem a warning on
+    // this GM's console and nothing else - it writes nothing, tells nobody and stops nothing (state-check.mjs).
+    if (isPrimaryGm()) import("./state-check.mjs").then(m => m.checkState()).catch(err => error("Could not read the state's invariants", err));
     // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.
     announceRollDraw().catch(err =>
         error("Could not say that rolls are not drawn by the GM", err));
@@ -400,6 +441,9 @@ Hooks.once("ready", () => {
     // they exist would show a dash until the next redraw.
     safely("private cards", registerSecrets);
     safely("the API", registerApi);
+    // A window's first open (perf-open line, 12.11.2026): the opens timed from here on, and the files, templates and
+    // font subsets a first open would ask the server for fetched at idle a few seconds after this hook (open-cost.mjs).
+    safely("the windows' first opens", registerOpenCost);
     // The look: theme class, glass effects, UI scale, then the curtain that
     // depends on all three. After the API, before anything that renders a block.
     safely("the theme", applyTheme);
@@ -413,6 +457,10 @@ Hooks.once("ready", () => {
     safely("the room tile", () => { ensureRoomTile(); registerRoomTile(); });
     // The Spectator's line under the clock and its hidden chat (E92 C5): on a Spectator's browser alone.
     safely("the Spectator's line", registerSpectatorUi);
+    // The dead's Spectator token, read on the victim's browser (E62 C3b): the curtain's hook and the fade's sound.
+    safely("the dead's Spectator", registerDeadSpectator);
+    // The death fade and the Monocub's return on the dead student's own curtain (E62 C3), the hook's listener.
+    safely("the death fade", () => registerDeathFade().catch(err => error("Could not register the death fade", err)));
     // Foundry's rails out of its columns (E77 C5): a player's scene controls hidden with their Tokens
     // layer kept, a GM's sidebar and scene controls into two windows. Before the narrow layout and the
     // glass, which measure a rail only while it stands in Foundry's columns.

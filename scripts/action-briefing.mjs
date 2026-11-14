@@ -4,18 +4,17 @@
  * What an action says before it is committed to: the block at the top of the
  * action's own window (`briefingBlock`) and its facts (`briefingFacts`) - the
  * price, the Move's line (`moveLine`), the ladders and thresholds the rules
- * hold (`ladderRows`, `thresholdFacts`), who is watching - the one action that
- * still opens a briefing window of its own, Move (`briefing`), and Tamper's
- * erase ladder for the character (`tamperThresholdFacts`).
+ * hold (`ladderRows`, `thresholdFacts`), who is watching - and Tamper's
+ * erase ladder for the character (`tamperThresholdFacts`). Move's own window
+ * (`briefing`) is gone since E100 item 1.
  *
  * WHERE IT SITS. Moved out of action-rolls.mjs by E41 C3 (1.2.97), a pure move
  * that `node tools/moved-only.mjs` proves line by line. action-rolls.mjs
  * re-exports `briefingBlock` and `moveLine`, the two names here it exported
  * before, and nothing here imports it back (the facade rule,
- * .claude/rules/code.md). `briefing` and `tamperThresholdFacts` are exported
- * now because `performAction` and Tamper (action-tamper.mjs since E41 C4)
- * call them;
- * action-rolls.mjs does not re-export them. cleanup.mjs is imported statically
+ * .claude/rules/code.md). `tamperThresholdFacts` is exported because Tamper
+ * (action-tamper.mjs since E41 C4) calls it; action-rolls.mjs does not
+ * re-export it. cleanup.mjs is imported statically
  * because `briefingFacts` is synchronous (R8 renders it for every action);
  * cleanup.mjs reaches the action family only through `import()` of
  * action-rolls.mjs. Of the action family it reads action-pipeline.mjs alone
@@ -35,7 +34,7 @@ import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
-import { actionWindow, detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
+import { detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
 
 /* ==========================================================================
  * BRIEFING
@@ -54,8 +53,8 @@ import { actionWindow, detailsHtml, detailsStack, factsList } from "./action-men
  * and the description is right there while you make the choice it describes
  * rather than one dismissal earlier.
  *
- * `briefing()` below still exists for Move, which asks nothing and therefore has
- * no window of its own to fold into.
+ * Move has no window since E100 item 1: its sentence is on the Monocub's tile and
+ * the HUD's Move row.
  */
 export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
     /* A FACT IS A LINE, OR A LINE BOUND TO A ROW (E21 C5b, 06.11.2026; audit S02-07, S02-06), AND EVERY ONE STANDS IN
@@ -67,8 +66,8 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
        watchers, the owner's answer 3: it is what saves a player two Sanity). */
     const facts = briefingFacts(actor, actionKey, def, extraFacts).map(f => (typeof f === "string" ? { text: f } : f));
     const whenOf = f => (Array.isArray(f.when) ? f.when.join(" ") : f.when) || "";
-    const top = facts.filter(f => f.top), sub = facts.filter(f => f.sub && !f.top);
-    const inBox = facts.filter(f => !f.top && !f.sub), plain = inBox.filter(f => !whenOf(f)), bound = inBox.filter(f => whenOf(f));
+    const top = facts.filter(f => f.top), sub = facts.filter(f => f.sub && !f.top), lead = facts.filter(f => f.lead);
+    const inBox = facts.filter(f => !f.top && !f.sub && !f.lead), plain = inBox.filter(f => !whenOf(f)), bound = inBox.filter(f => whenOf(f));
     const stack = detailsStack([...new Set(bound.map(whenOf))]
         .map(when => ({ when, html: factsList(bound.filter(f => whenOf(f) === when).map(f => f.text)) })));
 
@@ -79,6 +78,13 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
         .map(part => `<p>${foundry.utils.escapeHTML(part)}</p>`)
         .join("");
 
+    /* THE STATISTIC STANDS IN THE LEAD (E100, 12.11.2026; the owner on E100's review: "nie chowajmy w oknach akcji wyboru
+       statystyki ani opisu akcji NIGDY"; the E93 line found "Rolls" shut in Details since E49 A8.1). Once: a description
+       that names the statistic the roll takes already says it, and the line is left out. R4108. */
+    const said = String(def.description ?? def.hint ?? "");
+    const rolls = lead.filter(f => !(f.first && said.includes(f.first)))
+        .map(f => `<p class="drpg-briefing-rolls">${f.text}</p>`).join("");
+
     const instruction = def.instruction
         ? `<p class="drpg-briefing-instruction">${foundry.utils.escapeHTML(def.instruction)}</p>`
         : "";
@@ -88,6 +94,7 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
 
     return `<div class="drpg-briefing-block">
         ${paragraphs}
+        ${rolls}
         ${instruction}
         ${top.map(f => `<p class="drpg-briefing-watched">${f.text}</p>`).join("")}
     </div>${detailsHtml(`${factsList(plain.map(f => f.text))}${stack}${thresholds}`)}`;
@@ -109,6 +116,13 @@ export function moveLine(actor) {
         case "action": return game.i18n.format("DRPG.Move.freeSpent", { left: actionsLeft(actor) });
         default: return game.i18n.localize("DRPG.Move.noBudget");
     }
+}
+
+/* The statistic a description names when it names one: the list's first, read for the words alone - the roll's statistic is
+   the ruling's (R213), this only decides whether the lead says it already (R4108). */
+function leadLabel(def) {
+    const [key] = def.traits;
+    return TRAITS[key]?.label ?? key;
 }
 
 /** The cost / statistics / room lines every briefing ends with. */
@@ -147,10 +161,13 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
     // Not for a project's roll (E32+E07 C11d): Projects and Sabotage list the four a
     // project's statistic is given from, and the roll takes that project's one - which
     // the project list below names beside each project instead.
+    // In the lead, never in Details (E100, 12.11.2026; the owner's rule: an action window never folds away its statistic):
+    // `lead`, and `first`, the statistic the roll takes unless a GM rules otherwise, for `briefingBlock` to skip the line
+    // where the description already names it (R4108).
     if (def.traits?.length && actionKey !== "project" && actionKey !== "sabotage") {
-        facts.push(game.i18n.format("DRPG.Action.usesTrait", {
+        facts.push({ text: game.i18n.format("DRPG.Action.usesTrait", {
             traits: def.traits.map(t => TRAITS[t]?.label ?? t).join(" / ")
-        }));
+        }), lead: true, first: leadLabel(def) });
     }
 
     facts.push(room
@@ -306,28 +323,9 @@ function thresholdFacts(actor, actionKey, def) {
     return facts;
 }
 
-/**
- * What this action does, before committing to it. Move only ever shows the
- * briefing - there is nothing to confirm, you just drag your token.
- */
-export async function briefing(actor, actionKey, def) {
-    // On the kit's frame (E21 C5a): Move's briefing answers nothing - its one word is the primary "Got it" -, every
-    // other action's goes on through its primary or is withdrawn with Cancel.
-    const footer = actionKey === "move"
-        ? { primary: { action: "ok", label: game.i18n.localize("DRPG.Action.gotIt") } }
-        : { primary: { action: "go", label: game.i18n.localize("DRPG.Action.proceed") }, close: "cancel" };
-
-    // An action's window (E68 C12, action-menus.mjs `actionWindow`): Move asks nothing, so it is the left column alone.
-    const result = await actionWindow({
-        title: def.label,
-        classes: ["drpg-panel", "drpg-briefing"],
-        brief: briefingBlock(actor, actionKey, def),
-        footer,
-        rejectClose: false
-    });
-
-    return result === "go";
-}
+/* MOVE'S WINDOW IS GONE (E100 item 1, 12.11.2026; the owner on the player-screens review, #2). `briefing` drew it: one
+   button, Got it, over "drag your token". The sentence is on the Monocub's Move tile (sheet.mjs `actionButton`) and in
+   the HUD's Move row (player-status.mjs); `moveLine` above still prices the next crossing for both. R4100. */
 
 // The erase ladder for THIS character: the cleaning tool's tier and the
 // fresh scene come off the table's numbers (D1). Computed here, beside
@@ -338,7 +336,8 @@ export function tamperThresholdFacts(actor, cleanup) {
         const reliefs = [];
         const tier = cleanup.cleaningTier(actor);
         if (CLEANUP.toolTierReducesDc && tier) reliefs.push(game.i18n.format("DRPG.Action.reliefTool", { n: tier }));
-        const fresh = cleanup.freshSceneBonus();
+        // The roller's own reading (the 1.2.110 review's V3): on a GM, only the unfound bodies this character's player may know.
+        const fresh = cleanup.freshSceneBonus({ actor });
         if (fresh) reliefs.push(game.i18n.format("DRPG.Action.reliefFresh", { n: fresh }));
         // By the row that rolls each (E21 C5b): the erase ladder under Cover your traces, the trail's number under its
         // row. The watchers are said once, by `briefingFacts`, with the cover's number (`DRPG.Tamper.watched`).

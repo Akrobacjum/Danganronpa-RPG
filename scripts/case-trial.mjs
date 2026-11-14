@@ -81,7 +81,7 @@ export async function tickFromSchema(chapter, nodeId, ticked) {
  * every second while a floor runs), and calls `mountTrialSchema` on it at render. E73's console (mockup B) keeps the
  * same hook, and since the owner's 13:15 it is the only way to the schema at the trial.
  */
-export const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
+const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
 
 /*
  * The schema's region in `dialog` kept live on its own watches, answering the stop. Its graph is wired read only by the
@@ -112,8 +112,8 @@ function liveSchema(dialog, chapter) {
         }
         for (const button of region.querySelectorAll("[data-drpg-case-start]")) {
             button.addEventListener("click", async () => {
-                const { startTrialMode } = await import("./trial-floor-ui.mjs");
-                await startTrialMode(button.dataset.drpgCaseStart, button.dataset.drpgMode ?? null).catch(err => error("The trial mode did not start", err));
+                await startFromNode(chapter, button.dataset.drpgCaseStartNode, button.dataset.drpgCaseStart, button.dataset.drpgMode ?? null)
+                    .catch(err => error("The trial mode did not start", err));
             });
         }
     };
@@ -123,7 +123,7 @@ function liveSchema(dialog, chapter) {
         // live.mjs replaces the region with what `build` returns, so it returns the region's own element: without it the
         // first redraw dropped `.drpg-case-trial-live`, and no later redraw found it (found by the round-4 sweep)
         build: () => `<div class="drpg-case-trial-live">${trialSchemaHtml({ ...trialSchemaState(chapter), camera })}</div>`,
-        watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
+        watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState, SETTINGS.trialProgress], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
         after: wire
     });
 }
@@ -140,4 +140,18 @@ export function mountTrialSchema(dialog) {
     const chapter = getClock().chapter;
     slot.innerHTML = `<div class="drpg-case-trial-live">${trialSchemaHtml(trialSchemaState(chapter))}</div>`;
     return liveSchema(dialog, chapter);
+}
+
+/**
+ * A NODE'S MODE STARTED FROM THE CONSOLE, ITS PLAN WITH IT (13.11.2026; case-schema.mjs ZONE_FIELDS): the node's planned
+ * minigame - a question and two answers, a thesis, a Logic Dive's set - handed to the start, which opens the zones'
+ * window filled in (trial-zones-ui.mjs `openZonePicker`); the GM still presses Start there. A mode with no window of
+ * that kind starts as before.
+ */
+export async function startFromNode(chapter, nodeId, action, mode = null) {
+    const { startTrialMode } = await import("./trial-floor-ui.mjs");
+    const { caseRows, caseNodeOf } = await import("./case-schema.mjs");
+    const node = caseNodeOf(caseRows(chapter).rows[nodeId]);
+    const plan = node ? { question: node.zoneQuestion ?? "", a: node.zoneA ?? "", b: node.zoneB ?? "", thesis: node.zoneThesis ?? "", setId: node.diveSet ?? "" } : null;
+    return startTrialMode(action, mode, { plan });
 }

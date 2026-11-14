@@ -286,7 +286,7 @@ function apiSurfaceProblems({ live = {}, same = [], surface = null, version = "0
 
 /** What is wrong with a red marker before anything is run, or null. */
 function markerProblem(red, ledger) {
-    if (red?.[RED] !== true || !/^E\d{2}$/.test(red.stage ?? "") || !red.why) {
+    if (red?.[RED] !== true || !/^E\d{2,3}$/.test(red.stage ?? "") || !red.why) {
         return `expectedRed is malformed (a stage "E" and two digits, and a reason): ${describe(red)}`;
     }
     if (!ledger) return null;
@@ -303,7 +303,7 @@ function untilProblem(rule, ledger) {
     if (!String(rule?.why ?? "").trim()) return "a dump rule with no reason";
     const until = String(rule?.until ?? "");
     if (until === "never" || until === "1.3.x (D27)") return null;
-    if (!/^E\d{2}$/.test(until)) return `until "${until}" is not a stage, "1.3.x (D27)" or "never"`;
+    if (!/^E\d{2,3}$/.test(until)) return `until "${until}" is not a stage, "1.3.x (D27)" or "never"`;
     if (!ledger) return null;
     const row = ledger.get(until);
     if (!row) return `until names "${until}", which tools/stages.json does not know`;
@@ -1289,7 +1289,15 @@ async function bridgeTables() {
  */
 const BRIDGE_TABLE_FILES = Object.freeze([
     ["bridge-table.mjs", "BRIDGE_ACTIONS", [
-        "call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs"
+        "call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs",
+        // E93 C3: what the Facilities' run (`facility.use`, bridge-runs-acts.mjs `handleFacilityUse`) reaches into.
+        "facilities-gm.mjs",
+        // E69 C3: Tail Someone's GM half, whose `startTail` answers the refusals `tail.start`'s run hands back.
+        "tail-gm.mjs",
+        // E74 C2: the doors' GM half, whose `shutDoor` answers the refusals `door.shut`'s run hands back.
+        "doors-gm.mjs",
+        // E74 C6: Keep Watch's GM half, whose `declareWatch` answers the refusals `watch.declare`'s run hands back.
+        "watch-gm.mjs"
     ]],
     ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []], ["private-rolls.mjs", "ROLL_ACTIONS", []]
 ]);
@@ -2070,7 +2078,7 @@ const STANDING = [
     "openSoundDialog", "openInvestigationDashboard", "manageClassTrial",
     "openProjectManager", "openRoomSetupDialog", "openVaultInspector",
     "openItemTables", "openSeasonSetup", "openSeasonChecklist", "openMastermindDialog",
-    "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
+    "openRulesManager", "openGmTeamDialog",
     "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
     "openFailureLog", "openClockDialog", "openIncidentTracker",
     "openObjectionLog", "resetSeason"
@@ -2451,6 +2459,15 @@ function watchLog() {
  * probe asked after that FAILs. A write another client made does not - it is the
  * table's, or an answer to the test, not the test acting.
  */
+/* WRITES THAT TICK BY THEMSELVES ARE NOBODY'S (fix-113s, 14.11.2026). The primary GM's beat (gm-stores.mjs
+   `clockBeatStore`, hud-elapsed.mjs `beatClock`) writes its client setting every 60 s while the world runs, whatever a
+   test does - the dump leaves it out for that reason (`DUMP_RULES`, the gmClockBeat row). Noted, it was a write of
+   whichever test was running: R3712's window (about 1.3 s) caught it about once in 46 full tier-1 runs and failed on
+   `writes`, red on three lines on 13.11.2026 and never alone; R3727 had met it first and filtered it by hand; and it
+   marked the running test as one that wrote, so a `world.*` asked after it failed as asked after a write. Left out
+   here, once, for every watch: a key of this set is not noted and marks no test (R6094). */
+const SELF_TICKING = new Set([`${MODULE_ID}.gmClockBeat`]);
+
 function watchWrites(running) {
     const seen = [];
     const mine = userId => !userId || userId === game.user?.id;
@@ -2462,9 +2479,9 @@ function watchWrites(running) {
         "PlaylistSound", "JournalEntryPage"]);
     names.delete("Setting");
     const listeners = [
-        ["updateSetting", (doc, _c, _o, userId) => note(`setting ${doc?.key}`, userId)],
-        ["createSetting", (doc, _o, userId) => note(`setting ${doc?.key}`, userId)],
-        ["clientSettingChanged", key => note(`setting ${key}`, null)]
+        ["updateSetting", (doc, _c, _o, userId) => { if (!SELF_TICKING.has(doc?.key)) note(`setting ${doc?.key}`, userId); }],
+        ["createSetting", (doc, _o, userId) => { if (!SELF_TICKING.has(doc?.key)) note(`setting ${doc?.key}`, userId); }],
+        ["clientSettingChanged", key => { if (!SELF_TICKING.has(key)) note(`setting ${key}`, null); }]
     ];
     for (const name of names) {
         const what = doc => `${name} ${doc?.name ? `"${doc.name}" ` : ""}(${doc?.id ?? "?"})${doc?.parent ? ` on ${doc.parent.name ?? doc.parent.id}` : ""}`;

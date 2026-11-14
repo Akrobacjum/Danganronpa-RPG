@@ -612,15 +612,16 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         ["gm", "p1"].every(who => nSeen[who] && nSeen[who].headings.length >= 2 && nSeen[who].headings.every(keepsSeparators)),
         J({ gm: nSeen.gm?.headings, p1: nSeen.p1?.headings }));
 
-    phase("R: a player away when private cards were posted is given their words on return, each card shown once with its messageId; a card no GM holds says so; another player who asks is given nothing");
-    /* E18 C4 (20.10.2026; audits S11-12, S15-01, S01-33; the owner's amend 1). The words of a private card travel once, to
-       the browsers connected as it is posted: p4's page is closed while the GM posts two cards to it - one to p4 and the
-       GMs with a line for the GMs, one to p4 alone, whose words no GM's browser holds - and opened again with the storage
-       it left. At its ready p4 asks the GMs for the cards it holds no words of (secret.mjs `askForWords`); the GM answers
-       from its own store to a reader it holds (`answerWordsRequest`). R1: p4 holds the first card's words without the
-       GMs' line, the card is on p4's screen once and kept once in its history under the card's id. R2: the second card,
-       past the wait a card's words get (4 s), is drawn with DRPG.Secret.wordsElsewhere, not '-'. R3: p2, not a reader,
-       sends the same ask from its console and holds nothing of the first card. */
+    phase("R: a player away when private cards were posted is given their words on return, each card shown once with its messageId; a card the author GM whispered to the player alone is given back by that GM (E38); another player who asks is given nothing");
+    /* E18 C4 (20.10.2026; audits S11-12, S15-01, S01-33; the owner's amend 1), with the author-hold catch-up of E38. The
+       words of a private card travel once, to the browsers connected as it is posted: p4's page is closed while the GM
+       posts two cards to it - one to p4 and the GMs with a line for the GMs, one to p4 alone - and opened again with the
+       storage it left. At its ready p4 asks the GMs for the cards it holds no words of (secret.mjs `askForWords`); the GM
+       answers from its own store for a reader it holds (`answerWordsRequest`). Since E38 the author GM keeps the words of
+       a card it whispered to players alone (`authorHold`), so it answers for that card too. R1: p4 holds the first card's
+       words without the GMs' line, the card is on p4's screen once and kept once in its history under the card's id. R2:
+       the second card, to p4 alone, is given back by the author GM - p4 reads its words, not 'sent elsewhere' or '-'.
+       R3: p2, not a reader, sends the same ask from its console and holds nothing of the first card. */
     const R = { held: "S73 R held words", prose: "S73 R GM prose", nobody: "S73 R nobody's words" };
     await settle(800);
     await disconnect("p4");
@@ -652,8 +653,8 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         check("R1: back on the page, the player holds the card's words without the GMs' line, shown once and kept once under the card's id",
             Boolean(rPosted.held && rPosted.nobody) && rBack.words === true && rBack.prose === false && rBack.shown === 1 && rBack.kept === 1,
             J({ rPosted, rBack }));
-        check("R2: a card whose words no GM holds reads that they were sent to another browser, not '-'",
-            rBack.nobody === rBack.line && rBack.line !== "DRPG.Secret.wordsElsewhere", J(rBack));
+        check("R2: a card the GM whispered to the player alone, posted while it was away, is given back by the author GM on return (E38): p4 reads its words, not the 'sent elsewhere' line or '-'",
+            rBack.nobody === R.nobody && rBack.nobody !== rBack.line && rBack.nobody !== "-", J(rBack));
         const asked = await p2.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
             const gms = game.users.filter(u => u.isGM && u.active).map(u => u.id);
             game.socket.emit("module.${MOD}", { action: "secret.request", ids: ["${rPosted.held}"] }, { recipients: gms });

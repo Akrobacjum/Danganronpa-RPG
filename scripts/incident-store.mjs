@@ -80,10 +80,10 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
-import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
+import { castStore, blackenedStore, castCopy, deathStore, deathCopy, maskStore, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
-import { ownerOf, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
+import { playerOwns, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState, everyPart } from "./season-reset.mjs";
 
@@ -481,7 +481,7 @@ function pushCastToParticipants(cast, previous, stateNow = null, statePrev = nul
  * weighs them).
  */
 function castStamps() {
-    return Object.fromEntries(CAST_FIELDS.filter(f => f !== "swung").map(f => [f, castStore.stampOf(RECORD, f)]));
+    return Object.fromEntries(CAST_FIELDS.filter(f => f !== "swung" && f !== "silencedDead").map(f => [f, castStore.stampOf(RECORD, f)]));
 }
 
 /**
@@ -566,11 +566,13 @@ export function castFor(userId, cast, state = null) {
 
 /** `castFor`'s copy, and the fields it holds null for this holder's sake (`castPacket` stamps them). */
 function castCopyFor(userId, cast, state = null) {
-    const { swung, sent, openingNotices, ...theirs } = cast ?? {};
+    // `silencedDead` (E72 C8) is the GMs' as the swing memo is: which dead voice left its room says whose death is near.
+    const { swung, sent, openingNotices, silencedDead, ...theirs } = cast ?? {};
     if (!Object.keys(theirs).length) return { copy: theirs, withheld: [] };
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
     const seen = { ...live, ...theirs, indirect: incidentIndirect(theirs, live) };
-    const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
+    // Any of its owners (E91 C6, D078): the third's co-owner holds the same offer.
+    const owns = id => Boolean(id) && playerOwns(game.actors.get(id), game.users.get(userId));
     const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
     if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
     const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
@@ -579,7 +581,10 @@ function castCopyFor(userId, cast, state = null) {
     const withheld = [...(afterFight ? [...INCIDENT_FIGHT, ...(copy.thirdId ? [] : ["thirdId", "thirdSide"])] : ["keyRemnants"]),
         "lastCrisis", "departed", "openingTrait", ...(killer ? [] : ["freeCleanup"]), "recent"];
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
-    if (!seen.indirect || killer) return { copy, withheld };
+    /* THE KILLER BEHIND A "?" (E69 C8, 13.11.2026; mask-gm.mjs): while the GMs hold a mask for this incident's killer, every
+       copy but the killers' holds no killer, as a trap's victim's does. The cast is sent again when the mask ends. */
+    const masked = !killer && Boolean(theirs.killerId && maskStore.get(theirs.killerId));
+    if ((!seen.indirect && !masked) || killer) return { copy, withheld };
     return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };
 }
 
@@ -962,6 +967,28 @@ export async function clearSeasonIncident() {
 
 registerSeasonState({ group: "incident", clear: clearSeasonIncident, settings: [SETTINGS.murderState] });
 
+/**
+ * A GM'S "SILENCE NOW" (E72 C8, 12.11.2026; the plan's A9 of 11.10). A dead student whose death the GMs keep - not yet
+ * found, so `deathVoiceGone` keeps the voice in the room it died in - is sent to its account's own room now: the cast's
+ * `silencedDead` (gm-stores.mjs CAST_FIELDS, split per student), which the GMs' store syncs to the primary, whose
+ * `drpgCastChanged` moves the voice (voice.mjs). A GM's write on a GM's browser; nothing for a living student or a death
+ * already public, which have no voice in a room to move. `deadForGm` and `published` are the suite's. Answers whether
+ * it wrote.
+ */
+export async function silenceDeadNow(actor, { deadForGm = null, published = null } = {}) {
+    if (!game.user?.isGM || !actor?.id) return false;
+    const chapter = await import("./chapter.mjs");
+    const dead = (deadForGm ?? chapter.isDeadForGm)(actor), known = (published ?? chapter.isDeceased)(actor);
+    if (!dead || known || isDeadSilenced(actor)) return false;
+    await incidentWrite(() => castStore.patch(RECORD, { silencedDead: { [actor.id]: true } }));
+    return true;
+}
+
+/** Whether a GM's "Silence now" moved this dead student's voice (`silenceDeadNow`). GM-side. */
+export function isDeadSilenced(actor) {
+    return Boolean(castStore.record()?.silencedDead?.[actor?.id ?? ""]);
+}
+
 /** The weapon this actor swung in the running incident, if it is still on them. GM-side. */
 export function swungWeaponOf(actor) {
     const id = readCast().swung?.[actor?.id ?? ""];
@@ -1300,12 +1327,12 @@ export async function receiveDeaths(deaths, stamps) {
     return deathCopy.receive(mine, own);
 }
 
-/** GM: tell one player, by an addressed packet and no document, that they found this body alone. */
-export function tellFinder(userId, token, room) {
+/** GM: tell one player, by an addressed packet and no document, that they found this body - alone, or with `company` (1.2.113). */
+export function tellFinder(userId, token, room, { company = false } = {}) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     try {
-        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room },
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room, company: company === true },
             { recipients: [userId] });
         return true;
     } catch (err) {
@@ -1368,7 +1395,7 @@ function onDeathsSocket(payload, senderId) {
         if (game.user.isGM || payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
         const body = game.actors.get(payload.bodyId);
         if (!body) return;
-        ui.notifications.info(game.i18n.format("DRPG.Chapter.youFoundBody", {
+        ui.notifications.info(game.i18n.format(payload.company === true ? "DRPG.Chapter.youFoundBodyWith" : "DRPG.Chapter.youFoundBody", {
             name: String(payload.name || body.name), room: String(payload.room ?? "")
         }), { permanent: true });
         return;

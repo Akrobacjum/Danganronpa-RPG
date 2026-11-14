@@ -37,8 +37,10 @@ import { resourceValue, resourceMax, reserveNote, reserveView } from "./characte
 import { keepLive } from "./live.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { drpgWindow, drpgConfirm, formGrid, dataTable, emptyState, box } from "./ui-kit.mjs";
-import { murderState, killerIds } from "./incident-store.mjs";
+import { murderState, killerIds, isDeadSilenced, silenceDeadNow } from "./incident-store.mjs";
 import { openMurder, passTurn, endMurder, openingInvited, rollOpening } from "./murder-rules.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * THE GM'S TRACKER
@@ -217,7 +219,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                 game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) }))}</div>` : ""}
             ${formGrid([
                 { label: game.i18n.localize("DRPG.Murder.killer"), id: ids.killer,
-                  field: `<select name="killer" id="${ids.killer}">${optionsFor(defaultKiller)}</select>` },
+                  field: `<select name="killer" id="${ids.killer}"${tipAttr("DRPG.Tips.Trial.killerTooltip")}>${optionsFor(defaultKiller)}</select>` },
                 { label: game.i18n.localize("DRPG.Murder.victim"), id: ids.victim,
                   field: `<select name="victim" id="${ids.victim}">${options}</select>` },
                 { full: `<label class="drpg-checkbox">
@@ -590,8 +592,11 @@ function incidentSignature(now) {
  * secondary; End the murder destructive - it asks first, and is never the default; Close, since the tracker answers
  * nothing (E21 rule 3).
  */
-function incidentButtons(state) {
+function incidentButtons(state, { silence = false } = {}) {
     const list = [
+        /* SILENCE NOW (E72 C8; the plan's A9 of 11.10): the victim dead and not found, its voice still in the room it died
+           in - a GM may send it to its own room now (incident-store.mjs `silenceDeadNow`). A way on, as Pass. */
+        ...(silence ? [{ action: "silence", label: game.i18n.localize("DRPG.Voice.silenceNow"), tooltip: game.i18n.localize("DRPG.Voice.silenceNowTip") }] : []),
         // There is no unconditional "roll the opening" button, and there must not
         // be one - the rate-limited re-ask at the end of this note is the exception.
         //
@@ -693,6 +698,10 @@ export async function openIncidentTracker() {
        with Open a murder... the primary (`openMurderDialog`), and the live region below closes and reopens it as the
        tracker when an incident opens elsewhere (`incidentSignature` null, then a stage). */
     const state = murderState();
+    // Whether the victim's voice can be moved now (E72 C8): a death the GMs keep, not yet moved.
+    const victim = state?.victimId ? game.actors?.get(state.victimId) ?? null : null;
+    const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
+    const silence = Boolean(victim) && isDeadForGm(victim) && !isDeceased(victim) && !isDeadSilenced(victim);
 
     /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.
 
@@ -737,7 +746,7 @@ export async function openIncidentTracker() {
            clean-up table scrolls inside it (`dataTable`'s box). */
         width: "tracker",
         body: trackerBody(),
-        footer: state ? incidentButtons(state) : emptyButtons(),
+        footer: state ? incidentButtons(state, { silence }) : emptyButtons(),
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-incident-live",
             build: trackerBody,
@@ -770,6 +779,10 @@ export async function openIncidentTracker() {
     if (action === "pass") {
         if (passAllowed()) await passTurn();
         else ui.notifications.warn(game.i18n.localize("DRPG.Murder.passTooSoon"));
+        return openIncidentTracker();
+    }
+    if (action === "silence") {
+        await silenceDeadNow(victim);
         return openIncidentTracker();
     }
     if (action === "reask") {

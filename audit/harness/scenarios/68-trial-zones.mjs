@@ -15,9 +15,22 @@
  *     `truth`; all three into Zone A, Count now, Skip the pause: right, the second question on every player; Botan back
  *     to Zone B and Chie out of both: a tie (1:1), the set ended unrevealed - no Finding, the marker on no player - and
  *     the GM's window warns where it ended before a replay.
- *   C (Scrum Debate): the camps as they stand (Zone A Aiko, Botan; Zone B Chie), Skip the setup: Zone B first, Chie
- *     the speaker; p3's thesis from its own page ("trial.keyword") on p1's chat; p3 moves Chie into Zone A - Zone B empty
- *     - and the GM's heartbeat ends the Scrum with Zone A's answer as a Finding, on every player.
+ *   C (Scrum Debate): the camps as they stand (Zone A Aiko, Botan; Zone B Chie), Skip the Sides ("Sides set"): Camps
+ *     confer on every player with the camps kept, regional voice off - the GMs told once that the voices are not split,
+ *     no player told; Skip the Confer: Zone B first, Chie the speaker, and no second notice; p3's thesis from its own page
+ *     ("trial.keyword") on p1's chat; p3 moves Chie into Zone A - Zone B empty - and the GM's heartbeat ends the Scrum with
+ *     Zone A's answer as a Finding, on every player.
+ *   V (the camps' voice rooms; the owner's 13.11.2026): regional voice on (the harness counts avclient-livekit active,
+ *     so the primary's `voice.assign` reaches each player's `desiredRoom`), the same camps: in Confer p1 and p2 are sent
+ *     Zone A's room and p3 Zone B's, and no notice; p1's page asks again as a reload does (its told room forgotten,
+ *     `catchUpVoice`) and is sent Zone A's room again; a second GM connects mid-Confer, reads the phase and decides the
+ *     same rooms in its own dry pass, and is not moved into a camp; Skip the Confer: every player back in the trial's
+ *     room for the turns. Then a second Scrum: in Confer, End this mode from the second GM: every player back in the
+ *     trial's room, no floor.
+ *   G (a second GM's Skip; audit A113-C3-2, 13.11.2026): a Straw Poll on the seed's GM, `gm3` connects - a GM after it
+ *     in the primary's order, never the primary while it is here - and presses the bar's Skip (`advanceFloorNow`, the
+ *     bridge's "floor.now"): the primary counts the poll at once, and gm3 is not told the floor moved on. Red at
+ *     ceb9e9c8: the row's sanitizer named five modes, the primary read the poll's mode as null and refused "movedOn".
  * The canary's player scan runs after every phase (`canary.scan`).
  *
  * What it cannot see (LIVE-E73-01..04): v14 regions with holes and Levels, a move on a real server's latency, the
@@ -25,10 +38,16 @@
  * driven here, named for the next round: a latecomer joining mid-question, the export and import of a case with a set.
  */
 export const layers = ["ci"];
+export const accounts = [
+    // After the seed's GM in the primary's order (utils.mjs `primaryGmId`), as scenario 63's gm3: never the primary here (G).
+    { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true },
+    // A second GM who joins mid-Confer (V).
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }
+];
 
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUrl, IDS }) {
+export async function run({ gm, gm2, gm3, p1, p2, p3, check, phase, settle, canary, repoUrl, IDS, connect, disconnect }) {
     const counts = {};
     let current = null;
     const begin = (letter, name) => { phase(`${letter}: ${name}`, { flow: "class-trial" }); current = letter; counts[letter] = 0; };
@@ -40,7 +59,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         answers: f.zone?.answers ?? null, holder: f.holderId ?? null } : null;`);
     const moveOn = (client, actorId, x, y) => client.eval(`const hall = game.scenes.get(globalThis.__s68hall ?? "");
         const t = hall?.tokens.find(t => t.actorId === "${actorId}"); if (!t) return false; await t.update({ x: ${x}, y: ${y} }); return true;`, { timeout: 30000 });
-    const chatHas = (client, text) => client.eval(`return game.messages.some(m => String(m.content).includes(${J(text)}));`);
+    /* A card the GM posts reaches each player's chat when that player's socket delivers it, not when the GM's own call
+       returns. 1.2.110's second CI run (43377699418, bucket b7, on 03b293f5) read C3's card on p3 and not yet on p1 and p2
+       ({"seenEmpty":[false,false,true]}), the GM's floor already ended; the first run on 12a7e309 read it on all three. So
+       each player's chat is waited for, up to 5 s, before it counts as not holding the card. */
+    const chatHas = (client, text) => client.eval(`const end = Date.now() + 5000;
+        const has = () => game.messages.some(m => String(m.content).includes(${J(text)}));
+        while (!has() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return has();`, { timeout: 30000 });
 
     /* ------------------------------ setup ------------------------------ */
     const hallId = await gm.eval(`const { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");
@@ -177,12 +203,30 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     begin("C", "a Scrum Debate: the smaller camp first, a thesis, a crossing empties a camp");
     await moveOn(p2, IDS.botan, 300, 300);
     await settle(600);
+    // The GMs' notice that the voices are not split, counted on a client by its words (secret.mjs `wordsOf`).
+    const noVoiceTail = await gm.eval(`return game.i18n.localize("DRPG.Zones.scrum.noVoice").split(": ")[1].split(".")[0];`);
+    const notices = client => client.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs"); let n = 0;
+        for (const m of game.messages.contents) if (String(await wordsOf(m, 2000) ?? "").includes(${J(noVoiceTail)})) n++;
+        return n;`, { timeout: 30000 });
+    const voiceWas = await gm.eval(`return game.settings.get("danganronpa-rpg", "voiceEnabled");`);
+    await gm.eval(`await game.settings.set("danganronpa-rpg", "voiceEnabled", false); return true;`);
+    const toldBefore = await notices(gm);
     await gm.eval(`await game.drpg.startScrumDebate({ question: "S68 who?", a: "Inside", b: "Outside" }); ${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const conferring = [];
+    for (const c of [p1, p2, p3]) conferring.push(await c.eval(`${F} const f = F.trialFloor(); return f ? { phase: f.zone?.phase ?? null, camps: f.zone?.camps ?? null } : null;`));
+    const toldGm = await notices(gm) - toldBefore, toldP1 = await notices(p1);
+    verdict("the Sides set (Skip): the camps confer on every player, kept as they stood - Aiko and Botan in Zone A, Chie in Zone B",
+        conferring.every(f => f?.phase === "confer" && J(f.camps?.a) === J([IDS.aiko, IDS.botan]) && J(f.camps?.b) === J([IDS.chie])), J(conferring));
+    verdict("regional voice off: the GMs are told once that the camps' voices are not split, and no player is",
+        toldGm === 1 && toldP1 === 0, J({ toldGm, toldP1 }));
+    await gm.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
     await settle(1200);
     const turn = [];
     for (const c of [p1, p2, p3]) turn.push(await floorOn(c));
-    verdict("the setup skipped: Zone B, the smaller camp, speaks first - Chie on every player",
-        turn.every(f => f?.mode === "scrum" && f.phase === "speak" && f.holder === IDS.chie), J(turn));
+    const toldAfter = await notices(gm) - toldBefore;
+    verdict("the Confer ended (Skip): Zone B, the smaller camp, speaks first - Chie on every player - and the GMs are not told again",
+        turn.every(f => f?.mode === "scrum" && f.phase === "speak" && f.holder === IDS.chie) && toldAfter === 1, J({ turn, toldAfter }));
     const thesis = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); const res = await B.requestTrialKeyword({ actorId: "${IDS.chie}", text: "S68 nobody went in" });
         return { ok: res.ok === true, reason: res.reason ?? null };`, { timeout: 30000 });
     await settle(800);
@@ -197,6 +241,81 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     verdict("Chie crosses into Zone A: Zone B empty, the heartbeat ends the Scrum with Zone A's answer, on every player",
         over.floor === null && over.findings.at(-1) === "Inside" && seenEmpty.every(Boolean), J({ over, seenEmpty }));
     await canary.scan({ phase: "C" });
+
+    /* ------------------------------ V. the camps' voice rooms ------------------------------ */
+    begin("V", "the camps confer in their own voice rooms and come back to the trial's");
+    await backOnStands();
+    await moveOn(p2, IDS.botan, 300, 300);
+    await settle(600);
+    const rooms = await gm.eval(`const VC = await import("${repoUrl}/scripts/voice-client.mjs"); return VC.SCRUM_ROOMS;`);
+    await gm.eval(`await game.settings.set("danganronpa-rpg", "voiceEnabled", true); return true;`);
+    await settle(800);
+    // Each player's room as the primary last sent it (voice-client.mjs `desiredRoom`), waited for up to 5 s.
+    const roomOn = (client, want) => client.eval(`const VC = await import("${repoUrl}/scripts/voice-client.mjs"); const end = Date.now() + 5000;
+        while ((VC.desiredRoom() ?? null) !== ${J(want)} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return VC.desiredRoom() ?? null;`, { timeout: 30000 });
+    const toldV = await notices(gm);
+    await gm.eval(`await game.drpg.startScrumDebate({ question: "S68 how?", a: "Door", b: "Window" }); ${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const inCamps = [await roomOn(p1, rooms.a), await roomOn(p2, rooms.a), await roomOn(p3, rooms.b)];
+    const gmPlan = await gm.eval(`const V = await import("${repoUrl}/scripts/voice.mjs"); const { byUser } = await V.voiceTargets();
+        return ["${IDS.gm}", "${IDS.p1}", "${IDS.p2}", "${IDS.p3}"].map(id => byUser.get(id)?.target ?? null);`, { timeout: 30000 });
+    verdict("in Confer p1 and p2 are sent Zone A's room and p3 Zone B's - none the other camp's - and the GM stays in the trial's room",
+        J(inCamps) === J([rooms.a, rooms.a, rooms.b]) && J(gmPlan) === J([null, rooms.a, rooms.a, rooms.b]), J({ inCamps, gmPlan }));
+    verdict("regional voice on: no notice that the voices are not split", await notices(gm) === toldV, J({ toldV }));
+    // A reload, as a seeded client can have one: p1's told room forgotten and the question asked again (`catchUpVoice`).
+    await p1.eval(`const VC = await import("${repoUrl}/scripts/voice-client.mjs"); VC.forgetDesiredRoom(); await VC.catchUpVoice(); return true;`, { timeout: 30000 });
+    const reloaded = await roomOn(p1, rooms.a);
+    verdict("p1 asks again mid-Confer, as a page that reloads does, and is sent Zone A's room", reloaded === rooms.a, J({ reloaded }));
+    await connect("gm2");
+    await settle(1500);
+    const second = await gm2.eval(`${F} const V = await import("${repoUrl}/scripts/voice.mjs"); const f = F.trialFloor(); const { byUser } = await V.voiceTargets();
+        return { phase: f?.zone?.phase ?? null, plan: ["USERGM2000000000", "${IDS.p1}", "${IDS.p2}", "${IDS.p3}"].map(id => byUser.get(id)?.target ?? null) };`, { timeout: 30000 });
+    const stillIn = [await roomOn(p1, rooms.a), await roomOn(p3, rooms.b)];
+    verdict("a second GM joins mid-Confer: it reads the phase, its own dry pass decides the same camps' rooms, it is not put in a camp, and the players stay in theirs",
+        second.phase === "confer" && J(second.plan) === J([null, rooms.a, rooms.a, rooms.b]) && J(stillIn) === J([rooms.a, rooms.b]), J({ second, stillIn }));
+    await gm.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const debating = { floor: await floorOn(p1), rooms: [await roomOn(p1, null), await roomOn(p2, null), await roomOn(p3, null)] };
+    verdict("the Confer ended (Skip): the turns run and every player is back in the trial's room",
+        debating.floor?.phase === "speak" && debating.rooms.every(r => r === null), J(debating));
+    await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); return true;`, { timeout: 30000 });
+    await settle(800);
+    await backOnStands();
+    await moveOn(p2, IDS.botan, 300, 300);
+    await settle(600);
+    await gm.eval(`await game.drpg.startScrumDebate({ question: "S68 when?", a: "Night", b: "Day" }); ${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const again = [await roomOn(p1, rooms.a), await roomOn(p3, rooms.b)];
+    await gm2.eval(`await game.drpg.endMode(); return true;`, { timeout: 30000 });
+    await settle(1500);
+    const endedEarly = { floor: await floorOn(p2), rooms: [await roomOn(p1, null), await roomOn(p2, null), await roomOn(p3, null)] };
+    verdict("a second Scrum's Confer ended early by the second GM's End this mode: no floor, every player back in the trial's room",
+        J(again) === J([rooms.a, rooms.b]) && endedEarly.floor === null && endedEarly.rooms.every(r => r === null), J({ again, endedEarly }));
+    await disconnect("gm2");
+    await gm.eval(`await game.settings.set("danganronpa-rpg", "voiceEnabled", ${J(voiceWas)}); return true;`);
+    await backOnStands();
+    await canary.scan({ phase: "V" });
+
+    /* ------------------------------ G. a second GM's Skip ------------------------------ */
+    begin("G", "a GM that is not the primary skips a Straw Poll's clock, and the primary counts it");
+    await backOnStands();
+    await gm.eval(`await game.drpg.startStrawPoll({ question: "S68 skipped by gm3", a: "Inside", b: "Outside" }); return true;`, { timeout: 30000 });
+    await connect("gm3");
+    await settle(1500);
+    const skip = await gm3.eval(`${F} const U = await import("${repoUrl}/scripts/utils.mjs");
+        const end = Date.now() + 5000; while (!F.trialFloor() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const seen = F.trialFloor()?.mode ?? null;
+        const warned = []; const warn = ui.notifications.warn; ui.notifications.warn = (msg, ...rest) => { warned.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+        try { await F.advanceFloorNow(); } finally { ui.notifications.warn = warn; }
+        return { primary: U.isPrimaryGm(), seen, warned, movedOn: game.i18n.localize("DRPG.Floor.nowMovedOn") };`, { timeout: 30000 });
+    const counted = await gm.eval(`${F} const end = Date.now() + 6000; while (F.trialFloor() && Date.now() < end) await new Promise(r => setTimeout(r, 200));
+        return { floor: F.trialFloor()?.mode ?? null };`, { timeout: 30000 });
+    verdict("gm3, not the primary, presses Skip in a Straw Poll: the primary counts it at once and gm3 is not told the floor moved on",
+        skip.primary === false && skip.seen === "straw" && !skip.warned.includes(skip.movedOn) && counted.floor === null, J({ skip, counted }));
+    await disconnect("gm3");
+    await settle(500);
+    await canary.scan({ phase: "G" });
 
     /* ------------------------------ restore ------------------------------ */
     await gm.eval(`${F} if (F.trialFloor()) await F.endFloor();

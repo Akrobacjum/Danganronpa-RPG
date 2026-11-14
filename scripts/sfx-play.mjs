@@ -118,12 +118,17 @@ export function soundFor(key) {
  */
 const SOUND_SEPARATOR = "|";
 
-/** Every file mapped to this event, in the order the GM listed them. */
+/**
+ * Every file mapped to this event, in the order the GM listed them; for an event left empty that names another to fall
+ * back to (`fallsBackTo`, E62 C3b: "Death fade" plays the death's file by default), that event's files.
+ */
 export function soundsFor(key) {
-    return (soundFor(key) ?? "")
+    const own = (soundFor(key) ?? "")
         .split(SOUND_SEPARATOR)
         .map(path => path.trim())
         .filter(Boolean);
+    const fallback = SFX_EVENTS[key]?.fallsBackTo;
+    return own.length || !fallback || fallback === key ? own : soundsFor(fallback);
 }
 
 /** What each key played last, so the next pick can avoid it. Key -> path. */
@@ -721,6 +726,8 @@ export function soundFromMessage(message) {
     const key = typeof carried === "string" ? carried : carried?.key;
     let forGm = typeof carried === "string" ? false : Boolean(carried?.gm);
     if (!key) return null;
+    // The users the card's sound leaves out (A113-C2-5: the victim's player, whose fade was the moment's sound).
+    if (Array.isArray(carried?.not) && carried.not.includes(game.user?.id)) return null;
 
     // A card a GM posted at a player's asking is the player's (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
     const byPlayer = !cardWriter(message)?.isGM;

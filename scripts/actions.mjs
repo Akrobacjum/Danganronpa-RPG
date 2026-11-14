@@ -10,8 +10,8 @@
  * action back on the next reset instead of being stuck at one.
  */
 
-import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
-import { isDeceased } from "./settings.mjs";
+import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING, STATES } from "./config.mjs";
+import { SETTINGS, isDeceased, getClock } from "./settings.mjs";
 import { isWounded } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
@@ -36,7 +36,7 @@ export function baseActions({ wounded = false } = {}) {
  * `wounded` is the sheet's unless the caller read it as the GMs hold it (`resetActionsFor`).
  * @returns {{total: number, wounded: boolean}}
  */
-export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
+export function actionBudget(actor, { wounded: hurt = isWounded(actor), phase } = {}) {
 
     /*
      * A MONOCUB LOSES NO ACTION TO A WOUND (E15 C4, 25.10.2026; audit S03-10, S10-18). The guide gives
@@ -49,6 +49,16 @@ export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
     const wounded = hurt && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub);
 
     /*
+     * DAILY LIFE'S AND THE INVESTIGATION'S (E64 C1c, 12.11.2026; audit S03-49; the owner's review of 12.11): the lost
+     * action is taken in the phases `STATES.wounded.actionsLostIn` names, read off the phase the budget is for - the
+     * clock's, or `phase` where a caller names it. `wounded` is still answered as the state is, so the sheet's badge
+     * says Wounded in the Class Trial; `costsAction` says whether it took an action. No clock is Daily Life's.
+     */
+    const lostIn = STATES.wounded?.actionsLostIn;
+    const now = phase ?? (() => { try { return getClock()?.phase ?? "dailyLife"; } catch { return "dailyLife"; } })();
+    const costsAction = wounded && (!Array.isArray(lostIn) || lostIn.includes(now));
+
+    /*
      * A DARKENED TIME OF DAY COSTS AN ACTION (Z10), and it stacks with Wounded
      * on purpose - a hurt student in a darkened hour is exactly the situation
      * the rule is for. The floor is what stops the two of them reaching zero
@@ -57,9 +67,9 @@ export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
      */
     const dark = overflowActionPenalty();
     const floor = dark ? overflowFloor("panic") : 0;
-    const total = Math.max(floor, baseActions({ wounded }) - dark);
+    const total = Math.max(floor, baseActions({ wounded: costsAction }) - dark);
 
-    return { total, wounded, darkened: dark > 0 };
+    return { total, wounded, costsAction, darkened: dark > 0 };
 }
 
 /** Actions still available right now. */
@@ -304,14 +314,6 @@ export function hasFreeMove(actor) {
 }
 
 /**
- * Take a Move. Uses the free one if it is still available, otherwise spends an
- * action. Returns what it ended up costing, or null when it could not happen:
- * "free", "sprint", "burst" (a Burst paid for the action, since E80 C2, so that
- * `giveMoveBack` hands back the same thing) or "action". `quiet` is
- * `spendAction`'s: the primary GM paying for a player's 'Go through' (movement.mjs
- * `settleCrossingOnGm`) plays and says nothing on the GM's screen.
- */
-/**
  * The ref a crossing's price is stamped with (`takeMove`; E17 fix e1-G2, 26.10.2026; the review's E17P1-SEC-6). The primary
  * reads a door crossing's price off the player's next write of the purse (movement.mjs `noteCrossingPrice`), and took the
  * first write that lowered any of it - a Search's action paid within the wait was the crossing's, which the GM's Refund
@@ -321,6 +323,14 @@ export function hasFreeMove(actor) {
  */
 export const MOVE_SPEND = "move";
 
+/**
+ * Take a Move. Uses the free one if it is still available, otherwise spends an
+ * action. Returns what it ended up costing, or null when it could not happen:
+ * "free", "sprint", "burst" (a Burst paid for the action, since E80 C2, so that
+ * `giveMoveBack` hands back the same thing) or "action". `quiet` is
+ * `spendAction`'s: the primary GM paying for a player's 'Go through' (movement.mjs
+ * `settleCrossingOnGm`) plays and says nothing on the GM's screen.
+ */
 export async function takeMove(actor, { quiet = false } = {}) {
     if (!actor) return null;
 
@@ -432,7 +442,7 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
     // maximum, not put back yet, refilled a wounded student's whole budget on the GM.
     const { meansWrite } = await import("./sheet-audit.mjs");
     return meansWrite(actor, async ({ hitPoints }, maxOf) => {
-        const { total, wounded } = actionBudget(actor, { wounded: (maxOf("hitPoints") ?? 0) - hitPoints <= 0 });
+        const { total, wounded, costsAction } = actionBudget(actor, { wounded: (maxOf("hitPoints") ?? 0) - hitPoints <= 0 });
         await trustedWrite(actor, {
             [`system.resources.${ACTIONS_RESOURCE}.value`]: total,
             [`system.resources.${ACTIONS_RESOURCE}.max`]: total,
@@ -448,7 +458,7 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
                 [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
             })
         }, { reason: "setup" });
-        return { actor, total, wounded };
+        return { actor, total, wounded, costsAction };
     });
 }
 
@@ -478,12 +488,19 @@ export async function resetAllActions({ keepGrants = false } = {}) {
  * starting sheet has been restored. Then each student's stamps (season-wipe.mjs `wipeStudent`'s `actions` part).
  * Search tokens need no step of their own beyond the `searchTokens` group: an empty store reads as a full room.
  */
-export async function clearSeasonActions(ctx) {
+async function clearSeasonActions(ctx) {
     await resetAllActions();
     await ctx.everyStudent("actions");
+    // The GM room actions closed this time of day (E93 C1): a list of another mark is none already, so this only
+    // leaves the new season with nothing of the old one's in its world data.
+    if (Object.keys(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {}).length) await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, {});
+    // Every barricade's public flag (E74 C2): the GMs' rows go with this group's stores, and a flag left standing would
+    // shut its room into the next season.
+    const { allRooms, roomBarricaded, setRoomBarricaded } = await import("./movement.mjs");
+    for (const scene of game.scenes ?? []) for (const room of allRooms(scene)) if (roomBarricaded(scene, room)) await setRoomBarricaded(scene, room, false);
 }
 
-registerSeasonState({ group: "actions", clear: clearSeasonActions });
+registerSeasonState({ group: "actions", clear: clearSeasonActions, settings: [SETTINGS.facilityClosed] });
 
 /**
  * THE GRANTS END AT A BOUNDARY THAT REFILLS NOBODY (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R7 of both

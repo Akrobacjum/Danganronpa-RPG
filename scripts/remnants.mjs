@@ -1204,7 +1204,7 @@ export async function clearSeasonRemnants() {
 }
 
 /** What the reset window counts of the traces: the trace tokens on every scene (season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonRemnants() {
+function tallySeasonRemnants() {
     const n = game.scenes.reduce((sum, scene) => sum + scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).length, 0);
     return [plural("DRPG.Season.resetRemnants", { n })];
 }
@@ -2127,7 +2127,6 @@ export async function reportRemnants(scene = null) {
  *   Reinforced     the killer cannot remove it at all
  * ========================================================================== */
 
-/** Set the sweep-related flags on one Remnant token. GM only. */
 /**
  * The trace that handed over this object is part of the murder now.
  *
@@ -2180,6 +2179,9 @@ export async function tieTraceForItem(identity) {
  * The tie is left alone when it is left OUT (`undefined`), and written as given otherwise - `null`
  * included, which is the Investigation Dashboard's "-": a GM taking a verdict back (E09 C4). The
  * other three keep `null` for "leave alone"; none of them has a third state.
+ */
+/**
+ * Set the sweep-related flags on one Remnant token. GM only.
  */
 export async function setRemnantFlags(tokenDoc,
     { faint = null, tiedToCrime, reinforced = null, type = null, visibility = null } = {}) {
@@ -2454,19 +2456,13 @@ export async function handTiesOn(from, to) {
 }
 
 /**
- * Table of every Remnant on the scene, with its three flags editable.
- *
- * Deliberately a table rather than a per-token control: the question the GM is
- * actually asking at chapter end is "which of these survive", and that is a
- * question about the whole scene at once.
- */
-/**
  * Count the Faint traces that would go, confirm, then clear them.
  *
  * Counted BEFORE the confirmation, not after: these tokens do not come back,
  * and "delete 14 things?" is a question a GM can answer while "deleted 14
- * things" is only a report. Lives here rather than in the GM panel because the
- * button that calls it now sits on the Remnant table.
+ * things" is only a report. No button calls it since E64-inv: End the chapter
+ * clears the Faint Remnants (chapter.mjs `chapterEndForm`, `faint`), and the
+ * Investigation bar's own button, its twin, is gone.
  */
 export async function confirmClearFaint({ tokens = null } = {}) {
     const doomed = (tokens ?? Array.from(game.scenes).flatMap(scene => remnantsOn(scene))).filter(clearable).length;

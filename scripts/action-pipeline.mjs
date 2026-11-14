@@ -55,10 +55,10 @@ export const DRPG_ACTION_ROLL = "drpgActionRoll";
 
 /**
  * The roll was drawn by the primary GM (E08+E28 C12a; roll-draw.mjs): `{ rollId, messageId,
- * stash, loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
+ * loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
  * the message, settled the roll's resources and spent the Calls it applied, so
- * `commitResources` commits nothing for it and `throwDice` spends nothing; `stash` is the
- * hidden stash's step the GM drew (`stashStepOf`), `loaded` whether it loaded the die (C12b).
+ * `commitResources` commits nothing for it and `throwDice` spends nothing; `loaded` is whether
+ * it loaded the die (C12b). A hidden stash's step (`stash`) rode beside them until 1.2.112.
  * Never sent: it is put on the config after the roll has left for the GM.
  */
 export const DRAWN_ROLL = "drpgDrawn";
@@ -95,8 +95,7 @@ function suiteRolling() {
  * `result.resourceUpdates` for the caller to commit. The sheet's own trait
  * button calls `updateResources()`; ours has to as well, or actions roll dice
  * and quietly hand out nothing.
- */
-/**
+ *
  * @param {Actor} actor
  * @param {string} drpgTrait
  * @param {object} [options]
@@ -127,6 +126,8 @@ function suiteRolling() {
  * @param {number} [options.situational]  This roll's own advantage (+) or disadvantage
  *   (-) in dice, which a supporting roll's shield does not hide (call-effects.mjs
  *   `armOwnSituational`): the Night's die on a murder's opening roll, its one caller.
+ * @param {number} [options.hindrance]  Hindrance dice given to this roll by name, its cause not said (call-effects.mjs
+ *   `armOwnHindrance`): a watch's die on the killer's opening roll (E74, DA44), its one caller.
  *
  * Exported because the murder engine rolls through it too: a crisis action and
  * an opening roll are ordinary trait rolls that must commit resources, honour
@@ -136,7 +137,7 @@ function suiteRolling() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0, titled = false } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0, hindrance = 0, titled = false } = {}) {
     // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
     // or a ladder written as text ("12 / 18"); a window with no title of its
     // own takes the action's label so the number has something to hang on.
@@ -156,6 +157,7 @@ export async function rollTrait(actor, drpgTrait,
     const supporting = !remember;
     if (supporting) calls.shieldCalls();
     if (situational) calls.armOwnSituational(situational);
+    if (hindrance) calls.armOwnHindrance(hindrance);
     try {
         /* THE NUMBER RIDES ON THE ROLL TO ITS CARD (E51 C1; the owner's amendment of 14.10: "modul w zaden sposob nie
            informuje ani gracza, ani gma o thresholdach akcji"). The window said "beat N" and the card said the total
@@ -167,6 +169,7 @@ export async function rollTrait(actor, drpgTrait,
         return outcome;
     } finally {
         if (situational) calls.clearOwnSituational();
+        if (hindrance) calls.clearOwnHindrance();
         if (supporting) calls.unshieldCalls();
     }
 }
@@ -224,7 +227,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
          * per roll turns a forty-second run into minutes and times the
          * scenarios out - measured, three failures, none of them about the
          * thing under test. Whether the window opens at all is its own
-         * question with its own scenario. See `autoRollForSuite`.
+         * question with its own scenario. See `suiteRolling` above (the suite's own
+         * switch, `game.drpg.suiteRolling`).
          */
         dialog: { configure: !suiteRolling() },
         /*
@@ -288,6 +292,13 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // threw, it counts only where the die held (forced-roll.mjs `loadedDieHeld`; E16 part 2 C5, audit S02-44): a d12
     // drawn by another dice method shows an honest face, and the roll was told "freeCritUsed" all the same.
     const loaded = drawn ? drawn.loaded === true : free && loadedDieHeld(result);
+    // One that did not hold gives its Call back (E64, D052; call-effects.mjs `giveBackLoadedDie`): here only where this
+    // browser threw the dice, which with a Loaded Die armed is a GM's - a player's roll is drawn, and the GM that drew it
+    // gave it back there (roll-draw.mjs `throwDrawn`).
+    if (free && !drawn && !loaded) {
+        const { giveBackLoadedDie } = await import("./call-effects.mjs");
+        await giveBackLoadedDie(actor, armed);
+    }
 
     const outcome = {
         total,
@@ -516,7 +527,7 @@ export async function noteRollContext(actor, data) {
  * not listed claims nothing.
  */
 export const ROLL_CLAIMS = Object.freeze({
-    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", stashDie: "bool", claimed: "bool", fromVault: "bool",
+    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", claimed: "bool",
         gmRuled: "bool", label: "text", request: "text" }),
     project: Object.freeze({ relief: "num", bonus: "num", refunded: "bool", burst: "bool" }),
     sabotage: Object.freeze({ penalty: "num", relief: "num" }),

@@ -406,7 +406,7 @@ function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = 
        stdout, stderr and log lines, kept per client with the phase for the canary
        (lib/canary.mjs), capped so a chatty run cannot grow without end. */
     bootInfo.delete(who);
-    const entry = { proc, userId, storage, ready: new Promise(res => readiness.set(who, res)), console: [], consoleDropped: 0, holdLoading };
+    const entry = { proc, userId, storage, spawnOpts: { world, clockSkewMs, modulesOff }, ready: new Promise(res => readiness.set(who, res)), console: [], consoleDropped: 0, holdLoading };
     entry.held = holdLoading ? new Promise(res => { entry.reachedHold = res; }) : null;
     const keep = (stream, text) => {
         for (const line of String(text).split("\n")) {
@@ -613,7 +613,8 @@ const lateAccounts = new Map();
  * the user connect before its world has loaded and it says so (`bridge.gmReady`) - the
  * other order, which 61's O2 drives (E05 fix r1-G4, 27.09.2026). An account that has
  * disconnected may connect again, with the storage it left with (`storageOf`) or
- * another. The seeded four are spawned at start and cannot.
+ * another. The seeded four are spawned at start, and since E38 C1 may connect again
+ * once they have left (`reload`, `makePrimary`).
  *
  * A BROWSER STILL LOADING ITS SCENE (E13 C0, 11.10.2026; plan-E13 2.1 item 2). With `holdLoading`
  * the client boots up to the end of its canvas's load - its `ready` hooks run, `canvas.loading` is
@@ -624,8 +625,10 @@ const lateAccounts = new Map();
  * comes after, as every client of the harness has always booted.
  */
 async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false, modulesOff = null, serverUptimeMs = null } = {}) {
-    const account = lateAccounts.get(who);
-    if (!account) throw new Error(`${who} is not an account declared late: true`);
+    /* The seeded four may connect again once they have left (E38 C1, 13.11.2026): `reload` and `makePrimary` take
+       the seed GM off the table and bring it back, as any browser's F5 does. Until E38 only a late account could. */
+    const account = lateAccounts.get(who) ?? (clients.get(who)?.gone && SEEDED[who] ? { who, id: SEEDED[who] } : null);
+    if (!account) throw new Error(`${who} is not an account declared late: true, nor a seeded one that has left`);
     const existing = clients.get(who);
     if (existing && !existing.gone) return false;
     const rec = userRec(account.id);
@@ -694,6 +697,87 @@ async function disconnect(who) {
     if (rec) rec.active = false;
     broadcast({ t: "userActivity", userId: entry.userId, active: false });
     return true;
+}
+
+/* The four clients every run forks, by who: the accounts `connect` brings back after they left (E38 C1). */
+const SEEDED = { gm: IDS.gm, p1: IDS.p1, p2: IDS.p2, p3: IDS.p3 };
+
+/**
+ * A BROWSER'S RELOAD, FOR ANY CLIENT (E38 C1, 13.11.2026; plan E38 3.1). Until E38 a scenario could not reload a
+ * client: a seeded one never came back once it left, and the scenarios that wanted an F5 emptied a client's memory
+ * by hand and called its `ready` steps again (12-social's p1, 13-murder-signals' p3, 19-standing-cast's stand-in).
+ * `reload(who)` ends the client as `disconnect` does - the others hear the user leave, and what its localStorage
+ * held as it closed is kept - then boots a new process for the same user with that storage (or `storage`, when a
+ * scenario gives one) and the world id and clock skew it booted with, and the others hear the user come back
+ * once it is ready. What a real F5 keeps besides localStorage (the session's cookie, IndexedDB, the browser's
+ * cache) the harness has none of; v14's order of "inactive", "active" and the new client's `ready` is LIVE-E30-05
+ * and LIVE-E04-12. Answers `{ left, back, storageKeys, ms }`; throws when the client did not boot again.
+ */
+async function reload(who, { storage, holdLoading = false } = {}) {
+    const entry = clients.get(who);
+    if (!entry || entry.gone) throw new Error(`${who} is not connected, so it cannot reload`);
+    const t0 = Date.now();
+    const { world: worldId = null, clockSkewMs = null, modulesOff = null } = entry.spawnOpts ?? {};
+    const left = await disconnect(who);
+    const kept = storage !== undefined ? storage : (keptStorage.has(who) ? structuredClone(keptStorage.get(who)) : null);
+    const back = await connect(who, { storage: kept, world: worldId, clockSkewMs, modulesOff, holdLoading });
+    return { left, back, storageKeys: kept ? Object.keys(kept).length : 0, ms: Date.now() - t0 };
+}
+
+/** The GMs' order of `primaryGmId` (utils.mjs), read off the world's users: full GMs first, then Assistants, each by id. */
+function primaryOrder() {
+    const here = world.collections.User.filter(u => u.active && Number(u.role) >= 3);
+    const ids = list => list.map(u => u._id).sort();
+    const full = ids(here.filter(u => Number(u.role) === 4));
+    return full.length ? full : ids(here);
+}
+
+/** The `who` of the client a user id belongs to, or null. */
+function whoOf(userId) {
+    for (const [who, entry] of clients) if (entry.userId === userId) return who;
+    return null;
+}
+
+/**
+ * What every connected client takes for the primary GM (E38 C1): `{ who: userId|null }`, read on each by utils.mjs
+ * `primaryGmId()`, the module's own rule, not the harness's copy of it. A client whose eval fails reads `"error"`.
+ */
+async function primaryOn() {
+    const out = {};
+    for (const [who, entry] of clients) {
+        if (entry.gone) continue;
+        out[who] = await handleFor(who, entry.userId).eval(`const U = await import("${REPO_URL}/scripts/utils.mjs"); return U.primaryGmId();`)
+            .catch(() => "error");
+    }
+    return out;
+}
+
+/**
+ * A CHANGE OF PRIMARY (E38 C1, 13.11.2026; plan E38 3.1). The primary is the connected full GM with the smallest id
+ * (utils.mjs `primaryGmId`), so the only road that moves it at a table is a GM ahead of `who` leaving - a closed
+ * tab, a reload, a lost connection. `makePrimary(who)` disconnects every connected GM ahead of `who` in that order
+ * (their storage kept, as `disconnect` keeps it) and waits, up to `timeoutMs`, until every connected client takes
+ * `who` for the primary. Answers `{ left: [who...], primary, agreed, on }`: `agreed` false when a client still reads
+ * another after the wait - a check's to judge, not a throw. Those who left come back with `connect(name)`, and the
+ * primary with them, when they sort first again. Throws when `who` is no connected GM.
+ */
+async function makePrimary(who, { timeoutMs = 5000 } = {}) {
+    const entry = clients.get(who);
+    if (!entry || entry.gone || !isGM(entry.userId)) throw new Error(`${who} is not a connected GM`);
+    const left = [];
+    for (let order = primaryOrder(); order.length && order[0] !== entry.userId; order = primaryOrder()) {
+        const ahead = whoOf(order[0]);
+        if (!ahead || !(await disconnect(ahead))) throw new Error(`the GM ${order[0]} ahead of ${who} has no client to disconnect`);
+        left.push(ahead);
+    }
+    if (!primaryOrder().includes(entry.userId)) throw new Error(`${who} cannot be the primary: a full GM is connected and ${who} is an Assistant`);
+    const until = Date.now() + timeoutMs;
+    let on = await primaryOn();
+    while (!Object.values(on).every(id => id === entry.userId) && Date.now() < until) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        on = await primaryOn();
+    }
+    return { left, primary: entry.userId, agreed: Object.values(on).every(id => id === entry.userId), on };
 }
 
 /*
@@ -997,7 +1081,7 @@ async function main() {
        kept by hand, lacked phase, dump, canary and environment, and an account named `phase`
        got a client whose handle the function then replaced. */
     const api = {
-        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, connect, finishLoading, storageOf, bootInfo, IDS,
+        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, connect, finishLoading, storageOf, reload, makePrimary, primaryOn, bootInfo, IDS,
         environment: ENVIRONMENT,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
@@ -1067,6 +1151,28 @@ async function main() {
     if (!threw) {
         try { canaryResult = await canary.finish(results); }
         catch (err) { check("the canary finished its scan", false, err.stack); }
+    }
+    /* THE STATE'S INVARIANTS, AFTER EVERY SCENARIO (E40 C3, 13.11.2026; plan E40 item 2: "game.drpg.checkState() ...
+       after every scenario"). The world as the scenario left it, read on a GM still connected - the seeded one, or the
+       first other GM account left (66 X ends without the seeded GM) - by state-check.mjs `checkState`, quiet: its problems
+       are this check's details. A tree with no `checkState` (an older checkout through DRPG_REPO) is noted, not failed;
+       a run with no GM left is noted too. A probe is exempt, as is a run that threw. */
+    let stateResult = null;
+    if (!probe && !threw) {
+        const gmWho = ["gm", ...[...clients.keys()].filter(w => w !== "gm")]
+            .find(w => { const e = clients.get(w); return e && !e.gone && bootInfo.get(w)?.t === "ready" && roleOf(e.userId) >= 3; }) ?? null;
+        if (!gmWho) note("state: no GM left connected after the scenario - its invariants were not read");
+        else {
+            try {
+                stateResult = await handleFor(gmWho).eval(`return typeof game.drpg?.checkState === "function"
+                    ? game.drpg.checkState({ quiet: true }) : "absent";`, { timeout: 30000 });
+            } catch (err) {
+                stateResult = { error: String(err?.message ?? err) };
+            }
+            if (stateResult === "absent") note(`state: ${REPO} has no game.drpg.checkState - its invariants were not read`);
+            else check(`state: the world's invariants hold after the scenario, read on ${gmWho} (E40 C3; game.drpg.checkState)`,
+                stateResult?.ok === true, JSON.stringify(stateResult?.problems ?? stateResult).slice(0, 2000));
+        }
     }
     const dt = Date.now() - t0;
 

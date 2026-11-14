@@ -157,7 +157,7 @@ export function stageMarkers(repoDir = REPO) {
         } else {
             const end = code.indexOf("\n];", start);
             const rules = code.slice(start, end < 0 ? code.length : end);
-            for (const m of rules.matchAll(/\buntil:\s*"(E\d\d)"/g)) {
+            for (const m of rules.matchAll(/\buntil:\s*"(E\d{2,3})"/g)) {
                 out.push({ file: "scripts/tests-kit.mjs", line: lineAt(code, start + m.index), kind: "until", stage: m[1] });
             }
         }
@@ -180,7 +180,7 @@ export function problems(doc, { modVersion, markers = [] } = {}) {
         const at = `row ${i + 1} (${r?.id ?? "no id"})`;
         const above = rows[i - 1] ?? null;
         const joined = r?.with !== undefined;
-        if (!/^E\d{2}$/.test(r?.id ?? "")) errs.push(`${at}: the id is not E and two digits`);
+        if (!/^E\d{2,3}$/.test(r?.id ?? "")) errs.push(`${at}: the id is not E and two or three digits`);
         else if (ids.has(r.id)) errs.push(`${at}: ${r.id} is listed twice`);
         ids.add(r?.id);
         if (joined && (!above || r.with !== above.id)) errs.push(`${at}: ships with "${r.with}", which is not the row above - a joint release is two rows in a row`);

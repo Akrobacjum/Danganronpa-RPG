@@ -857,8 +857,8 @@ function seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }) {
 }
 
 /** The standing outline's light: its blur and the room the blur needs, in screen pixels (S07-34; `seamHalo`). */
-export const HALO_BLUR_PX = 6;
-export const HALO_PAD_PX = 14;
+const HALO_BLUR_PX = 6;
+const HALO_PAD_PX = 14;
 
 /** The path the outline's light follows: the outline's own gapped edges, or the region's shapes when it has none. */
 function haloPath({ edges, rect, gapPad, stubFloor, region }) {
@@ -870,7 +870,7 @@ function haloPath({ edges, rect, gapPad, stubFloor, region }) {
  * scene units) in `colour`, each along `path` (E49 B4; S07-34). The first draw, `recolour` and `rewidth` all stroke
  * through this one, so the light cannot keep a colour or a width the line has left. Exported for R3430.
  */
-export function strokeHalo(halo, width, colour, path) {
+function strokeHalo(halo, width, colour, path) {
     if (!halo || halo.destroyed) return halo;
     halo.clear();
     for (const [k, alpha] of SEAM_GLOW) {
@@ -1010,7 +1010,7 @@ function applyPlace(node, p) {
  * puts the texture's pixels back in `g`'s units - or null with no renderer, past MAX_FOG_TEXTURE, or on a throw.
  * `g` is lent to a wrapper for the render and handed back to its parent where it stood, as visible as it was.
  */
-export function bakeTexture(g, m, bounds, pad, renderer = HALO_IO.renderer()) {
+function bakeTexture(g, m, bounds, pad, renderer = HALO_IO.renderer()) {
     if (typeof renderer?.render !== "function" || typeof PIXI.RenderTexture?.create !== "function") return null;
     if (!bounds || !(bounds.width > 0) || !(bounds.height > 0)) return null;
     const turned = m.b !== 0 || m.c !== 0;
@@ -1598,10 +1598,13 @@ export function recolourRoomOutline({ standing = roomOutline, colourNow = outlin
     /* A THEME CHANGE IS NOT A COLOUR CHANGE. The two themes draw different borders - Legacy
        the 26.08 pixel-art stroke, Stained Glass the curtain's hairline seam - so when the
        setting has moved the outline is drawn again from the room it was drawn from, rather
-       than re-tinted. Everything else on this path is still one computed-style read. */
+       than re-tinted. Everything else on this path is still one computed-style read.
+       QUIETLY (gaps, R4655; 1.2.105's known gap "a theme switch draws the room outline as an arrival"): the redraw played
+       as the player walking in - the old outline fading under the new, the hop and the room's name - where every other
+       redraw that is no arrival is `quiet` (E49 B4, D147). Nobody moved; the border only changed its look. */
     const glassNow = glassIs();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
-        flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null });
+        flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null, quiet: true });
         return;
     }
 

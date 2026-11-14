@@ -89,9 +89,10 @@ function sumUp(clock) {
     if (!window) return;
     shownFor = { stamp: window.stamp, until: window.until };
     if (clockHiddenHere(murderState())) return;
-    // THE NIGHT'S SUMMARY IS THE END-OF-DAY BOARD'S (E94 C3; the plan's Q-E94-5 default): at the day's roll-over, with the
-    // table's switch on, the board holds the whole day's rows and keeps a card of them, so the Night's own card is not put up
-    if (nightFoldsIntoBoard(window, clock)) return;
+    // THE EVENING'S SUMMARY IS THE END-OF-DAY BOARD'S (E94 C3; the plan's Q-E94-5 default; since 13.11.2026 the board is
+    // Night's start's): with the table's switch on, the board holds the whole day's rows to Night and keeps a card of
+    // them, so the Evening's own card is not put up
+    if (eveningFoldsIntoBoard(window, clock)) return;
     // after the clock's turn (E62 C5): the summary lands on a still curtain
     setTimeout(() => showDaySummary(window).catch(err => error("Could not show the day summary", err)), summaryDelay(before, clock));
 }
@@ -110,17 +111,28 @@ export function summaryDelay(before, after, { on = sequencesOn(), still = reduce
 /**
  * The end-of-day board kept as one card in this browser's notice history (E94 C3): `html` is the board's last frame as
  * sequence.mjs drew it (its names escaped there), `title` the board's own i18n title. Sticky, kept as a summary, the
- * Night's summary it stands in for (`nightFoldsIntoBoard`); posted here so the sequence engine itself puts up no notice.
+ * Evening's summary it stands in for (`eveningFoldsIntoBoard`); posted here so the sequence engine itself puts up no notice.
  */
 export function keepDayEndCard(html, title) {
     if (typeof html !== "string" || !html) return;
     showPopup(html, { title, sticky: true, source: "summary" });
 }
 
-/** Whether the summary of `window` folds into the end-of-day board: the day's last time of day closed by the roll-over to a new day, with the table's switch on. Pure but for the switch. */
-export function nightFoldsIntoBoard(window, after, on = sequencesOn()) {
-    return Boolean(on && window && window.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1]
-        && after?.timeOfDay === TIMES_OF_DAY[0] && after?.eclipse !== true);
+/**
+ * Whether the summary of `window` folds into the end-of-day board, with the table's switch on. Since 13.11.2026 (the
+ * owner's rule of that day: the end-of-day board "after the Night Eclipse (that is, at the start of Night)") the board
+ * plays when Night begins and holds the day's rows up to then: the Evening's summary folds - closed by the Night Eclipse
+ * opened at Evening (its end with the advance plays the board, which holds the same rows: put up at the start, they were
+ * shown twice), or by Evening to Night with no Night Eclipse, the clock stamped for the board (`nightBoard` on its day:
+ * transitions.mjs `boardsOf`). The Night's own summary is put up, at the Morning Eclipse's start or the roll-over: no
+ * board holds its rows. Evening to Night moved by hand plays no board, so its summary is put up. (Until 13.11.2026 this
+ * was the Night's, folded into the board the roll-over played: `nightFoldsIntoBoard`.) Pure but for the switch.
+ */
+export function eveningFoldsIntoBoard(window, after, on = sequencesOn()) {
+    const night = TIMES_OF_DAY[TIMES_OF_DAY.length - 1], evening = TIMES_OF_DAY[TIMES_OF_DAY.length - 2];
+    if (!on || !window || window.timeOfDay !== evening || !after) return false;
+    if (after.eclipse === true) return after.timeOfDay === evening;
+    return after.timeOfDay === night && after.nightBoard != null && Number(after.nightBoard) === Number(after.day);
 }
 
 const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, clock?.session ?? null,

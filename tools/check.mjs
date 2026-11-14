@@ -9,8 +9,8 @@
  * later is not a new script somebody forgets to call. Each part prints its own
  * numbers - what it read as well as what it found, because a part that read
  * nothing has proved nothing - and the exit code is 1 when any part is red.
- * Only `names`, `moves` and `text` need `npm ci` in audit/harness (they parse
- * with espree; `text` since E65 C10, for the screen map); the rest are bare
+ * Only `names`, `moves`, `text` and `comments` need `npm ci` in audit/harness (they
+ * parse with espree; `text` since E65 C10, for the screen map); the rest are bare
  * Node, so release.yml runs `stamps notes` before installing anything.
  *
  * Parts:
@@ -19,8 +19,14 @@
  *             handbooks and README's "describe version X." agree; with
  *             `--release`, the tag is "v" + that version. These were three
  *             shell steps of release.yml and R125; the handbooks said 1.2.55
- *             under a 1.2.56 module once (audit S14-16).
- *   notes     .github/release-notes/v<version>.md exists and is not empty.
+ *             under a 1.2.56 module once (audit S14-16). And (E59 C4, 13.11)
+ *             the Foundry and Daggerheart rows of the two GM handbooks'
+ *             "needs" tables name module.json's minimum and verified
+ *             versions, after a planted table with three faults. README's
+ *             rows are not held: the owner's rule, beside COMPAT_FILES.
+ *   notes     .github/release-notes/v<version>.md exists and is not empty;
+ *             and (E59 C5) CHANGELOG.md is what tools/changelog.mjs writes
+ *             from that folder, after a planted pair of notes.
  *   dashes    the house rule (CLAUDE.md): no U+2014 or U+2013 in the language
  *             files' decoded keys and values, the handbooks, README and the
  *             release notes and every other .md under docs/ (the R-number
@@ -89,6 +95,9 @@
  *             so a locator chain and a call split over lines count. A detector
  *             fixture runs first, as in `contract`, and the part is red when the
  *             gate's writer or the live runner is not there to be read.
+ *             And (E59 C0) audit/gate/ci-record.json, when it exists, holds
+ *             only rows audit/gate/ci-record.mjs wrote from a run it spawned,
+ *             read by that file's own rules after its planted rows refuse.
  *   live      every live check the code, the harness, the tools, the language
  *             files and the handbooks cite as LIVE-E<stage>-<n> is an item of
  *             audit/AUDIT-1.2.42.md section 9.2, written once.
@@ -184,6 +193,24 @@
  *             held to tools/css-budget.json: red above a budget, and red below
  *             it until the budget is lowered in the same commit
  *             (`node tools/css-lint.mjs --write`). Bare Node.
+ *   icons     the token pictures tools/token-icons.mjs owns (13.11.2026; E59
+ *             C5's item M7, the owner's default of Q-E59-8): every
+ *             icons/remnant-*.svg and icons/project-*.svg equal to what the
+ *             tool writes from the stylesheets' sprites today, none missing, and
+ *             no project-*.svg left for a glyph config.mjs no longer has - so a
+ *             sprite redrawn without the tool re-run, or a picture edited by
+ *             hand, is red. Bare Node. The nine remnant-*.svg took the tool's
+ *             spelling that day, after a pixel comparison in Chromium at 256,
+ *             64 and 240 px read every pixel equal.
+ *   comments  the comments lint (E56 C1; tools/comments-lint.mjs, whose header says
+ *             what it reads, carried from the prep-54 line's 0271bfb2): its
+ *             self-check on a planted fixture and the budget's ratchet first, then
+ *             every module file of scripts/ counted - backticked names in comments
+ *             that no code, language key or stylesheet holds, and two JSDoc blocks
+ *             over one declaration - and held to tools/comment-budget.json: red
+ *             above a row, and red below it until the row is lowered in the same
+ *             commit (`node tools/comments-lint.mjs --write`), so the count only
+ *             falls. Needs espree (`npm ci` in audit/harness).
  *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
  *             header says what it reads): its self-check, then every pair of
  *             tools/contrast-pairs.json in its theme from the tokens the sheets
@@ -206,6 +233,29 @@
  *             gm-panel.mjs's tiles, FUTURE, SAME, OPPOSITES), its structure
  *             red, its gaps printed - R3334-R3339 hold them red until the
  *             drawing rounds close them. Bare Node.
+ *   package   module.zip as release.yml builds it (`git archive HEAD`, with
+ *             the working tree's .gitattributes) ships the module's top level
+ *             only, and nothing a table never reads (E59 C5a): every file is
+ *             named by a module script that is not a test, a stylesheet or
+ *             module.json, comments blanked - a script by any script - or is a
+ *             note shipped with its reason (PACKAGE_NOTES); and what a table
+ *             reads ships (module.json's paths, a script's ./x.mjs imports,
+ *             every module file a reader names; REVIEW-111-e59 finding 1). A
+ *             planted package with eight faults first. Red on 421f2395:
+ *             macros/ and icons/pixel-sprite.svg. Bare Node and git.
+ *   tooltips  the controls with no help (E102 C1, widened after REVIEW-102;
+ *             tools/tooltip-census.mjs, whose header lists the kinds of
+ *             control it reads and the ones it does not): its self-check of
+ *             planted sites, one of every kind, then each control site it
+ *             reads with neither a tooltip of its own nor a hint line within
+ *             three lines, held to tools/tooltip-census.json by file, unit,
+ *             kind and key - red on a new one with no row, on a row no site
+ *             needs any more, on a row with no reason, on a count above
+ *             origin/main's copy (when that copy can be read; a "help in
+ *             code" row whose held pattern is found there may stand for
+ *             main's held row of its file, unit and kind), on a stage's
+ *             row once the stage shipped, and on a tipAttr/tipText key with no
+ *             words in either language. Needs espree (`npm ci` in audit/harness).
  */
 
 import fs from "node:fs";
@@ -269,17 +319,73 @@ function stamps() {
     places.push(["README.md \"describe version X.\"", readme === version, `says ${readme ?? "no version"}`]);
     for (const [where, ok, what] of places) if (!ok) problems.push(`${where} ${what}; module.json says ${version}`);
     if (RELEASE !== null && RELEASE !== `v${version}`) problems.push(`the tag asked for is "${RELEASE}", module.json says ${version}`);
+    const manifest = JSON.parse(read("module.json"));
+    const compat = compatibilityProblems(manifest, Object.fromEntries(COMPAT_FILES.map(f => [f, exists(f) ? read(f) : null])));
+    const plant = compatibilityProblems(manifest, { "plant.md": "| Foundry VTT | 14.1 or newer (verified on 14.2) |\n| Daggerheart (Foundryborne) | 2.6.5 or newer |\n" });
+    problems.push(...compat.problems);
+    if (plant.problems.length !== 3) problems.push(`the compatibility self-check's planted table gave ${JSON.stringify(plant.problems)}, not its 3 faults`);
     console.log(`stamps: module.json ${version}; ${places.filter(p => p[1]).length}/${places.length} places agree`
-        + (RELEASE !== null ? `; tag ${RELEASE}` : ""));
+        + (RELEASE !== null ? `; tag ${RELEASE}` : "")
+        + `; compatibility ${compat.rows} row(s) in ${COMPAT_FILES.length} file(s) against module.json, ${compat.problems.length} problem(s); `
+        + `self-check ${plant.problems.length}/3 planted fault(s) seen`);
     return problems;
 }
 
-function notes() {
+/*
+ * THE VERSIONS THE MODULE NEEDS, SAID ONE WAY (E59 C4's check, 13.11.2026; M12 of the E59 plan). module.json's
+ * `compatibility` (Foundry) and its Daggerheart relationship's are the truth; the GM handbook's "needs" table, in
+ * English and in Polish, has a row for Foundry VTT and one for Daggerheart, whose first version is the minimum and whose
+ * second the verified one ("14.364 or newer (verified on 14.365)", "14.364 lub nowsza (sprawdzone na 14.365)"). A row
+ * missing, or either number not module.json's, is red. On 421f2395 the two files' four rows agreed with module.json.
+ *
+ * README.md IS NOT ONE OF THEM (REVIEW-111-e59 finding 2, 13.11.2026). The owner's rule is that the root README changes
+ * only in its version line ("They describe version X.", which `stamps` holds above); its own Foundry and Daggerheart
+ * rows (README.md:228-229 on c066123e) are the owner's to keep. Held here, a release that writes a newly verified
+ * Foundry or Daggerheart into module.json could not pass `stamps` without a second README edit: with module.json's
+ * verified versions planted as 14.366 and 2.12.9, README.md:228 and :229 were two of the six problems.
+ */
+const COMPAT_FILES = ["docs/handbooks/gm-handbook.en.md", "docs/handbooks/gm-handbook.pl.md"];
+
+function compatibilityProblems(manifest, texts) {
+    const daggerheart = (manifest.relationships?.systems ?? []).find(s => s.id === "daggerheart")?.compatibility ?? {};
+    const wanted = [["Foundry VTT", /^\|\s*Foundry VTT\s*\|/, manifest.compatibility ?? {}], ["Daggerheart", /^\|\s*\[?Daggerheart\b/, daggerheart]];
+    const problems = [];
+    let rows = 0;
+    for (const [file, text] of Object.entries(texts)) {
+        if (text === null) { problems.push(`${file} is missing`); continue; }
+        const lines = text.split("\n");
+        for (const [name, row, compat] of wanted) {
+            const at = lines.findIndex(l => row.test(l));
+            if (at < 0) { problems.push(`${file} has no "${name}" row in its table of what the module needs`); continue; }
+            rows += 1;
+            const cell = lines[at].split("|").slice(2).join("|").replace(/\]\([^)]*\)/g, "]");
+            const [minimum, verified] = [...cell.matchAll(/\b\d+\.\d+(?:\.\d+)?\b/g)].map(m => m[0]);
+            if (minimum !== compat.minimum) problems.push(`${file}:${at + 1}: ${name}'s minimum reads ${minimum ?? "nothing"}; module.json says ${compat.minimum}`);
+            if (verified !== compat.verified) problems.push(`${file}:${at + 1}: ${name}'s verified version reads ${verified ?? "nothing"}; module.json says ${compat.verified}`);
+        }
+    }
+    return { problems, rows };
+}
+
+async function notes() {
     const version = RELEASE ? RELEASE.replace(/^v/, "") : JSON.parse(read("module.json")).version;
     const rel = `.github/release-notes/v${version}.md`;
     const size = exists(rel) ? read(rel).trim().length : -1;
-    console.log(`notes: ${rel} ${size < 0 ? "missing" : `${size} characters`}`);
-    return size > 0 ? [] : [`${rel} is ${size < 0 ? "missing" : "empty"} - the release workflow publishes it as the release's text`];
+    const problems = size > 0 ? [] : [`${rel} is ${size < 0 ? "missing" : "empty"} - the release workflow publishes it as the release's text`];
+    /* CHANGELOG.md is tools/changelog.mjs's index of the notes (E59 C5): held to what it would write now, so a notes
+       file added, removed or retitled without it written again is red. */
+    const C = await import(url.pathToFileURL(path.join(REPO, "tools", "changelog.mjs")).href);
+    const notesFiles = C.readNotes(REPO);
+    const wanted = C.build(notesFiles);
+    const have = exists("CHANGELOG.md") ? read("CHANGELOG.md") : null;
+    const plant = C.build({ "v1.2.9.md": "# 1.2.9 - nine\n", "v1.2.10.md": "**Ten.** More.\n", "notes.md": "# not a release\n" });
+    const order = /\*\*1\.2\.10\*\* - Ten\.[\s\S]*\*\*1\.2\.9\*\* - nine/.test(plant) && !/not a release/.test(plant);
+    console.log(`notes: ${rel} ${size < 0 ? "missing" : `${size} characters`}; CHANGELOG.md ${have === null ? "missing" : have === wanted ? "current" : "stale"} `
+        + `against ${Object.keys(notesFiles).length} notes file(s); self-check ${order ? "holds" : "fails"} (version order, the two title forms)`);
+    if (have === null) problems.push("CHANGELOG.md is missing - write it with `node tools/changelog.mjs --write`");
+    else if (have !== wanted) problems.push("CHANGELOG.md is not what tools/changelog.mjs writes from .github/release-notes - run `node tools/changelog.mjs --write`");
+    if (!order) problems.push(`tools/changelog.mjs's planted notes did not come out newest first with both title forms: ${JSON.stringify(plant)}`);
+    return problems;
 }
 
 /* --------------------------------- dashes ---------------------------------- */
@@ -635,6 +741,205 @@ function tree() {
     return listed.slice(0, 20).map(f => `${f} is tracked - it is written by a run or an install, never committed`);
 }
 
+/* ------------------------------ package ------------------------------ */
+
+/*
+ * THE PACKAGE SHIPS WHAT A TABLE READS (E59 C5a, 13.11.2026; D47, E59 plan M6). release.yml builds module.zip with
+ * `git archive --format=zip -o module.zip HEAD`, which leaves out what .gitattributes marks `export-ignore`. This
+ * part lists that archive the same way (`git archive --format=tar --worktree-attributes HEAD`: the committed files,
+ * and the working tree's .gitattributes, so an export rule is judged before its commit) and holds it to three rules:
+ *   - its top level is the module's: PACKAGE_TOP;
+ *   - every file in it is read at a table: named in the code (comments blanked) of a module script that is not a
+ *     test, a stylesheet or module.json - a path written out, or one built from a template (`icons/item-${kind}.svg`
+ *     reads every `icons/item-*.svg`); a script may be named by any script, the suite's among them, since the suite
+ *     runs at a table (`game.drpg.runTests`); and PACKAGE_NOTES ship with no reader, each with its reason.
+ * A test that reads a file only where the repository's tools/ is served (R3333's `needs(env.tools())`) is not a
+ * reader at a table: an installed zip has no tools/. On 421f2395 (1.2.109) the archive held 275 files and two
+ * things nothing reads: macros/ (5 files; eslint.config.mjs's own note calls them Foundry macro bodies) and
+ * icons/pixel-sprite.svg (named by two stylesheet comments and by the glyph tests). A pattern with no letter of
+ * its own outside the extension (`${name}.svg`) names nothing: it would read every file of its kind.
+ *   - and the other way (REVIEW-111-e59 finding 1, 13.11.2026): what a table reads ships - every path module.json
+ *     names (esmodules, scripts, styles, languages), every `./x.mjs` a shipped script imports, and every path a
+ *     shipped reader that is not a test names, where the commit holds a file of the module's (under PACKAGE_TOP) it
+ *     matches: `packageMissing`. Until then the part answered no problem with lang/pl.json, scripts/ui-kit.mjs or
+ *     fonts/ export-ignored, each a zip that does not load or draws without its fonts (measured on 68bc5f3e).
+ */
+const PACKAGE_TOP = ["module.json", "README.md", "LICENSE", "lang/", "scripts/", "styles/", "icons/", "fonts/", "docs/handbooks/"];
+const PACKAGE_NOTES = {
+    "module.json": "Foundry reads it to install and load the module",
+    "README.md": "the module's description, shown where the package is browsed",
+    "LICENSE": "the module's licence, which ships with it",
+    "fonts/README.md": "the SIL Open Font License notice of the fonts beside it, which that licence asks to ship with them"
+};
+const PACKAGE_EXT = "mjs|js|css|json|svg|png|webp|jpe?g|gif|woff2?|ttf|otf|md|ogg|mp3|wav|webm";
+
+/** The files of a tar archive (ustar and pax `path=`), directories left out, each `{ name, data }` (a Buffer). */
+function tarEntries(buf) {
+    const names = [];
+    let off = 0, pax = null;
+    while (off + 512 <= buf.length) {
+        const head = buf.subarray(off, off + 512);
+        if (head.every(b => b === 0)) break;
+        const field = (a, b) => head.subarray(a, b).toString("utf8").replace(/\0[\s\S]*$/, "");
+        const size = Number.parseInt(field(124, 136).trim() || "0", 8);
+        const type = head[156] ? String.fromCharCode(head[156]) : "0";
+        const body = buf.subarray(off + 512, off + 512 + size).toString("utf8");
+        if (type === "x") pax = /\d+ path=([^\n]*)\n/.exec(body)?.[1] ?? null;
+        else if (type === "0" || type === "7") {
+            const prefix = field(345, 500);
+            names.push({ name: pax ?? (prefix ? `${prefix}/${field(0, 100)}` : field(0, 100)), data: buf.subarray(off + 512, off + 512 + size) });
+            pax = null;
+        } else if (type !== "g") pax = null;
+        off += 512 + Math.ceil(size / 512) * 512;
+    }
+    return names;
+}
+
+/** The paths a reader's code names, as patterns: `${...}` a wildcard within one path step, `./`, `../` and `modules/<id>/` off. */
+function namedPaths(code) {
+    const out = [];
+    const text = code.replace(/\$\{[^}]*\}/g, "*");
+    for (const [ref] of text.matchAll(new RegExp(String.raw`[\w*.\-/]+\.(?:${PACKAGE_EXT})\b`, "g"))) {
+        const p = ref.replace(/^(?:\.{1,2}\/)+/, "").replace(/^\/?modules\/[^/]+\//, "");
+        if (!/[a-z]/i.test(p.replace(new RegExp(String.raw`\.(?:${PACKAGE_EXT})$`), "").replace(/\*/g, ""))) continue;
+        out.push(Object.assign(new RegExp(String.raw`(^|/)${p.replace(/[.+?^$()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*")}$`), { path: p }));
+    }
+    return out;
+}
+
+/**
+ * What a table reads that the package of `files` leaves out: `tracked` is every file of the commit, `readers` the
+ * shipped readers as `packageProblems` takes them. module.json's paths must ship whatever the commit holds; a script's
+ * `./x.mjs` import must ship where the commit holds scripts/x.mjs (the suite's fixtures write imports of files that
+ * do not exist - an import of a deleted file is R161's and lint's, not the package's); and a path another reader
+ * names must ship where the commit holds a file under PACKAGE_TOP it matches - every file a template matches, since
+ * the code picks one at run time (`lang/${lang}.json` reads lang/pl.json on a Polish page; module.json names English
+ * alone) - and a name that matches no file of the module's is not this rule's: a URL, a world's file, a system's.
+ * One line per file left out, by its first reader.
+ */
+function packageMissing(files, tracked, readers) {
+    const shipped = new Set(files);
+    const moduleFiles = tracked.filter(f => PACKAGE_TOP.some(t => (t.endsWith("/") ? f.startsWith(t) : f === t)));
+    const tracked1 = new Set(tracked);
+    const problems = new Map();
+    const miss = (f, why) => { if (!problems.has(f)) problems.set(f, `${f} ${why} and does not ship: take its export-ignore out of .gitattributes`); };
+    for (const { file, code } of readers) {
+        if (file === "module.json") {
+            let manifest = null;
+            try { manifest = JSON.parse(code); } catch { problems.set("module.json", "module.json does not parse - its paths could not be read"); continue; }
+            const named = [...["esmodules", "scripts", "styles"].flatMap(k => (manifest[k] ?? []).map(p => [k, p])),
+                ...(manifest.languages ?? []).map(l => ["languages", l.path])];
+            for (const [key, p] of named) {
+                const rel = String(p).replace(/^\.\//, "");
+                if (!shipped.has(rel)) miss(rel, `is named by module.json (${key})`);
+            }
+            continue;
+        }
+        if (file.endsWith(".mjs")) {
+            for (const m of code.matchAll(/(?:\bfrom|\bimport\s*\()\s*["'`]\.\/([\w-]+\.mjs)["'`]/g)) {
+                const rel = `scripts/${m[1]}`;
+                if (tracked1.has(rel) && !shipped.has(rel)) miss(rel, `is imported by ${file}`);
+            }
+        }
+        if (/^scripts\/tests[\w-]*\.mjs$/.test(file)) continue;
+        for (const re of namedPaths(code)) {
+            const wanted = moduleFiles.filter(f => re.test(f));
+            for (const f of wanted) if (!shipped.has(f)) miss(f, `is named by ${file}${re.path.includes("*") ? ` (${re.path})` : ""}`);
+        }
+    }
+    return [...problems.values()];
+}
+
+/** What a package of `files` ships that it should not: `readers` is `[{ file, code }]`, code with comments blanked. */
+function packageProblems(files, readers) {
+    const problems = [];
+    const top = f => (f.includes("/") ? `${f.split("/")[0]}/` : f);
+    for (const f of files) {
+        if (!PACKAGE_TOP.some(t => (t.endsWith("/") ? f.startsWith(t) : f === t))) problems.push(`${f} ships, and ${top(f)} is not the module's (PACKAGE_TOP): export-ignore it in .gitattributes or remove it`);
+    }
+    const scriptNames = [], assetNames = [];
+    for (const { file, code } of readers) {
+        const named = namedPaths(code);
+        scriptNames.push(...named);
+        if (!/^scripts\/tests[\w-]*\.mjs$/.test(file)) assetNames.push(...named);
+    }
+    for (const f of files) {
+        if (PACKAGE_NOTES[f] || !PACKAGE_TOP.some(t => t.endsWith("/") && f.startsWith(t))) continue;
+        const names = f.endsWith(".mjs") ? scriptNames : assetNames;
+        if (!names.some(re => re.test(f))) problems.push(`${f} ships, and nothing at a table reads it: export-ignore it in .gitattributes, or name its reader`);
+    }
+    return problems;
+}
+
+/** One reader: its code with the comments blanked, a script's by lint.blankComments, a stylesheet's block comments. */
+function readerOf(file, text) {
+    const code = file.endsWith(".mjs") ? lint.blankComments(text) : file.endsWith(".css") ? text.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " ")) : text;
+    return { file, code };
+}
+
+/* The readers' text is the archive's own (REVIEW-111 L3): the file list and what names a file come from one tree, so an
+   uncommitted delete or edit neither stops the part nor changes its reading. */
+function packageReaders(entries) {
+    return entries.filter(({ name }) => /^scripts\/[\w-]+\.mjs$/.test(name) || /^styles\/[\w-]+\.css$/.test(name) || name === "module.json")
+        .map(({ name, data }) => readerOf(name, lint.lf(data.toString("utf8"))));
+}
+
+function packageList() {
+    const buf = execFileSync("git", ["-C", REPO, "archive", "--format=tar", "--worktree-attributes", "HEAD"], { maxBuffer: 512 * 1024 * 1024 });
+    return tarEntries(buf);
+}
+
+/** Every file of the commit the archive is made from, export rules or not. */
+function packageTracked() {
+    return execFileSync("git", ["-C", REPO, "ls-tree", "-r", "--name-only", "HEAD"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n").filter(Boolean);
+}
+
+function pkg() {
+    let entries;
+    let tracked;
+    try { entries = packageList(); tracked = packageTracked(); }
+    catch (err) { return [`not a git checkout, or git archive failed (${String(err.message).split("\n")[0]})`]; }
+    const files = entries.map(e => e.name);
+    /* The self-check: a planted package of seven, four of them faults - a folder that is not the module's, an icon
+       named only in a script's comment, an icon named only by a test (the sprite's case: R3333 reads it, at a table it
+       never does) and an icon named only in a stylesheet's comment (the sprite's other mention; REVIEW-111 M1) - and
+       three that are read: an icon by a template, one by a literal path, a script by a test only. Through readerOf, the
+       real readers' own blanking. */
+    const plant = packageProblems(
+        ["macros/x.js", "icons/item-tool.svg", "icons/unread.svg", "icons/state-dead.svg", "scripts/tests-only.mjs", "icons/test-only.svg", "icons/css-comment.svg"],
+        [readerOf("scripts/config.mjs", "const a = `modules/${MODULE_ID}/icons/item-${kind}.svg`, b = \"icons/state-dead.svg\"; // icons/unread.svg\n"),
+            readerOf("scripts/tests.mjs", "await import(\"./tests-only.mjs\"); fetch(\"icons/test-only.svg\");"),
+            readerOf("styles/x.css", "/* icons/css-comment.svg */ a { color: red; }")]);
+    /* And three a table reads and the planted package leaves out (packageMissing): a language a script's template
+       reads (module.json names English alone, as the real one does), a script a shipped script imports, a font a
+       stylesheet's url() names - lang/pl.json, scripts/ui-kit.mjs and fonts/ export-ignored, the three faults the part
+       did not see on 68bc5f3e - beside a language, a script and a font that ship, and a path that names no file of
+       the module's (`icons/svg/mystery-man.svg`, Foundry's own); and a fourth, a stylesheet module.json names
+       (`styles/gone.css`), without which the self-check stayed 7/7 with module.json's road switched off. */
+    const missPlant = packageMissing(
+        ["module.json", "lang/en.json", "scripts/module.mjs", "styles/x.css", "fonts/kept.woff2"],
+        ["module.json", "lang/en.json", "lang/pl.json", "scripts/module.mjs", "scripts/ui-kit.mjs", "styles/x.css", "styles/gone.css", "fonts/kept.woff2", "fonts/gone.woff2"],
+        [readerOf("module.json", JSON.stringify({ esmodules: ["scripts/module.mjs"], styles: ["styles/x.css", "styles/gone.css"], languages: [{ path: "lang/en.json" }] })),
+            readerOf("scripts/module.mjs", "import { drpgWindow } from \"./ui-kit.mjs\"; const icon = \"icons/svg/mystery-man.svg\";\n"
+                + "const file = `modules/${MODULE_ID}/lang/${lang}.json`;\n"),
+            readerOf("styles/x.css", "@font-face { src: url(\"../fonts/kept.woff2?v=1\"); } @font-face { src: url(../fonts/gone.woff2?v=2); }")]);
+    const missPlanted = ["styles/gone.css is named by module.json", "lang/pl.json is named by scripts/module.mjs", "scripts/ui-kit.mjs is imported by", "fonts/gone.woff2 is named by styles/x.css"];
+    const planted = ["macros/x.js ships", "icons/unread.svg ships", "icons/test-only.svg ships", "icons/css-comment.svg ships"];
+    const seen = planted.filter(p => plant.some(q => q.startsWith(p))).length + missPlanted.filter(p => missPlant.some(q => q.startsWith(p))).length;
+    const plantedCount = planted.length + missPlanted.length, plantedGave = plant.length + missPlant.length;
+    const readers = packageReaders(entries);
+    const problems = [...packageProblems(files, readers), ...packageMissing(files, tracked, readers)];
+    /* The tests' exclusion reads something: a rename of the suite's files would leave it holding nothing. */
+    if (!readers.some(r => /^scripts\/tests[\w-]*\.mjs$/.test(r.file))) problems.push("no reader matches scripts/tests*.mjs - the tests' exclusion reads nothing; rename it with the suite");
+    const tops = [...new Set(files.map(f => (f.includes("/") ? `${f.split("/")[0]}/` : f)))];
+    if (!files.length) problems.push("the archive listed no file - this part read nothing");
+    if (seen !== plantedCount || plantedGave !== plantedCount) problems.push(`the self-check's planted package gave ${JSON.stringify([...plant, ...missPlant])}`);
+    console.log(`package: git archive HEAD (the working tree's .gitattributes): ${files.length} file(s), top level ${tops.join(" ")}; `
+        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; self-check ${seen}/${plantedCount} planted fault(s) seen, `
+        + `${plantedGave - seen} other(s); ${problems.length} problem(s)`);
+    return problems;
+}
+
 /*
  * Aimed at a secret: a password-type selector; a fill, type or press whose own
  * arguments name a password, an admin key or a licence; or one that a locator
@@ -699,7 +1004,7 @@ function statementsOf(text) {
     return out;
 }
 
-function gatecode() {
+async function gatecode() {
     const problems = [];
     const hitsIn = text => statementsOf(text).filter(s => SECRET_FIELD.test(s.text)).map(s => s.line);
     const fx = hitsIn(GATECODE_FIXTURE.text);
@@ -710,7 +1015,39 @@ function gatecode() {
     /* The writer and the live runner are what it exists to read: without them it read nothing. */
     for (const need of ["audit/gate/local-gate.mjs", "audit/live/foundry.mjs"]) if (!files.includes(need)) problems.push(`${need} is missing - nothing that logs into Foundry was read`);
     for (const f of files) for (const line of hitsIn(read(f))) problems.push(`${f}:${line}: aims at a password, admin key or licence field`);
-    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ${problems.length} problem(s)`);
+    /* THE CI RECORD (E59 C0, 13.11.2026): audit/gate/ci-record.json is written only by audit/gate/ci-record.mjs from a
+       run it spawned; this reads it with the writer's own rules (`recordProblems`), after planted rows each must refuse.
+       The file may be absent: no run recorded yet. */
+    let rec = { rows: 0, planted: "not read" };
+    if (!exists("audit/gate/ci-record.mjs")) problems.push("audit/gate/ci-record.mjs is missing - nothing writes or reads the ci record");
+    else {
+        const R = await import(url.pathToFileURL(path.join(REPO, "audit", "gate", "ci-record.mjs")).href);
+        const self = R.selfCheck();
+        rec.planted = `${self.refused}/${self.planted} planted row(s) refused, the control ${self.controlOk ? "accepted" : "refused"}`;
+        if (self.refused !== self.planted || !self.controlOk) problems.push(`the ci record's self-check: ${rec.planted} (${self.missed.join("; ")})`);
+        if (exists(R.RECORD_FILE)) {
+            let record = null;
+            try { record = JSON.parse(read(R.RECORD_FILE)); } catch (err) { problems.push(`${R.RECORD_FILE} is not JSON (${err.message})`); }
+            if (record) {
+                rec.rows = (record.rows ?? []).length;
+                problems.push(...R.recordProblems(record).map(p => `${R.RECORD_FILE}: ${p}`));
+                /* REVIEW-111 L2: a row's commit is one this repository has, and an ancestor of HEAD - not a made-up id
+                   with its digest recomputed. A shallow clone cannot tell, and says so instead of guessing. */
+                let shallow = false;
+                try { shallow = execFileSync("git", ["-C", REPO, "rev-parse", "--is-shallow-repository"], { encoding: "utf8" }).trim() === "true"; } catch { shallow = true; }
+                const commits = [...new Set((record.rows ?? []).map(r => r?.commit).filter(c => /^[0-9a-f]{40}$/.test(String(c))))];
+                if (shallow) rec.commits = `${commits.length} commit(s) not checked (a shallow clone)`;
+                else {
+                    for (const c of commits) {
+                        const ok = spawnSync("git", ["-C", REPO, "merge-base", "--is-ancestor", c, "HEAD"]).status === 0;
+                        if (!ok) problems.push(`${R.RECORD_FILE}: commit ${c} is not in this repository's history up to HEAD`);
+                    }
+                    rec.commits = `${commits.length} commit(s) checked against HEAD's history`;
+                }
+            }
+        }
+    }
+    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s)${rec.commits ? ` (${rec.commits})` : ""}, ${rec.planted}; ${problems.length} problem(s)`);
     return problems;
 }
 
@@ -1171,6 +1508,31 @@ async function css() {
     return problems;
 }
 
+/* --------------------------------- icons ---------------------------------- */
+
+/* THE TOKEN PICTURES (13.11.2026): tools/token-icons.mjs makes the text; this holds the files to it. */
+async function icons() {
+    const { iconProblems } = await import(url.pathToFileURL(path.join(REPO, "tools", "token-icons.mjs")).href);
+    const { problems, count } = await iconProblems(REPO);
+    /* The control (the review of 13.11.2026, REVIEW-111 1): a generator that reads no source - SOURCES emptied, or
+       PROJECT_GLYPHS read as empty - would compare nothing and answer no problem. Handed an empty set, the check must
+       say so; if it does not, the part is red here, whatever the files are. */
+    const control = await iconProblems(REPO, { files: new Map() });
+    const blind = !control.problems.some(p => /no token picture to compare/.test(p));
+    console.log(`icons: ${count} file(s) the token-icons tool owns; ${problems.length} problem(s); the empty set ${blind ? "NOT reported" : "reported"}`);
+    return [...problems, ...(blind ? ["the check answers no problem for an empty set of pictures - it would read nothing and pass"] : [])];
+}
+
+/* -------------------------------- comments -------------------------------- */
+
+/* THE COMMENTS LINT (E56 C1): tools/comments-lint.mjs reads the files and holds the budget. */
+async function comments() {
+    const { commentsLint } = await import(url.pathToFileURL(path.join(REPO, "tools", "comments-lint.mjs")).href);
+    const { problems, summary } = await commentsLint(REPO);
+    console.log(summary);
+    return problems;
+}
+
 /* -------------------------------- contrast -------------------------------- */
 
 /* THE CONTRAST (E44 C1c, 04.11.2026; D29 = 2): the arithmetic is tests-css.mjs's, which R1312 runs on the served files. */
@@ -1210,7 +1572,20 @@ async function glyphs() {
     return [...misses, ...problems, ...structure];
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast, glyphs };
+/* ------------------------------ tooltips ------------------------------ */
+
+async function tooltips() {
+    try {
+        const tool = await import(url.pathToFileURL(path.join(REPO, "tools", "tooltip-census.mjs")).href);
+        await tool.loadShipped(REPO);
+        return tool.check(line => console.log(line));
+    } catch (err) {
+        if (err.code === "MODULE_NOT_FOUND") return ["espree is not installed - run `npm ci` in audit/harness first"];
+        return [`the census could not run (${String(err.message).split("\n")[0]})`];
+    }
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, icons, contrast, glyphs, tooltips };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {
@@ -1221,6 +1596,11 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
     console.log(`check: --lang takes a directory that holds en.json and pl.json, got "${LANG_DIR}"`);
     process.exit(2);
 }
+/* `package` (E59 C5a) is registered on a line of its own, not in PARTS' list: three lines adding a part each rewrote that
+   one line on 13.11.2026 (prep-54's comments, project-token-icon's icons and this), and a merge of any two conflicted. */
+PARTS.package = pkg;
+// E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
+PARTS.comments = comments;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);

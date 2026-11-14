@@ -29,8 +29,8 @@ import { error, esc, plural, proseOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { onSweep } from "./a11y.mjs";
 import { overflowCrossings } from "./overflow.mjs";
-import { baseActions } from "./actions.mjs";
-import { viewerNeedsAssigning } from "./monokuma.mjs";
+import { baseActions, actionsMax, actionBudget } from "./actions.mjs";
+import { viewerNeedsAssigning, isMonokuma } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
 import { clockForDisplay, viewerActor } from "./hud.mjs";
@@ -91,7 +91,7 @@ function subjectActor() {
  * it is the loudest thing on screen while it runs and the one a player is most
  * likely to be confused by, so it answers here first.
  */
-export function phaseExplanation(clock) {
+export function phaseExplanation(clock, { actor = null } = {}) {
     if (clock?.eclipse === true) return eclipseExplanation();
     const key = clock?.phase ?? "dailyLife";
     // The hint on the phase itself is the short form the GM panel shows; the
@@ -101,8 +101,20 @@ export function phaseExplanation(clock) {
     // paragraph's - Daily Life's, the one that names them - from actions.mjs `baseActions`, the budget's own road.
     const hint = proseOf(PHASES[key], "hint");
     const long = game.i18n.has(`DRPG.Explain.phase.${key}`)
-        ? t(`DRPG.Explain.phase.${key}`, { actions: plural("DRPG.Unit.actionAcc", { n: baseActions() }) }) : "";
+        ? t(`DRPG.Explain.phase.${key}`, { actions: plural("DRPG.Unit.actionAcc", { n: actionsOf(actor) }) }) : "";
     return [hint, long].filter(Boolean).map(esc).join("<br>");
+}
+
+/*
+ * THE CHARACTER'S OWN COUNT, WHERE THERE IS ONE (E100 item 7, 12.11.2026; the owner on the player-screens review, #9:
+ * the window said "2 actions each time of day" beside "You have 3 of 3" for a character with a third action). The
+ * explainers' `{actions}` is the maximum the strip's "of" reads (actions.mjs `actionsMax`) for the character the window
+ * shows, and the rule's (`baseActions`) with none, or for a Monokuma, who has no actions. R4106.
+ */
+function actionsOf(actor) {
+    const own = Number(actor?.system?.resources?.actions?.max);
+    const monokuma = typeof actor?.getFlag === "function" && isMonokuma(actor);
+    return actor && !monokuma && Number.isFinite(own) ? actionsMax(actor) : baseActions();
 }
 
 /**
@@ -121,14 +133,27 @@ export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) 
  * section 14): the budget opens the sentence, a Rest's cost follows "kosztuje", Wounded's follows "dostajesz" and the
  * budget after it "zamiast".
  */
-export function actionsExplained() {
+export function actionsExplained({ actor = null } = {}) {
     const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });
-    const whole = baseActions(), hurt = Math.max(0, baseActions({ wounded: true }));
+    /* The character's own count (E100 item 7). Wounded's two numbers are the budget's own road (actions.mjs `actionBudget`:
+       the wound, a Monocub's exemption, a darkened hour), with a GM's change to the maximum kept on both sides. Until the
+       r112 review's P1 (13.11.2026) the wound was taken off the count itself, which a wounded student's maximum already
+       has (`resetActionsFor` writes the wounded budget): "0 instead of 1" where the rule gives 1 instead of 2 (R4106).
+       DAILY LIFE'S NUMBERS ON ANY CLOCK (1.2.113, 13.11.2026). The sentence names Daily Life and the Investigation, where
+       a wound takes its action (`STATES.wounded.actionsLostIn`); read on the clock's phase, in a Class Trial it said the
+       trial's count twice ("2 instead of 2"). The wounded count is now Daily Life's (`actionBudget`'s `phase`), and the
+       sentence says the Class Trial takes no action for a wound. */
+    const whole = actionsOf(actor);
+    const own = Boolean(actor) && Number.isFinite(Number(actor?.system?.resources?.actions?.max))
+        && !(typeof actor.getFlag === "function" && isMonokuma(actor));
+    const extra = own ? whole - actionBudget(actor).total : 0;
+    const fit = own ? actionBudget(actor, { wounded: false }).total + extra : baseActions();
+    const hurt = Math.max(0, own ? actionBudget(actor, { wounded: true, phase: "dailyLife" }).total + extra : baseActions({ wounded: true }));
     return [
         t("DRPG.Explain.status.actionsWhat", {
             actions: unit("action", whole), short: unit("actionAcc", REST.short.actionCost), long: unit("actionAcc", REST.long.actionCost)
         }),
-        t("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", hurt), actions: unit("actionGen", whole) })
+        t("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", hurt), actions: unit("actionGen", fit) })
     ];
 }
 
@@ -215,7 +240,7 @@ export async function openStateExplainer() {
             ]),
             section(clock?.eclipse === true
                 ? t("DRPG.Explain.phase.eclipseTitle")
-                : phaseLabel(clock.phase), [phaseExplanation(clock)]),
+                : phaseLabel(clock.phase), [phaseExplanation(clock, { actor: subjectActor() })]),
             section(t("DRPG.Explain.time.title"), timeOfDayBlock(clock)),
             await roomBlock()
         ].join("");
@@ -251,12 +276,17 @@ export async function openDespairExplainer() {
 }
 
 /** The Despair window's body as a GM (`gm: true`) or a player reads it; exported for the suite (E15-T5). */
-export async function despairExplainerBody({ gm = false } = {}) {
+export async function despairExplainerBody({ gm = false, owed = null } = {}) {
     const lines = [esc(t("DRPG.Explain.despair.what")), esc(t("DRPG.Explain.despair.spent"))];
 
-    const { monokumas, getDespair, despairMax, poolLabel } = await import("./despair.mjs");
-    const rows = monokumas().map(user =>
-        esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}`));
+    const { monokumas, getDespair, despairMax, poolLabel, owedOf } = await import("./despair.mjs");
+    /* What a pool owes, for a GM alone (the owner's report of 13.11.2026 on 1.2.112): a conversion's Despair is paid at
+       the next time of day, and a player's window shows the pool as it stands. `owed` is the suite's to hand (R5880). */
+    const debtOf = owed ?? owedOf;
+    const rows = monokumas().map(user => {
+        const debt = gm ? Math.max(Number(debtOf(user.id)) || 0, 0) : 0;
+        return esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}${debt ? ` (${plural("DRPG.Despair.owed", { n: debt })})` : ""}`);
+    });
     lines.push(rows.length
         ? rows.join("<br>")
         : esc(t("DRPG.Explain.despair.noPools")));
@@ -331,7 +361,7 @@ export async function openStatusExplainer() {
 
         const body = [
             section(t("DRPG.Explain.status.actionsTitle"), [
-                ...actionsExplained().map(esc)
+                ...actionsExplained({ actor }).map(esc)
             ]),
             section(t("DRPG.Explain.status.moveTitle"), [esc(t("DRPG.Explain.status.moveWhat"))]),
             section(t("DRPG.Explain.status.hopeTitle"), [esc(t("DRPG.Explain.status.hopeWhat"))]),
@@ -356,13 +386,14 @@ export async function openProjectsExplainer() {
            so it has to list exactly what the tray lists. On `visibleProjects` it
            named every public project on the board, discovered or not - which
            made it a way of reading the season's plan off a help window. */
-        const { knownProjects } = await import("./projects.mjs");
-        const mine = knownProjects(game.user);
+        // As this reader last saw each (PV, 13.11.2026; the owner's rule #2): the tray's own list, projects-seen.mjs.
+        const { projectsAsSeen } = await import("./projects-seen.mjs");
+        const mine = projectsAsSeen(game.user);
 
         // `current` counts UP toward `start`, whichever way the underlying
         // countdown is stored - `allProjects()` has already normalised that,
         // and reading the raw countdown here would undo it for half of them.
-        const rows = mine.map(p => esc(`${p.name ?? "-"} - ${p.current ?? 0}/${p.start ?? 0}`));
+        const rows = mine.map(p => esc(`${p.name ?? "-"} - ${p.seen === "unknown" ? "?" : p.current ?? 0}/${p.start ?? 0}`));
 
         const body = [
             section(t("DRPG.Explain.projects.title"), [

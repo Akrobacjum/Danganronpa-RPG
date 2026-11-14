@@ -939,6 +939,26 @@ export function usedItemRefusal({ author, actor, used, trap, owns }) {
 async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
     try {
         if (!isPrimaryGm() || !to) return;
+        /* THE CROSSING THE PRIMARY HEARS, FOR A STASH'S OWNER TOO (1.2.112; the owner's decision of 13.11.2026). This is
+           where a player's crossing reaches the primary GM, through the relay and its guards (the mover's own character,
+           standing where it says), and a GM's own crossing on this browser: the owner of a stash gone through while they
+           were away is told on walking into its room (stash-reach.mjs `tellStashDisturbed`). Asked before the traps,
+           which most crossings have none of; a store's rows read, nothing written where no notice waits. */
+        if (actor && await hasPendingStashNotice(actor)) {
+            const scene = await sceneOfEvent(actor, { tokenDoc, sceneId });
+            await (await import("./stash-reach.mjs")).tellStashDisturbed(actor, to, scene)
+                .catch(err => error("A stash's owner could not be told on entering", err));
+        }
+        /* And a bedroom's owner (privacy line 1, 13.11.2026; the owner's rule #1): what happened to its door or a wall while
+           they were away - forced, picked carelessly, breached, repaired - is told on walking back in (doors-gm.mjs
+           `tellBedroomNotes`), by the same road. */
+        if (actor) {
+            const D = await import("./doors-gm.mjs");
+            if (await D.hasPendingBedroomNote(actor)) {
+                const scene = await sceneOfEvent(actor, { tokenDoc, sceneId });
+                await D.tellBedroomNotes(actor, to, scene).catch(err => error("A bedroom's owner could not be told on entering", err));
+            }
+        }
         if (!armed().byRoom.has(to)) return;
         const scene = await sceneOfEvent(actor, { tokenDoc, sceneId });
         const here = armedIn(to, scene);
@@ -962,6 +982,14 @@ async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
     } catch (err) {
         error("A trap could not react to a crossing", err);
     }
+}
+
+/** Whether the GMs' rifle store holds a notice waiting for `actor` as a stash's owner (stash-reach.mjs `tellStashDisturbed`). */
+async function hasPendingStashNotice(actor) {
+    const { rifleStore } = await import("./gm-stores.mjs");
+    await rifleStore.whenHydrated();
+    const owner = `:${actor.id}:`;
+    return Object.entries(rifleStore.entries() ?? {}).some(([key, row]) => row?.unseen === true && key.includes(owner));
 }
 
 /**

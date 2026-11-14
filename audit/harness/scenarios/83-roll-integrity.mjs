@@ -359,7 +359,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* ------------------------ L11. a Level Up ------------------------ */
 
-    /* The GM offers Botan a Standard Level Up; p2 takes +1 Health from his sheet (bridge-asks.mjs `requestAdvancement`),
+    /* The GM offers Botan a Standard Level Up; p2 takes a point in Body from his sheet, +1 Health with it since E64 C6 (bridge-asks.mjs `requestAdvancement`),
        which the GM applies (level-up.mjs `applyAdvancement`). */
     phase("L11: a Level Up p2 takes and the GM applies", { flow: "sheet-audit" });
     const l11Was = await sheetOf(botan);
@@ -368,7 +368,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     await settle(600);
     mark = await readings();
     const l11 = await p2.eval(`const B = await import("${SCRIPT("gm-bridge")}");
-        const res = await B.requestAdvancement({ actorId: "${botan}", picks: [{ option: "hp" }], kind: "standard" });
+        const res = await B.requestAdvancement({ actorId: "${botan}", picks: [{ option: "trait", trait: "strength" }], kind: "standard" });
         return { ok: Boolean(res?.ok), reason: res?.reason ?? null };`, { timeout: 60000 });
     const r11 = await mark.since();
     const l11Now = await sheetOf(botan);
@@ -693,22 +693,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         /* E68 fix CI a5ebfeaa: the Take as p3 makes it, from the body's list (anonymity.mjs `buildBodyLoot`) and its row's
            Take, which since E68 C10 throws the Hand roll ("loot") and, with Aiko and Botan in the room, the cover's Shadow
            ("lootCover") before it asks (`takeFromBody`). Until then this road called `requestBodyLoot` with no roll, which
-           the GM's client now refuses "rollUnknown": a Take the module's control could no longer send. */
+           the GM's client now refuses "rollUnknown": a Take the module's control could no longer send.
+           Since 1.2.113 (A113-C5-7) the Take is Take from the Body's window (`openBodyLoot`), opened with the lockpick's row
+           ticked and its Take pressed by p3's page (the harness answers a window with its default button); the same road
+           after it. */
         const l16 = await p3.eval(`const A = await import("${SCRIPT("anonymity")}");
             const body = game.actors.get("${ids.daichi}"), taker = game.actors.get("${chie}");
             const until = async (test, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (await test()) return true; await new Promise(r => setTimeout(r, 100)); } return false; };
             await until(() => game.drpg.isDeadForGm(body) && body.items.has("${e35Set.pick}"), 8000);
-            const root = document.createElement("div"); root.id = "drpg83-loot";
-            root.innerHTML = '<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>';
-            document.body.append(root);
-            try {
-                await A.buildBodyLoot(root, body, taker);
-                const take = root.querySelector('.drpg-loot-list li .drpg-loot-pick[value="${e35Set.pick}"]')?.closest("li")?.querySelector(".drpg-loot-take") ?? null;
-                const open = take ? !take.disabled : null;
-                take?.click();
-                const left = await until(() => !body.items.has("${e35Set.pick}"), 30000);
-                return { ok: Boolean(take && open && left), open, left };
-            } finally { root.remove(); }`, { timeout: 60000 });
+            const took = typeof A.openBodyLoot === "function" ? await A.openBodyLoot(body, { taker, check: ["${e35Set.pick}"] }) : null;
+            const left = await until(() => !body.items.has("${e35Set.pick}"), 30000);
+            return { ok: Boolean(took && left), took, left };`, { timeout: 60000 });
         const r16 = await mark.since();
         const l16Held = await holds(`({ daichi: ${heldOf(ids.daichi, "lockpick")}, chie: ${heldOf(chie, "lockpick")} })`);
         road("L16", "Chie takes the lockpick off Daichi's body", dead && l16.ok !== false && J(l16Held) === J({ daichi: [], chie: [[1, false]] }),

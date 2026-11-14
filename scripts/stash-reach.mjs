@@ -2,12 +2,13 @@
  * Danganronpa RPG - the stash's reach.
  * ---------------------------------------------------------------------------
  * What a character does at a stash, and what a GM judges of it: whether this is
- * their own stash, here (`myStashHere`, `atOwnVault`); putting an item away and
+ * their own stash, here (`myStashHere`); putting an item away and
  * taking one out (`stow`, `retrieve`) with the refusals both give
  * (`tellNotHere`, `refuseTheDead`); the stashes open to a character in a room
  * (`openStashesHere`, `openStashHere`); the rifle - its window, its key and its
  * mark (`rifleStashDialog`, `rifleKey`, `rifleMark`) - and the GM's side of
- * taking from somebody else's stash (`stealFromVault`); a Find Stash scored on
+ * taking from somebody else's stash (`stealFromVault`) with the owner's notice
+ * when they next walk in (`tellStashDisturbed`); a Find Stash scored on
  * a GM's browser (`resolveStashSearch`); and the GM's inspector of every stash
  * (`openVaultInspector`).
  *
@@ -52,12 +53,6 @@ export async function myStashHere(actor) {
     const place = locateActor(actor);
     if (!place?.room) return null;
     return stashIn(place.room, actor.id, place.scene) ? place.room : null;
-}
-
-/** Whether this character stands in one of its own stashes (`myStashHere`). Not on `game.drpg`, and nothing in the
- *  module calls it (E52 C6, S01-52: this comment named it there as a compatibility entry). */
-export async function atOwnVault(actor) {
-    return Boolean(await myStashHere(actor));
 }
 
 /**
@@ -273,8 +268,9 @@ export function openStashHere(actor) {
  * Go through an open stash and take one thing. No action, no roll.
  *
  * The write itself is GM-only - it touches two sheets - so it goes over the
- * same bridge the Search branch uses, and `stealFromVault` re-checks everything
- * on that side. This is the picker, not the authority.
+ * bridge (`vault.steal`), and `stealFromVault` re-checks everything on that
+ * side. This is the picker, not the authority. Since 1.2.112 it is the one road
+ * into somebody else's stash: a Search reaches into none.
  */
 export async function rifleStashDialog(actor) {
     const stashes = openStashesHere(actor);
@@ -374,16 +370,10 @@ export function rifleMark(clock = getClock()) {
  * owner's sheet and to the thief's.
  *
  * The item moves rather than being copied - this is theft, and the owner
- * noticing that something is missing is the entire point.
- *
- * AND UNTIL NOW THE OWNER WAS NEVER TOLD. The sentence above has been in this
- * file since it was written, the thief's own card said "They will notice it is
- * gone", and no code anywhere put that in front of the victim: the only whisper
- * went to the thief. `clumsy` is what closes it - see below.
+ * noticing that something is missing is the entire point: they are told when
+ * they next walk into the room, unless they watched it happen (`tellStashDisturbed`).
  */
-export async function stealFromVault({
-    thiefId, ownerId, itemId, viaSearch = false, clumsy = false
-} = {}) {
+export async function stealFromVault({ thiefId, ownerId, itemId } = {}) {
     if (!game.user.isGM) return null;
 
     const thief = game.actors.get(thiefId);
@@ -456,29 +446,14 @@ export async function stealFromVault({
     }
 
     /*
-     * Concealment is a gate on the FREE route only.
-     *
-     * Two things call this. `rifleStashDialog` is the drawer-in-a-bedroom case:
-     * no action, no roll, and therefore no business opening a hiding place its
-     * owner built a project for. The Search action is the other, and it is the
-     * one the concealment penalty exists FOR - `performSearch` takes a step of
-     * disadvantage (action-search.mjs `stashStep`) precisely because the stash is
-     * hidden, spends a search token and an action, and only then asks for a
-     * specific item.
-     *
-     * Refusing both left the paid route unable to produce anything at all: a
-     * player could roll against a stiffer difficulty, succeed, be told what they
-     * found, and receive nothing - while an unconcealed stash handed its
-     * contents over for free. The guard was inverting the value of the project
-     * that concealed it.
-     *
-     * `viaSearch` is a claim the sender makes, like the `total` on an Observe
-     * and for the same reason: this side can verify who you are and where you
-     * are standing, never what you spent. Forging it buys exactly what an honest
-     * Search of the same room would have bought - the room and owner checks
-     * above still bind - so it is worth no more than the action it skips.
+     * A HIDDEN STASH OPENS TO FIND STASH ALONE (1.2.112; the owner's decision of 13.11.2026: "a roll to discover, no
+     * roll to search or take an item"). This is the drawer-in-a-bedroom case: no action, no roll, and therefore no
+     * business opening a hiding place its owner built a project for until it has been found. From E08+E28 C15 until
+     * 1.2.112 a second road came here - a Search that had beaten the concealment at one more step of disadvantage
+     * (`viaSearch`, read off that Search's record by bridge-runs-acts.mjs `searchTheftOf`) - and passed this gate;
+     * a Search reaches into no stash now, and nothing a packet says opens one.
      */
-    if (!viaSearch && entry.concealed) {
+    if (entry.concealed) {
         // The Mastermind's exception, verified on THIS side the way every
         // other claim in this function is: `isMastermind` reads the GM's own
         // synced copy of the pick, never anything the packet says.
@@ -527,9 +502,8 @@ export async function stealFromVault({
     }
 
     /*
-     * ONCE A TIME OF DAY (E14 part 1 C4; D15). The drawer's free route only: a Search's find (`viaSearch`, which the
-     * bridge reads off the GMs' record of the Search's roll - bridge-runs-acts.mjs `searchTheftOf`) paid an action for its
-     * reach, and neither asks the count nor writes it. The Mastermind is counted as anyone is: their exception is the
+     * ONCE A TIME OF DAY (E14 part 1 C4; D15). Every reach: until 1.2.112 a Search's find (`viaSearch`) paid an action
+     * for its reach, and neither asked the count nor wrote it. The Mastermind is counted as anyone is: their exception is the
      * hiding place, not the hand. Asked after every wait above and stamped with no wait between, so of two reaches
      * served at once on one GM the second finds the first's stamp (read in the code; no test drives two at once); the
      * stamp is taken off again when nothing came out, so a reach that moved nothing - full hands and no stash, a piece
@@ -537,22 +511,26 @@ export async function stealFromVault({
      * is told `alreadyDone` (tier 2 E14-T5).
      */
     const { rifleStore } = await import("./gm-stores.mjs");
-    const reach = viaSearch ? null : rifleKey(thief.id, owner.id, where.scene?.id, where.room);
-    if (reach) {
-        await rifleStore.whenHydrated();
-        const mark = rifleMark();
-        if (rifleStore.get(reach)?.at === mark) {
-            refuse("that stash has been gone through already this time of day");
-            /* The code's words are the closed list's, "That has already been settled.", which say neither what nor when
-               (E14 fix e1-G1; the review's E14R-04): the thief's player is whispered both, beside the code. */
-            await whisperToOwner(thief, `<p>${game.i18n.format("DRPG.Vault.rifledAgain",
-                { who: foundry.utils.escapeHTML(owner.name) })}</p>`).catch(() => {});
-            return { refused: "that stash has been gone through already this time of day" };
-        }
-        // The store's own copy takes the row as `patch` is called, before its save is awaited.
-        await rifleStore.patch(reach, { at: mark });
+    const reach = rifleKey(thief.id, owner.id, where.scene?.id, where.room);
+    await rifleStore.whenHydrated();
+    const mark = rifleMark();
+    const earlier = rifleStore.get(reach)?.at ?? null;
+    if (earlier === mark) {
+        refuse("that stash has been gone through already this time of day");
+        /* The code's words are the closed list's, "That has already been settled.", which say neither what nor when
+           (E14 fix e1-G1; the review's E14R-04): the thief's player is whispered both, beside the code. */
+        await whisperToOwner(thief, `<p>${game.i18n.format("DRPG.Vault.rifledAgain",
+            { who: foundry.utils.escapeHTML(owner.name) })}</p>`).catch(() => {});
+        return { refused: "that stash has been gone through already this time of day" };
     }
-    const unreach = async () => { if (reach && rifleStore.get(reach)?.at === rifleMark()) await rifleStore.drop(reach); };
+    // The store's own copy takes the row as `patch` is called, before its save is awaited.
+    await rifleStore.patch(reach, { at: mark });
+    // A row that still holds an earlier reach's pending notice (`unseen`, below) keeps it: its stamp goes back instead.
+    const unreach = async () => {
+        if (rifleStore.get(reach)?.at !== rifleMark()) return;
+        if (rifleStore.get(reach)?.unseen === true) await rifleStore.patch(reach, { at: earlier });
+        else await rifleStore.drop(reach);
+    };
 
     /*
      * ON THE ONE ROAD (E35 C3; S17-16, S08-37, S08-34, S08-38): the copy, the count, the flags it carries - a ruined
@@ -560,12 +538,12 @@ export async function stealFromVault({
      * murder weapon - and the hands it lands in are inventory.mjs `transferItem`'s. Full hands put it in the thief's
      * own stash (TRANSFER_POLICY.rifle), and only a thief with none is refused; one piece of a stack leaves the
      * stash; a key to a room the thief already holds leaves it and is not copied, the thief told; a piece the stash
-     * keeps after the thief has its copy is told to the GMs. Unseen unless clumsy (`quiet`): the owner's open sheet
-     * does not redraw for the piece leaving, as a Palm's unseen steal's does not (S08-34).
+     * keeps after the thief has its copy is told to the GMs. Unseen (`quiet`): the owner's open sheet does not redraw
+     * for the piece leaving, as a Palm's unseen steal's does not (S08-34); the owner hears of it on walking in.
      */
     const { transferItem } = await import("./inventory.mjs");
     const name = held.name;
-    const moved = await transferItem(owner, thief, held, { mode: "rifle", quiet: !clumsy });
+    const moved = await transferItem(owner, thief, held, { mode: "rifle", quiet: true });
     if (!moved?.ok) await unreach();
     // Refused by the one gate on its second asking (the lights went out meanwhile): told by its code, not as full hands.
     if (moved?.refused) return { refused: moved.refused };
@@ -586,38 +564,88 @@ export async function stealFromVault({
     })}</p>`);
 
     /*
-     * THE VICTIM, WHEN THE THIEF FUMBLED IT.
-     *
-     * Not every theft: a stash you already knew about and opened deliberately
-     * stays silent, which is what makes finding one worth the action. Only a
-     * Search that came up with Despair - the module's standing shorthand for
-     * "you did it, badly" - leaves the drawer disturbed enough to notice.
-     *
-     * NO NAME, EVER, and not even a category. What arrives is "somebody has
-     * been in here", because that is what an emptied hiding place tells you;
-     * working out who is what Observe, Analyze and the trial are for.
-     *
-     * AND THE THIEF IS NOT TOLD THEY WERE SLOPPY. That is this module's rule
-     * for every trace it drops, not a special case invented here: Hope and a
-     * critical tell you what you left behind, a plain Despair never does. Which
-     * is also why `DRPG.Vault.stole` no longer ends "They will notice it is
-     * gone" - it said so unconditionally, and it was false in both directions.
+     * THE OWNER HEARS OF IT ON WALKING IN (1.2.112; the owner's decision of 13.11.2026). Until then the owner was told
+     * only of a Search that took a thing out with Despair, at once, and a rifle - the drawer's free road - never. Now a
+     * reach that moved something while the owner was not standing in that room leaves a pending notice on its row of
+     * the GMs' store (`unseen`), and `tellStashDisturbed` delivers it when the owner next crosses into the room: one
+     * notice however many reaches came before, none for a reach made before the owner's eyes (they saw it), none for
+     * the owner's own. On the GMs' side - the store the count already writes, never the thief's browser nor world data
+     * every browser holds - so no player learns from it who, or when. A reach that moved nothing was taken off the
+     * count above (`unreach`) and leaves no notice either.
      */
-    if (clumsy) {
-        try {
-            await whisperToOwner(owner, `<p>${game.i18n.localize("DRPG.Vault.noticed")}</p>`, {
-                flags: { [MODULE_ID]: { sfx: "stolen" } }
-            });
-        } catch (err) {
-            // The item has already moved. A victim who was not told is the
-            // state this shipped in; a theft that half-happened is not.
-            error("Could not tell the owner their stash had been disturbed", err);
-        }
+    const ownerHere = locateActor(owner);
+    const watched = ownerHere?.room === where.room && (ownerHere?.scene?.id ?? null) === (where.scene?.id ?? null);
+    if (owner.id !== thief.id && !watched) await rifleStore.patch(reach, { unseen: true });
+    /*
+     * WHAT THE GMS READ OF IT (the audit of 1.2.113, A113-C6-4). The thief's card above reaches the GMs too, and it read the
+     * same whether the owner watched the reach or a notice now waits for them; nothing else showed the GMs a notice
+     * pending. A GMs-only card says which (`data-drpg-stash-gm`: "watched" or "pending"), naming the thief, the owner and
+     * the room. No player reads it: whispered to the GMs alone. None for the owner's own reach.
+     */
+    if (owner.id !== thief.id) {
+        const kind = watched ? "watched" : "pending";
+        await whisperToGms(`<p data-drpg-stash-gm="${kind}">${esc(game.i18n.format(watched ? "DRPG.Vault.gmWatched" : "DRPG.Vault.gmPending", {
+            thief: thief.name, owner: owner.name, room: where.room ?? ""
+        }))}</p>`).catch(err => error("Could not tell the GMs whether a stash's owner saw a reach", err));
     }
 
-    log(`${thief.name} took "${name}" from ${owner.name}'s stash`
-        + `${clumsy ? " and was clumsy enough to leave it showing" : ""}.`);
+    log(`${thief.name} took "${name}" from ${owner.name}'s stash${watched ? ", in front of its owner" : ""}.`);
     return copy ?? true;
+}
+
+/**
+ * THE NOTICE OF A STASH GONE THROUGH (1.2.112; the owner's decision of 13.11.2026), on the primary GM: `owner` has just
+ * crossed into `room` on `scene` (traps.mjs `onCrossed`, which hears a player's paid crossing through its relay), or come
+ * to stand in it by another road (arrival-notices.mjs: a settled crossing - free, in an Eclipse - or a GM's placement;
+ * the audit of 1.2.113, A113-C4-3). Every row
+ * of the GMs' rifle store for a reach into that owner's stash in that room with a notice pending (`stealFromVault`'s
+ * `unseen`) is cleared, and the owner is whispered once "somebody has been in your stash" - never who, never when - as
+ * the old disturbed notice was (`DRPG.Vault.noticed`, the "stolen" sound). Dropped unsaid when the stash is no longer
+ * there or the owner is dead. Answers whether a notice went. Tier 2's "a stash gone through while its owner was away is
+ * told ..." reads it.
+ */
+export function tellStashDisturbed(owner, room, scene) {
+    if (!owner || !room || !scene || !game.user.isGM) return Promise.resolve(false);
+    /* ONE OWNER AT A TIME (the audit of 1.2.113, A113-C4-3). Since that fix two roads deliver the notice - the paid
+       crossing's hook (traps.mjs `onCrossed`) at once, and the arrival roads (arrival-notices.mjs: the settled crossing,
+       a GM's placement) - and a paid crossing raises both. Each read the pending rows before either cleared them, and the
+       owner was told twice. Chained per owner, the second reads the rows the first cleared and tells nothing. */
+    const run = (telling.get(owner.id) ?? Promise.resolve()).then(() => tellStashDisturbedNow(owner, room, scene));
+    const tail = run.catch(() => false);
+    telling.set(owner.id, tail);
+    tail.then(() => { if (telling.get(owner.id) === tail) telling.delete(owner.id); });
+    return run;
+}
+
+/** ownerId -> the notice being told to that owner (`tellStashDisturbed`): the next waits for it. */
+const telling = new Map();
+
+async function tellStashDisturbedNow(owner, room, scene) {
+    const { rifleStore } = await import("./gm-stores.mjs");
+    await rifleStore.whenHydrated();
+    const tail = `:${owner.id}:${scene.id}:${room}`;
+    // A row's key is `<thief>:<owner>:<scene>:<room>` (`rifleKey`): the thief's id holds no colon, a room's name may.
+    const pending = Object.entries(rifleStore.entries() ?? {})
+        .filter(([key, row]) => row?.unseen === true && key.endsWith(tail) && key.length > tail.length && !key.slice(0, -tail.length).includes(":"))
+        .map(([key]) => key);
+    if (!pending.length) return false;
+    await rifleStore.patchMany(Object.fromEntries(pending.map(key => [key, { unseen: false }])));
+    if (isDeadForGm(owner) || !stashIn(room, owner.id, scene)) return false;
+    // Whose reaches the notice settles, for the GMs alone (A113-C6-4): the thief's id is a row's key up to its first colon.
+    const thieves = [...new Set(pending.map(key => game.actors.get(key.slice(0, key.indexOf(":")))?.name).filter(Boolean))];
+    try {
+        await whisperToOwner(owner, `<p>${game.i18n.localize("DRPG.Vault.noticed")}</p>`, {
+            flags: { [MODULE_ID]: { sfx: "stolen" } }
+        });
+    } catch (err) {
+        error("Could not tell the owner their stash had been gone through", err);
+        return false;
+    }
+    await whisperToGms(`<p data-drpg-stash-gm="told">${esc(game.i18n.format("DRPG.Vault.gmTold", {
+        owner: owner.name, room, names: thieves.join(", ")
+    }))}</p>`).catch(err => error("Could not tell the GMs which reaches a stash's notice settled", err));
+    log(`${owner.name} was told somebody had been in their stash in ${room}.`);
+    return true;
 }
 
 /**

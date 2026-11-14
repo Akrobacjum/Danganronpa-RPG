@@ -48,7 +48,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS, LOOT } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS, LOOT, INFILTRATE } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
@@ -56,16 +56,19 @@ import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
-import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
-import { adoptMarks } from "./roll-marks.mjs";
-import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
+import { LOADED_DIE, loadDie, loadedAtOf, loadedDieHeld, standAsideFor } from "./forced-roll.mjs";
+import { adoptMarks, fillRollFacts } from "./roll-marks.mjs";
+import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
-import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
+import { overflowFacilityDie, overflowFacilityToll, overflowFacilityStates } from "./overflow.mjs";
+import { armedCallsShown, giveBackLoadedDie, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 import { box, roleButton } from "./ui-kit.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");
@@ -154,8 +157,10 @@ export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototyp
  * be read (a bound or native function), the build is "changed": the roll thrown on the player's browser
  * and the GM told once per version. Not having one (no Actor class here) is not judged: the build's
  * review decides alone.
+ *
+ * Exported for patches.mjs `moveContextRow` (DH212 5), which reads the same road the seam does.
  */
-function reviewTraitRoad(rollTrait, MoveContext) {
+export function reviewTraitRoad(rollTrait, MoveContext) {
     if (typeof rollTrait !== "function") return { ok: true, why: "" };
     const text = Function.prototype.toString.call(rollTrait);
     if (/\{\s*\[native code\]\s*\}/.test(text)) return { ok: false, why: "the actor's rollTrait cannot be read" };
@@ -187,6 +192,8 @@ export function registerRollDraw() {
     Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
     Hooks.on("createActor", actor => notePayments(actor));
     Hooks.on("updateActor", notePayments);
+    // After `notePayments`, whose listener runs first on the same hook: the waits read the tickets it wrote (DH212 2).
+    Hooks.on("updateActor", wakePayments);
     // On any build, drawn or not (E76b): Daggerheart's `buildConfigure` calls this before the window opens and the
     // roll is made, so the window, the roll's options and the claim's nonce read the marks a 2.12 MoveContext dropped.
     Hooks.on(`${CONFIG.DH?.id ?? "daggerheart"}.preRollDuality`, config => { adoptMarks(config); });
@@ -249,7 +256,7 @@ export function sayRollStatus(state, text) {
    argument as it was: R121's census of the GM's road counts a `role: "gmRoute"` written out, a player's road with its
    sentence, and this is the GMs' own card. */
 function cardButton(role, away, key) {
-    return roleButton({ role, attrs: { "data-drpg-away": away }, label: game.i18n.localize(key) });
+    return roleButton({ role, attrs: { "data-drpg-away": away, ...(away === "grant" ? { "data-tooltip": tipText("DRPG.Tips.Actions.grantAllGrantNoneTooltip") } : {}) }, label: game.i18n.localize(key) });
 }
 
 /**
@@ -351,8 +358,11 @@ async function drawAndPlay(cls, config, message) {
     const drawn = awaitDrawn(config[ROLL_NONCE]);
     const start = awaitStart(config[ROLL_NONCE], primaryGmId());
     const asked = performance.now();
+    const signDown = drawSign(start);
     try {
-        const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
+        // Asked again when a GM is ready (`resend`): the primary answers a request it has drawn from its record (`drawAgainOf`).
+        const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true });
+        signDown();
         const answered = performance.now() - asked;
         // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made. A draw the GM wrote
         // the message of and then failed has had its dice start here at that message (`startOnMessage`): said in the log.
@@ -364,10 +374,57 @@ async function drawAndPlay(cls, config, message) {
         await playBack(cls, roll, config, message, answer.value, claim.subject, start);
         keepTrip("drawn", { at: Date.now(), answered, started: start.at - asked, atMessage: start.atMessage, shown: performance.now() - asked });
     } finally {
+        signDown();
         drawn();
         start.stop();
     }
     return config;
+}
+
+/*
+ * THE ROLLER IS TOLD THE GM IS THROWING (DH212 3, 12.11.2026; the owner's "a big delay before the dice show",
+ * docs/dev/DH212/WAITS.md). While the GM draws, the roll's window has closed and this screen showed nothing until the
+ * dice, or a warning at the ack's 8 s or the answer's 30 s. A draw whose dice have not started `DRAW_SIGN_MS` after it
+ * was asked now puts up "The GM is throwing your dice." (`DRPG.Rolls.gmThrowing`, popup.mjs `showWaiting`, kept
+ * nowhere), taken down when the dice start at the GM's message (`startOnMessage` calls the wait's `onStart`), when the
+ * answer comes, or when the draw ends. A draw as fast as the harness's (325 ms to the dice at 80 ms each way, scenario
+ * 33's A17) shows nothing. R3990.
+ */
+/** How long a draw's dice may take before the roller is told the GM is throwing them. Chosen, not measured: about twice the harness's 325 ms. */
+export const DRAW_SIGN_MS = 600;
+
+/** The notice itself, from popup.mjs (imported late: popup.mjs reaches this file's importers). Answers its dismiss. */
+async function drawSignNotice(text) {
+    const { showWaiting } = await import("./popup.mjs");
+    return showWaiting(text);
+}
+
+/**
+ * Put the sign up for `wait` (`awaitStart`'s) once `delayMs` have passed with its dice not started; answers the function
+ * that takes it down, which the wait's `onStart` is too. `show` draws the notice and answers its dismiss (R3990's stand-in).
+ */
+export function drawSign(wait, { delayMs = DRAW_SIGN_MS, show = drawSignNotice } = {}) {
+    let over = false;
+    let dismiss = null;
+    const down = () => {
+        if (over) return;
+        over = true;
+        clearTimeout(timer);
+        try { dismiss?.(); } catch { /* already gone */ }
+        dismiss = null;
+    };
+    const timer = setTimeout(async () => {
+        if (over || wait?.at !== null) return;
+        try {
+            const taken = await show(game.i18n.localize("DRPG.Rolls.gmThrowing"));
+            if (over) taken?.();
+            else dismiss = taken;
+        } catch (err) {
+            debug(`The sign that the GM is throwing could not be shown: ${err?.message ?? err}`);
+        }
+    }, delayMs);
+    if (wait && typeof wait === "object") wait.onStart = down;
+    return down;
 }
 
 /*
@@ -443,6 +500,7 @@ function startOnMessage(message) {
         wait.messageId = message.id;
         wait.atMessage = true;
         wait.started = playDice(message.rolls);
+        wait.onStart?.();
     } catch (err) {
         error("Could not start the dice of a roll the GM drew at its message", err);
     }
@@ -463,7 +521,7 @@ function startOnMessage(message) {
  * the GM records beside the roll its own list makes, compares and never counts: the statistic
  * and the experiences, which the neutral roll drops; the Calls the roll applied (the claim's
  * `facts`, the roll window's list, private-rolls.mjs `noteWindowCalls`); the action's context a
- * check reads (a Search's category, goal and stash, a project's id, an opening's side, the crisis
+ * check reads (a Search's category and goal - and its stash until 1.2.112 - a project's id, an opening's side, the crisis
  * action a crisis roll is thrown for - fix r2-H1 - and since E29 C9 a clean-up's step and whether it
  * came through Tamper's door, which decide its statistic and its tool's die - `CONTEXT_SENT`; the goal
  * since E29 fix r1-G8; and since E68 C3 the part of an action a roll is, `part`, which `listedFor` honours only
@@ -473,8 +531,8 @@ function startOnMessage(message) {
  * `LEGAL_READERS`). The field still travels; nothing on the GM reads it.
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
-const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text",
-    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text", bodyId: "id" });
+const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", projectId: "id", targetProjectId: "id", side: "text",
+    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text", bodyId: "id", facilityId: "id" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -531,12 +589,11 @@ export function drawPacketOf(roll, config, claim) {
  * C12b), and this copy only repeats what fell. A total
  * this copy reads differently is the GM's (the record stands) and is logged. What the
  * GM decided beside the dice rides on the config with the record's id (`DRAWN_ROLL`):
- * the hidden stash's step it drew (`stash`, action-search.mjs `stashStepOf`) and whether
- * it loaded the die (`loaded`).
+ * whether it loaded the die (`loaded`; a hidden stash's step rode beside it until 1.2.112).
  */
 async function playBack(cls, roll, config, message, answer, subject, start = awaitStart(null, null)) {
-    const { rollId, messageId, total, stash = null, loaded = false } = answer;
-    config[DRAWN_ROLL] = { rollId, messageId, stash: stash && typeof stash === "object" ? stash : null, loaded: loaded === true };
+    const { rollId, messageId, total, loaded = false } = answer;
+    config[DRAWN_ROLL] = { rollId, messageId, loaded: loaded === true };
     const played = await rollerCopyOf(cls, roll, config, message, answer);
     if (typeof total === "number" && played.total !== total) {
         warn(`The GM drew ${total} for roll ${rollId}; this browser read ${played.total} from the same faces. The GM's stands.`);
@@ -861,9 +918,13 @@ const PAY_WAIT_MS = 1500;
  * cover and its hand; an open Frisk's ask, which the primary claims (`claimTicket`), and its force. Two sets for the
  * cover, not one: one set of three would let a Take's hand and a Frisk's ride the same payment (the A11 design, step 10).
  */
-const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.freeze(["palm", "rummage"]), Object.freeze(["friskAsk", "frisk"])]);
+const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.freeze(["palm", "rummage"]), Object.freeze(["friskAsk", "frisk"]),
+    // Tail Someone (E69 C3): whether the target notices, then the effect, on one action (action-tail.mjs `performTail`).
+    Object.freeze(["tailUnseen", "tail"]),
+    // Pick the Lock (E74 C4): the cover, then the Hand, on one action (action-doors.mjs `performPick`).
+    Object.freeze(["pickCover", "pick"])]);
 /** The parts that only ride a ticket their partner was drawn or claimed on, and are paid by nothing of their own (`paysFor`). */
-const RIDES_ONLY = Object.freeze(["rummage", "frisk"]);
+const RIDES_ONLY = Object.freeze(["rummage", "frisk", "tail", "pick"]);
 /** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride. */
 const CLAIMED_ONLY = Object.freeze(["friskAsk"]);
 /** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
@@ -928,6 +989,39 @@ function ticketsOf(actorId) {
     return kept;
 }
 
+/*
+ * A PAYMENT IS TAKEN AS IT LANDS (DH212 2, 12.11.2026; docs/dev/DH212/WAITS.md). A draw, a claimed ask and a Hope Call's
+ * progress wait for the roller's payment to reach this GM (`drawRefusal`, `claimTicket`, `takeCallPayment`). Until DH212
+ * each read the tickets every 100 ms for up to `PAY_WAIT_MS`, so a payment that landed was taken up to 100 ms late
+ * (tier 2's "a payment that lands while the GM waits for it ...", at 13513d3a: [68,27,87,47,12] ms after five writes).
+ * Now every wait is woken on `updateActor` once `notePayments` has written (`wakePayments`), and reads again then; it
+ * still reads every 100 ms between wakes, since a ticket a riding part takes can also come from another GM's record
+ * (`handedOver`), which no `updateActor` here says. The bound and the answer are the poll's.
+ */
+const paymentWaiters = new Set();
+
+/** What `find` answers once it answers, read at each payment noted here and every 100 ms, until `ms` is over. */
+async function untilPaid(find, ms = PAY_WAIT_MS) {
+    for (const end = Date.now() + ms; !find() && Date.now() < end;) {
+        await new Promise(resolve => {
+            let timer = null;
+            const wake = () => {
+                clearTimeout(timer);
+                paymentWaiters.delete(wake);
+                resolve();
+            };
+            paymentWaiters.add(wake);
+            timer = setTimeout(wake, Math.max(0, Math.min(100, end - Date.now())));
+        });
+    }
+    return find();
+}
+
+/** Every wait above, woken: on `updateActor`, registered after `notePayments`, so each reads the tickets it wrote. */
+function wakePayments() {
+    for (const wake of [...paymentWaiters]) wake();
+}
+
 /**
  * On `updateActor` (and `createActor`, and at `ready` for every character), on every GM: what a
  * player's own write took down is a payment, what it put back takes back as many undrawn tickets
@@ -949,11 +1043,28 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     };
     const rise = Math.max(0, now.action - was.action) + Math.max(0, now.grant - was.grant);
     if (rise) undo("action", rise);
-    else if (now.action < was.action || now.grant < was.grant) paid("action");
+    // The payment's size, so a draw of a price above one reads it (`ticketCovers`): what this write took down.
+    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now));
     if (now.hope < was.hope) paid("hope", was.hope - now.hope);
     else if (now.hope > was.hope) undo("hope", now.hope - was.hope);
     if (now.stress > was.stress) paid("stress");
     else if (now.stress < was.stress) undo("stress", was.stress - now.stress);
+}
+
+/**
+ * THE SIZE OF A PAYMENT (the coordinator's fix of 12.11.2026, from E93's watched gap: "under Toll a GM's room action costs
+ * 2 actions; the roller's browser pays both before the roll, and the GM's draw sees one payment, not its size"). How much
+ * one write of the player's took down: the actions it took (`was`, `now` are `budgetOf`'s readings), or, where it took a
+ * Burst, any price - a Burst covers the whole call whatever it was charging for (actions.mjs `spendAction`). Pure.
+ */
+export function paymentSize(was, now) {
+    if ((Number(now?.grant) || 0) < (Number(was?.grant) || 0)) return Infinity;
+    return Math.max(1, (Number(was?.action) || 0) - (Number(now?.action) || 0));
+}
+
+/** Whether `ticket` paid at least `need` (a ticket of no recorded size paid one). Pure. */
+export function ticketCovers(ticket, need = 1) {
+    return (ticket?.size ?? 1) >= need;
 }
 
 /**
@@ -973,13 +1084,13 @@ function paysFor(key) {
  * The ticket a draw of `key` would take: one its partner was drawn on, else the oldest undrawn one it can be paid by, else
  * - for a part that only rides - the one a GM before this one drew its partner on (`handedOver`); or null.
  */
-function ticketFor(actorId, key) {
+function ticketFor(actorId, key, need = 1) {
     const tickets = ticketsOf(actorId);
     const partners = ROLLED_TOGETHER.find(set => set.includes(key)) ?? [];
     const riding = [...tickets].reverse().find(t => t.kinds.length && !t.kinds.includes(key) && t.kinds.every(k => partners.includes(k)));
     if (riding) return riding;
     const pays = paysFor(key);
-    return tickets.find(t => !t.kinds.length && pays.includes(t.pay)) ?? handedOver(actorId, key)?.ticket ?? null;
+    return tickets.find(t => !t.kinds.length && pays.includes(t.pay) && ticketCovers(t, need)) ?? handedOver(actorId, key)?.ticket ?? null;
 }
 
 /**
@@ -1057,10 +1168,13 @@ async function drawRefusal(actor, key, context) {
        of each for a taker and a body since their last Take of it is the one their next Take reads (`lootDrawRefusal` below, the
        loot bind); the GM's run asks the one gate before anything moves (handover.mjs `lootBody`). */
     if (PAID_BY_NOTHING.includes(key)) return lootDrawRefusal(actor, context);
-    for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = ticketFor(actor.id, key);
+    // A GM's room action is drawn only for one the room the GMs hold the character in has, that no use closed this time
+    // of day (E93 C3) and that Lockdown does not shut: else a console draws rolls of a statistic it chose for an action that is not there.
+    if (key === "facility" && !await facilityOfDraw(actor, context, { open: true })) return "that cannot be done now";
+    // Its whole price, as this GM reads it (the coordinator's fix of 12.11.2026): a GM's room action costs one action and
+    // the Toll's more (facilities.mjs `facilityCost`), and a payment of less draws nothing (`ticketCovers`).
+    const need = key === "facility" ? (await import("./facilities.mjs")).facilityCost("gm", null, overflowFacilityToll()) : 1;
+    const ticket = await untilPaid(() => ticketFor(actor.id, key, need));
     if (!ticket) return "no payment of that character's stands for that roll";
     // An undrawn ticket a riding part takes is one a GM before this one drew its partner on (`handedOver`): both are stamped.
     const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;
@@ -1103,10 +1217,7 @@ function lootDrawRefusal(actor, context) {
 export async function claimTicket(actorId, kind) {
     const pays = paysFor(kind);
     const find = () => ticketsOf(actorId).find(ticket => !ticket.kinds.length && pays.includes(ticket.pay)) ?? null;
-    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = find();
+    const ticket = await untilPaid(find);
     if (!ticket) return false;
     ticket.kinds.push(kind);
     return true;
@@ -1152,10 +1263,7 @@ export function forgetPayments(actorId) {
  */
 export async function takeCallPayment(actorId, cost) {
     const find = () => ticketsOf(actorId).find(ticket => ticket.pay === "hope" && !ticket.kinds.length && ticket.size >= cost);
-    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = find();
+    const ticket = await untilPaid(find);
     if (!ticket) return false;
     ticket.kinds.push("call");
     return true;
@@ -1185,7 +1293,7 @@ const marksOpen = async () => (await answerKeysOpen({ store: sheetMarkStore })) 
  * player's roll is then held to the action it is for (`drawRefusal`, fix r2-H1) - refused,
  * `{ refused }`, before anything is thrown - and only then thrown (`throwDrawn`).
  */
-export async function drawOnGm(packet, sender) {
+export async function drawOnGm(packet, sender, { requestId = null } = {}) {
     const arrived = performance.now();
     const actor = game.actors.get(packet?.actorId ?? "");
     const key = typeof packet?.actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(packet.actionKey) ? packet.actionKey : null;
@@ -1199,7 +1307,7 @@ export async function drawOnGm(packet, sender) {
         const { murderState } = await import("./murder.mjs");
         const state = murderState();
         let written = null;
-        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
+        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; }, requestId);
         // A Take's roll, the first of its kind for that taker and body since their last Take of it: bound (`lootDrawRefusal` above).
         if (out?.reply && !sender?.isGM && PAID_BY_NOTHING.includes(key)) {
             await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
@@ -1545,12 +1653,12 @@ async function tellRoller(sender, legal) {
  * the constructor, which builds the advantage die again from the options (reroll.mjs
  * `rerollKeepingDice`) - thrown here, written, settled, its claim held against it (`checkRoll`),
  * its Calls spent and recorded, with the incident's turn it was thrown in (`incident`); answered
- * `{ rollId, messageId, faces, total, stash, loaded, roll }`, `roll` the JSON it was built from
+ * `{ rollId, messageId, faces, total, loaded, roll }`, `roll` the JSON it was built from
  * (`rollerCopyOf`). `claimed` false is a statistic from the sheet, whose message keeps
  * Daggerheart's card (C13).
  */
 async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
-    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null) {
+    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null, requestId = null) {
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
@@ -1601,15 +1709,25 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
     await config.resourceUpdates.updateResources();
-    // The hidden stash's step (action-search.mjs `stashStep`), drawn here on this GM's dice
-    // where the room the GM sees the searcher in holds one; the searcher takes this step and
-    // draws none of its own (`stashStepOf`).
-    const stash = expected.stashDie && told.context.stashDie === true ? await stashStepFor(roll, actor) : null;
     const flags = checkRoll(legal, told, expected);
     const used = [...applied, ...hostile].map(call => call.nonce);
     if (used.length) await spendCallsByNonce(actor, used);
+    // Loaded is not held (E64, D052): a dice method on this GM that draws no uniform sample shows an honest face
+    // (forced-roll.mjs `loadedDieHeld`), and the Call it was bought for is armed again for the next roll
+    // (call-effects.mjs `giveBackLoadedDie`). The roller is answered `loaded` as it held, so no "freeCritUsed" is told.
+    // The faces it reads are put on `config.roll` first, where 2.10 wrote them and 2.12 does not (roll-marks.mjs
+    // `fillRollFacts`, as action-pipeline.mjs `throwDice` fills its result): read bare, every drawn Loaded Die on 2.12
+    // read as not held - recorded `loaded: false` and its Call armed again under a new nonce, the die at 12 all the same
+    // (tier 2 "a Loaded Die bought and armed ...": [[12,3,false,true],[3,5,false,true]] at 12a7e309 with
+    // that test as this fix reads it; CI run 43352869429).
+    if (loads) fillRollFacts(config);
+    const dieHeld = loads && loadedDieHeld(config);
+    if (loads && !dieHeld) await giveBackLoadedDie(actor, applied.find(call => call?.grants === "critical" && call.nonce === loaded));
     await keepRecord({
         rollId, actorId: actor.id, userId: sender.id, actionKey: key,
+        // The request a player's draw came under and what its answer said, so a resend is answered again (`drawAgainOf`).
+        requestId: !sender.isGM && typeof requestId === "string" && requestId ? requestId : null,
+        answer: { faces: facesOf(roll), total: roll.total, roll: legal.json },
         messageId: message.id, claimed: Boolean(claimed), formula: roll.formula,
         // The statistic and the experiences the roll was thrown with, as the GM was told them at
         // the draw - a Reroll of a roll with no `scored` rebuilds the roll from these (reroll.mjs
@@ -1621,7 +1739,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
         modifiers: (Array.isArray(config.roll?.modifiers) ? config.roll.modifiers : []).map(m => Number(m?.value) || 0),
         // What the GM read (`legal`), what it threw of it (`scored`) and the packet's numbers (`claim`), E29 C10.
-        legal: recordOf(expected), scored: legal.scored, claim: legal.claim, flags, used: { calls: used, stash, loaded: loads, at: loads ? loadedAtOf(roll) : null }, versions: [],
+        legal: recordOf(expected), scored: legal.scored, claim: legal.claim, flags, used: { calls: used, loaded: dieHeld, at: loads ? loadedAtOf(roll) : null }, versions: [],
         // What the roll was drawn for beyond its action (fix r2-H1): the crisis action it names, the
         // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does;
         // and the project a Work's or a Sabotage's names, null where it named none (fix r2-H2); a
@@ -1632,13 +1750,15 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         findPassage: key === "analyze" ? told.context.findPassage === true : null,
         // The body a Take's roll was drawn for (E68 loot bind), which `body.loot` holds its packet's `bodyId` to (`named`).
         body: PAID_BY_NOTHING.includes(key) ? told.context.bodyId ?? null : null,
+        // The GM's room action a Facilities roll was drawn for (E93 C3), which `facility.use` holds its `actionId` to (`named`).
+        facility: key === "facility" ? told.context.facilityId ?? null : null,
         incident, superseded: null, at: Date.now(),
         // The GM that drew it: a part that only rides reads a handover off it (`handedOver`, E80 fix r1-G3).
         drawnBy: game.user?.id ?? null
     });
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);
-    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: loads, roll: legal.json } };
+    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, loaded: dieHeld, roll: legal.json } };
 }
 
 /* ==========================================================================
@@ -1679,8 +1799,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  *     Calls the roll applied (`calls`), the hostile ones it did not name (`hostile`, below),
  *     Breakdown (`breakdown`), and the situation (`situation`), per action: a Search's room, an
  *     opening's Night, a crisis action's own (murder-rules.mjs `crisisSituational`), a tool in hand for
- *     a Work or a Sabotage, a Cleaning Tool for a clean-up but a body moved;
- *   - a hidden stash in the room this GM sees the searcher in (`stashStep`), against the packet's word.
+ *     a Work or a Sabotage, a Cleaning Tool for a clean-up but a body moved. (A hidden stash in the
+ *     room this GM saw the searcher in, `stashStep`, was a row until 1.2.112: a Search reaches into none.)
  * A HOSTILE CALL COUNTS NAMED OR NOT (the owner's Q3 (a), 05.10.2026). A disadvantage or a bonus below
  * nothing armed on the character - an Obstacle, a Meddle's hinder - more than `HOSTILE_GRACE` before
  * the draw is applied whether the packet names it or not, and spent with the rest; one armed later is
@@ -1821,6 +1941,26 @@ async function listedFor(actor, key, context) {
         return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
     }
     if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
+    // A Dash (E69 C5): Leg, from this GM's config (INFILTRATE.dash), whatever the packet claims.
+    if (key === "dash") return [...INFILTRATE.dash.traits];
+    // Tail Someone (E69 C3): whether the target notices is Shadow alone (`unseen`); the effect is Leg or Shadow, a GM's
+    // pick on E68's card (trait-ruling.mjs's generic `tail`, read by the `gm` source as any several are).
+    if (key === "tailUnseen") return [INFILTRATE.tail.unseen.trait];
+    if (key === "tail") return [...INFILTRATE.tail.traits];
+    // Shut the Door (E74 C2): Body, from this GM's config.
+    if (key === "shut") return [...INFILTRATE.shut.traits];
+    if (key === "force") return [...INFILTRATE.force.traits];
+    // Pick the Lock (E74 C4): its Hand and its cover's Shadow, one statistic each.
+    if (key === "pick") return [...INFILTRATE.pick.traits];
+    if (key === "pickCover") return [INFILTRATE.pick.cover.trait];
+    // Keep Watch (E74 C6): Body.
+    if (key === "keepWatch") return [...INFILTRATE.keepWatch.traits];
+    // A GM's room action (E93 C3): the statistic the GM set on it, read on this GM's copy of the room the character
+    // stands in (`facilityOfDraw`), never the packet's; none where the room holds no such action (the draw is refused).
+    if (key === "facility") {
+        const action = await facilityOfDraw(actor, context);
+        return action ? [action.trait] : [];
+    }
     // Take from the Body (E68 C10): its Hand and its cover's Shadow, one statistic each (config.mjs `LOOT`).
     if (key === "loot") return [LOOT.trait];
     if (key === "lootCover") return [LOOT.cover.trait];
@@ -1837,6 +1977,26 @@ async function listedFor(actor, key, context) {
     const part = typeof context?.part === "string" ? context.part : null;
     const piece = part && Object.hasOwn(ACTIONS[key ?? ""] ?? {}, part) ? ACTIONS[key][part] : null;
     return listedTraits({ kind: "action", key, ...(typeof piece?.trait === "string" ? { part } : {}) });
+}
+
+/**
+ * The GM's room action a Facilities roll's context names (`facilityId`, E93 C3), as this GM holds the room the character
+ * stands in (movement.mjs `gmPlaceOf`, facilities.mjs `roomActions`), or null; with `open`, only one no use has closed this
+ * time of day (the GMs' store, facilities-gm.mjs `handleFacilityUse` writes it).
+ */
+async function facilityOfDraw(actor, context, { open = false } = {}) {
+    const id = typeof context?.facilityId === "string" ? context.facilityId : null;
+    if (!id) return null;
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const F = await import("./facilities.mjs");
+    const place = gmPlaceOf(actor);
+    const action = place?.room ? F.roomActions(place.scene, place.room).find(row => row.id === id) ?? null : null;
+    if (!action || !open) return action;
+    // Shut by the Overflow (Lockdown; the coordinator's check of 12.11.2026): its use is refused after the roll, so the roll
+    // is not drawn either (scenario 30). Power cut shuts only a project's actions, which are not rolled.
+    if (F.facilityShut("gm", overflowFacilityStates())) return null;
+    const { facilityUseStore } = await import("./gm-stores.mjs");
+    return facilityUseStore.get(F.gmActionKey(place.scene.id, place.room, id))?.mark === F.facilityMark() ? null : action;
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
@@ -1921,6 +2081,41 @@ function gmPickOf(actor, spec, listed) {
     return null;
 }
 
+/*
+ * A PICK CARD IS READ AS IT LANDS (DH212 1, 12.11.2026; docs/dev/DH212/WAITS.md). The answer a player rolls on leaves
+ * the GM before its card is settled (messenger-app.mjs `rulePickTrait`, then `settleCall`), so a roll can reach this GM
+ * before the card's meta. Until DH212 the wait read the messages every 100 ms for up to `PICK_WAIT_MS`: a card that
+ * landed was read up to 100 ms late (tier 2's "a GM's pick card that lands while a drawn roll waits ...", at 9c088110:
+ * [97,29,86,58,6] ms after five settles). Now `gmPickOf` is read again at every chat card made or changed on this
+ * browser and at every private card's words and meta stored here (secret.mjs `drpgSecretStored`: a veiled card's
+ * ruling travels in its meta, not on the document, so no `updateChatMessage` says it came), and once more at the
+ * bound; the bound and the answer are the poll's.
+ */
+const PICK_HOOKS = Object.freeze(["createChatMessage", "updateChatMessage", "drpgSecretStored"]);
+function pickArriving(actor, spec, listed, ms = PICK_WAIT_MS) {
+    const now = gmPickOf(actor, spec, listed);
+    if (now || !(ms > 0)) return Promise.resolve(now);
+    return new Promise(resolve => {
+        let timer = null;
+        const done = found => {
+            clearTimeout(timer);
+            for (const name of PICK_HOOKS) Hooks.off(name, look);
+            resolve(found);
+        };
+        function look() {
+            let found = null;
+            try { found = gmPickOf(actor, spec, listed); } catch { found = null; }
+            if (found) done(found);
+        }
+        for (const name of PICK_HOOKS) Hooks.on(name, look);
+        timer = setTimeout(() => {
+            let found = null;
+            try { found = gmPickOf(actor, spec, listed); } catch { found = null; }
+            done(found);
+        }, ms);
+    });
+}
+
 /** Of the statistics `listed`, the one lowest in the character's numbers (`sheetOf`), the first listed of equals - what a roll whose pick did not come is thrown on (the `gm` row below). */
 const lowestOf = (sheet, listed) => listed.reduce((low, trait) => ((sheet.traits[trait] ?? 0) < (sheet.traits[low] ?? 0) ? trait : low));
 
@@ -1978,12 +2173,7 @@ const TRAIT_SOURCES = Object.freeze([
         // claim decides only the wait - the most common Search is drawn at once. A claim of another waits as before.
         if (listed.length < 2 || told === eye.trait) return eye;
         const spec = { kind: "action", key: "search", variant: null };
-        let found = gmPickOf(actor, spec, listed);
-        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            found = gmPickOf(actor, spec, listed);
-        }
-        return found ?? eye;
+        return (await pickArriving(actor, spec, listed)) ?? eye;
     } },
     { from: "project", read: async (actor, { key, context }) => {
         if (key !== "project" && key !== "sabotage") return null;
@@ -1994,12 +2184,7 @@ const TRAIT_SOURCES = Object.freeze([
     { from: "gm", read: async (actor, { key, context, listed }) => {
         if (listed.length < 2) return null;
         const spec = await pickSpecOf(actor, key, context);
-        let found = gmPickOf(actor, spec, listed);
-        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            found = gmPickOf(actor, spec, listed);
-        }
-        return found ?? { lowest: listed };
+        return (await pickArriving(actor, spec, listed)) ?? { lowest: listed };
     } },
     { from: "fixed", read: (actor, { listed }) => (listed.length === 1 ? { trait: listed[0] } : null) }
 ]);
@@ -2043,18 +2228,24 @@ function openingSideOf(actor, context, state) {
  * project's and a clean-up's roll (1 each, not 0). Written on the side line before fix r2-H3 met it, this reading
  * awaited `actorAsHeld` itself; the merge of the two lines (06.10.2026) reads it in the one step instead.
  */
-function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup, heldNow } }) {
+function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup, watch, heldNow } }) {
     if (key === "search") return searchOdds(actor, roomOfActor(actor), context.category ?? null, vault).situational;
     if (key === "murderOpening") {
-        // The Night's die, the opening roll's own (murder-rules.mjs `throwOpeningRoll`, `rollTrait`'s `situational`).
-        const side = openingSideOf(actor, context, murder.murderState());
+        // The Night's die, the opening roll's own (murder-rules.mjs `throwOpeningRoll`, `rollTrait`'s `situational`), and
+        // the hindrance die a victim's watch of 18 or more puts on the killer's (E74, DA44; watch-gm.mjs `openingHindrance`,
+        // `rollTrait`'s `hindrance`), read off the GMs' watches here as the invitation read them.
+        const state = murder.murderState();
+        const side = openingSideOf(actor, context, state);
         const def = side ? MURDER_OPENING[side] ?? {} : {};
-        return side && murder.atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
+        const night = side && murder.atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
+        return night - (side ? watch.openingHindrance(side, state) : 0);
     }
     if (key === "crisis") {
         const crisis = typeof context.crisis === "string" && Object.hasOwn(CRISIS_ACTIONS, context.crisis) ? context.crisis : null;
         return crisis ? murder.crisisSituational(actor, crisis, undefined, heldNow(actor)) : 0;
     }
+    // Jitters (E93 C6): a GM's room action's roll at a die of disadvantage, as this GM reads the Overflow.
+    if (key === "facility") return overflowFacilityDie();
     // A tool in hand is worth a die (action-rolls.mjs, "A TOOL IN HAND IS WORTH A DIE").
     if (key === "project" || key === "sabotage") return items.equippedFor(heldNow(actor), "tool") ? 1 : 0;
     if (key === "cleanup") {
@@ -2097,8 +2288,6 @@ const LEGAL_READERS = Object.freeze({
     breakdown: (actor, draw, row) => (isBrokenDown(actor) && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub) ? row.bound : 0),
     situation: (actor, draw) => situationReading(actor, draw),
     loadedDie: (actor, draw) => typeof draw.loaded === "string" && draw.applied.some(call => call?.grants === "critical" && call.nonce === draw.loaded),
-    stashStep: (actor, { key, context, ready }) => key === "search"
-        && Boolean(searchOdds(actor, roomOfActor(actor), context.category ?? null, ready.vault).stashDie),
     // A module action's roll is an action; a student's statistic from the sheet the reaction its window makes it; a
     // Monokuma's whichever its window said. A critical guaranteed only by the character's own effects (`buildConfigure`).
     kind: (actor, { key, claimed, actionType }) => ({
@@ -2130,8 +2319,8 @@ const legal = (key, actor, draw) => LEGAL_READERS[key](actor, draw, LEGAL[key]);
  * statistic comes from - the pick card waited for), then the draw waits until every write heard on
  * the character has been judged (`judgedFor`) and reads every row in one step, awaiting nothing
  * between: the faces, the statistic and the experiences (`sheetOf`, which the claim and what is
- * thrown are read off), the effects' range and the critical, Breakdown, the situation's dice, the
- * stash. Every write that reached this GM before that step was judged and, where nothing covered
+ * thrown are read off), the effects' range and the critical, Breakdown, the situation's dice (and,
+ * until 1.2.112, a hidden stash). Every write that reached this GM before that step was judged and, where nothing covered
  * it, put back first - the judge awaits its put-back - and none lands within it.
  * Not the GMs' mark itself, the fix list's first way: the mark keeps each path's source
  * (sheet-audit.mjs `markFrom`), and a roll adds the character's prepared values, which Daggerheart
@@ -2146,9 +2335,10 @@ const legal = (key, actor, draw) => LEGAL_READERS[key](actor, draw, LEGAL[key]);
 
 /** What the list's rows need that takes time, ready before them: the audit's wait, the modules the rows read with (and the audit's reading of a character's items as the GMs hold them, `heldNow`, fix r2-H20), and where the statistic comes from (`traitReading`). */
 async function readyFor(actor, draw) {
-    const [{ judgedFor, actorHeldNow }, { ADVANTAGE_CAP }, vault, murder, items, cleanup] = await Promise.all([import("./sheet-audit.mjs"),
-        import("./roll-dialog.mjs"), import("./vault.mjs"), import("./murder.mjs"), import("./use-items.mjs"), import("./cleanup.mjs")]);
-    return { judgedFor, heldNow: actorHeldNow, advantageCap: ADVANTAGE_CAP, vault, murder, items, cleanup, trait: await traitReading(actor, draw) };
+    const [{ judgedFor, actorHeldNow }, { ADVANTAGE_CAP }, vault, murder, items, cleanup, watch] = await Promise.all([import("./sheet-audit.mjs"),
+        import("./roll-dialog.mjs"), import("./vault.mjs"), import("./murder.mjs"), import("./use-items.mjs"), import("./cleanup.mjs"),
+        import("./watch-gm.mjs")]);
+    return { judgedFor, heldNow: actorHeldNow, advantageCap: ADVANTAGE_CAP, vault, murder, items, cleanup, watch, trait: await traitReading(actor, draw) };
 }
 
 /**
@@ -2170,13 +2360,13 @@ export async function expectedFor(actor, { actionKey = null, applied = [], hosti
     const dice = read.calls + read.hostile.dice + read.breakdown + read.situation;
     return { checked: !isMonokuma(actor), ...read.trait, advantage: Math.sign(dice) * Math.min(draw.ready.advantageCap, Math.abs(dice)),
         situationFrom: "gm", bonus: read.callBonus + read.hostile.bonus, experiences: read.experience, effects: read.effects,
-        stashDie: read.stashStep, sheet: draw.sheet, read };
+        sheet: draw.sheet, read };
 }
 
 /** What the record keeps of an expectation (`legal`): plain, with each row's reading and the pick card that a later roll may not use again. */
 function recordOf(expected) {
-    const { trait, traitFrom, pick, advantage, situationFrom, bonus, experiences, effects, stashDie, checked, read } = expected;
-    return { checked, trait, traitFrom, pick, advantage, situationFrom, bonus, experiences, effects, stashDie, read: JSON.parse(JSON.stringify(read)) };
+    const { trait, traitFrom, pick, advantage, situationFrom, bonus, experiences, effects, checked, read } = expected;
+    return { checked, trait, traitFrom, pick, advantage, situationFrom, bonus, experiences, effects, read: JSON.parse(JSON.stringify(read)) };
 }
 
 /** The roll's flat modifier: every term that is a plain number, with the sign of the operator before it. */
@@ -2210,13 +2400,12 @@ function countedIn(expected, part) {
  * claim had another),
  * `modifier` (the flat sum past the statistic, which `trait` says), `dice` (a die beyond Hope,
  * Fear and the advantage die, or either of the first two at faces not the GM's - `claimOf`),
- * `advantage`, `stash` (a hidden stash the packet did not name). A `modifier` or an `advantage`
+ * `advantage` (and `stash`, a hidden stash the packet did not name, until 1.2.112). A `modifier` or an `advantage`
  * flag names the list's rows that made the GM's number (`from`, E29 C9), and its `expected` is
  * the GM's number as thrown.
  */
 function checkRoll({ scored, claim }, told, expected) {
     const flags = [];
-    if (expected.stashDie && told.context.stashDie !== true) flags.push({ kind: "stash", expected: "1", claimed: "0" });
     if (!expected.checked || !scored) return flags;
     if (expected.trait && claim.trait !== expected.trait) flags.push({ kind: "trait", expected: expected.trait, claimed: claim.trait ?? "-" });
     if (expected.traitFrom === "gm" && !expected.pick) flags.push({ kind: "pick", expected: "1", claimed: "0" });
@@ -2238,8 +2427,7 @@ const FLAG_KINDS = Object.freeze({
     pick: "DRPG.Rolls.flagKind.pick",
     modifier: "DRPG.Rolls.flagKind.modifier",
     dice: "DRPG.Rolls.flagKind.dice",
-    advantage: "DRPG.Rolls.flagKind.advantage",
-    stash: "DRPG.Rolls.flagKind.stash"
+    advantage: "DRPG.Rolls.flagKind.advantage"
 });
 
 /**
@@ -2416,6 +2604,29 @@ async function keepRecord(record) {
     await rollStore.patch(record.rollId, record);
 }
 
+/*
+ * A DRAW ASKED AGAIN IS ANSWERED AS BEFORE (DH212 4a, 12.11.2026; docs/dev/DH212/WAITS.md). `roll.draw` was not resent:
+ * a primary that drew a roll and reloaded before its answer reached the roller left the roller waiting out
+ * DRAW_ANSWER_MS for a "no answer", and a resend would have been judged again - its payment taken, so refused - for a
+ * roll that stood (the dice had mostly started at the GM's message already, `startOnMessage`). The roller's wait now
+ * asks again when a GM is ready (`resend: true`, bridge-guards.mjs `resendOnGmReady`), and the row's `again`
+ * (private-rolls.mjs) answers a request this GM's record has drawn: found by Foundry's sender and the request's id,
+ * never by anything in the packet (E18 C7's road, as `sabotageAgain`), with what the first answer said - the record,
+ * its message, the faces, the total, the die and the roll the GM threw (kept on the record as
+ * `answer`). A GM's own draw is not resent and keeps no request. Tier 2's "a drawn roll asked again under its request
+ * ..." reads it; the clock is unchanged (the coordinator's 4a).
+ */
+export function drawAgainOf(sender, ctx) {
+    if (!sender || sender.isGM || typeof ctx?.requestId !== "string" || !ctx.requestId) return null;
+    for (const record of Object.values(rollStore.entries() ?? {})) {
+        if (record?.requestId !== ctx.requestId || record.userId !== sender.id || !record.answer) continue;
+        const { faces, total, roll } = record.answer;
+        return { reply: { rollId: record.rollId, messageId: record.messageId, faces, total,
+            loaded: record.used?.loaded ?? false, roll } };
+    }
+    return null;
+}
+
 /** The GMs' record of a drawn roll, or null. */
 export function rollRecord(rollId) {
     return typeof rollId === "string" && rollId ? rollStore.get(rollId) : null;
@@ -2483,7 +2694,7 @@ export function rollOnRecord(record) {
  * the draw itself stays `versions[0]` for as long as the record lives (D2), each later
  * Reroll's roll after it, each with the time it was thrown. `scored` is not versioned: a drawn
  * roll's Reroll is thrown from it (`rollOnRecord`, E29 C11), so it holds for every version. A packet that names the roll from
- * then on - a theft from the stash a rerolled Search found - is read on the roll that stands.
+ * then on is read on the roll that stands.
  * The record's `at` stays the draw's: the Reroll's reach is counted from the first throw. A
  * roll the GM did not draw has no record, and nothing is written; answers whether one was.
  */

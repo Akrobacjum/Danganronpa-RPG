@@ -61,6 +61,10 @@ body {
     --drpg-kit-tab-on-bg: var(--drpg-ink);
     --drpg-kit-tab-on-edge: var(--drpg-kit-tab-selected-edge);
     --drpg-kit-tab-on-ink: var(--drpg-bone);
+    /* the open tab's and the hovered tab's words, and the brush they stand on where a theme draws one (the glass; Legacy
+       draws none, so its brush is only declared): Bone as every tab's words here (13.11.2026, R5860) */
+    --drpg-kit-tab-lit-ink: var(--drpg-bone);
+    --drpg-kit-tab-brush: var(--drpg-ink);
     --drpg-kit-tab-bar: transparent;
     --drpg-kit-tab-radius: 3px;
     --drpg-kit-tab-size: max(11px, var(--drpg-text-sm));
@@ -199,6 +203,10 @@ body.drpg-theme-stained-glass {
     --drpg-kit-tab-on-bg: transparent;
     --drpg-kit-tab-on-edge: transparent;
     --drpg-kit-tab-on-ink: var(--drpg-sg-ink);
+    /* the kit bar's brush Ink and the words on it Bone, as the sheet's bar since E100 (13.11.2026, R5860): the on-ink above
+       stays Ink for Settings' sections and the Daggerheart settings window, which read it on their own Bone */
+    --drpg-kit-tab-lit-ink: var(--drpg-sg-bone);
+    --drpg-kit-tab-brush: var(--drpg-sg-ink);
     --drpg-kit-tab-bar: var(--drpg-sg-bone);
     /* the size and the padding of a tab under the glass are the brush's (below); its spacing, 0.08em measured on M1
        today at 1366x768, is the kit's, and the one-line fit's lever here */
@@ -339,6 +347,9 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows .drpg-role-primary { order: 3; }
 .application.drpg-window-case-realize table.drpg-case-realize { width: 100%; }
+/* New Remnant's selects keep their widest option (E64-inv round 2): beside a label of two or three lines the tie's select
+   shrank and cut "- nie rozstrzygnięto -" under Stained Glass (Chromium, 1366x768); the label wraps instead. */
+body .application.drpg-window-newtrace .drpg-wide-col label > :is(select, .drpg-select) { flex-shrink: 0; }
 /* The case's summary card (E99 C7): one column per role, then the links; in the chat and in the GM's preview. */
 .drpg-case-summary-cols { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .drpg-case-summary-col { flex: 1 1 8rem; min-width: 0; }
@@ -346,10 +357,6 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
 .drpg-case-summary ul { margin: 0; padding-left: 1rem; }
 .drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-kit-help-size); }
 .drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-kit-help-size); color: var(--drpg-kit-help-ink); }
-/* The GM panel's line of the case's Incident Remnants to place (E97 C12): one row each, its button at the end. */
-.drpg-case-asks ul { margin: 0.25rem 0 0; padding: 0; list-style: none; }
-.drpg-case-asks .drpg-case-ask { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 2px 0; }
-.drpg-case-asks .drpg-case-ask.is-placed > span { color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case-realize table.drpg-case-realize select { width: 100%; min-width: 0; }
 /* `[data-drpg-role]`, which every kit footer button carries: the glass's button rule (stained-glass.css, `.drpg-panel
    button:not(...)` x5, 0,7,2) holds a button's words on one line, and they were cut in a cell of a fifth of the footer */
@@ -444,6 +451,21 @@ body.drpg-theme-stained-glass .application .drpg-tabs[role="tablist"] > button[d
     --brush-on: 1;
     --brush-ink: var(--drpg-kit-tab-on-ink);
     --brush-edge: var(--brush);
+}
+/* THE OPEN TAB IS AN INK BRUSH ON THE BONE BAR (13.11.2026; the owner at a table on 1.2.112: "some tabs still don't show
+   which one is open, e.g. in the Investigation table or the chat"). Under the glass the bar is Bone (`--drpg-kit-tab-bar`)
+   and the panel's brush, which every kit tab wears (every kit window is a .drpg-panel, ui-kit.mjs KIT_CLASSES, or the
+   messenger), Bone since E48 K2; the open tab's words were Ink (`--drpg-kit-tab-on-ink`), so it drew Ink on Bone on Bone,
+   as every other tab: read in Chromium at ceb9e9c8 on every captured kit window and the messenger's Chat and Note, the
+   open tab and an unopened one both rgb(7, 7, 10) on rgb(242, 238, 230). The sheet's bar had the fault and E100 its fix;
+   this is that model on the kit's bar: the brush Ink, its words Bone - the open tab, and the one under the cursor, whose
+   brush the panel's hover rule lights. Both rules are written for both themes, through two tokens (`--drpg-kit-tab-brush`,
+   `--drpg-kit-tab-lit-ink`): under Legacy the words are the Bone they were, and no brush is drawn. The brush's rule is level
+   with the glass's panel brush (0,5,2) and later than it, as the tab's rule above. R5860; audit/style-sweep.mjs --tabs. */
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"] { --brush: var(--drpg-kit-tab-brush); }
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:is([aria-selected="true"], :hover:not(:disabled)) {
+    --brush-ink: var(--drpg-kit-tab-lit-ink);
+    color: var(--drpg-kit-tab-lit-ink);
 }
 body:not(.drpg-theme-stained-glass) .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:hover:not([aria-selected="true"]) { background: var(--drpg-kit-tab-hover); }
 /* Q13's edge under Legacy (the tokens above): a 2 px bar along the selected tab's foot, inset, as the sheet's tab
@@ -741,6 +763,8 @@ body:not(.drpg-theme-stained-glass) .drpg-kit-empty { font-size: var(--drpg-kit-
    sweeps give the type (`!important`), so a size here is Legacy's; what lost to the glass under 1.2.98 is not stated
    for it (R1331 holds every declaration here to win). ---- */
 .drpg-notices-body [hidden] { display: none; }
+/* The filter menu in the chips' row (E100 item 4): the four filters that are not chips, as tall as a chip. */
+.drpg-notices-more { height: 26px; font: inherit; max-width: 100%; }
 .drpg-notices-search { display: flex; }
 .drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; }
 /* the ink under the glass is its field rule's */
@@ -2591,19 +2615,25 @@ body .application.drpg-window-rooms .drpg-data-table-box > table.drpg-data-table
     max-width: none;
 }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-room { width: calc(220px * var(--drpg-legacy-scale, 1)); }
-body .application.drpg-window-rooms table.drpg-data-table col:is(.drpg-data-col-check, .drpg-data-col-student) { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-student { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+/* A CHECK COLUMN AS WIDE AS ITS LONGEST WORD (E101 item 4; the owner's yes to the GM screens' review: the heads ran into
+   each other). At 96 px the heads of Locked, Locked at start, Broken and No privacy stood wider than their columns
+   (Chromium, the style harness, 1366x768, the head's scrollWidth over its clientWidth): in Polish 103 and 124 px under
+   the glass, 97 to 149 px under Legacy ("prywatności", "Zamknięte"). 152 px holds the longest with its padding in both;
+   a head wraps between words, never inside one. */
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-check { width: calc(152px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-select { width: calc(180px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-text { width: calc(220px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-step { width: calc(232px * var(--drpg-legacy-scale, 1)); }
 /* THE PLACE COLUMN GIVES WAY ON A SMALL SCREEN (E47-FD; the owner's default on comparison 3, q-cuts; E47-FB Open 2). The
-   Search tab's five columns are 1088 px (220 + 96 + 232 + 180 + 360), and at 1024x768 the window stops at its ceiling,
+   Search tab's five columns were 1088 px (220 + 96 + 232 + 180 + 360; the check 152 px since E101 item 4), and at 1024x768 the window stops at its ceiling,
    94 % of the screen (`windowWidthFor`): the table stood 1088 px in a 929 px body, its last column cut (Chromium, probe
    08's rooms-search). The place column takes what the ceiling leaves - the ceiling less 5rem for the frame (the case
    dashboard's allowance, E47-FB) less the other four columns - at most its 360 px and at least 9rem; its switches wrap
    their words (below). The four are the rules' widths above, written out one by one and read against them by R3138
-   (their sum, 728 px, would be a width over the kit's 390 px to R1322). */
+   (their sum, 784 px since E101 item 4, would be a width over the kit's 390 px to R1322). */
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-place {
-    width: clamp(9rem, calc(min(var(--drpg-window-max), 94vw) - 5rem - (220px + 96px + 232px + 180px) * var(--drpg-legacy-scale, 1)), calc(360px * var(--drpg-legacy-scale, 1)));
+    width: clamp(9rem, calc(min(var(--drpg-window-max), 94vw) - 5rem - (220px + 152px + 232px + 180px) * var(--drpg-legacy-scale, 1)), calc(360px * var(--drpg-legacy-scale, 1)));
 }
 /* the switch's words wrap in the column's width: under the glass its panel button rule keeps every button on one line
    (stained-glass.css, 0,7,2: "MURDER WEAPON" 189 px stood 35 px past a 154 px column at 1024x768); this is 0,7,4 */
@@ -2849,15 +2879,20 @@ body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-window-items:not(
 /* one label column for the grid in the tab and the grid under the tabs, so every field starts at one edge: the kit's
    column is as wide as each grid's own longest label, and "Description (optional)" set the tab's 70 px wider than
    "Give it to" set the lower one's (glass, 1366x768, 09.11.2026); 11rem is the width the windows' old grid had */
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid { grid-template-columns: 11rem minmax(0, 1fr); }
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid + .drpg-form-grid { margin-top: 6px; }
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > :is(p, .drpg-box) { margin: 0; }
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > [data-drpg-kind-note] > .drpg-box { margin: 0; }
+/* the same in Give / take items' Give tab, which holds those forms since E101 F2 */
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-grid { grid-template-columns: 11rem minmax(0, 1fr); }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-grid + .drpg-form-grid { margin-top: 6px; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-full > :is(p, .drpg-box) { margin: 0; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-full > [data-drpg-kind-note] > .drpg-box { margin: 0; }
+/* Give / take items' Give tab (E101 F2): what and from where, each its words in the label column beside its bar */
+.application.drpg-ui.drpg-window-items .drpg-give-choice { display: grid; grid-template-columns: 11rem minmax(0, 1fr); align-items: center; gap: 8px; margin: 0 0 6px; }
+.application.drpg-ui.drpg-window-items .drpg-give-choice[hidden] { display: none; }
+.application.drpg-ui.drpg-window-items .drpg-give-pane { margin: 0 0 6px; }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-tables) input[type="checkbox"] {
     accent-color: var(--drpg-bone);
     --checkbox-checked-color: var(--drpg-bone);
 }
-body.drpg-theme-monokuma-legacy .application.drpg-ui.drpg-window-give .drpg-role-label {
+body.drpg-theme-monokuma-legacy .application.drpg-ui:is(.drpg-window-give, .drpg-window-items) .drpg-role-label {
     font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1)));
 }
 /* the item manager's holdings: a group per category, its plural heading over its list (E46-C3a) */
@@ -2940,7 +2975,6 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
    the Monokuma panel's portrait, its ticked row, the warning's `:empty`) with the kit's tokens for the base sheet's
    ink and line. The ticked Monokuma's row takes the info box's ground (it was the eye's colour at 12 %: no new
    colour, E48). The warning box hides by its `hidden` attribute, written with its text. */
-.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table td.drpg-data-col-despair-mark { text-align: center; }
 .application.drpg-ui.drpg-window-gmteam .drpg-monokuma-portrait {
     width: 1.6rem;
     height: 1.6rem;
@@ -3017,10 +3051,10 @@ body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-k
    as the end of Edit campaign's block; its own height (`.drpg-kit-pinned`), so the body above scrolls and the row stays. */
 body .application.drpg-window-season .drpg-kit-pinned { padding: 10px 0 2px; border-top: 1px solid var(--drpg-line-strong); }
 body .application.drpg-window-season .drpg-season-tiles .drpg-gmp-grid { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
-body .application.drpg-window-preseason .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
-body .application.drpg-window-preseason .drpg-check-title { overflow-wrap: anywhere; }
-body .application.drpg-window-preseason .drpg-check-unknown > summary { cursor: pointer; }
-body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(--drpg-kit-help-ink); padding-left: 1em; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-title { overflow-wrap: anywhere; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > summary { cursor: pointer; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > div { color: var(--drpg-kit-help-ink); padding-left: 1em; }
 /* Measured in Chromium (probe 08's capture, the style harness, 1366x768, 09.11): under Legacy the marks are set in the
    pixel face, which draws nothing for a check or a cross (a 20 x 16 px box, the colour right, no glyph), and a title that
    wraps set its lines into each other; the marks take the face Pre-season's report was set in before (over the pixel
@@ -3028,8 +3062,8 @@ body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(-
    the fix lines a line height of their own (the marks' face is the kit's since E47-KFa: danganronpa.css's exception to
    the pixel face, beside the icon fonts', reaches every checklist). Pre-season's fine print (the cast's header, "no scene has rooms") from the
    start, where the dialog's paragraph rule centred it. */
-body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-preseason) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
-body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-foundry-report) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
+body .application.dialog:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
 
 /* ---- the Class Trial console and the vote (E47 C1, 09.11.2026; M6, the owner's q-console; S12-51, S18-89) ----
    The console's rules, moved from danganronpa.css with the window (the CSS contract), selector for selector, so their
@@ -3170,12 +3204,26 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-tab
    two description columns 40 px each and the selects the rest, Legacy at 1366x768, Chromium, 09.11.2026). The counts
    are narrow and centred (E09 C16, audit S05-29: columns of 150-420 px with one digit each). */
 .application.drpg-window-case .drpg-data-table-box > table.drpg-data-table { table-layout: fixed; }
-.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-student { width: 34%; }
-.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-count { width: 11%; text-align: center; }
-.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-breakdown { width: 33%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-student { width: 19%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-count { width: 9%; text-align: center; }
+/* E64-inv: the bullets and the items by name, one row a student (investigation.mjs `caseStudentTable`). */
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-breakdown { width: 31%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-items { width: 23%; }
+/* A long name wraps in its own cell (under Legacy a cell kept to one line ran into the Items column, Chromium 1366x768). */
+body .application.drpg-window-case table.drpg-data-table td:is(.drpg-data-col-case-breakdown, .drpg-data-col-case-items) { white-space: normal; overflow-wrap: anywhere; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-trace-name { width: 12%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-text { width: 13%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-pick { width: 9%; }
+/* A picker's chosen words wrap inside it (E64-inv, 12.11.2026): "Prep Remnant" and "- nie rozstrzygnięto -" were wider than
+   their columns - cut under Stained Glass, drawn over the next cell under Monokuma Legacy (Chromium, both languages,
+   1366x768 and 1920x1080). The cells say shorter words now (investigation.mjs `caseTraceCells`) and the shares below give
+   the longest word room; a phrase that is still wider wraps and the row grows. */
+body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-pick select {
+    white-space: normal;
+    height: auto;
+    text-overflow: clip;
+    overflow: hidden;
+}
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-check { width: 7%; text-align: center; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-found { width: 8%; }
 /* Visibility, the one select whose head is one long word, a share of its own (under Legacy "Visibility" broke in two at
@@ -3199,9 +3247,14 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-tab
     line-height: 1.45;
 }
 .application.drpg-window-case [data-drpg-pane="key"] table.drpg-data-table textarea { min-height: 0; }
-.application.drpg-window-case [data-drpg-pane="key"] table.drpg-data-table textarea:focus { min-height: 5.5rem; }
+/* The Key tab's one-line field grew to 5.5rem on focus here and pushed its row down; since the float-text line
+   (13.11.2026) a module textarea floats over the window while it is edited (scripts/float-text.mjs), and this rule
+   would grow it in place first, under the float, and move the row (audit/float-sweep.mjs read 31-99 elements moved). */
 .application.drpg-window-case td.drpg-data-col-case-key-status > * + * { margin-top: 0.25rem; }
 .application.drpg-window-case button.drpg-key-place { width: auto; }
+/* E104: a Key slot's planned room, visibility, author and picture, each with its word over it in the slot's status cell
+   (investigation.mjs `keyPlanExtras`), on the Table and in the slot's node on the Map */
+.application.drpg-window-case .drpg-key-plan-field { display: flex; flex-direction: column; align-items: flex-start; text-align: start; gap: 2px; margin-top: 4px; }
 /* A hint is not an answer: dim, and slanted, so an empty box never reads as filled in. */
 .application.drpg-window-case :is(input, textarea)::placeholder {
     color: var(--drpg-dim);
@@ -3269,11 +3322,28 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-k
    Faint 78, crime 78 / Powiązany 130, Reinforced 143, Found 78 / Znalazł 104, Delete 91 / Usuń 65: 1157 px at the
    least, more than the 1086 px view holds. So under Legacy the Traces table keeps its shares at 130 % of its box
    (1412 px; at 122 %, 1325 px, Visibility, Reinforced, Widoczność, Powiązany and naprawdę still stood 2-4 px over
-   their heads' room) and scrolls sideways in its own box (Q-D), the view and the window never; the Key planner's Difficulty (130 / Trudność 117) takes 13 % from the name's
+   their heads' room) and scrolls sideways in the view (Q-D), the window never; the Key planner's Difficulty (130 / Trudność 117) takes 13 % from the name's
    17 %, and fits. A head breaks between its words only. The glass keeps its shares, all of whose words fit at 1120 px
-   (the same reading). */
-.application.drpg-window-case .drpg-case-view .drpg-data-table-box { overflow-x: auto; }
-body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] .drpg-data-table-box > table.drpg-data-table { min-width: 130%; }
+   (the same reading).
+   ONE SCROLLER A TAB (E64-inv, 12.11.2026). The table's box scrolled sideways on its own until E64-inv, inside the view
+   that scrolls up and down: two scrollers on every tab under Legacy (audit/style-sweep.mjs `--fit`, 16 of 16 Legacy
+   readings, 44732a2). The box lets its table out now, and the view, the frame's one box that scrolls, scrolls both ways. */
+.application.drpg-window-case .drpg-case-view .drpg-data-table-box { overflow-x: visible; }
+/* What stands over the table stays where it is while the view scrolls sideways, so only the table moves: the tabs and the
+   Remnants pane's other parts (the filters, the count, the note) are held at the view's left edge at the view's width.
+   A sticky box moves only inside its own block, so under Legacy that pane is as wide as its table, 130 % of the view as
+   before (`cqw`, the view a size container), and the table fills it. */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view[data-drpg-view="table"] { container-type: inline-size; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] { width: 130cqw; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] .drpg-data-table-box > table.drpg-data-table { min-width: 100%; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view :is(nav.drpg-tabs, [data-drpg-pane="traces"] > :not(.drpg-data-table-box)) {
+    position: sticky;
+    left: 0;
+    box-sizing: border-box;
+    width: 100cqw;
+    max-width: none;
+    margin-inline: 0;
+}
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-scale { width: 13%; }
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-key-name { width: 15%; }
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view table.drpg-data-table > thead th { overflow-wrap: normal; word-break: normal; hyphens: manual; }
@@ -3309,6 +3379,10 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
     border: 1px solid var(--drpg-kit-line);
 }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-graph.is-panning { cursor: grabbing; }
+/* THE GRAB OVER A NODE TOO (13.11.2026): the middle button pans over a node, whose rule says `pointer` (eight classes and
+   two elements); the `:is()` takes its weight from the node's own selector, one class over it, so the whole map shows the
+   grab while it pans (Chromium: `pointer` over the node at eight classes and one element). */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-graph.is-panning .drpg-case-canvas :is(button[data-drpg-node], *) { cursor: grabbing; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
 body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { transition: none; }
@@ -3416,13 +3490,19 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) .
     height: auto;
     line-height: 1.25;
 }
-/* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box under its face, at its width, joined to it -
-   what the node says, then the Table's own cells one under another. A node not open keeps its fields in the form,
-   out of sight. Its box grows with its fields as the face grows with its words; the camera brings it into view. */
+/* THE OPEN NODE IS ITS EDITOR (the owner at a real table, 12.11.2026): its face is not drawn while its fields stand in its
+   place (case-map.mjs `is-editing`; the fields' top is the face's, case-view.mjs `relayoutCaseMap`). At the node rule's
+   weight and one class more. */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-editing { display: none; }
+/* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box in its face's place, at the width of the node
+   clicked (the owner, 13.11.2026; 352 px until then, the node 240) - the node rule's width here, and the face's measured
+   width written on it by case-view.mjs `relayoutCaseMap` - what the node says, then the Table's own cells one under
+   another, each text box the box's whole width. A node not open keeps its fields in the form, out of sight. Its box
+   grows with its fields as the face grows with its words; the camera brings it into view. */
 .application.drpg-window-case .drpg-case-canvas > .drpg-case-edit {
     position: absolute;
     box-sizing: border-box;
-    width: 352px;
+    width: 240px;
     margin: 0;
     padding: 0.25rem 0.5rem 0.5rem;
     min-width: 0;
@@ -3618,6 +3698,17 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
 .drpg-window-alive th.drpg-data-col-open { width: 5rem; min-width: 5rem; max-width: 5rem; overflow-wrap: anywhere; }
 .drpg-window-alive td.drpg-data-col-open > button + button { margin-left: 4px; }
 .drpg-window-alive td.drpg-data-col-open > [data-drpg-items-slot] { visibility: hidden; }
+/* THE ROW'S BUTTONS WRAP THEIR WORDS (fit-110, 13.11.2026). The glass keeps a panel button on one line (stained-glass.css,
+   `.drpg-panel button` and its `:not()`s, 0,7,2), so "A character dies" held the Do column at 196 px and Level Up's at
+   116, and at 1280x800 the table stood 1205 px in the 1169 px body, its last column cut (style-sweep `--fit`, students:
+   red since E49 A3, 980f974a and 0720cc4e). The two buttons fill their cell and break between words; (0,7,4) over the
+   glass's rule. */
+body .application.drpg-window-alive table.drpg-data-table td > button.drpg-mini-button.drpg-mini-button[type="button"]:is([data-drpg-kill], [data-drpg-levelup]) {
+    width: 100%;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: normal;
+}
 /* A student who is not a Monocub, in the three Monocub columns that stand in every table since E49 A3 (gm-students.mjs
    `aliveTableHtml`): a "-" in the help line's ink, centred, so the column reads empty and not missing. */
 .drpg-window-alive td > .drpg-alive-none { display: block; text-align: center; color: var(--drpg-kit-help-ink); }
@@ -3738,6 +3829,30 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-advance:disabled {
    region. Read in Chromium on the glass harness's GM page at 1366x768 and 1920x1080, both themes, before and after
    (S/stages/E49/pan-shots); R3540 holds the rule and that it names no other child. */
 body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p) { text-align: center; }
+/* CENTRED AS ROWS, NOT AS TEXT (E101 F1, 12.11.2026; the owner at a 1.2.108 table on Foundry 14.365: the clock's line
+   left of the middle, Next time of day and the Students door at the window's left edge). `text-align` centres inline
+   boxes only, and Foundry's core sheet draws a `button` as a flex box - block-level - so the advance stood at 17 px of a
+   704 px window (Chromium, main's probe 08 capture with `.application button { display: flex }` planted). The clock with
+   its phase and Next time of day are two rows now (gm-panel.mjs `buildPanelContent`), each a flex row centred on the
+   block, whatever display a button is given; the students line has no button since E101 (R4054). R4058. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(.drpg-gmp-clockline, .drpg-gmp-advance-row) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25em 0.6em;
+}
+
+/* THE TOP BLOCK CENTRED ON THE PANEL'S WIDTH, NOT ON A PARAGRAPH'S MEASURE (13.11.2026; the owner at a 1.2.112 table, the GM
+   Panel at about 692 px: the clock's row, Next time of day, the students line and the version line centred near x 280
+   while the Next box, the section heads and the tiles span the panel, centre about 346). The rows were centred, but in
+   their own box: each is a `p`, and stained-glass.css caps every paragraph of a window at a measure (`max-width: 74ch`,
+   "A MEASURE FOR THE WIDE WINDOWS" and the prose rung's rule), so under the glass each stood 74ch wide at the panel's
+   left. Measured in Chromium (audit/windows/gm-panel.html redrawn as 1.2.112's `buildPanelContent`, 692 px, panel
+   centre 346): the clock's row, the advance and the students line at 321 (607 px boxes), the version line at 281 (528
+   px); Monokuma Legacy caps nothing and stood at 346. A measure is for running text; these are single centred lines,
+   so they take the panel's width in both themes. R5721. */
+body .application.drpg-window-panel .drpg-gm-panel :is(.drpg-gmp-standing > p, p.drpg-gmp-version) { max-width: none; }
 
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
    section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass
@@ -3829,14 +3944,19 @@ body .application.drpg-ui .drpg-box > :last-child { margin-bottom: 0; }
 /* the shares are the columns' (`col`): a head or cell that states its class's share too is read beside its column's by
    Chromium's fixed layout (the wider wins: the name's column stood 141 px, its 12 % and not its 8 %) */
 body .application.drpg-window-case table.drpg-data-table :is(th, td) { width: auto; }
+/* E64-inv (12.11.2026): the kind's and the band's pickers at their longest word ("Incident" 22 px past 10 % under Glass,
+   "Oczywisty" 12 px past 12 %; Chromium, both languages, 1366x768 and 1920x1080): the kind 10 -> 12.5 %, the band 12 ->
+   13.5 %, paid by the tie (11 -> 9.5 %: its words are "?",
+   "Yes", "No" now; "Powiązany" still fits its head under Legacy), Reinforced 12 -> 10.5 %, Found 9 -> 8.5 % and each
+   description 12 -> 11.75 %, each head word still whole under Legacy at 130 % of the view. */
 .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-trace-name { width: 7.5%; }
-.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-text { width: 12%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="type"] { width: 10%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 12%; }
+.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-text { width: 11.75%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="type"] { width: 12.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 13.5%; }
 .application.drpg-window-case table.drpg-data-table col[data-drpg-col="faint"] { width: 7.5%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="crime"] { width: 11%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="reinf"] { width: 12%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="found"] { width: 9%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="crime"] { width: 9.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="reinf"] { width: 10.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="found"] { width: 8.5%; }
 .application.drpg-window-case table.drpg-data-table col[data-drpg-col="delete"] { width: 7%; }
 /* the Key planner's status picker on one line: the cell wraps its words (`white-space: normal`, above), and a select
    took that inside itself under Legacy - "- no Remnant" over a lone "-" (ac069) */
@@ -3975,6 +4095,17 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel:is(.drpg-win
     gap: 2px 16px;
     align-content: start;
 }
+/* ON A PHONE (fit-110, 13.11.2026). The sections' list is 15rem and never shrinks, and the rows' column took `flex: 1 1 0`:
+   a basis of nothing never wraps, so at 390x844 the rows stood in the 88 px the list left, two columns of 36 px, and
+   the controls ran past the body - the theme's select at 312..342 and the scale's stepper at 260..417 of a 340 px body
+   (style-sweep `--fit`, drpg-settings-player, look-player: 4 readings red since E49 A1b, b9b03fe2). The column now
+   asks for 18rem before it grows, so it goes under the list where both do not fit beside each other, and the rows go
+   to one column where their column is under 30rem. At the desk the window states its width and both stand beside
+   each other as before. */
+body .application:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-variant-columns > .drpg-settings-main { flex-basis: 18rem; container-type: inline-size; }
+@container (max-width: 30rem) {
+    :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-rows { grid-template-columns: minmax(0, 1fr); }
+}
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-row { min-width: 0; padding: 3px 0 5px; border-bottom: 1px solid var(--drpg-kit-line); }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-row.is-off { opacity: 0.5; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-control { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 28px; }
@@ -4027,6 +4158,34 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-settings, .drpg-window-game
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-note { margin: 4px 0 2px; line-height: 1.2; color: var(--drpg-kit-help-ink); font-size: var(--drpg-kit-help-size); }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-nav > .drpg-settings-foot { margin-top: 10px; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > input[type="range"] { flex: 1 1 8rem; min-width: 0; margin: 0; }
+/* THE VOLUMES ONE UNDER THE OTHER (E101 table note 9, 12.11.2026; the owner on a player's window): each volume row takes
+   the section's whole width, so Sound and Music stand in one column whatever the switches before them, and its control
+   and line keep a column's width. R4064. */
+:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-rows > .drpg-settings-volume { grid-column: 1 / -1; }
+:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-rows > .drpg-settings-volume > * { max-width: calc(50% - 8px); }
+/* THE MICROPHONE'S MODE AS TWO BUTTONS (E101 table note 6, 12.11.2026; the owner at a 1.2.108 table: the one chosen was
+   not shown, and choosing seemed to do nothing). Voice-panel.mjs keeps its two radios `voice:mode`, so a form and the
+   writes read what they read; the radio itself is hidden and its label is the face, pressed in the kit's colours while
+   its radio is checked, in both themes - Foundry's sheet and the glass's drew the radio together, a small square in the
+   checked one, read at the table as half filled. The radio keeps the focus; the label shows it. R4062. */
+body .drpg-voice-panel label.drpg-voice-panel-radio {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    cursor: pointer;
+    color: var(--drpg-kit-btn-ink);
+    background: var(--drpg-kit-btn-bg);
+    border: 1px solid var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+body .drpg-voice-panel label.drpg-voice-panel-radio > input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+body .drpg-voice-panel label.drpg-voice-panel-radio:has(> input:checked) {
+    color: var(--drpg-kit-btn-on-ink);
+    background: var(--drpg-kit-btn-on-bg);
+    border-color: var(--drpg-kit-btn-on-edge);
+}
+body .drpg-voice-panel label.drpg-voice-panel-radio:has(> input:focus-visible) { outline: 2px solid var(--drpg-kit-btn-on-edge); outline-offset: 2px; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > output { flex: 0 0 4ch; text-align: end; font-variant-numeric: tabular-nums; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > .drpg-settings-label { flex: 0 1 8rem; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-voice > fieldset.drpg-voice-panel { margin: 4px 0 0; min-width: 0; }
@@ -4057,7 +4216,13 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-settings, .drpg-window-game
     border-bottom: 1px solid var(--drpg-kit-info-edge);
 }
 .drpg-chat-kit > .drpg-chat-kit-head:has(> .drpg-chat-kit-title) ~ * { grid-column: 1 / -1; }
-.drpg-chat-kit .drpg-chat-kit-glyph { flex: none; width: 1rem; line-height: 1.35; text-align: center; }
+/* THE GLYPH WEARS THE KIT'S INK, NOT WHAT THE PAGE LEAVES IT (gaps, 12.11.2026; the E93 line saw an info card's ear and
+   bed dark on the dark card under the glass). It had no colour of its own: painted in `currentColor` through its mask
+   under Stained Glass (pixel-icons.css), in `color` by Font Awesome under Legacy, it took whatever Foundry or Daggerheart
+   leave on a message's header - on the style harness with no Foundry chat sheet, #000000 at 1.07:1 (glass) and 1.18:1
+   (Legacy) against its card. Now the kit's ink, one token for every card's glyph; a warning and a secret keep their
+   tone's edge (below). R3982. */
+.drpg-chat-kit .drpg-chat-kit-glyph { flex: none; width: 1rem; line-height: 1.35; text-align: center; color: var(--drpg-kit-ink); }
 .drpg-chat-kit[data-drpg-tone="warning"] .drpg-chat-kit-glyph { color: var(--drpg-kit-warn-edge); }
 .drpg-chat-kit[data-drpg-tone="secret"] .drpg-chat-kit-glyph { color: var(--drpg-kit-secret-edge); }
 .drpg-chat-kit .drpg-chat-kit-title { margin: 0; padding: 0; border: 0; font-size: 1em; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
@@ -4224,6 +4389,14 @@ body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-wind
     color: var(--drpg-sg-ink);
     background: var(--drpg-sg-bone);
     border-color: var(--drpg-sg-bone);
+}
+/* A TAB UNDER THE CURSOR KEEPS ITS INK (13.11.2026, read by audit/style-sweep.mjs --tabs in Chromium at ceb9e9c8): the
+   hover above takes the tab's ground to `--drpg-kit-tab-hover`, transparent under the glass, so the Bone bar showed
+   through behind the Bone words, 1:1. Under the glass the hovered tab stays Ink and takes the open tab's colour as an
+   edge at its foot. */
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:hover:not(.active) {
+    background: var(--drpg-ink);
+    box-shadow: inset 0 -2px 0 var(--drpg-sg-bone);
 }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:focus-visible,
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a:focus-visible {
@@ -4651,13 +4824,13 @@ body.drpg-low .application.dialog.drpg-ui.drpg-panel.drpg-window-trial footer.fo
 /* THE PICKER ON ONE COMPACT ROW (E99 round 5, 12.11.2026; the coordinator's step 5, the default chosen of three): at
    1366x768 while a trial runs the schema's fit was bound by the slot's height (glass 296 px of viewport for a 641 px case,
    the case's smallest words 9.7 px), so a wider schema - a narrower read-out, or the window at the screen's width - gained
-   nothing there; the picker's second row (glass 75 px for the two) was the height to take back. One row, the starts at
-   the theme's small text, never wrapped and never cut: a row that does not fit scrolls sideways. Measured in
-   audit/case-map-sweep.mjs (docs/dev/e99/STATUS.md, round 5). */
+   nothing there; the picker's second row (glass 75 px for the two) was the height to take back. The starts at the theme's
+   small text, never cut. Measured in audit/case-map-sweep.mjs (docs/dev/e99/STATUS.md, round 5).
+   NO SCROLL (E101 table note 8, 12.11.2026; the owner at a 1.2.108 table, "wywalmy scroll"): round 5 let a row that did
+   not fit scroll sideways, and its scrollbar stood under the starts at the table. The row wraps instead; one row where
+   the starts fit, as round 5 measured, a second only where they do not. R4063. */
 .application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > .drpg-trial-picker {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
+    flex-wrap: wrap;
     margin-top: 2px;
 }
 
@@ -4678,3 +4851,14 @@ body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-trial-console .drpg
     cursor: not-allowed;
 }
 
+
+/* THE ROOM ACTIONS' EDITORS (E93 C2, 12.11.2026; scripts/facility-editor.mjs). One block a room action, its name, statistic
+   and difficulty on one line and each effect on a line of its own: a table drew the four controls of each of four effects
+   in one cell, one under another, a column some 600 px tall at 1366x768 (the stage's first shot). A grid, not a flex row:
+   Monokuma Legacy gives a panel's fields and selects the whole width, which a grid cell holds and a flex row does not
+   (the stage's second shot). */
+.drpg-facility-editor .drpg-facility-action { margin: 0 0 0.75rem; padding: 0.4rem 0.6rem; }
+.drpg-facility-editor .drpg-facility-line { display: grid; grid-template-columns: minmax(8rem, 2fr) minmax(7rem, 1fr) minmax(7rem, 1fr);
+    align-items: center; gap: 0.5rem; margin: 0.25rem 0; }
+.drpg-facility-editor .drpg-facility-effect { grid-template-columns: minmax(8rem, 1fr) minmax(7rem, 8rem) minmax(8rem, 1fr) minmax(10rem, 2fr); }
+.drpg-facility-editor .drpg-facility-line > input[type="hidden"] { display: none; }

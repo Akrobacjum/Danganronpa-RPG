@@ -15,7 +15,7 @@
  * DOM, no imports, so style-sweep `--details` runs this very function in Chromium on the captured windows.
  */
 
-export const MEASURING = "drpg-lines-measured";
+const MEASURING = "drpg-lines-measured";
 
 /** The list's floor in px for `root` (a drawn action window), set on the list; null where nothing could be read. */
 export function holdRowLines(root) {

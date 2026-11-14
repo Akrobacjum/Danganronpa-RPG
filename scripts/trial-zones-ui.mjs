@@ -17,13 +17,15 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
 import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
-import { ZONE_MODES, isZoneMode, zoneOf } from "./zone-machine.mjs";
+import { ZONE_MODES, isZoneMode, zoneOf, conferCamps } from "./zone-machine.mjs";
 import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDebate, startLogicDive, findingsNow, addFinding, editFinding,
     deleteFinding, confirmFinding } from "./trial-zones.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
 import { drpgWindow, drpgConfirm, formGrid, box } from "./ui-kit.mjs";
 import { esc, error, serverNow, localeFormat } from "./utils.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** A name of `actorId`, escaped. */
 function nameOf(id) {
@@ -50,7 +52,10 @@ function zoneLine(side, zone, sides) {
 export function zonePanelHtml({ floor, sides = null } = {}) {
     const zone = zoneOf(floor);
     if (!zone) return "";
-    const s = sides ?? sidesNow({ floor });
+    // While the camps confer, the panel names the camps as they were kept at the Sides' end - the rooms they talk in -
+    // and nobody outside them (the owner's 13.11.2026; zone-machine.mjs `conferCamps`).
+    const camps = conferCamps(floor);
+    const s = camps ? { ...camps, none: [], line: [] } : sides ?? sidesNow({ floor });
     const L = key => game.i18n.localize(key);
     const mode = L(`DRPG.Floor.mode.${floor.mode}`);
     const phase = game.i18n.format(`DRPG.Zones.panel.${floor.mode}.${zone.phase}`, {
@@ -117,7 +122,7 @@ export function namesIn(text, names = game.actors?.filter?.(a => a.type === "cha
 }
 
 /** Why a set as typed cannot be saved, in the GM's words, or null: a name; 1-5 questions, each with two answers and a truth. */
-export function setRefusal(set) {
+function setRefusal(set) {
     if (!String(set?.name ?? "").trim()) return game.i18n.localize("DRPG.Zones.dive.editor.noName");
     const qs = Array.isArray(set?.questions) ? set.questions : [];
     const max = Number(TRIAL.modes.zones.dive.maxQuestions) || 5;
@@ -130,7 +135,7 @@ export function setRefusal(set) {
 }
 
 /** Save a set (any GM): `id` null for a new one. Answers its id, or null when refused (told). */
-export async function saveDiveSet(id, set) {
+async function saveDiveSet(id, set) {
     if (!game.user.isGM) return null;
     const refused = setRefusal(set);
     if (refused) {
@@ -150,7 +155,7 @@ export async function saveDiveSet(id, set) {
 function questionRows(q, i) {
     const n = i + 1;
     const field = (name, value) => `<input type="text" name="q${i}.${name}" value="${esc(value ?? "")}" maxlength="${name === "question" ? TRIAL.modes.zones.questionLength : TRIAL.modes.zones.answerLength}">`;
-    const truth = side => `<label><input type="radio" name="q${i}.truth" value="${side}"${q.truth === side ? " checked" : ""}> ${esc(game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB"))}</label>`;
+    const truth = side => `<label><input type="radio" name="q${i}.truth" value="${side}"${q.truth === side ? " checked" : ""}${tipAttr("DRPG.Tips.Trial.rightAnswerZoneATooltip")}> ${esc(game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB"))}</label>`;
     return `<fieldset class="drpg-dive-question" data-drpg-dive-q="${i}"><legend>${esc(game.i18n.format("DRPG.Zones.dive.editor.question", { n }))}</legend>
         ${formGrid([
         { label: game.i18n.localize("DRPG.Zones.picker.question"), field: field("question", q.question) },
@@ -189,7 +194,7 @@ export async function editDiveSet(id = null) {
             ${box("secret", `<p>${esc(game.i18n.localize("DRPG.Zones.dive.editor.secret"))}</p>`)}
             ${formGrid([
         { label: game.i18n.localize("DRPG.Zones.dive.editor.name"), field: `<input type="text" name="name" value="${esc(was?.name ?? "")}" maxlength="80">` },
-        { label: game.i18n.localize("DRPG.Zones.dive.editor.conclusion"), field: `<input type="text" name="conclusion" value="${esc(was?.conclusion ?? "")}" maxlength="${TRIAL.modes.zones.answerLength * 3}">` }
+        { label: game.i18n.localize("DRPG.Zones.dive.editor.conclusion"), field: `<input type="text" name="conclusion" value="${esc(was?.conclusion ?? "")}" maxlength="${TRIAL.modes.zones.answerLength * 3}"${tipAttr("DRPG.Tips.Trial.findingWhenSolvedTooltip")}>` }
     ])}
             ${qs.map(questionRows).join("")}
             <div data-drpg-dive-names aria-live="polite"></div>
@@ -217,7 +222,7 @@ export async function editDiveSet(id = null) {
 }
 
 /** A set deleted, after the GM's yes. */
-export async function deleteDiveSet(id) {
+async function deleteDiveSet(id) {
     if (!game.user.isGM || !diveSetStore.get(id)) return false;
     const yes = await drpgConfirm({ title: game.i18n.localize("DRPG.Zones.dive.editor.deleteTitle"),
         body: `<p>${esc(game.i18n.format("DRPG.Zones.dive.editor.deleteBody", { name: diveSetStore.get(id)?.name ?? "-" }))}</p>`,
@@ -232,10 +237,16 @@ export async function deleteDiveSet(id) {
  * ========================================================================== */
 
 /** The picker's body: a mode each, its fields; a Logic Dive's set list with each set's replay warning. */
-export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets() } = {}) {
+export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = null } = {}) {
+    // a node's planned minigame (case-trial.mjs `startFromNode`, 13.11.2026): its fields filled in, its set picked
+    const p = key => esc(plan?.[key] ?? "");
     const L = key => game.i18n.localize(key);
     const radio = m => `<label class="drpg-zone-mode-pick"><input type="radio" name="mode" value="${m}"${m === mode ? " checked" : ""}> ${esc(L(`DRPG.Floor.mode.${m}`))}</label>`;
-    const setOptions = sets.map(s => `<option value="${esc(s.id)}">${esc(s.name)} (${s.questions.length})</option>`).join("");
+    /* Named by its row's label (13.11.2026): formGrid's <label> has no `for`, so a field of this window had no name a
+       screen reader could read, and tier 2's "every control in the module's own chrome has a name to be read out"
+       reported the question and the set once a test opened the window with a set in the store. */
+    const named = key => `aria-label="${esc(L(key))}"`;
+    const setOptions = sets.map(s => `<option value="${esc(s.id)}"${plan?.setId && s.id === plan.setId ? " selected" : ""}>${esc(s.name)} (${s.questions.length})</option>`).join("");
     const warnings = sets.map(s => {
         const w = replayWarning(s);
         return w ? `<p data-drpg-dive-replay="${esc(s.id)}" hidden>${esc(w)}</p>` : "";
@@ -244,14 +255,14 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets() } = {}) 
         <fieldset class="drpg-zone-modes"><legend>${esc(L("DRPG.Zones.picker.mode"))}</legend>${Object.values(ZONE_MODES).map(radio).join(" ")}</fieldset>
         <p class="notes" data-drpg-zone-hint></p>
         <div data-drpg-zone-fields="free">${formGrid([
-        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" maxlength="${TRIAL.modes.zones.questionLength}">` },
-        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" maxlength="${TRIAL.modes.zones.answerLength}">` },
-        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" maxlength="${TRIAL.modes.zones.answerLength}">` }
+        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" ${named("DRPG.Zones.picker.question")} value="${p("question")}" maxlength="${TRIAL.modes.zones.questionLength}">` },
+        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" ${named("DRPG.Zones.picker.a")} value="${p("a")}" maxlength="${TRIAL.modes.zones.answerLength}">` },
+        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" ${named("DRPG.Zones.picker.b")} value="${p("b")}" maxlength="${TRIAL.modes.zones.answerLength}">` }
     ])}
-            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" maxlength="${TRIAL.modes.zones.scrum.thesisLength}">` }])}</div>
+            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" ${named("DRPG.Zones.picker.thesis")} value="${p("thesis")}" maxlength="${TRIAL.modes.zones.scrum.thesisLength}"${tipAttr("DRPG.Tips.Trial.thesisTooltip")}>` }])}</div>
         </div>
         <div data-drpg-zone-fields="dive">
-            ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId">${setOptions}</select>` }])
+            ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId" ${named("DRPG.Zones.picker.set")}${tipAttr("DRPG.Tips.Trial.setTooltip")}>${setOptions}</select>` }])
         : `<p>${esc(L("DRPG.Zones.picker.noSets"))}</p>`}
             <div class="drpg-dive-replay">${warnings ? box("secret", warnings) : ""}</div>
             <button type="button" data-drpg-dive-edit>${esc(L("DRPG.Zones.picker.editSets"))}</button>
@@ -264,7 +275,7 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets() } = {}) 
  * question and two answers typed (a Scrum's thesis optional), or a Logic Dive set chosen, a set played before warned of
  * where it ended (GM-only); Start. Refused first when no zones are picked or another mode holds the floor.
  */
-export async function openZonePicker({ mode = ZONE_MODES.straw } = {}) {
+export async function openZonePicker({ mode = ZONE_MODES.straw, plan = null } = {}) {
     if (!game.user.isGM) return null;
     const refused = zoneStartRefusal();
     if (refused) {
@@ -275,7 +286,7 @@ export async function openZonePicker({ mode = ZONE_MODES.straw } = {}) {
     const asked = await drpgWindow({
         title: game.i18n.localize("DRPG.Zones.picker.title"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-zone-picker"],
-        body: pickerHtml({ mode: isZoneMode(mode) ? mode : ZONE_MODES.straw }),
+        body: pickerHtml({ mode: isZoneMode(mode) ? mode : ZONE_MODES.straw, plan }),
         render: (event, dialog) => {
             const root = dialog?.element;
             if (!root) return;
@@ -360,9 +371,9 @@ export function findingsListHtml(list) {
     return `<ul class="drpg-findings-list">${list.map(f => `<li data-drpg-finding="${esc(f.id)}"><span>${esc(f.text)}</span>
         ${f.mode ? `<small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}
         ${f.confirmed ? `<strong>${L("DRPG.Zones.findings.confirmedMark")}</strong>` : ""}
-        <button type="button" data-drpg-finding-act="edit">${L("DRPG.Zones.findings.edit")}</button>
-        <button type="button" data-drpg-finding-act="delete">${L("DRPG.Zones.findings.delete")}</button>
-        <button type="button" data-drpg-finding-act="confirm"${f.confirmed ? " disabled" : ""}>${L("DRPG.Zones.findings.confirm")}</button></li>`).join("")}</ul>`;
+        <button type="button" data-drpg-finding-act="edit"${tipAttr("DRPG.Tips.Trial.editTooltip")}>${L("DRPG.Zones.findings.edit")}</button>
+        <button type="button" data-drpg-finding-act="delete"${tipAttr("DRPG.Tips.Trial.deleteTooltip")}>${L("DRPG.Zones.findings.delete")}</button>
+        <button type="button" data-drpg-finding-act="confirm"${f.confirmed ? " disabled" : ""}${tipAttr("DRPG.Tips.Trial.monokumaConfirmsTooltip", null, { title: true })}>${L("DRPG.Zones.findings.confirm")}</button></li>`).join("")}</ul>`;
 }
 
 /** One line of text asked of the GM: a Finding's words. */
@@ -370,7 +381,7 @@ async function askFindingText(title, value = "") {
     const out = await drpgWindow({
         title, classes: ["drpg-panel", "drpg-narrow"],
         body: `<form>${formGrid([{ label: game.i18n.localize("DRPG.Zones.findings.text"), field: `<input type="text" name="text" value="${esc(value)}" maxlength="${TRIAL.modes.zones.answerLength * 3}">` }])}</form>`,
-        footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Zones.findings.save"), callback: (e, b, d) => d.element.querySelector('[name="text"]')?.value ?? "" }, close: "cancel" },
+        footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Zones.findings.save"), tooltip: tipText("DRPG.Tips.Trial.saveTooltip"), callback: (e, b, d) => d.element.querySelector('[name="text"]')?.value ?? "" }, close: "cancel" },
         rejectClose: false
     });
     return typeof out === "string" && out !== "cancel" ? out : null;
@@ -419,7 +430,7 @@ let pickOpenFor = null;
  * A zone mode on the floor and this player's student taking part with no token in the hall: a window to pick Zone A or
  * Zone B (bridge "trial.side"), once per mode's opening. Called from trial-floor.mjs `renderTrialFloor` on every client.
  */
-export async function offerSidePick(floor) {
+async function offerSidePick(floor) {
     const zone = zoneOf(floor);
     if (!zone || game.user.isGM) return;
     const key = `${floor.mode}|${zone.openedAt}`;
@@ -462,7 +473,7 @@ function lineColour() {
 }
 
 /** Take the drawing down. */
-export function clearZoneDrawing() {
+function clearZoneDrawing() {
     try {
         drawn?.destroy?.({ children: true });
     } catch (err) {

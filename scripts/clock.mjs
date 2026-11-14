@@ -76,7 +76,7 @@ export async function setPhase(key, { confirmNewTrial = false } = {}) {
             return null;
         }
     }
-    return setClock({ phase: key });
+    return setClock({ phase: key, trialCut: true });
 }
 
 /**
@@ -105,6 +105,24 @@ export function clockSummary(clock = getClock(), { time = true } = {}) {
     return clock.eclipse
         ? game.i18n.format("DRPG.Clock.summaryEclipse", { summary })
         : summary;
+}
+
+/**
+ * WHETHER THE TABLE SEES THE TRIAL'S EDGE PLAYED (the owner's rule of 12.11.2026: "edytuj kampanie nie ma odpalac
+ * animacji - tylko zegar/gora gm panel"). `clock.trialCut` says whether the last move into or out of the Class Trial was
+ * made by a road the table plays: Start the Class Trial, End the trial (the chapter's end among its callers) and
+ * `setPhase` pass `trialCut: true`; every other write that crosses the edge - Edit campaign and Season setup's Save
+ * (gm-campaign.mjs `applyCampaignForm`), the season's reset, a console's `setClock`, the suite putting a clock back -
+ * leaves it false, and the trial's entry and exit play nothing (sequence.mjs `edgeShown`); the curtain still takes the
+ * new colour by its ordinary turn. Written on every crossing, so it always speaks of the last one, and a later write
+ * that is no crossing - the next morning in the chapter's end - leaves it alone. A positive mark only the playing roads
+ * write, in the spirit of the day boards' own mark. Pure: what `setClock` writes, `undefined` for "unchanged" (a clock
+ * put back whole, with its own `writtenAt`, keeps its own mark or none: `setClock`).
+ */
+export function trialCutOf(before = {}, patch = {}) {
+    const edge = patch.phase !== undefined && patch.phase !== before.phase
+        && (patch.phase === "classTrial" || before.phase === "classTrial");
+    return edge ? patch.trialCut === true : undefined;
 }
 
 /**
@@ -161,6 +179,24 @@ export async function setClock(patch = {}) {
         if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayStartedAt === undefined) {
             next.dayStartedAt = next.timeOfDayStartedAt ?? serverNow();
         }
+        /* AND THE DAY'S BOARDS ARE THE ROLL-OVER'S ALONE (12.11.2026; the owner's rule of that day: never on Edit campaign,
+           a correction). `dayBoard` is the day a real roll-over stamped for its boards (sequence.mjs `dayStartPatch`,
+           chapter.mjs's next morning), and transitions.mjs `boardsOf` plays them only on a new day that carries it. Any
+           other write that moves the day - Edit campaign, the rewind, the season's reset, a console's `setClock` - takes
+           it away, so a day put back and moved forward again by hand cannot find an old stamp that matches. Tier 2
+           "E110 day boards B". */
+        if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayBoard === undefined) {
+            next.dayBoard = null;
+        }
+        /* AND THE END-OF-DAY BOARD IS NIGHT'S, ON ITS REAL ROAD ALONE (13.11.2026; the owner's rule of that day: the board
+           "after the Night Eclipse (that is, at the start of Night)"). `nightBoard` is the day a real move into Night
+           stamped (`advanceTimeOfDay` through sequence.mjs `dayStartPatch`, `nightFalls`), and transitions.mjs `boardsOf`
+           plays the board only on Night's start that carries it. Any other write that moves the time of day or the day -
+           Edit campaign's Night, the rewind, a console's `setClock` - takes it away. */
+        if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay)
+            || (patch.day !== undefined && Number(patch.day) !== Number(before.day))) && patch.nightBoard === undefined) {
+            next.nightBoard = null;
+        }
         /* WHEN THE CLOCK WAS LAST WRITTEN (E17 fix p2-G1, 26.10.2026): a moment a GM was at the table, which every GM's
            `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud-elapsed.mjs `readyPatch`); `patch` wins, so a restored
            clock keeps its own. */
@@ -170,6 +206,26 @@ export async function setClock(patch = {}) {
         if (trialEdge && before.phase === "classTrial" && patch.trialEndedAt === undefined) {
             next.trialEndedAt = serverNow();
         }
+        /* AND WHETHER THE WAY OUT SWITCHES A SCENE (fix-113r, 13.11.2026): `followPhase` runs on this GM after the write
+           and activates the scene `exitSwitchesScene` reads now - the GM's choice at End the trial, the school, the scene
+           the trial was opened from - or none. Every browser's closed curtain reads the stamp (sequence.mjs
+           `playTrialExit`): false, it waits for no scene, so a table left in the hall is not held 15 s. Unreadable, true:
+           the curtain waits, with its safety. `patch` wins, so a restored clock keeps its own. */
+        if (trialEdge && before.phase === "classTrial" && patch.trialExitScene === undefined) {
+            try { next.trialExitScene = (await import("./trial-scene.mjs")).exitSwitchesScene() !== false; } catch { next.trialExitScene = true; }
+        }
+        // a clock put back carries its own stamp or none, as `trialCut` below (the suite's restore leaves no new key)
+        if (Object.hasOwn(patch, "writtenAt") && !Object.hasOwn(patch, "trialExitScene")) delete next.trialExitScene;
+        /* whether the table plays this crossing (`trialCutOf`): a patch's own word is no crossing's. A CLOCK PUT BACK -
+           a patch naming its own `writtenAt`, which no road writes but a whole clock read earlier (the suite's
+           `setClock(clockBefore)` after every test that crosses the edge) - carries its own mark or none: kept from the
+           clock it replaced, the mark of a test's End the trial stayed in the world after it (tier 2's restore read
+           `clock.trialCut (none) -> false`, 12.11.2026). */
+        const cut = trialCutOf(before, patch);
+        if (Object.hasOwn(patch, "writtenAt")) { if (Object.hasOwn(patch, "trialCut")) next.trialCut = patch.trialCut; else delete next.trialCut; }
+        else if (cut !== undefined) next.trialCut = cut;
+        else if ("trialCut" in before) next.trialCut = before.trialCut;
+        else delete next.trialCut;
         /* NO TRIAL OPENS IN AN ECLIPSE, BY ANY DOOR (E10 fix r2-G5, 1.2.71; goal S06-18). C12 refused it at
            Start the Class Trial and the vote's open; Edit campaign, `setPhase`, a debate opened outside a
            trial (`startFloor` -> `setPhase`) and this function itself still opened one, with Analyze and the
@@ -342,15 +398,20 @@ export async function advanceTimeOfDay({
     /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GM's line - kept on this GM's browser
        until now (`morningLineDraft`), so it is in no world data before the day starts - and the mood's word, worked out
        here from the students' Hope, the Monocubs' Hope, the Monokumas' Despair and the Overflow count only a GM holds
-       (sequence.mjs `moodInputs`, `moodBand`), go into this one write; any other move clears them (`dayStartPatch`). The
-       line is taken from the draft once it is in. */
+       (sequence.mjs `moodInputs`, `moodBand`), go into this one write; any other move clears the morning line alone
+       (`dayStartPatch`), and the mood stands until the next roll-over writes it again. The line is taken from the draft
+       once it is in. */
     const seq = await import("./sequence.mjs");
-    let draft = "", mood = null;
-    if (rolledOver) {
-        try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
-        try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; }
-    }
-    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before });
+    /* AND SINCE 13.11.2026 (the owner's rule of that day: the start-of-day board at the Morning Eclipse's start, the
+       end-of-day board at the start of Night). A Morning Eclipse opened for this roll-over wrote the line, the mood and
+       the new day's stamp at its start (eclipse.mjs `startEclipse`, `openingDayPatch` below): the stamp on this very day
+       says so (`opened`), and they are not written again here. A move into Night works the mood out for the end-of-day
+       board and stamps it (`nightFalls`). */
+    const opened = rolledOver && before.dayBoard != null && Number(before.dayBoard) === Number(day);
+    const nightFalls = !rolledOver && timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+    const { draft, mood } = rolledOver || nightFalls ? await morningInputs({ line: rolledOver, mood: !opened }) : { draft: "", mood: null };
+    // the new day as the start board's stamp (`dayBoard`, 12.11.2026): this roll-over plays it, a correction does not
+    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day, opened, nightFalls });
     const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });
@@ -359,6 +420,42 @@ export async function advanceTimeOfDay({
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
+}
+
+/**
+ * What the start of a day is written with, read on this GM (E94 C1, C4): the GM's morning line, kept on this browser
+ * until the day starts (`morningLineDraft`; `line`), and the school's mood worked out from what only a GM holds
+ * (sequence.mjs `moodInputs`, `moodBand`; `mood`). Answers `{ draft, mood }`, "" and null for what was not asked or
+ * could not be read.
+ */
+async function morningInputs({ line = true, mood: wantMood = true } = {}) {
+    const seq = await import("./sequence.mjs");
+    let draft = "", mood = null;
+    if (line) { try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; } }
+    if (wantMood) { try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; } }
+    return { draft, mood };
+}
+
+/**
+ * The fields the Morning Eclipse's start folds into its one write (13.11.2026; the owner's rule of that day: "The
+ * start-of-day animation should show at the start of the Morning Eclipse"): when the Eclipse opened at `clock` leads
+ * into the next day (`clockAfter`'s roll-over), the roll-over's patch for that day - the GM's morning line, the mood and
+ * the start board's stamp on the day + 1 (sequence.mjs `dayStartPatch`) - so every browser's board shows them at the
+ * start; the day's number, the session and every rule's day boundary still move at the Eclipse's end. Answers the
+ * patch and the draft taken (cleared once the write is in, as the roll-over clears it), or `{ patch: {}, draft: "" }`
+ * for any other Eclipse. GM only.
+ */
+export async function openingDayPatch(clock = getClock()) {
+    const to = clockAfter(clock);
+    if (!to.rolledOver) return { patch: {}, draft: "" };
+    const seq = await import("./sequence.mjs");
+    const { draft, mood } = await morningInputs();
+    return { patch: seq.dayStartPatch({ rolledOver: true, draft, mood, before: clock, day: to.day }), draft };
+}
+
+/** The GM's morning line taken into the clock: the draft on this browser emptied (E94 C1). */
+export async function clearMorningDraft() {
+    await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
 }
 
 /**
@@ -394,7 +491,7 @@ export function clockAfter(clock = getClock()) {
  * misclick is noticed at once; after five minutes the table has played on what the boundary gave, and putting the
  * snapshot back would take that play away too. Not measured at a table.
  */
-export const TAKE_BACK_MS = 5 * 60_000;
+const TAKE_BACK_MS = 5 * 60_000;
 
 /**
  * The boundary into `to` of `clock`'s season and chapter, as a string: the season, the chapter, the session, the day
@@ -422,7 +519,7 @@ export async function boundarySnapshot() {
  * and each level a snapshot of every character's budget on the world's clock. Only levels younger than `TAKE_BACK_MS`
  * are kept, so in play it is how many times the GM pressed Next within five minutes (E17 fix p2-G2).
  */
-export const TAKE_BACK_DEPTH = 4;
+const TAKE_BACK_DEPTH = 4;
 
 /**
  * THE TAKE-BACK'S MEMORY, FROM THE GMS' STORE (E17 fix ci-2, 26.10.2026): `boundaryMemory`'s record, the GMs' store
@@ -454,6 +551,44 @@ async function keepTakeBack(memory) {
         await takeBackStore.patch(RECORD, { lastAdvance: memory });
     } catch (err) {
         error("Could not keep what the boundary would take back", err);
+    }
+}
+
+/**
+ * WHAT AN ECLIPSE'S START ENDED, KEPT FOR ITS TAKE-BACK (A113-C2-6, the coordinator's follow-up, 13.11.2026). Since C2-6
+ * the timed effects and the unused lock passes end as an Eclipse starts (timed-effects.mjs `endAtEclipseStart`,
+ * lockpick-gm.mjs `endPassesAtEclipseStart`), where before they ended only at the clock's move, so an Eclipse opened by
+ * mistake and ended without advancing cost them for good. The primary keeps each list in the GMs' take-back record
+ * (gm-stores.mjs `takeBackStore`), one field each (`eclipseTimed`, `eclipsePasses`, so neither write stamps over the
+ * other or over `lastAdvance`), named by the boundary (`boundaryStamp`); `endEclipse({ advance: false })` takes them
+ * back with the budgets, grants and seals while `takeBackFor` still answers, and the two put them back as they stood. A
+ * second start for the same boundary adds to the list. GM only; a store that cannot be written loses the put-back, never
+ * the end.
+ */
+export async function keepEndedAtStart(field, stamp, items) {
+    if (!game.user?.isGM || !items?.length) return;
+    try {
+        const [{ takeBackStore }, { RECORD }] = await Promise.all([import("./gm-stores.mjs"), import("./gm-store.mjs")]);
+        const kept = takeBackStore.record()?.[field];
+        const before = kept?.for === stamp && Array.isArray(kept.items) ? kept.items : [];
+        await takeBackStore.patch(RECORD, { [field]: { for: stamp, at: serverNow(), items: [...before, ...items] } });
+    } catch (err) {
+        error("Could not keep what the Eclipse's start ended", err);
+    }
+}
+
+/** `keepEndedAtStart`'s list for the boundary `stamp`, taken (the field emptied), or []. GM only. */
+export async function takeEndedAtStart(field, stamp) {
+    if (!game.user?.isGM) return [];
+    try {
+        const [{ takeBackStore }, { RECORD }] = await Promise.all([import("./gm-stores.mjs"), import("./gm-store.mjs")]);
+        const kept = takeBackStore.record()?.[field];
+        if (!kept) return [];
+        await takeBackStore.patch(RECORD, { [field]: null });
+        return kept.for === stamp && Array.isArray(kept.items) ? kept.items : [];
+    } catch (err) {
+        error("Could not read what the Eclipse's start ended", err);
+        return [];
     }
 }
 
@@ -668,6 +803,10 @@ async function applyTimeOfDayChange(clock, {
 
     // "Behind Closed Doors" seals a room for one time of day.
     await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
+    // A Bribe still unanswered lapses, unpaid, at the turn (E72 C15; monocub.mjs `settleBribes`).
+    await import("./monocub.mjs").then(m => m.settleBribes()).catch(err => warn("Could not lapse the open Bribes", err));
+    // And an unclaimed Bounty (E72 C16; monocub.mjs `lapseBounties`).
+    await import("./monocub.mjs").then(m => m.lapseBounties()).catch(err => warn("Could not lapse the open Bounties", err));
 
     /*
      * ONE TIME OF DAY OFF MONOKUMA'S DEADLINE.
@@ -709,7 +848,8 @@ async function applyTimeOfDayChange(clock, {
  * everything else in this game.
  */
 async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
-    const wounded = summary.actions.filter(r => r.wounded);
+    // Down an action, not merely Wounded (E64 C1c): in the Class Trial the state takes none.
+    const wounded = summary.actions.filter(r => r.costsAction);
 
     const notes = [];
     if (summary.actions.length) {

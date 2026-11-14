@@ -171,7 +171,8 @@ async function carryOutSentence(chapter) {
             try {
                 died = isDeadForGm(held)
                     ? await publishDeath(actor, { phase: "classTrial", cause: "executed" })
-                    : await killCharacter(actor, { secret: false, phase: "classTrial", cause: "executed", chapter });
+                    // Silent, as `publishDeath` above is: the execution's card plays the moment's one sound (A113-C2-1).
+                    : await killCharacter(actor, { secret: false, phase: "classTrial", cause: "executed", chapter, silent: true });
             } catch (err) {
                 error(`${actor.name} could not be executed`, err);
             }
@@ -190,7 +191,7 @@ async function carryOutSentence(chapter) {
         save: (run, { key, end = false } = {}) => (end || key === STAMP || passed.has(key) ? null
             : writeExecution(chapter, { execution: { done: [...done], failed: [...failed] } }))
     });
-    if (executed.length) await postExecutionCard(executed, { final: Boolean(record.verdict?.final) });
+    if (executed.length) await postExecutionCard(executed);
     if (failed.length) {
         const names = failed.map(id => foundry.utils.escapeHTML(game.actors.get(id)?.name ?? "?")).join(", ");
         ui.notifications.error(game.i18n.format("DRPG.Vote.executionFailed", { names }));
@@ -215,25 +216,26 @@ export async function executionLines() {
 /*
  * THE EXECUTION, TOLD TO THE TABLE (E70 C4; amend 0's sound rule). The verdict's card said who was
  * executed, with the death's sound, and its owner was told in the second person (E10 C5); both come
- * here, to the moment it happens, with the execution's own sound (`SFX_EVENTS.execution`). A Final
- * Trial's execution posts no card of its own: its banner is the Mastermind's defeat, already told, and
- * a card naming who died would name the Mastermind to every console.
+ * here, to the moment it happens, with the execution's own sound (`SFX_EVENTS.execution`).
+ *
+ * THE FINAL TRIAL'S TOO (E72 C11, 12.11.2026; the owner's D102 of 31.10). Until C11 a Final Trial's
+ * execution posted no card, only the sound: its banner was the Mastermind's defeat, already told, and a
+ * card naming who died was held to name the Mastermind to every console. The owner's D102 reads the other
+ * way - the execution is the table's to see, in the Final Trial as in any - so the same card is posted,
+ * naming the executed. The defeat's banner names nobody ("THE MASTERMIND IS DEFEATED"), so this card is
+ * where the table reads the name of the student the Final verdict sentenced. Whether the owner wants the
+ * card without the name is asked in STATUS (default: the name, as an ordinary trial's card).
  */
-async function postExecutionCard(executed, { final = false } = {}) {
+async function postExecutionCard(executed) {
     const esc = foundry.utils.escapeHTML;
     try {
-        if (!final) {
-            await announce({
-                flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },
-                content: `<div class="drpg-evidence-card">
-                    <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.executionCardTitle")}</div>
-                    ${executed.map(actor => `<p>${game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) })}</p>`).join("")}
-                </div>`
-            });
-        } else {
-            const { playSfxForUsers } = await import("./sfx.mjs");
-            await playSfxForUsers(game.users.map(u => u.id), "execution");
-        }
+        await announce({
+            flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },
+            content: `<div class="drpg-evidence-card">
+                <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.executionCardTitle")}</div>
+                ${executed.map(actor => `<p>${game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) })}</p>`).join("")}
+            </div>`
+        });
     } catch (err) {
         error("Could not tell the table of the execution", err);
     }

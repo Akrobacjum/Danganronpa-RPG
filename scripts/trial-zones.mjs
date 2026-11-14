@@ -32,7 +32,7 @@ import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
 import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf } from "./zone-machine.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { isPrimaryGm, serialWrite, serverNow, error, log, esc } from "./utils.mjs";
+import { isPrimaryGm, serialWrite, serverNow, error, esc } from "./utils.mjs";
 
 /** The floor as stored, for the readers here that may not import trial-floor.mjs (it imports this file). */
 function storedFloor() {
@@ -126,7 +126,7 @@ export function snapshotStands(hall = trialScene(), participants = trialParticip
  * The hall's tokens back on their stands, in one write of the hall on the primary GM (`stands` as `snapshotStands`
  * kept them): only a token still there and not on its stand. Answers how many it moved.
  */
-export async function returnToStands(stands, hall = trialScene()) {
+async function returnToStands(stands, hall = trialScene()) {
     if (!isPrimaryGm() || !hall || !stands || typeof stands !== "object") return 0;
     const rows = Object.entries(stands).flatMap(([id, at]) => {
         const token = hall.tokens?.get?.(id);
@@ -141,6 +141,39 @@ export async function returnToStands(stands, hall = trialScene()) {
         return 0;
     }
     return rows.length;
+}
+
+/**
+ * Whether the voices can be split into the camps' rooms here: the world's regional voice on and avclient-livekit active
+ * (voice-client.mjs `avclientActive`). Without either the voice decision is a no-op (voice.mjs), and a Scrum's Confer
+ * runs as a timer alone. The facts can be handed in (R5914).
+ */
+export async function voicesSplit({ enabled, active } = {}) {
+    const on = enabled ?? Boolean(game.settings.get(MODULE_ID, SETTINGS.voiceEnabled));
+    if (!on) return false;
+    if (active !== undefined) return Boolean(active);
+    const { avclientActive } = await import("./voice-client.mjs");
+    return Boolean(avclientActive());
+}
+
+/**
+ * A SCRUM DEBATE'S CONFER BEGUN, on the primary after the floor is written (trial-floor.mjs `commitFloor`, the machine's
+ * `conferBegun`): where the voices cannot be split (`voicesSplit`), one whisper to the GMs that the camps confer however
+ * the table does - once per Confer, from the primary alone, so a second GM is not told twice. Answers whether it told.
+ */
+export async function conferNotice({ split } = {}) {
+    if (!isPrimaryGm()) return false;
+    const can = split ?? await voicesSplit();
+    if (can) return false;
+    try {
+        const { whisperToGms } = await import("./utils.mjs");
+        // A GMs' warning is a warning card (E49 B5a's census, R3510).
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.localize("DRPG.Zones.scrum.noVoice"))}</p>` });
+    } catch (err) {
+        error("Could not tell the GMs that the camps' voices are not split", err);
+        return false;
+    }
+    return true;
 }
 
 /** A finding's id, new each time. */
@@ -391,7 +424,3 @@ export function zoneCardWords(words = {}) {
     return Object.fromEntries(Object.entries(words ?? {}).map(([k, v]) => [k, esc(String(v ?? ""))]));
 }
 
-/** Log a line about the zones (the primary's). */
-export function zoneLog(line) {
-    log(`Zones: ${line}`);
-}

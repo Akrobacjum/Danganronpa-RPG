@@ -338,12 +338,19 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify(direct.killer));
     check("direct: the victim is in it", direct.victim?.witness === true && direct.victim?.seat === true,
         JSON.stringify(direct.victim));
-    /* A direct murder is fought face to face, so the victim's copy names the killer (the owner's D6);
-       only a trap's copy holds the builder null (E06 C3, incident-store.mjs `castFor`, and part 2 below). */
+    /* THE KILLER BEHIND A "?" (1.2.113 assembly, 14.11.2026; E69 C8, mask-gm.mjs `opensMask`). A direct murder is
+       fought face to face, and until E69 C8 the victim's copy named the killer (the owner's D6). This opening succeeds
+       on Hope, and an opening on Hope or a critical now hides the killer: the GMs hold the mask for Chie, the victim's
+       copy names no killer (incident-store.mjs `castCopyFor`, as a trap's copy holds the builder null, part 2 below)
+       and the killer's own copy still names them. */
     const directCopy = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
         return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null };`);
-    check("direct: the victim's copy names the killer, face to face",
-        directCopy.killer === ids.chie && directCopy.turn === ids.chie, JSON.stringify(directCopy));
+    const killerCopy = await p3.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null };`);
+    const directMask = await gm.eval(`return (await import("${repoUrl}/scripts/mask-gm.mjs")).maskStands("${ids.chie}");`);
+    check("direct: an opening on Hope hides the killer - the GMs hold the mask, the victim's copy names no killer, the killer's own copy still names them",
+        directMask === true && directCopy.killer === null && directCopy.turn === null && killerCopy.killer === ids.chie,
+        JSON.stringify({ directMask, directCopy, killerCopy }));
     /* The Event card of the fight is titled for its kind (E32+E07 C18, 03.10.2026; audit S04-40):
        until then a direct murder's read "A killing in the dark", the trap's title, to the two
        standing face to face. The trap's own card is read by that title in part 2. */
@@ -721,7 +728,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return { used: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit used in the fight") }),
             drunk: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit a bystander drinks") }),
             broke: game.i18n.format("DRPG.Items.brokeOnDespair", { item: esc("Suite tool a bystander breaks") }),
-            support: game.i18n.format("DRPG.Calls.armedForYou", { what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
+            // Names the bystander who spent the Hope, in its words alone (the owner's rule #9, 13.11.2026; unnamed until then).
+            support: game.i18n.format("DRPG.Calls.armedForYouBy", { name: esc(game.actors.get("${ids.botan}").name), what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
     const handed = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const M = await import("${repoUrl}/scripts/murder.mjs");
         const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
@@ -1533,14 +1541,19 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const newVictim = await p3.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
         const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
         const end = Date.now() + 6000;
-        while (incidentCast().killerId !== "${ids.botan}" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        // the second incident's copy, by its victim: its killer stands behind a "?" (E69 C8), so the copy names none
+        while (incidentCast().victimId !== "${ids.chie}" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         const chie = game.actors.get("${ids.chie}");
         const sd = M.availableCrisisActions(chie).find(a => a.key === "selfDefence");
         return { killer: incidentCast().killerId ?? null, side: M.sideOf(chie), selfDefence: Boolean(sd && !sd.blocked && !sd.hidden) };`);
-    check("betrayal: the old victim's player holds no copy of the second incident, and the new victim's panel offers Self-defence",
+    /* The second incident opens on Hope, so Botan stands behind a "?" (1.2.113 assembly, 14.11.2026; E69 C8, mask-gm.mjs
+       `opensMask`): the new victim's copy names no killer while the mask stands; she is still the victim and offered
+       Self-defence. */
+    const botanMask = await gm.eval(`return (await import("${repoUrl}/scripts/mask-gm.mjs")).maskStands("${ids.botan}");`);
+    check("betrayal: the old victim's player holds no copy of the second incident, and the new victim's panel offers Self-defence, her copy naming no killer behind the \"?\"",
         oldVictim.keys.length === 0 && oldVictim.names === false
-        && newVictim.killer === ids.botan && newVictim.side === "victim" && newVictim.selfDefence === true,
-        JSON.stringify({ oldVictim, newVictim }));
+        && botanMask === true && newVictim.killer === null && newVictim.side === "victim" && newVictim.selfDefence === true,
+        JSON.stringify({ oldVictim, newVictim, botanMask }));
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
         Hooks.off("drpgIncidentClosed", globalThis.__betrayalHook);
         await game.drpg.endMurder({ reason: "suite", followUp: false });

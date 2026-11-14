@@ -261,6 +261,10 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             const t = academy.tokens.find(x => x.actorId === id);
             return { _id: t.id, ...M.positionIn(room, t) };
         }), { teleport: true, movementAction: "displace", animate: false });
+        // The two witnesses leave the discovery waiting for the GM's word (1.2.113): "Announce" in the primary's prompt.
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        await until(() => C.pendingBodyDiscoveries().length > 0);
+        globalThis.__dialogAnswers.push("announce"); await C.askPendingBodies();
         await until(() => bodyDiscovery());
         await new Promise(r => setTimeout(r, 800));
         const stamps = (bodiesFoundIn?.(getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
