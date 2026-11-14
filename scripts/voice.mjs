@@ -1134,10 +1134,6 @@ export function maskedRow(row, masks = new Set()) {
         why: "behind a \"?\" after a murder's opening - a silent room of its own" };
 }
 
-/**
- * The LiveKit room this browser's own character listens into, from the owner's copy (E69 C6), or null: `micHold`'s
- * "listening" is asked of the room the primary sent this browser, so a stale copy holds nothing.
- */
 /** On a GM: the accounts whose character stands behind a "?" now, from the GMs' rows (E69 C8). */
 function maskedIds() {
     if (!game.user?.isGM) return new Set();
@@ -1162,6 +1158,10 @@ function listeningIds() {
     return new Set(Object.values(eavesdropStore.entries() ?? {}).filter(row => row?.active && row.userId).map(row => row.userId));
 }
 
+/**
+ * The LiveKit room this browser's own character listens into, from the owner's copy (E69 C6), or null: `micHold`'s
+ * "listening" is asked of the room the primary sent this browser, so a stale copy holds nothing.
+ */
 function ownListenRoom(user = game.user) {
     if (!user || user.id !== game.user?.id || user.isGM) return null;
     for (const [actorId, row] of Object.entries(eavesdropCopy.read() ?? {})) {
