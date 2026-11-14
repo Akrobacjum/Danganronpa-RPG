@@ -8057,7 +8057,7 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     padding-inline-start: calc(var(--drpg-stat-mark-size) - 6px);
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="track"] .trait :is(.trait-name, .trait-name span) {
-    letter-spacing: 0 !important;
+    letter-spacing: 0;
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] {
     --drpg-trait-gap: 2px;

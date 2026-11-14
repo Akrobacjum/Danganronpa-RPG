@@ -101,16 +101,18 @@ export function markTraitGlyphs(element) {
  * their natural width (`measure`) and keeps the first that fits; again whenever the row's width changes and once the
  * fonts have loaded. With no layout (the harness) the row stays as drawn. R5760 reads the cascade, R7330 the order.
  */
-export const TRAIT_FIT_STEPS = Object.freeze(["", "gap", "gap pad", "gap pad track", "above track"]);
+export const TRAIT_FIT_STEPS = Object.freeze([[], ["gap"], ["gap", "pad"], ["gap", "pad", "track"], ["above", "track"]]
+    .map(tokens => Object.freeze(tokens)));
 
 /**
- * The first of `TRAIT_FIT_STEPS` at which six statistics fit their row, or "wrap". `measure(step)` answers the widest
+ * The first of `TRAIT_FIT_STEPS` at which six statistics fit their row, as its tokens joined by a space, or "wrap". `measure(step)` answers the widest
  * statistic at that step (`need`), the column gap (`gap`), how far a mark stands out of its plate's left end beside the
  * name (`overhang`, 0 above it) and the row's width. A mark beside the name keeps a pixel clear of the plate before it.
  * Pure; exported for R7330.
  */
 export function traitFitStep(measure) {
-    for (const step of TRAIT_FIT_STEPS) {
+    for (const tokens of TRAIT_FIT_STEPS) {
+        const step = tokens.join(" ");
         const { need, gap, overhang, width } = measure(step);
         const space = Math.max(gap, overhang > 0 ? overhang + 1 : 0);
         if (need > 0 && 6 * need + 5 * space <= width + 0.5) return step;

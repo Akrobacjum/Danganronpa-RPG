@@ -61316,7 +61316,7 @@ const INVARIANTS = [
         };
         const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
         const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
-        equal(stableJson([got, H.TRAIT_FIT_STEPS ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
+        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
             ["", "gap", "gap pad", "gap pad track", "above track"]]),
             "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
