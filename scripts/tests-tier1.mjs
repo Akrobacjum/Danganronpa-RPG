@@ -7844,7 +7844,7 @@ const INVARIANTS = [
         const verdictCode = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
         const table = bodyOf(verdictCode, "const FINAL_VERDICT_STEPS = ", { until: ";" });
         const sentence = fnSource(verdictCode, "finalVerdictSentence").indexOf("finalSentenced: [mastermind.id]"),
-            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null,");
+            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(aliveAsTableKnows(executed && mastermind ? [mastermind.id] : []), null,");
         ok(sentence > 0 && batch > 0 && table.indexOf('"finalLevelUps"') > table.indexOf('"finalSentence"') && table.indexOf('"finalSentence"') > 0,
             "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
@@ -47126,7 +47126,7 @@ const INVARIANTS = [
         // `studentActors(` with or without the GMs' `held` (E24 fix G1: the vote's candidates read the flags as the GMs hold them, R1494).
         const reads = (file, fn) => { const body = cut(file, fn); return body.length > 40 && /\bstudentActors\((?:\)|\{ held: flagsHeldNow \}\))/.test(body) && !/\bgame\.actors\b(?!\.get\()/.test(body); };
         // The Calls' picker since E24 fix G1 (the owner, 09.11: "wylacz takie npc"; the general review's m7).
-        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "verdictHeld"),
+        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "aliveAsTableKnows") && /\baliveAsTableKnows\(/.test(cut("verdict.mjs", "verdictHeld")),
             finalList: reads("verdict.mjs", "openFinalVerdictDialog"), calls: reads("call-pickers.mjs", "pickPlayer") };
         const flags = f => (scope, key) => (scope === MODULE_ID ? f[key] : undefined);
         const player = { id: "R1453player", isGM: false }, gm = { id: "R1453gm", isGM: true };
@@ -61198,6 +61198,21 @@ const INVARIANTS = [
             scrumTurn: [["yourTurn"], [], ["yourTurn"], []],
             yields: [["keyReveal", "present"], ["newRule", "motive", "publicAnnouncement"]]
         }), "{each floor opening's sounds; scrumTurn: [a Scrum turn of mine, the same again, the next of mine, another's]; yields: [truthBullet, despairCall]}");
+    }],
+    ["R7166 - a Panic Round's first speaker hears the *your turn* sound alone (E59 C-115, CHAINS.md B-T8; GM 15, \"The speaker ... hears the your turn sound alone\"): sfx.mjs `floorSounds` plays \"Panic Round starts\" on every other browser as the round opens, and on the browser of the speaker whose turn opens it only \"Your turn\" - the two played in one pass there; a Closing's start and its first turn are two writes, and stay two sounds", async () => {
+        const S = await import("./sfx.mjs");
+        const none = { known: true, floorOpen: false, floorMode: null, turnStep: null, closingAt: null };
+        const panic = { active: true, mode: "panic", holderId: "O", round: { mode: "panic", order: ["O", "P"], index: 0, step: 1, openedAt: 5 } };
+        const first = S.floorSounds(none, panic, { mine: id => id === "O" });
+        const next = S.floorSounds({ ...first.was, known: true }, { ...panic, holderId: "P", round: { ...panic.round, index: 1, step: 2 } }, { mine: id => id === "P" });
+        const read = {
+            speaker: first.play,
+            other: S.floorSounds(none, panic, { mine: () => false }).play,
+            nextSpeaker: next.play,
+            testimony: S.floorSounds(none, { ...panic, mode: "testimony", round: { ...panic.round, mode: "testimony" } }, { mine: id => id === "O" }).play
+        };
+        equal(stableJson(read), stableJson({ speaker: ["yourTurn"], other: ["panicStart"], nextSpeaker: ["yourTurn"], testimony: ["yourTurn"] }),
+            "{the sounds as a Panic Round opens: its first speaker's, another's; the next speaker's; a Testimony's first speaker's}");
     }],
     ["R7107 - the sounds and the music the survey found missing (E110 part 3, 14.11.2026): three new effects in the catalogue with their words in English and Polish - \"present\" (the Present's card, the whole table), \"stashFound\" (a Find Stash's find, the searcher and the GMs) and \"bedroomEntered\" (the bedroom's owner alone) - each on its card's flag, a Find Stash's miss playing \"searchNothing\"; and the vote's own music (music-states.mjs `voteMusicPlays`) from the vote's opening to the verdict, only with a playlist mapped", async () => {
         /* Pure but for the catalogue and three sources read. Red at 98f60442: no such keys, no voteMusicPlays. */

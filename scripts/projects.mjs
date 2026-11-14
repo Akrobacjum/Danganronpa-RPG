@@ -1819,10 +1819,12 @@ export function registerProjectChanges() {
     Hooks.on("createChatMessage", forget);
     Hooks.on("deleteChatMessage", forget);
     // A player's sight of the secret projects changed (S17-31, E101 R2): a share or a revoke writes no countdown any more,
-    // so Daggerheart's setting change no longer runs the tray's and the tokens' pass; the copy's change does.
+    // so Daggerheart's setting change no longer runs the tray's and the tokens' pass; the copy's change does. All of what
+    // a project's change redraws (E59 on the 1.2.115 line, CHAINS.md B-R1; R7162): the tray and the tokens, and the
+    // sheets' Projects tile and the HUD, whose render repaints the room tile's "a project here" - both read `canSee`,
+    // which reads this copy, and a player let into a project in their room saw no line until they moved.
     Hooks.on("drpgProjectSightChanged", () => {
-        import("./projects-tray.mjs").then(m => m.refreshProjects?.()).catch(err => error("Could not redraw the Projects tray", err));
-        import("./visibility.mjs").then(m => m.applyAll?.()).catch(err => error("Could not ask again who sees the project tokens", err));
+        import("./sync.mjs").then(m => m.applyKind(m.SYNC.projects)).catch(err => error("Could not redraw what the projects' sight reads", err));
     });
     // The sight's wire (E101 R2): the listener on every client, and a player's ask at its load and at a primary's.
     Hooks.once("ready", () => {

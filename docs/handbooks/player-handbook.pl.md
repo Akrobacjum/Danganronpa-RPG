@@ -107,7 +107,7 @@ W chwili twojej śmierci szkło na twoim ekranie szarzeje, z dźwiękiem Gaśni�
 
 ### Dzień, sesja, rozdział
 
-Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia odnawia twoje dwie akcje, Free Move i Search Tokeny każdego pokoju. Gdy kończy się Noc, zaczyna się nowy dzień.
+Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia uzupełnia Search Tokeny każdego pokoju, a jej Eclipse odnawia twoje dwie akcje i Free Move (gdy pora mija bez Eclipse, odnawia je GM). Gdy kończy się Noc, zaczyna się nowy dzień.
 
 Kanoniczny rozdział to pięć sesji: trzy Daily Life, jedna sesja **Investigation** i jedna sesja **Class Trial**, a morderstwo przychodzi zwykle w trzeciej sesji Daily Life. GM może rozciągnąć rozdział, gdy morderstwa jeszcze nie było. Sezon to sześć rozdziałów; sezon modułowy to krótszy sezon, który GM może wybrać zamiast niego, i ma jeden rozdział.
 
@@ -172,6 +172,7 @@ Zawraca cię:
 | pokój, który **nie łączy się** z twoim | odmowa wymienia tylko te sąsiednie pokoje, w których już byłeś |
 | **piętro**, na które schody z twojego pokoju nie prowadzą | na mapie ze schodami tylko one zabiorą cię w górę lub w dół |
 | **zamknięte drzwi** | GM zamknął pokój |
+| **zabarykadowane drzwi** | ktoś zamknął drzwi od środka (Shut the Door); sekretne przejście albo wyłom nadal prowadzą dalej |
 | **zapieczętowany pokój** | Despair Call Behind Closed Doors, na jedną porę dnia |
 | **Chained** od Despair Calla | nie wyjdziesz z pokoju do końca pory dnia |
 | **cudza sypialnia** | gdy nie masz do niej klucza |
@@ -226,12 +227,12 @@ Na kafelku są dwa przyciski. Przycisk mikrofonu wycisza i włącza tylko twój 
 |---|---|
 | przekreślony | wyciszony, przez ciebie |
 | przekreślony, z małą kłódką | wyciszony przez GM-a: **GM zablokował twój mikrofon.** |
-| szary i przekreślony | trzyma go gra podczas Eclipse, a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
+| szary i przekreślony | trzyma go gra - podczas Eclipse, gdy podsłuchujesz pod drzwiami, w Class Trial, gdy głos ma ktoś inny albo jesteś na liście zmarłych rozprawy, i gdy jesteś Widzem - a powód stoi pod mikrofonem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego |
 | z małą kropką | nie jesteś połączony z głosem albo głos działa w osobnym oknie |
 | świeci | twój mikrofon niesie twój głos |
 | z napisem **PTT** | tryb naciśnij, aby mówić: przytrzymaj klawisz, żeby mówić |
 
-Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W kanale zmarłych mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
+Monocub zachowuje mikrofon podczas Eclipse i dostaje informację, że do powrotu światła nikt go nie słyszy. W pokoju Widzów mikrofon zostaje twój: wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś.
 
 Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, która cię słyszy, mówiącą czy nie, i otwiera **Kogo słyszysz**: każdą z tych osób z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Te ustawienia działają tylko u ciebie; inni przy stole niczego nie zauważą. Escape albo kliknięcie obok zamyka listę.
 
@@ -427,7 +428,7 @@ Barykadujesz od środka pokój, w którym stoisz, a siłą barykady jest twój r
 
 ### Force the Door - Body, 1 akcja
 
-Przy drzwiach z twojego pokoju do sąsiedniego rzucasz raz na Body przeciw wszystkiemu, co je trzyma, naraz, a drzwi ustępują tylko wtedy, gdy rzut pokona to wszystko. Barykada wymaga więcej niż jej siła (remis ją utrzymuje); zamek (GM-a albo sypialni) i pieczęć wymagają 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, dopóki ktoś go nie naprawi (Repair the Lock, w części o Projects), a wyważona pieczęć znika do końca swojej pory dnia. Osoby w twoim pokoju zawsze widzą, kto to był, jakikolwiek byłby rzut. Wyważone drzwi, a także pudło z Despair, są głośne: pokoje obok jednego i drugiego pokoju słyszą *Łomot z: {room}.* bez imienia, a osoby w pokoju za drzwiami widzą, kto to był. Każda próba przy drzwiach, które coś trzyma, zostawia Remnant: Evident, gdy było głośno, a w przeciwnym razie Subtle. Właściciel sypialni, który tego nie widział, dostaje wiadomość, że drzwi wyważono, gdy następnym razem wejdzie do tej sypialni, albo od razu, jeśli w niej jest. Force the Door nie wolno użyć w trakcie Class Trial ani wtedy, gdy jesteś Chained.
+Przy drzwiach z twojego pokoju do sąsiedniego rzucasz raz na Body przeciw wszystkiemu, co je trzyma, naraz, a drzwi ustępują tylko wtedy, gdy rzut pokona to wszystko. Barykada wymaga więcej niż jej siła (remis ją utrzymuje); zamek (GM-a albo sypialni) i pieczęć wymagają 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, dopóki ktoś go nie naprawi (Repair the Lock, w części o Projects), a wyważona pieczęć znika do końca swojej pory dnia. Osoby w twoim pokoju zawsze widzą, kto to był, jakikolwiek byłby rzut. Wyważone drzwi, a także pudło z Despair, są głośne: pokoje obok jednego i drugiego pokoju słyszą *Słychać łomot przy drzwiach pokoju {room}.* bez imienia (pokój, którego nie znaleźli, to dla nich *Nieodkryty pokój n*), a osoby w pokoju za drzwiami widzą, kto to był. Każda próba przy drzwiach, które coś trzyma, zostawia Remnant: Evident, gdy było głośno, a w przeciwnym razie Subtle. Właściciel sypialni, który tego nie widział, dostaje wiadomość, że drzwi wyważono, gdy następnym razem wejdzie do tej sypialni, albo od razu, jeśli w niej jest. Force the Door nie wolno użyć w trakcie Class Trial ani wtedy, gdy jesteś Chained.
 
 ### Pick the Lock - Shadow, potem Hand, 1 akcja
 
@@ -869,7 +870,7 @@ Wszyscy są w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz z odnow
 
 Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły: żyjących, którzy brali udział, do pokoju, który wybierze GM. GM wybiera, kto bierze udział. Na czas rozprawy token twojej postaci staje w sali, a potem zostaje z niej usunięty.
 
-Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**: moduł wyłącza mikrofon gracza zmarłego ucznia, gdy rozprawa się otwiera, i oddaje go, gdy się kończy - także przy śmierci, której nikt nie znalazł, więc mikrofon, który milknie, mówi stołowi, że ktoś zginął. Twój kafelek głosu mówi dlaczego. Monocub mówi tylko w otwartej dyskusji, gdy nie trwa żaden tryb, a słucha w każdym trybie, od głosowania i przez całą rozprawę w sprawie własnej śmierci; kafelek mówi, kiedy może mówić, a kiedy tylko słucha. Od 1.2.114 tryb, który daje komuś głos, wyłącza też mikrofon Monocuba, tak jak wszystkim innym. Uczeń skazany werdyktem mówi do końca rozprawy. Moduł wycisza tylko zmarłych, a tego, kto mówi w danym trybie, pilnuje stół.
+Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**: moduł wyłącza mikrofon gracza zmarłego ucznia, gdy rozprawa się otwiera, i oddaje go, gdy się kończy - także przy śmierci, której nikt nie znalazł, więc mikrofon, który milknie, mówi stołowi, że ktoś zginął. Twój kafelek głosu mówi dlaczego. Monocub mówi tylko w otwartej dyskusji, gdy nie trwa żaden tryb, a słucha w każdym trybie, od głosowania i przez całą rozprawę w sprawie własnej śmierci; kafelek mówi, kiedy może mówić, a kiedy tylko słucha. Od 1.2.114 tryb, który daje komuś głos, wyłącza też mikrofon Monocuba, tak jak wszystkim innym. Uczeń skazany werdyktem mówi do końca rozprawy. W otwartej dyskusji, gdy nie trwa żaden tryb, moduł wycisza tylko zmarłych i Widzów, a tego, kto mówi, pilnuje stół.
 
 Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy i nikt nie wnosi objection, a Truth Bullet można za darmo **Przedstawić** z ekwipunku. Trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Zaznacz **Pokaż z wynikiem mojego Analyze**, żeby pokazać, co odczytało twoje Analyze; bez zaznaczenia karta pokazuje dowód jako nigdy nieanalizowany, bez odczytu i bez rodzaju, który wyszedł z analizy. Każdy inny uczestnik dostaje na arkusz kopię, tak jak ją pokazano, za darmo i raz. Dowiadujesz się, kiedy dowód trafił na stół. W Class Trial Truth Bullet nie ma Podziel się kopią: dowody przechodzą z rąk do rąk przez Przedstaw. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
 
@@ -1169,7 +1170,7 @@ Okno rzutu otwarcia zamknięte bez rzutu otwiera się znowu najwyżej `TIMING.op
 
 **Akcje w rozprawie.** Rozprawa odnawia każdemu akcje, nie kończąc pory dnia, a Sprint i Burst w zapasie zostają w nim przez całą rozprawę. Od 1.2.110 Wounded zabiera akcję tylko w Daily Life i w Investigation, więc akcje rozprawy są pełnym budżetem także dla ucznia w stanie Wounded; zaciemnienie Panic nadal zabiera jedną akcję.
 
-**Mikrofony.** Gdy rozprawa się otwiera, przeglądarka głównego GM-a wypisuje każdego zmarłego ucznia, także takiego, którego śmierci nikt nie znalazł, i nigdy Monocuba; graczowi każdego z nich zabiera uprawnienie Broadcast Audio w Foundry i oddaje je, gdy rozprawa się kończy. Linijki Monocuba na kafelku głosu (otwarta dyskusja, tryb, od głosowania, jego własna sprawa) są tylko informacją: moduł nigdy nie trzyma mikrofonu Monocuba.
+**Mikrofony.** Gdy rozprawa się otwiera, przeglądarka głównego GM-a wypisuje każdego zmarłego ucznia, także takiego, którego śmierci nikt nie znalazł, i nigdy Monocuba; graczowi każdego z nich zabiera uprawnienie Broadcast Audio w Foundry i oddaje je, gdy rozprawa się kończy. Linijki Monocuba na kafelku głosu (otwarta dyskusja, tryb, od głosowania, jego własna sprawa) mówią, czego stół od niego oczekuje; od 1.2.114 tryb, który daje komuś głos, zabiera uprawnienie Broadcast Audio każdemu graczowi, który głosu nie ma, także Monocubowi, i oddaje je, gdy głos przechodzi dalej.
 
 **Głosowanie.** Głos trafia tylko do przeglądarek GM-ów. Dopóki nie jest połączony żaden GM, twoja przeglądarka trzyma twój głos i wysyła go, gdy GM się połączy, a do tego czasu czytasz "Żaden GM nie ma jeszcze twojego głosu. Trafi do GM-a, gdy tylko się połączy.". Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka.
 

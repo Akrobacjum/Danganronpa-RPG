@@ -3148,7 +3148,7 @@
       "filterChapter": "Rozdział",
       "filterEveryChapter": "Wszystkie rozdziały",
       "chapterN": "Rozdział {n}",
-      "neverOnePerson": "Remnant nigdy nie wskazuje nikogo wprost: Key Remnant zawęża krąg podejrzanych najwyżej do połowy obsady, każdy inny do 2-4 osób.",
+      "neverOnePerson": "Remnant nigdy nie wskazuje nikogo wprost: Key Remnanty razem zawężają krąg podejrzanych do {min}-{max} osób.",
       "filterCount": "Pokazano {shown} z {total}.",
       "noneMatch": "Żaden Remnant nie pasuje do tego filtra.",
       "plannerIntro": {
@@ -6206,7 +6206,7 @@
       "silenced": "Wyciszony",
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}), więc trafia tylko do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij tokeny tych postaci z mapy.",
       "mainRoom": "główny pokój",
-      "deadRoom": "kanał Widzów",
+      "deadRoom": "pokój Widzów",
       "claimTrial": "podczas Class Trial wszyscy są w jednym pokoju",
       "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w „Kogo słyszysz” na kafelku głosu.",
       "needsAvclient": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.",
@@ -6341,7 +6341,7 @@
         "eclipseGroup": "(Eclipse: żaden gracz nie jest na głosie)",
         "spectatorGroup": "(pokój Widzów)",
         "mainGroup": "(główny pokój)",
-        "deadGroup": "(kanał zmarłych)",
+        "deadGroup": "(pokój Widzów)",
         "nowhere": "(nigdzie nie wysłano)",
         "ignored": "← pominięte, {name} trafia tam, gdzie {actor}",
         "itsAccount": "jego konto",
@@ -6352,7 +6352,7 @@
         "alone": "Konta bez postaci",
         "noCharacter": "brak postaci",
         "conflicts": "Konflikty: te konta mają postacie w więcej niż jednym miejscu.",
-        "deadChannel": "kanał zmarłych",
+        "deadChannel": "pokój Widzów",
         "applied": "(ta jest stosowana)",
         "oneRoom": "Klient głosu może być tylko w jednym pokoju. Daj zapasowe postacie innemu kontu albo nie stawiaj ich tokenów na mapie.",
         "decision": "To tylko decyzja; dźwięku nie sprawdza.",
@@ -7985,7 +7985,7 @@
           "hope": "Ofiara czuje, że z tym pokojem coś jest nie tak, choć nie wie co. Zostaje na niej Incident Remnant (Evident).",
           "despair": "Ofiara rozgryza, co tu zastawiono, i może powiedzieć o tym innym; projekt, który za tym stoi, pozostaje aktywny. Zostaje na niej Incident Remnant (Evident).",
           "critical": "Ofiara dostrzega pułapkę i wie, kto ją zbudował. Zostaje na niej Incident Remnant (Evident).",
-          "failure": "Ofiara niczego nie zauważa, a pułapka się zamyka. Nie może już wziąć Role Reversal, a nikt, kto wejdzie, nie weźmie Double Role Reversal."
+          "failure": "Ofiara niczego nie zauważa, a pułapka się zamyka. Nie może już wziąć Role Reversal."
         }
       },
       "CRISIS_ACTIONS": {
@@ -8301,7 +8301,7 @@
         },
         "cleanupFailed": {
           "label": "Sprzątanie nie udaje się",
-          "hint": "Rzut Tamper, Erase a Trace albo Reshape a Trace kończy się pudłem. Słyszy tylko gracz, który rzucał."
+          "hint": "Rzut Tamper, Erase a Trace, Reshape a Trace, Misleading Trail albo Move the Body kończy się pudłem. Słyszy tylko gracz, który rzucał."
         },
         "breakdown": {
           "label": "Breakdown",
@@ -8321,7 +8321,7 @@
         },
         "yourTurn": {
           "label": "Twoja tura",
-          "hint": "W incydencie słyszy gracz ucznia, który jest na ruchu, nigdy GM. W Testimony, Panic Round albo Closing Argument słyszy gracz mówcy, raz na turę."
+          "hint": "W incydencie słyszy gracz ucznia, który jest na ruchu, nigdy GM. W Testimony, Panic Round, Closing Argument albo turze Scrum Debate słyszy gracz mówcy, raz na turę."
         },
         "truthBullet": {
           "label": "Znaleziono Truth Bullet",
@@ -8353,7 +8353,7 @@
         },
         "debateOpen": {
           "label": "Nonstop Debate się otwiera",
-          "hint": "Słyszy cały stół, gdy otwiera się Nonstop Debate, chyba że otwiera ją Closing Argument."
+          "hint": "Słyszy cały stół, gdy otwiera się Nonstop Debate."
         },
         "objection": {
           "label": "Objection",

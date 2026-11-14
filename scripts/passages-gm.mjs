@@ -828,6 +828,10 @@ export async function tellBreach(made) {
     let told = 0;
     for (const actor of game.actors?.contents ?? [...(game.actors ?? [])]) {
         if (!studentOf(actor?.id) || actor.id === builder?.id) continue;
+        // Somebody in the room as movement.mjs counts them (E59 on the 1.2.115 line, CHAINS.md B-R7; R7163): the dead and
+        // the Spectators were sent the breach's card and its sound.
+        const token = M.locateActor(actor, { sceneId: scene.id })?.tokenDoc;
+        if (!token || !M.countsAsPresent(token)) continue;
         const room = where(actor);
         let text = null;
         if (room && room === from) text = present ? game.i18n.format("DRPG.Passage.card.breachDoneHereNamed", { name: esc(builder.name) })
