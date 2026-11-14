@@ -50,7 +50,7 @@ B01a alone; line B owns that change (the coordinator, 14.11.2026). Until it land
 | B10b | not started | |
 | B11 | not started | |
 | B12 | not started | |
-| B13 | not started | |
+| B13 | rewritten, reviewed (EN, cold EN, PL), folded, landed: 35 texts, 144 families kept (docs/dev/e71/kept-C.json) | this commit |
 
 ## Questions, with the default taken
 

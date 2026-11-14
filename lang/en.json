@@ -80,7 +80,7 @@
       },
       "Triggers": {
         "fearRoll": {
-          "label": "Despair Roll"
+          "label": "Roll with Despair"
         }
       },
       "RollTypes": {
@@ -155,7 +155,7 @@
         "addCountdown": "Add Project",
         "newCountdown": "New Project",
         "removeCountdownTitle": "Remove Project",
-        "removeCountdownText": "Are you sure you want to remove the project: {name}?"
+        "removeCountdownText": "Remove the project “{name}”?"
       },
       "CountdownEdit": {
         "title": "Project Edit",
@@ -163,7 +163,7 @@
         "editTitle": "Edit Projects",
         "newCountdown": "New Project",
         "removeCountdownTitle": "Remove Project",
-        "removeCountdownText": "Are you sure you want to remove the project: {name}?",
+        "removeCountdownText": "Remove the project “{name}”?",
         "defaultOwnershipTooltip": "The default player ownership of projects",
         "hideNewCountdowns": "Hide New Projects"
       },
@@ -197,7 +197,7 @@
             "label": "Despair Position"
           },
           "displayCountdownUI": {
-            "label": "Display Projects UI"
+            "label": "Display Projects Tray"
           }
         }
       },
@@ -211,7 +211,7 @@
           },
           "countdownAutomation": {
             "label": "Project Automation",
-            "hint": "Automatically progress projects based on their progression settings"
+            "hint": "Rolls advance projects automatically, as each project's progress settings say."
           }
         }
       },
@@ -1872,7 +1872,7 @@
       "gm": "GM Handbook",
       "contents": "Contents",
       "loading": "Loading...",
-      "failed": "This handbook could not be loaded. Try again in a moment.",
+      "failed": "This handbook could not be loaded. Click its tab to try again.",
       "callout": {
         "note": "Note",
         "tip": "Tip",
@@ -5589,25 +5589,25 @@
     "Rules": {
       "tab": "Rules",
       "sheetTitle": "Monokuma's rules",
-      "sheetIntro": "Monokuma's standing rules. They apply to everyone, all the time, until he says otherwise.",
+      "sheetIntro": "These rules apply to everyone, all the time, until Monokuma changes or revokes them.",
       "none": "No rules announced yet.",
       "rule": "Rule",
       "added": "Introduced in chapter {chapter}",
       "manageTitle": "Killing game rules",
-      "manageIntro": "Every standing rule, in the order they were introduced. Edit the wording in place, tick to revoke, or add one at the bottom.",
-      "manageNote": "Rules bought with the New Rule Despair Call land here by themselves. Everything here shows on every character sheet.",
+      "manageIntro": "The rules are listed in the order they were introduced. Edit a rule's wording in its field, tick its Delete box to revoke it, or write a new one below.",
+      "manageNote": "A rule bought with the New Rule Despair Call, or the one the Blackened chooses after a wrong vote, is added here as well. Every rule here shows on the Rules tab of every character sheet.",
       "addNew": "Introduce a new rule",
       "saved": {
-        "one": "Saved - {n} rule in force.",
-        "other": "Saved - {n} rules in force."
+        "one": "Saved. {n} rule is in force.",
+        "other": "Saved. {n} rules are in force."
       },
-      "recorded": "Added to the killing game's standing rules.",
+      "recorded": "The rule joins the standing rules on every character sheet.",
       "announce": "Announce changes",
       "announceTitle": "The killing game's rules have changed",
       "announceAdded": "Introduced",
       "announceRevoked": "Revoked",
-      "emptyKept": "A rule cannot be left empty, so it keeps its wording (rule {rules}). Tick a rule's box to revoke it.",
-      "saveFailed": "The rules could not be saved - nothing was changed or announced."
+      "emptyKept": "A rule cannot be empty, so each one you cleared keeps its old wording ({rules}). To revoke a rule, tick its Delete box.",
+      "saveFailed": "The rules could not be saved, so they stay as they were and nothing was announced. Open the window again to redo your changes."
     },
     "Motive": {
       "title": "Motive",
@@ -5647,19 +5647,19 @@
     },
     "Safeword": {
       "title": "Safeword",
-      "tooltip": "Stop the scene. No reason needed, and nobody will ask for one.",
-      "keybinding": "Safeword - stop the scene",
+      "tooltip": "Stop the scene. You do not have to give a reason, and nobody will ask for one.",
+      "keybinding": "Safeword: stop the scene",
       "confirm": "Stop the scene?",
-      "confirmNote": "The game pauses, every GM is told, and everyone sees that the scene has stopped. You do not have to justify it, now or later.",
-      "stopIt": "Stop it",
+      "confirmNote": "The game pauses, everyone sees that the scene has stopped, and every GM is told it was you. You do not have to justify it, now or later.",
+      "stopIt": "Stop the scene",
       "banner": "THE SCENE IS STOPPED",
       "announced": "Somebody used the safeword. Play stops here. A GM will pick this up, and the scene resumes from a point everyone agrees on.",
-      "gmNote": "{who} used it, in {room}. Nobody else has been told who - the table only knows the scene stopped.",
-      "roomUnknown": "no room recorded",
+      "gmNote": "{who} used the safeword in {room}. Only the GMs are told who it was; everyone else knows only that the scene stopped.",
+      "roomUnknown": "an unknown room",
       "failed": "The safeword could not be sent. Say it out loud and tag a GM.",
-      "selfPosted": "No GM answered in time, so the card went up from your screen. Tag a GM in the text channel.",
-      "gmTitle": "Safeword - GM only",
-      "kept": "This world already had a safeword, so it has been kept: “{word}”. Change it in Season setup."
+      "selfPosted": "No GM answered in time, so your screen posted the card itself. The GMs may not know it was you, and the game may not have paused. Tag a GM in the text channel.",
+      "gmTitle": "Safeword (GMs only)",
+      "kept": "This world already has the safeword “{word}”, so that word stays. You can change it in Season setup."
     },
     "Note": {
       "tab": "Note",
@@ -6270,8 +6270,8 @@
         "other": "{n} more notices wait under these. Close one to see the next."
       },
       "moreCloseAll": {
-        "one": "{n} more notice waits. Click to close every card except the ones to read.",
-        "other": "{n} more notices wait. Click to close every card except the ones to read."
+        "one": "{n} more notice is waiting. Click to close every notice except the ones you need to read.",
+        "other": "{n} more notices are waiting. Click to close every notice except the ones you need to read."
       },
       "critical": {
         "result": "Critical success"
@@ -6446,13 +6446,13 @@
     },
     "Notices": {
       "title": "Notice history",
-      "keybindingHint": "Open the notices you were shown, to read a closed one again.",
+      "keybindingHint": "Opens the notice history, where you can read a closed notice again.",
       "filter": {
         "all": "All",
         "forYou": "For you",
         "announcements": "Announcements",
         "players": "From players",
-        "notDone": "Not done",
+        "notDone": "Not carried out",
         "evidence": "Evidence",
         "messenger": "Messenger",
         "more": "More filters",
@@ -6465,7 +6465,7 @@
         "shown": "On screen",
         "unread": "Unread"
       },
-      "sessionOnly": "Not saved: kept until this page is closed",
+      "sessionOnly": "Kept only until you close or reload this page",
       "buttonUnread": {
         "one": "Notice history, {n} unread",
         "other": "Notice history, {n} unread"
@@ -6474,18 +6474,18 @@
         "one": "{n} unread notice",
         "other": "{n} unread notices"
       },
-      "newPill": "New notices - show them",
+      "newPill": "Show new notices",
       "chapterFold": "Chapter {chapter} ({n})",
       "openConversation": "Open the conversation",
       "empty": "No notices yet.",
       "noMatch": "No notice matches.",
-      "markRead": "Mark as read",
-      "clear": "Clear",
-      "clearTitle": "Clear the notice history?",
-      "clearBody": "Every notice goes for good.",
+      "markRead": "Mark all as read",
+      "clear": "Clear the history",
+      "clearTitle": "Clear notice history",
+      "clearBody": "This removes every notice from the history for good.",
       "clearYes": "Clear the history",
-      "notSaved": "The history is not saving: it goes when the page reloads.",
-      "clipped": "Too long to keep whole: only its text was kept.",
+      "notSaved": "The history is not being saved, so it lasts only until you close or reload this page.",
+      "clipped": "This notice was too long to keep in full, so only its title and text are kept, without the card's layout.",
       "mark": {
         "deleted": "Deleted from the chat log",
         "rerolled": "Rerolled",

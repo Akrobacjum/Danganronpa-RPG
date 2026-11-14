@@ -46,7 +46,7 @@
           "short": "HAN",
           "verb": {
             "control": "Obsłuż",
-            "hide": "Wykonaj",
+            "hide": "Wytwórz",
             "tinker": "Majstruj"
           }
         },
@@ -80,7 +80,7 @@
       },
       "Triggers": {
         "fearRoll": {
-          "label": "Rzut Despair"
+          "label": "Rzut z Despair"
         }
       },
       "RollTypes": {
@@ -155,7 +155,7 @@
         "addCountdown": "Dodaj projekt",
         "newCountdown": "Nowy projekt",
         "removeCountdownTitle": "Usuń projekt",
-        "removeCountdownText": "Na pewno usunąć projekt: {name}?"
+        "removeCountdownText": "Usunąć projekt „{name}”?"
       },
       "CountdownEdit": {
         "title": "Edycja projektu",
@@ -163,7 +163,7 @@
         "editTitle": "Edytuj projekty",
         "newCountdown": "Nowy projekt",
         "removeCountdownTitle": "Usuń projekt",
-        "removeCountdownText": "Na pewno usunąć projekt: {name}?",
+        "removeCountdownText": "Usunąć projekt „{name}”?",
         "defaultOwnershipTooltip": "Domyślne uprawnienia graczy do projektów",
         "hideNewCountdowns": "Ukrywaj nowe projekty"
       },
@@ -197,7 +197,7 @@
             "label": "Położenie Despair"
           },
           "displayCountdownUI": {
-            "label": "Pokazuj interfejs projektów"
+            "label": "Pokazuj zasobnik projektów"
           }
         }
       },
@@ -211,7 +211,7 @@
           },
           "countdownAutomation": {
             "label": "Automatyzacja projektów",
-            "hint": "Automatycznie posuwaj projekty zgodnie z ich ustawieniami postępu"
+            "hint": "Rzuty same posuwają projekty naprzód, według ustawień postępu każdego z nich."
           }
         }
       },
@@ -1960,7 +1960,7 @@
       "gm": "Podręcznik GM",
       "contents": "Spis treści",
       "loading": "Wczytywanie...",
-      "failed": "Nie udało się wczytać podręcznika. Spróbuj za chwilę.",
+      "failed": "Nie udało się wczytać podręcznika. Kliknij jego zakładkę, żeby spróbować jeszcze raz.",
       "callout": {
         "note": "Uwaga",
         "tip": "Wskazówka",
@@ -6021,27 +6021,27 @@
     "Rules": {
       "tab": "Zasady",
       "sheetTitle": "Zasady Monokumy",
-      "sheetIntro": "Stałe zasady Monokumy. Dotyczą wszystkich, cały czas, dopóki nie powie inaczej.",
+      "sheetIntro": "Te zasady obowiązują wszystkich przez cały czas, dopóki Monokuma ich nie zmieni albo nie cofnie.",
       "none": "Nie ogłoszono jeszcze zasad.",
       "rule": "Zasada",
       "added": "Wprowadzona w rozdziale {chapter}",
       "manageTitle": "Zasady killing game",
-      "manageIntro": "Każda stała zasada, w kolejności wprowadzenia. Edytuj brzmienie w miejscu, zaznacz, by cofnąć, albo dodaj nową na dole.",
-      "manageNote": "Zasady kupione przez Despair Call „New Rule” trafiają tu same. Wszystko stąd pokazuje się na każdym arkuszu postaci.",
+      "manageIntro": "Zasady są ułożone w kolejności wprowadzenia. Brzmienie zasady poprawisz w jej polu, a żeby ją cofnąć, zaznacz pole Usuń w jej wierszu. Nową zasadę wpisz pod tabelą.",
+      "manageNote": "Tu trafiają też zasady kupione Despair Callem New Rule i zasada, o którą prosi Blackened po błędnym głosowaniu. Każda zasada z tej listy jest widoczna w zakładce Zasady na każdym arkuszu postaci.",
       "addNew": "Wprowadź nową zasadę",
       "saved": {
-        "one": "Zapisano - {n} zasada obowiązuje.",
-        "few": "Zapisano - {n} zasady obowiązują.",
-        "many": "Zapisano - {n} zasad obowiązuje.",
-        "other": "Zapisano - {n} zasad obowiązuje."
+        "one": "Zapisano. Obowiązuje {n} zasada.",
+        "few": "Zapisano. Obowiązują {n} zasady.",
+        "many": "Zapisano. Obowiązuje {n} zasad.",
+        "other": "Zapisano. Obowiązuje {n} zasady."
       },
-      "recorded": "Dodano do stałych zasad killing game.",
+      "recorded": "Nowa zasada trafia do stałych zasad na każdym arkuszu postaci.",
       "announce": "Ogłoś zmiany",
       "announceTitle": "Zasady killing game się zmieniły",
       "announceAdded": "Wprowadzone",
       "announceRevoked": "Cofnięte",
-      "emptyKept": "Zasada nie może zostać pusta, więc zachowuje brzmienie (zasada {rules}). Zaznacz pole zasady, by ją cofnąć.",
-      "saveFailed": "Nie udało się zapisać zasad - niczego nie zmieniono ani nie ogłoszono."
+      "emptyKept": "Zasada nie może być pusta, więc każda wyczyszczona zasada (nr {rules}) zachowuje dawne brzmienie. Żeby cofnąć zasadę, zaznacz pole Usuń w jej wierszu.",
+      "saveFailed": "Nie udało się zapisać zasad, więc zostają bez zmian i nic nie ogłoszono. Otwórz jeszcze raz okno Zasady killing game i wprowadź zmiany od nowa."
     },
     "Motive": {
       "title": "Motive",
@@ -6090,19 +6090,19 @@
     },
     "Safeword": {
       "title": "Safeword",
-      "tooltip": "Zatrzymaj scenę. Bez powodu i nikt o niego nie zapyta.",
-      "keybinding": "Safeword - zatrzymaj scenę",
+      "tooltip": "Zatrzymaj scenę. Nie musisz podawać powodu i nikt cię o niego nie zapyta.",
+      "keybinding": "Safeword: zatrzymaj scenę",
       "confirm": "Zatrzymać scenę?",
-      "confirmNote": "Gra się zatrzymuje, każdy GM zostaje powiadomiony i wszyscy widzą, że scena stanęła. Nie musisz tego uzasadniać, ani teraz, ani później.",
-      "stopIt": "Zatrzymaj",
+      "confirmNote": "Gra się zatrzymuje, wszyscy widzą, że scena stanęła, a każdy GM dowiaduje się, że to ty. Nie musisz się z tego tłumaczyć ani teraz, ani później.",
+      "stopIt": "Zatrzymaj scenę",
       "banner": "SCENA ZATRZYMANA",
       "announced": "Ktoś użył safeword. Gra staje w tym miejscu. GM to przejmie, a scena wznowi się od punktu, na który wszyscy się zgodzą.",
-      "gmNote": "Użył: {who}, w pokoju {room}. Nikomu innemu nie powiedziano kto - stół wie tylko, że scena stanęła.",
-      "roomUnknown": "nie zapisano pokoju",
+      "gmNote": "{who} używa safeword w pokoju {room}. Kto to był, wiedzą tylko GM-owie; pozostali wiedzą jedynie, że scena stanęła.",
+      "roomUnknown": "nie do ustalenia",
       "failed": "Nie udało się wysłać safeword. Powiedz to na głos i zawołaj GM-a.",
-      "selfPosted": "Żaden GM nie odpowiedział na czas, więc karta poszła z twojego ekranu. Zawołaj GM-a na kanale tekstowym.",
-      "gmTitle": "Safeword - tylko GM",
-      "kept": "Ten świat miał już safeword, więc zostało zachowane: „{word}”. Zmień je w Ustawieniach sezonu."
+      "selfPosted": "Żaden GM nie odpowiedział na czas, więc kartę wysłał sam twój ekran. GM-owie mogą nie wiedzieć, że to ty, a gra mogła się nie zatrzymać. Zawołaj GM-a na kanale tekstowym.",
+      "gmTitle": "Safeword (tylko dla GM-ów)",
+      "kept": "Ten świat ma już safeword „{word}”, więc to słowo zostaje. Możesz je zmienić w oknie „Ustawienia sezonu”."
     },
     "Note": {
       "tab": "Notatka",
@@ -6816,10 +6816,10 @@
         "other": "Pod nimi czeka jeszcze {n} powiadomienia. Zamknij jedno, żeby zobaczyć następne."
       },
       "moreCloseAll": {
-        "one": "Czeka jeszcze {n} powiadomienie. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
-        "few": "Czekają jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
-        "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
-        "other": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania."
+        "one": "Czeka jeszcze {n} powiadomienie. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.",
+        "few": "Czekają jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.",
+        "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.",
+        "other": "Czeka jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać."
       },
       "critical": {
         "result": "Sukces krytyczny"
@@ -8234,7 +8234,7 @@
     },
     "Notices": {
       "title": "Historia powiadomień",
-      "keybindingHint": "Otwiera powiadomienia, które już się pojawiły, żeby przeczytać zamknięte jeszcze raz.",
+      "keybindingHint": "Otwiera okno Historia powiadomień, w którym przeczytasz jeszcze raz także powiadomienia już zamknięte.",
       "filter": {
         "all": "Wszystkie",
         "forYou": "Dla ciebie",
@@ -8253,7 +8253,7 @@
         "shown": "Na ekranie",
         "unread": "Nieprzeczytane"
       },
-      "sessionOnly": "Niezapisane: zostaje do zamknięcia tej strony",
+      "sessionOnly": "Zostaje tylko do zamknięcia albo odświeżenia strony",
       "buttonUnread": {
         "one": "Historia powiadomień, {n} nieprzeczytane",
         "few": "Historia powiadomień, {n} nieprzeczytane",
@@ -8266,18 +8266,18 @@
         "many": "{n} nieprzeczytanych powiadomień",
         "other": "{n} nieprzeczytanego powiadomienia"
       },
-      "newPill": "Nowe powiadomienia - pokaż je",
+      "newPill": "Pokaż nowe powiadomienia",
       "chapterFold": "Rozdział {chapter} ({n})",
       "openConversation": "Otwórz rozmowę",
-      "empty": "Jeszcze żadnych powiadomień.",
+      "empty": "Nie ma jeszcze żadnych powiadomień.",
       "noMatch": "Żadne powiadomienie nie pasuje.",
-      "markRead": "Oznacz jako przeczytane",
-      "clear": "Wyczyść",
-      "clearTitle": "Wyczyścić historię powiadomień?",
-      "clearBody": "Wszystkie powiadomienia znikną na zawsze.",
+      "markRead": "Oznacz wszystkie jako przeczytane",
+      "clear": "Wyczyść historię",
+      "clearTitle": "Czyszczenie historii powiadomień",
+      "clearBody": "Wszystkie powiadomienia znikną z historii na zawsze.",
       "clearYes": "Wyczyść historię",
-      "notSaved": "Historia nie zapisuje się: zniknie po odświeżeniu strony.",
-      "clipped": "Za długie, by zachować całość: zachowano tylko tekst.",
+      "notSaved": "Historia się nie zapisuje, więc zostanie tylko do zamknięcia albo odświeżenia strony.",
+      "clipped": "To powiadomienie było za długie, by zachować je w całości, więc zostają tylko tytuł i tekst, bez układu karty.",
       "mark": {
         "deleted": "Usunięte z dziennika czatu",
         "rerolled": "Po Rerollu",

@@ -1,0 +1,2279 @@
+{
+ "$comment": "E71 B13, line C, 14.11.2026: the Daggerheart and Foundry overrides (DAGGERHEART.*, GAME.*), the safeword (Safeword, Legacy), the notice history and popup (Notices, Popup; A7: edited in full, Popup.moreTip unchanged), the Rules and Handbooks windows. 35 texts rewritten from their facts (Polish before English, DB26); 144 key families of the batch read in full and kept, each with its reason (docs/dev/e71/kept-C.json). Reviews by fresh agents: EN, a cold EN read, PL in three steps; each point not ok answered by the executor. A review left null was ok with nothing to say. The owner's verdicts are not given yet: these afters landed in lang/ for the owner to read (Q-C-2's default).",
+ "batch": "B13",
+ "stage": "E71",
+ "texts": [
+  {
+   "key": "DAGGERHEART.APPLICATIONS.Countdown.removeCountdownText",
+   "group": "named",
+   "surface": "player-card",
+   "screen": "daggerheart",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Daggerheart asks this before it deletes one countdown from the Projects tray's window (Daggerheart's countdowns); {name} is that countdown's name. The module's projects are Daggerheart countdowns, so the countdown is a project.",
+     "file": "scripts/projects.mjs",
+     "fn": "roomOf",
+     "note": "Daggerheart shows the key in its confirm dialog; that it is a confirm before a deletion is read off the key's name (removeCountdownTitle beside it), Daggerheart's source not being in the repository. The file and function hold the module's side: projects are keyed by countdown id."
+    },
+    {
+     "fact": "The module writes a project's name in quotes in its own texts: “{name}” in English, „{name}” in Polish (DRPG.Project.created, DRPG.Project.proposerKnows).",
+     "file": null,
+     "fn": null,
+     "note": "read in lang/en.json and lang/pl.json, not in code"
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Are you sure you want to remove the project: {name}?",
+    "after": "Remove the project “{name}”?"
+   },
+   "pl": {
+    "before": "Na pewno usunąć projekt: {name}?",
+    "after": "Usunąć projekt „{name}”?"
+   },
+   "removed": [
+    "\"Are you sure you want to\" / \"Na pewno\": the dialog itself asks; the question is the removal (X10 filler).",
+    "The colon before {name} (X7, X12: a label-colon-placeholder inside a sentence); the name now stands in quotes as the module's other project texts write it."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O1, X10: the question is the removal itself; the quotes match DRPG.Project.created (EN17's shape for a name). Reads well beside its title \"Remove Project\"."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne pytanie bezokolicznikowe; nazwa w „...” jak w DRPG.Project.created. „projekt” małą literą w zdaniu zgodnie z notą słowniczka o Projects."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.removeCountdownText",
+   "group": "named",
+   "surface": "player-card",
+   "screen": "daggerheart",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Daggerheart asks this before it deletes one countdown from the project editor (Daggerheart's countdown edit window); {name} is that countdown's name. The module's projects are Daggerheart countdowns, so the countdown is a project.",
+     "file": "scripts/projects.mjs",
+     "fn": "roomOf",
+     "note": "Daggerheart shows the key in its confirm dialog; that it is a confirm before a deletion is read off the key's name (removeCountdownTitle beside it), Daggerheart's source not being in the repository. The file and function hold the module's side: projects are keyed by countdown id."
+    },
+    {
+     "fact": "The module writes a project's name in quotes in its own texts: “{name}” in English, „{name}” in Polish (DRPG.Project.created, DRPG.Project.proposerKnows).",
+     "file": null,
+     "fn": null,
+     "note": "read in lang/en.json and lang/pl.json, not in code"
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Are you sure you want to remove the project: {name}?",
+    "after": "Remove the project “{name}”?"
+   },
+   "pl": {
+    "before": "Na pewno usunąć projekt: {name}?",
+    "after": "Usunąć projekt „{name}”?"
+   },
+   "removed": [
+    "\"Are you sure you want to\" / \"Na pewno\": the dialog itself asks; the question is the removal (X10 filler).",
+    "The colon before {name} (X7, X12: a label-colon-placeholder inside a sentence); the name now stands in quotes as the module's other project texts write it."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "Same words as Countdown.removeCountdownText, which keeps the two dialogs in step (O14)."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Jak wyżej; ta sama forma w obu oknach Daggerheart."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DAGGERHEART.CONFIG.Triggers.fearRoll.label",
+   "group": "named",
+   "surface": "tab",
+   "screen": "daggerheart",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label names Daggerheart's trigger that fires when a roll lands with Fear, which this module calls Despair.",
+     "file": null,
+     "fn": null,
+     "note": "Daggerheart shows this key in an action's or effect's trigger list; the meaning is read off the key's name (Triggers.fearRoll), Daggerheart's source not being in the repository."
+    },
+    {
+     "fact": "A duality roll that lands with Fear moves the countdowns whose progress type is Fear (DualityRoll.dualityUpdate, config.evaluated.withFear), in the copy of Daggerheart's dice code the harness carries.",
+     "file": "audit/harness/lib/dh-dice/dice/dualityRoll.mjs",
+     "fn": "DualityRoll.dualityUpdate",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Despair Roll",
+    "after": "Roll with Despair"
+   },
+   "pl": {
+    "before": "Rzut Despair",
+    "after": "Rzut z Despair"
+   },
+   "removed": [
+    "\"Despair Roll\" / \"Rzut Despair\" read as a roll of Despair; the outcome words are DB18's, \"with Despair\" / \"z Despair\" (EN8, PL-q, M6)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "EN8/M6: \"with Despair\" is DB18's outcome phrase; \"Despair Roll\" read as a roll of Despair. Three words, inside the tab/label budget."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "„z Despair” to forma wyniku z PL-q (DB18); „Rzut z Despair” czyta się jako rzut z takim wynikiem, nie rzut na Despair."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DAGGERHEART.SETTINGS.Appearance.FIELDS.displayCountdownUI.label",
+   "group": "named",
+   "surface": "tab",
+   "screen": "daggerheart",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The setting shows or hides Daggerheart's countdowns tray, which the module dresses as its Projects tray and titles with DAGGERHEART.UI.Countdowns.title.",
+     "file": "scripts/projects-tray.mjs",
+     "fn": "addTrayTitle",
+     "note": "Daggerheart shows this key in its Appearance settings; what the setting does is read off its name (displayCountdownUI), Daggerheart's source not being in the repository."
+    },
+    {
+     "fact": "The module's texts call that tray the Projects tray (DRPG.Project.proposerKnows \"your Projects tray\"; Polish \"zasobnik projektów\" in DRPG.Project.glyphNote).",
+     "file": null,
+     "fn": null,
+     "note": "read in lang/en.json and lang/pl.json"
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Display Projects UI",
+    "after": "Display Projects Tray"
+   },
+   "pl": {
+    "before": "Pokazuj interfejs projektów",
+    "after": "Pokazuj zasobnik projektów"
+   },
+   "removed": [
+    "\"UI\" / \"interfejs\": the tray has a name in the module's texts, the Projects tray (O14, one name for one thing)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O14: names the tray. The module's sentences write \"Projects tray\" (DRPG.Project.proposerKnows); the capital T here follows Daggerheart's Title Case setting labels (\"Project Automation\" beside it), so it is a label's casing, not a second name. If the owner wants one spelling everywhere, \"Display Projects tray\"."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "„zasobnik projektów” to nazwa, której moduł już używa (DRPG.Project.glyphNote); jedna nazwa na jedną rzecz (O14)."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DAGGERHEART.SETTINGS.Automation.FIELDS.countdownAutomation.hint",
+   "group": "named",
+   "surface": "settings-hint",
+   "screen": "daggerheart",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "With the setting on, a duality roll that is not a reaction moves each countdown whose progress type matches it: every one of type Action Roll, and on a roll with Fear also those of type Fear (DualityRoll.dualityUpdate).",
+     "file": "audit/harness/lib/dh-dice/dice/dualityRoll.mjs",
+     "fn": "DualityRoll.dualityUpdate",
+     "note": "the harness's copy of Daggerheart's dice code (audit/harness/lib/dh-dice, under its LICENSE), not Daggerheart itself"
+    },
+    {
+     "fact": "The module's Reroll follows the same setting: a Reroll that changes the Fear outcome moves the Fear countdowns forward or back (settleDualityReroll).",
+     "file": "scripts/reroll.mjs",
+     "fn": "settleDualityReroll",
+     "note": null
+    },
+    {
+     "fact": "Projects are Daggerheart countdowns, so the countdowns this moves are the module's projects and Daggerheart's other countdowns.",
+     "file": "scripts/projects.mjs",
+     "fn": "roomOf",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    2
+   ],
+   "en": {
+    "before": "Automatically progress projects based on their progression settings",
+    "after": "Rolls advance projects automatically, as each project's progress settings say."
+   },
+   "pl": {
+    "before": "Automatycznie posuwaj projekty zgodnie z ich ustawieniami postępu",
+    "after": "Rzuty same posuwają projekty naprzód, według ustawień postępu każdego z nich."
+   },
+   "removed": [
+    "\"Automatically progress ... based on their progression settings\" / \"Automatycznie posuwaj\": the hint now says what moves them, a roll, and ends with a full stop (O1); the Fear-type detail stays with the project's own progress settings (O3).",
+    "The Reroll's undo (fact 1) is not in the hint: a GM meets it only after a Reroll, and the hint says what the switch turns on (O13)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "change",
+     "points": [
+      "Natural speech (T29) and X6/ambiguity: \"advance projects on their own\" can be read as the rolls acting on their own, and \"by each project's progress settings\" is an unusual use of \"by\" for \"according to\". The facts are a match between a roll and each project's progress type; say that plainly. 13 words, under the settings target of 25. (proposed: \"Rolls advance projects automatically, as each project's progress settings say.\") - executor: Taken."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Zgodne z faktem 0: rzut posuwa projekty według ich typu postępu; pominięcie reakcji i typu Fear opisane w `removed` (O3). „same” dobrze oddaje automatyzację, a etykieta „Automatyzacja projektów” mówi, że to przełącznik. 12 słów, w budżecie."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DAGGERHEART.CONFIG.Traits.finesse.verb.hide",
+   "group": "named",
+   "surface": "tab",
+   "screen": "daggerheart",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Daggerheart shows three example verbs under each statistic on the character sheet; this is the second of Hand (Daggerheart's finesse).",
+     "file": null,
+     "fn": null,
+     "note": "Daggerheart shows the verbs under the trait on its sheet; Daggerheart's source is not in the repository, so where it draws them is not read here."
+    },
+    {
+     "fact": "Hand is \"Dexterity and precise action\" in the module's statistics table (TRAITS.hand, dh finesse).",
+     "file": "scripts/config.mjs",
+     "fn": "TRAITS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Craft",
+    "after": "Craft"
+   },
+   "pl": {
+    "before": "Wykonaj",
+    "after": "Wytwórz"
+   },
+   "removed": [
+    "Polish \"Wykonaj\" (carry out) did not say the English \"Craft\" (make something by hand), which is what Hand's verb names; \"Wytwórz\" does, and stays one word in the sheet's row. The English stays."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "English unchanged and right for Hand's verb."
+     ]
+    },
+    "coldEn": {
+     "verdict": "ok",
+     "points": [
+      "reads fine as a Finesse verb; note the key says 'hide' while the text says 'Craft'"
+     ]
+    },
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "„Wytwórz” mówi o robieniu czegoś rękami (Hand, „Dexterity and precise action”), czego „Wykonaj” nie mówiło; tryb rozkazujący jak pozostałe czasowniki w wierszu (Obsłuż, Majstruj). Trochę książkowe, ale jednowyrazowe i bez lepszej alternatywy w tym rzędzie."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.tooltip",
+   "group": "window",
+   "surface": "tooltip",
+   "screen": "safeword",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The sheet's safeword button shows only the table's word; this key is its tooltip and its aria-label, so it is what tells a reader what the button does.",
+     "file": "scripts/sheet.mjs",
+     "fn": "injectSafeword",
+     "note": null
+    },
+    {
+     "fact": "The same key is the hint of the safeword keybinding in Foundry's Controls, which needs no character and no open window.",
+     "file": "scripts/safeword.mjs",
+     "fn": "registerSafeword",
+     "note": null
+    },
+    {
+     "fact": "The confirmation asks one question and has no reason field: nobody is asked why.",
+     "file": "scripts/safeword.mjs",
+     "fn": "safewordDialog",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Stop the scene. No reason needed, and nobody will ask for one.",
+    "after": "Stop the scene. You do not have to give a reason, and nobody will ask for one."
+   },
+   "pl": {
+    "before": "Zatrzymaj scenę. Bez powodu i nikt o niego nie zapyta.",
+    "after": "Zatrzymaj scenę. Nie musisz podawać powodu i nikt cię o niego nie zapyta."
+   },
+   "removed": [
+    "\"No reason needed\" / „Bez powodu”: a dropped verb (X6), and in Polish „bez powodu” reads as \"for no reason\"; the same promise now stands as a whole sentence. The full form \"do not\" stays for a safety text (EN3)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "Safety text: unmistakable, full form \"do not\" as EN3 wants for safety. 17 words, over the tooltip target of 15 and under the limit of 23; it is also the keybinding hint and the button's aria-label, so the promise is worth the two words."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne; „Nie musisz podawać powodu” usuwa dwuznaczność „bez powodu”. Pasuje i do przycisku, i do hintu skrótu w Controls (fakt 1). 13 słów, w budżecie tooltipa."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.keybinding",
+   "group": "window",
+   "surface": "button",
+   "screen": "safeword",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The name of the safeword's keybinding in Foundry's Controls; it has no default key, and any user may bind it.",
+     "file": "scripts/safeword.mjs",
+     "fn": "registerSafeword",
+     "note": null
+    },
+    {
+     "fact": "Pressing it opens the same confirmation as the sheet's button, with the user's own character for the room.",
+     "file": "scripts/safeword.mjs",
+     "fn": "callerStudent",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Safeword - stop the scene",
+    "after": "Safeword: stop the scene"
+   },
+   "pl": {
+    "before": "Safeword - zatrzymaj scenę",
+    "after": "Safeword: zatrzymaj scenę"
+   },
+   "removed": [
+    "The dash (X4, T5's find in both languages): a colon after the name, one label and its action, no chain (X7)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "X4: the dash is gone; \"Safeword: stop the scene\" is one name and its action, not a chain (X7). Matches the confirm's \"Stop the scene?\" and its button \"Stop the scene\"."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "safeword nieodmienne (PL-f); dwukropek po nazwie, bez myślnika (X4)."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.confirmNote",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "safeword",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "On the card landing, the primary GM's browser pauses the game.",
+     "file": "scripts/safeword.mjs",
+     "fn": "registerSafeword",
+     "note": null
+    },
+    {
+     "fact": "Every GM gets a card with the name of the user who pressed it and the room they gave; the name travels only over a socket addressed to the GMs.",
+     "file": "scripts/safeword.mjs",
+     "fn": "showGmDetail",
+     "note": null
+    },
+    {
+     "fact": "Everyone at the table gets the same public card, which says somebody used the safeword and names nobody.",
+     "file": "scripts/safeword.mjs",
+     "fn": "safewordCard",
+     "note": null
+    },
+    {
+     "fact": "No reason is asked, then or later: the window has no field for it.",
+     "file": "scripts/safeword.mjs",
+     "fn": "safewordDialog",
+     "note": null
+    },
+    {
+     "fact": "With no GM connected nothing pauses the game; the player's text does not say so (O19), the card after the press says what happened (DRPG.Safeword.selfPosted).",
+     "file": "scripts/safeword.mjs",
+     "fn": "safewordPoster",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "The game pauses, every GM is told, and everyone sees that the scene has stopped. You do not have to justify it, now or later.",
+    "after": "The game pauses, everyone sees that the scene has stopped, and every GM is told it was you. You do not have to justify it, now or later."
+   },
+   "pl": {
+    "before": "Gra się zatrzymuje, każdy GM zostaje powiadomiony i wszyscy widzą, że scena stanęła. Nie musisz tego uzasadniać, ani teraz, ani później.",
+    "after": "Gra się zatrzymuje, wszyscy widzą, że scena stanęła, a każdy GM dowiaduje się, że to ty. Nie musisz się z tego tłumaczyć ani teraz, ani później."
+   },
+   "removed": [
+    "Nothing left; added that the GMs learn it was you (fact 1), which the old \"every GM is told\" left the reader to guess. The pressing player is owed that before pressing; the table's card naming nobody is said by the card itself.",
+    "Polish: „uzasadniać, ani teraz, ani później” had a comma before the first „ani”; „tłumaczyć się” is the everyday word. T17's Oxford-comma find (\"now or later\") is two items, not a list: no comma added."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "Facts 0-3 kept; \"every GM is told it was you\" is what the pressing player is owed before pressing, and it is true (showGmDetail). The unconditional \"The game pauses\" leaves out the no-GM case, which O19 keeps out of a player's text and selfPosted says at the moment it happens. Full forms for safety (EN3). 27 words."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne, interpunkcja „ani teraz, ani później” poprawna. Zgodne z faktami 0-3: pauza, karta GM-ów z imieniem, publiczna karta bez imienia, brak pola na powód. Przypadek bez GM-a pominięty zgodnie z O19."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.stopIt",
+   "group": "window",
+   "surface": "button",
+   "screen": "safeword",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The confirmation's default button (Enter presses it), on the red GM road; it returns true and the press goes on to callSafeword.",
+     "file": "scripts/safeword.mjs",
+     "fn": "safewordDialog",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Stop it",
+    "after": "Stop the scene"
+   },
+   "pl": {
+    "before": "Zatrzymaj",
+    "after": "Zatrzymaj scenę"
+   },
+   "removed": [
+    "Nothing; \"it\" becomes the object it stood for (O11, a verb with its object). R1369 reads the key in the code, not the words."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O11: verb with its object; same words as the confirm's title \"Stop the scene?\", so the default button answers the question exactly."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Czasownik z dopełnieniem, pasuje do pytania okna „Zatrzymać scenę?”."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.gmNote",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "safeword",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Drawn only in a GM's browser, as a sticky card, with the sender's name from Foundry (never from the packet) and the room the press carried, cut to 120 characters.",
+     "file": "scripts/safeword.mjs",
+     "fn": "showGmDetail",
+     "note": null
+    },
+    {
+     "fact": "A press with no room (a GM's own, or one with no character found) fills {room} with DRPG.Safeword.roomUnknown.",
+     "file": "scripts/safeword.mjs",
+     "fn": "showGmDetail",
+     "note": null
+    },
+    {
+     "fact": "The public card says only that somebody used the safeword; the caller's name goes only to the GMs, over a socket addressed to them.",
+     "file": "scripts/safeword.mjs",
+     "fn": "callSafeword",
+     "note": null
+    },
+    {
+     "fact": "A GM's own press posts the card from that GM, and Daggerheart's card header names its author, so a GM's press is not anonymous at the table.",
+     "file": "scripts/safeword.mjs",
+     "fn": "safewordCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{who} used it, in {room}. Nobody else has been told who - the table only knows the scene stopped.",
+    "after": "{who} used the safeword in {room}. Only the GMs are told who it was; everyone else knows only that the scene stopped."
+   },
+   "pl": {
+    "before": "Użył: {who}, w pokoju {room}. Nikomu innemu nie powiedziano kto - stół wie tylko, że scena stanęła.",
+    "after": "{who} używa safeword w pokoju {room}. Kto to był, wiedzą tylko GM-owie; pozostali wiedzą jedynie, że scena stanęła."
+   },
+   "removed": [
+    "The dash aside (X4, T5 in both languages): a colon introduces what the table knows.",
+    "Polish „Użył: {who}, w pokoju {room}” is a label-colon-placeholder (X12) and the masculine „Użył” for any caller; the present tense keeps it free of gender (PL17).",
+    "\"used it\": the safeword is named, since the card stands alone in the GM's notice history too."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The text says nobody else is told who; for a GM's own press (fact 3) the public card's header names that GM on every screen (safeword.mjs safewordCard's comment). The sentence holds for a player's press, which is the case the card is for; a GM who pressed it sees their own name in the header. Left as the code does it."
+   ],
+   "reviews": {
+    "en": {
+     "verdict": "change",
+     "points": [
+      "Precision on a safety card (M9, P1): \"Nobody else is told who it was\" is read by every GM, and the other GMs are told too (fact 2: the name goes over a socket to all GMs). Saying who does know is both shorter to parse and exact. The colon after a full clause is fine (not X7). The GM's-own-press case (disagreement) stays as the writer left it; the card is for a player's press. (proposed: \"{who} used the safeword in {room}. Only the GMs are told who it was; everyone else knows only that the scene stopped.\") - executor: Taken; the Polish said the same („Nikt inny nie dowie się”) and now names the GMs too."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Czas teraźniejszy „używa” omija rodzaj {who} (PL17); „w pokoju {room}” zgodnie z X12; safeword nieodmienne. Uwaga: z fragmentem DRPG.Safeword.roomUnknown w obecnym brzmieniu („nieznanym”) host daje „w pokoju nieznanym”, co brzmi sztucznie - punkt przy tamtym kluczu.",
+      "Drobne: mieszanie czasów („używa” / „kto to był” / „nie dowie się”) jest w polszczyźnie naturalne (idiom „kto to był”), zostawiam."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.roomUnknown",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "safeword",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The fragment put into DRPG.Safeword.gmNote's {room} when the press carried no room: a GM's own press, or a keybinding press with no character of the user's.",
+     "file": "scripts/safeword.mjs",
+     "fn": "showGmDetail",
+     "note": null
+    },
+    {
+     "fact": "The keybinding and the console hand the confirmation the user's own character, and nobody for a GM (callerStudent), so a GM's press always carries no room.",
+     "file": "scripts/safeword.mjs",
+     "fn": "callerStudent",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "no room recorded",
+    "after": "an unknown room"
+   },
+   "pl": {
+    "before": "nie zapisano pokoju",
+    "after": "nie do ustalenia"
+   },
+   "removed": [
+    "\"no room recorded\" / „nie zapisano pokoju”: written to stand alone, it read \"in no room recorded\" / „w pokoju nie zapisano pokoju” inside its host. Rewritten as a fragment of the host's phrase: English after \"in\", Polish after „w pokoju” (locative, „w pokoju nieznanym”)."
+   ],
+   "needsCode": [
+    "A fragment with a case contract (docs/text-style.md section 14): DRPG.Safeword.roomUnknown is inserted into DRPG.Safeword.gmNote's {room}, Polish locative after „w pokoju”. The section's table has no row for it; a row (hosts: Safeword.gmNote; inserted by safeword.mjs showGmDetail) should go in with this batch, and R1158's renders could take it."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "Reads right in its host: \"... used the safeword in an unknown room.\" For a GM's own press the room is not unknown so much as absent, but a GM reading their own card will not be misled. The needsCode row for section 14 is right."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "Krok 1: w hoście daje „{who} używa safeword w pokoju nieznanym.” Przymiotnik po rzeczowniku brzmi tu książkowo i obco; gracz powiedziałby „w nieznanym pokoju”, czego fragment po „w pokoju” nie da. Fragment nie może też zaczynać się od przecinka (przed nim stoi spacja, X9).",
+      "Fraza przyimkowa po rzeczowniku jest w polskim naturalna, gdzie pojedynczy przymiotnik nie jest: „w pokoju nie do ustalenia”. Zgodne z faktami: prasa nie niesie pokoju (własne naciśnięcie GM-a albo brak postaci).",
+      "Lepsze rozwiązanie, jeśli kod może: osobny klucz hosta bez pokoju (np. „{who} używa safeword; nie wiadomo, w którym pokoju.”) zamiast fragmentu - to needsCode, decyzja pisarza.",
+      "(proposed: \"nie do ustalenia\") - executor: Taken; a host key with no room would need code (left as a note)."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.selfPosted",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "safeword",
+   "readers": [
+    "player"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Shown under the caller's own card when a GM was connected but no card landed within TIMING.safewordAnswerMs, and this browser posted the card itself.",
+     "file": "scripts/safeword.mjs",
+     "fn": "awaitCard",
+     "note": null
+    },
+    {
+     "fact": "The GMs' card with the caller's name hangs from a socket packet; a GM who counts as connected before their module listens never gets it, so the GMs may not know who pressed it.",
+     "file": "scripts/safeword.mjs",
+     "fn": "callSafeword",
+     "note": null
+    },
+    {
+     "fact": "The pause is done by the primary GM's browser when the card lands; a GM whose module is not yet listening does not pause the game.",
+     "file": "scripts/safeword.mjs",
+     "fn": "registerSafeword",
+     "note": null
+    },
+    {
+     "fact": "The handbook's rule: tag a GM in the text channel, sort it out, resume from an agreed point.",
+     "file": "docs/handbooks/player-handbook.en.md",
+     "fn": "The safeword",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "No GM answered in time, so the card went up from your screen. Tag a GM in the text channel.",
+    "after": "No GM answered in time, so your screen posted the card itself. The GMs may not know it was you, and the game may not have paused. Tag a GM in the text channel."
+   },
+   "pl": {
+    "before": "Żaden GM nie odpowiedział na czas, więc karta poszła z twojego ekranu. Zawołaj GM-a na kanale tekstowym.",
+    "after": "Żaden GM nie odpowiedział na czas, więc kartę wysłał sam twój ekran. GM-owie mogą nie wiedzieć, że to ty, a gra mogła się nie zatrzymać. Zawołaj GM-a na kanale tekstowym."
+   },
+   "removed": [
+    "Nothing; added why the tag matters (facts 1 and 2), which the handbook's section 15 says and the card did not. Said at the moment it happens, as O19 allows; no browser or socket named (T29)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "change",
+     "points": [
+      "Natural speech (T29): \"the card went up from your screen\" is not how a native speaker says a card was posted; a cold reader may not know which card or what \"went up\" means. The added sentence is right and matters for safety: the GMs may not know, and the game may not have paused (facts 1, 2), said at the moment it happens (O19). 33 words, under the card target of 40. (proposed: \"No GM answered in time, so your screen posted the card itself. The GMs may not know it was you, and the game may not have paused. Tag a GM in the text channel.\") - executor: Taken; the Polish „karta poszła z twojego ekranu” had the same fault and follows."
+     ]
+    },
+    "coldEn": {
+     "verdict": "unnatural",
+     "points": [
+      "\"the card went up from your screen\" is odd and vague; a player will not know what 'went up' means (proposed: \"No GM answered in time, so your screen posted the card itself. The GMs may not know it was you, and the game may not have paused. Tag a GM in the text channel.\") - executor: Taken (the EN reviewer's proposal, the same words)."
+     ]
+    },
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne; „mogą nie wiedzieć” i „mogła się nie zatrzymać” uczciwie oddają fakty 1-2 bez nazywania przeglądarki ani socketu (T29). „GM-owie”, „GM-a” zgodnie z PL-i. Ok. 27 słów."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.gmTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "safeword",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The title of the GM's detail card (who and where), drawn only in a GM's browser.",
+     "file": "scripts/safeword.mjs",
+     "fn": "showGmDetail",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Safeword - GM only",
+    "after": "Safeword (GMs only)"
+   },
+   "pl": {
+    "before": "Safeword - tylko GM",
+    "after": "Safeword (tylko dla GM-ów)"
+   },
+   "removed": [
+    "The dash (X4, T5 in both languages): the qualifier in brackets. Polish „tylko GM” becomes „tylko dla GM-ów” (PL-i)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "X4: the qualifier in brackets reads as a title; three words."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "„tylko dla GM-ów” poprawne (PL-i); nawias zamiast myślnika."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Safeword.kept",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/migrate.mjs",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A world that was in play before the safeword became a setting, whose setting is still the module's default, gets the old word from DRPG.Legacy.safeword, read back after the write.",
+     "file": "scripts/migrate.mjs",
+     "fn": "keepOldSafeword",
+     "note": null
+    },
+    {
+     "fact": "The GMs are whispered this card with the word; the sheets are redrawn with it.",
+     "file": "scripts/migrate.mjs",
+     "fn": "keepOldSafeword",
+     "note": null
+    },
+    {
+     "fact": "The word is changed in Season setup's Safeword field (DRPG.Season.safeword; the window's title DRPG.Season.title, „Ustawienia sezonu”).",
+     "file": "scripts/season-setup.mjs",
+     "fn": "safewordNote",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "This world already had a safeword, so it has been kept: “{word}”. Change it in Season setup.",
+    "after": "This world already has the safeword “{word}”, so that word stays. You can change it in Season setup."
+   },
+   "pl": {
+    "before": "Ten świat miał już safeword, więc zostało zachowane: „{word}”. Zmień je w Ustawieniach sezonu.",
+    "after": "Ten świat ma już safeword „{word}”, więc to słowo zostaje. Możesz je zmienić w oknie „Ustawienia sezonu”."
+   },
+   "removed": [
+    "\"so it has been kept: “{word}”\": a colon before the value (X7) and a passive; the word now stands where it is named.",
+    "Polish „zostało zachowane” with the word after a colon (X12's shape); the window is named in quotes as other Polish texts name it (DRPG.Clock.lastChapter's „Ustawienia sezonu”)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "change",
+     "points": [
+      "\"so it keeps it\": two pronouns for two things (the world, the word) in four words; a reader has to sort them out. Name the word once more. Facts 0-2 kept; \"Season setup\" is DRPG.Season.title. (proposed: \"This world already used the safeword “{word}”, so that word stays. You can change it in Season setup.\") - executor: Taken, with the cold reader's \"has\" for \"already used\"."
+     ]
+    },
+    "coldEn": {
+     "verdict": "unclear",
+     "points": [
+      "\"already used the safeword\" reads as if someone invoked it, not that the world had it set (proposed: \"This world already has the safeword “{word}”, so it keeps it. You can change it in Season setup.\") - executor: Taken (\"has\"), with the EN reviewer's \"so that word stays\" for \"so it keeps it\"; the Polish „używał już” read the same way and follows."
+     ]
+    },
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Rodzaj nijaki safeword zgodny z PL-f: „przy nim”, „zmienić je”. Nazwa okna w cudzysłowie, „Ustawienia sezonu” jak DRPG.Season.title. Naturalne."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.keybindingHint",
+   "group": "window",
+   "surface": "settings-hint",
+   "screen": "file:scripts/module.mjs",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The hint of the notice history's keybinding in Foundry's Controls; it has no default key, and pressing it opens the notice history window.",
+     "file": "scripts/notice-history.mjs",
+     "fn": "registerNoticeHistory",
+     "note": null
+    },
+    {
+     "fact": "The window lists the cards this browser showed this login, closed ones included, to open and read again.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "openNotices",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Open the notices you were shown, to read a closed one again.",
+    "after": "Opens the notice history, where you can read a closed notice again."
+   },
+   "pl": {
+    "before": "Otwiera powiadomienia, które już się pojawiły, żeby przeczytać zamknięte jeszcze raz.",
+    "after": "Otwiera okno Historia powiadomień, w którym przeczytasz jeszcze raz także powiadomienia już zamknięte."
+   },
+   "removed": [
+    "Polish: „Otwiera ..., żeby przeczytać” joined the keybinding's verb to an infinitive whose subject is the reader (text-review-E65's row); the reader's verb is now in a relative clause of its own.",
+    "\"the notices you were shown\": the window's name says it (glossary notice-history)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "Settings convention, verb with no subject (as EN14's own sentence); names the window by the glossary's notice-history in lower case inside a sentence. 12 words."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "Decyzja właściciela: okno nazywa się „Historia powiadomień”. Odmieniona i z małej litery („historię powiadomień”) czyta się jak zwykły rzeczownik, nie nazwa okna; podręczniki piszą „okno Historia powiadomień”.",
+      "„te już zamknięte” wisi bez rzeczownika (odnosi się do dopełniacza „powiadomień”); fakt 1 mówi, że lista ma zamknięte „także” - warto to oddać słowem „także”.",
+      "(proposed: \"Otwiera okno Historia powiadomień, w którym przeczytasz jeszcze raz także powiadomienia już zamknięte.\") - executor: Taken."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.sessionOnly",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "An entry's tag when it was recorded with persist \"session\": kept in this page's memory and never written to the browser's storage.",
+     "file": "scripts/notice-history.mjs",
+     "fn": "createNoticeEngine",
+     "note": null
+    },
+    {
+     "fact": "No caller in scripts/ passes persist \"session\" today (popup.mjs showPopup defaults to \"browser\"; the safeword's GM card dropped it on the owner's Q7), so the tag is not drawn now.",
+     "file": "scripts/popup.mjs",
+     "fn": "showPopup",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Not saved: kept until this page is closed",
+    "after": "Kept only until you close or reload this page"
+   },
+   "pl": {
+    "before": "Niezapisane: zostaje do zamknięcia tej strony",
+    "after": "Zostaje tylko do zamknięcia albo odświeżenia strony"
+   },
+   "removed": [
+    "\"Not saved:\": a label-colon lead (X7, X12 in Polish); what the reader keeps is said once, as the time it lasts."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "change",
+     "points": [
+      "Fact 0: the entry is kept in the page's memory only, so a reload loses it as surely as closing; DRPG.Notices.notSaved in the same window says \"close or reload this page\". The two lines should agree (O14). Not drawn today (fact 1), so low stakes. (proposed: \"Kept only until you close or reload this page\") - executor: Taken."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "Fakt 0: wpis żyje tylko w pamięci strony, więc znika także przy odświeżeniu, nie tylko przy zamknięciu. DRPG.Notices.notSaved w tej samej partii mówi „do zamknięcia albo odświeżenia strony”; ta sama rzecz powinna mieć te same słowa (O14). Polszczyzna sama w sobie naturalna, „Zostaje” bez rodzaju.",
+      "(proposed: \"Zostaje tylko do zamknięcia albo odświeżenia strony\") - executor: Taken."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.newPill",
+   "group": "window",
+   "surface": "button",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A button that appears when new entries arrive while the reader is scrolled down or has focus in the list; it draws the list again and scrolls it to the top.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "NoticeHistoryApp",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "New notices - show them",
+    "after": "Show new notices"
+   },
+   "pl": {
+    "before": "Nowe powiadomienia - pokaż je",
+    "after": "Pokaż nowe powiadomienia"
+   },
+   "removed": [
+    "The dash (X4, T5 in both languages): one verb with its object (O11)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O11, X4: verb with its object."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Czasownik z dopełnieniem (O11)."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.empty",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The list's empty line when this login's history on this browser holds no entry.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "NoticeHistoryApp",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "No notices yet.",
+    "after": "No notices yet."
+   },
+   "pl": {
+    "before": "Jeszcze żadnych powiadomień.",
+    "after": "Nie ma jeszcze żadnych powiadomień."
+   },
+   "removed": [
+    "Polish: „Jeszcze żadnych powiadomień.” drops its verb (X6); English unchanged, a natural empty state."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "English unchanged; a natural empty state."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Pełne zdanie z czasownikiem, naturalny stan pusty."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.markRead",
+   "group": "window",
+   "surface": "button",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The banner's button beside the unread count: every unread entry becomes read; an entry still on screen stays open.",
+     "file": "scripts/notice-history.mjs",
+     "fn": "createNoticeEngine",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Mark as read",
+    "after": "Mark all as read"
+   },
+   "pl": {
+    "before": "Oznacz jako przeczytane",
+    "after": "Oznacz wszystkie jako przeczytane"
+   },
+   "removed": [
+    "Nothing; \"all\" says it marks every unread entry at once (fact 0), not one."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "\"all\" says it marks every unread entry at once (fact 0)."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "„wszystkie” zgodne z faktem 0; 4 słowa, w budżecie przycisku."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.clear",
+   "group": "window",
+   "surface": "button",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The footer's destructive button, never the default; it opens a confirmation before anything is cleared.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "NoticeHistoryApp",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Clear",
+    "after": "Clear the history"
+   },
+   "pl": {
+    "before": "Wyczyść",
+    "after": "Wyczyść historię"
+   },
+   "removed": [
+    "Nothing; a verb with its object (O11), the same words as the confirmation's button (DRPG.Notices.clearYes)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O11; same words as the confirmation's yes (DRPG.Notices.clearYes \"Clear the history\"), so the two buttons read as one action."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Te same słowa co DRPG.Notices.clearYes („Wyczyść historię”)."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.clearTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The confirmation's title; Cancel is the default and the yes is destructive.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "NoticeHistoryApp",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Clear the notice history?",
+    "after": "Clear notice history"
+   },
+   "pl": {
+    "before": "Wyczyścić historię powiadomień?",
+    "after": "Czyszczenie historii powiadomień"
+   },
+   "removed": [
+    "The question mark: a window title holds the window's subject, not a sentence (section 3; text-review-E65's row on both languages). The body says what it does."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "A title, not a question (section 3). \"Clear notice history\" drops the article that the buttons keep (\"Clear the history\"); acceptable in a title."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Rzeczownik odczasownikowy jako tytuł okna jest naturalny po polsku („Czyszczenie historii powiadomień”)."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.clearBody",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Clearing takes every entry of this login's history out and leaves a tombstone for each, so another tab's copy does not bring it back.",
+     "file": "scripts/notice-history.mjs",
+     "fn": "createNoticeEngine",
+     "note": null
+    },
+    {
+     "fact": "The askClear comment: a cleared history does not come back, the murder's cards included.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "NoticeHistoryApp",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Every notice goes for good.",
+    "after": "This removes every notice from the history for good."
+   },
+   "pl": {
+    "before": "Wszystkie powiadomienia znikną na zawsze.",
+    "after": "Wszystkie powiadomienia znikną z historii na zawsze."
+   },
+   "removed": [
+    "\"goes for good\": \"goes\" for \"is removed\" (text-review-E65's row); the window's action is now the subject. How tabs keep it gone (fact 0) is the module's working (T29)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O1: says what the action does and that it is final (fact 1); the tombstones are the module's working (T29). 10 words."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne; „na zawsze” oddaje fakt 1."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.notSaved",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Saving stops for the rest of the session when a write fails twice, when another build stored a newer format, or when the world's other accounts fill the browser's share; the history is then kept in memory until the page closes.",
+     "file": "scripts/notice-history.mjs",
+     "fn": "createNoticeEngine",
+     "note": null
+    },
+    {
+     "fact": "The window's foot shows this line only while saving has stopped (noticeHistoryStatus's note).",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "NoticeHistoryApp",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The history is not saving: it goes when the page reloads.",
+    "after": "The history is not being saved, so it lasts only until you close or reload this page."
+   },
+   "pl": {
+    "before": "Historia nie zapisuje się: zniknie po odświeżeniu strony.",
+    "after": "Historia się nie zapisuje, więc zostanie tylko do zamknięcia albo odświeżenia strony."
+   },
+   "removed": [
+    "\"is not saving: it goes when the page reloads\": a colon chain and \"goes\" for \"is lost\"; the page closing (fact 0) was missing beside the reload. Why it stopped (fact 0's three causes) is the module's working (T29)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "Says what the reader keeps and for how long (O8); the three causes left out are the module's working (T29). 17 words."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne; dodane odświeżenie zgodne z faktem 0."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.clipped",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "An entry over its budget (10 000 characters, or a day summary's 26 000) keeps its title and text and drops what the card showed (clipped); older day summaries are clipped first.",
+     "file": "scripts/notice-history.mjs",
+     "fn": "createNoticeEngine",
+     "note": null
+    },
+    {
+     "fact": "The line is drawn under an opened entry that was clipped.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "NoticeHistoryApp",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Too long to keep whole: only its text was kept.",
+    "after": "This notice was too long to keep in full, so only its title and text are kept, without the card's layout."
+   },
+   "pl": {
+    "before": "Za długie, by zachować całość: zachowano tylko tekst.",
+    "after": "To powiadomienie było za długie, by zachować je w całości, więc zostają tylko tytuł i tekst, bez układu karty."
+   },
+   "removed": [
+    "The dropped subject and the colon (X6, text-review-E65's row on both languages). The budgets' numbers (fact 0) are the module's working (T29)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "X6 fixed; a whole sentence. Fact 0 keeps the title as well as the text, but the title is on the entry the reader is looking at, so \"only its text\" does not mislead."
+     ]
+    },
+    "coldEn": {
+     "verdict": "unclear",
+     "points": [
+      "\"only its text is kept\" does not say what was lost (formatting? buttons? the end of the text?); a reader cannot tell whether what they see is complete (proposed, if formatting and buttons are what goes: \"This notice was too long to keep in full, so only its text was kept, without its formatting or buttons.\") - executor: Taken in part: notice-history.mjs fit() keeps an entry's title and text and drops its html (the card's layout and buttons), so the text says that; the Polish follows."
+     ]
+    },
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne. Drobne: fakt 0 mówi, że zostaje tytuł i tekst; „zostaje tylko jego tekst” nie przeczy temu (tytuł widać nad wpisem), więc zostawiam. Gdyby pisarz chciał być ścisły: „..., więc zostały z niego tylko tytuł i tekst.”"
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Popup.moreCloseAll",
+   "group": "window",
+   "surface": "tooltip",
+   "screen": "file:scripts/popup.mjs",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "While the stack holds a card that is not sticky, \"+N\" is a button: one click closes every card that is not sticky, the waiting (parked) ones and the ones on screen.",
+     "file": "scripts/popup.mjs",
+     "fn": "markParked",
+     "note": null
+    },
+    {
+     "fact": "Sticky cards, which close only from their own button (a card somebody has to read), stay.",
+     "file": "scripts/popup.mjs",
+     "fn": "showPopup",
+     "note": null
+    },
+    {
+     "fact": "Every closed card stays in the notice history: a parked one as unread, a shown one as read.",
+     "file": "scripts/popup.mjs",
+     "fn": "markParked",
+     "note": null
+    },
+    {
+     "fact": "{n} is the count of cards waiting under the stack.",
+     "file": "scripts/popup.mjs",
+     "fn": "markParked",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    3
+   ],
+   "en": {
+    "before": {
+     "one": "{n} more notice waits. Click to close every card except the ones to read.",
+     "other": "{n} more notices wait. Click to close every card except the ones to read."
+    },
+    "after": {
+     "one": "{n} more notice is waiting. Click to close every notice except the ones you need to read.",
+     "other": "{n} more notices are waiting. Click to close every notice except the ones you need to read."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Czeka jeszcze {n} powiadomienie. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
+     "other": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
+     "few": "Czekają jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
+     "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania."
+    },
+    "after": {
+     "one": "Czeka jeszcze {n} powiadomienie. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.",
+     "few": "Czekają jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.",
+     "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.",
+     "other": "Czeka jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać."
+    }
+   },
+   "removed": [
+    "\"every card except the ones to read\": \"the ones to read\" did not say whose reading; the sticky cards are the ones the reader needs to read (fact 1).",
+    "Polish „karty” / „kartami do przeczytania”: „karta” is a chat card (PL-d); these are notices, „powiadomienia”, as the history calls them.",
+    "Not stated: that the closed ones stay in the notice history (fact 2), a reassurance tail (O10) on a tooltip near its target."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "\"the ones you need to read\" now says whose reading it is (fact 1: sticky cards). 16 words, at the tooltip target of 15 and under the limit of 23. Leaving out that closed notices stay in the history (fact 2) is a fair O10 cut on a tooltip, though a reader afraid of losing notices would want it; if the owner wants it, it fits under the limit: \"... Click to close every notice except the ones you need to read. Closed notices stay in the history.\""
+     ]
+    },
+    "coldEn": {
+     "verdict": "unnatural",
+     "points": [
+      "\"{n} more notice waits\" is stiff; natives say \"is waiting\" (proposed: one \"{n} more notice is waiting. Click to close every notice except the ones you need to read.\", other \"{n} more notices are waiting. Click to close every notice except the ones you need to read.\") - executor: Taken."
+     ]
+    },
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "Formy one, few, many poprawne i naturalne („Czeka jeszcze 1 powiadomienie”, „Czekają jeszcze 3 powiadomienia”, „Czeka jeszcze 5 powiadomień”); „poza tymi, które trzeba przeczytać” dobrze zastępuje „kartami do przeczytania”, a „powiadomienia” zamiast „karty” zgodnie z PL-d.",
+      "Forma other w polskim Intl.PluralRules to ułamki (1,5) i bierze dopełniacz liczby pojedynczej: „1,5 powiadomienia”, nie „powiadomień”. Moduł tak pisze other w innych rodzinach (DRPG.Notices.unreadBanner „nieprzeczytanego powiadomienia”), a ta sama partia w DRPG.Rules.saved („{n} zasady”). Liczba czekających kart nie bywa ułamkiem, ale reguła mówi: każda forma poprawna dla swojej liczby. Czasownik „Czeka” w liczbie pojedynczej zostaje.",
+      "(proposed: {\"one\": \"Czeka jeszcze {n} powiadomienie. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.\", \"few\": \"Czekają jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.\", \"many\": \"Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.\", \"other\": \"Czeka jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie powiadomienia poza tymi, które trzeba przeczytać.\"}) - executor: Taken (other as the fraction form)."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Notices.filter.notDone",
+   "group": "window",
+   "surface": "button",
+   "screen": "notice-history",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label names the filter that shows only the entries of source notDone; it is one of the three chips on top of the notice history, with its count.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "FILTERS",
+     "note": null
+    },
+    {
+     "fact": "The same entries carry the tag DRPG.Notices.source.notDone, \"Not carried out\" / \"Niewykonane\" (SOURCE_LABELS, TAGGED).",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "SOURCE_LABELS",
+     "note": null
+    },
+    {
+     "fact": "Entries of source notDone are requests the GM side did not carry out, kept with the text of DRPG.Bridge.notDone (\"... was not carried out\") and the title DRPG.Notices.source.notDone.",
+     "file": "scripts/bridge-guards.mjs",
+     "fn": "DRPG.Bridge.notDone",
+     "note": null
+    },
+    {
+     "fact": "Any user, player or GM, reads it in their own notice history window.",
+     "file": "scripts/notice-history-app.mjs",
+     "fn": "openNotices",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Not done",
+    "after": "Not carried out"
+   },
+   "pl": {
+    "before": "Niewykonane",
+    "after": "Niewykonane"
+   },
+   "removed": [
+    "\"Not done\" becomes \"Not carried out\", the name the tag on the same entries and DRPG.Bridge.notDone already use (O14: one name per thing); the Polish already names both \"Niewykonane\" and stays."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O14: the same words as the tag on the same entries (DRPG.Notices.source.notDone \"Not carried out\") and DRPG.Bridge.notDone. Three words, inside the button budget."
+     ]
+    },
+    "coldEn": {
+     "verdict": "unclear",
+     "points": [
+      "as a filter button alone, \"Not carried out\" does not say what was not carried out; a reader may not guess it means actions or requests that did not happen (proposed: \"Actions not carried out\") - executor: Kept: the filter sits in the history's row of filters beside the entries it selects, and its words are the tag those entries carry and DRPG.Bridge.notDone's (O14); \"Actions\" would also be wrong, since the entries are requests of any kind."
+     ]
+    },
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Bez zmian, ta sama nazwa co etykieta DRPG.Notices.source.notDone."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rules.sheetIntro",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The line stands under the heading DRPG.Rules.sheetTitle (\"Monokuma's rules\") in the Rules tab of every character sheet, read by the players and the GMs who open a sheet.",
+     "file": "scripts/sheet.mjs",
+     "fn": "buildRulesPanel",
+     "note": null
+    },
+    {
+     "fact": "The list is the world's standing rules, the same for every sheet (world-scoped setting killingGameRules).",
+     "file": "scripts/rules.mjs",
+     "fn": "rules",
+     "note": null
+    },
+    {
+     "fact": "A rule stays until a GM rewords or revokes it in the rules manager (saveRulesEdit); nothing makes a rule expire.",
+     "file": "scripts/rules.mjs",
+     "fn": "saveRulesEdit",
+     "note": null
+    },
+    {
+     "fact": "Monokuma is \"they\" in English (EN4) and grammatically masculine in Polish (PL4); the old English said \"he\".",
+     "file": null,
+     "fn": null,
+     "note": "docs/text-style.md EN4 and PL4, not code"
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Monokuma's standing rules. They apply to everyone, all the time, until he says otherwise.",
+    "after": "These rules apply to everyone, all the time, until Monokuma changes or revokes them."
+   },
+   "pl": {
+    "before": "Stałe zasady Monokumy. Dotyczą wszystkich, cały czas, dopóki nie powie inaczej.",
+    "after": "Te zasady obowiązują wszystkich przez cały czas, dopóki Monokuma ich nie zmieni albo nie cofnie."
+   },
+   "removed": [
+    "\"Monokuma's standing rules.\": a fragment that repeats the heading right above it (DRPG.Rules.sheetTitle, O2, X6).",
+    "\"until he says otherwise\" becomes \"until Monokuma changes or revokes them\": Monokuma is \"they\" in English (EN4), and the two things the manager can do to a rule are named (fact 2)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "EN4: no \"he\"; \"changes or revokes\" names what the manager does to a rule (fact 2). In the fiction Monokuma is who changes the rules, so naming Monokuma rather than the GM is right on a sheet both read."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne; bez formy rodzajowej przy Monokumie poza męskim domyślnym (PL4 nie jest naruszone). „zmieni albo nie cofnie” oddaje fakt 2."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rules.manageIntro",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/rules.mjs",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The rules manager is a GM's window (openRulesManager refuses a player with DRPG.Panel.gmOnly); this line stands above the table of rules.",
+     "file": "scripts/rules.mjs",
+     "fn": "openRulesManager",
+     "note": null
+    },
+    {
+     "fact": "The table lists rules() in stored order, which is the order they were added (addRule and the manager append).",
+     "file": "scripts/rules.mjs",
+     "fn": "rules",
+     "note": null
+    },
+    {
+     "fact": "Each rule has a text field to reword it and a box in the column headed DRPG.Project.delete (\"Delete\" / \"Usuń\"); a ticked box revokes the rule on Save.",
+     "file": "scripts/rules.mjs",
+     "fn": "saveRulesEdit",
+     "note": null
+    },
+    {
+     "fact": "Below the table a field labelled DRPG.Rules.addNew takes one new rule, added at the end of the list on Save.",
+     "file": "scripts/rules.mjs",
+     "fn": "openRulesManager",
+     "note": null
+    }
+   ],
+   "kept": [
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "Every standing rule, in the order they were introduced. Edit the wording in place, tick to revoke, or add one at the bottom.",
+    "after": "The rules are listed in the order they were introduced. Edit a rule's wording in its field, tick its Delete box to revoke it, or write a new one below."
+   },
+   "pl": {
+    "before": "Każda stała zasada, w kolejności wprowadzenia. Edytuj brzmienie w miejscu, zaznacz, by cofnąć, albo dodaj nową na dole.",
+    "after": "Zasady są ułożone w kolejności wprowadzenia. Brzmienie zasady poprawisz w jej polu, a żeby ją cofnąć, zaznacz pole Usuń w jej wierszu. Nową zasadę wpisz pod tabelą."
+   },
+   "removed": [
+    "\"Every standing rule, in the order they were introduced.\": a sentence with no verb (X6), now a whole sentence.",
+    "\"tick to revoke\" names the box: its column is headed \"Delete\" / \"Usuń\" (fact 2).",
+    "„Edytuj brzmienie w miejscu”: a calque of \"in place\" (O17), now „Popraw brzmienie zasady w jej polu”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "X6 fixed; the box is named by its column \"Delete\" (fact 2). \"write a new one below\" points at the field labeled \"Introduce a new rule\" (fact 3). 29 words."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "„zaznacz przy niej Usuń” - gołe słowo „Usuń” jako dopełnienie brzmi jak polecenie „usuń”, a nie nazwa kolumny; nikt tak nie mówi bez rzeczownika „pole”. Fakt 2: to pole w kolumnie z nagłówkiem „Usuń”.",
+      "Trzy tryby rozkazujące po sobie („Popraw ..., zaznacz ..., albo wpisz ...”) czytają się jak polecenie zrobienia wszystkiego; pierwsze lepiej jako możliwość. „niżej” lepiej jako „pod tabelą” (fakt 3).",
+      "(proposed: \"Zasady są ułożone w kolejności wprowadzenia. Brzmienie zasady poprawisz w jej polu, a żeby ją cofnąć, zaznacz pole Usuń w jej wierszu. Nową zasadę wpisz pod tabelą.\") - executor: Taken."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rules.manageNote",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/rules.mjs",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The New Rule Despair Call adds its rule to the standing list through addRule (newRuleEffect).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "newRuleEffect",
+     "note": null
+    },
+    {
+     "fact": "After a wrong vote, the verdict asks a GM for the Blackened's rule and adds it through addRule as well (verdictRule, askBlackenedRule).",
+     "file": "scripts/verdict.mjs",
+     "fn": "askBlackenedRule",
+     "note": null
+    },
+    {
+     "fact": "Every rule in rules() is drawn in the Rules tab of every character sheet (DRPG.Rules.tab).",
+     "file": "scripts/sheet.mjs",
+     "fn": "buildRulesPanel",
+     "note": null
+    },
+    {
+     "fact": "The same window also shows the motive in force (motiveSection), which is not drawn on the sheet.",
+     "file": "scripts/rules.mjs",
+     "fn": "motiveSection",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Rules bought with the New Rule Despair Call land here by themselves. Everything here shows on every character sheet.",
+    "after": "A rule bought with the New Rule Despair Call, or the one the Blackened chooses after a wrong vote, is added here as well. Every rule here shows on the Rules tab of every character sheet."
+   },
+   "pl": {
+    "before": "Zasady kupione przez Despair Call „New Rule” trafiają tu same. Wszystko stąd pokazuje się na każdym arkuszu postaci.",
+    "after": "Tu trafiają też zasady kupione Despair Callem New Rule i zasada, o którą prosi Blackened po błędnym głosowaniu. Każda zasada z tej listy jest widoczna w zakładce Zasady na każdym arkuszu postaci."
+   },
+   "removed": [
+    "\"land here by themselves\" becomes \"is added here as well\", and the Blackened's rule after a wrong vote is named beside the Call (fact 1).",
+    "\"Everything here shows on every character sheet\" becomes \"Every rule here\": the window also holds the motive, which the sheet does not show (fact 3); the tab is named (fact 2)."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The text said only the New Rule Despair Call adds rules here; scripts/verdict.mjs verdictRule adds the Blackened's rule after a wrong vote through addRule too.",
+    "The text said everything in the window shows on every sheet; scripts/rules.mjs openRulesManager also draws the motive (motiveSection), and sheet.mjs buildRulesPanel draws only rules()."
+   ],
+   "reviews": {
+    "en": {
+     "verdict": "wrong",
+     "points": [
+      "M2, fact 1: after a wrong vote the Blackened chooses the rule (DRPG.Vote.blackenedRuleIntro: \"they get one new rule of their choosing with Monokuma's consent\"); the GM types what they asked for in askBlackenedRule. \"given to the Blackened\" reads as a rule imposed on the Blackened, the opposite. The Polish says the same thing (\"zasada, którą Blackened dostaje\" - \"dostaje\" can be read either way, but \"wybiera\" would be unambiguous) - for the PL reviewer. The second sentence is right: \"Every rule here\" excludes the motive (fact 3) and names the tab. (proposed: \"A rule bought with the New Rule Despair Call, or the one the Blackened chooses after a wrong vote, is added here as well. Every rule here shows on the Rules tab of every character sheet.\") - executor: Taken (verdict.mjs askBlackenedRule: the GM types the rule the Blackened asked for)."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "Krok 2: „zasada, którą Blackened dostaje po błędnym głosowaniu” można przeczytać jako zasadę nałożoną na Blackened. Fakt 1 i DRPG.Vote.blackenedRuleIntro: Blackened sam o nią prosi („Wpisz, o co poprosił”).",
+      "„widnieje” jest książkowe; „jest widoczna” brzmi przy stole. „Despair Callem New Rule” poprawne (PL-a: Call odmieniany, nazwa po angielsku, jak „Callem Sprint” w B01a).",
+      "(proposed: \"Tu trafiają też zasady kupione Despair Callem New Rule i zasada, o którą prosi Blackened po błędnym głosowaniu. Każda zasada z tej listy jest widoczna w zakładce Zasady na każdym arkuszu postaci.\") - executor: Taken."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rules.saved",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/rules.mjs",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "After the manager's write succeeds, the GM who saved gets an info toast with n, the number of rules now in the list.",
+     "file": "scripts/rules.mjs",
+     "fn": "saveRulesEdit",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": {
+     "one": "Saved - {n} rule in force.",
+     "other": "Saved - {n} rules in force."
+    },
+    "after": {
+     "one": "Saved. {n} rule is in force.",
+     "other": "Saved. {n} rules are in force."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Zapisano - {n} zasada obowiązuje.",
+     "other": "Zapisano - {n} zasad obowiązuje.",
+     "few": "Zapisano - {n} zasady obowiązują.",
+     "many": "Zapisano - {n} zasad obowiązuje."
+    },
+    "after": {
+     "one": "Zapisano. Obowiązuje {n} zasada.",
+     "few": "Zapisano. Obowiązują {n} zasady.",
+     "many": "Zapisano. Obowiązuje {n} zasad.",
+     "other": "Zapisano. Obowiązuje {n} zasady."
+    }
+   },
+   "removed": [
+    "The dash between the two parts (X4) becomes a full stop.",
+    "Polish: the verb comes first, so each form agrees with its noun (PL7); \"other\", the fraction form, takes „zasady”, as the module's other Polish families do (DRPG.Notices.unreadBanner)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "X4: the dash becomes a full stop; both forms agree with their nouns. O1: result first."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Orzeczenie w każdej formie (PL7): 1 „Obowiązuje 1 zasada”, 3 „Obowiązują 3 zasady”, 5 i 0 „Obowiązuje 5 zasad”, other (ułamek) „Obowiązuje 1,5 zasady” - wszystkie poprawne."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rules.recorded",
+   "group": "window",
+   "surface": "world-voice",
+   "screen": "calls",
+   "readers": [
+    "table"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "When the New Rule Despair Call has added its rule (addRule answered), this line joins the Call's receipt lines.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "newRuleEffect",
+     "note": null
+    },
+    {
+     "fact": "The receipt lines go on the Despair Call's public card, posted with announce and no whisper list, so the whole table reads it.",
+     "file": "scripts/calls.mjs",
+     "fn": "applyCall",
+     "note": null
+    },
+    {
+     "fact": "A rule in the list is drawn in the Rules tab of every character sheet.",
+     "file": "scripts/sheet.mjs",
+     "fn": "buildRulesPanel",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Added to the killing game's standing rules.",
+    "after": "The rule joins the standing rules on every character sheet."
+   },
+   "pl": {
+    "before": "Dodano do stałych zasad killing game.",
+    "after": "Nowa zasada trafia do stałych zasad na każdym arkuszu postaci."
+   },
+   "removed": [
+    "\"Added to ...\": a line with no subject (X6), now a sentence in the world's voice (V2).",
+    "\"the killing game's standing rules\" becomes \"the standing rules on every character sheet\": where the table finds the rule (fact 2)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "V2: a sentence in the world's voice, third person, no \"you\"; says where the table finds the rule (fact 2)."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "„Zasada dołącza do stałych zasad” - gołe „Zasada” na karcie Calla nie mówi, która; „Nowa zasada” to dopowiada. Powtórzenie „zasada ... zasad” zostaje, ale „trafia” brzmi naturalniej niż „dołącza do” (zasada nie jest osobą). Zgodne z faktami 0-2.",
+      "(proposed: \"Nowa zasada trafia do stałych zasad na każdym arkuszu postaci.\") - executor: Taken."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rules.emptyKept",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/rules.mjs",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "On Save, a rule whose text was cleared and whose Delete box was not ticked keeps its old text; the GM who saved gets a warning toast.",
+     "file": "scripts/rules.mjs",
+     "fn": "saveRulesEdit",
+     "note": null
+    },
+    {
+     "fact": "{rules} is the list of the emptied rules' numbers, as the table numbers them, joined by \", \" (one number or several).",
+     "file": "scripts/rules.mjs",
+     "fn": "saveRulesEdit",
+     "note": null
+    },
+    {
+     "fact": "A rule is revoked by ticking its box in the column headed DRPG.Project.delete (\"Delete\" / \"Usuń\").",
+     "file": "scripts/rules.mjs",
+     "fn": "openRulesManager",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "A rule cannot be left empty, so it keeps its wording (rule {rules}). Tick a rule's box to revoke it.",
+    "after": "A rule cannot be empty, so each one you cleared keeps its old wording ({rules}). To revoke a rule, tick its Delete box."
+   },
+   "pl": {
+    "before": "Zasada nie może zostać pusta, więc zachowuje brzmienie (zasada {rules}). Zaznacz pole zasady, by ją cofnąć.",
+    "after": "Zasada nie może być pusta, więc każda wyczyszczona zasada (nr {rules}) zachowuje dawne brzmienie. Żeby cofnąć zasadę, zaznacz pole Usuń w jej wierszu."
+   },
+   "removed": [
+    "\"(rule {rules})\" read wrong with several numbers (\"rule 1, 3\"); \"each one you cleared ... ({rules})\" reads for one or many.",
+    "\"Tick a rule's box\" names the box by its column, \"Delete\" / \"Usuń\" (fact 2)."
+   ],
+   "needsCode": [
+    "A plural family for emptyKept (one rule / several rules) would need the count passed beside {rules} in scripts/rules.mjs saveRulesEdit; the new wording reads for both without it."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "\"each one you cleared ... ({rules})\" reads for one number or several; the needsCode note on a plural family is right. A bare list of numbers in brackets is terse but the table numbers the rows, so the GM can match them. 23 words, over the toast target of 20 and under the limit of 30."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "„zaznacz przy niej Usuń” - jak w DRPG.Rules.manageIntro: bez słowa „pole” czyta się jak polecenie, nie nazwa kolumny (fakt 2).",
+      "„({rules})” po „brzmienie” to same numery w nawiasie, bez słowa, które mówi, co znaczą; „nr” działa dla jednego i kilku („nr 1, 3”) i stoi przy „zasada”, do której należy.",
+      "(proposed: \"Zasada nie może być pusta, więc każda wyczyszczona zasada (nr {rules}) zachowuje dawne brzmienie. Żeby cofnąć zasadę, zaznacz pole Usuń w jej wierszu.\") - executor: Taken."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rules.saveFailed",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/rules.mjs",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "When the write is refused (write answered null: not a GM, or game.settings.set threw), the GM who saved gets an error toast and saveRulesEdit returns before any announcement.",
+     "file": "scripts/rules.mjs",
+     "fn": "saveRulesEdit",
+     "note": null
+    },
+    {
+     "fact": "Nothing was written, so the stored rules are the ones from before the save.",
+     "file": "scripts/rules.mjs",
+     "fn": "write",
+     "note": null
+    },
+    {
+     "fact": "The manager window is already closed when the save runs, so what the GM typed in it is gone; the window opens from the GM panel's Killing game rules tile.",
+     "file": "scripts/gm-panel.mjs",
+     "fn": "DRPG.Rules.manageTitle",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "The rules could not be saved - nothing was changed or announced.",
+    "after": "The rules could not be saved, so they stay as they were and nothing was announced. Open the window again to redo your changes."
+   },
+   "pl": {
+    "before": "Nie udało się zapisać zasad - niczego nie zmieniono ani nie ogłoszono.",
+    "after": "Nie udało się zapisać zasad, więc zostają bez zmian i nic nie ogłoszono. Otwórz jeszcze raz okno Zasady killing game i wprowadź zmiany od nowa."
+   },
+   "removed": [
+    "The dash aside (X4) becomes \"so\": the result first (O1), then what the GM keeps, the rules as they were (O8, fact 1).",
+    "\"nothing was changed\" becomes \"they stay as they were\" (X1, O8).",
+    "Added: what to do next (O7), since the typed changes left with the window (fact 2)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "ok",
+     "points": [
+      "O1, O8, O7 applied, X1 and X4 gone. 23 words, over the toast target of 20 and under the limit of 30. \"the window\" is clear from the toast's moment, right after the GM pressed Save in it."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "„Otwórz okno” - toast stoi po zamknięciu okna, więc nie wiadomo, które; fakt 2 nazywa je: okno otwiera kafelek panelu GM-a, „Zasady killing game” (DRPG.Rules.manageTitle). „jeszcze raz ... ponownie” to podwójne powtórzenie; wystarczy „od nowa”. Reszta naturalna.",
+      "(proposed: \"Nie udało się zapisać zasad, więc zostają bez zmian i nic nie ogłoszono. Otwórz jeszcze raz okno Zasady killing game i wprowadź zmiany od nowa.\") - executor: Taken."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Handbooks.failed",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "handbooks",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "When the handbook's file cannot be fetched, the window's text says this line; any user who opened the handbooks reads it.",
+     "file": "scripts/handbooks.mjs",
+     "fn": "HandbookApp.show",
+     "note": null
+    },
+    {
+     "fact": "A failed load is not kept, so the next request fetches the file again.",
+     "file": "scripts/handbooks.mjs",
+     "fn": "handbookHtml",
+     "note": null
+    },
+    {
+     "fact": "Pressing a book's tab, the open one included, calls show again through wireKitTabs onSwitch, which loads the book again.",
+     "file": "scripts/ui-kit.mjs",
+     "fn": "wireKitTabs",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "This handbook could not be loaded. Try again in a moment.",
+    "after": "This handbook could not be loaded. Click its tab to try again."
+   },
+   "pl": {
+    "before": "Nie udało się wczytać podręcznika. Spróbuj za chwilę.",
+    "after": "Nie udało się wczytać podręcznika. Kliknij jego zakładkę, żeby spróbować jeszcze raz."
+   },
+   "removed": [
+    "\"Try again in a moment\" becomes how to try again, its tab (O7, facts 1 and 2); the wait \"in a moment\" no code needs."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": {
+     "verdict": "change",
+     "points": [
+      "Consistency of the action word: a tab is clicked, the Polish says \"Kliknij\", and the module's other texts in this batch say \"Click\" (DRPG.Popup.moreCloseAll). \"Press\" for a tab is unusual in English UI copy. Facts 1-2 kept: reopening the tab loads it again. (proposed: \"This handbook could not be loaded. Click its tab to try again.\") - executor: Taken."
+     ]
+    },
+    "coldEn": null,
+    "pl": {
+     "verdict": "ok",
+     "points": [
+      "Naturalne; „Kliknij jego zakładkę” zgodne z faktem 2, zaimek „jego” odnosi się do podręcznika."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  }
+ ]
+}

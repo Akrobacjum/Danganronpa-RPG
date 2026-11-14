@@ -1,0 +1,602 @@
+{
+ "$comment": "E71 line C: the key families each batch read in full and kept as they are, with the writer's reason (the batch files hold only the texts rewritten), and the writers' notes for the coordinator.",
+ "batches": {
+  "B13": {
+   "kept": [
+    {
+     "key": "GAME.Paused",
+     "why": "Foundry's own pause word, also the clock's stamp (hud.mjs hudHeader); \"On hold\" / \"Wstrzymano\" fits the stamp's measured box and meets the guide."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.instinct.name",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.instinct.short",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.instinct.verb.perceive",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.instinct.verb.sense",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.instinct.verb.navigate",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.knowledge.name",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.knowledge.short",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.knowledge.verb.recall",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.knowledge.verb.analyze",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.knowledge.verb.comprehend",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.strength.name",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.strength.short",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.strength.verb.lift",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.strength.verb.smash",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.strength.verb.grapple",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.agility.name",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.agility.short",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.agility.verb.sprint",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.agility.verb.leap",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.agility.verb.maneuver",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.finesse.name",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.finesse.short",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.finesse.verb.control",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.finesse.verb.tinker",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.presence.name",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.presence.short",
+     "why": "The module's statistic name or its sheet abbreviation as config.mjs TRAITS has it (label/short), English in both languages as the handbooks write it; same length as the system's."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.presence.verb.charm",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.presence.verb.perform",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.Traits.presence.verb.deceive",
+     "why": "A one-word example verb under the statistic on Daggerheart's sheet, true to the statistic's hint in config.mjs TRAITS; the Polish is a natural imperative."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.HealingType.fear.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.HealingType.fear.abbreviation",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.HealingType.fear.inChatRoll",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.HealingType.stress.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.HealingType.stress.inChatRoll",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.HealingType.hitPoints.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.HealingType.hitPoints.abbreviation",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.CountdownProgressType.fear",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.CONFIG.RollTypes.trait.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.fear",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.stress",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.HitPoints.single",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.HitPoints.plural",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.HitPoints.short",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.Tabs.features",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.Trait.single",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.Trait.plural",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.traitModifier",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.GENERAL.Roll.trait",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.ACTORS.Character.defaultFearDice",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.ACTORS.Character.maxHPBonus",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.EFFECTS.Types.stress.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.EFFECTS.Types.hitPoints.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.UI.Countdowns.title",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.UI.Countdowns.noPlayerAccess",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.UI.Notifications.notEnoughStress",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.UI.ItemBrowser.stressMin",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.UI.ItemBrowser.stressMax",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.UI.ItemBrowser.hitPointsMin",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.UI.ItemBrowser.hitPointsMax",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.DamageReduction.stress",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.DamageReduction.stressReduction",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.DamageReduction.unncessaryStress",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.DamageReduction.armorWithStress",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CombatTracker.openCountdowns",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.Countdown.title",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.Countdown.addCountdown",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.Countdown.newCountdown",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.Countdown.removeCountdownTitle",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.title",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.viewTitle",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.editTitle",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.newCountdown",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.removeCountdownTitle",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.defaultOwnershipTooltip",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CountdownEdit.hideNewCountdowns",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CharacterCreation.tabs.traits",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.APPLICATIONS.CharacterCreation.suggestedTraits",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.ACTIONS.TYPES.countdown.name",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.ACTIONS.TYPES.countdown.tooltip",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.ACTIONS.Config.countdown.startCountdown",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Appearance.FIELDS.displayFear.label",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Appearance.FIELDS.fearPosition.label",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Automation.fear.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Automation.FIELDS.hopeFear.label",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Automation.FIELDS.countdownAutomation.label",
+     "why": "Daggerheart's countdown word renamed to the module's project (Projects are Daggerheart countdowns, projects.mjs); the four titles \"Projects\" in both languages as the glossary's action-names-english entry rules, the common noun lower case in sentences."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Homebrew.FIELDS.maxFear.label",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Resources.fear.name",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DAGGERHEART.SETTINGS.Resources.fear.hint",
+     "why": "Daggerheart's label with its Stress, Fear, Hit Points or Trait renamed to the module's Sanity, Despair, Health or statistic; resource names indeclinable in Polish (DB4), length close to the system's, nothing for the guide to change."
+    },
+    {
+     "key": "DRPG.Safeword.title",
+     "why": "The confirmation window's title (safeword.mjs safewordDialog), the glossary's name (safeword, indeclinable in Polish); a noun for the window's subject, as section 3 has it."
+    },
+    {
+     "key": "DRPG.Safeword.confirm",
+     "why": "The window's one question in bold (safewordDialog), result first and calm; a question is what a confirmation asks, not a rhetorical one (X21)."
+    },
+    {
+     "key": "DRPG.Safeword.banner",
+     "why": "Display type in capitals (the card's heading, its speaker alias, the raised card's title and the history's glyph label for a safeword entry); the owner keeps banners (A7 brief, X16 allow rows of 12.11)."
+    },
+    {
+     "key": "DRPG.Safeword.announced",
+     "why": "The world voice in the third person, calm and whole (PL-f's own example „Ktoś użył safeword”): what happened, that play stops, who picks it up and how it resumes; nothing to cut from a safety text."
+    },
+    {
+     "key": "DRPG.Safeword.failed",
+     "why": "A toast and the caller's own card when the card could not be posted: result first, then what to do (O7), calm, GM-a in Polish; nothing to cut from a safety text."
+    },
+    {
+     "key": "DRPG.Notices.title",
+     "why": "The glossary's name (notice-history, \"Notice history\" / „Historia powiadomień”, A7): the window's title, the keybinding's name and the tile button's name with nothing unread."
+    },
+    {
+     "key": "DRPG.Notices.filter.all",
+     "why": "A chip's one word, a noun for what it shows (every source); fine in both languages."
+    },
+    {
+     "key": "DRPG.Notices.filter.forYou",
+     "why": "A chip's label for the source \"mine\" (cards addressed to this user); short and natural in both."
+    },
+    {
+     "key": "DRPG.Notices.filter.announcements",
+     "why": "A filter for public cards, day summaries and safeword cards (FILTERS sources public, summary, safeword); a plain noun."
+    },
+    {
+     "key": "DRPG.Notices.filter.players",
+     "why": "A menu filter for player-sourced cards (source player); short label, both languages natural."
+    },
+    {
+     "key": "DRPG.Notices.searchLabel",
+     "why": "The search field's aria-label; true to the search (the row's title and text, rowWords), a whole phrase in both languages."
+    },
+    {
+     "key": "DRPG.Notices.state.shown",
+     "why": "An entry's tag while its card is still on screen (state open); a short label."
+    },
+    {
+     "key": "DRPG.Notices.state.unread",
+     "why": "An entry's tag for a card closed unseen (state unread); a short label, neuter in Polish to agree with „powiadomienie”."
+    },
+    {
+     "key": "DRPG.Notices.buttonUnread",
+     "why": "The tile button's name and tooltip with a count (popup.mjs showUnread); the four Polish forms kept (A7), each agreeing with the count."
+    },
+    {
+     "key": "DRPG.Notices.unreadBanner",
+     "why": "The banner's count of unread entries (syncChrome, plural()); the four Polish forms kept (A7) and right for each count."
+    },
+    {
+     "key": "DRPG.Notices.chapterFold",
+     "why": "The fold's summary for an older chapter's entries: a label with its two numbers, nothing to change."
+    },
+    {
+     "key": "DRPG.Notices.openConversation",
+     "why": "The entry's button that opens the messenger thread with that user (expand); a verb with its object (O11)."
+    },
+    {
+     "key": "DRPG.Notices.noMatch",
+     "why": "The list's empty line when the search or a filter leaves nothing (buildList); a whole sentence, short, in both languages."
+    },
+    {
+     "key": "DRPG.Notices.clearYes",
+     "why": "The confirmation's destructive button (askClear); a verb with its object (O11), and the footer's Clear now says the same."
+    },
+    {
+     "key": "DRPG.Notices.mark.deleted",
+     "why": "An entry's tag when its chat card was deleted (engine deleted, mark deleted); a short label, \"chat log\" as elsewhere."
+    },
+    {
+     "key": "DRPG.Notices.mark.rerolled",
+     "why": "An entry's tag after a Reroll replaced its card (noticeCardChanged); Polish „Po Rerollu” is the glossary's form (reroll)."
+    },
+    {
+     "key": "DRPG.Notices.mark.settled",
+     "why": "An entry's tag after a GM's ruling settled its call (noticeCardChanged, settled); GM-a in Polish."
+    },
+    {
+     "key": "DRPG.Notices.source.notDone",
+     "why": "The tag, glyph label and entry title of a request not carried out (bridge-guards.mjs sayNotDone); a short label."
+    },
+    {
+     "key": "DRPG.Notices.source.summary",
+     "why": "The tag and glyph label of a day summary (day-summary.mjs's source summary); the glossary's \"time of day\" / „pora dnia”."
+    },
+    {
+     "key": "DRPG.Notices.source.player",
+     "why": "The tag and glyph label of a player's card (source player); a short label."
+    },
+    {
+     "key": "DRPG.Popup.moreTip",
+     "why": "The owner's decision of 11.10 (A7): unchanged."
+    },
+    {
+     "key": "DRPG.Popup.kind.info",
+     "why": "A card's bar word when it has no title (showPopup kindWord); a label, not a lead-in (X20). Changing it would also stop rowWords matching entries already kept under the old word."
+    },
+    {
+     "key": "DRPG.Popup.kind.error",
+     "why": "The bar word of an untitled error card: every such card read is a refusal (call-gm.mjs sayRefusedHere, bridge-guards.mjs sayNotDone); a plain label."
+    },
+    {
+     "key": "DRPG.Popup.kind.evidence",
+     "why": "The bar word of an untitled evidence card; a plain noun in both languages."
+    },
+    {
+     "key": "DRPG.Popup.kind.objection",
+     "why": "The bar word of an objection card; the glossary's name, English in Polish too (objection)."
+    },
+    {
+     "key": "DRPG.Legacy.safeword",
+     "why": "Not a text: the old word a migrated world keeps (migrate.mjs keepOldSafeword compares the setting to it); display type in capitals, and changing it would change what an old world is given."
+    },
+    {
+     "key": "DRPG.Notices.filter.evidence",
+     "why": "A one-word filter name for the evidence a trial shows (trial.mjs source \"evidence\"); the same word tags the entries, glossary-clean in both languages."
+    },
+    {
+     "key": "DRPG.Notices.search",
+     "why": "The search field's placeholder (notice-history-app.mjs): a verb with its object, short, natural in both languages."
+    },
+    {
+     "key": "DRPG.Rules.tab",
+     "why": "The sheet's tab name (sheet.mjs relabelEffectsNav), a noun; the player handbook quotes \"the Rules tab\"."
+    },
+    {
+     "key": "DRPG.Rules.none",
+     "why": "The empty state on the sheet and in the manager (rules.mjs openRulesManager, sheet.mjs buildRulesPanel): one true sentence in both languages."
+    },
+    {
+     "key": "DRPG.Rules.rule",
+     "why": "The manager's column head, a noun (rules.mjs openRulesManager)."
+    },
+    {
+     "key": "DRPG.Rules.added",
+     "why": "The chapter stamp under a rule (sheet.mjs buildRulesPanel, rules.mjs openRulesManager); true to makeRule's chapter, Polish agrees with „zasada”."
+    },
+    {
+     "key": "DRPG.Rules.manageTitle",
+     "why": "The window's subject (rules.mjs openRulesManager, gm-panel.mjs tile); the GM handbook names the window by it (sections 3 and 5)."
+    },
+    {
+     "key": "DRPG.Rules.addNew",
+     "why": "A verb with its object (O11) for the manager's new-rule field and the Blackened rule window's button (verdict.mjs askBlackenedRule)."
+    },
+    {
+     "key": "DRPG.Rules.announce",
+     "why": "The checkbox label, a verb with its object; the GM handbook section 5 quotes \"Announce changes\"."
+    },
+    {
+     "key": "DRPG.Rules.announceTitle",
+     "why": "The public card's banner (rules.mjs announceRuleChanges), not a window's title: 6 words under the limit of 8; the GM handbook section 5 quotes it word for word."
+    },
+    {
+     "key": "DRPG.Rules.announceAdded",
+     "why": "The card's heading over the rules introduced; one word, Polish agrees with „zasady”."
+    },
+    {
+     "key": "DRPG.Rules.announceRevoked",
+     "why": "The card's heading over the rules revoked; one word, Polish agrees with „zasady”."
+    },
+    {
+     "key": "DRPG.Handbooks.title",
+     "why": "The window's subject (handbooks.mjs HandbookApp title), a noun in both languages."
+    },
+    {
+     "key": "DRPG.Handbooks.launcherTooltip",
+     "why": "The corner book's tooltip and aria-label (handbooks.mjs renderBookLauncher); names the window it opens, as the corner's other launchers name theirs."
+    },
+    {
+     "key": "DRPG.Handbooks.brochure",
+     "why": "A tab named as the book's own title (player-brochure.*.md: \"Student Brochure\" / \"Ulotka ucznia\")."
+    },
+    {
+     "key": "DRPG.Handbooks.player",
+     "why": "A tab named as the book's own title (player-handbook.*.md)."
+    },
+    {
+     "key": "DRPG.Handbooks.gm",
+     "why": "A tab named as the book's own title (gm-handbook.*.md: \"GM Handbook\" / \"Podręcznik GM\")."
+    },
+    {
+     "key": "DRPG.Handbooks.contents",
+     "why": "The contents list's aria-label (handbooks.mjs), a noun."
+    },
+    {
+     "key": "DRPG.Handbooks.loading",
+     "why": "The window's text while a book is fetched (HandbookApp.show); short, no claim."
+    },
+    {
+     "key": "DRPG.Handbooks.callout.note",
+     "why": "A box title for GitHub's [!NOTE] (handbooks.mjs calloutsIn); „Uwaga” is the usual Polish word for a note."
+    },
+    {
+     "key": "DRPG.Handbooks.callout.tip",
+     "why": "A box title for [!TIP] (calloutsIn), one word in both languages."
+    },
+    {
+     "key": "DRPG.Handbooks.callout.important",
+     "why": "A box title for [!IMPORTANT] (calloutsIn), one word in both languages."
+    },
+    {
+     "key": "DRPG.Handbooks.callout.warning",
+     "why": "A box title for [!WARNING] (calloutsIn), one word in both languages."
+    },
+    {
+     "key": "DRPG.Handbooks.callout.caution",
+     "why": "A box title for [!CAUTION] (calloutsIn), one word in both languages."
+    }
+   ],
+   "notes": [
+    "S13: Surfaces: text-budgets.json has no surface for a field label, a setting's name or a statistic's verb; this slice files them as \"tab\" (a noun label inside a window, target 5, limit 8). Settings names are not budgeted (guide section 4); the coordinator may prefer to class them otherwise.",
+    "S13: Every fact about where Daggerheart draws a key has file null and a note: Daggerheart's source is not in the repository. The two facts about countdown automation and the Fear trigger read audit/harness/lib/dh-dice/dice/dualityRoll.mjs, the harness's copy of Daggerheart's dice code, not Daggerheart itself.",
+    "S13: Question, default kept: the Eye and Head verbs \"Search\" / \"Przeszukaj\" and \"Analyze\" / \"Analizuj\" share words with the module's actions Search and Analyze, whose names stay English in Polish (D33a). They are left as Polish verbs: they are the statistic's example verbs on the sheet, not the tiles (Search rolls any of six statistics, config.mjs ACTIONS.search.traits). The owner may want them to read as the action names instead.",
+    "S13: DAGGERHEART.UI.Notifications.notEnoughStress (\"You don't have enough Sanity\") reads true with Sanity as a reserve (M7) and is left; it has no full stop, as Daggerheart's own toasts.",
+    "S13: The project's name in quotes in the two removeCountdownText afters follows the module's DRPG.Project.created; EN17/PL-g quote item names only, so this is the module's usage, not a rule.",
+    "S14: DRPG.Safeword.roomUnknown is now a fragment of DRPG.Safeword.gmNote ({room}, Polish locative after „w pokoju”: „w pokoju nieznanym”); the two must land together, and docs/text-style.md section 14 should get a row for it (needsCode on roomUnknown).",
+    "S14: DRPG.Notices.sessionOnly: no caller passes persist \"session\" today (grep of scripts/), so the tag is never drawn; rewritten anyway, since the engine still supports it.",
+    "S14: DRPG.Popup.kind.info is kept as „Uwaga”/\"Notice\": notice-history-app.mjs rowWords matches an entry's kept title against the current kind word, so a change would leave entries already in players' histories titled with the old word. If the owner wants „Powiadomienie” (glossary consistency with „Historia powiadomień”), that caveat goes with it.",
+    "S14: DRPG.Notices.clear and clearYes now read the same (\"Clear the history\" / „Wyczyść historię”); clearYes was already that.",
+    "S14: Outside the slice: DRPG.Events.safewordSub says „Ktoś użył safeword.” in Polish (fine, PL-f), but its English says \"called\" where Safeword.announced says \"used\"; and DRPG.Events.safewordMetaGm „Wznów, kiedy wszyscy będą gotowi - nie wcześniej.” has an X4 dash. For the batch that owns DRPG.Events.*.",
+    "S14: DRPG.Season.safewordNote (outside the slice): \"Blank - the default.\" / „Puste - domyślne.” is an X4 dash in telegraph style; for the batch that owns DRPG.Season.*.",
+    "S19: DRPG.Rules.manageTitle, DRPG.Rules.announce and DRPG.Rules.announceTitle are kept because docs/handbooks/gm-handbook.en.md (sections 3 and 5, lines 103, 186 and 375) quotes them word for word; if a later pass changes them, the handbook lines change with them.",
+    "S19: DRPG.Rules.manageNote now names the Rules tab; it reads DRPG.Rules.tab's value \"Rules\" / \"Zasady\", so a change to that tab's name would change this note too.",
+    "S19: DRPG.Rules.manageIntro and DRPG.Rules.emptyKept name the Delete box by DRPG.Project.delete (\"Delete\" / \"Usuń\"), the manager's column head; the texts say \"revoke\" for what the box does, as the GM handbook does.",
+    "S19: DRPG.Notices.filter.notDone: only the English changes; the Polish already calls the filter and the tag „Niewykonane”."
+   ]
+  }
+ }
+}
