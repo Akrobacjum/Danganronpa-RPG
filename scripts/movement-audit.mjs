@@ -29,7 +29,7 @@ import { MODULE_ID } from "./config.mjs";
 import { chatCard } from "./chat-card.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
-import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
+import { isMoveChange, levelOf, onLevel, isPlaceScene, roomPhrase } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
 import { actsAsMastermind, secretDoorHeldShut } from "./passages-gm.mjs";
 import { isMonokuma, isSpectator } from "./monokuma.mjs";
@@ -325,7 +325,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             else {
                 ledger.told.set(told, now);
                 const said = game.i18n.format("DRPG.Movement.ruleSentBack", { name: actor.name ?? tokenDoc.name ?? "",
-                    room: refused.room ?? game.i18n.localize("DRPG.Movement.outsideRooms"), scene: scene.name ?? "" });
+                    into: roomPhrase("into", refused.room ?? null), scene: scene.name ?? "" });
                 (ctx.whisper ?? whisperToGms)(chatCard({ tone: "warning", body: `<p data-drpg-rule="${esc(tokenDoc.id)}">${esc(said)}</p><p>${esc(refused.reason ?? "")}</p>` }))
                     ?.catch?.(err => error("Could not tell the GMs of a token the rules sent back", err));
             }

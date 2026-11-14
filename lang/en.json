@@ -4009,13 +4009,16 @@
       "panelLocked": "Locked until the Eclipse ends."
     },
     "Movement": {
-      "unlawfulArrival": "{name} reached {room} by a crossing the rules do not allow, and was not put back. Until they stand in a room they could reach from {from}, they do not count as a witness to a body or a third party to a murder. Moving the token as a GM makes their spot lawful.",
+      "unlawfulArrival": "{name} went {into} by a crossing the rules do not allow, and was not put back. Until they stand in a room they could reach {from}, they do not count as a witness to a body or a third party to a murder. Moving the token as a GM makes their spot lawful.",
       "outsideRooms": "a spot outside the rooms",
+      "at": { "room": "in {room}", "none": "outside the rooms" },
+      "into": { "room": "into {room}", "none": "to a spot outside the rooms" },
+      "out": { "room": "from {room}", "none": "from outside the rooms" },
       "wallCrossed": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
       "floorJumped": "{name}'s token was moved to another floor on {scene} where no stairs lead, and was sent back where it stood.",
-      "ruleSentBack": "{name}'s token was moved into {room} on {scene}, where the rules do not let {name} go, and was put back where {name} last stood.",
-      "dropRemoved": "A player placed a token of {name} in {room} on {scene}, where the rules do not let {name} stand. The token was removed.",
-      "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had not stood before. As an arrival from outside the rooms, it was exempt from the connected-rooms rule and counts as a witness there. Move it if it should not be there."
+      "ruleSentBack": "{name}'s token was moved {into} on {scene}, where the rules do not let {name} go, and was put back where {name} last stood.",
+      "dropRemoved": "A player placed a token of {name} {at} on {scene}, where the rules do not let {name} stand. The token was removed.",
+      "droppedFromNowhere": "A player placed a token of {name} {at} on {scene}, where {name} had not stood before. As an arrival from outside the rooms, it was exempt from the connected-rooms rule and counts as a witness there. Move it if it should not be there."
     },
     "Move": {
       "notConnectedShort": "{to} is not connected to {from}.",
@@ -4868,7 +4871,7 @@
       "whoIsAliveNote": "The State column fixes a mis-click: the change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
       "doColumn": "Do",
       "refundCrossing": "Refund last crossing",
-      "refundCrossingNote": "{to} back to {from}",
+      "refundCrossingNote": "{leaving} back {returning}",
       "nextChapterEndStopped": "The end of the chapter stopped before every step was done. Finish it in End the chapter.",
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
       "nextReady": "The players are being asked whether they are done. Open the question again to see who has answered.",

@@ -43,6 +43,18 @@ const PLAYER_REGIONS = "playerRegions";
 /** `SETTINGS.sceneRoles` (settings.mjs), by its key, for the same reason. */
 const SCENE_ROLES = "sceneRoles";
 
+/**
+ * WHERE A TOKEN STANDS, AS A PHRASE WITH ITS OWN PREPOSITION (the needsCode line, 14.11.2026; docs/text-style.md section
+ * 14, as `Explain.phase.eclipseReach`): `kind` "at" (EN "in Library", PL „w pokoju Biblioteka”), "into" („do pokoju
+ * ...”) or "out" („z pokoju ...”), and with no room each kind's own words outside the rooms („poza pokojami”, „poza
+ * pokoje”, „spoza pokoi”). The hosts wrote „do pokoju {room}” and the code put `Movement.outsideRooms` there:
+ * „do pokoju poza pokojami” (Q-B-6; R6912). Taken by Movement.ruleSentBack, dropRemoved, unlawfulArrival,
+ * droppedFromNowhere and Panel.refundCrossingNote.
+ */
+export function roomPhrase(kind, room) {
+    return room ? game.i18n.format(`DRPG.Movement.${kind}.room`, { room }) : game.i18n.localize(`DRPG.Movement.${kind}.none`);
+}
+
 /*
  * BEHAVIOURS THAT MAKE A REGION A PASSAGE, NOT A ROOM. A Teleport sends a token to another
  * place and a level change to another floor: a region carrying either is where a token leaves

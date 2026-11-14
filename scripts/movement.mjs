@@ -46,7 +46,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf, listOf } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
-    isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation } from "./rooms.mjs";
+    isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation, roomPhrase } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 // The secret passages this browser may know (E79 C3), static for the veto's sake as the imports
 // above. passages.mjs is a leaf that never reads this file back (R560 holds its imports).
@@ -704,7 +704,7 @@ function removeDrop(tokenDoc, standing) {
             return;
         }
         log(`A player placed a token of ${name} in ${room} on "${scene}", which the rules refuse (${standing.reason}); it was removed.`);
-        whisperToGms({ tone: "warning", body: `<p data-drpg-dropgone="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.dropRemoved", { name, room, scene }))}</p>`
+        whisperToGms({ tone: "warning", body: `<p data-drpg-dropgone="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.dropRemoved", { name, at: roomPhrase("at", roomOfToken(tokenDoc) ?? null), scene }))}</p>`
             + `<p>${esc(standing.reason ?? "")}</p>` })
             .catch(err => error("Could not tell the GMs of a token removed", err));
     }, 0);
@@ -1450,8 +1450,9 @@ function tellUnlawful(tokenDoc, now) {
     const name = tokenDoc.actor?.name ?? tokenDoc.name ?? "";
     const room = roomOfToken(tokenDoc) ?? outside;
     const from = now.last?.room ?? outside;
+    const phrases = { into: roomPhrase("into", roomOfToken(tokenDoc) ?? null), from: roomPhrase("out", now.last?.room ?? null) };
     log(`${name} reached ${room} on "${tokenDoc.parent?.name}" by a crossing the rules refuse (${now.reason}); no witness and no third party until they stand somewhere they could have reached from ${from}.`);
-    whisperToGms({ tone: "warning", body: `<p data-drpg-unlawful="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.unlawfulArrival", { name, room, from }))}</p>`
+    whisperToGms({ tone: "warning", body: `<p data-drpg-unlawful="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.unlawfulArrival", { name, ...phrases }))}</p>`
         + `<p>${esc(now.reason ?? "")}</p>` })
         .catch(err => error("Could not tell the GMs of an unlawful arrival", err));
 }
@@ -1462,7 +1463,7 @@ function tellDropped(tokenDoc) {
     const room = roomOfToken(tokenDoc) ?? game.i18n.localize("DRPG.Movement.outsideRooms");
     const scene = tokenDoc.parent?.name ?? "";
     log(`A player placed a token of ${name} in ${room} on "${scene}", where ${name} stood nowhere before; judged from nowhere.`);
-    whisperToGms({ tone: "warning", body: `<p data-drpg-dropped="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.droppedFromNowhere", { name, room, scene }))}</p>` })
+    whisperToGms({ tone: "warning", body: `<p data-drpg-dropped="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.droppedFromNowhere", { name, at: roomPhrase("at", roomOfToken(tokenDoc) ?? null), scene }))}</p>` })
         .catch(err => error("Could not tell the GMs of a token a player placed", err));
 }
 

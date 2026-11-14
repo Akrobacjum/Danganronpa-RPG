@@ -37937,6 +37937,35 @@ const INVARIANTS = [
             "[the line says effect.n; giveBack's answer read; searchTokenFull said; the key exists]");
     }],
 
+    ["R6912 - where a token stands reaches a sentence as a phrase with its own preposition, so a spot outside the rooms reads right in Polish (needsCode, 14.11.2026; docs/text-style.md section 14, as `Explain.phase.eclipseReach`): rooms.mjs `roomPhrase(kind, room)` (a leaf movement.mjs and movement-audit.mjs both read) gives `DRPG.Movement.at`, `into` or `out` (`.room` with the room's name, `.none` outside the rooms); `Movement.ruleSentBack`, `dropRemoved`, `unlawfulArrival`, `droppedFromNowhere` and `Panel.refundCrossingNote` take it, and none of their Polish writes „pokoju {…}” or „do {…}” around a room's placeholder", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #117, S2 (Q-B-6). Red at 4b30a27a: the
+         * hosts wrote „do pokoju {room}”, „w pokoju {room}”, „z pokoju {from}” and „z powrotem do {from}”, and with no room
+         * the code put `Movement.outsideRooms` („poza pokojami”) there: „do pokoju poza pokojami”. English read
+         * \"moved into a spot outside the rooms\", which stands.
+         */
+        let M = null;
+        try { M = await import("./rooms.mjs"); } catch { M = null; }
+        must(M, "rooms.mjs did not load - this reads nothing");
+        const phrase = typeof M.roomPhrase === "function" ? M.roomPhrase : null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const HOSTS = ["Movement.ruleSentBack", "Movement.dropRemoved", "Movement.unlawfulArrival", "Movement.droppedFromNowhere", "Panel.refundCrossingNote"];
+        const bent = HOSTS.filter(k => /pokoju \{|do \{/.test(String(foundry.utils.getProperty(pl.DRPG, k) ?? "")));
+        const fragments = ["at", "into", "out"].flatMap(kind => ["room", "none"].map(form => [`Movement.${kind}.${form}`,
+            game.i18n.has(`DRPG.Movement.${kind}.${form}`), foundry.utils.getProperty(pl.DRPG, `Movement.${kind}.${form}`) !== undefined]));
+        const sources = new Map(await otherSources());
+        const sites = [["movement-audit.mjs", "auditMove"], ["movement.mjs", "removeDrop"], ["movement.mjs", "tellUnlawful"], ["movement.mjs", "tellDropped"],
+            ["gm-students.mjs", "refundButton"]].map(([file, fn]) => {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn) ?? stripComments(sources.get(file) ?? "");
+            return [file, fn, /roomPhrase\(/.test(body)];
+        });
+        equal(stableJson({ phrase: phrase ? [phrase("at", "Library"), phrase("into", null)] : null, bent, fragments, sites }),
+            stableJson({ phrase: [game.i18n.format("DRPG.Movement.at.room", { room: "Library" }), game.i18n.localize("DRPG.Movement.into.none")], bent: [],
+                fragments: ["at", "into", "out"].flatMap(kind => ["room", "none"].map(form => [`Movement.${kind}.${form}`, true, true])),
+                sites: sites.map(([file, fn]) => [file, fn, true]) }),
+            "[roomPhrase for a room and for none; the Polish hosts that bend a room's placeholder; each fragment in en and pl; each site asks roomPhrase]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

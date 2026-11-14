@@ -4323,13 +4323,16 @@
       "murderWindowLocked": "Podczas Eclipse nie otworzysz incydentu. Karta pułapki zachowuje swój przycisk, więc użyjesz go po Eclipse."
     },
     "Movement": {
-      "unlawfulArrival": "Postać {name} weszła do pokoju {room} przejściem, na które zasady nie pozwalają, i jej token nie wrócił na miejsce. Dopóki nie stanie tam, dokąd mogła dojść z pokoju {from}, nie jest świadkiem przy ciele ani trzecią osobą przy morderstwie. Gdy token przesunie GM, nowe miejsce jest dozwolone.",
+      "unlawfulArrival": "Postać {name} weszła {into} przejściem, na które zasady nie pozwalają, i jej token nie wrócił na miejsce. Dopóki nie stanie tam, dokąd mogła dojść {from}, nie jest świadkiem przy ciele ani trzecią osobą przy morderstwie. Gdy token przesunie GM, nowe miejsce jest dozwolone.",
       "outsideRooms": "poza pokojami",
+      "at": { "room": "w pokoju {room}", "none": "poza pokojami" },
+      "into": { "room": "do pokoju {room}", "none": "poza pokoje" },
+      "out": { "room": "z pokoju {room}", "none": "spoza pokoi" },
       "wallCrossed": "Gracz przesunął token postaci {name} przez ścianę na scenie {scene}; token wrócił tam, gdzie stał.",
       "floorJumped": "Gracz przeniósł token postaci {name} na scenie {scene} na inne piętro, na które nie prowadzą schody; token wrócił tam, gdzie stał.",
-      "ruleSentBack": "Gracz przesunął token postaci {name} na scenie {scene} do pokoju {room}, do którego zasady tej postaci nie wpuszczają; token wrócił tam, gdzie postać ostatnio stała zgodnie z zasadami.",
-      "dropRemoved": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Token został usunięty.",
-      "droppedFromNowhere": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, na której ta postać nie miała wcześniej tokenu. Moduł traktuje to jak wejście spoza pokoi: zasada połączonych pokoi nie działa, ale zasady zamków, pieczęci i sypialni obowiązują dalej, a postać liczy się tam jako świadek. Jeśli token nie powinien tam stać, GM może go przesunąć."
+      "ruleSentBack": "Gracz przesunął token postaci {name} na scenie {scene} {into}, choć zasady nie pozwalają tam tej postaci wejść; token wrócił tam, gdzie postać ostatnio stała zgodnie z zasadami.",
+      "dropRemoved": "Gracz postawił token postaci {name} {at} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Token został usunięty.",
+      "droppedFromNowhere": "Gracz postawił token postaci {name} {at} na scenie {scene}, na której ta postać nie miała wcześniej tokenu. Moduł traktuje to jak wejście spoza pokoi: zasada połączonych pokoi nie działa, ale zasady zamków, pieczęci i sypialni obowiązują dalej, a postać liczy się tam jako świadek. Jeśli token nie powinien tam stać, GM może go przesunąć."
     },
     "Move": {
       "notConnectedShort": "Pokój {to} nie łączy się z pokojem {from}.",
@@ -5247,7 +5250,7 @@
       "whoIsAliveNote": "Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
       "doColumn": "Zrób",
       "refundCrossing": "Zwróć ostatnie przejście",
-      "refundCrossingNote": "{to} z powrotem do {from}",
+      "refundCrossingNote": "{leaving} z powrotem {returning}",
       "nextChapterEndStopped": "Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.",
       "nextTrialOutlived": "Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.",
       "refilled": "Odnowiono akcje i Search Tokeny. Motive, pieczęcie i Overflow zostają bez zmian, a na czat nie trafiła karta pory dnia.",
