@@ -2233,7 +2233,7 @@
           "shareProjectTooltip": "Tajny projekt, któremu zmieniasz dostęp; jawnych projektów nie ma na liście.",
           "sharePlayerTooltip": "Gracz, który zyskuje albo traci wgląd w projekt; GM-owie i tak widzą każdy projekt.",
           "saveManagerTooltip": "Zapisuje zmienione na tej liście pokoje, znaczniki i zaznaczenia graczy.",
-          "createFromManagerTooltip": "Otwiera okno nowego projektu, a potem znów tę listę; niezapisane tu zmiany przepadają.",
+          "createFromManagerTooltip": "Zapisuje zmiany z tej listy, otwiera okno nowego projektu i wraca tutaj.",
           "passRollTooltip": "Zachowujesz to, co miało być zapłacone, i nie rzucasz; GM zobaczy w twoim wątku, że rezygnujesz."
         },
         "Trial": {
@@ -2349,7 +2349,7 @@
           "newItemRoomTableTooltip": "Przy dodawaniu wkłada przedmiot także do tej tabeli pokoju",
           "newItemNameTooltip": "Nazwa, pod którą przedmiot trafi na arkusz postaci znalazcy",
           "newItemDescriptionTooltip": "To, co znalazca przeczyta w opisie przedmiotu. Możesz zostawić to pole puste",
-          "renameTableTooltip": "Zmienia nazwę widocznej tabeli. Pokój, który losował z niej pod starą nazwą, przestaje, dopóki nie wybierzesz jej znowu w Ustawieniach pokoi",
+          "renameTableTooltip": "Zmienia nazwę widocznej tabeli. Pokoje, które z niej losują, losują dalej, już pod nową nazwą",
           "tabRoomPoolsTooltip": "Twoje własne tabele. W Ustawieniach pokoi każdy pokój może losować z jednej z nich",
           "tabNewItemTooltip": "Tworzy jeden przedmiot i dodaje go do jego tabeli Tier i do zaznaczonych tabel pokoi"
         },

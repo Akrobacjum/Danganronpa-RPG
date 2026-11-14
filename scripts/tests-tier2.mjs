@@ -66259,6 +66259,131 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "(the Gym's kept, the one on no scene kept, the one moved while the window was open left where it was moved)");
     }],
 
+    ["the Projects manager keeps what its rows were changed to when the GM leaves it through Create project, Share or a row's Edit (the tooltip sweep's finding, 1.2.115; the coordinator's word of 14.11.2026): each of the three closes the window to open another and reopens it after, and until 1.2.115 none of them read the rows, so a room picked in a row was lost; since, each writes the rows as Save does (`applyProjectManager`, only what a row changed) before it goes", async () => {
+        /* Red at 389d3895: every route read the room the project had before ([GYM, GYM, GYM]): Create and Share answered their
+           action's word with no callback, and the row's Edit closed the window before anything read it. The windows are
+           DialogV2.wait answered here, as the E12 C5 test above answers the manager: the manager's first drawing picks the
+           Hall in the project's row and leaves by the route; every other window answers null, and the manager's second
+           drawing Cancel. */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const home = canvas?.scene ?? null;
+        const GYM = "SUITE R7301 Gym", HALL = "SUITE R7301 Hall";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const reading = {};
+        await G.withGmStoreWorld(`suite-r7301-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null, id = null;
+            try {
+                scene = await Scene.create({ name: "SUITE R7301 the school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [GYM, HALL].map((name, i) => ({ name, shapes: [{ type: "rectangle", x: i * 1000, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] })));
+                id = (await P.createProject({ name: "SUITE R7301 a project", target: 6, room: GYM }))?.id ?? null;
+                must(id, "could not create a project - this would measure nothing");
+                await scene.view();
+                await settle();
+                for (const route of ["new", "share", "edit"]) {
+                    await S.setProjectMeta(id, { room: GYM });
+                    await settle();
+                    must(P.roomOf(id) === GYM, `the project is not in the Gym before the ${route} route - this would measure nothing`);
+                    let drawings = 0;
+                    D.wait = async cfg => {
+                        const element = document.createElement("div"), form = document.createElement("form");
+                        if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                        else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                        element.append(form);
+                        const select = form.querySelector(`[name="room.${CSS.escape(id)}"]`);
+                        if (!select) return null;                          // the create, share or project window: closed
+                        if (++drawings > 1) return "cancel";               // the manager again, after the route
+                        must([...select.options].some(o => o.value === HALL), "the row offers no Hall - the route would change nothing");
+                        select.value = HALL;
+                        if (route === "edit") {
+                            cfg.render?.(new Event("render"), { element, close: async () => {} });
+                            const edit = element.querySelector(`[data-drpg-edit="${CSS.escape(id)}"]`);
+                            must(edit, "the row drew no Edit button - this would measure nothing");
+                            edit.click();
+                            return null;                                   // the manager closed by the row's Edit
+                        }
+                        const button = (cfg.buttons ?? []).find(b => b.action === route);
+                        must(button, `the manager has no ${route} button - this would measure nothing`);
+                        return button.callback ? button.callback(new Event("click"), button, { element }) : button.action;
+                    };
+                    await UI.openProjectManager();
+                    await until(() => drawings > 1, 6000);
+                    await settle();
+                    reading[route] = [drawings > 1, P.roomOf(id)];
+                }
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await home?.view();
+                if (id) await P.deleteProject(id);
+                if (scene) await scene.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify({ new: [true, HALL], share: [true, HALL], edit: [true, HALL] }),
+            "{per route: the manager reopened after it, and the project's room afterwards (the Hall its row was changed to)}");
+    }],
+
+    ["a room table renamed in the Item tables window keeps the rooms that draw from it (the tooltip sweep's finding, 1.2.115; the coordinator's word of 14.11.2026): a room stores the name of the table it draws from (its regions' `drpgItemTable`, Room setup's Draws from) and a Search finds the table by that name (tables-pools.mjs `tableForRoom`, `roomTableNames`), so until 1.2.115 a Rename left every room on the old name, drawing from nothing; since, Rename points each room of every scene that named the old table at the new name, and a room that named another table stays", async () => {
+        /* Red at c1407a7a: after the rename the room still named "SUITE room table Pantry", which no table had any more.
+           On a scene of the test's own, so no room of the world is written; the prompt is answered from the harness's
+           queue, or, on a real Foundry, filled in and pressed. */
+        const T = await import("./tables.mjs");
+        const R = await import("./rooms.mjs");
+        const TAG = "SUITE room table", OLD = `${TAG} Pantry`, NEW = `${TAG} Larder`, OTHER = `${TAG} Shed`, FLAG = "drpgItemTable";
+        const appWith = test => [...foundry.applications.instances.values()].find(a => a.element?.isConnected && test(a.element));
+        const tablesApp = () => appWith(el => el.classList.contains("drpg-window-tables"));
+        const closeAll = async test => { for (let n = 0; n < 4; n += 1) { const app = appWith(test); if (!app) break; try { await app.close(); } catch { /* gone */ } await settle(); } };
+        const made = [];
+        let scene = null, reading = null, opening = null;
+        try {
+            for (const name of [OLD, OTHER]) made.push(await RollTable.create({ name, formula: "1d1", flags: { [MODULE_ID]: { roomPool: true } } }));
+            scene = await Scene.create({ name: `${TAG} a school`, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [["Kitchen", OLD, 0], ["Kitchen", OLD, 400], ["Garden", OTHER, 1000]].map(([name, table, x]) => ({
+                name, shapes: [{ type: "rectangle", x, y: 0, width: 300, height: 300 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [FLAG]: table } }, behaviors: [] })));
+            await settle();
+            const flags = () => Array.from(scene.regions).map(r => `${r.name}:${r.getFlag(MODULE_ID, FLAG)}`).sort();
+            must(flags().join() === [`Garden:${OTHER}`, `Kitchen:${OLD}`, `Kitchen:${OLD}`].join(), "the rooms do not name their tables - this would measure nothing");
+            opening = T.openItemTables();
+            await until(() => tablesApp());
+            await settle();
+            const el = tablesApp()?.element;
+            const pick = el?.querySelector(`[data-drpg-pool-pane="rooms"] [data-drpg-table="${CSS.escape(made[0].id)}"]`);
+            must(pick, "the Room pools tab lists no button for the test's table - this would measure nothing");
+            pick.click();
+            await settle();
+            const queue = Array.isArray(globalThis.__dialogAnswers) ? globalThis.__dialogAnswers : null;
+            const answer = () => NEW;
+            queue?.push(answer);
+            el.querySelector('[data-drpg-pool-pane="rooms"] [data-drpg-rename-table]')?.click();
+            if (!queue) {
+                await until(() => appWith(e => e.querySelector('input[name="tableName"]')), 6000);
+                const prompt = appWith(e => e.querySelector('input[name="tableName"]'))?.element;
+                const field = prompt?.querySelector('input[name="tableName"]');
+                if (field) field.value = NEW;
+                prompt?.querySelector('footer button[data-action="ok"]')?.click();
+            }
+            await until(() => game.tables.getName(NEW), 6000);
+            await settle();
+            if (queue?.includes(answer)) queue.splice(queue.indexOf(answer), 1);
+            reading = [game.tables.getName(NEW)?.id === made[0].id, flags()];
+        } finally {
+            await closeAll(e => e.querySelector('input[name="tableName"]'));
+            await closeAll(e => e.classList.contains("drpg-window-tables"));
+            try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+            for (const table of made) if (game.tables.get(table.id)) await table.delete();
+            if (scene) await scene.delete();
+            await settle();
+        }
+        equal(JSON.stringify(reading), JSON.stringify([true, [`Garden:${OTHER}`, `Kitchen:${NEW}`, `Kitchen:${NEW}`]]),
+            "{the table renamed, and each region's table afterwards: the Kitchen's two pieces on the new name, the Garden on its own table}");
+    }],
+
     ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
         /*
          * E12 C5, 11.10.2026; plan-E12 section 4's C5, audit S16-07. The gather's room was looked up

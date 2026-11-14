@@ -27906,6 +27906,18 @@ const INVARIANTS = [
             sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text", "text"] }
         }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
     }],
+    ["R7301 - Room setup draws every cell it builds: each key of the row `roomCells` builds but the room's own name is a column of one of the window's tabs (`roomSetupContent`'s `tableFor([...])`), so no control is built for a table that never shows it (the tooltip sweep's finding, 1.2.115: a `concealed` cell, the room's old hiding-place box, was built for every room and placed in no tab; a stash's concealment is the Stashes tab's, per stash, since ITEM-02)", async () => {
+        /* Red at 071a3c19: "concealed" was built and drawn nowhere. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(src.length > 500, "room-setup.mjs read as nothing - this would measure nothing");
+        const cells = fnSource(src, "roomCells"), content = fnSource(src, "roomSetupContent");
+        // The row's own object, the last `return {` at the function's first indent; a names map above holds keys at the same depth.
+        const returned = [...cells.matchAll(/^ {8}return \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
+        const built = [...returned.matchAll(/^ {12}([a-z]+):/gm)].map(m => m[1]).filter(k => k !== "name");
+        const tabled = new Set([...content.matchAll(/tableFor\(\[([^\]]*)\]\)/g)].flatMap(m => [...m[1].matchAll(/"([a-z]+)"/g)].map(x => x[1])));
+        must(built.length >= 10 && tabled.size >= 10, `read ${built.length} built cell(s) and ${tabled.size} tabled column(s) - this would measure nothing`);
+        equal(built.filter(k => !tabled.has(k)).join(", "), "", "{the cells roomCells builds that no tab's table draws}");
+    }],
     ["R7300 - every control the module draws has a tooltip, a hint, or a row that says why it needs none, and \"none needed\" is no longer a reason (the tooltip sweep, 1.2.115; Q-E57-8, the owner's \"Robic teraz\" of 14.11.2026): tools/tooltip-census.json, the baseline `node tools/check.mjs tooltips` holds every site with no tooltip and no hint line to, keeps only rows of six reasons - \"label is enough: ...\" (the label and its options say it all), \"hint: ...\" and \"help in code: ...\" (help the census cannot see near the control, each with a held { fn, pattern } found in that function of its file), \"not met: ...\" (no reader meets it as a control), \"conditional: ...\" (a tooltip drawn under a named condition), or a stage's commit that gives one; E102's \"none needed\" rows, an agent's judgement the owner never saw, are each a tooltip now or one of those", async () => {
         /* Red at 9e7e3d78 (1.2.114): 224 rows read "none needed: ...", and no row "hint: ..." existed. The gate (tools/tooltip-census.mjs `compare`)
            matches every drawn site to a row; this holds what a row may say, and that the help a hint row points at is still in its function. */

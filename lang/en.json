@@ -2143,7 +2143,7 @@
           "shareProjectTooltip": "The secret project whose access you change; public projects aren't on the list.",
           "sharePlayerTooltip": "The player who gains or loses sight of the project; GMs see every project anyway.",
           "saveManagerTooltip": "Saves the rooms, flags, and player ticks you changed in this list.",
-          "createFromManagerTooltip": "Opens a new project's window, then this list again; changes you haven't saved here are lost.",
+          "createFromManagerTooltip": "Saves what you changed in this list, then opens a new project's window and brings you back here.",
           "passRollTooltip": "You keep what you'd have paid and skip the roll; the GM reads in your thread that you passed."
         },
         "Trial": {
@@ -2259,7 +2259,7 @@
           "newItemRoomTableTooltip": "Also puts the item in this room table when you add it",
           "newItemNameTooltip": "The name the item carries on the sheet of whoever finds it",
           "newItemDescriptionTooltip": "What the student who finds the item reads in its description. You can leave it empty",
-          "renameTableTooltip": "Renames the shown table. A room drawing from its old name stops until you pick it again in Room setup",
+          "renameTableTooltip": "Renames the shown table. The rooms that draw from it go on drawing from it under the new name",
           "tabRoomPoolsTooltip": "Your own tables. In Room setup, each room can be set to draw from one of them",
           "tabNewItemTooltip": "Makes one item and adds it to its tier table and any room tables you tick"
         },
