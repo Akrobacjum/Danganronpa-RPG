@@ -2058,7 +2058,71 @@ const LOG_CALL = /(?:(?<![\w$.])(?:log|debug|warn|error)|(?<![\w$.])console\s*\?
    `why` parameter (gmOnly, playersOnly, owns, ...), and as a literal one of that file's REASON_PATTERNS takes whole (the
    closed list every reason maps to, R164; 202 patterns, every one anchored, on 31.10) - the last two read off that file
    when the bag holds it. */
-const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*:\s*$/;
+const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*(?::|=(?![=>]))[^,;{}]*$/;
+
+/* E57 T13 GROUP 3 (14.11.2026): THE SHAPES C8'S RULES MISREAD, each read on the scripts of that slice and planted in the
+   fixture, red first (all twelve flagged before this). REASON_PROPERTY's value since then is the whole expression after
+   `why:`, `refused:` or `why =` up to a comma, a semicolon or a brace (a ternary's two arms, a `??`'s right side), and a
+   template's later pieces are judged from the template's start, so `{ refused: \`the item ${name} is not here\` }` is a
+   reason in each piece, not only in its first. A refusal's answer is also what a function named `...Refusal` or `refuses`
+   returns (the module's name for a judge that answers an English reason or null: frisk.mjs `friskPacketRefusal`,
+   monocub.mjs `CUB_TARGETS`, relay-guard.mjs `actorRefusal`, ...), and what is handed to a function of the same file with a
+   `why` parameter (relay-guard.mjs `refuseAs` and `dropAs`), as the bridge's guards' arguments already were. Those reasons
+   are the GM's record, as the bridge's are; one road shows them on a GM's screen in English - relay-guard.mjs
+   `reportRefusal` puts the reason in `DRPG.Relay.refused`'s {what} - which is the owner's question, not this detector's
+   (docs/dev/e57/REST-t13c.md). An Error subclass the file declares (`class NothingToDo extends Error`) is an Error's
+   message, a Symbol's description is no text, and so are a run of markup attributes cut by a placeholder
+   (` disabled data-tooltip="`), a selector cut by one (`footer button[data-action="`), a border's CSS value
+   (`1px solid `) and a font list. */
+const REFUSAL_NAME = /^(?:[\w$]*Refusal|refuses)$/;
+const ATTRIBUTE_RUN = /^\s*(?:[a-z][\w:-]*(?:\s*=\s*(?:"[^"]*"?|'[^']*'?))?\s*)+$/i;
+const CSS_VALUE = /^\s*(?:\d+(?:\.\d+)?(?:px|r?em|%)?\s+)+(?:solid|dashed|dotted|double)\s*$/;
+const FONT_LIST = /^\s*(?:(?:\\?"[^"\\]+\\?"|'[^']+'|[\w-]+)\s*,\s*)+(?:serif|sans-serif|monospace|cursive|fantasy|system-ui)\s*$/;
+const fragmentOf = shown => ((/=/.test(shown) && ATTRIBUTE_RUN.test(shown)) || CSS_VALUE.test(shown) || FONT_LIST.test(shown)
+    || (/^\s*["']?\]|\[[\w-]+\s*=\s*["']?$/.test(shown)
+        && SELECTOR.test(shown.replace(/^\s*["']?\]\s*/, " ").replace(/\[[\w-]+\s*=\s*["']?$/, "[x]"))));
+
+/* The functions of blanked code, `{ name, params, body: [open, close], expression }`: a declaration, a method's shorthand
+   and an arrow bound to a name or a property (`refuses: actor => (...)`), its body a block or, for an arrow, the expression
+   up to a comma, a semicolon or the bracket that closes around it. */
+function functionsOf(lx, blank) {
+    const out = [];
+    const KEYWORD = /^(?:if|for|while|switch|catch|function|return|with)$/;
+    for (const m of blank.matchAll(/(?<![\w$.])([\w$]+)\s*\(/g)) {
+        if (KEYWORD.test(m[1])) continue;
+        const open = m.index + m[0].length - 1, close = lx.callArgs(blank, open).close;
+        if (!(close > open)) continue;
+        const brace = blank.slice(close + 1).search(/\S/) + close + 1;
+        if (blank[brace] !== "{" || !/(?:^|[\s;{}(,]|\bfunction\s*\*?\s*|\basync\s+|\bstatic\s+)$/.test(blank.slice(Math.max(0, m.index - 12), m.index))) continue;
+        out.push({ name: m[1], params: blank.slice(open + 1, close), body: [brace, lx.callArgs(blank, brace).close], expression: false });
+    }
+    for (const m of blank.matchAll(/(?<![\w$.])([\w$]+)\s*(?::|=(?![=>]))\s*(?:async\s+)?(\([^()]*\)|[\w$]+)\s*=>\s*/g)) {
+        const at = m.index + m[0].length, params = m[2].replace(/^\(|\)$/g, "");
+        if (blank[at] === "{") { out.push({ name: m[1], params, body: [at, lx.callArgs(blank, at).close], expression: false }); continue; }
+        let k = at, depth = 0;
+        for (; k < blank.length; k++) {
+            const c = blank[k];
+            if ("([{".includes(c)) depth++;
+            else if (")]}".includes(c)) { if (--depth < 0) break; }
+            else if ((c === "," || c === ";") && depth === 0) break;
+        }
+        out.push({ name: m[1], params, body: [at, k], expression: true });
+    }
+    return out;
+}
+
+/* Each template piece's head: the start of the template a piece after `${...}` belongs to, by the piece's start. */
+function templateHeads(code, spans) {
+    const heads = new Map(), open = [];
+    for (const s of spans) {
+        if (s.kind !== "template") continue;
+        const first = code[s.start] === "`", last = code.slice(s.end - 2, s.end) === "${";
+        if (first) { heads.set(s.start, s.start); if (last) open.push(s.start); continue; }
+        heads.set(s.start, open.at(-1) ?? s.start);
+        if (!last) open.pop();
+    }
+    return heads;
+}
 
 /* What is not text, by its shape: a class list or a CSS selector (tokens of [a-z0-9_-] with . # : [..] (..) > + ~ , *,
    one of them at least with a "-", "_", ".", "#" or "[", so "the floor is closed" is text and "drpg-card is-open" is not),
@@ -2124,19 +2188,36 @@ export function uiLiterals(bag = {}) {
         const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
         if (!UI_FILE.test(blank)) { counts.quiet++; continue; }
         counts.files++;
-        const logs = callSpans(lx, blank, LOG_CALL), reasons = callSpans(lx, blank, REASON_CALL);
+        const errors = [...blank.matchAll(/\bclass\s+([\w$]+)\s+extends\s+[\w$.]*Error\b/g)].map(m => m[1]);
+        const fns = functionsOf(lx, blank);
+        const ownWhy = fns.filter(f => /(?<![\w$])why(?![\w$])/.test(f.params)).map(f => f.name);
+        const logs = [...callSpans(lx, blank, LOG_CALL), ...(errors.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$.])new\\s+(?:${errors.join("|")})\\s*\\(`, "g")) : [])];
+        const reasons = [...callSpans(lx, blank, REASON_CALL),
+            ...(ownWhy.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$.])(?:${[...new Set(ownWhy)].join("|")})\\s*\\(`, "g")) : [])];
+        const judges = fns.filter(f => REFUSAL_NAME.test(f.name));
         const inside = (spans, s) => spans.some(([a, b]) => s.start > a && s.end <= b);
+        /* A judge's answer: in an arrow's expression, or after a `return` in its block, inside no function of its own. */
+        const answered = s => judges.some(f => {
+            const [a, b] = f.body;
+            if (!(s.start > a && s.end <= b)) return false;
+            if (fns.some(g => g !== f && g.body[0] > a && g.body[1] <= b && s.start > g.body[0] && s.end <= g.body[1] && !REFUSAL_NAME.test(g.name))) return false;
+            return f.expression || /\breturn\b[^;{}]*$/.test(blank.slice(a, s.start));
+        });
         const has = [...blank.matchAll(/\bgame\s*\??\.\s*i18n\s*\??\.\s*has\s*(?:\?\.\s*)?\(/g)].map(m => m.index);
-        for (const s of literalSpans(code, blank)) {
+        const spans = literalSpans(code, blank), heads = templateHeads(code, spans);
+        for (const s of spans) {
             if (s.kind === "regex") continue;
             const raw = literalText(code, s), shown = shownOf(raw);
             if (!twoWords(shown)) continue;
             counts.literals++;
             if (file === "scripts/diagnostics.mjs") { counts.diagnostics++; continue; }
             if (inside(logs, s)) { counts.log++; continue; }
+            const head = heads.get(s.start) ?? s.start;
             const before = blank.slice(Math.max(0, s.start - 40), s.start), after = blank.slice(s.end, s.end + 6);
-            if (REASON_PROPERTY.test(before) || inside(reasons, s) || closedList.some(p => p.test(raw))) { counts.reasons++; continue; }
+            const opening = blank.slice(Math.max(0, head - 160), head);
+            if (REASON_PROPERTY.test(opening) || inside(reasons, s) || answered(s) || closedList.some(p => p.test(raw))) { counts.reasons++; continue; }
             if (/(?:[!=]==?|\bcase)\s*$/.test(before) || /^\s*[!=]==?/.test(after)) { counts.compared++; continue; }
+            if (/\bSymbol\s*\(\s*$/.test(before) || fragmentOf(shown)) { counts.notText++; continue; }
             if ((SELECTOR.test(shown) && /[-_.#[]/.test(shown)) || CSS_DECLARATIONS.test(shown) || !twoWords(shown.replace(NOT_WORDS, " "))) { counts.notText++; continue; }
             if (has.some(h => h < s.start && s.start - h < 200 && !/[;{}]/.test(blank.slice(h, s.start)))) { counts.fallback++; continue; }
             const line = lineOf(code, s.start), words = shown.replace(/\s+/g, " ").trim();
@@ -3310,7 +3391,7 @@ export const FIXTURES = Object.freeze({
     },
     uiLiterals: {
         flags: ["scripts/fx-text.mjs:1 string", "scripts/fx-ui.mjs:1 string", "scripts/fx-ui.mjs:2 template", "scripts/fx-ui.mjs:15 template",
-            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string"],
+            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string", "scripts/fx-ui.mjs:37 string"],
         input: {
             scripts: {
                 "scripts/fx-ui.mjs": [
@@ -3333,10 +3414,26 @@ export const FIXTURES = Object.freeze({
                     "const css = \"border: 1px solid var(--drpg-ink); font-weight: bold\";",                       // CSS: passes
                     "const msg = \"the floor is closed\";",                                                           // lower case, no hyphen - text: flagged
                     "const re = /two words here/;",                                                                   // a regex: passes
-                    "const why = \"that roll is too old to settle anything\";",                                       // the closed list takes it whole: passes
+                    "const said = \"that roll is too old to settle anything\";",                                      // the closed list takes it whole: passes
                     "const near = \"that roll is too old to settle anything else\";",                                  // the list takes it not whole: flagged
                     "warn(\"A warning only the console reads\");",                                                    // console text: passes
-                    "el.innerHTML = `<p>{{#if open}}{{name}} {{else}}{{who}}</p>`;"                                      // Handlebars only: passes
+                    "el.innerHTML = `<p>{{#if open}}{{name}} {{else}}{{who}}</p>`;",                                     // Handlebars only: passes
+                    /* E57 T13 group 3 (14.11.2026): the shapes the detector misread on the scripts, each a plant that passes, and one
+                       control beside them that is still flagged. */
+                    "class NothingHere extends Error {}",
+                    "throw new NothingHere(`${who} holds it already`);",                                              // an Error subclass's message: passes
+                    "el.innerHTML = `<button ${act} disabled data-tooltip=\"${why}\">`;",                              // an attribute run: passes
+                    "el.style.setProperty(\"border\", `1px solid ${colour}`);",                                      // a CSS value: passes
+                    "const font = \"\\\"Special Elite\\\", \\\"Courier New\\\", monospace\";",                           // a font list: passes
+                    "const HELD = Symbol(\"held by the primary GM\");",                                              // a symbol's description: passes
+                    "const gone = { refused: `the item ${name} is not here` };",                                     // a reason's later piece: passes
+                    "const shut = { refused: open ? \"the door is shut\" : \"the door is gone\" };",                 // a reason's ternary: passes
+                    "let why = `a change to a ${kind}`;",                                                            // a reason assigned: passes
+                    "function doorRefusal(d) { if (!d) return \"there is no door here\"; return d.open ? \"the door is open now\" : null; }", // a refusal's answer: passes
+                    "const CUB = { full: { refuses: a => (a ? \"the cub is full now\" : null), say: \"DRPG.Fx.full\" } };",  // a refuses arrow: passes
+                    "const refuseAs = (sub, why) => ({ sub, why });",
+                    "const r = refuseAs(\"fx\", \"a change nobody asked for\");",                                   // a why-parameter's call: passes
+                    "function doorLabel(d) { return d.open ? \"the door is open now\" : null; }"                      // a label, no refusal: flagged
                 ].join("\n"),
                 "scripts/fx-text.mjs": "el.textContent = \"Nobody is here yet\";",                                     // textContent makes a UI file: flagged
                 "scripts/fx-data.mjs": "export const LINE = \"An English line no screen of this file draws\";",        // no UI in the file: not read
