@@ -54,7 +54,8 @@ import { gmIds, ownerIdsOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG, markF
 import { judge, table, pick, as, knownSender, notSpectator, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
 // and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
-import { murderState, incidentAudienceIds } from "./murder.mjs";
+import { murderState, incidentAudienceIds, killerIds } from "./murder.mjs";
+import { maskInsiders } from "./mask-gm.mjs";
 
 // The module's one reader of "what did these two d12s say" - see `rollOutcomeOf`.
 // Static and safe: nothing in despair-award.mjs's own import closure leads back
@@ -1775,13 +1776,33 @@ function relayDrawnDice(message, byId, { shown = false } = {}) {
     const subject = isClaimedRoll(message) ? null : keptRollSubject(message);
     const headed = subject ? gmIds().filter(id => id !== game.user?.id && !audience.includes(id)) : [];
     try {
-        if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, ...(subject ? { subject } : {}) }, { recipients });
+        for (const [ids, seen] of maskSplit(message, recipients)) {
+            game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, ...(seen ? { by: by?.id ?? null, ...(subject ? { subject } : {}) } : {}) }, { recipients: ids });
+        }
         if (headed.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, subject, quiet: true }, { recipients: headed });
     } catch (err) {
         error("Could not send the dice of a roll the GM drew", err);
     }
     // This screen only where it is of the audience: a GM with no Monokuma of theirs in the roller's room sees none (E60 C5e).
     if (!shown && audience.includes(game.user?.id)) void playRolls(message, by ?? game.user);
+}
+
+/**
+ * THE DICE OF A KILLER BEHIND A "?" (owner-115 item 1, 14.11.2026; the owner at a table on 1.2.114: the victim could
+ * tell who the masked killer was). A drawn roll's `dice.show` named its roller's player (`by`), and a statistic's its
+ * character (`subject`), to every reader of its dice: the victim's browser held the killer's player's user id, and
+ * Dice So Nice threw the dice in that player's own colours (scenario 21, red at e0ee06ef). `recipients` cut in two,
+ * each `[ids, seen]`: those who see through the roller's mask (mask-gm.mjs `maskInsiders`: the GMs, the killers'
+ * players) are sent the packet as before (`seen`), the rest the dice alone, which their browser plays as the message's
+ * author's - a GM's, for a drawn roll (`showRelayedDice`) - and whose card it heads with nobody (`signAsRoller`). With no
+ * mask standing for the roll's character, one group, `seen`. Empty groups are left out.
+ */
+function maskSplit(message, recipients) {
+    const insiders = maskInsiders(keptRollSubject(message) ?? "", killerIds());
+    const groups = insiders
+        ? [[recipients.filter(id => insiders.includes(id)), true], [recipients.filter(id => !insiders.includes(id)), false]]
+        : [[recipients, true]];
+    return groups.filter(([ids]) => ids.length);
 }
 
 /**
@@ -1836,7 +1857,9 @@ export function relayRerolledDice(message, byId = null) {
     const audience = isDrawnRoll(message) ? drawnDiceAudienceIds(message, by?.id ?? null) : [...diceAudienceIds(message), ...(by?.id ? [by.id] : [])];
     const recipients = [...new Set(audience)].filter(id => id !== game.user?.id);
     try {
-        if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, rewrite: true }, { recipients });
+        for (const [ids, seen] of maskSplit(message, recipients)) {
+            game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, ...(seen ? { by: by?.id ?? null } : {}), rewrite: true }, { recipients: ids });
+        }
     } catch (err) {
         error("Could not send a Reroll's dice", err);
     }
