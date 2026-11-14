@@ -121,3 +121,13 @@ Measured here (4 cores, 14.11.2026), one harness at a time:
   lines this line changed on purpose; c990b6f0 brings each to the change (its message says how).
 - The full tier 1 at c990b6f0 (the code of the final tip): 1684 passed, 0 failed, 16 skipped, 0 red, 476 s wall
   (1672 at the base plus R7160-R7171).
+
+### The second pass's numbers (4 cores, 14.11.2026)
+
+- The full tier 1 at 8ede7e0b: 1712 ran, 1696 passed, 1 failed (R3510, the card census: two new card sites of
+  1bce99a6), 16 skipped; 52f1fe38 pins them.
+- The full tier 1 at 52f1fe38 (the code of the final tip): 1697 passed, 0 failed, 16 skipped, 0 red, 470 s wall.
+- Scenarios run in the second pass: 18-trial 26/26, 63-class-trial 79/79, 10-murder 45/45, 67-trial-modes 52 passed,
+  0 failed, 1 expected red (its declared knownLeak TR30), 86-frame-work 105/105, 13-murder-signals 87/87, 40-flow
+  89/89, 81-render-budget 33/33, 41-trial-scene 52/52. Not run: 30-security, 33-bridge-paths, 72-canary (no bridge row
+  or world secret changed).
