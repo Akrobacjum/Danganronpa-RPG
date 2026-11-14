@@ -19073,7 +19073,7 @@ const REGRESSIONS = [
                 ["mirror", "T22", "report"],
                 ["monokumaVoice", "T21", "fail"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
                 ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "fail"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "fail"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
-                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
+                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "fail"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],

@@ -10,19 +10,23 @@ passages-tab, gm-items and chapter (`scripts/<name>.mjs`). The slice had 236 fin
 | | The slice | The whole tree |
 | --- | --- | --- |
 | At the base (6cd30a92) | 236 | 737 |
-| After the detector's rules (e567ea2, 46f8f2a, d489331, 31d35d5) | 52 | 504 |
-| After the move and the allow table (d489331, 31d35d5) | 5 | 468 |
+| After T13c's detector rules (e567ea2, 46f8f2a, d489331, 31d35d5) | 41 | 504 |
+| After the reconcile with T13b (6d7f6ca, merge 3e31bc2) | 5 | 263 (258 of them patches.mjs, T13a's) |
+| After the reconcile with T13a (f806bc8, merge 3602492) | 5 | 5 |
+| After the relay's words (this commit) | 0 | 0 |
 
-Of the slice's 236:
+T13 is FAIL in MODES since this commit (tests-text.mjs; tier 0's pin `["uiLiterals", "T13", "fail"]`).
+
+Of the slice's 236, read at T13c's own tip before the reconcile:
 
 - 184 were the detector's misreads, taken out by a rule (below), each red first in T13's fixture.
-- 11 were the Remnants migration's summary line, which a GM's toast showed in English: the toast now reads
+- 11 were the Remnants migration's summary line, which a GM's toast showed in English. The toast now reads
   `DRPG.Remnant.migrated` and `DRPG.Remnant.migratedCheck` (en and pl, the check a plural family), and the English line,
   with every token's details, is logged as before, inside its `log()` call (remnants.mjs `migrateRemnants`).
-- 36 are allowed, one row each in `UI_LITERAL_ALLOW` (scripts/tests-text.mjs), with the reason beside it: 15% of the slice.
-- 5 are left: relay-guard.mjs, below.
-
-T13 stays a report: 463 findings stand in the other lines' files.
+- 36 were allowed, by file and their own words. In the reconcile they became rows of T13b's `UI_LITERAL_ALLOW`
+  (`"<file> <declaration>": { n, why }`). Five of the 36 needed no row after it, because T13b's rules read them (a
+  parameter read only by the console: incident-store.mjs `liftIntoCast`, ui-kit.mjs `ownAttrs`; and one of monocub.mjs's).
+- 5 were relay-guard.mjs's: see the relay's words, below.
 
 ## The detector's rules (scripts/tests-text.mjs, the comment above `REFUSAL_NAME`)
 
@@ -46,51 +50,62 @@ T13's fixture that was flagged before the rule, and the fixture keeps one contro
 - As no text: a Symbol's description; a run of markup attributes cut by a placeholder (` disabled data-tooltip="`); a
   selector cut by one (`footer button[data-action="`); a border's CSS value (`1px solid `); a font list.
 
-What the rules took out in the other lines' files (37, round 1; 1, the claims rule), read by name and listed to the
-coordinator: action-project 841, body-tile 423, gm-panel 509 and 1119, sheet-item 54 and 64 (fragments); gm-store 659-680
-(C12 had already decided these were reasons); movement-audit 288, 342, 348 and 449-453, passages 611-614, vote 224, patches 162
-and 1391-1397 (reasons); search-tokens 880 (a claim). patches.mjs's `why` and `note` feed the patch census. I did not read
-whether a window shows them.
+What these rules took out in the other lines' files (37 in round 1, 1 by the claims rule) was listed to the coordinator by
+name and line.
 
-## The allow table's reasons, one line each
+## The reconcile (3e31bc2, 3602492)
 
-- console only: overflow.mjs `addOverflow`'s `reason` (call-effects "Feed the Overflow", despair "pool spill").
-- console only: steps.mjs `runSteps`'s `label` (chapter "chapter's end", verdict "Final Trial's verdict").
-- console only: incident-store.mjs `liftIntoCast`'s `what` ("the incident's method", "the incident's fight").
-- console only: ui-kit.mjs `ownAttrs`'s first argument, the Error's message ("a role button", "an icon button").
-- console only: a Remnants migration's per-token lists, joined into its `warn()` lines (remnants.mjs, six literals). The GM's
-  toast counts them.
-- console only: the GM's log line of a refused or unpaid Bribe or a refused Bounty (monocub.mjs, three literals). The players
-  are told by key.
-- console only: passages-gm.mjs `TUNNEL_REFUSALS`, the console's words for a tunnel's codes (five).
-- console only: relay-guard.mjs `judgeFear`'s `noted`, logged by `warn()` (three).
-- passages-gm.mjs `MAP_REFUSALS.short`: a template that the closed list names. A template is not matched whole.
-- incident-store.mjs `PUBLIC_INCIDENT`: the reason for each field the world half keeps. It is data that the suite and
-  world-secrets.mjs read (two).
-- inventory.mjs `OLD_TIER_THREE`: an old item's description in each language, which the migration compares (two).
-- projects-ui.mjs "project sabotage": a `data-drpg-when-trigger` value, an id.
-- settings.mjs `DEFAULT_SAFEWORD` "Safe Word": a world setting's stored default. It is the one word the whole table says, so
-  a per-browser translation would split it at a table with two languages. migrate.mjs compares it.
-- tables-editor.mjs "Danganronpa RPG": the module's own name on the RollTable folder it creates.
+The three lines' detector changes are merged on this branch, so T13a and T13b merge one commit:
 
-## What is left, by file and line
+- T13b's `consoleOnlyArgs`, selectors, attributes, CSS rules, wrapped loggers, text fallbacks and claims, and its
+  `UI_LITERAL_ALLOW` keyed `"<file> <declaration>": { n, why }`, which keeps its name. T13c's rows were added to it.
+- T13a's per-file property table, renamed `UI_LITERAL_FIELDS` (the bag's `uiFields`).
+- One fixture holds all three plant sets. Its flags are 13, and tier 0's pin is `["uiLiterals", 13, 13]`. Allowed is 5:
+  T13b's 2, plus T13a's string sum, which counts 3.
+- Five of T13b's rows were dropped and auditMove's `n` went from 9 to 6, because the T13c rules now read those literals:
+  gmsRefusal, sentBackRefusal, passageRowsRefusal, ballotRefusal, drawCorpseCaption. The stale-row check named each one.
+- In T13a's fixture, the allowed field's plant is `quiet:`. It was `why:`, which the reason rule reads, so the plant now
+  still tests the field table.
 
-relay-guard.mjs, five literals: 673 "party members" (`shapeWarning`'s case, which `DRPG.Relay.unreviewed` names in a GM's
-notice), and 744 "the settings of", 748 "the project", 764 "the countdown" and 767 "the removal of" (`judgeCountdowns`'s
-`suspicious`, refused through `refuseAs` or noted in the console).
+## The relay's words (relay-guard.mjs `RELAY_WHAT`, `relayWhat`; R7050)
 
-These are reported, not allowed, because they do reach a screen. Every relay refusal's reason does (a drop's reason and a
-`noted` line go to the console alone): relay-guard.mjs `reportRefusal` puts `verdict.why` into `DRPG.Relay.refused`'s `{what}` in a GM's toast, and into `DRPG.Relay.forged`'s in the GMs'
-whisper. A Polish GM reads the frame in Polish and the reason in English. The detector's reason rule now reads the relay's
-other reasons as the GM's record, which is what C8's rule already did for a literal right after `refused:` in that file. So
-T13 does not count this road beyond these five.
+A relay judge answers its reason in English. Until this commit, `reportRefusal` put that English into `DRPG.Relay.refused`'s
+`{what}` (a GM's toast) and into `DRPG.Relay.forged`'s (the GMs' whisper). The coordinator decided: a toast is a screen, so
+the words move into lang/. Each judge's English stays as it was, because the console line, the `sheetWrites()` row
+(`recordTrace`) and the suite all read it. The toast and the whisper say it through `RELAY_WHAT`, a closed list of 27
+patterns, as the bridge's reasons reach a player through `REASONS`. Each pattern takes one judge's English whole, and its
+named groups fill `DRPG.Relay.what.<code>` (en and pl). These are fragments after a colon, a row in docs/text-style.md
+section 14. A reason no pattern takes is said as `DRPG.Relay.what.unnamed`.
+
+R7050 (tier 1) asks each judge's refusal road with made-up packets and a made-up world. It holds that each road is said by
+its own pattern, that every pattern is reached, that every code has its key, and that an unknown reason is `unnamed`. It
+does not ask one road, `partyUnlisted`: that road whispers to the GMs (`shapeWarning`), and tier 1 may not write. That
+pattern is asked with the judge's English instead.
+
+`shapeWarning("party members")` now says `system.partyMembers`, the Daggerheart field it means. The case names it lists in
+`DRPG.Relay.unreviewed` are Daggerheart's own names. The four countdown names `judgeCountdowns` lists as odd stay English in
+the console line and the trace (a `UI_LITERAL_ALLOW` row). The toast says `countdownsOdd`.
+
+## The allow rows of T13c, one line each
+
+- console only: overflow.mjs `addOverflow`'s `reason` (call-effects `feedOverflowEffect`, despair `adjustDespair`).
+- console only: steps.mjs `runSteps`'s `label` (chapter `runChapterEnd`, verdict `runVerdict`).
+- console only: why a Bribe is closed unpaid, written by `warn()` (monocub.mjs `answerBribeOnGm`, 4).
+- console only: passages-gm.mjs `TUNNEL_REFUSALS`, the console's words for a tunnel's codes (5).
+- console only: relay-guard.mjs `judgeFear`'s `noted`, logged by `warn()` (3).
+- console and trace only: relay-guard.mjs `judgeCountdowns`'s odd changes (4).
+- console only: a Remnants migration's per-token lists (remnants.mjs `migrateRemnants` 2, `migrateRemnantsOnce` 3,
+  `migrateRemnantToken` 1, `leftOnToken` 1). The GM's toast counts them.
+- passages-gm.mjs `MAP_REFUSALS`: `short`, a template that the closed list names.
+- incident-store.mjs `PUBLIC_INCIDENT`: each world-half field's reason, data that the suite and world-secrets.mjs read (2).
+- inventory.mjs `OLD_TIER_THREE`: an old item's description in each language, which the migration compares (2).
+- projects-ui.mjs `openProjectDialog`: a `data-drpg-when-trigger` value, an id.
+- settings.mjs `DEFAULT_SAFEWORD` "Safe Word": a world setting's stored default. It is the one word the whole table says,
+  so a per-browser translation would split it at a table with two languages. migrate.mjs compares it.
+- tables-editor.mjs `installTables`: the module's own name on the RollTable folder it creates.
 
 ## Questions for the owner, each with the default taken
 
-- Q-T13c-1: the relay's English reasons in a GM's toast and whisper (above). Should the toast name the request in the GM's
-  language and leave the English reason to the console and the `sheetWrites()` row? Or should each reason get a code with
-  its own Polish, as the bridge's `REASONS` have? Default taken: neither in 1.2.113. The five stay a report, and the road
-  is named here. Either change is a trust-model change in relay-guard.mjs, with scenarios 30 and 83 to rerun.
-- Q-T13c-2: the safeword's default is "Safe Word", while docs/glossary.json's entry `safeword` writes "safeword". Default
+- Q-T13c-1: the safeword's default is "Safe Word", while docs/glossary.json's entry `safeword` writes "safeword". Default
   taken: left as it is. The value is stored in worlds, migrate.mjs compares it, and a world that never set its own word
   shows it.

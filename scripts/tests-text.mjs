@@ -2307,6 +2307,7 @@ export const UI_LITERAL_ALLOW = Object.freeze({
     "scripts/passages-gm.mjs MAP_REFUSALS": { n: 1, why: "MAP_REFUSALS.short, a template the closed list whyTable names (code short, DRPG.Passage.why.short); a template is not matched whole" },
     "scripts/passages-gm.mjs TUNNEL_REFUSALS": { n: 5, why: "console only: the console's words for a tunnel's codes (createPassage, a GM's game.drpg call); the pick says the code" },
     "scripts/projects-ui.mjs openProjectDialog": { n: 1, why: "a data-drpg-when-trigger value, compared with the select's option value; an id, not words" },
+    "scripts/relay-guard.mjs judgeCountdowns": { n: 4, why: "the countdowns' odd changes, named in the console's line and the GMs' trace; the toast and the whisper say DRPG.Relay.what.countdownsOdd (relay-guard.mjs RELAY_WHAT, R7050)" },
     "scripts/relay-guard.mjs judgeFear": { n: 3, why: "console only: an own verdict's `noted`, logged by warn() in judge (\"accepted in part; left out ...\")" },
     "scripts/remnants.mjs migrateRemnants": { n: 2, why: "console only: a migration's per-token list, joined into its warn() lines; the GM's toast counts them (DRPG.Remnant.migratedCheck)" },
     "scripts/remnants.mjs migrateRemnantsOnce": { n: 3, why: "console only: the per-token list joined into its warn() line; the GM's toast counts them (DRPG.Remnant.keptOnTokens)" },
@@ -2890,7 +2891,10 @@ export const MODES = Object.freeze({
     itemQuotes: Object.freeze({ test: "T23", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     /* FAIL since E57 C12 (14.11.2026): after the text lines (e71-a..d) merged it found nothing; E71 named it. */
     bareLeft: Object.freeze({ test: "T25", mode: "fail", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
-    uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
+    /* FAIL since E57 rest (14.11.2026): 0 on the tree of the three T13 lines merged, the T13c reconcile (3602492) and
+       relay-guard.mjs's reasons said through RELAY_WHAT; every literal left is a rule's or a row's of UI_LITERAL_ALLOW or
+       UI_LITERAL_FIELDS. */
+    uiLiterals: Object.freeze({ test: "T13", mode: "fail", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
     localeCalls: Object.freeze({ test: "T20", mode: "fail", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
     naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) }),
     /* FAIL since E57 C12 (14.11.2026): its 114 after the text lines were 33 placeholder names tools/text-render.mjs had no value for. */
