@@ -14974,6 +14974,17 @@ body.drpg-theme-monokuma-legacy #pause.paused {
     text-transform: uppercase;
 }
 
+/* A WINDOW'S HEADER CONTROLS KEEP A 24 PX TARGET UNDER 80 % (14.11.2026; the Interface scale down to 25 %, settings.mjs
+   `UI_SCALE`). The title bar's controls take the type's size (`--drpg-text-xs` above), which under 80 % follows the slider
+   down: at 25 % the style harness's GM panel's close button measured 19 x 5 px under Legacy (Chromium, 5f0fbac4), a
+   window nobody could close. The floor is a control's, not a word's: 24 px each way, the glass's own floor for the same
+   buttons (stained-glass.css, "THINGS THAT ARE CLICKED"), switched on only under 80 % - the clamp is 0 while
+   `--drpg-floor-scale` is 1 - so from 80 % up nothing changes. Both themes, every window. */
+body .application[class] .window-header :is(button, .header-control) {
+    min-width: clamp(0px, calc((1 - var(--drpg-floor-scale, 1)) * 10000px), 24px);
+    min-height: clamp(0px, calc((1 - var(--drpg-floor-scale, 1)) * 10000px), 24px);
+}
+
 /* ==========================================================================
    DAGGERHEART'S STATUS ICONS ARE NOT PART OF THIS INTERFACE
    --------------------------------------------------------------------------

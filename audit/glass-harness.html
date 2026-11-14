@@ -2635,6 +2635,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     for (const el of [document.body, document.documentElement]) {
       el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
       el.style.setProperty("--drpg-type-scale", q.get("scale") || String(type));
+      /* `?scale=` stands for the slider too (14.11.2026, the slider down to 25 %): the slider's own factor, Legacy's (the
+         glass pins it at 1) and the readability floor's, as applyTheme stamps them from the slider. */
+      if (q.get("scale")) {
+        const slider = st.clampSlider(q.get("scale"));
+        el.style.setProperty("--drpg-slider-scale", String(slider));
+        el.style.setProperty("--drpg-legacy-scale", q.get("theme") === "legacy" ? String(slider) : "1");
+        el.style.setProperty("--drpg-floor-scale", String(st.floorScaleOf(slider)));
+      }
     }
     document.body.classList.toggle("drpg-stacked", st.narrowScreen());
     document.body.classList.toggle("drpg-short", st.shortScreen());
