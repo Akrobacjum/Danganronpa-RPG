@@ -423,14 +423,14 @@ function opens(run, kind, killer, victim) {
 
 /** Whether the betrayal tile is dark: another incident is being fought, or a Class Trial is on (Q3). */
 /* The clock's fields a case may move and `runCase` puts back. */
+const clockOf = () => {
+    const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+    return { chapter, day, session, timeOfDay, phase };
+};
 /* The time of day a mask stands in, as mask-gm.mjs keeps it (eavesdrop-gm.mjs `markNow`): chapter, day and time of day. */
 const maskMark = () => {
     const { chapter, day, timeOfDay } = getClock() ?? {};
     return `${chapter ?? 0}:${day ?? 0}:${timeOfDay ?? ""}`;
-};
-const clockOf = () => {
-    const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
-    return { chapter, day, session, timeOfDay, phase };
 };
 
 const offerDark = run => Boolean(run.model && run.model.stage !== "resolution") || run.phase === "classTrial";
@@ -490,10 +490,12 @@ const STEPS = {
         }
         const fail = band === "fail";
         await run.M.resolveKillerOpening({ total: fail ? 1 : 24, isCritical: band === "critical", withHope: band === "hope" || band === "critical" });
-        /* THE MASK, AS THE RULE GIVES IT (E69 C8, the owner's 10.11 (c); t2-restore, 14.11.2026): a direct murder's opening
-           that succeeds on Hope or a critical hides its killer until the reveal (no step of the grid's) or the next time of
-           day. The model keeps the killer and the time of day the mask went up in; I2 reads it, not the GMs' store. */
-        if (!fail && m.kind === "direct" && (band === "hope" || band === "critical")) run.masks.set(m.killerId, maskMark());
+        /* THE MASK, AS THE MODULE'S RULE GIVES IT (E69 C8, the owner's 10.11 (c); t2-restore, 14.11.2026): an opening the
+           rule says opens a mask (mask-gm.mjs `opensMask`, pure: a direct murder's, not self-inflicted, that succeeds on Hope
+           or a critical) hides its killer until the reveal (no step of the grid's) or the next time of day. The model keeps
+           the killer and the time of day the mask went up in; I2 reads that, not the GMs' store. */
+        const { opensMask } = await import("./mask-gm.mjs");
+        if (opensMask({ success: !fail, band, indirect: m.kind === "trap", selfInflicted: m.kind === "self" })) run.masks.set(m.killerId, maskMark());
         if (fail) closeIncident(run);
         else if (m.kind === "self") stageSix(run, { body: false });
         else m.stage = "incident";
@@ -1256,9 +1258,13 @@ async function assertIncidentInvariants(run) {
             continue;
         }
         const killerSide = killersOf(m).some(id => ownerOf(game.actors.get(id))?.id === user.id);
-        /* A seat that is not the killers' holds no killer while the killer's mask stands (incident-store.mjs `castCopyFor`,
-           E69 C8), as a trap's victim's holds none: the model's mask, of this killer, in the time of day it went up in.
-           Until 14.11.2026 this line knew no mask, and 42 cases read the copy's null against the model's name. */
+        /* A seat that is not the killers' holds no killer while the killer's mask stands - the rule as mask-gm.mjs's header
+           writes it ("THE CAST. Every copy but the killers' holds `killerId` and `killerTurnId` null while the mask
+           stands"), built in incident-store.mjs `castCopyFor` (E69 C8) - as a trap's victim's holds none: the model's
+           mask, of this killer, in the time of day it went up in. The killers are the model's `killersOf`, the killer and
+           a third on their side, as `killerIds` names them; their copies still name the killer. Until 14.11.2026 this line
+           knew no mask, and 42 cases (on 6dd02975) read the null of the victim's copy, and of a third's before they chose,
+           against the model's name. */
         const maskedHere = !killerSide && run.masks.get(m.killerId) === maskMark();
         const killer = (m.kind === "trap" && !killerSide) || maskedHere ? null : m.killerId;
         if ((copy.killerId ?? null) !== killer) run.violate("I2", `${user.name}'s copy names the killer ${nameOf(copy.killerId)}, the model's ${nameOf(killer)}`);

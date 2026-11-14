@@ -7977,7 +7977,8 @@ const SCENARIOS = [
          * and nothing of its builder. Each murder is opened and its incident started with the
          * same two students; the words sent to the victim's player are read off the packets.
          * E69 C8 (t2-restore, 14.11.2026): an opening on Hope or a critical now hides the killer behind a "?"
-         * (mask-gm.mjs), and the victim is told "someone" (`victimSomeoneMoves`). This test opened on Hope and read
+         * (mask-gm.mjs; its header's rule: "the victim's first whisper says 'someone'"; murder-rules.mjs
+         * `tellVictimTheIncidentBegan`), and the victim is told "someone" (`victimSomeoneMoves`). This test opened on Hope and read
          * the name, so it failed from ad89e657 on. The named whisper is read on an opening that succeeds on Fear (24,
          * no Hope: no mask), and the masked one on Hope, last, with no name in it.
          */
@@ -55355,30 +55356,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 },
                 gone: (report, key) => !S.diveSetStore.has(key),
                 back: key => stableJson([S.diveSetStore.get(key)?.name, S.diveSetStore.get(key)?.questions?.[0]?.truth]) === stableJson(["SUITE backed-up set", "b"])
-            },
-            // A listener's eavesdrop and a killer's mask, through their stores (E69 C6, C8; both `backup: true`). Backed up
-            // with no fixture here from ad89e657, and this test failed naming both (t2-restore, 14.11.2026, on 6dd02975 and
-            // after). Rows nothing acts on: the eavesdrop ended long ago in this time of day (its grace over, so nobody's
-            // microphone is held, and the time of day's sweep keeps it), told to no account (`userId` null); the mask over
-            // no token and no account (`tokens`, `userIds` empty), so nothing is hidden or blocked while it stands, and
-            // tier 2's restore ends it (`endMask`) before the stores go back.
-            eavesdrops: {
-                seed: async () => {
-                    const { markNow } = await import("./eavesdrop-gm.mjs");
-                    await S.eavesdropStore.patch(holder.id, { actorId: holder.id, userId: null, sceneId: "SUITEE69SCENE000", from: "SUITE room",
-                        into: "SUITE next room", mark: markNow(), active: false, endedAt: 1, at: 1 });
-                    return holder.id;
-                },
-                gone: (report, key) => !S.eavesdropStore.get(key),
-                back: key => stableJson([S.eavesdropStore.get(key)?.from, S.eavesdropStore.get(key)?.into]) === stableJson(["SUITE room", "SUITE next room"])
-            },
-            masks: {
-                seed: async () => {
-                    await S.maskStore.patch(holder.id, { killerId: holder.id, victimId: null, userIds: [], mark: "SUITE", tokens: [], at: 1 });
-                    return holder.id;
-                },
-                gone: (report, key) => !S.maskStore.get(key),
-                back: key => stableJson([S.maskStore.get(key)?.killerId, S.maskStore.get(key)?.mark]) === stableJson([key, "SUITE"])
             },
             bullets: {
                 seed: async () => {

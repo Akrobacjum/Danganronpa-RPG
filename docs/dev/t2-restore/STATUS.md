@@ -48,7 +48,33 @@ The restore check itself is unchanged.
 Not run: a full tier 2 on b6c61ced (84 min, past the line's deadline). What b6c61ced changes over 8f8aed2b is measured on
 the 52 names alone.
 
-## Found, not fixed: 46 tier 2 failures that were already on 6dd02975
+## Second round (the coordinator's split of 10:47Z): the 42 grid cases and the victim's "Someone"
+
+Both are the test side: E69 C8's rule, as mask-gm.mjs's header writes it (lines 19-20: "Every copy but the killers' holds
+`killerId` and `killerTurnId` null while the mask stands ... the victim's first whisper says 'someone'"), built in
+incident-store.mjs `castCopyFor` (line 586) and murder-rules.mjs `tellVictimTheIncidentBegan` (line 644), and in
+docs/dev/e69/STATUS.md's C8 row. No module bug found.
+
+- The grid (scripts/tests-grid.mjs): I2's model knew no mask (line 1250 on 6dd02975:
+  `const killer = m.kind === "trap" && !killerSide ? null : m.killerId`). The model now raises a mask where the module's
+  own pure rule says an opening opens one (mask-gm.mjs `opensMask`) and holds it for the time of day it went up in.
+  Roles, as the 42 failures named them on 6dd02975: the victim (PlayerTwo, 42 cases; PlayerOne in TP01's second incident,
+  betrayed by Chie) and a third before choosing a side (PlayerThree at "enter T", 21 cases) hold no killer - neither is in
+  on the murder. The killer and a third on their side (`killersOf`, as `killerIds`) still must name the killer, and I2
+  still checks it. GMs and Spectators hold no seat, so I2 does not read them.
+- The victim's whisper test: it opened on Hope and read the name. The name is now read on an opening that succeeds on Fear
+  (no mask), and "someone" with no name on Hope.
+
+| Group | 6dd02975 (--only, the 52 names) | this tip (--only, these 43) |
+| --- | --- | --- |
+| 42 grid cases | 42 failed | 42 passed |
+| the victim's whisper | 1 failed | 1 passed |
+| "could not restore" among them | 2 (on 6dd02975's order) | 0 |
+
+`--tier 1` on this tip: 1617 ran, 1602 passed, 0 failed, 16 skipped, 0 red, 520.8 s. The rest of the 46 (the backup's
+fixtures, phone vs desk, E40-T3, the reset with a mask) went to claude/t2-rest-113.
+
+## Found, not fixed here: 46 tier 2 failures that were already on 6dd02975
 
 Each fails the same way on 6dd02975 (the subset run above). They look like older tests that E69 C6/C8 contradicts; not
 read further here:
