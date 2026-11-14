@@ -2725,7 +2725,7 @@
       "student": "Student",
       "bullets": "Bullets",
       "keysHeld": "Key",
-      "unidentified": "Not analysed",
+      "unidentified": "Not analyzed",
       "breakdown": "Really",
       "breakdownTooltip": "What each Truth Bullet really is, by the GMs' answer key - not what its holder was shown.",
       "createHere": "Create on the map",
@@ -3009,8 +3009,8 @@
       "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
       "typeless": {
-        "one": "1 Truth Bullet, not analysed, has no real type recorded, so the reveal cannot show it. {who} holds it. Take it, then give one with its type from Give / take items.",
-        "other": "{n} Truth Bullets, not analysed, have no real type recorded, so the reveal cannot show them. They are held by {who}. Take them, then give ones with their types from Give / take items."
+        "one": "1 Truth Bullet, not analyzed, has no real type recorded, so the reveal cannot show it. {who} holds it. Take it, then give one with its type from Give / take items.",
+        "other": "{n} Truth Bullets, not analyzed, have no real type recorded, so the reveal cannot show them. They are held by {who}. Take them, then give ones with their types from Give / take items."
       },
       "optSweep": "Collect the Truth Bullets ({n} would go, Faint and Final ones stay)",
       "optFaint": "Clear the Faint Remnants ({n} would go)",

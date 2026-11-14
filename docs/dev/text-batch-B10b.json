@@ -1503,8 +1503,8 @@
      "other": "{n} Truth Bullets not analysed have no real type recorded, so revealing cannot touch them - held by {who}. Take them, and give ones with their types from Give / take items."
     },
     "after": {
-     "one": "1 Truth Bullet, not analysed, has no real type recorded, so the reveal cannot show it. {who} holds it. Take it, then give one with its type from Give / take items.",
-     "other": "{n} Truth Bullets, not analysed, have no real type recorded, so the reveal cannot show them. They are held by {who}. Take them, then give ones with their types from Give / take items."
+     "one": "1 Truth Bullet, not analyzed, has no real type recorded, so the reveal cannot show it. {who} holds it. Take it, then give one with its type from Give / take items.",
+     "other": "{n} Truth Bullets, not analyzed, have no real type recorded, so the reveal cannot show them. They are held by {who}. Take them, then give ones with their types from Give / take items."
     }
    },
    "pl": {
@@ -1524,7 +1524,8 @@
    "removed": [
     "The dash asides \"- {who} holds it\" and \"- held by {who}\" (X4) become sentences.",
     "PL „mają je: {who}”: X12; „w ekwipunku postaci {who}” takes a list as well as one name.",
-    "PL „nieprzeanalizowany” becomes the dashboard's term „bez analizy”, which R357 reads (fact 2)."
+    "PL „nieprzeanalizowany” becomes the dashboard's term „bez analizy”, which R357 reads (fact 2).",
+    "After landing (the coordinator, 14.11.2026, from line D): \"not analyzed\" (DB9, D33e), with DRPG.Investigation.unidentified \"Not analyzed\" in the same commit, as R357 holds the warning to that term."
    ],
    "needsCode": [
     "\"not analysed\" stays British because R357 holds the warning to DRPG.Investigation.unidentified (\"Not analysed\"); when that key becomes \"Not analyzed\" (EN1, outside this slice) this text follows it.",
