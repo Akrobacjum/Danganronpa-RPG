@@ -2,7 +2,7 @@
 
 Branch `claude/e59-115`, from `main` at 9e7e3d78 (the 1.2.114 release tree). Started 14.11.2026 on the coordinator's
 brief: the owner's consistency (code - handbooks - texts; the code inside itself; the behaviour, sounds and the
-mechanics meshing). R numbers: R7160-R7199, R7160-R7181 taken. The 1.2.113 part of the stage is STATUS.md, GATES.md,
+mechanics meshing). R numbers: R7160-R7199, R7160-R7182 taken. The 1.2.113 part of the stage is STATUS.md, GATES.md,
 WINDOWS.md and GAPS.md beside this file.
 
 ## Items
@@ -131,3 +131,13 @@ Measured here (4 cores, 14.11.2026), one harness at a time:
   0 failed, 1 expected red (its declared knownLeak TR30), 86-frame-work 105/105, 13-murder-signals 87/87, 40-flow
   89/89, 81-render-budget 33/33, 41-trial-scene 52/52. Not run: 30-security, 33-bridge-paths, 72-canary (no bridge row
   or world secret changed).
+
+### The last round (the coordinator's word of 14.11.2026)
+
+- Merged the newest `claude/fervent-sagan-gme4vt` (5de59257: E109 round 2, the traits row and slider, owner-115's
+  mask). Conflicts: the registry, regenerated; action-listen.mjs, where `shutShutWhy` (B-R5) and owner-115's
+  `listenName` were written at the same place - both kept, each with its docblock.
+- B-M4 / Q-115-9 built: 17a232ab, R7182 - the third of an incident was there, for the discovery and its sound.
+- B-S11's "five rows": a break, fixed b6812f9c - the case summary is a sequence with its own sound.
+- 0f68a072's subject says "PH 14"; the section it changed is PH 16 (Interface tips). Not rewritten in history.
+- The full tier 1 at b6812f9c (the code of the final tip): 1706 passed, 0 failed, 16 skipped, 0 red, 458 s wall.
