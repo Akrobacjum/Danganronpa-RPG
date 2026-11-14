@@ -25509,6 +25509,12 @@ const REGRESSIONS = [
         ok(/\broomNamerFor\(/.test(banging), `forceDoor names the banging's room by its real name: ${banging.replace(/\s+/g, " ").slice(-450)}`);
         ok(/typeof text === "function"/.test(fnSource(doors, "tellRooms")), "tellRooms takes one text for every student it tells");
     }],
+    ["R7165 - every clean-up roll that misses sounds the same (E59 C-115, CHAINS.md B-M5): `cleanupFailed` (\"a Tamper, Erase a Trace, or Reshape a Trace roll misses\") is on the roller's card of an Erase or a Reshape (cleanup.mjs `report`) and of Stage Six's other two rolls, the Misleading Trail and Move the Body (`resolveStageSix`), on a miss alone - the trail, the Tamper tile's one road in Stage Six, missed in silence", async () => {
+        const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
+        const MISS = /success\s*\?\s*\{\s*\}\s*:\s*\{\s*flags:\s*\{\s*\[MODULE_ID\]:\s*\{\s*sfx:\s*"cleanupFailed"/;
+        const shape = Object.fromEntries(["report", "resolveStageSix"].map(name => [name, MISS.test(fnSource(cleanup, name))]));
+        equal(JSON.stringify(shape), JSON.stringify({ report: true, resolveStageSix: true }), "{each clean-up result card: whether its miss carries cleanupFailed}");
+    }],
 ];
 
 

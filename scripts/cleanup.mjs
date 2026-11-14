@@ -1841,9 +1841,11 @@ export async function resolveStageSix({
     // one above with `<strong>Label</strong> -`, and the GM's copy below with a
     // third. All three are the same sentence - what was done, what it rolled,
     // what came of it - so all three are the header now.
+    // A miss sounds as an Erase's or a Reshape's does (E59 on the 1.2.115 line, CHAINS.md B-M5; R7165).
     await whisperToOwner(actor, `${cardHead({
         action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
-    })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`);
+    })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`,
+    success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });
     /* The GMs' copy gave the band alone - "despair" - and the threshold apart, so the GM compared
        the numbers by hand (E09 C14, 08.10.2026; audit S05-33): it reads as the player's does,
        "≥ 18", with the band beside it, named as the roll names it. */

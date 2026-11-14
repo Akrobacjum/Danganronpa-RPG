@@ -8079,7 +8079,7 @@
         },
         "cleanupFailed": {
           "label": "Sprzątanie nie udaje się",
-          "hint": "Rzut Tamper, Erase a Trace albo Reshape a Trace kończy się pudłem. Słyszy tylko gracz, który rzucał."
+          "hint": "Rzut Tamper, Erase a Trace, Reshape a Trace, Misleading Trail albo Move the Body kończy się pudłem. Słyszy tylko gracz, który rzucał."
         },
         "breakdown": {
           "label": "Breakdown",

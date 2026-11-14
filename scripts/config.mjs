@@ -5311,7 +5311,7 @@ export const SFX_EVENTS = {
     },
     cleanupFailed: {
         label: "Cleaning up fails",
-        hint: "A Tamper, Erase a Trace, or Reshape a Trace roll misses. Heard by the player who rolled it.",
+        hint: "A Tamper, Erase a Trace, Reshape a Trace, Misleading Trail or Move the Body roll misses. Heard by the player who rolled it.",
         category: "incident"
     },
     breakdown: {
