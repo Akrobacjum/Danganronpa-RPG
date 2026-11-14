@@ -15,7 +15,8 @@
  * the family's 38 Gm keys), and the six keys that run noted drawn and not held are in - chapter.mjs's two and
  * level-up.mjs's three on windows of the 1.2.111 tree E102's run did not draw, and rest.mjs's doItTooltip. Since E102 C6 (claude/e102-c6, 14.11.2026) the Case family's seven keys its run of 9c1a4104
  * noted drawn and not held are in, and the four its run of cc4088ff noted (C6's node Close and Not now, C12's give tab
- * Tell the player and the dice look). The keys these windows never draw (a window probe 08 does not open, a state it does not
+ * Tell the player and the dice look), and the 28 its run of 62558842 noted after C6b (the Investigation window, its Map's
+ * planned nodes, the Key Remnant windows). The keys these windows never draw (a window probe 08 does not open, a state it does not
  * build, a card, a sheet) are counted and listed in the evidence as not drawn here: what holds them is their family test
  * and `node tools/check.mjs tooltips`. A key with a placeholder or a plural is not looked for (its words vary).
  */
@@ -39,10 +40,19 @@ export const DRAWN = {
         "DRPG.Tips.Actions.room2Tooltip", "DRPG.Tips.Actions.secretAProjectSTooltip"
     ],
     Case: [
-        "DRPG.Tips.Case.addDeductionCounterSolutionTooltip", "DRPG.Tips.Case.checkConsistencyTooltip", "DRPG.Tips.Case.closeNodeTooltip",
-        "DRPG.Tips.Case.moveUpMoveDownTooltip", "DRPG.Tips.Case.notNowTooltip",
-        "DRPG.Tips.Case.nodeOnTheMapTooltip", "DRPG.Tips.Case.notTiedToTheTooltip", "DRPG.Tips.Case.onANodeTooltip",
-        "DRPG.Tips.Case.showPreviewTooltip"
+        "DRPG.Tips.Case.addDeductionCounterSolutionTooltip", "DRPG.Tips.Case.autopsyAtTooltip", "DRPG.Tips.Case.chapterFilterTooltip",
+        "DRPG.Tips.Case.checkConsistencyTooltip", "DRPG.Tips.Case.closeNodeTooltip", "DRPG.Tips.Case.deleteTooltip",
+        "DRPG.Tips.Case.difficultyTooltip", "DRPG.Tips.Case.faintTooltip", "DRPG.Tips.Case.giveFromPlanTooltip",
+        "DRPG.Tips.Case.issueAutopsyTruthBulletTooltip", "DRPG.Tips.Case.kindWhatItReallyTooltip", "DRPG.Tips.Case.leftByTooltip",
+        "DRPG.Tips.Case.mapTableTooltip", "DRPG.Tips.Case.moveUpMoveDownTooltip", "DRPG.Tips.Case.nameNodeTooltip",
+        "DRPG.Tips.Case.nameTooltip", "DRPG.Tips.Case.newRemnantTooltip", "DRPG.Tips.Case.nodeOnTheMapTooltip",
+        "DRPG.Tips.Case.notNowTooltip", "DRPG.Tips.Case.notTiedToTheTooltip", "DRPG.Tips.Case.noteForTheGmsTooltip",
+        "DRPG.Tips.Case.onANodeTooltip", "DRPG.Tips.Case.placeFinalPlanTooltip", "DRPG.Tips.Case.placeOnTheMapTooltip",
+        "DRPG.Tips.Case.placeTooltip", "DRPG.Tips.Case.playerDescriptionTooltip", "DRPG.Tips.Case.realizationPreviewTooltip",
+        "DRPG.Tips.Case.reinforcedTooltip", "DRPG.Tips.Case.removeFromTheCaseTooltip", "DRPG.Tips.Case.roomPlannedFinalTooltip",
+        "DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip", "DRPG.Tips.Case.saveTooltip", "DRPG.Tips.Case.showPreviewTooltip",
+        "DRPG.Tips.Case.tiedToCrimeTooltip", "DRPG.Tips.Case.trialModeTooltip", "DRPG.Tips.Case.whatAnalysisRevealsTooltip",
+        "DRPG.Tips.Case.whichRemnantTooltip"
     ],
     Gm: [
         "DRPG.Tips.Gm.aCharacterDiesTooltip", "DRPG.Tips.Gm.campaignNameTooltip", "DRPG.Tips.Gm.categoryTooltip",
