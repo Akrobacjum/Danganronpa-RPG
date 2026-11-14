@@ -2062,6 +2062,14 @@
         "carryItThereTooltip": "Rzut na przeciągnięcie ciała do wybranego pokoju",
         "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza"
       },
+      "CaseSeal": {
+        "caseSealSetTooltip": "Szyfruje sprawę w świecie pod hasłem z pola. Każdy inny GM wpisuje je raz w każdej przeglądarce",
+        "caseSealChangeTooltip": "Szyfruje sprawę od nowa pod hasłem z pola. Każdy inny GM wpisuje nowe",
+        "caseSealForgetTooltip": "Usuwa hasło z tej przeglądarki. Kopia w świecie zostaje",
+        "caseSealUnlockTooltip": "Otwiera kopię w świecie hasłem z pola i przenosi sprawę do tej przeglądarki",
+        "caseSealReplaceTooltip": "Zapisuje nową kopię pod hasłem z pola. Kopia, której ta przeglądarka nie odczyta, przepada",
+        "caseSealFieldTooltip": "Hasło świata do zaszyfrowanej kopii sprawy"
+      },
       "Gm": {
         "minusTooltip": "Zabiera {n} Despair z tej puli",
         "plusTooltip": "Dodaje {n} Despair do tej puli",
@@ -8922,6 +8930,51 @@
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
         "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
       },
+      "seal": {
+        "set": "Ustaw hasło",
+        "change": "Zmień hasło",
+        "forget": "Zapomnij w tej przeglądarce",
+        "unlock": "Użyj hasła",
+        "replace": "Zastąp kopię",
+        "replaceTitle": "Zastąpić zaszyfrowaną kopię?",
+        "replaceWhat": "Ta przeglądarka nie może odczytać kopii w świecie. Zastąpienie zapisze nową kopię tego, co ma ta przeglądarka, pod wpisanym hasłem, a stara kopia przepadnie. Każdy inny GM wpisze potem nowe hasło.",
+        "field": "Hasło",
+        "note": "Co najmniej {n} znaków; dobre hasło to cztery lub więcej niezwiązanych ze sobą słów. Każdy GM wpisuje je raz w każdej przeglądarce i żaden gracz go nie widzi. Przeglądarka każdego gracza ma zaszyfrowaną kopię, więc gracz może tam odgadnąć krótkie lub popularne hasło tak, że nikt tego nie zauważy.",
+        "why": {
+          "noKey": "wpisz hasło poniżej.",
+          "otherPassphrase": "hasło zmieniono w innej przeglądarce. Wpisz nowe poniżej.",
+          "otherWorld": "to kopia innego świata.",
+          "wrong": "zapamiętane tu hasło jej nie otwiera.",
+          "unreadable": "kopia jest uszkodzona.",
+          "newer": "zapisała ją nowsza wersja modułu."
+        },
+        "done": {
+          "sealSet": "Hasło ustawione. Zaszyfrowana kopia sprawy jest w świecie.",
+          "sealUnlock": "Hasło przyjęte. Sprawa ze świata jest w tej przeglądarce.",
+          "sealForget": "Ta przeglądarka nie pamięta już hasła. Kopia w świecie zostaje.",
+          "sealReplace": "Kopia zastąpiona. Każdy inny GM wpisze nowe hasło."
+        },
+        "refused": {
+          "notGm": "Hasła używa tylko GM.",
+          "empty": "Najpierw wpisz hasło.",
+          "short": "Hasło jest za krótkie: użyj co najmniej {n} znaków.",
+          "wrong": "Złe hasło. Nic się nie zmieniło.",
+          "notHydrated": "Kopie sprawy od innych GM-ów jeszcze nie dotarły. Spróbuj za chwilę.",
+          "unreadable": "Ta przeglądarka nie może odczytać kopii w świecie. Wpisz jej hasło albo zastąp kopię.",
+          "absent": "Świat nie ma jeszcze zaszyfrowanej kopii.",
+          "newer": "Kopię zapisała nowsza wersja modułu. Najpierw zaktualizuj moduł.",
+          "otherPassphrase": "Hasło zmieniono w innej przeglądarce. Wpisz nowe.",
+          "otherWorld": "To kopia innego świata. Zastąp ją, żeby utworzyć kopię tego świata.",
+          "noKey": "Ta przeglądarka nie pamięta hasła do tego świata.",
+          "notPrimary": "Kopię zapisuje tylko główny GM.",
+          "unread": "Kopia w świecie się zmieniła. Spróbuj za chwilę.",
+          "failed": "Nie udało się zapisać zaszyfrowanej kopii. Szczegóły są w konsoli."
+        },
+        "emptyHere": {
+          "noKey": "Planer sprawy jest pusty w tej przeglądarce. Świat ma zaszyfrowaną kopię: wpisz jej hasło w panelu GM-a, Diagnostyka, Sprawa, albo użyj tam Przywróć z pliku.",
+          "changed": "Planer sprawy jest pusty w tej przeglądarce, a hasło zmieniono w innej przeglądarce. Wpisz nowe w panelu GM-a, Diagnostyka, Sprawa, albo użyj tam Przywróć z pliku."
+        }
+      },
       "row": {
         "traces": {
           "one": "{n} Remnant na mapie (z {of}) nie ma klucza odpowiedzi w tej przeglądarce.",
@@ -8963,6 +9016,9 @@
         "notices": "Historia powiadomień zajmuje ponadto {notices} KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.",
         "lastBackup": "Ostatnia kopia: {when} ({who}).",
         "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii.",
+        "sealedNone": "Świat nie ma zaszyfrowanej kopii sprawy. Ustaw hasło, żeby ją utworzyć.",
+        "sealedReadable": "Zaszyfrowana kopia w świecie: zapisana {when} przez {who}. Ta przeglądarka może ją odczytać.",
+        "sealedLocked": "Zaszyfrowana kopia w świecie: zapisana {when} przez {who}. Ta przeglądarka nie może jej odczytać: {why}",
         "traceOrphans": {
           "one": "{n} klucz odpowiedzi Remnantu nie ma tokenu na żadnej scenie: zostaje, nic go nie czyta.",
           "few": "{n} klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.",

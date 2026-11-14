@@ -1972,6 +1972,14 @@
         "carryItThereTooltip": "Rolls to drag the body into the room you picked",
         "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not"
       },
+      "CaseSeal": {
+        "caseSealSetTooltip": "Encrypts the case into the world under the passphrase in the field. Each other GM types it once on each browser",
+        "caseSealChangeTooltip": "Encrypts the case again under the passphrase in the field. Every other GM types the new one",
+        "caseSealForgetTooltip": "Removes the passphrase from this browser. The copy in the world stays",
+        "caseSealUnlockTooltip": "Opens the copy in the world with the passphrase in the field, and brings the case to this browser",
+        "caseSealReplaceTooltip": "Writes a new copy under the passphrase in the field. The copy this browser cannot read is lost",
+        "caseSealFieldTooltip": "The world's passphrase for the encrypted copy of the case"
+      },
       "Gm": {
         "minusTooltip": "Takes {n} Despair from this pool",
         "plusTooltip": "Adds {n} Despair to this pool",
@@ -7114,6 +7122,51 @@
         "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
         "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
       },
+      "seal": {
+        "set": "Set the passphrase",
+        "change": "Change the passphrase",
+        "forget": "Forget on this browser",
+        "unlock": "Use the passphrase",
+        "replace": "Replace the copy",
+        "replaceTitle": "Replace the encrypted copy?",
+        "replaceWhat": "This browser cannot read the copy in the world. Replacing it writes a new copy of what this browser holds, under the passphrase you typed, and the old copy is lost. Every other GM then types the new passphrase.",
+        "field": "Passphrase",
+        "note": "At least {n} characters; four or more unrelated words make a good passphrase. Every GM types it once on each browser, and no player sees it. Every player's browser holds the encrypted copy, so a player can guess a short or common passphrase there without anyone noticing.",
+        "why": {
+          "noKey": "type the passphrase below.",
+          "otherPassphrase": "the passphrase was changed on another browser. Type the new one below.",
+          "otherWorld": "it is a copy of another world.",
+          "wrong": "the passphrase kept here does not open it.",
+          "unreadable": "it is damaged.",
+          "newer": "a newer version of the module wrote it."
+        },
+        "done": {
+          "sealSet": "Passphrase set. The encrypted copy of the case is in the world.",
+          "sealUnlock": "Passphrase accepted. The case from the world is on this browser.",
+          "sealForget": "This browser no longer keeps the passphrase. The copy in the world stays.",
+          "sealReplace": "Copy replaced. Every other GM types the new passphrase."
+        },
+        "refused": {
+          "notGm": "Only a GM can use the passphrase.",
+          "empty": "Type the passphrase first.",
+          "short": "The passphrase is too short: use at least {n} characters.",
+          "wrong": "Wrong passphrase. Nothing changed.",
+          "notHydrated": "The other GMs' copies of the case have not arrived yet. Try again in a moment.",
+          "unreadable": "This browser cannot read the copy in the world. Type its passphrase, or replace the copy.",
+          "absent": "The world holds no encrypted copy yet.",
+          "newer": "A newer version of the module wrote the copy. Update the module first.",
+          "otherPassphrase": "The passphrase was changed on another browser. Type the new one.",
+          "otherWorld": "The copy in the world is of another world. Replace it to make one for this world.",
+          "noKey": "This browser keeps no passphrase for this world.",
+          "notPrimary": "Only the primary GM writes the copy.",
+          "unread": "The copy in the world changed. Try again in a moment.",
+          "failed": "The encrypted copy could not be written. The console has the details."
+        },
+        "emptyHere": {
+          "noKey": "The case planner is empty on this browser. The world holds an encrypted copy: type its passphrase in the GM panel, Diagnostics, The case, or use Restore from a file there.",
+          "changed": "The case planner is empty on this browser, and the passphrase was changed on another browser. Type the new one in the GM panel, Diagnostics, The case, or use Restore from a file there."
+        }
+      },
       "row": {
         "traces": {
           "one": "{n} Remnant on the map (of {of}) has no answer key on this browser.",
@@ -7145,6 +7198,9 @@
         "notices": "The notice history takes {notices} KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.",
         "lastBackup": "Last backup: {when} ({who}).",
         "neverBackedUp": "This case has never been backed up.",
+        "sealedNone": "The world holds no encrypted copy of the case. Set a passphrase to make one.",
+        "sealedReadable": "Encrypted copy in the world: written {when} by {who}. This browser can read it.",
+        "sealedLocked": "Encrypted copy in the world: written {when} by {who}. This browser cannot read it: {why}",
         "traceOrphans": {
           "one": "{n} Remnant's answer key has no token on any scene: it is kept, but nothing reads it.",
           "other": "{n} Remnants' answer keys have no token on any scene: they are kept, but nothing reads them."

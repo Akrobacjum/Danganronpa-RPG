@@ -7636,6 +7636,10 @@ const INVARIANTS = [
             ["seasonReset: only stage, by, at, groups, done, failed, notRun, season, chapter, session, day, timeOfDay",
                 s => { s.settings.seasonReset = { stage: "done", season: 2, chapter: 1, session: 1, day: 1, timeOfDay: "morning", memo: "R190" }; },
                 h => h.kind === "only" && h.doc === "setting" && h.id === "seasonReset" && h.path === "memo"],
+            // E111 C1: the case's sealed copy holds its ciphertext and what opens it - a case put beside it in plain text is found.
+            ["caseSealed: only format, version, kdf, iv, ciphertext, writtenAt, writtenBy, worldId",
+                s => { s.settings.caseSealed = { format: "drpg-case-sealed", version: 1, ciphertext: "R190", stores: { keyPlan: {} } }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "caseSealed" && h.path === "stores"],
             // E17 fix ci-2: the clock keeps no boundary's take-back - its snapshot named every character by id.
             ["clock.lastAdvance",
                 s => { s.settings.clock.lastAdvance = { for: "[1,1,1,1,\"noon\"]", at: 1, snapshot: { actions: { R190BYSTANDER001: { value: 1 } } } }; },
@@ -61291,6 +61295,93 @@ const INVARIANTS = [
         const watch = fnSource(map, "showProjectCard").match(/watch:\s*\{[^}]*\}/)?.[0] ?? "";
         equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
             "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
+    }],
+    /* E111 (14.11.2026; the owner: "I chcemy zaszyfrowana kopie chcemy dodac do planera koniecznie"): the case's sealed
+       copy in the world. Pure over case-seal.mjs's functions and a fixture case file; nothing is written to the world. */
+    ["R7340 - the case's sealed copy opens to the same case file: case-seal.mjs `sealCase` seals with AES-GCM under a PBKDF2 key, `openSealed` with the same key gives the file back whole, every seal takes a fresh 12-byte IV, the salt is 16 bytes, the ciphertext's length moves in steps of SEAL_PAD, and no field or value of the fixture case is in the sealed value's text", async () => {
+        /* Red at 21973f06: no case-seal.mjs (the import fails). */
+        const C = await import("./case-seal.mjs");
+        const file = { format: "drpg-case", version: 1, world: { id: "R7340WORLD", title: "R7340" }, exportedAt: "2026-11-14T00:00:00.000Z",
+            exportedBy: "R7340 GM", resetCuts: {}, stores: {
+                keyPlan: { e: { "R7340slot": { room: "R7340-Library", realType: "R7340-weapon", leftBy: "R7340KILLER00001" } }, t: { "R7340slot": 5 }, d: {}, cleared: 0 },
+                caseSchema: { e: { "R7340node": { label: "R7340-the-knife-was-moved" } }, t: { "R7340node": 6 }, d: {}, cleared: 0 } } };
+        const salt = C.newSalt();
+        const key = await C.deriveSealKey("R7340 correct horse battery", salt, 1000);
+        const a = await C.sealCase(file, key, { salt, iterations: 1000, worldId: "R7340WORLD", writtenBy: "R7340 GM", writtenAt: 1 });
+        const b = await C.sealCase(file, key, { salt, iterations: 1000, worldId: "R7340WORLD", writtenBy: "R7340 GM", writtenAt: 1 });
+        const opened = await C.openSealed(a, key);
+        const text = JSON.stringify(a);
+        const leaks = ["R7340-Library", "R7340-weapon", "R7340KILLER00001", "R7340slot", "R7340node", "R7340-the-knife-was-moved", "keyPlan", "caseSchema", "realType"]
+            .filter(s => text.includes(s));
+        const cipher = C.fromBase64(a.ciphertext).length;
+        equal(stableJson({ same: stableJson(opened.file) === stableJson(file), refused: opened.refused ?? null, ivBytes: C.fromBase64(a.iv).length,
+            saltBytes: C.fromBase64(salt).length, freshIv: a.iv !== b.iv && a.ciphertext !== b.ciphertext, padded: (cipher - 16) % C.SEAL_PAD === 0,
+            keys: Object.keys(a).sort(), kdf: [a.kdf.name, a.kdf.hash, a.kdf.iterations], leaks }),
+        stableJson({ same: true, refused: null, ivBytes: 12, saltBytes: 16, freshIv: true, padded: true,
+            keys: ["ciphertext", "format", "iv", "kdf", "version", "worldId", "writtenAt", "writtenBy"], kdf: ["PBKDF2", "SHA-256", 1000], leaks: [] }),
+        "{the file back whole, no refusal, IV 12 bytes, salt 16, a fresh IV each seal, the ciphertext a multiple of SEAL_PAD (and the 16-byte tag), the value's fields, the KDF, no plaintext in the value}");
+    }],
+    ["R7341 - a wrong passphrase opens nothing: `openSealed` with a key of another passphrase, and a sealed value whose world id or salt was edited, answers refused \"wrong\" and no file; a value of no format answers \"absent\", one of a newer version \"newer\"; the default KDF is 600 000 rounds of PBKDF2-HMAC-SHA-256 (the OWASP figure the file cites), and a passphrase under SEAL_MIN_LENGTH is refused \"short\"", async () => {
+        /* Red at 21973f06: no case-seal.mjs. */
+        const C = await import("./case-seal.mjs");
+        const file = { format: "drpg-case", version: 1, stores: { keyPlan: { e: { s: { room: "R7341" } }, t: { s: 1 }, d: {}, cleared: 0 } } };
+        const salt = C.newSalt();
+        const key = await C.deriveSealKey("R7341 the right passphrase", salt, 1000);
+        const wrongKey = await C.deriveSealKey("R7341 the wrong passphrase", salt, 1000);
+        const sealed = await C.sealCase(file, key, { salt, iterations: 1000, worldId: "R7341WORLD" });
+        const read = async (value, k = key) => { const r = await C.openSealed(value, k); return [r.refused ?? null, Boolean(r.file)]; };
+        equal(stableJson({
+            right: await read(sealed), wrong: await read(sealed, wrongKey),
+            world: await read({ ...sealed, worldId: "R7341OTHER" }), salt: await read({ ...sealed, kdf: { ...sealed.kdf, salt: C.newSalt() } }),
+            absent: await read({}), newer: await read({ ...sealed, version: C.SEAL_VERSION + 1 }),
+            rounds: C.SEAL_ITERATIONS, short: C.passphraseProblem("eleven char"), long: C.passphraseProblem("twelve chars"), empty: C.passphraseProblem("   ")
+        }), stableJson({ right: [null, true], wrong: ["wrong", false], world: ["wrong", false], salt: ["wrong", false], absent: ["absent", false],
+            newer: ["newer", false], rounds: 600000, short: "short", long: null, empty: "empty" }),
+        "{the right key opens it; a wrong key, an edited world id, an edited salt answer wrong; absent; newer; 600000 rounds; the length rule}");
+    }],
+    ["R7342 - an empty browser never overwrites a full copy: case-seal.mjs `sealRefusal` answers \"notHydrated\" for a GM holding the key whose stores have not heard the other GMs, \"unread\" while the world holds a copy this browser has not read, \"otherPassphrase\" for a copy under another salt, \"otherWorld\" for a copy naming another world, \"noKey\", \"notPrimary\" and \"notGm\"; and nothing (a write) for the primary with the key, hydrated, up to date with the copy or with none in the world; a GM's own act (`explicit`: a new passphrase) is held to the GM, the key and the hydration alone", async () => {
+        /* Red at 21973f06: no case-seal.mjs. Pure over what it is handed. */
+        const C = await import("./case-seal.mjs");
+        const key = { salt: "R7342SALT", key: "R7342KEY" };
+        const sealed = { format: C.SEAL_FORMAT, version: C.SEAL_VERSION, kdf: { name: "PBKDF2", hash: "SHA-256", iterations: 1000, salt: "R7342SALT" },
+            iv: "R7342IV", ciphertext: "R7342CT", worldId: "R7342WORLD" };
+        const base = { isGM: true, primary: true, hydrated: true, key, sealed, seen: "R7342IV", worldId: "R7342WORLD" };
+        const ask = more => C.sealRefusal({ ...base, ...more });
+        equal(stableJson({
+            emptyUnhydrated: ask({ hydrated: false, seen: null }), unread: ask({ seen: "R7342OLDIV" }), freshBrowser: ask({ seen: null }),
+            otherPassphrase: ask({ key: { ...key, salt: "R7342NEWSALT" } }), otherWorld: ask({ sealed: { ...sealed, worldId: "R7342ELSEWHERE" } }),
+            noKey: ask({ key: null }), notPrimary: ask({ primary: false }), notGm: ask({ isGM: false }),
+            upToDate: ask({}), noCopy: ask({ sealed: null, seen: null }),
+            explicitNewSalt: ask({ explicit: true, seen: null, key: { ...key, salt: "R7342NEWSALT" } }),
+            explicitUnhydrated: ask({ explicit: true, hydrated: false })
+        }), stableJson({ emptyUnhydrated: "notHydrated", unread: "unread", freshBrowser: "unread", otherPassphrase: "otherPassphrase",
+            otherWorld: "otherWorld", noKey: "noKey", notPrimary: "notPrimary", notGm: "notGm", upToDate: null, noCopy: null,
+            explicitNewSalt: null, explicitUnhydrated: "notHydrated" }),
+        "{each refusal, and a write where none holds; a GM's own new passphrase writes over the copy it replaces, never unhydrated}");
+    }],
+    ["R7343 - the sealed copy is read with Restore's own merge and written from the backup's own file: case-seal.mjs `readSealedCopy` calls gm-stores.mjs `restoreCase` (quiet, no health check of its own) and `sealCaseNow` builds what it seals with `caseFileNow`, which `backupCase` saves too; `restoreCase` with `quiet` neither toasts nor marks a store restored; and the copy is written only through `sealRefusal`", async () => {
+        /* Red at 21973f06: no case-seal.mjs, no caseFileNow. Source reads. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const seal = await src("case-seal.mjs"), stores = await src("gm-stores.mjs");
+        const read = fnSource(seal, "readSealedCopy"), write = fnSource(seal, "sealCaseNow"), restore = fnSource(stores, "restoreCase");
+        equal(stableJson({
+            readMerge: /restoreCase\(opened\.file,\s*\{\s*quiet:\s*true,\s*recheck:\s*false\s*\}\)/.test(read),
+            writeFile: /await caseFileNow\(\)/.test(write), writeGuard: /sealRefusal\(/.test(write),
+            backupFile: /await caseFileNow\(\)/.test(fnSource(stores, "backupCase")),
+            quietToast: /if \(!quiet\) ui\.notifications\.info\(/.test(restore), quietMark: /if \(!quiet\) handle\.markRestored\(\)/.test(restore),
+            oneWriter: (seal.match(/setSetting\(SETTINGS\.caseSealed/g) ?? []).length
+        }), stableJson({ readMerge: true, writeFile: true, writeGuard: true, backupFile: true, quietToast: true, quietMark: true, oneWriter: 1 }),
+        "{the read merges through restoreCase quiet, the write builds caseFileNow behind sealRefusal, backupCase saves caseFileNow, quiet keeps the toast and the restored mark off, one write of the setting}");
+    }],
+    ["R7344 - the sealed copy's settings: `caseSealed` is a world setting, not in the settings window, a table setting of WORLD_LIFETIMES, and world-secrets.mjs holds it to its sealed fields alone (`only`); `caseSealKey` is a client setting, not in the window", async () => {
+        /* Red at 21973f06: neither setting is registered. */
+        const W = await import("./world-secrets.mjs"), St = await import("./settings.mjs");
+        const at = key => { const s = game.settings.settings.get(`${MODULE_ID}.${key}`); return s ? [s.scope, s.config === true] : null; };
+        equal(stableJson({ sealed: at("caseSealed"), key: at("caseSealKey"), lifetime: St.WORLD_LIFETIMES.caseSealed ?? null,
+            only: W.WORLD_SECRET_RULES.settings.caseSealed?.only ?? null }),
+        stableJson({ sealed: ["world", false], key: ["client", false], lifetime: "table",
+            only: ["format", "version", "kdf", "iv", "ciphertext", "writtenAt", "writtenBy", "worldId"] }),
+        "{caseSealed [scope, in the window], caseSealKey [scope, in the window], caseSealed's lifetime, its world-secrets rule}");
     }],
 ];
 

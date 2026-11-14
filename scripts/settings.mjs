@@ -353,6 +353,17 @@ export const SETTINGS = {
      */
     caseMark: "caseMark",
     /**
+     * THE CASE, SEALED (E111, 14.11.2026; the owner: "I chcemy zaszyfrowana kopie chcemy dodac do planera koniecznie").
+     * WORLD-scoped, so a GM's browser on any computer finds it, and every player's browser holds it too, as every world
+     * setting: it is AES-GCM ciphertext of the case file (case-seal.mjs) and the fields that say how to open it -
+     * `{ format, version, kdf: { name, hash, iterations, salt }, iv, ciphertext, writtenAt, writtenBy, worldId }` - and
+     * nothing else (world-secrets.mjs `caseSealed: only`). Written from a GM's browser only (Foundry's SETTINGS_MODIFY;
+     * the primary's debounced writes and a GM's passphrase).
+     */
+    caseSealed: "caseSealed",
+    /** This browser's key to `caseSealed` (E111): CLIENT-scoped, a section per world `{ salt, key, at }`, never the passphrase. */
+    caseSealKey: "caseSealKey",
+    /**
      * What every Remnant on the maps really is: its type, how hard it is to
      * spot, who left it, and the GM's note about it.
      *
@@ -1176,7 +1187,7 @@ const TABLE_SETTINGS = [
     SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
     SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
-    SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
+    SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.caseSealed, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
     SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
@@ -2146,6 +2157,20 @@ export function registerSettings() {
     });
     game.settings.register(MODULE_ID, SETTINGS.caseMark, {
         scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // E111: the case's sealed copy (world, ciphertext only) and this browser's key to it (client). No `onChange`:
+    // case-seal.mjs reads the copy on updateSetting / createSetting, as gm-store.mjs reads the clock's cuts.
+    game.settings.register(MODULE_ID, SETTINGS.caseSealed, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.caseSealKey, {
+        scope: "client",
         config: false,
         type: Object,
         default: {}

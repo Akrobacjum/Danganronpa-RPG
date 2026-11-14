@@ -137,6 +137,13 @@ export const WORLD_SECRET_RULES = Object.freeze({
             since: "E42 fix FG4; the clock's position since FG3b",
             why: "a season reset's record holds group and step keys, the GM's id, a time and the clock's position (season, chapter, session, day, time of day), all on the HUD; any other field would be one nobody judged for a player's eyes"
         }),
+        /* E111 (14.11.2026): the case, sealed. Its ciphertext and what opens it, and nothing else - a field added to it
+           in plain text is found here before it ships. */
+        caseSealed: Object.freeze({
+            only: Object.freeze(["format", "version", "kdf", "iv", "ciphertext", "writtenAt", "writtenBy", "worldId"]),
+            since: "E111 C1",
+            why: "the case itself, which the copy carries only as AES-GCM ciphertext (case-seal.mjs)"
+        }),
         murderState: Object.freeze({
             only: Object.freeze(["active", "stage"]),
             since: "E05 C8; the stage alone since E32 C2",
