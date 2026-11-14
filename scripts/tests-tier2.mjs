@@ -45,7 +45,12 @@ async function snapshot(cast) {
      * then it is the reason a season went dark early.
      */
     const { monokumas, getDespair } = await import("./despair.mjs");
+    const { maskStore } = await import("./gm-stores.mjs");
+    await maskStore.whenHydrated();
     return {
+        /* THE MASKS STANDING AS FOUND (t2-restore, 14.11.2026): the killers behind a "?" when tier 2 began, by actor id -
+           none in the harness world. `restore` ends every mask not among them; its note says why. */
+        masks: new Set(Object.keys(maskStore.entries() ?? {})),
         /*
          * EVERY SETTING THIS MODULE REGISTERED, not a list of the ones somebody
          * remembered (E01, 24.09.2026; audit S14-10). The list below this line
@@ -234,6 +239,28 @@ async function restore(snap) {
        despairPools.settled" after the conversion's test. Asked here and waited for, it runs now,
        and one asked later finds the mark where it is and writes nothing. */
     await (await import("./despair.mjs")).settleOwed();
+
+    /*
+     * THE MASKS THAT WENT UP, TAKEN DOWN BEFORE THE STORES GO BACK (t2-restore, 14.11.2026). From E69 C8 (merged into the
+     * 1.2.113 assembly at ad89e657) a direct murder's opening on Hope or a critical hides the killer behind a "?"
+     * (mask-gm.mjs `maskKiller`): their tokens renamed "?", their ring and name and bars off, a flag `masked`, and their
+     * player's BROADCAST_AUDIO blocked - and what the tokens looked like is kept in the GMs' store `masks` alone. The mask
+     * outlives the incident by design (docs/dev/e69/STATUS.md: it ends at the reveal or the next time of day), so the
+     * runner's `endMurder` leaves it, and the raw write of the stores' keys below dropped its row with the look in it:
+     * the tokens stayed a "?" and the block stood, with nothing left that could give either back. Measured on 6dd02975:
+     * every run's first test through `swingFixture` (its opening is a 24 on Hope) ended "could not restore the world"
+     * - PlayerOne's BROADCAST_AUDIO (none) -> false, Aiko's token "?" with the flag, ring, name and bars off - and every
+     * later one masked a token already masked, its diff reported once. Ended here by the module's own road
+     * (`endMask`), while the row still holds the look: the tokens get it back, the block is lifted. A mask that stood
+     * when tier 2 began (`snap.masks`, a real table's) is left to the stores' write, which keeps its row.
+     */
+    {
+        const { maskStore } = await import("./gm-stores.mjs");
+        const { endMask } = await import("./mask-gm.mjs");
+        for (const killerId of Object.keys(maskStore.entries() ?? {})) {
+            if (!snap.masks?.has(killerId)) await endMask(killerId, "suite");
+        }
+    }
 
     /*
      * THE TRACES THAT APPEARED, REMOVED BEFORE THE SETTINGS GO BACK (E04, 1.2.63).
