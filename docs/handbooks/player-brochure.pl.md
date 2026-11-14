@@ -72,7 +72,7 @@ Największy przycisk w prawym dolnym rogu otwiera **Czat z GM-em**, jeden wątek
 
 | Przycisk | Otwiera |
 |---|---|
-| Zębatka | **Ustawienia DRPG**: język, motyw, dźwięki i głos |
+| Zębatka | **Ustawienia Danganronpa RPG**: język, motyw, dźwięki i głos |
 | Książka | tę ulotkę i Podręcznik gracza |
 | Stos kart na powiadomieniu | **Historia powiadomień**: powiadomienia, które ci pokazano |
 

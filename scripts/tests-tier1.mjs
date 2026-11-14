@@ -21262,7 +21262,8 @@ const INVARIANTS = [
         }), stableJson({
             step: [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize("DRPG.Season.step.cast") }), "seasonChecklist"],
             go: ["seasonChecklist", game.i18n.localize("DRPG.Panel.goSeasonChecklistButton")],
-            words: ["Season checklist", "Lista kontrolna sezonu"],
+            // a verb with its object since E109 (DISAGREEMENTS.json D20, decided by the coordinator on the owner's delegation, 14.11.2026)
+            words: ["Open the Season checklist", "Otwórz listę kontrolną sezonu"],
             opened: true
         }), "{step: the Next line [text, action]; go: its button [action, label]; words: the button's label [en, pl]; opened: the press opened the Season checklist}");
     }],
@@ -61459,6 +61460,62 @@ const INVARIANTS = [
         equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
             ["", "gap", "gap pad", "gap pad track", "above track"]]),
             "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
+    }],
+    ["R7126 - the Key limit's line counts the rows the GM has filled or placed (E109, DISAGREEMENTS.json D22, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `keyRowsUsed` counts a slot with a trace or any of its four words, and both lines that say \"{used} of {limit}\" (investigation.mjs's planner and the Map's summary) take it, not min(slots, limit)", async () => {
+        /* Red at c87c2e8c: no keyRowsUsed, and both lines wrote Math.min(plan.entries.length, limit) - the plan always holds
+           five slots, so a limit of five or less read "5 of 5 used" with nothing written. */
+        const K = await import("./key-remnants.mjs");
+        ok(typeof K.keyRowsUsed === "function", "key-remnants.mjs exports no keyRowsUsed - nothing counts the rows used");
+        const used = K.keyRowsUsed([{ name: "Knife" }, {}, { tokenId: "T1" }, { note: "  " }, { text: "", analysis: "read" }, { name: "", text: "" }]);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const sites = [...src.matchAll(/DRPG\.Investigation\.keyLimitLine", \{\s*used: ([^,]+),/g)].map(m => m[1].trim());
+        equal(stableJson([used, sites]), stableJson([3, ["keyRowsUsed(plan.entries)", "keyRowsUsed(plan.entries)"]]),
+            "[the rows a plan of six counts used (a name, a trace, an analysis), what each keyLimitLine site passes as {used}]");
+    }],
+    ["R7127 - the Investigation's Save says how many Remnants it changed, not how many writes (E109, DISAGREEMENTS.json D23, decided by the coordinator on the owner's delegation, 14.11.2026): investigation.mjs `applyDashboardSave` counts the Remnants a patch reached once each (a set of the rows' keys), so one Remnant whose words and band both changed reads \"Updated 1 Remnant.\"", async () => {
+        /* Red at c87c2e8c: `tracesChanged++` after the words' write and again after the flags' write. Read off the source:
+           the Save writes the world (tier 2's tests drive it). */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "applyDashboardSave");
+        equal(stableJson([/tracesChanged\+\+/.test(body), (body.match(/changed\.add\(row\.key\)/g) ?? []).length, /const tracesChanged = changed\.size/.test(body)]),
+            stableJson([false, 2, true]), "[a write counted once more, the Remnant added to the set after each write, the count read off the set]");
+    }],
+    ["R7128 - the Key Remnant window's intro counts the planned clues it offers (E109, DISAGREEMENTS.json D24, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `openKeyRemnantHere` hands createHereIntro the open slots' count (`open.length`), the rows its Which planned clue list holds, and the text says those are the ones not on the map", async () => {
+        /* Red at c87c2e8c: {n} was plan.entries.length, every slot, while the list offers only the open ones. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/key-remnants.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "openKeyRemnantHere");
+        const flats = {};
+        for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
+        const forms = lang => Object.entries(flats[lang]).filter(([k]) => k.startsWith("DRPG.Investigation.createHereIntro.")).map(([, v]) => v);
+        equal(stableJson([/plural\("DRPG\.Investigation\.createHereIntro", \{ n: open\.length \}\)/.test(body),
+            forms("en").every(v => /not on the map yet/.test(v) && !/\bif it is\b/.test(v)), forms("pl").every(v => /nie ma jeszcze na mapie/.test(v) && !/jeśli/.test(v))]),
+        stableJson([true, true, true]), "[the intro counts the open slots, every English form says the clues are not on the map yet without an if, every Polish form]");
+    }],
+    ["R7129 - the floor switcher's tooltip is a GM's own where a GM or the Mastermind reads it (E109, DISAGREEMENTS.json D40, decided by the coordinator on the owner's delegation, 14.11.2026): fog.mjs `renderFloorSwitcher` writes DRPG.Fog.floorsHintGm for a viewer offered every floor and DRPG.Fog.floorsHint for a player, and both keys have words in both languages", async () => {
+        /* Red at c87c2e8c: one tooltip for everybody, the player's ("the floor your character is on"), shown to a GM too. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "renderFloorSwitcher"), caller = fnSource(src, "floorSwitcher");
+        const flats = {};
+        for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
+        const words = key => ["en", "pl"].every(lang => typeof flats[lang][key] === "string" && flats[lang][key].trim() !== "");
+        equal(stableJson([/everyFloor \? "DRPG\.Fog\.floorsHintGm" : "DRPG\.Fog\.floorsHint"/.test(body), /renderFloorSwitcher\(scene, offer, here, \{ everyFloor: Boolean\(viewer\?\.everyFloor\) \}\)/.test(caller),
+            words("DRPG.Fog.floorsHintGm"), words("DRPG.Fog.floorsHint")]),
+        stableJson([true, true, true, true]), "[the tooltip by who is offered every floor, the caller hands the viewer's, the GM's key has words in both languages, the player's]");
+    }],
+    ["R7130 - a held Key fee can be charged again from its own card (E109, DISAGREEMENTS.json D27, D28, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `chargeForUnfoundKeys` whispers the held card with a \"Charge the Key fee\" button and its flag; a GM's browser wires it (`wireChargeHeld`) to `askToChargeForUnfoundKeys`, the existing keys.charge road on the primary, which holds again while an answer key is still missing; and the card's words name that button", async () => {
+        /* Red at c87c2e8c: the card said the charge \"can be made again after that\" and no control asked it again. */
+        const K = await import("./key-remnants.mjs");
+        ok(typeof K.wireChargeHeld === "function", "key-remnants.mjs exports no wireChargeHeld - the held card has no button to wire");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/key-remnants.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const charge = fnSource(src, "chargeForUnfoundKeys"), wire = fnSource(src, "wireChargeHeld");
+        const bridge = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const flats = {};
+        for (const lang of ["en", "pl"]) flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
+        const names = lang => Object.entries(flats[lang]).filter(([k]) => k.startsWith("DRPG.Case.chargeHeld.")).every(([, v]) => v.includes(flats[lang]["DRPG.Case.chargeAgain"]));
+        equal(stableJson([/data-drpg-key-charge/.test(charge), /keyChargeHeld: true/.test(charge), /askToChargeForUnfoundKeys\(\)/.test(wire), /cardFlag\(message, "keyChargeHeld"\)/.test(wire),
+            /wireChargeHeld/.test(bridge), typeof flats.en["DRPG.Case.chargeAgain"] === "string" && names("en"), typeof flats.pl["DRPG.Case.chargeAgain"] === "string" && names("pl")]),
+        stableJson([true, true, true, true, true, true, true]),
+            "[the held card carries the button, its flag, the button asks the primary's charge, it is wired by the card's flag, a GM's browser wires it, every English form names the button, every Polish form]");
     }],
 ];
 

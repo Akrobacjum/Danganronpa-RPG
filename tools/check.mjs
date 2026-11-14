@@ -1608,19 +1608,27 @@ async function text() {
             const state = textRender.pilotState(pilot, against);
             console.log(`text: pilot: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
                 + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the pilot ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
-            const movable = strings.filter(x => typeof x?.pl?.before === "string" && typeof x?.pl?.after === "string" && x.pl.after !== x.pl.before && pl.get(x.key) === x.pl.before);
+            /* E109 (14.11.2026): the control read two strings whose Polish was still the before in pl.json, and the stages
+               that land afters use those up (E109 landed reducedMotion's, leaving one). It plants its own now: a copy of
+               pl.json with two such strings put back to their befores is the base, read first, so the control holds
+               whatever the tree has landed. Strings whose before is pl.json's text come first, as before. */
+            const movable = strings.filter(x => typeof x?.pl?.before === "string" && typeof x?.pl?.after === "string" && x.pl.after !== x.pl.before && pl.has(x.key))
+                .sort((a, b) => Number(pl.get(b.key) === b.pl.before) - Number(pl.get(a.key) === a.pl.before));
             if (movable.length >= 2) {
-                const [landed, edited] = movable, moved = new Map(pl);
+                const [landed, edited] = movable, base = new Map(pl);
+                base.set(landed.key, landed.pl.before);
+                base.set(edited.key, edited.pl.before);
+                const before = textRender.pilotState(pilot, { ...against, pl: base }), moved = new Map(base);
                 moved.set(landed.key, landed.pl.after);
                 moved.set(edited.key, `${edited.pl.before} (edited)`);
                 const after = textRender.pilotState(pilot, { ...against, pl: moved }), named = textRender.pilotSchema(pilot, { ...against, pl: moved });
                 const wrong = [
-                    ...(after.landed.pl === state.landed.pl + 1 ? [] : [`landed pl ${after.landed.pl}, not ${state.landed.pl + 1}`]),
+                    ...(after.landed.pl === before.landed.pl + 1 ? [] : [`landed pl ${after.landed.pl}, not ${before.landed.pl + 1}`]),
                     ...(after.changed.includes(`${edited.key} pl`) ? [] : [`${edited.key} pl not read as changed`]),
                     ...named.filter(p => p.includes(`(${landed.key})`) || p.includes(`(${edited.key})`)).map(p => `the schema names "${p}"`)
                 ];
                 if (wrong.length) problems.push(`pilot: a copy of pl.json with ${landed.key}'s after landed and ${edited.key} edited reads wrong: ${wrong.join("; ")} - applying an approved after would read wrong or turn this part red`);
-            } else problems.push(`pilot: the reading's control has nothing to move (${movable.length} string(s) whose Polish before is pl.json's text and whose after differs)`);
+            } else problems.push(`pilot: the reading's control has nothing to move (${movable.length} string(s) with a Polish before and an after that differs)`);
             const pair = pairs.find(p => p.key && against.en.has(p.key) && pl.has(p.key));
             if (strings.length >= 3 && pair && Array.isArray(pilot.questions) && pilot.questions.length) {
                 const copy = JSON.parse(JSON.stringify(pilot));

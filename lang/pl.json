@@ -335,7 +335,7 @@
         "hint": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Każdego ucznia przypisz do Monokumy w Despair Flow w panelu GM-a."
       },
       "hideSystemFear": {
-        "name": "Zastąp licznik Fear z Daggerheart",
+        "name": "Ukryj licznik Fear z Daggerheart",
         "hint": "Ukrywa wspólny pasek Fear z Daggerheart. Każdy Monokuma i tak ma własną pulę Despair. Wyłącz, by znów pokazać pasek."
       },
       "enforceIsoWelcome": {
@@ -377,7 +377,7 @@
         "sendBack": "Cofnij token"
       },
       "foundryToolWindows": {
-        "name": "Okna modułu dla paska bocznego i sterowania sceną Foundry",
+        "name": "Okna Narzędzia Foundry i Narzędzia mapy",
         "hint": "Przenosi pasek boczny i narzędzia mapy GM-a do dwóch okien, które otwiera przycisk w rogu. Ekran graczy się nie zmienia. Zapisanie przeładowuje Foundry u wszystkich, gdy to potwierdzisz."
       },
       "theme": {
@@ -396,10 +396,10 @@
       },
       "reducedMotion": {
         "name": "Ograniczone animacje",
-        "hint": "Trzymaj interfejs nieruchomo w tej przeglądarce, niezależnie od ustawień systemu. Tylko ten klient."
+        "hint": "Ogranicza ruch w interfejsie modułu. Jeśli system operacyjny prosi o mniej ruchu, moduł stosuje się do tego także przy wyłączonym ustawieniu. Zmiana działa od razu, bez przeładowania. Dotyczy tylko tej przeglądarki."
       },
       "hudTicker": {
-        "name": "Nazwa stanu za zegarem",
+        "name": "Pora dnia za zegarem",
         "hint": "Blady napis pory dnia za zegarem. Dotyczy tylko tej przeglądarki."
       },
       "bulletSort": {
@@ -440,9 +440,9 @@
       }
     },
     "SettingsWindow": {
-      "menuName": "Ustawienia DRPG",
-      "menuLabel": "Otwórz ustawienia DRPG",
-      "title": "Ustawienia DRPG",
+      "menuName": "Ustawienia Danganronpa RPG",
+      "menuLabel": "Otwórz ustawienia Danganronpa RPG",
+      "title": "Ustawienia Danganronpa RPG",
       "sectionsLabel": "Sekcje",
       "save": "Zapisz zmiany",
       "scopeClient": "Tylko ta przeglądarka",
@@ -613,7 +613,7 @@
       "noMonokumas": "Nikt nie ma puli Despair: w tym świecie nie ma konta Gamemastera. Nadaj komuś tę rolę i otwórz Despair Flow ponownie.",
       "nobody": "- nikt -",
       "implicitHint": "Ten uczeń nie ma przypisania i zasila pierwszą pulę, dopóki nie wybierzesz mu puli.",
-      "footnote": "Despair z rzutów ucznia trafia do puli tego Monokumy, do którego jest tu przypisany. „(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Przypisania dostaje przeglądarka każdego gracza, więc gracz może odczytać, kto jest ustawiony na „- nikt -”."
+      "footnote": "„(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Każdy gracz może sprawdzić, kto jest ustawiony na „- nikt -”."
     },
     "Despair": {
       "label": "Despair",
@@ -1172,7 +1172,7 @@
       "tabCreateNew": "Utwórz nowy",
       "pickTable": "Która tabela",
       "pickExisting": "Który przedmiot",
-      "existingNote": "Kategoria i Tier idą za przedmiotem: z jego puli Tier, a w puli pokoju z tego, co pule Tier mówią o jego nazwie. Gdy nic tego nie mówi, wybierz je.",
+      "existingNote": "Kategoria i Tier idą za przedmiotem: z jego tabeli Tier, a w tabeli pokoju z tego, co tabele Tier mówią o jego nazwie. Gdy nic tego nie mówi, wybierz je.",
       "existingEmpty": "Nie ma jeszcze tabel przedmiotów. Użyj „Utwórz nowy”.",
       "recipient": "Komu",
       "everyone": "Wszystkim",
@@ -3219,10 +3219,10 @@
       "saveStopped": "Zapis zatrzymał się w połowie: {error}. To, co zdążył zapisać, zostaje; Investigation otwiera się znowu z tym, co jest teraz w świecie. Wpisz resztę jeszcze raz.",
       "createHereTitle": "Utwórz tu Key Remnant",
       "createHereIntro": {
-        "one": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod {n} zaplanowany trop, jeśli nie ma go jeszcze na mapie.",
-        "few": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, którego nie ma jeszcze na mapie.",
-        "many": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, którego nie ma jeszcze na mapie.",
-        "other": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, którego nie ma jeszcze na mapie."
+        "one": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod {n} zaplanowany trop, którego nie ma jeszcze na mapie.",
+        "few": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, których nie ma jeszcze na mapie.",
+        "many": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, których nie ma jeszcze na mapie.",
+        "other": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, których nie ma jeszcze na mapie."
       },
       "whichSlot": "Który to zaplanowany trop?",
       "noSlot": "Żaden z {n} zaplanowanych tropów",
@@ -5307,14 +5307,14 @@
         "many": "Nie udało się utworzyć {n} tabel przedmiotów. Zajrzyj do konsoli.",
         "other": "Nie udało się utworzyć {n} tabel przedmiotów. Zajrzyj do konsoli."
       },
-      "whereNote": "Search losuje najpierw z tabel pokoju, potem z pul Tier.",
+      "whereNote": "Search losuje najpierw z tabel pokoju, potem z tabel Tier.",
       "editorTitle": "Tabele przedmiotów",
-      "tabTierPools": "Pule Tier",
-      "tabRoomPools": "Pule pokoi",
-      "noTierPools": "Nie ma jeszcze pul. Naciśnij „Zainstaluj / przeinstaluj”.",
-      "noRoomPools": "Nie ma jeszcze pul pokoi. Nazwij jedną poniżej.",
-      "newTierPoolForms": "„{name}” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: {forms}, gdzie N to Tier od {low} do {high}.",
-      "renameOtherPool": "„{name}” to nazwa innej puli. Ta tabela zawiera przedmioty puli „{pool}”, więc zostaw w nazwie jej kategorię i Tier.",
+      "tabTierPools": "Tabele Tier",
+      "tabRoomPools": "Tabele pokoi",
+      "noTierPools": "Nie ma jeszcze tabel Tier. Naciśnij „Zainstaluj / przeinstaluj”.",
+      "noRoomPools": "Nie ma jeszcze tabel pokoi. Nazwij jedną poniżej.",
+      "newTierPoolForms": "„{name}” nie jest nazwą tabeli Tier. Nazwa musi mieć jedną z postaci: {forms}, gdzie N to Tier od {low} do {high}.",
+      "renameOtherPool": "„{name}” to nazwa innej tabeli. Ta tabela zawiera przedmioty tabeli „{pool}”, więc zostaw w nazwie jej kategorię i Tier.",
       "tabNewItem": "Nowy przedmiot",
       "installTabNote": "„Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw, po jednej tabeli na każdą kategorię i Tier. Jeśli tabele już istnieją, wybierzesz, czy zachować swoje, czy je przebudować.",
       "editorIntro": "Wszystko, co może wypaść przy Search. Wybierz tabelę po lewej.",
@@ -5322,16 +5322,16 @@
       "removeItem": "Usuń z tej tabeli",
       "roomTotal": "Wszystko",
       "roomFilter": "Pokaż",
-      "roomBreakdown": "Pogrupowane według tego, do jakiej kategorii pule Tier zaliczają każdą nazwę. Płaska tabela pokoju odpowiada na każdą kategorię, o którą pyta Search. Nazwij tabelę „Kuchnia - Narzędzia zbrodni”, żeby kategorię jej rzeczy ustalała sama tabela.",
-      "unfiled": "W żadnej puli Tier",
-      "unfiledNote": "Żadna pula Tier nie zawiera tych nazw, więc moduł nie zna ich kategorii ani Tieru. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do puli Tier.",
-      "placeTooltip": "Wybierz pule dla tego przedmiotu",
-      "placeTitle": "Pule przedmiotu „{name}”",
-      "placeIntro": "Zaznacz każdą pulę, w której ten przedmiot ma być. Zaznaczenie nowej puli kopiuje go tam, a odznaczenie wyjmuje. Aby go przenieść, odznacz pulę, którą oglądasz, i zaznacz inną.",
-      "placeRolesNote": "Opis, obrazek i role idą razem z nim. Pula Tier poniżej Tier 2 nie przyjmuje ról, a żadna pula nie przyjmuje roli będącej jej własną kategorią.",
+      "roomBreakdown": "Pogrupowane według tego, do jakiej kategorii tabele Tier zaliczają każdą nazwę. Płaska tabela pokoju odpowiada na każdą kategorię, o którą pyta Search. Nazwij tabelę „Kuchnia - Narzędzia zbrodni”, żeby kategorię jej rzeczy ustalała sama tabela.",
+      "unfiled": "W żadnej tabeli Tier",
+      "unfiledNote": "Żadna tabela Tier nie zawiera tych nazw, więc moduł nie zna ich kategorii ani Tieru. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do tabeli Tier.",
+      "placeTooltip": "Wybierz tabele dla tego przedmiotu",
+      "placeTitle": "Tabele przedmiotu „{name}”",
+      "placeIntro": "Zaznacz każdą tabelę, w której ten przedmiot ma być. Zaznaczenie nowej tabeli kopiuje go tam, a odznaczenie wyjmuje. Aby go przenieść, odznacz tabelę, którą oglądasz, i zaznacz inną.",
+      "placeRolesNote": "Opis, obrazek i role idą razem z nim. Tabela Tier poniżej Tier 2 nie przyjmuje ról, a żadna tabela nie przyjmuje roli będącej jej własną kategorią.",
       "placeSave": "Zapisz",
-      "placeNone": "Przedmiot musi być w co najmniej jednej puli. Żeby usunąć go całkiem, użyj ✕ w wierszu.",
-      "placeUnchanged": "Przedmiot „{name}” jest już dokładnie w tych pulach.",
+      "placeNone": "Przedmiot musi być w co najmniej jednej tabeli. Żeby usunąć go całkiem, użyj ✕ w wierszu.",
+      "placeUnchanged": "Przedmiot „{name}” jest już dokładnie w tych tabelach.",
       "placeDone": "„{name}”: dodano {added}, usunięto {removed}.",
       "noneYet": "Nie ma jeszcze tabeli do pokazania.",
       "addItem": "Dodaj przedmiot",
@@ -5339,14 +5339,14 @@
       "pictureOwn": "Z kategorii",
       "pictureFile": "Inny plik...",
       "tierTargetIs": "Trafia do tabeli {table}, wybranej według kategorii i Tieru powyżej.",
-      "tierTargetNone": "Nie ma takiej puli Tier, więc przedmiot trafi tylko do zaznaczonych tabel pokoi. Zainstaluj pule w zakładce Pule Tier.",
+      "tierTargetNone": "Nie ma takiej tabeli Tier, więc przedmiot trafi tylko do zaznaczonych tabel pokoi. Zainstaluj tabele w zakładce Tabele Tier.",
       "roomTargets": "Tabele pokoi, w których też się pojawia:",
-      "noRoomTables": "Nie ma jeszcze tabel pokoi. Utwórz jedną w zakładce Pule pokoi.",
+      "noRoomTables": "Nie ma jeszcze tabel pokoi. Utwórz jedną w zakładce Tabele pokoi.",
       "rolesTierOnly": "Poniżej Tier {tier} przedmiot nie służy za nic innego.",
       "rolesNote": "Czym jeszcze może być. Wciąż zajmuje jedno miejsce.",
       "addNote": "Znalazca dostanie obrazek i opis.",
       "needsName": "Nazwa nie może być pusta.",
-      "needsTable": "Nie ma puli Tier dla tej kategorii i Tieru. Zaznacz co najmniej jedną tabelę pokoju.",
+      "needsTable": "Nie ma tabeli Tier dla tej kategorii i Tieru. Zaznacz co najmniej jedną tabelę pokoju.",
       "itemAdded": {
         "one": "„{name}” dodano do {n} tabeli.",
         "few": "„{name}” dodano do {n} tabel.",
@@ -5357,10 +5357,10 @@
       "newPool": "Nowa tabela pokoju",
       "newPoolPlaceholder": "np. Kuchnia",
       "newPoolNote": "To, co pokój ma na stanie. Przypisz tabelę pokojowi w Ustawieniach pokoi, w kolumnie „Losuje z”.",
-      "newPoolTierName": "Ta nazwa wygląda jak nazwa puli Tier („DRPG … - Tier N”). Tabela pokoju potrzebuje własnej nazwy.",
+      "newPoolTierName": "Ta nazwa wygląda jak nazwa tabeli Tier („DRPG … - Tier N”). Tabela pokoju potrzebuje własnej nazwy.",
       "newPoolExists": "Tabela o nazwie „{name}” już istnieje.",
       "presetRoomNoTable": "Pokój {room} nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska trafiały tam.",
-      "presetRoomTier": "Pokój {room} nie ma jeszcze tabeli dla tego Tieru. Utwórz „{name}” w zakładce Pule pokoi, żeby znaleziska tego Tieru trafiały tam.",
+      "presetRoomTier": "Pokój {room} nie ma jeszcze tabeli dla tego Tieru. Utwórz „{name}” w zakładce Tabele pokoi, żeby znaleziska tego Tieru trafiały tam.",
       "poolCreated": "Utworzono tabelę pokoju „{name}”. Wskaż ją pokojowi w Ustawieniach pokoi.",
       "renameTable": "Zmień nazwę tabeli",
       "deleteTable": "Usuń tabelę",
@@ -5372,7 +5372,7 @@
       },
       "createTable": "Utwórz tabelę",
       "installAction": "Zainstaluj / przeinstaluj",
-      "renameNote": "Nazwa puli Tier musi zachować jej kategorię i Tier. Tabela pokoju może mieć każdą inną nazwę.",
+      "renameNote": "Nazwa tabeli Tier musi zachować jej kategorię i Tier. Tabela pokoju może mieć każdą inną nazwę.",
       "renamed": "Zmieniono nazwę na „{name}”.",
       "deleteConfirm": {
         "one": "Usunąć tabelę „{name}” razem z {n} przedmiotem? Tego nie da się cofnąć.",
@@ -5440,7 +5440,7 @@
       "goStartInvestigationButton": "Rozpocznij Investigation",
       "goAutopsyButton": "Wydaj sekcję zwłok",
       "goBodyButton": "Ogłoś ciało",
-      "goSeasonChecklistButton": "Lista kontrolna sezonu",
+      "goSeasonChecklistButton": "Otwórz listę kontrolną sezonu",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
       "nextEclipse": "Trwa Eclipse. Zakończ je, gdy wszyscy ustawią swoje tokeny.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy stół będzie gotowy.",
@@ -6670,7 +6670,7 @@
         "ultimate": "Wpisz go na arkuszu.",
         "experiences": "Dwa na +2, ustalane przy tworzeniu postaci.",
         "items": "Jeden przedmiot startowy na ucznia.",
-        "assignments": "Despair z rzutów ucznia trafia do puli tego Monokumy, do którego przypiszesz go w Despair Flow. Uczeń bez przypisania zasila pierwszą pulę i jest tu wymieniony, dopóki go nie przypiszesz. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC i szablonów. Przeglądarka każdego gracza może odczytać, kto jest tak ustawiony. Ten krok jest gotowy, gdy każdy uczeń ma pulę wybraną ręcznie albo ustawienie „- nikt -”.",
+        "assignments": "W Despair Flow przypisz każdemu uczniowi Monokumę albo ustaw NPC lub szablon na „- nikt -”, żeby nie zasilał żadnej puli; Despair z rzutów ucznia trafia do puli jego Monokumy. Dopóki ucznia nie przypiszesz, zasila on pierwszą pulę i jest tu wymieniony.",
         "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Każdy gracz może to sprawdzić, a jedyny uczeń poza pulami rzuca się w oczy: przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje: pliki są twoje. Przypisz, co chcesz, w oknie Dźwięk; przy zdarzeniu z pustym polem nic nie gra.",
         "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Move, Search, Listen i każdy incydent rozstrzyga się według pokoi.",
@@ -6787,7 +6787,7 @@
       "roomsVision": "{scene}: widzenie tokenów lub mgła Foundry są tam nadal włączone albo globalne światło jest wyłączone, więc gracze mogą widzieć czerń.",
       "moreChecking": "Sprawdzam zdjęcia pokoi, głos, kości i dostęp do arkuszy...",
       "moreFailed": "Nie udało się uruchomić dalszych sprawdzeń. Powód podaje Dziennik debugowania w panelu GM-a.",
-      "splitUneven": "Nierówny podział: {counts}.",
+      "splitUneven": "Pule są nierówne: {counts}.",
       "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
       "overflowNow": "{line} Teraz {n}.",
       "roomsUncovered": "{pct}% sceny {scene} leży poza wszystkimi pokojami: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.",
@@ -7038,6 +7038,7 @@
       "floors": "Piętra",
       "floorUnnamed": "Piętro {n}",
       "floorsHint": "Możesz oglądać piętra, na których jest twoja postać albo odkryty przez ciebie pokój. Nieodwiedzone pokoje zostają pod mgłą.",
+      "floorsHintGm": "Możesz oglądać każde piętro. Gracze widzą tylko piętro swojej postaci i piętra z pokojem, który odwiedzili.",
       "notRooms": {
         "one": "{n} nazwany region nie jest pokojem",
         "few": "{n} nazwane regiony nie są pokojami",
@@ -9007,11 +9008,14 @@
       "restore": "Przywróć",
       "answerKeyMissing": "Truth Bullet „{bullet}” postaci {actor} nie ma klucza odpowiedzi w przeglądarce GM-a, która rozstrzygała to Analyze, więc Analyze zostało odrzucone, a koszt wraca do gracza. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa).",
       "chargeHeld": {
-        "one": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullet nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.",
-        "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.",
-        "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.",
-        "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie."
+        "one": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullet nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa), a potem naciśnij Pobierz opłatę za Key Remnanty.",
+        "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa), a potem naciśnij Pobierz opłatę za Key Remnanty.",
+        "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa), a potem naciśnij Pobierz opłatę za Key Remnanty.",
+        "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa), a potem naciśnij Pobierz opłatę za Key Remnanty."
       },
+      "chargeAgain": "Pobierz opłatę za Key Remnanty",
+      "chargeAgainHint": "Liczy opłatę za Key Remnanty jeszcze raz w przeglądarce głównego GM-a; wstrzymuje ją znowu, dopóki brakuje klucza odpowiedzi",
+      "chargeDone": "Opłata za Key Remnanty w tej rozprawie jest już pobrana.",
       "fillFromTraces": "Uzupełnij z ich Remnantów ({n})",
       "filled": {
         "one": "{n} Truth Bullet wziął klucz odpowiedzi ze swojego Remnantu.",
@@ -9036,7 +9040,7 @@
       "restoredSkipped": "{store}: z innego świata, nie wzięto",
       "restoredClamped": {"one": "{n} wiersz miał stempel późniejszy, niż pozwala zegar, i przyjęto go z tą chwilą.", "few": "{n} wiersze miały stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "many": "{n} wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "other": "{n} wiersza miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą."},
       "moveTraces": "Przenieś je do rejestru",
-      "moveNote": "„Przenieś je do rejestru” przenosi klucz odpowiedzi każdego Remnantu z jego tokenu do rejestru; „Dalej” pozwala grać bez tego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
+      "moveNote": "„Przenieś je do rejestru” przenosi klucz odpowiedzi każdego Remnantu z jego tokenu do rejestru; dopóki sprawa nie będzie kompletna, panel GM-a będzie o tym przypominał."
     },
     "CaseMap": {
       "noDiveSet": "- bez zestawu -",
@@ -9168,7 +9172,7 @@
       }
     },
     "CaseRealize": {
-      "preview": "Podgląd realizacji",
+      "preview": "Podejrzyj realizację",
       "undo": "Cofnij realizację",
       "title": "Realizacja sprawy, rozdział {chapter}",
       "intro": "Nic się nie zmieni, dopóki nie klikniesz Uruchom realizację. Każde miejsce na Key Remnant, którego nie ma jeszcze na mapie i które mieści się w limicie rozdziału, trafi do wybranego pokoju; miejsce bez pokoju zostaje bez zmian.",

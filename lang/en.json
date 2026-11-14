@@ -335,7 +335,7 @@
         "hint": "A roll that lands with Despair feeds the pool of that student's Monokuma. Assign each student a Monokuma in the GM panel's Despair Flow."
       },
       "hideSystemFear": {
-        "name": "Replace the Daggerheart Fear tracker",
+        "name": "Hide the Daggerheart Fear tracker",
         "hint": "Hides Daggerheart's shared Fear bar. Each Monokuma keeps a Despair pool of their own either way. Turn it off to show the bar again."
       },
       "enforceIsoWelcome": {
@@ -377,7 +377,7 @@
         "sendBack": "Send the token back"
       },
       "foundryToolWindows": {
-        "name": "The module's windows for Foundry's sidebar and scene controls",
+        "name": "The Foundry tools and Map tools windows",
         "hint": "Puts a GM's Foundry sidebar and map tools in two windows, Foundry tools and Map tools, opened from the button in the corner. Players' screens stay the same. Saving reloads every screen once you confirm."
       },
       "theme": {
@@ -400,10 +400,10 @@
       },
       "reducedMotion": {
         "name": "Reduced motion",
-        "hint": "Hold the interface still on this browser, whatever the operating system says. This client only."
+        "hint": "Reduces animation and motion in the module's interface. If your operating system asks for reduced motion, the module follows it even with this setting off. Takes effect at once. Only affects this browser."
       },
       "hudTicker": {
-        "name": "State name behind the clock",
+        "name": "Time of day behind the clock",
         "hint": "The time of day, faint, behind the clock. Only affects this browser."
       },
       "bulletSort": {
@@ -440,9 +440,9 @@
       }
     },
     "SettingsWindow": {
-      "menuName": "DRPG Settings",
-      "menuLabel": "Open DRPG Settings",
-      "title": "DRPG Settings",
+      "menuName": "Danganronpa RPG settings",
+      "menuLabel": "Open Danganronpa RPG settings",
+      "title": "Danganronpa RPG settings",
       "sectionsLabel": "Sections",
       "save": "Save changes",
       "scopeClient": "This browser only",
@@ -624,7 +624,7 @@
       "noMonokumas": "Nobody holds a Despair pool: this world has no Gamemaster account. Give one the Gamemaster role, then open Despair Flow again.",
       "nobody": "- nobody -",
       "implicitHint": "Never assigned: this student feeds the first pool until you pick one.",
-      "footnote": "Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody."
+      "footnote": "“(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. Any player can find out who is set to “- nobody -”."
     },
     "Despair": {
       "label": "Despair",
@@ -1139,7 +1139,7 @@
       "tabCreateNew": "Create new",
       "pickTable": "Which table",
       "pickExisting": "Which item",
-      "existingNote": "Category and tier follow the item: a tier pool's own, or for a room pool what the tier pools say of its name. Where nothing says, choose them.",
+      "existingNote": "Category and tier follow the item: a tier table's own, or for a room table what the tier tables say of its name. Where nothing says, choose them.",
       "existingEmpty": "No item tables yet. Use “Create new”.",
       "recipient": "To whom",
       "everyone": "Everyone",
@@ -3051,7 +3051,7 @@
       "savedOverItem": "{field} of {row}: \"{value}\"",
       "saveStopped": "The Save stopped part-way: {error}. What it wrote before that stands, and Investigation is open again with it. Type the rest again.",
       "createHereTitle": "Create a Key Remnant here",
-      "createHereIntro": { "one": "A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to the {n} clue you planned, if it is not on the map yet.", "other": "A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the {n} clues you planned that is not on the map yet." },
+      "createHereIntro": { "one": "A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to the {n} planned clue that is not on the map yet.", "other": "A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the {n} planned clues that are not on the map yet." },
       "whichSlot": "Which planned clue is this?",
       "noSlot": "None of the {n} planned clues",
       "createdHere": "Key Remnant placed in {room}.",
@@ -4959,14 +4959,14 @@
         "one": "{n} item table could not be created. See the console.",
         "other": "{n} item tables could not be created. See the console."
       },
-      "whereNote": "A Search draws from the room's tables first, then from the tier pools.",
+      "whereNote": "A Search draws from the room's tables first, then from the tier tables.",
       "editorTitle": "Item tables",
-      "tabTierPools": "Tier pools",
-      "tabRoomPools": "Room pools",
-      "noTierPools": "No pools yet. Press “Install / reinstall”.",
-      "noRoomPools": "No room pools yet. Name one below.",
-      "newTierPoolForms": "“{name}” is not a tier pool's name. Use one of these, where N is a tier from {low} to {high}: {forms}.",
-      "renameOtherPool": "“{name}” would name another pool. This one holds the items of “{pool}”: keep its category and tier in the name.",
+      "tabTierPools": "Tier tables",
+      "tabRoomPools": "Room tables",
+      "noTierPools": "No tier tables yet. Press “Install / reinstall”.",
+      "noRoomPools": "No room tables yet. Name one below.",
+      "newTierPoolForms": "“{name}” is not a tier table's name. Use one of these, where N is a tier from {low} to {high}: {forms}.",
+      "renameOtherPool": "“{name}” would name another table. This one holds the items of “{pool}”: keep its category and tier in the name.",
       "tabNewItem": "New item",
       "installTabNote": "“Install / reinstall” below builds the default set, one table per category and tier. If they already exist, you choose between keeping yours and rebuilding.",
       "editorIntro": "Everything a Search can turn up. Pick a table on the left.",
@@ -4974,16 +4974,16 @@
       "removeItem": "Remove from this table",
       "roomTotal": "Everything",
       "roomFilter": "Show",
-      "roomBreakdown": "Grouped by the category the tier pools give each name. A room table with no category in its name can supply any category a Search asks for. Name a table after the room's table and a category, as “Kitchen - Murder Weapons”, and the names no pool holds count as that category.",
-      "unfiled": "Not in any tier pool",
-      "unfiledNote": "No tier pool holds these names, so the module cannot tell what they are or how good they are. In a room table with no category in its name, they can come up for any category. Use the arrows on a row to put one in a tier pool.",
-      "placeTooltip": "Choose the pools that hold this item",
-      "placeTitle": "Pools for “{name}”",
-      "placeIntro": "Tick every pool this item should be in. Ticking a new pool copies it there, and unticking one takes it out. To move it, untick the pool you are viewing and tick another.",
-      "placeRolesNote": "The description, the picture, and the roles travel with it. A tier pool below Tier 2 takes no roles, and an item cannot take its pool's own category as a role.",
+      "roomBreakdown": "Grouped by the category the tier tables give each name. A room table with no category in its name can supply any category a Search asks for. Name a table after the room's table and a category, as “Kitchen - Murder Weapons”, and the names no table holds count as that category.",
+      "unfiled": "Not in any tier table",
+      "unfiledNote": "No tier table holds these names, so the module cannot tell what they are or how good they are. In a room table with no category in its name, they can come up for any category. Use the arrows on a row to put one in a tier table.",
+      "placeTooltip": "Choose the tables that hold this item",
+      "placeTitle": "Tables for “{name}”",
+      "placeIntro": "Tick every table this item should be in. Ticking a new table copies it there, and unticking one takes it out. To move it, untick the table you are viewing and tick another.",
+      "placeRolesNote": "The description, the picture, and the roles travel with it. A tier table below Tier 2 takes no roles, and an item cannot take its table's own category as a role.",
       "placeSave": "Save",
-      "placeNone": "An item has to live in at least one pool. Use the row's ✕ to delete it outright.",
-      "placeUnchanged": "“{name}” is already in exactly those pools.",
+      "placeNone": "An item has to live in at least one table. Use the row's ✕ to delete it outright.",
+      "placeUnchanged": "“{name}” is already in exactly those tables.",
       "placeDone": "“{name}”: {added} added, {removed} removed.",
       "noneYet": "No table to show yet.",
       "addItem": "Add an item",
@@ -4991,14 +4991,14 @@
       "pictureOwn": "Category's own",
       "pictureFile": "Another file...",
       "tierTargetIs": "Goes into {table}. Worked out from the category and tier above.",
-      "tierTargetNone": "There is no such tier pool, so the item goes only into the room tables ticked. Install the pools on the Tier pools tab.",
+      "tierTargetNone": "There is no such tier table, so the item goes only into the room tables ticked. Install the tables on the Tier tables tab.",
       "roomTargets": "Room tables it also appears in:",
-      "noRoomTables": "No room tables yet. Create one on the Room pools tab.",
+      "noRoomTables": "No room tables yet. Create one on the Room tables tab.",
       "rolesTierOnly": "Below Tier {tier}, an item takes no roles.",
       "rolesNote": "What else it can be. It still takes one slot.",
       "addNote": "The finder gets the picture and the description.",
       "needsName": "The name cannot be empty.",
-      "needsTable": "There is no tier pool for this category and tier. Tick at least one room table.",
+      "needsTable": "There is no tier table for this category and tier. Tick at least one room table.",
       "itemAdded": {
         "one": "“{name}” added to {n} table.",
         "other": "“{name}” added to {n} tables."
@@ -5007,11 +5007,11 @@
       "newPool": "New room table",
       "newPoolPlaceholder": "e.g. Kitchen",
       "newPoolNote": "What a room stocks. Assign it to a room in Room setup, in the “Draws from” column.",
-      "newPoolTierName": "That name looks like a tier pool's (“DRPG … - Tier N”). A room table needs a name of its own.",
+      "newPoolTierName": "That name looks like a tier table's (“DRPG … - Tier N”). A room table needs a name of its own.",
       "newPoolExists": "A table called “{name}” already exists.",
       "presetRoomNoTable": "{room} draws from no table of its own. Point it at one in Room setup to keep finds like this in that table.",
-      "presetRoomTier": "{room} has no table for this tier yet: make “{name}” on the Room pools tab to keep finds of this tier there.",
-      "tierPoolCreated": "“{name}” is ready as a tier pool: its items are filed by its category and tier.",
+      "presetRoomTier": "{room} has no table for this tier yet: make “{name}” on the Room tables tab to keep finds of this tier there.",
+      "tierPoolCreated": "“{name}” is ready as a tier table: its items are filed by its category and tier.",
       "poolCreated": "Room table “{name}” created. Point a room at it in Room setup.",
       "renameTable": "Rename table",
       "deleteTable": "Delete table",
@@ -5023,7 +5023,7 @@
       },
       "createTable": "Create table",
       "installAction": "Install / reinstall",
-      "renameNote": "A tier pool's name must keep its category and tier. A room table can take any other name.",
+      "renameNote": "A tier table's name must keep its category and tier. A room table can take any other name.",
       "renamed": "Renamed to “{name}”.",
       "deleteConfirm": { "one": "Delete “{name}” and the {n} item in it? This cannot be undone.", "other": "Delete “{name}” and the {n} items in it? This cannot be undone." },
       "deleted": "Deleted “{name}”."
@@ -5081,7 +5081,7 @@
       "goStartInvestigationButton": "Start the Investigation",
       "goAutopsyButton": "Issue the autopsy",
       "goBodyButton": "Announce the body",
-      "goSeasonChecklistButton": "Season checklist",
+      "goSeasonChecklistButton": "Open the Season checklist",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is running. End it once everyone has placed their token.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
@@ -5184,7 +5184,7 @@
       "whoIsAlive": "Students",
       "whoIsAliveNote": "The State column fixes a mis-click. The change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
       "doColumn": "Do",
-      "refundCrossing": "Refund last crossing",
+      "refundCrossing": "Refund the last crossing",
       "refundCrossingNote": "{leaving} back {returning}",
       "nextChapterEndStopped": "The end of the chapter stopped before every step was done. Finish it in End the chapter.",
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
@@ -5451,7 +5451,7 @@
       "reason": {
         "dice-so-nice": "Every roll is thrown as 3D dice, seen only by the people allowed to see that roll, in the one dice style the GM sets for the table.",
         "isometric-perspective": "Maps drawn for isometric play will look wrong on a flat grid.",
-        "avclient-livekit": "Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you."
+        "avclient-livekit": "Voice follows the rooms: a player hears the people in the room their character is in, and moving to another room changes who hears them."
       },
       "how": "Install or switch on what is listed in Manage Modules (on the Forge, in the game's module list), then reload the world.",
       "understood": "Understood",
@@ -6217,7 +6217,7 @@
       "hint.overflow": "Suggested: 12 + half the living students. Set the threshold in Despair Flow.",
       "overflowNow": "{line} Now {n}.",
       "step.assignments": "Every student has a Monokuma watching",
-      "hint.assignments": "In Despair Flow, assign each student a Monokuma; Despair from their rolls goes to that Monokuma's pool. A student with no Monokuma assigned falls back to the first pool and is named here until assigned. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody. The step is done when every student is assigned by hand or set to “- nobody -”.",
+      "hint.assignments": "In Despair Flow, assign each student a Monokuma, or set an NPC or a template to “- nobody -” to keep it out of every pool; Despair from a student's rolls goes to their Monokuma's pool. Until then, a student with no Monokuma assigned falls back to the first pool and is named here.",
       "step.nobodyPublic": "The Mastermind feeds a Despair pool",
       "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. Any player can find that out, and the one student left out stands out: give them a Monokuma like any other student.",
       "step.liveKitSecret": "The voice server's secret key is not saved in the world",
@@ -6390,7 +6390,7 @@
       "step.roomCount": "Enough rooms for the cast",
       "hint.roomCount": "About one and a half rooms per living student, corridors and bedrooms aside.",
       "waitingForCast": "Waiting for the cast: create the students first.",
-      "splitUneven": "Uneven: {counts}.",
+      "splitUneven": "The pools are uneven: {counts}.",
       "fallsBackTo": "{name} (falls back to {pool})",
       "roomsUncovered": "{pct}% of {scene} belongs to no room: draw the missing rooms, or draw their regions out to the walls.",
       "roomsCheckErrors": {
@@ -6506,6 +6506,7 @@
       "floors": "Floors",
       "floorUnnamed": "Floor {n}",
       "floorsHint": "The floor your character is on, and the floors with a room you have visited. Rooms you have not visited stay fogged.",
+      "floorsHintGm": "You can view every floor. Players see only their character's floor and the floors with a room they have visited.",
       "notRooms": {
         "one": "{n} named region is not a room",
         "other": "{n} named regions are not rooms"
@@ -7181,9 +7182,12 @@
       "restore": "Restore",
       "answerKeyMissing": "{actor}'s Truth Bullet “{bullet}” has no answer key on the GM browser that answered its Analyze, so the Analyze was refused and its price given back. Restore a backup of the case (GM panel, Diagnostics, The case).",
       "chargeHeld": {
-        "one": "The charge for unfound Key Remnants is on hold: {n} Truth Bullet has no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.",
-        "other": "The charge for unfound Key Remnants is on hold: {n} Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that."
+        "one": "The charge for unfound Key Remnants is on hold: {n} Truth Bullet has no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case), then press Charge the Key fee.",
+        "other": "The charge for unfound Key Remnants is on hold: {n} Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case), then press Charge the Key fee."
       },
+      "chargeAgain": "Charge the Key fee",
+      "chargeAgainHint": "Counts the Key fee again on the primary GM's browser; it is held again while an answer key is still missing",
+      "chargeDone": "The Key fee has already been charged for this trial.",
       "fillFromTraces": "Fill from their Remnants ({n})",
       "filled": {
         "one": "{n} Truth Bullet took its answer key from its Remnant.",
@@ -7206,7 +7210,7 @@
       "restoredSkipped": "{store}: another world's, not taken",
       "restoredClamped": {"one": "{n} row had a time later than the clock allows and was given the current time.", "other": "{n} rows had times later than the clock allows and were given the current time."},
       "moveTraces": "Move them into the ledger",
-      "moveNote": "Move them into the ledger takes each Remnant's answer key off its token; Continue carries on without it, and the GM panel keeps saying so until the case is whole."
+      "moveNote": "Move them into the ledger takes each Remnant's answer key off its token; without it, the GM panel keeps saying so until the case is whole."
     },
     "CaseMap": {
       "noDiveSet": "- no set -",
@@ -7338,7 +7342,7 @@
       }
     },
     "CaseRealize": {
-      "preview": "Realization preview",
+      "preview": "Preview realization",
       "undo": "Undo realization",
       "title": "Case realization, chapter {chapter}",
       "intro": "Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet, within the chapter's limit, is placed in the room you pick; a slot with no room stays as it is.",

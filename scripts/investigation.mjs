@@ -47,7 +47,7 @@ import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 
 import { roomRegions } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
-import { PLANNED_GLYPH, randomPointIn, SCALE_LABELS, keyRowShows, keyPlan, caseKeyCount, placedKeyRemnants, keyPlanStatus, same, placeKeyRow, saveKeyPlan, writable } from "./key-remnants.mjs";
+import { PLANNED_GLYPH, randomPointIn, SCALE_LABELS, keyRowShows, keyPlan, caseKeyCount, placedKeyRemnants, keyPlanStatus, same, placeKeyRow, saveKeyPlan, writable, keyRowsUsed } from "./key-remnants.mjs";
 export { keyRevealRecord, recordKeyRevealed, keyPlan, setKeyPlan, archiveKeyPlan, liftKeyPlan, clearKeyPlan, keepOnlyKeyPlanChapter, clearSeasonKeyPlan, recordCaseKeys, caseKeyCount, keysToPlace, keyPlanStatus, missingKeyRows, keyFeeOf, chargeForUnfoundKeys, askToChargeForUnfoundKeys, randomPointIn, openKeyRemnantHere, placeInSlot, placeKeyRow } from "./key-remnants.mjs";
 
 /**
@@ -931,7 +931,7 @@ function caseKeyPanel({ plan, status, placed, limit }) {
         ${/* a warning, in the kit's box (E47-C4; E21's carried sites, homed in E47 here): the trial is getting thin */ ""}
         ${thin ? box("warning", `<p>${tooThinLine(status.foundAny)}</p>`) : ""}
         ${limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
-            used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
+            used: keyRowsUsed(plan.entries), limit, min: KEY_REMNANTS.minimum
         })}</p>
         <label><input type="checkbox" name="keyOverride" /> ${
             game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : ""}
@@ -1585,7 +1585,7 @@ function mapSummaryEditor({ plan, status, limit, finalRemnants, finalTruthPlaced
     const visOptions = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
         esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
     const override = limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
-        used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
+        used: keyRowsUsed(plan.entries), limit, min: KEY_REMNANTS.minimum
     })}</p><label><input type="checkbox" name="keyOverride" /> ${game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : "";
     return `${override}<h5>${esc(game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle"))}</h5>`
         + caseFinalPanel({ roomOptions: placeRoomOptions(), visOptions, finalRemnants, finalTruthPlacedThisChapter });
@@ -2391,7 +2391,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
  * @returns {Promise<{tracesChanged: number, refused: number}>}
  */
 export async function applyDashboardSave(result, { traces, plan, quiet = false }) {
-    let tracesChanged = 0;
+    // The Remnants a write reached, once each (E109, DISAGREEMENTS.json D23): until 1.2.115 every write counted, so one
+    // Remnant whose words and band both changed read "Updated 2 Remnants" (R7127).
+    const changed = new Set();
     const refused = [];
     for (const row of result.traces) {
         const trace = traces.find(t => rowKey(t.scene.id, t.token.id) === row.key);
@@ -2411,7 +2413,7 @@ export async function applyDashboardSave(result, { traces, plan, quiet = false }
             // copying it later raises no separate whisper - it goes in the
             // digest with the rest (E7).
             await markRemnantEdited(token);
-            tracesChanged++;
+            changed.add(row.key);
         }
 
         /* THE FOUR VERDICTS AND THE BAND, WRITTEN ONE AT A TIME (S1-m7's second half; the band since E60 C4a). They used to ride
@@ -2429,9 +2431,10 @@ export async function applyDashboardSave(result, { traces, plan, quiet = false }
         if ("reinf" in take) flagPatch.reinforced = take.reinf;
         if (Object.keys(flagPatch).length) {
             await setRemnantFlags(token, flagPatch);
-            tracesChanged++;
+            changed.add(row.key);
         }
     }
+    const tracesChanged = changed.size;
 
     const { refused: unplanned } = await saveKeyPlan(plan, result.keyRows);
     refused.push(...unplanned);

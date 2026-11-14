@@ -786,6 +786,31 @@ wzór; jej „po” zastępuje odpowiedź właściciela z 14.11.
 | `DRPG.CaseSummary.replay` | przycisk konsoli Rozprawy po wysłaniu podsumowania (#56, Q-E99-9: „Budowac”) | “Replay the summary” | „Odtwórz podsumowanie” | nowy; odtwarza tablicę tylko w przeglądarce tego GM-a |
 | `DRPG.CaseSummary.replayNone` | toast, gdy karty podsumowania nie ma na czacie (#56) | “The summary's card is no longer in the chat, so there is nothing to replay.” | „Karty podsumowania nie ma już na czacie, więc nie ma czego odtworzyć.” | nowy |
 
+Niezgody partii B14-B18 (#27, D-NIEZG): właściciel oddał je koordynatorowi (14.11.2026: „Czy niezgody mozesz rozwiazac
+sam?”); decyzje są w `docs/dev/e109/DISAGREEMENTS.json` (`status`), a te teksty E109 zmienił. Cytaty w podręcznikach,
+module.json i testach idą razem z nimi.
+
+| Klucz | Gdzie | EN | PL | Zmiana |
+| --- | --- | --- | --- | --- |
+| `DRPG.Settings.hideSystemFear.name` | nazwa ustawienia (D05) | “Hide the Daggerheart Fear tracker” | „Ukryj licznik Fear z Daggerheart” | było “Replace...” / „Zastąp...”: przełącznik tylko ukrywa |
+| `DRPG.Settings.foundryToolWindows.name` | nazwa ustawienia (D07) | “The Foundry tools and Map tools windows” | „Okna Narzędzia Foundry i Narzędzia mapy” | nazwy okien ze słownika |
+| `DRPG.Settings.reducedMotion.hint` | opis ustawienia (D08, D09) | zatwierdzone „po” pilota, para 21 | zatwierdzone „po” pilota, para 21 | bez “whatever the operating system says”, na końcu “Only affects this browser.” |
+| `DRPG.Settings.hudTicker.name` | nazwa ustawienia (D10, D11) | “Time of day behind the clock” | „Pora dnia za zegarem” | było “State name...” / „Nazwa stanu...” |
+| `DRPG.SettingsWindow.menuName`, `title`, `menuLabel` | okno ustawień (D12) | “Danganronpa RPG settings”, “Open Danganronpa RPG settings” | „Ustawienia Danganronpa RPG”, „Otwórz ustawienia Danganronpa RPG” | było “DRPG Settings” |
+| `DRPG.Assign.footnote` | przypis Despair Flow (D13, D14) | bez zdania z intro; “Any player can find out who is set to “- nobody -”.” | „Każdy gracz może sprawdzić, kto jest ustawiony na „- nikt -”.” | poprawka autora |
+| `DRPG.Season.hint.assignments` | wiersz listy kontrolnej (D16, D17) | jedno zdanie z dwoma wyborami, “Until then...” | „Dopóki ucznia nie przypiszesz...” | poprawka autora |
+| `DRPG.Requirements.reason.avclient-livekit` | powód wymagania (D15) | “a player hears ... their character” | bez zmiany | także module.json |
+| `DRPG.Season.splitUneven` | podział pul (D18, D19) | “The pools are uneven: {counts}.” | „Pule są nierówne: {counts}.” | zdanie z podmiotem |
+| `DRPG.Panel.goSeasonChecklistButton` | przycisk linii Dalej (D20) | “Open the Season checklist” | „Otwórz listę kontrolną sezonu” | czasownik z dopełnieniem |
+| `DRPG.Panel.refundCrossing` | przycisk w oknie Uczniowie (D21) | “Refund the last crossing” | bez zmiany | z przedimkiem |
+| `DRPG.Case.moveNote` | notka okna sprawy (D30) | bez “Continue carries on without it” | bez „Dalej” | jak `healthNote` |
+| `DRPG.CaseRealize.preview` | przycisk w stopce Investigation (D32) | “Preview realization” | „Podejrzyj realizację” | okno dalej nazywa się “Realization preview” |
+| `DRPG.Tables.*`, `DRPG.Items.existingNote` | okno Tabele przedmiotów (D33, D34) | “Tier tables”, “Room tables”, “tier table”, “room table” | „Tabele Tier”, „Tabele pokoi”, „tabela Tier”, „tabela pokoju” | było “pools” / „pule”: jedna nazwa, słownikowa |
+| `DRPG.Investigation.createHereIntro` | okno Key Remnant (D24) | “...the {n} planned clue(s) that is/are not on the map yet.” | „...którego/których nie ma jeszcze na mapie.” | {n} liczy teraz oferowane wiersze |
+| `DRPG.Case.chargeHeld` | karta wstrzymanej opłaty (D27, D28) | “..., then press Charge the Key fee.” | „..., a potem naciśnij Pobierz opłatę za Key Remnanty.” | karta ma teraz ten przycisk |
+| `DRPG.Case.chargeAgain`, `chargeAgainHint`, `chargeDone` | przycisk karty, jego dymek, toast (D27) | “Charge the Key fee” | „Pobierz opłatę za Key Remnanty” | nowe |
+| `DRPG.Fog.floorsHintGm` | dymek przełącznika pięter dla GM-a i Masterminda (D40) | “You can view every floor. Players see only their character's floor and the floors with a room they have visited.” | „Możesz oglądać każde piętro. Gracze widzą tylko piętro swojej postaci i piętra z pokojem, który odwiedzili.” | nowy |
+
 ## 13. Why so much is rebuilt
 
 On 30.10.2026 the owner wrote: „Nie mam juz cztery kierunki niestety. Myslalem ze czat wszystko przeniosl do audytu.

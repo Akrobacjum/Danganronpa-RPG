@@ -91,6 +91,13 @@
       "dropped": 0,
       "baseline": false,
       "note": ""
+    },
+    {
+      "date": "2026-11-14",
+      "keys": 1,
+      "dropped": 0,
+      "baseline": false,
+      "note": ""
     }
   ],
   "keys": {
@@ -4422,7 +4429,7 @@
     "DRPG.Panel.publicRoll.badFormula": "7c58d62e:e186dbcc:b",
     "DRPG.Panel.publicRoll.gmOnly": "f312f68b:8d3cc37a:b",
     "DRPG.Panel.refilled": "d60ed6a7:8aa3518e:b",
-    "DRPG.Panel.refundCrossing": "7cbe854f:367edaac:b",
+    "DRPG.Panel.refundCrossing": "b440a56c:367edaac",
     "DRPG.Panel.refundCrossingNote": "a70b25a6:0b738606:b",
     "DRPG.Panel.resetHint": "2d200971:63b02fe8:b",
     "DRPG.Panel.role.student": "1a07c0c0:27adac20:b",
