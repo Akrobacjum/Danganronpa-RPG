@@ -532,13 +532,13 @@
       "eavesdrop": {
         "stop": "Stop listening at {room}",
         "gmTitle": "Listening at a door",
-        "gmLine": "{name} listens at {into}, from {from}",
+        "gmLine": "{name} listens in on {into} from {from}",
         "noVoiceGm": "Listen gave its card alone: voice per room is off, so nobody is moved into a room's channel.",
         "started": "You listen at the door of {room}: you hear the room, and nobody there hears you. Stop listening is on the voice tile."
       },
       "anonymous": {
-        "one": "{n} person in {room}. You cannot tell who.",
-        "other": "{n} people in {room}. You cannot tell who."
+        "one": "There is {n} person in {room}, but you cannot tell who.",
+        "other": "There are {n} people in {room}, but you cannot tell who."
       },
       "emptyRoom": "{room} sounds empty.",
       "unknownRoom": "Unexplored room {n}",
@@ -674,7 +674,7 @@
       "day": "Day {n}",
       "sessionTooltip": "Session {session}",
       "endEclipse": "End the Eclipse and begin the next time of day",
-      "rewind": "Step back one time of day. A correction - it refills nothing",
+      "rewind": "Step back one time of day. It refills nothing.",
       "controlFailed": "The clock did not move. See the Debug log.",
       "nowPlaying": "Playing for you: {track}.",
       "rewindEclipse": "An Eclipse is running. End it first.",
@@ -687,21 +687,21 @@
       "stillPlacingTooltip": "Students who have a crossing of the Eclipse left to use.",
       "stillPlacingFreeTooltip": "Students who have not moved yet in this Eclipse.",
       "startEclipseNamed": { "one": "Start the {time} Eclipse: {n} crossing", "other": "Start the {time} Eclipse: {n} crossings" },
-      "eclipseAsk": "Start the {name} now? Everyone's actions refill, the Calls bought for this time of day end and the lights go out for the whole table.",
-      "eclipseAskRefilled": "Start the {name} now? The actions were refilled for it already and are not refilled again; the Calls bought for this time of day end and the lights go out for the whole table.",
+      "eclipseAsk": "Start the {name} now? Every student's actions refill, what Sprint and Burst bought for this time of day ends, and the lights go out for the whole table.",
+      "eclipseAskRefilled": "Start the {name} now? Every student's actions were already refilled for it and won't refill again. What Sprint and Burst bought since then ends, and the lights go out for the whole table.",
       "eclipseAskYes": "Start it",
-      "startEclipseFree": "Start the {time} Eclipse - lights out, everyone picks any room on the map",
-      "startEclipseNewSession": { "one": "End the session and open the {time} Eclipse - a new session, and everyone places their token ({n} crossing)", "other": "End the session and open the {time} Eclipse - a new session, and everyone places their token ({n} crossings)" },
-      "eclipseRunningTooltip": "Placement before this time of day. Only a Direct Murder spends an action now.",
+      "startEclipseFree": "Start the {time} Eclipse: the lights go out, and everyone places their token in any room on the map",
+      "startEclipseNewSession": {"one": "End this session and open the {time} Eclipse: a new session begins, and everyone places their token with {n} crossing each", "other": "End this session and open the {time} Eclipse: a new session begins, and everyone places their token with {n} crossings each"},
+      "eclipseRunningTooltip": "Everyone places their token before this time of day. Actions pay only for a Direct Murder, and no Call can be made.",
       "roomNowhere": "Between rooms",
-      "assignHint": "You play more than one character and none is assigned, so this shows {name}. Assign a character in User Configuration to choose.",
+      "assignHint": "You play more than one character and none is assigned, so this shows {name}. To choose another, assign a character in User Configuration.",
       "roomProject": "You can work a project here",
       "roomNoProject": "No project here you can work on",
       "roomTokens": "{left}/{max} searches",
       "roomTokensTooltip": { "one": "Search Tokens: {left} of {max} left here this time of day.", "other": "Search Tokens: {left} of {max} left here this time of day." },
       "trial": {
         "discussion": "Discussion",
-        "debate": "Debate",
+        "debate": "Nonstop Debate",
         "objection": "Objection",
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
@@ -1803,14 +1803,14 @@
       "betTitle": "Your Ghost Bet",
       "betMeta": "On {name}.",
       "redeemLine": "Redeem is waiting: +1 Hope, free.",
-      "bribeWaitLine": "A Bribe waits, from {name}.",
+      "bribeWaitLine": "A Bribe from {name} is waiting.",
       "betLine": "Your Ghost Bet: {name}.",
       "overflowMetaGm": "{count} of {max} in the hat",
       "bodyTitle": "A body is discovered",
       "bodySubRoom": "{victim}, in the {room}",
-      "bodyMeta": "The investigation is open",
+      "bodyMeta": "The Investigation is under way",
       "bodyMetaGm": { "one": "{found} of {total} Key Remnant found", "other": "{found} of {total} Key Remnants found" },
-      "bodyHoldMeta": "The body has been found. The Investigation has not started yet.",
+      "bodyHoldMeta": "The Investigation has not started yet.",
       "bodyHoldMetaGm": "Start the Investigation when the room is ready.",
       "ticker": {
         "safeword": "Stop",
@@ -1835,13 +1835,13 @@
       "safewordMeta": "Nothing moves until the table picks it back up.",
       "safewordMetaGm": "Unpause when everyone is ready, and not before.",
       "voteTitle": "The vote is open",
-      "voteSub": "Name the blackened.",
+      "voteSub": "The students name who they believe is the Blackened.",
       "voteMeta": "The trial waits on the ballots.",
       "voteMetaGm": { "one": "{back} of {total} {ballots} back", "other": "{back} of {total} {ballots} back" },
       "voteMetaGmBallots": { "one": "ballot", "other": "ballots" },
       "voteCast": "Your vote is in.",
       "trialDebateMeta": "Present a Truth Bullet from your Inventory",
-      "trialDiscussionMeta": "Talk it through - the GM opens the debate",
+      "trialDiscussionMeta": "The students talk it through until the GM opens the debate",
       "trialObjectionFloor": "{who} has the floor",
       "afterVerdict": "The verdict is in",
       "trialNext": "Next: {name}",
@@ -1851,7 +1851,7 @@
           "vote": "Stand in Zone A or Zone B"
         },
         "dive": {
-          "vote": "Question {n} of {total} - stand in your answer's zone",
+          "vote": "Question {n} of {total}: stand in your answer's zone",
           "pause": "Question {n} of {total} is counted"
         },
         "scrum": {
@@ -1859,7 +1859,7 @@
           "speak": "Turn {turn} of {turns}, for Zone {zone}"
         }
       },
-      "waitingFor": "Incident - waiting for {name}",
+      "waitingFor": "Incident: waiting for {name}",
       "reserveYou": "You have {hp} of {hpMax} Health and {sanity} of {sanityMax} Sanity left.",
       "reserveOf": "{name} has {hp} of {hpMax} Health left.",
       "reserveVictim": "The victim has {hp} of {hpMax} Health and {sanity} of {sanityMax} Sanity left."
@@ -2051,7 +2051,7 @@
       "launcherTooltip": "Settings",
       "uiScaleAuto": "This screen ({w} x {h}) is drawn at {auto}% of 1440p on its own; with the slider, {total}%.",
       "uiScaleSlider": "This screen is {w} x {h}. Monokuma Legacy takes the slider on its own: {slider}%.",
-      "contrastAuto": "Your system already asks for more contrast, so this is on whatever the switch says.",
+      "contrastAuto": "Your system asks for more contrast, so High contrast stays on even with its switch off.",
       "messengerSound": "Messenger sounds",
       "stepUp": "One more",
       "stepDown": "One fewer",
@@ -3988,49 +3988,49 @@
     },
     "Eclipse": {
       "already": "An Eclipse is already running.",
-      "bodyFirst": "A body has been found - start the Investigation first.",
-      "incidentFirst": "An incident is running - close it first.",
-      "trialFirst": "A Class Trial is running, so no Eclipse was started: in the trial everybody is in one voice room. End the trial first.",
+      "bodyFirst": "A body has been found. Start the Investigation first.",
+      "incidentFirst": "An incident is running. Close it first.",
+      "trialFirst": "A Class Trial is running, so the Eclipse cannot start. End the trial first.",
       "announce": {
-        "one": "Lights out. Everyone places their token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
-        "other": "Lights out. Everyone places their token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."
+        "one": "Lights out. Everyone can cross into one connected room to place their token. Nobody sees anyone else until the Eclipse ends.",
+        "other": "Lights out. Everyone can make up to {n} crossings between connected rooms to place their token. Nobody sees anyone else until the Eclipse ends."
       },
       "yourMoves": {
-        "one": "One room crossing. You are in {room}. Drag your token - doors and gaps still apply.",
-        "other": "{n} room crossings. You are in {room}. Drag your token - doors and gaps still apply."
+        "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors and sealed rooms still stop you.",
+        "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors and sealed rooms still stop you."
       },
       "moved": {
         "one": "You are now in {room}, with {left} crossing left during this Eclipse.",
         "other": "You are now in {room}, with {left} crossings left during this Eclipse."
       },
-      "noMovesLeft": "Your Eclipse crossings are used up. Your token has been put back.",
-      "actionsLocked": "Placement only. Actions are already back; nothing spends them but a Direct Murder until the lights come up.",
+      "noMovesLeft": "Your Eclipse crossings are used up, so your token stays where it was.",
+      "actionsLocked": "During an Eclipse, only Move and a Direct Murder are allowed; everything else waits until the Eclipse ends. Actions are already refilled.",
       "endPrompt": "Not everyone has placed yet: the grayed rows have not crossed a room. End the Eclipse now?",
       "endAndAdvance": "End and move the clock",
       "endOnly": "End without advancing",
       "ended": "The Eclipse ends.",
-      "movesColumn": "Placed",
+      "movesColumn": "Crossings",
       "named": "{time} Eclipse",
       "announceFree": "Lights out. Everyone picks any room on the map and puts their token there. Nobody sees anyone else until the Eclipse ends.",
-      "yourMovesFree": "Any room on the map. You are in {room}. Drag your token wherever you want to start.",
-      "movedFree": "Now in {room}.",
-      "murderOnlyInEclipse": "Only during an Eclipse. The lights are out and everyone is crossing the map - that is the one moment you can be alone with somebody.",
-      "actionsMurderOnly": "Placement is running. The only thing an action buys right now is a Direct Murder.",
-      "placementOnly": "Placement only. Nothing spends an action until the lights come up.",
-      "callsLocked": "Locked while the Eclipse runs. Every Call unlocks with the next time of day - this is not about what you hold.",
-      "murderWindowLocked": "The Eclipse is a placement window - nobody has finished moving yet. Open the incident once the lights come up; a trap's card waits on the thread until you do.",
-      "murderLocked": "The Eclipse is a placement window - nobody has finished moving yet. A Direct Murder declared now waits for the Eclipse to end on its own.",
-      "bodyLocked": "The Eclipse is running. A body cannot be discovered - by hand or automatically - until everyone has finished placing.",
-      "panelLocked": "Locked while the Eclipse runs - nobody has finished placing yet."
+      "yourMovesFree": "You can pick any room on the map. You are in {room}. Drag your token to where you want to start.",
+      "movedFree": "You are now in {room}.",
+      "murderOnlyInEclipse": "A Direct Murder can only be declared during an Eclipse.",
+      "actionsMurderOnly": "During an Eclipse, an action can only pay for a Direct Murder.",
+      "placementOnly": "You cannot spend actions during an Eclipse.",
+      "callsLocked": "Every Call is locked until the Eclipse ends, whatever Hope or Despair you hold.",
+      "murderWindowLocked": "No incident opens during an Eclipse. Open it once the Eclipse ends; a trap's card keeps its button until then.",
+      "murderLocked": "No incident opens during an Eclipse. A Direct Murder declared in it is judged when the Eclipse ends.",
+      "bodyLocked": "You cannot announce a body during an Eclipse, and no body is discovered automatically either. Wait until the Eclipse ends.",
+      "panelLocked": "Locked until the Eclipse ends."
     },
     "Movement": {
-      "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
-      "outsideRooms": "outside the rooms",
+      "unlawfulArrival": "{name} reached {room} by a crossing the rules do not allow, and was not put back. Until they stand in a room they could reach from {from}, they do not count as a witness to a body or a third party to a murder. Moving the token as a GM makes their spot lawful.",
+      "outsideRooms": "a spot outside the rooms",
       "wallCrossed": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
       "floorJumped": "{name}'s token was moved to another floor on {scene} where no stairs lead, and was sent back where it stood.",
       "ruleSentBack": "{name}'s token was moved into {room} on {scene}, where the rules do not let {name} go, and was put back where {name} last stood.",
       "dropRemoved": "A player placed a token of {name} in {room} on {scene}, where the rules do not let {name} stand. The token was removed.",
-      "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
+      "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had not stood before. As an arrival from outside the rooms, it was exempt from the connected-rooms rule and counts as a witness there. Move it if it should not be there."
     },
     "Move": {
       "notConnectedShort": "{to} is not connected to {from}.",
@@ -4039,26 +4039,26 @@
       "drag": "To move to another room, drag your token there.",
       "dragShort": "Drag your token",
       "free": "Free",
-      "freeAvailable": "Your Free Move for this time of day is still there.",
-      "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
+      "freeAvailable": "The next room takes your Free Move, and your actions stay.",
+      "freeSpent": "Free Move used. The next room costs an action; you have {left}.",
       "nextSprint": "Free Move used. The next room takes a free crossing, and your actions stay.",
       "nextBurst": "Free Move used. The next room takes your Burst, and your actions stay.",
       "entered": "You are now in {room}.",
-      "leftRooms": "Left the room.",
+      "leftRooms": "You are no longer in any room.",
       "wasSprint": {
         "one": "Paid by a free crossing. {n} left.",
         "other": "Paid by a free crossing. {n} left."
       },
       "wasFree": "That was your Free Move for this time of day.",
       "wasBurst": "Paid by your Burst.",
-      "costAction": { "one": "That cost an action - {left} action left.", "other": "That cost an action - {left} actions left." },
+      "costAction": {"one": "That cost an action. You have {left} action left.", "other": "That cost an action. You have {left} actions left."},
       "noBudget": "No Free Move and no actions left.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
-      "noBudgetLong": "No Free Move and no actions left - this crossing was not paid for, so your token was put back.",
-      "refundedBack": "The GM gave back your last crossing: your token stands where it was before it.",
-      "refundedStays": "The GM gave back your last crossing, but your token could not be stood where it was before it - ask the GM.",
+      "noBudgetLong": "You have no Free Move and no actions left, so your token was put back.",
+      "refundedBack": "The GM gave back your last crossing, and your token is back where it was.",
+      "refundedStays": "The GM gave back your last crossing, but your token could not be moved back. Ask the GM.",
       "refundedPrice": "What the crossing cost is yours again.",
-      "refundedNoPrice": "The GMs saw nothing it cost, so nothing else came back - ask the GM if it cost you something.",
+      "refundedNoPrice": "No price came back for that crossing. If you paid for it, ask the GM.",
       "locked": "The door is locked.",
       "noStairs": "No stairs lead from {from} to that floor.",
       "dead": "They are dead. The body stays where it fell."
@@ -4735,8 +4735,8 @@
       "summaryUnder": "Chapter {chapter} · Day {day} · Session {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "rewindDuringEclipse": "An Eclipse is running. End it first.",
-      "takenBack": "Taken back: the actions, the Free Moves, the Search Tokens, and the seals are as they were before this time of day began.",
-      "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",
+      "takenBack": "Actions, Free Moves, what Sprint and Burst bought, Search Tokens, and seals are back as they were before this time of day began.",
+      "eclipseStillOn": "The clock moved, but the Eclipse is still on. End it from the clock's chevron; until then no incident can open.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",
       "day": "Day",
@@ -4746,9 +4746,9 @@
       "morningLine": "Next morning's line",
       "morningLineHint": "Shown on the start-of-day board when the next day begins. Empty shows nothing.",
       "chapterCorrectTitle": "Correct the chapter number",
-      "endChapterNote": "End the chapter reveals, sweeps and names the Blackened - everything the chapter field above does not. It asks first, and nothing typed above is applied.",
-      "endChapterAsk": "End the chapter now? Edit campaign closes without applying, and the chapter's end opens: it lists what it will reveal, sweep and name before anything is done.",
-      "chapterCorrect": "This corrects the chapter number only - no reveal, no sweep, no Blackened. A chapter ends with End the chapter, at the bottom of Edit campaign. Cancel keeps the chapter and applies the rest.",
+      "endChapterNote": "The End the chapter button reveals, sweeps the students' Truth Bullets, and names the Blackened; the chapter field above does none of that. The button asks first, and nothing typed above is applied.",
+      "endChapterAsk": "End the chapter now? Edit campaign closes without applying, and the chapter's end opens: it lists what it will reveal, sweep, and name before anything is done.",
+      "chapterCorrect": "This corrects only the chapter number: nothing is revealed or swept, and no Blackened is named. A chapter ends with End the chapter, at the bottom of Edit campaign. Cancel keeps the chapter and applies the rest.",
       "trialFromEditTitle": "Open the Class Trial",
       "trialFromEdit": "This opens the trial's budget and charges for unfound Key Remnants. Cancel keeps the phase and applies the rest.",
       "unknownTime": "Unknown time of day: {key}.",
@@ -4758,7 +4758,7 @@
         "other": "Actions refilled for {count} characters"
       },
       "searchTokensRestocked": "Every room restocked with Search Tokens",
-      "woundedNote": "Down to one action this time of day, no Health left: {names}."
+      "woundedNote": "With no Health left, these students are down an action this time of day: {names}."
     },
     "Panel": {
       "settings": "Settings",
@@ -5707,7 +5707,7 @@
         "done": "Done",
         "wait": "One moment",
         "none": "No answer yet",
-        "away": "Not connected - counts as Done"
+        "away": "Not connected (counts as Done)"
       },
       "goNext": "Move the clock",
       "confirmGo": {
@@ -5720,10 +5720,10 @@
       "barred": "The round is over and the clock has not moved: an incident or a Class Trial began during it."
     },
     "Summary": {
-      "title": "The time of day is over",
+      "title": "Time-of-day summary",
       "lede": "What you did during the {phase}.",
       "ledeGm": "What the table did during the {phase}.",
-      "found": "found a Tier “{tier}” {item}",
+      "found": "found “{item}” (Tier {tier})",
       "left": "left a Remnant behind",
       "totals": { "one": "{actions} action", "other": "{actions} actions" },
       "totalsTraces": { "one": "{traces} Remnant left behind", "other": "{traces} Remnants left behind" },
@@ -6056,56 +6056,56 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "The lights are out. Everyone places their token - {reach}, or anywhere at night - and nobody can see who went where. Your actions are already refilled, but nothing spends them except a Direct Murder, and nobody makes a Call until the lights come up. It is the game's one moment of total cover, and it is where a murder usually starts.",
+        "eclipse": "The lights are out. Everyone places their token, {reach} or anywhere at night, and nobody sees who went where. Your actions are already refilled, but you can spend them only on a Direct Murder, and nobody makes a Call until the lights come up.",
         "eclipseReach": { "one": "up to {n} connected room", "other": "up to {n} connected rooms" },
-        "dailyLife": "Ordinary days inside the school. You have {actions} each time of day, unless your sheet says otherwise, to search rooms, work on projects, rest, talk, and prepare. Nobody has died yet this chapter - this is the part where you decide who you trust.",
+        "dailyLife": "Ordinary days inside the school. You have {actions} each time of day to search rooms, work on projects, rest, talk, and prepare. No body has been found yet this chapter, and this is when you decide who you trust.",
         "investigation": "A body has been found. Observe Remnants on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have.",
         "classTrial": "Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. Get it right and the killer is punished; get it wrong and everybody else is."
       },
       "time": {
         "title": "Time of day",
-        "position": "{time} - {n} of {of}",
+        "position": "{time} ({n} of {of})",
         "what": "Actions refill at the start of each one, and each room's Search Tokens come back with them. When the last one ends, the day turns over."
       },
       "room": {
         "title": "Where you are",
-        "noActor": "No character is assigned to you, so there is nothing to say about where you are standing.",
+        "noActor": "No character is selected or assigned to you.",
         "tokens": "Search Tokens here: {left} of {max} left this time of day."
       },
       "despair": {
         "window": "Despair",
         "title": "What Despair is",
-        "what": "Despair is the GM side's currency. It fills when rolls at the table come up with Despair rather than Hope - which is to say, it is fed by your bad luck and your risks.",
-        "spent": "It is spent on Despair Calls: the moves that make life harder - pushing a scene, hardening a room, turning a screw. The more of it there is, the more the school can do to you.",
-        "masked": "Every pool's count is public - the rows show how full each one is. Only the overflow's count is hidden from you.",
+        "what": "Despair is the currency of the Monokuma side. When a student's roll lands with Despair, it feeds the pool of that student's Monokuma, if the GM has turned this on.",
+        "spent": "It is spent on Despair Calls, the moves that make life harder for the students. The more of it there is, the more the school can do to you.",
+        "masked": "Every pool's count is public, and the rows above show how full each one is. Only the Overflow's count is hidden from you.",
         "noPools": "No Monokuma has a pool yet."
       },
       "status": {
         "window": "Actions, Move, and Hope",
         "actionsTitle": "Actions",
-        "actionsWhat": "{actions} each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs {short}, a Long Rest {long}.",
+        "actionsWhat": "{actions} each time of day. Searching a room, working on a project, observing a Remnant, and analyzing a Truth Bullet each cost one. A Short Rest costs {short}, a Long Rest {long}.",
         "actionsWounded": "With no Health left you get {wounded} instead of {actions} in Daily Life and the Investigation, until somebody patches you up. In the Class Trial, Wounded takes no action.",
-        "actionsNow": "You have {left} of {max} left this time of day.",
+        "actionsNow": "You have {left} of {max} actions left this time of day.",
         "moveTitle": "Free Move",
-        "moveWhat": "One move between rooms each time of day that costs you nothing. After that, changing rooms costs an action like anything else.",
-        "moveSpent": "Your Free Move is gone this time of day - moving now costs an action.",
+        "moveWhat": "Each time of day, your first crossing into another room is free. After that, each crossing costs an action, or one of the extra crossings you bought with Sprint.",
+        "moveSpent": "You have used your Free Move this time of day. Your next crossing costs an action, or a crossing you bought with Sprint.",
         "hopeTitle": "Hope",
-        "hopeWhat": "Hope is yours, and it is spent on Hope Calls: helping somebody else's roll, leaning on an Experience, invoking your Ultimate, rerolling. It comes back when rolls go your way.",
+        "hopeWhat": "Hope is yours, and you spend it on Hope Calls, such as helping another student's roll, leaning on an Experience, invoking your Ultimate, or taking a Reroll. When your roll lands with Hope, you gain more.",
         "hopeNow": "You hold {held} of {max} Hope.",
         "standing": "Right now",
-        "monokumaActions": "You have no action economy. A Monokuma is skipped when actions are refilled, and spends none.",
-        "monokumaMove": "Movement costs you nothing and grants you nothing - there is no Free Move to keep track of.",
+        "monokumaActions": "You have no actions: none are refilled for you, and nothing you do spends one.",
+        "monokumaMove": "Moving costs you nothing, and you have no Free Move to keep track of.",
         "monokumaDespair": "You spend Despair where a student spends Hope. The pools are at the top of the screen.",
         "monokumaWalls": "Walls and locked doors do not apply to you."
       },
       "projects": {
         "window": "Projects",
         "title": "What a project is",
-        "what": "A project is something that takes longer than one action: building it, fixing it, poisoning it, digging through it. Each one lives in a room and only moves when somebody works on it there.",
-        "progress": "Working on a project is an action, and a roll - how well it goes decides how much progress it takes. When the bar fills, the thing is done.",
-        "secret": "Some projects are private to the people working on them. If you cannot see one, it is not on your list.",
+        "what": "A project is a job that takes several actions: building, fixing, poisoning, or digging through something. Each one belongs to a room and moves forward only when somebody works on it there or adds to it with the Contribution Call.",
+        "progress": "Working on a project costs an action and a roll, and the roll decides how much progress it makes. When the bar fills, the project is finished.",
+        "secret": "Some projects are secret, known only to the people working on them. Your list shows only the projects you know of.",
         "yours": "What you can see",
-        "none": "Nothing yet - no project is visible to you."
+        "none": "You don't know of any project yet."
       }
     },
     "Dialog": {

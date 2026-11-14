@@ -242,8 +242,8 @@
       "stampInnocent": "NIEWINNY",
       "votesCounted": "GŁOSY POLICZONE",
       "dayTitle": "Dzień {day}",
-      "daySub": "Rozdział {chapter} · {time} · Ocaleli: {alive}/{total}",
-      "daySubNoChapter": "{time} · Ocaleli: {alive}/{total}",
+      "daySub": "Rozdział {chapter} · {time} · Przy życiu: {alive}/{total}",
+      "daySubNoChapter": "{time} · Przy życiu: {alive}/{total}",
       "weRemember": "pamiętamy",
       "morningLine": "OGŁOSZENIE PORANNE",
       "dayEndTitle": "Koniec dnia {day}",
@@ -537,9 +537,9 @@
       "eavesdrop": {
         "stop": "Przestań słuchać: {room}",
         "gmTitle": "Podsłuchują pod drzwiami",
-        "gmLine": "{name} słucha: {into}, z: {from}",
+        "gmLine": "{name} podsłuchuje pokój {into} z pokoju {from}",
         "noVoiceGm": "Listen dał tylko kartę: głos według pokoi jest wyłączony, więc nikt nie trafia na kanał pokoju.",
-        "started": "Słuchasz pod drzwiami: {room}. Słyszysz pokój, a nikt tam nie słyszy ciebie. Przestań słuchać jest na kaflu głosu."
+        "started": "Słuchasz pod drzwiami pokoju {room}. Słyszysz, co się tam dzieje, ale twój mikrofon jest zablokowany, więc nikt cię tam nie słyszy. Przycisk „Przestań słuchać” jest na twoim kafelku głosu."
       },
       "anonymous": {
         "one": "W pokoju {room} jest {n} osoba, ale nie poznajesz, kto to.",
@@ -547,9 +547,9 @@
         "many": "W pokoju {room} jest {n} osób, ale nie poznajesz, kto to.",
         "other": "W pokoju {room} jest {n} osób, ale nie poznajesz, kto to."
       },
-      "emptyRoom": "{room} brzmi na pusty.",
+      "emptyRoom": "W pokoju {room} panuje cisza. Nikogo tam nie słychać.",
       "unknownRoom": "Nieodkryty pokój {n}",
-      "named": "W: {room}: {who}",
+      "named": "W pokoju {room}: {who}",
       "critical": "Łapiesz wszystko naraz:",
       "empty": "pusto"
     },
@@ -669,7 +669,7 @@
       "day": "Dzień {n}",
       "sessionTooltip": "Sesja {session}",
       "endEclipse": "Zakończ Eclipse i zacznij następną porę dnia",
-      "rewind": "Cofnij o jedną porę dnia. Korekta - niczego nie odnawia",
+      "rewind": "Cofnij zegar o jedną porę dnia. To korekta, więc akcje się nie odnawiają.",
       "elapsed": "{minutes} min",
       "elapsedUnknown": "nie zaczęto",
       "elapsedTooltip": {
@@ -689,19 +689,19 @@
         "many": "Zacznij Eclipse ({time}): {n} przejść",
         "other": "Zacznij Eclipse ({time}): {n} przejść"
       },
-      "eclipseAsk": "Zacząć teraz {name}? Akcje wszystkich się odnawiają, Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
-      "eclipseAskRefilled": "Zacząć teraz {name}? Akcje zostały już na nie odnowione i drugi raz się nie odnowią; Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
+      "eclipseAsk": "Zacząć teraz {name}? Wszyscy uczniowie odzyskują akcje, przepada to, co dały Sprint i Burst kupione na tę porę dnia, a dla całego stołu gaśnie światło.",
+      "eclipseAskRefilled": "Zacząć teraz {name}? Akcje zostały już odnowione na tę porę dnia, więc drugi raz się nie odnowią. Przepada to, co dały Sprint i Burst kupione od tamtej chwili, a dla całego stołu gaśnie światło.",
       "eclipseAskYes": "Zacznij",
-      "startEclipseFree": "Zacznij Eclipse ({time}) - gaśnie światło, każdy wybiera dowolny pokój na mapie",
+      "startEclipseFree": "Zacznij Eclipse ({time}): gaśnie światło, a każdy uczeń stawia swój token w dowolnym pokoju na mapie",
       "startEclipseNewSession": {
-        "one": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejście)",
-        "few": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejścia)",
-        "many": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejść)",
-        "other": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejść)"
+        "one": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejście)",
+        "few": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejścia)",
+        "many": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejść)",
+        "other": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejść)"
       },
-      "eclipseRunningTooltip": "Ustawianie przed tą porą dnia. Tylko Direct Murder wydaje teraz akcję.",
+      "eclipseRunningTooltip": "Trwa Eclipse: uczniowie ustawiają tokeny przed tą porą dnia. Akcję można wydać tylko na Direct Murder, a Calli nie da się użyć.",
       "roomNowhere": "Między pokojami",
-      "assignHint": "Grasz więcej niż jedną postacią i żadna nie jest przypisana, więc tu widać {name}. Przypisz postać w konfiguracji użytkownika, żeby wybrać.",
+      "assignHint": "Masz więcej niż jedną postać, a żadna nie jest do ciebie przypisana, więc okno pokazuje postać {name}. Żeby wybrać inną, przypisz postać w Konfiguracji użytkownika.",
       "roomProject": "Możesz tu pracować nad projektem",
       "roomNoProject": "Nie ma tu projektu, nad którym możesz pracować",
       "roomTokens": "{left}/{max} przeszukań",
@@ -713,7 +713,7 @@
       },
       "trial": {
         "discussion": "Dyskusja",
-        "debate": "Debata",
+        "debate": "Nonstop Debate",
         "objection": "Objection",
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
@@ -729,7 +729,7 @@
       "trialVersus": "kontra {who}",
       "controlFailed": "Zegar się nie przesunął. Zobacz Dziennik debugowania.",
       "nowPlaying": "Gra u ciebie: {track}.",
-      "rewindEclipse": "Trwa Eclipse. Najpierw go zakończ.",
+      "rewindEclipse": "Trwa Eclipse. Najpierw je zakończ.",
       "trialSpeaks": "Mówi {name}"
     },
     "Passage": {
@@ -1876,25 +1876,25 @@
       "betTitle": "Twój Ghost Bet",
       "betMeta": "Obstawiasz: {name}.",
       "redeemLine": "Redeem czeka: +1 Hope za darmo.",
-      "bribeWaitLine": "Bribe czeka, od: {name}.",
+      "bribeWaitLine": "Czeka Bribe od postaci {name}.",
       "betLine": "Twój Ghost Bet: {name}.",
       "overflowMetaGm": "{count} z {max} w kapeluszu",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",
-      "bodyMeta": "Investigation otwarte",
+      "bodyMeta": "Trwa Investigation",
       "bodyMetaGm": {
-        "one": "Znaleziono {found} z {total} Key Remnantów",
+        "one": "Znaleziono {found} z {total} Key Remnantu",
         "few": "Znaleziono {found} z {total} Key Remnantów",
         "many": "Znaleziono {found} z {total} Key Remnantów",
         "other": "Znaleziono {found} z {total} Key Remnantów"
       },
-      "bodyHoldMeta": "Ciało zostało znalezione. Investigation jeszcze nie trwa.",
+      "bodyHoldMeta": "Investigation jeszcze nie trwa. Rozpocznie je GM.",
       "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
       "ticker": {
         "safeword": "Stop",
         "overflow": "Overflow",
         "incident": "Incydent",
-        "body": "Znaleziono ciało",
+        "body": "Ciało",
         "trial": "Class Trial",
         "assembly": "Zgromadzenie",
         "motive": "Motive",
@@ -1905,16 +1905,16 @@
       "incidentTitle": "Zabójstwo w ciemności",
       "incidentTitleDirect": "Twarzą w twarz",
       "openingTitle": "Trwa morderstwo",
-      "openingMeta": "Rzut otwarcia decyduje, jak się zaczyna",
+      "openingMeta": "Rzut otwarcia zdecyduje, jak zacznie się incydent",
       "incidentSub": "{killer} przeciw {victim}",
       "incidentSubRoom": "{killer} przeciw {victim}, w pokoju {room}",
       "safewordTitle": "Scena zatrzymana",
       "safewordSub": "Ktoś użył safeword.",
-      "safewordMeta": "Nic się nie dzieje, dopóki stół nie podejmie gry z powrotem.",
-      "safewordMetaGm": "Wznów, kiedy wszyscy będą gotowi - nie wcześniej.",
+      "safewordMeta": "Gra stoi, dopóki GM jej nie wznowi.",
+      "safewordMetaGm": "Wznów grę, gdy wszyscy przy stole będą gotowi.",
       "voteTitle": "Głosowanie otwarte",
-      "voteSub": "Wskaż blackened.",
-      "voteMeta": "Trial czeka na głosy.",
+      "voteSub": "Klasa wskazuje, kto jej zdaniem jest Blackened.",
+      "voteMeta": "Class Trial czeka na głosy.",
       "voteMetaGm": {
         "one": "{back} z {total} {ballots} wrócił",
         "few": "{back} z {total} {ballots} wróciły",
@@ -1927,19 +1927,19 @@
         "many": "głosów",
         "other": "głosów"
       },
-      "voteCast": "Twój głos oddany.",
+      "voteCast": "Twój głos jest oddany.",
       "trialDebateMeta": "Przedstaw Truth Bullet ze swojego ekwipunku",
-      "trialDiscussionMeta": "Omówcie to - GM otworzy debatę",
+      "trialDiscussionMeta": "Uczniowie omawiają sprawę. Debatę otworzy GM.",
       "trialObjectionFloor": "{who} ma głos",
       "afterVerdict": "Werdykt zapadł",
-      "trialNext": "Następny: {name}",
+      "trialNext": "Potem mówi {name}",
       "trialLastTurn": "Ostatnia tura",
       "trialZone": {
         "straw": {
           "vote": "Stań w Strefie A albo w Strefie B"
         },
         "dive": {
-          "vote": "Pytanie {n} z {total} - stań w strefie swojej odpowiedzi",
+          "vote": "Pytanie {n} z {total}: stań w strefie swojej odpowiedzi",
           "pause": "Pytanie {n} z {total} policzone"
         },
         "scrum": {
@@ -1947,7 +1947,7 @@
           "speak": "Tura {turn} z {turns}, za Strefę {zone}"
         }
       },
-      "waitingFor": "Incydent - ruch ma {name}",
+      "waitingFor": "W incydencie ruch ma teraz {name}",
       "reserveYou": "Masz jeszcze {hp} z {hpMax} Health i {sanity} z {sanityMax} Sanity.",
       "reserveOf": "{name} ma jeszcze {hp} z {hpMax} Health.",
       "reserveVictim": "Ofiara ma jeszcze {hp} z {hpMax} Health i {sanity} z {sanityMax} Sanity."
@@ -2139,7 +2139,7 @@
     },
     "Look": {
       "launcherTooltip": "Ustawienia",
-      "uiScaleAuto": "Ten ekran ({w} x {h}) sam z siebie rysuje w {auto}% skali 1440p; z suwakiem {total}%.",
+      "uiScaleAuto": "Ten ekran ma {w} x {h}, więc motyw Stained Glass sam skaluje interfejs do {auto}% układu 1440p; z suwakiem to {total}%.",
       "messengerSound": "Dźwięki komunikatora",
       "stepUp": "O jeden więcej",
       "stepDown": "O jeden mniej",
@@ -2148,8 +2148,8 @@
       "atMost": "Najwyżej {n}",
       "atLeast": "Co najmniej {n}",
       "note": "Wszystko w tym oknie dotyczy tylko tej przeglądarki. Inni przy stole niczego nie zauważą.",
-      "uiScaleSlider": "Ten ekran ma {w} x {h}. Monokuma Legacy bierze sam suwak: {slider}%.",
-      "contrastAuto": "Twój system już prosi o większy kontrast, więc to jest włączone bez względu na przełącznik."
+      "uiScaleSlider": "Ten ekran ma {w} x {h}. W motywie Monokuma Legacy rozmiar zależy tylko od suwaka ({slider}%).",
+      "contrastAuto": "Twój system prosi o większy kontrast, więc Wysoki kontrast działa także przy wyłączonym przełączniku."
     },
     "Sound": {
       "title": "Dźwięk",
@@ -4296,20 +4296,20 @@
     },
     "Eclipse": {
       "already": "Eclipse już trwa.",
-      "bodyFirst": "Znaleziono ciało - najpierw rozpocznij Investigation.",
-      "incidentFirst": "Trwa incydent - najpierw go zamknij.",
-      "trialFirst": "Trwa Class Trial, więc Eclipse nie może się zacząć: na rozprawie wszyscy są w jednym pokoju głosowym. Najpierw zakończ rozprawę.",
+      "bodyFirst": "Znaleziono ciało. Najpierw rozpocznij Investigation.",
+      "incidentFirst": "Trwa incydent. Najpierw go zakończ.",
+      "trialFirst": "Trwa Class Trial, więc Eclipse nie może się zacząć. Najpierw zakończ rozprawę.",
       "announce": {
-        "one": "Gasną światła. Każdy ustawia swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
-        "few": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
-        "many": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
-        "other": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy."
+        "one": "Gasną światła. Każdy uczeń ma jedno przejście do połączonego pokoju. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów.",
+        "few": "Gasną światła. Każdy uczeń ma {n} przejścia między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów.",
+        "many": "Gasną światła. Każdy uczeń ma {n} przejść między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów.",
+        "other": "Gasną światła. Każdy uczeń ma {n} przejść między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów."
       },
       "yourMoves": {
-        "one": "Jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
-        "few": "{n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
-        "many": "{n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
-        "other": "{n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują."
+        "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
+        "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
+        "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
+        "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą."
       },
       "moved": {
         "one": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście.",
@@ -4317,48 +4317,48 @@
         "many": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść.",
         "other": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść."
       },
-      "noMovesLeft": "Przejścia Eclipse wyczerpane. Twój token wrócił na miejsce.",
-      "actionsLocked": "Tylko ustawianie. Akcje już wróciły; nic ich nie wydaje poza Direct Murder, dopóki nie zapali się światło.",
+      "noMovesLeft": "W tym Eclipse nie masz już przejść. Token stoi tam, gdzie stał wcześniej, a akcje zostają.",
+      "actionsLocked": "Podczas Eclipse działają tylko Move i Direct Murder. Reszta czeka, aż zapali się światło, a akcje są już odnowione.",
       "endPrompt": "Nie wszyscy się jeszcze ustawili: wyszarzone wiersze nie przeszły jeszcze żadnego pokoju. Zakończyć teraz Eclipse?",
       "endAndAdvance": "Zakończ i przesuń zegar",
       "endOnly": "Zakończ bez przesuwania zegara",
       "ended": "Eclipse się kończy.",
-      "movesColumn": "Ustawieni",
+      "movesColumn": "Przejścia",
       "named": "Eclipse ({time})",
       "announceFree": "Gasną światła. Każdy wybiera dowolny pokój na mapie i stawia tam swój token. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
-      "yourMovesFree": "Dowolny pokój na mapie. Jesteś w pokoju {room}. Przeciągnij token tam, gdzie chcesz zacząć.",
+      "yourMovesFree": "Możesz stanąć w dowolnym pokoju na mapie. Jesteś w pokoju {room}. Przeciągnij token do pokoju, w którym chcesz być.",
       "movedFree": "Jesteś teraz w pokoju {room}.",
-      "murderOnlyInEclipse": "Tylko podczas Eclipse. Światła są zgaszone i wszyscy przemierzają mapę - to jedyny moment, w którym możesz być z kimś sam na sam.",
-      "actionsMurderOnly": "Trwa ustawianie. Jedyne, co teraz kupuje akcja, to Direct Murder.",
-      "placementOnly": "Tylko ustawianie. Dopóki nie zapali się światło, nic nie wydaje akcji.",
-      "callsLocked": "Zablokowane, dopóki trwa Eclipse. Każdy Call odblokuje się z następną porą dnia - to nie zależy od tego, ile masz.",
-      "murderLocked": "Eclipse to okno ustawiania - nikt jeszcze nie skończył się ruszać. Direct Murder zgłoszony teraz czeka, aż Eclipse sam się skończy.",
-      "bodyLocked": "Trwa Eclipse. Ciała nie da się odkryć - ręcznie ani automatycznie - dopóki wszyscy nie skończą się ustawiać.",
-      "panelLocked": "Zablokowane, dopóki trwa Eclipse - nikt jeszcze nie skończył się ustawiać.",
-      "murderWindowLocked": "Eclipse to okno ustawiania - nikt jeszcze nie skończył się ruszać. Otwórz incydent, gdy zapali się światło; karta pułapki czeka w wątku, dopóki tego nie zrobisz."
+      "murderOnlyInEclipse": "Direct Murder można zgłosić tylko podczas Eclipse.",
+      "actionsMurderOnly": "Trwa Eclipse. Akcję możesz teraz wydać tylko na Direct Murder.",
+      "placementOnly": "Podczas Eclipse nie wydajesz akcji.",
+      "callsLocked": "Podczas Eclipse wszystkie Calle są zablokowane, bez względu na twój Hope i Despair. Odblokują się, gdy Eclipse się skończy.",
+      "murderLocked": "Podczas Eclipse nie otworzysz incydentu. Direct Murder zgłoszony w ciemności zostanie rozpatrzony, gdy Eclipse się skończy.",
+      "bodyLocked": "Podczas Eclipse ciała nie da się odkryć, ani ręcznie, ani automatycznie.",
+      "panelLocked": "Zablokowane, dopóki trwa Eclipse.",
+      "murderWindowLocked": "Podczas Eclipse nie otworzysz incydentu. Karta pułapki zachowuje swój przycisk, więc użyjesz go po Eclipse."
     },
     "Movement": {
-      "unlawfulArrival": "Postać {name} weszła do pokoju {room} przejściem, na które zasady nie pozwalają. Dopóki nie stanie tam, dokąd mogła dojść z pokoju {from}, nie jest świadkiem przy ciele ani stroną trzecią morderstwa. Niczego nie cofnięto: ruch GM-a czyni miejsce, w którym stoi, dozwolonym.",
+      "unlawfulArrival": "Postać {name} weszła do pokoju {room} przejściem, na które zasady nie pozwalają, i jej token nie wrócił na miejsce. Dopóki nie stanie tam, dokąd mogła dojść z pokoju {from}, nie jest świadkiem przy ciele ani trzecią osobą przy morderstwie. Gdy token przesunie GM, nowe miejsce jest dozwolone.",
       "outsideRooms": "poza pokojami",
-      "wallCrossed": "Żeton postaci {name} przesunięto przez ścianę na scenie {scene} i cofnięto tam, gdzie stał.",
-      "floorJumped": "Żeton postaci {name} przeniesiono na scenie {scene} na inne piętro, dokąd nie prowadzą schody, i cofnięto tam, gdzie stał.",
-      "ruleSentBack": "Żeton postaci {name} przesunięto na scenie {scene} do pokoju {room}, dokąd zasady tej postaci nie wpuszczają, i cofnięto tam, gdzie ostatnio stał.",
-      "dropRemoved": "Gracz postawił żeton postaci {name} w pokoju {room} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Żeton usunięto.",
-      "droppedFromNowhere": "Gracz postawił żeton postaci {name} w pokoju {room} na scenie {scene}, gdzie ta postać wcześniej nigdzie nie stała. Oceniono to jak wejście spoza pokojów, więc nie obowiązywała żadna zasada o tym, które pokoje się łączą, i liczy się tam jako świadek. Przesuń żeton, jeśli nie powinien tam stać."
+      "wallCrossed": "Gracz przesunął token postaci {name} przez ścianę na scenie {scene}; token wrócił tam, gdzie stał.",
+      "floorJumped": "Gracz przeniósł token postaci {name} na scenie {scene} na inne piętro, na które nie prowadzą schody; token wrócił tam, gdzie stał.",
+      "ruleSentBack": "Gracz przesunął token postaci {name} na scenie {scene} do pokoju {room}, do którego zasady tej postaci nie wpuszczają; token wrócił tam, gdzie postać ostatnio stała zgodnie z zasadami.",
+      "dropRemoved": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Token został usunięty.",
+      "droppedFromNowhere": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, na której ta postać nie miała wcześniej tokenu. Moduł traktuje to jak wejście spoza pokoi: zasada połączonych pokoi nie działa, ale zasady zamków, pieczęci i sypialni obowiązują dalej, a postać liczy się tam jako świadek. Jeśli token nie powinien tam stać, GM może go przesunąć."
     },
     "Move": {
-      "notConnectedShort": "{to} nie łączy się z {from}.",
+      "notConnectedShort": "Pokój {to} nie łączy się z pokojem {from}.",
       "cannotReach": "Stąd ({from}) nie da się tam dojść.",
       "title": "Move",
       "drag": "Żeby przejść do innego pokoju, przeciągnij tam swój token.",
       "dragShort": "Przeciągnij token",
       "free": "Za darmo",
-      "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
-      "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
+      "freeAvailable": "Masz jeszcze Free Move na tę porę dnia, więc następny pokój nie kosztuje akcji.",
+      "freeSpent": "Free Move jest zużyty, więc następny pokój kosztuje akcję; akcji masz {left}.",
       "nextSprint": "Free Move zużyty. Następny pokój zabierze darmowe przejście, a akcje zostaną.",
       "nextBurst": "Free Move zużyty. Następny pokój zabierze twój Burst, a akcje zostaną.",
       "entered": "Jesteś teraz w pokoju {room}.",
-      "leftRooms": "Opuszczasz pokój.",
+      "leftRooms": "Stoisz teraz poza wszystkimi pokojami.",
       "wasSprint": {
         "one": "Opłacone darmowym przejściem. Zostało {n}.",
         "few": "Opłacone darmowym przejściem. Zostały {n}.",
@@ -4368,18 +4368,18 @@
       "wasFree": "To był twój Free Move na tę porę dnia.",
       "wasBurst": "Zapłacone Burstem.",
       "costAction": {
-        "one": "To kosztowało akcję - została {left} akcja.",
-        "few": "To kosztowało akcję - zostały {left} akcje.",
-        "many": "To kosztowało akcję - zostało {left} akcji.",
-        "other": "To kosztowało akcję - zostało {left} akcji."
+        "one": "To przejście kosztowało akcję. Została ci {left} akcja.",
+        "few": "To przejście kosztowało akcję. Zostały ci {left} akcje.",
+        "many": "To przejście kosztowało akcję. Zostało ci {left} akcji.",
+        "other": "To przejście kosztowało akcję. Zostało ci {left} akcji."
       },
-      "noBudget": "Brak Free Move i brak akcji.",
-      "notConnected": "Pokój {to} nie łączy się z pokojem {from}. Stąd dojdziesz do: {rooms}",
-      "noBudgetLong": "Brak Free Move i brak akcji - to przejście nie zostało opłacone. Token wraca; zapytaj GM-a.",
-      "refundedBack": "GM cofnął twoje ostatnie przejście: token stoi tam, gdzie stał przed nim.",
-      "refundedStays": "GM cofnął twoje ostatnie przejście, ale tokenu nie dało się postawić tam, gdzie stał przed nim - zapytaj GM-a.",
+      "noBudget": "Nie masz już Free Move ani akcji.",
+      "notConnected": "Pokój {to} nie łączy się z pokojem {from}. Pokoje, do których stąd dojdziesz: {rooms}",
+      "noBudgetLong": "Nie masz już Free Move ani akcji, więc to przejście nie jest opłacone. Token wraca na miejsce; zapytaj GM-a.",
+      "refundedBack": "GM cofa twoje ostatnie przejście: token stoi tam, gdzie stał przed nim.",
+      "refundedStays": "GM cofa twoje ostatnie przejście, ale tokenu nie da się postawić tam, gdzie stał. Zapytaj GM-a.",
       "refundedPrice": "To, co przejście kosztowało, wraca do ciebie.",
-      "refundedNoPrice": "GM-owie nie widzieli, żeby cokolwiek kosztowało, więc nic więcej nie wraca - zapytaj GM-a, jeśli coś cię kosztowało.",
+      "refundedNoPrice": "Za to przejście nic do ciebie nie wraca. Jeśli coś cię kosztowało, zapytaj GM-a.",
       "locked": "Drzwi są zamknięte.",
       "noStairs": "Stąd ({from}) nie prowadzą na to piętro żadne schody.",
       "dead": "Ta postać nie żyje. Ciało zostaje tam, gdzie upadło."
@@ -5089,7 +5089,7 @@
       "summary": "Rozdział {chapter} · Dzień {day} · Sesja {session} · {time}",
       "summaryUnder": "Rozdział {chapter} · Dzień {day} · Sesja {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
-      "eclipseStillOn": "Zegar się przesunął, ale Eclipse wciąż trwa. Zakończ go strzałką przy zegarze, gdy przyjdzie pora - do tej pory tokeny ustawiają się swobodnie, a morderstwa są odrzucane.",
+      "eclipseStillOn": "Zegar się przesunął, ale Eclipse wciąż trwa. Zakończ je strzałką przy zegarze; do tego czasu nie otworzysz incydentu, a przejścia liczą się do limitu Eclipse.",
       "campaignName": "Nazwa kampanii",
       "chapter": "Rozdział",
       "day": "Dzień",
@@ -5099,9 +5099,9 @@
       "morningLine": "Zdanie na następny poranek",
       "morningLineHint": "Pokaże się na planszy początku dnia, gdy zacznie się następny dzień. Puste nic nie pokaże.",
       "chapterCorrectTitle": "Popraw numer rozdziału",
-      "endChapterNote": "Zakończ rozdział ujawnia, sprząta i wskazuje Blackened - wszystko, czego nie robi pole rozdziału wyżej. Najpierw pyta, a nic wpisanego wyżej nie zostaje zapisane.",
+      "endChapterNote": "Przycisk „Zakończ rozdział” ujawnia, zbiera Truth Bullety uczniów i wskazuje Blackened; pole rozdziału wyżej tego nie robi. Przycisk najpierw pyta, a niczego, co wpisano wyżej, nie zapisuje.",
       "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
-      "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział, na dole okna Edytuj kampanię. Anuluj zostawia rozdział i zapisuje resztę.",
+      "chapterCorrect": "Ta zmiana poprawia tylko numer rozdziału: niczego nie ujawnia, nie zbiera Truth Bulletów i nie wskazuje Blackened. Rozdział kończy przycisk „Zakończ rozdział” na dole okna „Edytuj kampanię”. „Anuluj” zostawia numer rozdziału bez zmian i zapisuje resztę.",
       "trialFromEditTitle": "Otwórz Class Trial",
       "trialFromEdit": "To otwiera budżet Class Trial i pobiera opłatę za nieznalezione Key Remnanty. Anuluj zostawia fazę i zapisuje resztę.",
       "unknownTime": "Nieznana pora dnia: {key}.",
@@ -5112,10 +5112,10 @@
         "many": "Akcje odnowione dla {count} postaci",
         "other": "Akcje odnowione dla {count} postaci"
       },
-      "searchTokensRestocked": "Każdy pokój uzupełniony o Search Tokens",
-      "woundedNote": "Jedna akcja o tej porze dnia, nie zostało już Health: {names}.",
-      "rewindDuringEclipse": "Trwa Eclipse. Najpierw go zakończ.",
-      "takenBack": "Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia."
+      "searchTokensRestocked": "Każdy pokój ma znowu komplet Search Tokenów",
+      "woundedNote": "Wounded zabiera akcję o tej porze dnia: {names}.",
+      "rewindDuringEclipse": "Trwa Eclipse. Najpierw je zakończ.",
+      "takenBack": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
     },
     "Panel": {
       "settings": "Ustawienia gry",
@@ -6154,7 +6154,7 @@
         "done": "Gotowe",
         "wait": "Jeszcze chwila",
         "none": "Jeszcze bez odpowiedzi",
-        "away": "Brak połączenia - liczy się jako „Gotowe”"
+        "away": "Bez połączenia, liczy się jako „Gotowe”"
       },
       "goNext": "Przesuń zegar",
       "confirmGo": {
@@ -6170,8 +6170,8 @@
     },
     "Summary": {
       "title": "Pora dnia dobiegła końca",
-      "lede": "Co się u ciebie działo w porze: {phase}.",
-      "ledeGm": "Co działo się przy stole w porze: {phase}.",
+      "lede": "{phase}: co się u ciebie działo.",
+      "ledeGm": "{phase}: co działo się przy stole.",
       "found": "znaleziono „{item}” (Tier {tier})",
       "left": "zostawiono Remnant",
       "totals": {
@@ -6581,61 +6581,61 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "Światła zgaszone. Każdy ustawia swój token - {reach} albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale nic ich nie wydaje poza Direct Murder i nikt nie rzuca Calla, dopóki światła nie wrócą. To jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
+        "eclipse": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą gdziekolwiek na mapie. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli.",
         "eclipseReach": {
           "one": "do {n} połączonego pokoju",
           "few": "do {n} połączonych pokoi",
           "many": "do {n} połączonych pokoi",
           "other": "do {n} połączonego pokoju"
         },
-        "dailyLife": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia, chyba że karta mówi inaczej, by przeszukiwać pokoje, pracować nad projektami, odpoczywać, rozmawiać i przygotowywać się. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz.",
+        "dailyLife": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia: na przeszukiwanie pokoi, pracę nad projektami, odpoczynek, rozmowy i przygotowania. W tym rozdziale nie znaleziono jeszcze ciała. To czas, w którym decydujesz, komu ufasz.",
         "investigation": "Znaleziono ciało. Używaj Observe na Remnantach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć.",
         "classTrial": "Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. Trafcie, a zabójca zostanie ukarany; pomylcie się, a ukarani zostaną wszyscy pozostali."
       },
       "time": {
         "title": "Pora dnia",
-        "position": "{time} - {n} z {of}",
+        "position": "{time} ({n} z {of})",
         "what": "Akcje odnawiają się na początku każdej pory dnia, a Search Tokens pokoi wracają razem z nimi. Gdy kończy się ostatnia, dzień się zmienia."
       },
       "room": {
         "title": "Gdzie jesteś",
-        "noActor": "Nie masz przypisanej postaci, więc nie ma nic do powiedzenia o tym, gdzie stoisz.",
+        "noActor": "Żadna postać nie jest wybrana ani przypisana, więc nie ma czego tu pokazać.",
         "tokens": "Search Tokens tutaj: {left} z {max} o tej porze dnia."
       },
       "despair": {
         "window": "Despair",
         "title": "Czym jest Despair",
-        "what": "Despair to waluta strony GM-a. Rośnie, gdy rzuty przy stole wypadają z Despair zamiast z Hope - czyli karmi go wasz pech i wasze ryzyko.",
-        "spent": "Wydawany jest na Despair Calls: ruchy, które utrudniają życie - pchnięcie sceny, zamknięcie pokoju, dokręcenie śruby. Im więcej go jest, tym więcej szkoła może wam zrobić.",
-        "masked": "Stan każdej puli jest jawny - wiersze pokazują, jak pełna jest każda z nich. Ukryty przed tobą jest tylko licznik overflow.",
+        "what": "Despair wydaje strona Monokumy. Gdy rzut ucznia wypada z Despair, Despair trafia do puli jego Monokumy, jeśli GM włączył to w ustawieniach.",
+        "spent": "Strona Monokumy wydaje Despair na Despair Calls, które utrudniają uczniom życie. Im pełniejsze są pule, tym więcej można uczniom zrobić.",
+        "masked": "Stan każdej puli widzą wszyscy. Przed tobą ukryty jest tylko licznik Overflow.",
         "noPools": "Żaden Monokuma nie ma jeszcze puli."
       },
       "status": {
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
-        "actionsWhat": "{actions} na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje {short}, Long Rest {long}.",
+        "actionsWhat": "{actions} na każdą porę dnia. Po jednej akcji kosztują przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie. Short Rest kosztuje {short}, Long Rest {long}.",
         "actionsWounded": "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada. W Class Trial Wounded nie zabiera akcji.",
-        "actionsNow": "Masz {left} z {max} o tej porze dnia.",
+        "actionsNow": "Masz {left} z {max} akcji o tej porze dnia.",
         "moveTitle": "Free Move",
-        "moveWhat": "Jedno przejście między pokojami na porę dnia, które nic nie kosztuje. Potem zmiana pokoju kosztuje akcję jak wszystko inne.",
-        "moveSpent": "Twój Free Move w tej porze dnia zużyty - ruch kosztuje teraz akcję.",
+        "moveWhat": "Ruch w obrębie pokoju nic nie kosztuje. Pierwsze przejście do innego pokoju o danej porze dnia zużywa Free Move, a każde kolejne kosztuje akcję albo jedno z przejść kupionych Callem Sprint. GM może wyłączyć opłaty za ruch w ustawieniach.",
+        "moveSpent": "O tej porze dnia twój Free Move jest już zużyty. Następne przejście kosztuje akcję albo przejście kupione Callem Sprint.",
         "hopeTitle": "Hope",
-        "hopeWhat": "Hope należy do ciebie i wydajesz go na Hope Calls: pomoc przy cudzym rzucie, oparcie się na doświadczeniu, przywołanie Ultimate, Reroll. Wraca, gdy rzuty idą po twojej myśli.",
+        "hopeWhat": "Hope jest twój i wydajesz go na Hope Calls, na przykład Support (przewaga przy rzucie innego ucznia), Experience, Ultimate albo Reroll. Każdy twój rzut, który wypada z Hope, daje ci Hope.",
         "hopeNow": "Masz {held} z {max} Hope.",
         "standing": "Teraz",
-        "monokumaActions": "Nie masz ekonomii akcji. Monokuma jest pomijany przy odnawianiu akcji i żadnych nie wydaje.",
-        "monokumaMove": "Ruch nic cię nie kosztuje i nic nie daje - nie ma Free Move do śledzenia.",
+        "monokumaActions": "Jako Monokuma nie masz akcji: nie odnawiają ci się na początku pory dnia i nic, co robisz, ich nie wydaje.",
+        "monokumaMove": "Przejście do innego pokoju nic cię nie kosztuje i nie masz Free Move.",
         "monokumaDespair": "Wydajesz Despair tam, gdzie uczeń wydaje Hope. Pule są u góry ekranu.",
         "monokumaWalls": "Ściany i zamknięte drzwi cię nie dotyczą."
       },
       "projects": {
         "window": "Projects",
         "title": "Czym jest projekt",
-        "what": "Projekt to coś, co trwa dłużej niż jedną akcję: budowa, naprawa, zatrucie, przekopanie się. Każdy mieszka w pokoju i posuwa się tylko, gdy ktoś tam nad nim pracuje.",
-        "progress": "Praca nad projektem to akcja i rzut - to, jak pójdzie, decyduje, ile postępu przyniesie. Gdy pasek się zapełni, rzecz jest gotowa.",
-        "secret": "Niektóre projekty są prywatne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.",
+        "what": "Projekt to praca na kilka akcji: budowa, naprawa, zatrucie albo przekopanie się przez coś. Każdy projekt należy do swojego pokoju i posuwa się naprzód tylko wtedy, gdy ktoś na miejscu nad nim pracuje albo dokłada się do niego Callem Contribution.",
+        "progress": "Każda praca nad projektem to akcja i rzut. Od rzutu zależy, ile postępu przybędzie, a gdy pasek się zapełni, projekt jest gotowy.",
+        "secret": "Niektóre projekty są tajne: wiedzą o nich tylko osoby, które nad nimi pracują, i GM-owie. Lista poniżej pokazuje tylko projekty, o których wiesz.",
         "yours": "Co widzisz",
-        "none": "Jeszcze nic - żaden projekt nie jest dla ciebie widoczny."
+        "none": "Nie znasz jeszcze żadnego projektu."
       }
     },
     "Dialog": {
