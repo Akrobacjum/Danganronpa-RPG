@@ -301,11 +301,17 @@ export function census(repo = REPO) {
 }
 
 export const identity = s => `${s.file}|${s.unit ?? ""}|${s.kind}|${s.key ?? ""}`;
-const countOf = rows => {
+const countOf = (rows, id = identity) => {
     const n = new Map();
-    for (const r of rows) n.set(identity(r), (n.get(identity(r)) ?? 0) + (r.count ?? 1));
+    for (const r of rows) n.set(id(r), (n.get(id(r)) ?? 0) + (r.count ?? 1));
     return n;
 };
+/* AGAINST MAIN'S COPY A ROW IS ITS FUNCTION'S, NOT ITS FILE'S (E54, 13.11.2026). A file split by pure moves (E54's cuts:
+   sheet.mjs into nine files, investigation.mjs, chapter.mjs, cleanup.mjs) carries each row to the file its function now
+   stands in, and by `identity` that row was one main's copy did not hold: every moved row read as "a row added here"
+   until the split was on main (five of the sheet's eight on 1.2.112). A row with a unit is counted by its unit, kind and
+   key; a top-level one (no unit) keeps its file, so two files' top-level sites never stand in for each other. */
+const mainIdentity = s => (s.unit ? `${s.unit}|${s.kind}|${s.key ?? ""}` : identity(s));
 
 /** Today's sites that need help against the baseline's rows (and main's copy, when given; `verified`, the held rows heldCheck found in their code): the problems, one line each. */
 export function compare(sites, rows, mainRows = null, verified = null) {
@@ -319,11 +325,11 @@ export function compare(sites, rows, mainRows = null, verified = null) {
     }
     for (const [id, n] of left) if (n > 0) problems.push(`${BASELINE} keeps ${n} row(s) of ${id.replace(/\|/g, " ")} that no site needs any more: cut ${n === 1 ? "it" : "them"}, so the baseline only shrinks`);
     if (mainRows) {
-        const main = countOf(mainRows), ours = countOf(rows), spare = heldSpare(mainRows, main, ours);
+        const main = countOf(mainRows, mainIdentity), ours = countOf(rows, mainIdentity), spare = heldSpare(mainRows, main, ours, mainIdentity);
         for (const [id, n] of ours) {
             let over = n - (main.get(id) ?? 0);
             if (over <= 0) continue;
-            const fuk = id.slice(0, id.lastIndexOf("|")), used = Math.min(over, verifiedCount(rows, verified, id), spare.get(fuk) ?? 0);
+            const fuk = id.slice(0, id.lastIndexOf("|")), used = Math.min(over, verifiedCount(rows, verified, id, mainIdentity), spare.get(fuk) ?? 0);
             spare.set(fuk, (spare.get(fuk) ?? 0) - used);
             over -= used;
             if (over > 0) problems.push(`${BASELINE} holds ${n} of ${id.replace(/\|/g, " ")} where origin/main's copy holds ${main.get(id) ?? 0}: a row added here hides a control with no help - give it a tooltip instead`);
@@ -342,20 +348,22 @@ export function compare(sites, rows, mainRows = null, verified = null) {
  * alone, such a row's excess over main's count of its exact identity may be met by main's own "help in code" rows of
  * the same file, unit and kind that our rows leave unmatched; each of main's counts is met once. A row that is not
  * verified, a row of another reason, and a held row beyond main's count of its file, unit and kind stay red as before.
+ * With E54's count against main (`mainIdentity`, above) the rows are keyed as there: a row with a unit by its unit, kind
+ * and key, so "the same file, unit and kind" is the same unit and kind for it, and a top-level row keeps its file.
  */
 const isHeldRow = r => /^help in code: /.test(String(r.why ?? "")) && Boolean(r.held?.fn && r.held?.pattern);
-function heldSpare(mainRows, main, ours) {
+function heldSpare(mainRows, main, ours, key = identity) {
     const heldOf = new Map(), spare = new Map();
-    for (const r of mainRows.filter(isHeldRow)) heldOf.set(identity(r), (heldOf.get(identity(r)) ?? 0) + (r.count ?? 1));
+    for (const r of mainRows.filter(isHeldRow)) heldOf.set(key(r), (heldOf.get(key(r)) ?? 0) + (r.count ?? 1));
     for (const [id, h] of heldOf) {
         const left = Math.min(h, Math.max(0, (main.get(id) ?? 0) - (ours.get(id) ?? 0))), fuk = id.slice(0, id.lastIndexOf("|"));
         if (left > 0) spare.set(fuk, (spare.get(fuk) ?? 0) + left);
     }
     return spare;
 }
-function verifiedCount(rows, verified, id) {
+function verifiedCount(rows, verified, id, key = identity) {
     if (!verified) return 0;
-    return rows.filter(r => verified.has(r) && identity(r) === id).reduce((a, r) => a + (r.count ?? 1), 0);
+    return rows.filter(r => verified.has(r) && key(r) === id).reduce((a, r) => a + (r.count ?? 1), 0);
 }
 
 /**
@@ -454,6 +462,11 @@ const GUARD_PLANTS = (() => {
         ["a held row on main, a row of another reason here", [at(null, none)], [at("DRPG.X.near")], false, true],
         ["a verified held row beyond main's count", [at(null, { count: 2 })], [at("DRPG.X.near")], true, true],
         ["a verified held row main holds no held row for", [at(null)], [at("DRPG.X.near", none)], true, true],
+        /* E54's cuts move a function to another file of its family, and its rows with it: 600cb4f0's allowance and
+           da276909's count against main composed (1.2.113 assembly, 14.11.2026) read such a row by its unit and kind,
+           so it stands for main's held row in the file it left - and the same row of another kind does not. */
+        ["a verified held row moved to another file (an E54 cut)", [at(null, { file: "scripts/plant-moved.mjs" })], [at("DRPG.X.near")], true, false],
+        ["a verified held row moved to another file, of another kind", [at(null, { file: "scripts/plant-moved.mjs", kind: "dom:a" })], [at("DRPG.X.near")], true, true],
     ];
 })();
 export function guardSelfCheck() {
