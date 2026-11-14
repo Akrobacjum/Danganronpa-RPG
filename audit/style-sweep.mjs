@@ -1725,6 +1725,18 @@ async function main() {
         try { process.exitCode = await fitPass(browser); } finally { await browser.close(); server?.kill(); }
         return;
     }
+    /* THE BUILD (E55, 14.11.2026): the baseline written at e258b135 read 1176 differences in Chromium 153 on its own tree
+       (the prep-54 line's reading), a build's drift no row could tell from a change. The baseline now names the build
+       that wrote it, and a comparison in another build is red before it reads a page (the passes above read no baseline and run in any build), as audit/style-freeze.mjs's. */
+    const build = browser.version();
+    const written = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, "utf8")).chromium ?? null : null;
+    if (written && written !== build && !WRITE) {
+        console.log(`style-sweep: audit/style-baseline.json was written in Chromium ${written}, this is ${build}: a comparison across builds compares nothing (--write in this build, read before it is committed); RED`);
+        await browser.close();
+        server?.kill();
+        process.exitCode = 1;
+        return;
+    }
     const problems = [];
     const readings = {};
     let props = null;
@@ -1784,8 +1796,8 @@ async function main() {
     if ((WRITE || accepted || !old) && !problems.some(p => p.startsWith("control "))) {
         const packed = pack(next, props);
         fs.writeFileSync(BASELINE, `${JSON.stringify({
-            about: "What audit/style-sweep.mjs read in Chromium (scripts/style-snapshot.mjs styleSnapshot) on every page at each size and theme: pages[\"<page>|<theme>|<w>x<h>\"] = { surface: [index into values, one a prop] }, the surfaces found. Written by the sweep's --write or --accept from a run, never by hand.",
-            props, values: packed.values, pages: packed.pages
+            about: "What audit/style-sweep.mjs read in Chromium (scripts/style-snapshot.mjs styleSnapshot) on every page at each size and theme, in the Chromium build `chromium` names (a run in another build compares nothing): pages[\"<page>|<theme>|<w>x<h>\"] = { surface: [index into values, one a prop] }, the surfaces found. Written by the sweep's --write or --accept from a run, never by hand.",
+            chromium: build, props, values: packed.values, pages: packed.pages
         })}\n`);
         console.log(`style-sweep: audit/style-baseline.json written (${Object.keys(next).length} reading(s), ${packed.values.length} distinct value(s)${accepted ? `, ${accepted} accepted` : ""})`);
     }
