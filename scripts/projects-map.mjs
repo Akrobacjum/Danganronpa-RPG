@@ -47,7 +47,7 @@ import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from 
 import { keepLive } from "./live.mjs";
 // What a player saw last (PV): the card's bar as its reader last saw it. It does not import this file.
 import { asSeen } from "./projects-seen.mjs";
-import { discoveryStore, fogCopy, projectSecretStore } from "./gm-stores.mjs";
+import { discoveryStore, fogCopy, projectSecretStore, projectSightCopy } from "./gm-stores.mjs";
 
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
@@ -834,7 +834,10 @@ function showProjectCard(app, element) {
         build: draw,
         // ... and a card's words stored (secret.mjs `drpgSecretStored`): a secret project's description reaches its players on one (E44 fix FG6).
         // ... and the discovery record and a move settled here, so a card opened while its project was unknown turns into it (E43; Open 96).
-        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled", "drpgSeenChanged"], stores: [discoveryStore, fogCopy] },
+        // ... and the player's copy of the GMs' sight (14.11.2026, R7110): projects.mjs `descriptionOf` reads it before the card's
+        // words since Open 103, so a card whose words landed before the copy redrew the old words and nothing drew it again
+        // (scenario 30, one red in five at 52f19e2a).
+        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled", "drpgSeenChanged"], stores: [discoveryStore, fogCopy, projectSightCopy] },
         after: wireProjectCard
     }));
     // Sized for a stat block; this is a card, exactly as the trace's is - and a frame

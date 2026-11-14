@@ -61236,6 +61236,15 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ masks: [["K1", "K2"], []], line: ["masked", null], settle: true }),
             "{masks: [outside the trial, in it]; line: a masked player's own line [outside the trial, in it]; settle: the mask's block outside the trial alone}");
     }],
+    ["R7110 - an open project card follows every road a secret project's description reaches a player's browser by (E110, 14.11.2026; scenario 30's one red in five at 52f19e2a): projects.mjs `descriptionOf` reads the player's copy of the GMs' sight (`projectSightCopy`) before the private card's words, so projects-map.mjs `showProjectCard`'s live region watches that copy as well as `drpgSecretStored` - a card whose words landed before the copy redrew the old words and nothing drew it again", async () => {
+        /* Two source reads. Red at 52f19e2a: the card's watch named no projectSightCopy. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const projects = await src("projects.mjs"), map = await src("projects-map.mjs");
+        const reads = /projectSightCopy\.read\(\)/.test(fnSource(projects, "descriptionOf"));
+        const watch = fnSource(map, "showProjectCard").match(/watch:\s*\{[^}]*\}/)?.[0] ?? "";
+        equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
+            "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
+    }],
 ];
 
 /**
