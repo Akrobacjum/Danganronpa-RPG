@@ -10,6 +10,8 @@ Branch `claude/e71-b`, from `claude/fervent-sagan-gme4vt` at 1463f22b (14.11.202
 | 8f3e3546 | B07 |
 | 34c76fe2 | B08 (its message counts 211 texts; the file holds 207: four texts went back to their befores before the commit, below) |
 | 8f3d53ae | B09 (its message names "Look's neighbors" among B09's namespaces: Look is B06's) |
+| d0669dc1 | this file and the batch table |
+| 3edf9359 | Observe's two labels back for the handbooks (scenario 62), „Truth Bullet” inflected in three Polish texts |
 
 ## C0, group B's part: the census (measured on 1463f22b)
 
@@ -22,7 +24,7 @@ and are not in the batch files.
 | Batch | Namespaces | Keys read | Changed texts | Facts |
 | --- | --- | --- | --- | --- |
 | B06 | Calls, RollDialog, Rolls, Roll, Look | 200 | 80 (en 69, pl 72) | 146, all read in a function |
-| B07 | Observe, Analyze, TruthBullet, Remnant; Passage on passages-gm, find-passage | 249 | 80 (en 63, pl 75) | 174, 169 in a function |
+| B07 | Observe, Analyze, TruthBullet, Remnant; Passage on passages-gm, find-passage | 249 | 78 (en 62, pl 73) | 171, 166 in a function |
 | B08 | Items, Inventory, Handover, Steal, Loot, Frisk, Vault, Facility, Sheet, SheetNotes, States, Character; Passage on Room setup, the sheet, projects, messenger | 653 | 207 (en 149, pl 193) | 430, 403 in a function |
 | B09 | Explain, Hud, Listen, Events, Move, Clock, Eclipse, Sequence, Summary, Kit, FoundryTools, Movement, Room, Ready | 327 | 101 (en 74, pl 95) | 199, 196 in a function |
 
@@ -58,14 +60,15 @@ one revision that took or rejected each point with a reason (`removed` "review: 
 
 Texts that went back to their befores after tier 1 read them (edits after the revision): Vault.imageBroken (only
 checked, A9; the GM handbook names it, R2036), Passage.tab.startHint and the Polish of Passage.tab.wayHint (the early
-pass's approved review texts, R902), the Polish of Frisk.rowLabel (R620, below). Analyze.findPassageHint was cut to
+pass's approved review texts, R902), the Polish of Frisk.rowLabel (R620, below), Observe.anything (both languages) and
+Observe.general's Polish (both handbooks name these labels: scenario 62's L2). Analyze.findPassageHint was cut to
 108 characters (R3201: the owner's caption rule); Items.useTitle's Polish took „Użycie przedmiotu „{item}”” (R1161:
 „Użyj przedmiotu” is a retired Polish name); eleven "can't" of the drafts written in full (DB8, T19).
 
 ## Lint for group B's namespaces
 
 `node tools/check.mjs text --all`, the findings that name a key of group B's namespaces, on 1463f22b and on 8f3d53ae
-(B06 / B07 / B08 / B09). No mode was turned (T4, T11, T12 and the rest stay as they are until the four lines land).
+(B06 / B07 / B08 / B09; the same on 3edf9359). No mode was turned (T4, T11, T12 and the rest stay as they are until the four lines land).
 
 | Check | 1463f22b | 8f3d53ae |
 | --- | --- | --- |
@@ -112,7 +115,7 @@ R904 and R970 (B08), R320, R1156 and R1160 (B09). The full tier 1 on the tip and
 | Q-B-1 | A card whispered to the GMs: may it tell the GM what to do in the imperative ("Rule it in Investigation.")? | Yes in both languages (V3), and "you" for a GM something happened to stays out (P2): the role or the name. Movement.droppedFromNowhere carries the alternative if the owner rules the other way. |
 | Q-B-2 | Calls.progressRefused: a progress Call that moves nothing (Game Integrity on a project at 0; Patronage racing a freeze or a finish) is paid and not refunded, against calls.mjs's refusal comment and the GM handbook 6.2 ("refused before it is paid"). Refuse it before the price, or refund it? | The text says what the code does now (progress unchanged, the price stays); the code question is the owner's (mechanics review, B06's batch row). |
 | Q-B-3 | Owner-approved naturalness pairs the writers would widen with facts the code runs: N42 (noneReadied: also a project and a sabotage), N43 (wouldRestoreNothing: not true when an Overflow blocks Hope), N6 (Vault.notHere: {room} can be a list), N46 (Analyze.askHintHint: the row is offered with or without a Truth Bullet), N32, N60. | Each pair kept word for word; N42's text adds a sentence after it; the rest wait for the owner. |
-| Q-B-4 | Frisk.rowLabel's Polish: the glossary's `see-what-they-carry` (E71) says „Zobacz, co ktoś nosi”; both handbooks say „Zobacz, co nosi”, and R620 holds the row to them. | Kept as it stands; the row and the handbooks change together, with the handbook line. |
+| Q-B-4 | Labels the handbooks name: Observe.anything ("Examine a point of interest", „Zbadaj coś, co przykuło twoją uwagę”) and Observe.general's Polish („Rozejrzyj się po pokoju”) were the batch's; scenario 62 holds the handbooks to the labels. And Frisk.rowLabel's Polish: the glossary's `see-what-they-carry` (E71) says „Zobacz, co ktoś nosi”; both handbooks say „Zobacz, co nosi”, and R620 holds the row to them. | Kept as they stand; each label and its handbooks change together, with the handbook line (the batch's wording is in its texts' history, docs/dev/e71/STATUS-B.md and the B07 commit 8f3e3546). |
 | Q-B-5 | Vault.neighboursNote and Vault.descriptionNote: the GM handbook quotes them (R431, R518); the batch's US spelling ("Neighbors", "grayed") and "Remnants" wait. | Kept as they stand; they move with the handbook line. The neighbors' column, hint and line did change. |
 | Q-B-6 | Movement.outsideRooms in Polish: its hosts write „do pokoju {room}”, „z pokoju {from}”, „w pokoju {room}”, so the fallback renders „do pokoju poza pokojami”. | Kept; a host change (separate keys, or hosts without „pokoju” and fragments with their preposition, section 14) is code's. |
 | Q-B-7 | The Sequence's capitals (14 keys) are display type on the full-screen sequences; X16 reads them as emphasis. | Kept; they want X16 allow rows in docs/text-budgets.json (not added here: a shared file). |
@@ -156,6 +159,38 @@ Found by group B's writers and reviewers; not changed here.
 - LIVE-E71-02 and -03 as the plan proposes; for group B also: a Polish player reads the Calls' cards, the roll window's
   locked toasts and the Frisk and Palm cards at a real table.
 
+## The coordinator's items of 14.11 (from group D's report)
+
+1. `Vault.neighboursColumn` reads "Neighbors" since B08 (34c76fe2), with `neighboursHint` and `neighboursLine` (and
+   "grayed"). `Vault.neighboursNote` keeps "Neighbours" because the GM handbook quotes its last two sentences and R431
+   holds the quote (Q-B-5); `DRPG.Rooms.renamed` ("other rooms' Neighbours lists") is group D's. The handbook line
+   changes the handbook's Neighbours (GM handbook section 9.1, lines 486, 494, 506 and 508 on 1463f22b) with the note.
+2. `Items.iconsPinned` keeps "icon": the module's own UI tells a category's icon from a picture the GM picks
+   (`Items.categoryTooltip` "The icon changes with it unless you pick a picture"; `pinItemIcons` leaves "a chosen
+   picture" alone), and the glossary has no entry for either word.
+3. „Truth Bullet” in Polish: of group B's six uninflected „Truth Bullets” on 8f3d53ae, three are now inflected
+   (Items.takeNote, TruthBullet.faintTooltip, migratedTitle). Kept: Vault.noBullets (the owner's pair N34 writes „Truth
+   Bullets to twoja wiedza”), Sheet.groupTruthBullets (the inventory group's label, the same word as
+   ITEM_CATEGORIES.truthBullet.plural, a table-name label N5 holds) and TruthBullet.whereToFind (it names that label).
+   Outside group B's namespaces, 36 keys still hold „Truth Bullets”: Settings.bulletSort.name, .hint; Chapter.keepBullets,
+   deathNote, bulletsGone (few, many, other), revived, keepSecretUntilFound, keptUntilFound, optReveal, revealKeeps,
+   typeless (few, many, other), optSweep, doneSweep (few, many, other), step.reveal, step.sweep; Panel.sweepBullets,
+   sweepConfirm (few, many, other), sweptBullets (few, many, other), whoIsAliveNote; Anonymity.aboveLimited;
+   Season.resetBullets (few, many, other), group.bullets; Config.PHASES.investigation.hint;
+   Config.ITEM_CATEGORIES.truthBullet.plural (the table-name label).
+
 ## Done
 
-(Filled at the end: the tip, tier 1, the scenarios.)
+On the tip 3edf9359 (the commit after it is this file):
+
+- **Tier 1** (`node run-tests.mjs --tier 1`, after `npm ci`): 1605 tests, 1589 passed, 1 failed, 16 skipped, 0 red,
+  491 s. The one failure is R2001 (the planned versions quoted for a stage), the coordinator's known base failure.
+- **Scenarios** whose files name a changed key or hold a piece of a changed text (21, by a grep of
+  audit/harness/scenarios for each changed key and each before's fragments of 18 characters or more), run on 8f3d53ae
+  by `node cluster.mjs`: 10, 12, 13, 15, 17, 30, 33, 40, 65, 66, 67, 70, 71, 72, 74, 76, 83, 87, 97 green (their
+  expected reds only, each a named Foundry limit); 62 red on two labels the handbooks name, fixed in 3edf9359 and
+  green after (52/52); 63 red on E5 and I7 (the vote window's privacy note, `DRPG.Vote.privacyNote`, group C's key,
+  untouched here) and red the same way on 1463f22b (77/79, run with DRPG_REPO on a worktree of the base): not this
+  line's.
+- **Lint**: `node tools/check.mjs text`, `parity` and `prose` green on every commit; `npm run quick` green before
+  every push.

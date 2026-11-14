@@ -287,7 +287,7 @@ in B08's file with the other Passage texts of that round.
 | `DRPG.Calls.newRuleTitle` | window-title | both | full | read, kept |
 | `DRPG.Calls.newRulePlaceholder` | - | both/unknown | full | read, kept |
 
-## B07 (249 keys, 81 changed)
+## B07 (249 keys, 79 changed)
 
 ### (no screen)
 
@@ -316,11 +316,11 @@ in B08's file with the other Passage texts of that round.
 | `DRPG.Analyze.stashSent` | player-card | both | full | read, kept |
 | `DRPG.Observe.projectFoundDone` | - | both/unknown | full | read, kept |
 | `DRPG.Observe.declarePrompt` | - | both | full | read, kept |
-| `DRPG.Observe.general` | - | both | full | pl |
+| `DRPG.Observe.general` | - | both | full | read, kept |
 | `DRPG.Observe.specific` | - | both | full | read, kept |
 | `DRPG.Observe.nonObvious` | - | both | full | read, kept |
 | `DRPG.Observe.followTraces` | - | both | check | read, kept |
-| `DRPG.Observe.anything` | - | both | full | en+pl |
+| `DRPG.Observe.anything` | - | both | full | read, kept |
 | `DRPG.Observe.anythingTitle` | window-title | both | full | read, kept |
 | `DRPG.Observe.requestPlaceholder` | - | both | full | read, kept |
 | `DRPG.Observe.requestPrompt` | - | both | full | en |
