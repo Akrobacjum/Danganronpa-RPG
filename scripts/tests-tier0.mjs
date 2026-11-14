@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy, chapterText, chapterBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2346,7 +2346,7 @@ const REGRESSIONS = [
          * screen that needs it.
          */
         const sources = new Map(await otherSources());
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const chapter = stripComments(chapterText(sources));
         const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
         const ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
 
@@ -2423,7 +2423,7 @@ const REGRESSIONS = [
          * chapter's dead. Behaviour was verified in the sandbox; this keeps the wiring.
          */
         const sources = new Map(await otherSources());
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const chapter = stripComments(chapterText(sources));
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         // Since E11 C1 (1.2.73) the body rule is `bodiesToDiscover`, which checkBodyFound asks and R347 holds case by case.
@@ -4009,7 +4009,7 @@ const REGRESSIONS = [
          * the two, and the repair is read calling the helper and not the procedure.
          */
         const sources = new Map(await otherSources());
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const chapter = stripComments(chapterText(sources));
 
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
@@ -7289,11 +7289,11 @@ const REGRESSIONS = [
             "config.mjs FLAGS flag": "the flag's name, defined",
             "settings.mjs deathRecord flag": "the record, read",
             "settings.mjs isDeceased flag": "the table's fact, read",
-            "chapter.mjs bodiesToDiscover flag": "the body rule reads the record off the primary's mark (E11 C1)",
-            "chapter.mjs markDeceased flag": "the one write",
-            "chapter.mjs markDeceased status": "the token's marker, written with the flag",
-            "chapter.mjs reviveCharacter flag": "the one unwrite",
-            "chapter.mjs reviveCharacter status": "the marker, taken off with it",
+            "body.mjs bodiesToDiscover flag": "the body rule reads the record off the primary's mark (E11 C1)",
+            "death.mjs markDeceased flag": "the one write",
+            "death.mjs markDeceased status": "the token's marker, written with the flag",
+            "death.mjs reviveCharacter flag": "the one unwrite",
+            "death.mjs reviveCharacter status": "the marker, taken off with it",
             // E19 C2: the updateActor hook's test moved into `reconcileTrigger`, which the hook asks.
             "voice.mjs reconcileTrigger flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E15 C4: the conditions' hook syncs again when a death is published; `syncStates` then asks `isDeceased`.
@@ -8093,7 +8093,7 @@ const REGRESSIONS = [
          * the source only: a tier-2 walk onto a tile whose token has left is not written here (the owner's Q-E72-3 is
          * the default's, to confirm).
          */
-        const src = stripComments(new Map(await otherSources()).get("chapter.mjs") ?? "");
+        const src = stripComments(chapterText(new Map(await otherSources())));
         const fn = bodyOf(src, "async function checkBodyFound(", { until: "\n}\n" });
         must(fn.length > 500, "chapter.mjs has no checkBodyFound - this would measure nothing");
         const read = {
@@ -8324,7 +8324,7 @@ const REGRESSIONS = [
         const rulings = ["ruleItemWorksOrItemNoEffectOrItemRefuse", "ruleDeclineProject", "ruleReply", "ruleSearchMiss", "ruleObserveMiss", "ruleDecline",
             "ruleDeclineMurder"].map(name => [name, /rulingThread\(actor, message\)/.test(fnSource(app, name) ?? "")]);
         equal(JSON.stringify(rulings.filter(([, ok]) => !ok).map(([name]) => name)), "[]", "a ruling does not go to the thread its card is in");
-        const finder = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "tellLoneFinder") ?? "";
+        const finder = fnSource(stripComments(chapterText(sources)), "tellLoneFinder") ?? "";
         ok(/ownerIdsOf\(finder\)/.test(finder), "the lone finder's death is told to one owner");
     }],
 
@@ -8706,8 +8706,8 @@ const REGRESSIONS = [
         const GM_ROADS = [
             ["analyze.mjs", "lockOut", "resolveAnalyze"],
             ["analyze.mjs", "identify", "resolveAnalyze"],
-            ["chapter.mjs", "destroyBullets", "killCharacter"],
-            ["chapter.mjs", "destroyBullets", "publishDeath"],
+            ["death.mjs", "destroyBullets", "killCharacter"],
+            ["death.mjs", "destroyBullets", "publishDeath"],
             ["character.mjs", "stampStartingSheet", "initCharacter"],
             ["gm-items.mjs", "takeItemDialog", "openItemManager"],
             ["migrate.mjs", "CLAUSES", "migrate1_2_0"],
@@ -9189,8 +9189,8 @@ const REGRESSIONS = [
             ["SHEET verdict.mjs#finalContext", "out of scope (E42 C1c): a Finish of the Final Trial's verdict reads the Mastermind's `isDeadForGm` for the GMs' summary's outcome alone, a GM's own reading as `giveFinalVerdict`'s; no write rests on it - whether the sentence waits is the record's `sentencePending`"],
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
-            ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
-            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` (the caller's when it passes one: the verdict's `classTrial`, E11 fix r1-G1), `epoch: seasonEpoch()` and a random `deathId`; it reads nothing new [1b.1 death record]"],
+            ["SHEET death.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
+            ["SHEET death.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` (the caller's when it passes one: the verdict's `classTrial`, E11 fix r1-G1), `epoch: seasonEpoch()` and a random `deathId`; it reads nothing new [1b.1 death record]"],
             ["SHEET season-wipe.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset's `wipeSeason` on the primary (E33 C1a's GM-side rows) and from tier 2's sandbox; it writes a student's values back (`deaths`: Health and Sanity, `despair`: Hope) and reads the death and the items off the document only to wipe them (E11 C10). The clock step (C10: `season` + 1, `finalTrial: false`) stays `wipeSeason`'s"],
             ["STORE trial-progress.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
@@ -9207,7 +9207,7 @@ const REGRESSIONS = [
         // the file its function stands in.
         const FILES = ["vote.mjs", "trial-progress.mjs", "verdict.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs", "trial-speakers.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
-            "sheet-header.mjs": ["injectAdvanceButton"], "sheet-inventory.mjs": ["addPresentButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
+            "sheet-header.mjs": ["injectAdvanceButton"], "sheet-inventory.mjs": ["addPresentButton"], "chapter.mjs": ["openChapterEndDialog"], "death.mjs": ["livingStudents", "killCharacter"],
             "season-wipe.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
@@ -9445,24 +9445,24 @@ const REGRESSIONS = [
             ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs `registerSync`) and touches no actor. Since E11 C3 the gather's camera rides it (and since E11 fix r2-H4 the reset's `placeCast` sends it too, 65 U0): `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); since E11 C3 `SYNC.gather`'s `tokenIds` are read only to find this client's own token on its canvas, and nothing is written"],
             ["CHAT season-wipe.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
-            ["SHEET chapter.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
-            ["SHEET chapter.mjs#livingStudentsForGm", "out of scope: rule B, the GM's judgement (`isDeadForGm`: the flag or the `deaths` store); no E11 commit changes it"],
-            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. C1 adds `phase` and `epoch: seasonEpoch()` to the record it writes (through `markDeceased` and the `deaths` row) and reads nothing new; fix r1-G1 a `phase` the caller passes (a chapter verdict's; since fix r2-H1 the Final Trial's too) and a random `deathId`, which a discovery's stamp names. [1b.1 death record] (E11 C1)"],
-            ["SHEET chapter.mjs#incidentVictimDied", "out of scope: a GM-gated check of the incident's victim (`isDeceased`); no E11 commit changes it"],
-            ["SHEET chapter.mjs#bulletsHeldBy", "out of scope: Truth Bullets on a sheet at a death's publication (E05/E29 items audit); no E11 commit changes it"],
-            ["SHEET chapter.mjs#destroyBullets", "out of scope: Truth Bullets destroyed at a death's publication (E05); no E11 commit changes it"],
-            ["SHEET chapter.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). Since E11 C1 its record keeps the row's chapter, day, time of day, phase and season, and a verdict that executes a death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4) passes `phase: \"classTrial\"`, so the executed is no body to discover (tier 2 \"a body the verdict executed is not found again after the trial - a death the GMs held included\"); since E11 fix r1-G1 it keeps the row's `deathId` too"],
-            ["SHEET chapter.mjs#reviveCharacter", "out of scope: a GM's undo of a death (GM gate); no E11 commit changes it"],
-            ["SHEET chapter.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
-            ["SHEET chapter.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3), with each one's `deathId` for the stamp (E11 fix r1-G1; read in that pass, before any is published, since fix r2-H1 - read after, it waited for no judgement of the publication's own write). On the primary because a discovery runs there only (`discoverBody` refuses on any other GM, E11 fix r1-G2), and the stamp names only the bodies whose publication took; since fix r2-H1 so do the card, the hold and the cleaning tools the discovery breaks [1b.2]"],
-            ["SHEET chapter.mjs#runDiscovery", "judged (E11 fix r2-J1): on the primary, the one browser a discovery runs on (`discoveryHere`); a named victim the mark holds no death for is waited for (`judgedFor`) before any read, then `announcedAlready` and the stamp read the death as the GMs hold it (`flagsHeldNow`); the walk-in road names only a body the mark already holds dead [1b.2]"],
-            ["SHEET chapter.mjs#announcedAlready", "judged (E11 fix r1-G2): the death's record (`deathRecordFor`) of the flags it is handed - `runDiscovery` and `openBodyDiscoveryDialog` hand it `flagsHeldNow`, on the primary, the one browser a discovery runs on (`discoveryHere`) - against this chapter's stamps (`announcedIn`) [1b.2]"],
+            ["SHEET death.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
+            ["SHEET death.mjs#livingStudentsForGm", "out of scope: rule B, the GM's judgement (`isDeadForGm`: the flag or the `deaths` store); no E11 commit changes it"],
+            ["SHEET death.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. C1 adds `phase` and `epoch: seasonEpoch()` to the record it writes (through `markDeceased` and the `deaths` row) and reads nothing new; fix r1-G1 a `phase` the caller passes (a chapter verdict's; since fix r2-H1 the Final Trial's too) and a random `deathId`, which a discovery's stamp names. [1b.1 death record] (E11 C1)"],
+            ["SHEET death.mjs#incidentVictimDied", "out of scope: a GM-gated check of the incident's victim (`isDeceased`); no E11 commit changes it"],
+            ["SHEET death.mjs#bulletsHeldBy", "out of scope: Truth Bullets on a sheet at a death's publication (E05/E29 items audit); no E11 commit changes it"],
+            ["SHEET death.mjs#destroyBullets", "out of scope: Truth Bullets destroyed at a death's publication (E05); no E11 commit changes it"],
+            ["SHEET death.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). Since E11 C1 its record keeps the row's chapter, day, time of day, phase and season, and a verdict that executes a death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4) passes `phase: \"classTrial\"`, so the executed is no body to discover (tier 2 \"a body the verdict executed is not found again after the trial - a death the GMs held included\"); since E11 fix r1-G1 it keeps the row's `deathId` too"],
+            ["SHEET death.mjs#reviveCharacter", "out of scope: a GM's undo of a death (GM gate); no E11 commit changes it"],
+            ["SHEET death.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
+            ["SHEET body.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3), with each one's `deathId` for the stamp (E11 fix r1-G1; read in that pass, before any is published, since fix r2-H1 - read after, it waited for no judgement of the publication's own write). On the primary because a discovery runs there only (`discoverBody` refuses on any other GM, E11 fix r1-G2), and the stamp names only the bodies whose publication took; since fix r2-H1 so do the card, the hold and the cleaning tools the discovery breaks [1b.2]"],
+            ["SHEET body.mjs#runDiscovery", "judged (E11 fix r2-J1): on the primary, the one browser a discovery runs on (`discoveryHere`); a named victim the mark holds no death for is waited for (`judgedFor`) before any read, then `announcedAlready` and the stamp read the death as the GMs hold it (`flagsHeldNow`); the walk-in road names only a body the mark already holds dead [1b.2]"],
+            ["SHEET body.mjs#announcedAlready", "judged (E11 fix r1-G2): the death's record (`deathRecordFor`) of the flags it is handed - `runDiscovery` and `openBodyDiscoveryDialog` hand it `flagsHeldNow`, on the primary, the one browser a discovery runs on (`discoveryHere`) - against this chapter's stamps (`announcedIn`) [1b.2]"],
             ["SHEET events.mjs#bodyCard", "judged (E11 fix r1-G2): the card draws only the bodies of the stamp or the hold that are dead as the GMs hold them (`isDeceased` of `flagsHeldNow`: the primary's mark there, the document on every other browser, which is what the table knows) [1b.2]"],
-            ["SHEET chapter.mjs#checkBodyFound", "judged (1.2.113): on the primary, every read one synchronous step after its imports (H3, H17); since 1.2.113 it reads the found body's death (`deathRecordFor` of `flagsHeldNow`) for the pending row it writes, which names that death; the announcement is the GM's word (`askPendingBodies` -> `discoverBody`) [1b.2]"],
-            ["SHEET chapter.mjs#bodiesLyingIn", "judged (1.2.113): a pure filter over the flags it is handed (`deadIn`, the Monocub flag, `bodyPlaceOf` with `held`) - `checkBodySound` hands it `flagsHeldNow` on the primary; it names a body to nobody, the sound's packet carries the sound's key alone [1b.2]"],
-            ["SHEET chapter.mjs#heardByEveryone", "judged (1.2.113): on the primary, inside `runDiscovery`, the found bodies' deaths read as the GMs hold them (`flagsHeldNow`) for the GMs' own store `bodyHeardStore`; writes nothing a player reads [1b.2]"],
-            ["SHEET chapter.mjs#witnessesOf", "judged (E11 C1): a pure filter over the flags it is handed - `checkBodyFound` hands it `flagsHeldNow` and reads every token in one synchronous step after its imports (H3, H17); the dead who are not Monocubs are not witnesses (R348) [1b.2]"],
-            ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps, each counted for the death it names - `deathId`, E11 fix r1-G1) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347), and since E11 C2 the GM panel's next line (gm-panel.mjs `bodyWaiting`, a GM's browser) does the same [1b.2]"],
+            ["SHEET body.mjs#checkBodyFound", "judged (1.2.113): on the primary, every read one synchronous step after its imports (H3, H17); since 1.2.113 it reads the found body's death (`deathRecordFor` of `flagsHeldNow`) for the pending row it writes, which names that death; the announcement is the GM's word (`askPendingBodies` -> `discoverBody`) [1b.2]"],
+            ["SHEET body.mjs#bodiesLyingIn", "judged (1.2.113): a pure filter over the flags it is handed (`deadIn`, the Monocub flag, `bodyPlaceOf` with `held`) - `checkBodySound` hands it `flagsHeldNow` on the primary; it names a body to nobody, the sound's packet carries the sound's key alone [1b.2]"],
+            ["SHEET body.mjs#heardByEveryone", "judged (1.2.113): on the primary, inside `runDiscovery`, the found bodies' deaths read as the GMs hold them (`flagsHeldNow`) for the GMs' own store `bodyHeardStore`; writes nothing a player reads [1b.2]"],
+            ["SHEET body.mjs#witnessesOf", "judged (E11 C1): a pure filter over the flags it is handed - `checkBodyFound` hands it `flagsHeldNow` and reads every token in one synchronous step after its imports (H3, H17); the dead who are not Monocubs are not witnesses (R348) [1b.2]"],
+            ["SHEET body.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps, each counted for the death it names - `deathId`, E11 fix r1-G1) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347), and since E11 C2 the GM panel's next line (gm-panel.mjs `bodyWaiting`, a GM's browser) does the same [1b.2]"],
             ["SHEET chapter.mjs#sweepPlan", "out of scope: E09 C1's chapter-end sweep of items; C5 only orders it as a step of `CHAPTER_END_STEPS`; no E11 commit changes it"],
             ["SHEET character.mjs#stampStartingSheet", "held (E10 C8): reads inside a `meansWrite` job from `numberHeld`; the snapshot C11's restore compares against"],
             ["SHEET character.mjs#restoreStartingSheet", "held (E11 C11; E10 C8's owed (3)): `sheetAtStart`, `levelUpExperiences` and the advances through `flagsHeldNow` and the experiences through `numberHeld`, in one `meansWrite` job before its one write - `flagsAsHeld`'s wait is the job's start; deletes a Level Up's experiences (`seasonExperiences`; Q1 (a) for a starting sheet stamped before 1.2.73). R355 [1b.2]"],
@@ -9496,7 +9496,7 @@ const REGRESSIONS = [
         // E56 C5 (13.11.2026): a reason names the function, never `file.mjs:N` - 45 such line numbers had drifted off what they named.
         ok(!SEASON_CENSUS.some(([, why]) => /\b[\w-]+\.mjs:\d/.test(String(why ?? ""))), "a census row's reason cites a line (file.mjs:N): name the function it means instead");
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
-        const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "season-wipe.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
+        const FILES = ["chapter.mjs", "body.mjs", "death.mjs", "character.mjs", "season-setup.mjs", "season-wipe.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
         const NAMED = { "gm-bridge.mjs": ["handleAdvancement"], "level-up.mjs": ["applyAdvancement"],
             "vault-store.mjs": ["keysHeldBy", "grantBedroomKey", "grantKeyNow", "repointDeadKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
             "gm-panel.mjs": ["nextStep"], "gm-campaign.mjs": ["openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
@@ -9825,8 +9825,8 @@ const REGRESSIONS = [
             ["HOOK visibility.mjs#registerVisibility#createToken:inline", "out of scope: a token dropped re-applies visibility on every client; since E12 C11 it draws through visibility.mjs `tokenShownTo`, one rule on every floor (E12 C11)"],
             ["HOOK voice.mjs#registerVoice#updateToken:inline", "out of scope as a judge: schedules the voice reconcile, which places by `locateActor` on the primary; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK voice.mjs#registerVoice#createToken:inline", "out of scope: a token dropped reconciles voice rooms on every client"],
-            ["SHEET chapter.mjs#checkBodyFound", "judged on the primary: the room the walker stands in lawfully (`lawfulRoomOf`) and the body's place (`bodyPlaceOf` with `flagsHeldNow`), one synchronous step; since 1.2.113 the count of two writes the room's pending row (`pendingBodyStore`, keyed by the walk's scene and room) and asks the GM, and every witness is told by an addressed packet (`tellLoneFinder`) [1b.2]"],
-            ["SHEET chapter.mjs#witnessesOf", "judged held where its caller passes `held` (`checkBodyFound`: `flagsHeldNow`; the default `held = actor => actor` reads the document); since E12 C12 `checkBodyFound` passes the standing through `roomOf` (`lawfulRoomOf`), the read still one synchronous step (H3, H17); since E12 fix r2-H3 one token a student counts"],
+            ["SHEET body.mjs#checkBodyFound", "judged on the primary: the room the walker stands in lawfully (`lawfulRoomOf`) and the body's place (`bodyPlaceOf` with `flagsHeldNow`), one synchronous step; since 1.2.113 the count of two writes the room's pending row (`pendingBodyStore`, keyed by the walk's scene and room) and asks the GM, and every witness is told by an addressed packet (`tellLoneFinder`) [1b.2]"],
+            ["SHEET body.mjs#witnessesOf", "judged held where its caller passes `held` (`checkBodyFound`: `flagsHeldNow`; the default `held = actor => actor` reads the document); since E12 C12 `checkBodyFound` passes the standing through `roomOf` (`lawfulRoomOf`), the read still one synchronous step (H3, H17); since E12 fix r2-H3 one token a student counts"],
             ["SHEET movement.mjs#isCorpse", "out of scope: `isDeadForGm` (the GM's record) and the Monocub flag on the document (movement.mjs `isCorpse`), on the mover's browser; E12 changes neither"],
             ["SHEET movement.mjs#crossingVerdict", "a claim on the mover's browser, judged again on the primary: exported since E12 C9 with the floor of each end (the stairs rule, `crossingRefused`); since E12 C12 `judgeArrival` asks it of the student as the GMs hold it (`flagsHeldNow`, `itemsHeldNow`, one synchronous step), with the mover it judges and no price (`pay: false`) [1b.2] MARKED"],
             ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user; since E79 C3 `via: \"passage\"` skips the bedroom key alone, never a GM's lock, a seal, the chain or the courtroom (R558) [1b.2]"],
@@ -9856,7 +9856,7 @@ const REGRESSIONS = [
         const SOCKET_FILES = ["movement.mjs", "fog.mjs", "eclipse.mjs", "search-tokens.mjs", "traps.mjs", "call-effects.mjs", "mastermind.mjs",
             "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault-store.mjs", "stash-reach.mjs", "palm.mjs", "room-setup.mjs", "projects-map.mjs", "frisk.mjs"];
         // The declarations whose reads of a student's sheet the crossing and the witness judge rest on; null = every one in the file.
-        const SHEET_NAMED = { "movement.mjs": null, "chapter.mjs": ["witnessesOf", "checkBodyFound"], "murder-rules.mjs": ["registerMurder"],
+        const SHEET_NAMED = { "movement.mjs": null, "body.mjs": ["witnessesOf", "checkBodyFound"], "murder-rules.mjs": ["registerMurder"],
             "vault-store.mjs": ["keysHeldBy"] };
         const EVENTS = /Hooks\.(?:on|once)\(\s*"(preUpdateToken|updateToken|createToken|createRegion|updateRegion|deleteRegion|preCreateRegion|preUpdateRegion|createRegionBehavior|deleteRegionBehavior|updateScene)"\s*,\s*(?:([A-Za-z_]\w*)\s*\)|(?:async\s*)?\(?)/g;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents(?:ForGm)?\(|\bdeathRecordFor\(|FLAGS\.(?:deceased|monocub|monokuma)\b/,
@@ -12271,7 +12271,7 @@ const REGRESSIONS = [
 
         const sources = await otherSources();
         const files = new Map(sources);
-        must(sources.length > 100 && ["clock.mjs", "trial-scene.mjs", "trial-floor-ui.mjs", "gm-panel.mjs", "chapter.mjs", "season-setup.mjs"].every(file => files.has(file)),
+        must(sources.length > 100 && ["clock.mjs", "trial-scene.mjs", "trial-floor-ui.mjs", "gm-panel.mjs", "chapter.mjs", "body.mjs", "death.mjs", "season-setup.mjs"].every(file => files.has(file)),
             "the module's files are not served, or a file the roads run through is missing - this would measure nothing");
         const clock = code(files.get("clock.mjs")), scene = code(files.get("trial-scene.mjs"));
         const reconcile = fnSource(clock, "reconcilePhase");
@@ -12341,7 +12341,7 @@ const REGRESSIONS = [
 
         const sources = await otherSources();
         const files = new Map(sources);
-        must(sources.length > 100 && ["call-world.mjs", "trial-scene.mjs", "trial-floor-ui.mjs", "chapter.mjs", "api.mjs"].every(file => files.has(file)),
+        must(sources.length > 100 && ["call-world.mjs", "trial-scene.mjs", "trial-floor-ui.mjs", "chapter.mjs", "body.mjs", "death.mjs", "api.mjs"].every(file => files.has(file)),
             "the module's files are not served, or a file the return runs through is missing - this would measure nothing");
         const calls = gathers(sources);
         must(calls.length >= 3, `the reader found ${calls.length} call(s) of gatherEveryone - the body's gather and a Call's are two, so it measured nothing`);
@@ -12365,7 +12365,7 @@ const REGRESSIONS = [
             // Its buttons: the answers by their action, then the kit's closing word (E21 C4: `close: "cancel"`, the role's word).
             [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]).concat(/\bclose:\s*"cancel"/.test(ask) ? ["cancel"] : []),
             /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
-            JSON.stringify([["call-effects.mjs#gatherEffect/2", "call-world.mjs#runPendingGather/2", "chapter.mjs#runDiscovery/2", "trial-scene.mjs#returnTheLiving/3"],
+            JSON.stringify([["body.mjs#runDiscovery/2", "call-effects.mjs#gatherEffect/2", "call-world.mjs#runPendingGather/2", "trial-scene.mjs#returnTheLiving/3"],
                 "{ held: flagsHeldNow, box: true, only }",
                 ["leaveTrialScene"], [], true, true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
                 true, ["trial-floor-ui.mjs"], ["ok", "cancel"], true]),
@@ -12486,7 +12486,7 @@ const REGRESSIONS = [
         must(fnSource(settingsText(sources), "recordBodyFound"), "settings.mjs declares no recordBodyFound");
         equal(JSON.stringify([callers("recordBodyFound", /\brecordBodyFound\s*\(/g), callers("announceBody", /\bannounceBody\s*\(/g),
             callers("recordBodyFound", /settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.bodiesFound\b/g)]),
-            JSON.stringify([["chapter.mjs#announceBody"], ["chapter.mjs#runDiscovery"], ["settings.mjs#carryBodyRooms", "chapter.mjs#clearSeasonBodies"]]),
+            JSON.stringify([["body.mjs#announceBody"], ["body.mjs#runDiscovery"], ["settings.mjs#carryBodyRooms", "death.mjs#clearSeasonBodies"]]),
             "the stamp of a body found has a writer besides `announceBody`, or `announceBody` a caller besides `runDiscovery` "
             + "(the callers of recordBodyFound, of announceBody, and the other writes of SETTINGS.bodiesFound)");
     }],
@@ -12765,11 +12765,11 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const src = file => stripComments(sources.get(file) ?? "");
-        const [chapter, remnants, investigation, rules, mastermind] = ["chapter.mjs", "remnants.mjs", "investigation.mjs", "rules.mjs", "mastermind.mjs"].map(file => "investigation.mjs" === file ? investigationBy(src) : src(file));
+        const [chapter, remnants, investigation, rules, mastermind] = ["chapter.mjs", "remnants.mjs", "investigation.mjs", "rules.mjs", "mastermind.mjs"].map(file => "chapter.mjs" === file ? chapterBy(src) : "investigation.mjs" === file ? investigationBy(src) : src(file));
         ok(chapter.length > 1000 && remnants.length > 1000 && investigation.length > 1000 && rules.length > 1000 && mastermind.length > 1000,
             "a source file did not load - the reads below would measure nothing");
         const readers = [
-            ["chapter.mjs faintPrepCandidates", fnSource(chapter, "faintPrepCandidates"), /\(data\.chapter \?\? chapter\) !== chapter \|\| !sameSeason\(data\)/],
+            ["body.mjs faintPrepCandidates", fnSource(chapter, "faintPrepCandidates"), /\(data\.chapter \?\? chapter\) !== chapter \|\| !sameSeason\(data\)/],
             ["chapter.mjs clearChapterKeyRemnants", fnSource(chapter, "clearChapterKeyRemnants"), /info\.chapter === chapter && sameSeason\(info\)/],
             ["chapter.mjs openChapterEndDialog", fnSource(chapter, "openChapterEndDialog"), /info\.chapter === endingChapter && sameSeason\(info\)\) keyable\+\+/],
             ["remnants.mjs tieChapterTraces", fnSource(remnants, "tieChapterTraces"), /data\.chapter !== chapter \|\| !sameSeason\(data\)/],
@@ -14010,7 +14010,7 @@ const REGRESSIONS = [
             "projects-ui.mjs": ["openProjectManager", "openProjectDialog", "openCreateDialog"],
             "call-world.mjs": ["scheduleGather", "runPendingGather", "gatherEveryone", "gatherSceneOf"],
             "call-effects.mjs": ["gatherRefusal", "gatherEffect"], "call-pickers.mjs": ["pickRoom"],
-            "chapter.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant", "openMastermindDialog"],
+            "body.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant", "openMastermindDialog"],
             "stash-reach.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"],
             "investigation.mjs": ["caseHtml", "openInvestigationDashboard", "placeFinalFromDashboard"],
             "traps.mjs": ["openPlantDialog"], "utils.mjs": ["placeRoomOptions"], "season-setup.mjs": ["undecidedRegionNames"] };
@@ -14365,7 +14365,7 @@ const REGRESSIONS = [
                 && /if \(room && game\.user\?\.isGM && !sceneOfRoom\(room\)\)/.test(fnSource(api, "createProjectNamed")),
             putBack: /if \(!roomFlagSeen\.has\(region\.id\)\) return keepRoomFlag\(region, undefined, false, author\);/.test(fnSource(movement, "judgeRoomFlagChange"))
                 && /unknown \? "DRPG\.Rooms\.flagUnjudged" : "DRPG\.Rooms\.flagKept"/.test(fnSource(movement, "keepRoomFlag")),
-            witness: /counted\.has\(actor\.id\)/.test(fnSource(code("chapter.mjs"), "witnessesOf"))
+            witness: /counted\.has\(actor\.id\)/.test(fnSource(chapterBy(code), "witnessesOf"))
                 && /DRPG\.Movement\.droppedFromNowhere/.test(fnSource(movement, "tellDropped"))
         };
         const SAYS = {
@@ -20819,7 +20819,7 @@ const REGRESSIONS = [
            label for each in both languages, and its loop (`runChapterEnd`, the end's and its Finish's) on `runSteps` with the
            phase held before every step (`stop`), the record written after each (`save`) and the report through
            `stepsReport`. Red at cef11276: `runChapterEnd` absent, `endChapterNow` a loop of its own. */
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const chapter = stripComments(chapterText(sources));
         must(chapter.length > 10000, "chapter.mjs was not read - the chapter's half measured nothing");
         const { CHAPTER_END_STEPS } = await import("./chapter.mjs");
         const runner = topLevelFunction(chapter, "runChapterEnd") ?? "";
@@ -20851,7 +20851,7 @@ const REGRESSIONS = [
         const LEAF = ["config.mjs", "utils.mjs", "windows.mjs", "settings.mjs", "window-scale.mjs", "season-exceptions.mjs"];
         const OWNERS = {
             incident: "incident-store.mjs", seals: "call-world.mjs", assembly: "call-world.mjs", projects: "projects.mjs",
-            mastermind: "mastermind.mjs", passages: "passages-gm.mjs", deaths: "chapter.mjs", bodyFound: "chapter.mjs",
+            mastermind: "mastermind.mjs", passages: "passages-gm.mjs", deaths: "death.mjs", bodyFound: "death.mjs",
             remnants: "remnants.mjs", bullets: "truth-bullets.mjs", trialFloor: "trial.mjs", trialProgress: "trial-progress.mjs",
             discovered: "fog.mjs", searchTokens: "search-tokens.mjs", keyPlan: "key-remnants.mjs", eclipseMoves: "eclipse.mjs",
             motive: "rules.mjs", rules: "rules.mjs", actions: "actions.mjs", despair: "despair.mjs", overflow: "overflow.mjs",
@@ -21120,7 +21120,7 @@ const REGRESSIONS = [
         const count = (text, re) => (String(text ?? "").match(re) ?? []).length;
         const readOf = files => {
             const writes = re => [...files].map(([file, raw]) => [file, count(stripComments(raw), re)]).filter(([, n]) => n > 0);
-            const chapter = stripComments(files.get("chapter.mjs") ?? "");
+            const chapter = stripComments(chapterText(files));
             const names = [...chapter.matchAll(/^(?:export )?(?:async )?function ([\w$]+)\(/gm)].map(m => m[1]);
             const fn = name => topLevelFunction(chapter, name) ?? "";
             const queued = (name, seen = new Set()) => {
@@ -21142,9 +21142,9 @@ const REGRESSIONS = [
                 seasonReset: writes(RESET), reset: [count(season, RESET), count(writer, RESET), guard >= 0 && write > guard]
             };
         };
-        must((sources.get("chapter.mjs") ?? "").length > 10000 && (sources.get("season-wipe.mjs") ?? "").length > 10000,
+        must((chapterText(sources)).length > 10000 && (sources.get("season-wipe.mjs") ?? "").length > 10000,
             "chapter.mjs or season-wipe.mjs was not read - this test measured nothing");
-        const planted = (sources.get("chapter.mjs") ?? "") + "\nasync function plantedR1259() {\n    await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, {});\n}\n"
+        const planted = (chapterText(sources)) + "\nasync function plantedR1259() {\n    await game.settings.set(MODULE_ID, SETTINGS.chapterEnd, {});\n}\n"
             + "export function plantedCaller() {\n    return plantedR1259();\n}\n";
         const twin = readOf(new Map([...sources, ["chapter.mjs", planted]]));
         ok(twin.holders.some(([name, road]) => name === "plantedR1259" && road === null),
@@ -21154,7 +21154,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({
             chapterEnd: [read.chapterEnd.map(([file]) => file), total(read.chapterEnd) >= 4],
             outside: read.holders.filter(([, road]) => road === null).map(([name]) => name),
-            counted: read.holders.reduce((n, [name]) => n + count(topLevelFunction(stripComments(sources.get("chapter.mjs")), name), END), 0) === total(read.chapterEnd),
+            counted: read.holders.reduce((n, [name]) => n + count(topLevelFunction(stripComments(chapterText(sources)), name), END), 0) === total(read.chapterEnd),
             seasonReset: [read.seasonReset.map(([file]) => file), total(read.seasonReset) >= 1],
             reset: [read.reset[0] === total(read.seasonReset), read.reset[1] === total(read.seasonReset), read.reset[2]]
         }), JSON.stringify({
@@ -23039,7 +23039,7 @@ const REGRESSIONS = [
             ["tables-editor.mjs", "installTables", "E49", 1, 0, 0], ["verdict.mjs", "verdictSummaryContent", "E49", 1, 0, 0],
             ["analyze.mjs", "tellGmsKeyMissing", "E49", 1, 0, 0], ["anonymity.mjs", "lowerOwnership", "E49", 1, 0, 0],
             ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 1, 0, 0], ["call-effects.mjs", "tell", "E49", 1, 0, 0], ["call-gm.mjs", "callCardHtml", "E49", 1, 0, 0],
-            ["chapter.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
+            ["body.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
             ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "proposeReshape", "E49", 1, 0, 0],
             ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
             ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
@@ -23104,15 +23104,15 @@ const REGRESSIONS = [
             "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
             "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
             "action-report.mjs": {"built": 1}, "action-tail.mjs": {"card": 1}, "action-watch.mjs": {"card": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
-            "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
+            "anonymity.mjs": {"card": 2}, "body.mjs": {"card": 1, "message": 1}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 2},
             // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
             "case-summary.mjs": {"message": 1},
-            "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
             
-            "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 3, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
+            
+            "chapter.mjs": {"card": 3}, "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 3, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "death.mjs": {"heading": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
             // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
             // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).
@@ -23491,13 +23491,13 @@ const REGRESSIONS = [
             const tops = [...code.matchAll(/^(?:export\s+)?(?:const|(?:async\s+)?function)\s+([\w$]+)/gm)].map(m => ({ at: m.index, name: m[1] }));
             return [...code.matchAll(pattern)].map(m => `${file}#${tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)"}`);
         });
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const chapter = stripComments(chapterText(sources));
         const announce = fnSource(chapter, "announceBody") ?? "", discovery = fnSource(chapter, "runDiscovery") ?? "";
         const order = (text, a, b) => text.indexOf(a) >= 0 && text.indexOf(b) > text.indexOf(a);
         equal(JSON.stringify([where(/["'`]drpgBodyAnnounced["'`]/g), where(/Hooks\.callAll\(\s*BODY_ANNOUNCED_HOOK\b/g),
-            where(/\bcallBodyAnnounced\s*\(/g).filter(w => w !== "chapter.mjs#callBodyAnnounced").sort(),
+            where(/\bcallBodyAnnounced\s*\(/g).filter(w => w !== "body.mjs#callBodyAnnounced").sort(),
             order(announce, "recordBodyFound(", "await callBodyAnnounced("), order(discovery, "announceBody(", "gatherEveryone(")]),
-        JSON.stringify([["chapter.mjs#BODY_ANNOUNCED_HOOK"], ["chapter.mjs#callBodyAnnounced"], ["chapter.mjs#announceArrivedBodies", "chapter.mjs#announceBody"], true, true]),
+        JSON.stringify([["body.mjs#BODY_ANNOUNCED_HOOK"], ["body.mjs#callBodyAnnounced"], ["body.mjs#announceArrivedBodies", "body.mjs#announceBody"], true, true]),
         "[where the hook's name is spelt, where it is called, who calls callBodyAnnounced, the stamp before the call in announceBody, the announcement before the gather in runDiscovery]");
     }],
     ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen, Take from the Body since 1.2.113; Move's briefing until E100 item 1 took it away) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
@@ -23635,7 +23635,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(sites("x.mjs", "function a() {}\nasync function b() { leaveBody (x); }\nexport function c() { leaveBodyX(y); B.leaveBody(z); }\nexport async function leaveBody(q) {}")),
             JSON.stringify([["x.mjs", "b"], ["x.mjs", "c"]]), "the reader of leaveBody calls does not find exactly the two planted for it, in b and c");
         const sources = await moduleSources();
-        must(["chapter.mjs", "monocub.mjs", "body-tile.mjs"].every(f => sources.has(f)), "chapter.mjs, monocub.mjs or body-tile.mjs is not served - this would measure nothing");
+        must(["chapter.mjs", "body.mjs", "death.mjs", "monocub.mjs", "body-tile.mjs"].every(f => sources.has(f)), "chapter.mjs, monocub.mjs or body-tile.mjs is not served - this would measure nothing");
         const code = file => stripComments(sources.get(file));
         const found = [];
         for (const [file] of sources) {
@@ -23645,15 +23645,15 @@ const REGRESSIONS = [
         }
         const exported = [...code("body-tile.mjs").matchAll(/^export (?:async )?(?:function|const) (\w+)/gm)].map(m => m[1]);
         must(exported.includes("leaveBody") && exported.includes("removeBodyTiles"), `body-tile.mjs exports ${JSON.stringify(exported)} - this would measure nothing`);
-        const secret = topLevelFunction(code("chapter.mjs"), "recordSecretDeath") ?? "";
+        const secret = topLevelFunction(chapterBy(code), "recordSecretDeath") ?? "";
         must(secret.length > 40, "chapter.mjs has no recordSecretDeath - this would measure nothing");
-        const mark = topLevelFunction(code("chapter.mjs"), "markDeceased") ?? "";
+        const mark = topLevelFunction(chapterBy(code), "markDeceased") ?? "";
         equal(JSON.stringify({
             calls: found.sort(),
             handsRecord: /\bleaveBody\(actor,\s*\{\s*record\s*\}\)/.test(mark),
             monocubImports: staticImports(code("monocub.mjs")).includes("body-tile.mjs"),
             secretNames: exported.filter(name => new RegExp(`\\b${name}\\b`).test(secret))
-        }), JSON.stringify({ calls: [["chapter.mjs", "markDeceased"], ["migrate.mjs", "layOpenCaseBodies"]], handsRecord: true, monocubImports: false, secretNames: [] }),
+        }), JSON.stringify({ calls: [["death.mjs", "markDeceased"], ["migrate.mjs", "layOpenCaseBodies"]], handsRecord: true, monocubImports: false, secretNames: [] }),
             "{calls: every leaveBody call as [file, function]; handsRecord: markDeceased's call hands its record; monocubImports: monocub.mjs imports body-tile.mjs; secretNames: body-tile.mjs's exports recordSecretDeath names}");
     }],
     ["R3402 - the body follows its corpse after the write, on the mover's GM browser alone (E63 C1; QUESTIONS E63 Q3): body-tile.mjs `followBody` is registered on `updateToken` and never `preUpdateToken`, tests `game.user.isGM` and `userId === game.user.id` before its one write, asks movement.mjs `isCorpse`; module.mjs registers it", async () => {
@@ -23734,7 +23734,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(sites("x.mjs", "async function a() { await removeBodyTiles(null); }\nexport async function removeBodyTiles(id = null) {}\nfunction b() { ctx.removeBodyTiles(); removeBodyTiles(id); removeBodyTilesX(); }")),
             JSON.stringify([["x.mjs", "a", "null"], ["x.mjs", "b", "id"]]), "the reader of removeBodyTiles calls does not find exactly the two planted for it (a member call and a longer name aside)");
         const sources = await moduleSources();
-        must(["clock.mjs", "chapter.mjs", "body-tile.mjs"].every(f => sources.has(f)), "clock.mjs, chapter.mjs or body-tile.mjs is not served - this would measure nothing");
+        must(["clock.mjs", "chapter.mjs", "body.mjs", "death.mjs", "body-tile.mjs"].every(f => sources.has(f)), "clock.mjs, chapter.mjs or body-tile.mjs is not served - this would measure nothing");
         const code = file => stripComments(sources.get(file));
         const phase = topLevelFunction(code("clock.mjs"), "reconcilePhase") ?? "";
         const at = re => phase.search(re);
@@ -23747,8 +23747,8 @@ const REGRESSIONS = [
             retry: /for \(const id of out\.executed\) await removeBodyTiles\(id\);/.test(phase.slice(marks.retry)),
             calls: found.sort()
         }), JSON.stringify({ order: true, retry: true, calls: [
-            ["chapter.mjs", "clearSeasonDeaths", "null, { held: false }"], ["chapter.mjs", "reviveCharacter", "actor.id"],
-            ["clock.mjs", "reconcilePhase", "id"], ["clock.mjs", "reconcilePhase", "null"]
+            ["clock.mjs", "reconcilePhase", "id"], ["clock.mjs", "reconcilePhase", "null"],
+            ["death.mjs", "clearSeasonDeaths", "null, { held: false }"], ["death.mjs", "reviveCharacter", "actor.id"]
         ] }), "{order: the sentence, then every body, both before the retry branch; retry: the retry removes the executed's by id; calls: every removeBodyTiles call as [file, function, arguments]}");
     }],
     ["R3380 - every fact line of an action's briefing stands in its one Details (action-briefing.mjs `briefingBlock`; action-menus.mjs `detailsHtml`; E49 A8.1, the owner's 11.11 on the action windows and his answers of the same day): for each action the block draws, every fact `<li>` is inside `.drpg-action-details-box` and none elsewhere; no \"All thresholds\" (`drpg-briefing-all`, `DRPG.Kit.allThresholds`) and no `<details>`; one toggle, a `button[type=button]` with `aria-expanded` and `aria-controls` naming the box, the box `role=region` labelled by the toggle and `inert` while shut; Observe's four ladders under the sub-heading \"Thresholds\" (`DRPG.Kit.thresholds`) inside the box; a line bound to a row in a stacked layer (`drpg-details-layer`), never `hidden`; Tamper's \"watched\" line outside Details (the owner's Q3)", async () => {

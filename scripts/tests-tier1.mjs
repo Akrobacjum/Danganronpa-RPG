@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1964,7 +1964,7 @@ const INVARIANTS = [
             "a student set to nobody on purpose is a red cross on the checklist again");
 
         // The killers still cleaning up are not the witnesses who find the body.
-        ok(/killerIds\(murderState\(\)\)/.test(src("chapter.mjs")),
+        ok(/killerIds\(murderState\(\)\)/.test(chapterBy(src)),
             "two killers in Stage 6 can discover their own victim again");
     }],
 
@@ -8700,7 +8700,7 @@ const INVARIANTS = [
             const text = at(files[lang], key);
             read[`${lang} ${key}`] = typeof text === "string" ? [text.trim().split(/\s+/).length <= 20, text.trim().split(/\.\s+/).length === 1] : "missing";
         }
-        const chapter = stripComments((await moduleSources()).get("chapter.mjs") ?? "");
+        const chapter = stripComments(chapterText(await moduleSources()));
         must(chapter.length > 1000, "chapter.mjs was not read - this would measure nothing");
         read.endNote = [at(files.en, "DRPG.Chapter.endNote") ?? null, at(files.pl, "DRPG.Chapter.endNote") ?? null, chapter.includes("DRPG.Chapter.endNote")];
         equal(stableJson(read), stableJson({ ...Object.fromEntries(Object.keys(read).filter(k => k !== "endNote").map(k => [k, [true, true]])), endNote: [null, null, false] }),
@@ -10821,7 +10821,7 @@ const INVARIANTS = [
         both("DRPG.Bridge.nothingMore", w => w.length > 0, "missing");
         // E09 fix r2-G7 (review round 2's N4): `revealPlan` decides a Final before it asks whether the sweep spares a
         // Faint, so a Faint Final shows its kind (read in the source), and the chapter-end screen's line says so.
-        const plan = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "revealPlan");
+        const plan = fnSource(stripComments(chapterText(sources)), "revealPlan");
         const finalAt = plan.indexOf('realType === "final"'), faintAt = plan.indexOf("sparedBySweep(");
         if (!(finalAt >= 0 && faintAt > finalAt)) wrong.push("chapter.mjs revealPlan: a Final is not decided before the Faint");
         for (const [lang, phrase] of [["en", "every Final, Faint or not, shows its kind"], ["pl", "każdy Final, Faint czy nie, pokazuje swój rodzaj"]]) {
@@ -28800,7 +28800,7 @@ const INVARIANTS = [
         };
         const token = name => C.rules.filter(rule => rule.selector === ":root").flatMap(rule => rule.decls).filter(d => d.property === name).map(d => d.value).pop() ?? null;
         const sources = new Map(await moduleSources());
-        const discovery = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "runDiscovery");
+        const discovery = fnSource(stripComments(chapterText(sources)), "runDiscovery");
         equal(stableJson([
             bar("drpg-theme-monokuma-legacy"), bar("drpg-theme-monokuma-legacy drpg-pixel-font"), bar("drpg-theme-stained-glass"),
             token("--drpg-text-xs"),
@@ -41904,7 +41904,7 @@ const INVARIANTS = [
             endMurderTracker: destructiveYes(fnSource(read2("murder-ui.mjs"), "openIncidentTracker")),
             endMurderFight: destructiveYes(fnSource(read2("murder-rules.mjs"), "killerFell")),
             finalVerdict: (t => /destructive:\s*\[[^\]]*action:\s*"correct"[\s\S]*action:\s*"wrong"/.test(t) && /default:\s*"cancel"/.test(t) && !/primary:/.test(t))(fnSource(read2("verdict.mjs"), "openFinalVerdictDialog")),
-            stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(read2("chapter.mjs"), "askStoppedEnd"))
+            stoppedEnd: /destructive:\s*\[\{\s*action:\s*"finish"[\s\S]*action:\s*"drop"/.test(fnSource(chapterBy(read2), "askStoppedEnd"))
         };
         must(Object.values(sources).length === 7 && fnSource(investigationBy(read2), "confirmSweepBullets").length > 200, "a source was not read - this would measure nothing");
         equal(stableJson(sources), stableJson({ sweep: true, clearFaint: true, deleteTrace: true, endMurderTracker: true, endMurderFight: true, finalVerdict: true, stoppedEnd: true }),
@@ -54551,7 +54551,7 @@ const INVARIANTS = [
         };
         const sources = await moduleSources();
         const src = name => stripComments(sources.get(name) ?? "");
-        const clock = src("clock.mjs"), floor = src("trial-floor-ui.mjs"), camp = src("gm-campaign.mjs"), wipe = src("season-wipe.mjs"), chapter = src("chapter.mjs");
+        const clock = src("clock.mjs"), floor = src("trial-floor-ui.mjs"), camp = src("gm-campaign.mjs"), wipe = src("season-wipe.mjs"), chapter = chapterBy(src);
         must(clock.length > 5000 && floor.length > 5000 && camp.length > 2000 && wipe.length > 2000 && chapter.length > 5000, "a source was not read - the source half reads nothing");
         read.roads = {
             setPhase: /return setClock\(\{ phase: key, trialCut: true \}\)/.test(bodyOf(clock, "export async function setPhase(", { until: "\nexport " })),
@@ -55457,7 +55457,7 @@ const INVARIANTS = [
         const S = await import("./sequence.mjs");
         const { DEFAULT_CLOCK } = await import("./settings.mjs");
         const sources = await moduleSources();
-        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), chapter = stripComments(chapterText(sources));
         const campaign = stripComments(sources.get("gm-campaign.mjs") ?? "");
         const set = bodyOf(clockSrc, "export async function setClock(", { until: "\nexport " });
         const advance = bodyOf(clockSrc, "export async function advanceTimeOfDay(", { until: "\nexport function " });
@@ -56022,7 +56022,7 @@ const INVARIANTS = [
         const popup = stripComments(sources.get("popup.mjs") ?? "");
         const catchAll = fnSource(popup, "onCreateChatMessage");
         const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
-        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const chapter = stripComments(chapterText(sources));
         must(catchAll.length > 200 && summary.length > 200, "the catch-all or the summary was not read - this reads nothing");
         equal(stableJson({
             stage: stage?.id ?? null, centreClass: Boolean(card?.classList.contains("drpg-popup-centre")), raisedBefore, raisedAfter, button,
@@ -58775,9 +58775,9 @@ const INVARIANTS = [
          * hears is scenario 79's. Red at 9ad2174e: none of the five.
          */
         const sources = await moduleSources();
-        must(["trial-progress.mjs", "chapter.mjs"].every(f => sources.has(f)), "trial-progress.mjs or chapter.mjs is not served - this would measure nothing");
+        must(["trial-progress.mjs", "chapter.mjs", "body.mjs", "death.mjs"].every(f => sources.has(f)), "trial-progress.mjs or chapter.mjs is not served - this would measure nothing");
         const sentence = fnSource(stripComments(sources.get("trial-progress.mjs")), "carryOutSentence");
-        const kill = fnSource(stripComments(sources.get("chapter.mjs")), "killCharacter");
+        const kill = fnSource(stripComments(chapterText(sources)), "killCharacter");
         const taken = kill.indexOf("takeFadedFor(actor.id)"), card = kill.indexOf("whisperToGms(");
         equal(stableJson({
             silentSentence: /killCharacter\(actor,\s*\{[^}]*cause:\s*"executed"[^}]*silent:\s*true/.test(sentence),
@@ -59114,7 +59114,7 @@ const INVARIANTS = [
          * 1.2.113, 13.11.2026. Read off the source, comments stripped: what scenario 10's F1-F3 drive on the table. Red at
          * a43e865e: `checkBodyFound` ran `runDiscovery`, and there was no `checkBodySound`.
          */
-        const src = stripComments((await moduleSources()).get("chapter.mjs") ?? "");
+        const src = stripComments(chapterText(await moduleSources()));
         const mod = stripComments((await moduleSources()).get("module.mjs") ?? "");
         must(src.length > 1000 && mod.length > 100, "chapter.mjs or module.mjs was not read");
         const found = fnSource(src, "checkBodyFound"), maybe = fnSource(src, "maybeBodyFound"), sound = fnSource(src, "checkBodySound");

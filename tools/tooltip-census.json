@@ -294,7 +294,7 @@
    "why": "E102 C6: Posts this summary in the chat for the whole table, once per Class Trial"
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/death.mjs",
    "unit": "openDeathDialog",
    "kind": "select",
    "key": "DRPG.Chapter.whoDied",
@@ -302,7 +302,7 @@
    "why": "none needed: The label asks it; the button stays shut until a name is chosen."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/death.mjs",
    "unit": "openDeathDialog",
    "kind": "checkbox",
    "key": null,
@@ -310,7 +310,7 @@
    "why": "none needed: The label already says when to tick it, and the note below says the bullets are otherwise destroyed."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/body.mjs",
    "unit": "promoteFaintPrep",
    "kind": "checkbox",
    "key": null,
@@ -318,7 +318,7 @@
    "why": "none needed: The window's intro and note say what ticking one does."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/body.mjs",
    "unit": "openBodyDiscoveryDialog",
    "kind": "select",
    "key": "DRPG.Chapter.whereBody",
@@ -326,7 +326,7 @@
    "why": "none needed: The label asks it, and the note below says everyone is called to that room."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/body.mjs",
    "unit": "openBodyDiscoveryDialog",
    "kind": "select",
    "key": "DRPG.Chapter.whoseBody",
