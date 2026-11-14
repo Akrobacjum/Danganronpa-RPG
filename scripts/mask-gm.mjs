@@ -142,7 +142,7 @@ export async function maskKiller(state) {
     // microphone is blocked, before anybody sees the "?".
     await settleBlock();
     await placeVoicesNow();
-    for (const { scene, token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => error(`Could not mask a token of ${killer.name}`, err));
+    for (const { token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => error(`Could not mask a token of ${killer.name}`, err));
     await retell();
     await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.card"))}</p>` });
     log(`${killer.name} hides behind a "?" until they reveal themselves or the time of day ends.`);

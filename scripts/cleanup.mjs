@@ -1911,7 +1911,7 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
  * Carry the body out of the room it died in.
  *
  * The destination comes from the killer, picked before the roll and carried
- * here as `chosenRoom`. It is checked against `bodyDestinations` on this side
+ * here as `chosenRoom`. It is checked against `bodyReach` on this side
  * rather than trusted: the packet is a claim, and a body must not be moved
  * somewhere a living character could not walk to.
  *
@@ -2706,12 +2706,7 @@ export async function openCleanupDialog(actor) {
  *
  * Every neighbour being a bedroom returns an empty list, which the callers
  * already read as "there is nowhere to take it" - the honest answer.
- */
-async function bodyDestinations(scene, room) {
-    return (await bodyReach(scene, room)).near;
-}
-
-/**
+ *
  * HOW FAR A BODY CAN BE CARRIED (E64 C4, 12.11.2026; U06-config-rules-07, the amend of 26.09; default taken, owner to
  * confirm). `near`: the rooms connected to `room` (movement.mjs `neighbouringRooms`, the same road a step takes, so the
  * map's lists, its walls and its floors decide as they do for a Move); `far`: the rooms two away - connected to a near
@@ -2752,7 +2747,7 @@ export function bodyLanding({ near = [], far = [], via = {} } = {}, chosen, reac
  *
  * Asked before the roll, because it is a decision and not a result: the killer
  * is choosing which room to leave a corpse in, and that choice is most of what
- * Stage 6 is about. The list is `bodyDestinations`: the rooms connected to the
+ * Stage 6 is about. The list is `bodyReach`'s: the rooms connected to the
  * one the body is lying in, minus anybody's bedroom.
  */
 export async function openMoveBodyDialog(actor) {

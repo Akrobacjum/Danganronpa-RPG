@@ -846,7 +846,7 @@ const INVARIANTS = [
             await cleanupFetch());
 
         // E64 C4 (12.11.2026): the list is `bodyReach`'s - the connected rooms and, for a critical, those two away
-        // through them (R3957) - and `bodyDestinations` answers its near half.
+        // through them (R3957).
         const body = bodyOf(src, "export async function bodyReach", { length: 1200 });
         ok(/neighbouringRooms\(scene, room\)/.test(body) && /neighbouringRooms\(scene, step\)/.test(body),
             "a body can be dragged to a room that does not connect to this one, or to one it reaches through");

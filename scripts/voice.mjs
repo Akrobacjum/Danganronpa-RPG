@@ -52,8 +52,7 @@ import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
-import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { isPrimaryGm, debug, warn, error, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
 // A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
 import { conferCamps } from "./zone-machine.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.

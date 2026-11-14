@@ -953,8 +953,6 @@ export function diagnoseWindows({ toChat = true } = {}) {
  */
 export function traceClicks({ seconds = 20, toChat = true, onReport = null } = {}) {
     const lines = [];
-    const t0 = performance.now();
-    const at = () => `${String(Math.round(performance.now() - t0)).padStart(5)}ms`;
 
     const name = el => {
         if (!el) return "(nothing)";

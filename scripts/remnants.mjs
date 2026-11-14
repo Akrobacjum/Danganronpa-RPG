@@ -401,15 +401,9 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
 
     const {
         x, y, scene = null, sceneId = null, type = "prep", visibility = "evident",
-        faint = false, reinforced = false, note = "", action = "manual",
-        subject = "", pointsAt = null, tiedToCrime = null,
-        sourceActor = null, sourceName = "",
-        room = null, chapter = null, day = null, timeOfDay = null,
-        // The opaque identity of the object this trace handed over, when it
-        // handed one over. GM-side only, like everything else in the ledger:
-        // it is how `tieTraceForItem` finds this trace again if that object
-        // turns out to be the murder weapon.
-        itemIdentity = null
+        faint = false, action = "manual",
+        subject = "", tiedToCrime = null,
+        sourceActor = null, sourceName = ""
     } = data;
 
     const target = scene ?? (sceneId ? game.scenes.get(sceneId) : null);
