@@ -21134,10 +21134,8 @@ const REGRESSIONS = [
             // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
             // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
             // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
-            // 40 since E111: `caseSealed`, the case's encrypted copy, outlives a season as `caseMark` does (the stores' cuts
-            // take what a reset takes out of the case it holds).
-            counts: [20, 11, 40], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 40, the clock's entry does not "
+            counts: [20, 11, 39], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 39, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 

@@ -2221,20 +2221,6 @@ async function claimRowsIntoCopy(handle, section) {
 }
 
 /**
- * The case as this browser holds it now, as the file a backup writes: every store with `backup: true`, a failed
- * claim's rows computed into its copy (`claimRowsIntoCopy`), this world, this GM and the clock's reset cuts. The one
- * builder of the file: Back up saves it, and the sealed copy in the world (case-seal.mjs, E111) encrypts it.
- */
-export async function caseFileNow() {
-    const sections = caseSections(gmStoreHandles());
-    for (const name of Object.keys(sections)) sections[name] = await claimRowsIntoCopy(gmStoreByName(name), sections[name]);
-    return caseFileOf({
-        sections, world: { id: game.world.id, title: game.world.title }, exportedAt: new Date().toISOString(),
-        exportedBy: game.user.name, resetCuts: getClock().resetCuts ?? {}
-    });
-}
-
-/**
  * Back up the case: every GM store of this world, in one file this browser saves.
  *
  * `ask` (the panel's tile) says first what the file holds - the Mastermind and
@@ -2262,8 +2248,13 @@ export async function backupCase({ ask = false } = {}) {
         });
         if (!yes) return null;
     }
-    const file = await caseFileNow();
-    const { exportedAt, stores: sections } = file;
+    const sections = caseSections(gmStoreHandles());
+    for (const name of Object.keys(sections)) sections[name] = await claimRowsIntoCopy(gmStoreByName(name), sections[name]);
+    const exportedAt = new Date().toISOString();
+    const file = caseFileOf({
+        sections, world: { id: game.world.id, title: game.world.title }, exportedAt,
+        exportedBy: game.user.name, resetCuts: getClock().resetCuts ?? {}
+    });
     foundry.utils.saveDataToFile(JSON.stringify(file), "application/json",
         `drpg-case-${game.world.id}-${exportedAt.replace(/[:.]/g, "-")}.json`);
     await markCase({ lastBackupAt: Date.now(), lastBackupBy: game.user.name });
@@ -2382,23 +2373,21 @@ export function previewRestore(file) {
  * restored store counts as having its copy; a store whose rows a player holds a copy
  * of sends each connected player theirs again (`afterRestore`: the door, the cast, the
  * offers, the fog - R182); the Faint pass runs again; and the health check runs again
- * (`recheck`). `quiet` (E111: the sealed copy's read, case-seal.mjs `readSealedCopy`) says nothing on screen and
- * does not count the stores as restored - the copy is read as another GM's sync is, and the stores' hydration stays
- * the exchange's to say.
+ * (`recheck`).
  */
-export async function restoreCase(file, { otherWorld = false, beforeCut = false, recheck = true, records = [], quiet = false } = {}) {
+export async function restoreCase(file, { otherWorld = false, beforeCut = false, recheck = true, records = [] } = {}) {
     if (!game.user?.isGM) {
-        if (!quiet) ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
         return null;
     }
     const read = readCaseFile(file);
     if (read.refused) {
-        if (!quiet) ui.notifications.error(caseRefusalText(read));
+        ui.notifications.error(caseRefusalText(read));
         return { refused: read.refused };
     }
     const foreign = fromOtherWorld(read);
     if (foreign && !otherWorld) {
-        if (!quiet) ui.notifications.error(caseRefusalText({ refused: "otherWorld", world: read.world }));
+        ui.notifications.error(caseRefusalText({ refused: "otherWorld", world: read.world }));
         return { refused: "otherWorld" };
     }
     const counts = {};
@@ -2423,7 +2412,7 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
                 filled++;
             }
         }
-        if (!quiet) handle.markRestored();
+        handle.markRestored();
         counts[name] = { changed, filled, beforeCut: beforeCut ? 0 : preview.beforeCut, clamped };
         try { await handle.spec.afterRestore?.(); }
         catch (err) { error(`After restoring "${name}", the players' copies could not be sent again`, err); }
@@ -2436,7 +2425,7 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
         ? game.i18n.format("DRPG.Case.restoredSkipped", { store: storeLabel(name) })
         : game.i18n.format("DRPG.Case.restoredStore", { store: storeLabel(name), n: c.changed + c.filled, cut: c.beforeCut })));
     const clamped = Object.values(counts).reduce((n, c) => n + (c.clamped ?? 0), 0);
-    if (!quiet) ui.notifications.info([game.i18n.localize("DRPG.Case.restored"), lines.join("; "),
+    ui.notifications.info([game.i18n.localize("DRPG.Case.restored"), lines.join("; "),
         clamped ? plural("DRPG.Case.restoredClamped", { n: clamped }) : ""].filter(Boolean).join(" "));
     if (recheck) runHealthCheck().catch(err => error("The case health check could not run", err));
     return { counts };
@@ -2622,15 +2611,6 @@ export async function gmStoreHealth() {
     const mark = caseMark();
     add("lastBackup", "info", mark.lastBackupAt ? "DRPG.Case.row.lastBackup" : "DRPG.Case.row.neverBackedUp",
         { when: mark.lastBackupAt ? localeFormat("dateTime", mark.lastBackupAt) : "", who: mark.lastBackupBy ?? "" });
-    /* THE SEALED COPY (E111): whether the world holds one, when and by whom it was last written, and whether this browser
-       can read it. A copy this browser cannot read is a conflict (the GM decides: type the passphrase, or restore from a
-       file); the rest is information. */
-    const { sealStatus } = await import("./case-seal.mjs");
-    const seal = sealStatus();
-    const sealWhen = seal.writtenAt ? localeFormat("dateTime", seal.writtenAt) : "?";
-    add("sealed", seal.present && !seal.readable ? "conflict" : "info",
-        !seal.present ? "DRPG.Case.row.sealedNone" : seal.readable ? "DRPG.Case.row.sealedReadable" : "DRPG.Case.row.sealedLocked",
-        { when: sealWhen, who: seal.writtenBy ?? "?", why: seal.why ? game.i18n.localize(`DRPG.Case.seal.why.${seal.why}`) : "" });
 
     const counts = {
         traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },
@@ -2814,70 +2794,21 @@ export async function openCaseWindow() {
     const age = mark.lastBackupAt
         ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
         : game.i18n.localize("DRPG.Case.row.neverBackedUp");
-    /* THE SEALED COPY (E111, 14.11.2026): its state in a second fact row, the passphrase field under it, and the acts it
-       allows as secondary buttons - set it (or change it), type it on this browser, forget it here - with "Replace the
-       copy" destructive, offered only when the world holds a copy this browser cannot read. */
-    const seal = await import("./case-seal.mjs");
-    const status = seal.sealStatus();
-    const sealLine = !status.present ? game.i18n.localize("DRPG.Case.row.sealedNone")
-        : game.i18n.format(status.readable ? "DRPG.Case.row.sealedReadable" : "DRPG.Case.row.sealedLocked", {
-            when: status.writtenAt ? localeFormat("dateTime", status.writtenAt) : "?", who: status.writtenBy ?? "?",
-            why: status.why ? game.i18n.localize(`DRPG.Case.seal.why.${status.why}`) : "" });
-    const passOf = d => d?.element?.querySelector?.("[name=drpgCasePassphrase]")?.value ?? "";
-    const act = (action, label, tip) => ({ action, label: game.i18n.localize(label), tooltip: tipText(tip), callback: (e, b, d) => ({ action, pass: passOf(d) }) });
-    const sealButtons = !status.present ? [act("sealSet", "DRPG.Case.seal.set", "DRPG.Tips.CaseSeal.caseSealSetTooltip")]
-        : status.readable ? [act("sealSet", "DRPG.Case.seal.change", "DRPG.Tips.CaseSeal.caseSealChangeTooltip"),
-            act("sealForget", "DRPG.Case.seal.forget", "DRPG.Tips.CaseSeal.caseSealForgetTooltip")]
-            : [act("sealUnlock", "DRPG.Case.seal.unlock", "DRPG.Tips.CaseSeal.caseSealUnlockTooltip"),
-                ...(status.key ? [act("sealForget", "DRPG.Case.seal.forget", "DRPG.Tips.CaseSeal.caseSealForgetTooltip")] : [])];
     const choice = await drpgWindow({
         help: WINDOW_HELP.theCase,
         title: game.i18n.localize("DRPG.Case.tile"),
         classes: ["drpg-panel", "drpg-window-case-copy"],
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
-        body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>
-            <p class="drpg-briefing-facts" data-drpg-case-sealed>${esc(sealLine)}</p>
-            <label>${esc(game.i18n.localize("DRPG.Case.seal.field"))} <input type="password" name="drpgCasePassphrase" autocomplete="off"${tipAttr("DRPG.Tips.CaseSeal.caseSealFieldTooltip")} /></label>
-            <p class="notes">${esc(game.i18n.format("DRPG.Case.seal.note", { n: seal.SEAL_MIN_LENGTH }))}</p>`,
+        body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>`,
         footer: {
             primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup"), tooltip: tipText("DRPG.Tips.Gm.backUpTooltip") },
-            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") },
-                ...sealButtons],
-            destructive: status.present && !status.readable ? [act("sealReplace", "DRPG.Case.seal.replace", "DRPG.Tips.CaseSeal.caseSealReplaceTooltip")] : [],
+            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }],
             close: { role: "close", action: "close" }
         },
         rejectClose: false
     });
     if (choice === "backup") return backupCase({ ask: true });
     if (choice === "restore") return openRestoreDialog();
-    if (choice?.action) return caseSealAct(seal, choice);
-    return null;
-}
-
-/**
- * What the case window's passphrase buttons do (E111), and what the GM is told: one notification, the act's own words
- * or the refusal's (`DRPG.Case.seal.refused.<code>`). "Replace the copy" asks first, naming what is lost.
- */
-async function caseSealAct(seal, { action, pass }) {
-    const tell = result => {
-        if (result?.ok) ui.notifications.info(game.i18n.localize(`DRPG.Case.seal.done.${action}`));
-        else ui.notifications.warn(game.i18n.format(`DRPG.Case.seal.refused.${result?.refused ?? "failed"}`, { n: seal.SEAL_MIN_LENGTH }));
-        return result;
-    };
-    if (action === "sealForget") return tell(await seal.forgetCasePassphrase());
-    if (action === "sealUnlock") return tell(await seal.unlockCaseCopy(pass));
-    if (action === "sealSet") return tell(await seal.setCasePassphrase(pass));
-    if (action === "sealReplace") {
-        const yes = await drpgConfirm({
-            classes: ["drpg-panel", "drpg-window-case-replace"],
-            yes: { label: game.i18n.localize("DRPG.Case.seal.replace"), role: "destructive" },
-            title: game.i18n.localize("DRPG.Case.seal.replaceTitle"),
-            body: `<p>${esc(game.i18n.localize("DRPG.Case.seal.replaceWhat"))}</p>`,
-            rejectClose: false
-        });
-        if (!yes) return null;
-        return tell(await seal.setCasePassphrase(pass, { replace: true }));
-    }
     return null;
 }
 
