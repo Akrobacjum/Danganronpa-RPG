@@ -16,7 +16,7 @@
 import { ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { log, warn } from "./utils.mjs";
 
-/** Definition handed to Daggerheart. Shape mirrors `characterBaseResources`. */
+/** Definition handed to Daggerheart. Shape mirrors its `CONFIG.DH.RESOURCE.character.base` entries (resourceConfig.mjs). */
 export const ACTIONS_DEFINITION = Object.freeze({
     id: ACTIONS_RESOURCE,
     initial: STARTING.actions,

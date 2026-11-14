@@ -1215,7 +1215,7 @@ export function actionButton(actor, key, def) {
     // time of day, the other by walking into another room.
     const blocked = roomBlockFor(actor, key);
 
-    // `nothingToBreak` lived here: the sabotage tile went out entirely when its
+    // `nothingToBreak` lived here (gone before 1.2.70): the sabotage tile went out entirely when its
     // room held nothing to break, because unlike every other dimmed tile it had
     // no second half to offer. It has a second half now - it is one row of the
     // Projects menu, next to "work on" and "propose" - so the tile it used to

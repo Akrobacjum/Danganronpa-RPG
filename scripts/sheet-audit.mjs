@@ -230,7 +230,7 @@ const LOCK_NAMED_MAX = new Set([ACTIONS_RESOURCE, "hope", "hitPoints", "stress"]
  * What an effect may not change without the GMs' say: what they hold of a student (E29 fix r1-G3,
  * 05.10.2026; review round 1 cor M3) - its statistics, experiences, resources (each value as well as
  * each maximum), rules, bonuses and level-up selections (G2's root), any maximum, and the module's
- * flags. Until this fix it was what a roll is built from alone (`ROLL_PATH`), and measured by the
+ * flags. Until this fix it was what a roll is built from alone (`ROLL_PATH`, gone with this fix), and measured by the
  * review's probe on 69deef0, a player's effects adding 5 Hope, overriding Health to 0 and setting the
  * Monokuma flag stood with no row: Daggerheart 2.10.5 applies an effect to the prepared data through
  * Foundry's own application (activeEffect.mjs `applyChangeField`, read), and the module reads prepared
@@ -278,7 +278,7 @@ const ITEM_PLACE = [ITEM_FLAGS.location, ITEM_FLAGS.stashRoom];
 
 /*
  * A student's class (G2; review round 1 sec B4): Daggerheart 2.10.5 adds the first class item's
- * `system.hitPoints` to the Health maximum (data/actor/character.mjs, `prepareBaseData`, read
+ * `system.hitPoints` to the Health maximum (data/actor/character.mjs, `DhCharacter#prepareBaseData`, read
  * 05.10.2026), so the mark holds a student's class items whole beside its module items, and a
  * player's change of their hit points is put back as a maximum is. Which class item counts
  * (`isMulticlass`) is not judged: a second one comes only as an item created, which the GMs are
@@ -305,10 +305,10 @@ const AWAY_CARD = "sheetAway";
  * `MARKED_FLAGS`. `system.levelData` since G2 (review round 1 sec B4): Daggerheart's level-up
  * selections, which with its `levelupAuto` on - its default, which the module never sets - add to
  * a statistic, an experience, the Health and Sanity maxima and a roll's dice (character.mjs
- * `prepareBaseData`, read 05.10.2026). No player road writes them: the module's Level Up is
+ * `DhCharacter#prepareBaseData`, read 05.10.2026). No player road writes them: the module's Level Up is
  * `applyAdvancement`, on a GM (R79), and the module writes no `levelData` at all.
  * `system.scars` since E29 fix r2-H25: Daggerheart's scars, a number, which set Hope's maximum - the world's setting
- * less them (character.mjs `prepareDerivedData`, 2.10.5 :752). No road writes them: not the module's, and Daggerheart's
+ * less them (character.mjs `DhCharacter#prepareDerivedData`, 2.10.5 :752). No road writes them: not the module's, and Daggerheart's
  * one, the Death Move's Avoid Death, is no road in this game (states.mjs switches off the automation that offers it,
  * danganronpa.css hides the sheet's button); so they are judged as the fields only a GM writes are, put back with
  * `lockPlayerResources` on or off (`kindOf`). Until this fix a player's write of them was listed and stood, and with it
@@ -955,7 +955,7 @@ export function meansMaxHeld(actor, key) {
  * value as the mark holds it, on the primary, and nothing where the mark holds none (the GMs hold none: a module flag the
  * player wrote); the sheet's own on any other browser and where the GMs hold no mark of their own. The sheet's, not the
  * prepared value (fix r2-H25): what is written into the sheet Daggerheart prepares again - a class's hit points added to
- * Health's maximum, a Level Up's picks to a statistic or a maximum (character.mjs `prepareBaseData`, 2.10.5 :678-700,
+ * Health's maximum, a Level Up's picks to a statistic or a maximum (character.mjs `DhCharacter#prepareBaseData`, 2.10.5 :678-700,
  * :741), an effect's changes - so a prepared value written there takes them a second time. H24 read the prepared value
  * with the mark's for the sheet's, and the maxima as `meansMaxHeld` answers them, prepared: measured at 525a186
  * (06.10.2026, e29run/r2h25red) by tier 2 ("a GM's Level Up rises from the sheet's maximum"), +1 Health and +1 to a
@@ -1119,7 +1119,7 @@ export function reachOf(changes) {
  * landed meanwhile was in the mark before its own judgement, which then found nothing - measured on
  * the harness by the review's probes on 69deef0: a second statistic, the Monokuma flag (after which
  * every write on that student stood) and a GM's penalty effect deleted, each behind a forged write
- * the judge was putting back, all stood with no row. C8 had kept the armed list so (`heldCalls`) and
+ * the judge was putting back, all stood with no row. C8 had kept the armed list so (`heldCalls`, gone by 1.2.70) and
  * said the same held of every other field; it now holds of all of them.
  */
 function pathsSeen(src, changes) {
@@ -1624,10 +1624,10 @@ function gmLedger(actor, seen, reason = null, giveBack = false) {
  * credit up to the raised maximum, and a gain covered by credit kept a value above the one put back.
  * So the sheet's maximum the write left is taken out of the document's and the mark's put in. Not the
  * mark's maximum alone, as the review proposed: Daggerheart adds the class's hit points and a level-up's
- * picks to the sheet's Health maximum, and the picks to Sanity's (character.mjs `prepareBaseData`, read
+ * picks to the sheet's Health maximum, and the picks to Sanity's (character.mjs `DhCharacter#prepareBaseData`, read
  * in 2.6.5 and 2.10.5) - the sheet's Health maximum is a bonus, 0 on a fresh sheet, and bounding by it
  * would hold every Health value at it. Hope's maximum is Daggerheart's world setting less scars,
- * whatever the sheet's maximum holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write
+ * whatever the sheet's maximum holds (`DhCharacter#prepareBaseData`, `DhCharacter#prepareDerivedData`, both versions): a write
  * of that maximum cannot raise it at a table; one of the scars can, and since E29 fix r2-H25 the scars
  * the write left are taken out and the mark's put in, as a sheet's maximum is. The harness prepares
  * nothing, so there a raised sheet's Hope maximum still raises the document's, which no table does,

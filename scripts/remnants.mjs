@@ -2155,9 +2155,9 @@ export async function tieTraceForItem(identity) {
         }
     }
     /* ONE WRITE, AND THE COPIES FOLLOW (E04, 1.2.63). One store write per trace
-       before, and the copies' pass was `propagateCrimeTie(null, true)` - which
-       returns at once on a null id, so a weapon's traces were tied and the bullets
-       copied from them never learned it. `setRemnantFlagsMany` is the dashboard's
+       before, and the copies' pass was truth-bullets.mjs `propagateCrimeTie(null, true)` (gone since E09 C2,
+       08.10.2026, folded into `propagateVerdicts`) - which returns at once on a null id, so a weapon's traces
+       were tied and the bullets copied from them never learned it. `setRemnantFlagsMany` is the dashboard's
        own write for many traces: one flush, and one pass over the copies.
        NOT WHILE THE FIGHT RUNS (E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F1 and sec
        F1). The swing comes in the fight, and the pass sent the tie to every identified copy
@@ -2352,7 +2352,7 @@ export async function tieChapterTraces(chapter, { waitFor = null } = {}) {
 /**
  * A TIE TO A CRIME NOBODY HAS FOUND WAITS FOR THE DEATH (E09 fix r1-G1, 08.10.2026; the round-1
  * reviews' cor F1, F3, sec F1, F8 and goal G2a). C4 kept a victim's death's ties in the ledger and
- * had every body's discovery send the chapter's ties to the copies (`publishChapterTies`). Read on
+ * had every body's discovery send the chapter's ties to the copies (`publishChapterTies`, removed by this fix). Read on
  * f88133d, four roads went round it: a weapon swung in the fight sent its tie to every identified
  * copy at the swing (`tieTraceForItem`); a copy made between the death and the discovery took the
  * ledger's tie whole (observe.mjs `createFind`, gm-items.mjs `bulletFromRemnant`), shown at once on
@@ -3256,8 +3256,8 @@ function traceTokensOn(scene) {
 }
 
 /**
- * One trace's ref by its scene's id and its own (`tokenById` until E60 C1b, which answered the token): the row and the
- * token of that key, read without building the scene's other refs. Null for a scene that is not there, or an id with
+ * One trace's ref by its scene's id and its own (`tokenById`, which answered the token, until E60 C1b of 03.11.2026
+ * removed it): the row and the token of that key, read without building the scene's other refs. Null for a scene that is not there, or an id with
  * no trace token on it, a row or none (D38 = 1, E60 fix FG1).
  */
 export function remnantById(sceneId, tokenId) {

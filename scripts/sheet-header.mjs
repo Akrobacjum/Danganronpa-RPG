@@ -65,7 +65,7 @@ export function frameTraits(element) {
  * Daggerheart 2.6.5's header (header.hbs:107) draws `.character-traits > .trait[data-attribute="<its key>"]`, and in each
  * `.trait-name` a `.tier-mark` before the name's span: a disc half outside the plate's left end that shows
  * `system.traits.<key>.tierMarked` as the class `marked` (a gold dot) - set only by Daggerheart's own level-up automation
- * (character.mjs `prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
+ * (character.mjs `DhCharacter#prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
  * trait's `rollAttribute`). The owner: enlarge the marks and put the glyph inside them. So the glyph goes in the mark, the
  * mark is marked `drpg-stat-mark` and its plate `drpg-stat-named` (danganronpa.css and stained-glass.css size and paint them
  * by those, the plate padded clear of the larger mark), and `marked` is left as Daggerheart drew it, so the state still

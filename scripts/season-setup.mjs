@@ -1487,7 +1487,8 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 
     const anon = await auditAnonymity({ toChat: false });
-    // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
+    // E78 C5 (the owner's Q11, the A9 design's "avVideo", here voice-tile.mjs `videoUnwatched`): a world in
+    // audio-and-video mode sends every camera while
     // the voice tile stands in for the dock, which shows none of them. E20 C3 (amend 11.10): the two worlds where the
     // tile the GM switched on cannot stand - A/V off, and video alone. A row only when one is so; each a warning (the
     // GM decides: the tile, or Foundry's A/V), keyed by its sentence's key.

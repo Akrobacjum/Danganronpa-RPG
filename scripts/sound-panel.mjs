@@ -394,7 +394,7 @@ export async function openSoundDialog() {
         // a two-line Play pane and a thirty-five-row table - trap 29. It works
         // on the kit's panes (`kitTabs`, E44 C4a; `panelTabs` markup from E3);
         // before E3 it silently measured only the visible tab. The kit's
-        // `fitKitWidth` since E21 C2a (`tableDialog`'s `fitTabs` before).
+        // `fitKitWidth` since E21 C2a (`tableDialog`'s `fitTabs` option before, gone with it).
         fit: true,
         // ABOVE THE TABS, NOT INSIDE ONE. The sliders are not about music or
         // about effects, they are about this browser - and putting them in a
