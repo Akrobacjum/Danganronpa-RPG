@@ -2378,7 +2378,7 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `critical-rule` | krytyk zostaje przy liczbach samego Daggerheart |
 | `roll-dialog-context` | to, co wymusza Call, jest wpisywane do okna rzutu dopiero po jego otwarciu, jak dotąd |
 | `roll-draw` | rzuty są wykonywane w przeglądarce samego gracza, jak w 1.2.66 |
-| `roll-marks-move-context` | znaczniki modułu na rzucie giną: rzut akcji wygląda jak rzut statystyką z karty, a kość Loaded Die nie jest ładowana |
+| `roll-marks-move-context` | znaczniki modułu na rzucie giną: rzut akcji wygląda jak rzut statystyką z arkusza, a kość Loaded Die nie jest ładowana |
 | `roll-outcome-evaluated` | rzut akcji nie ma wyniku tam, gdzie moduł go czyta, więc akcja się nie odbywa |
 | `dice-random-uniform` | nic nie zastępuje generatora losowego Foundry |
 | `no-scrolling-text` | napisy nad tokenami unoszą się tak, jak rysuje je Foundry |
@@ -2388,7 +2388,7 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `iso-refresh-state` | własne nadpisanie Isometric Perspective działa, gdy token jest edytowany |
 | `chat-notify` | zasłonięta karta może zapalić kartę Czatu na każdym ekranie |
 | `chat-content-visible` | gracz, który rzucał, nie przeczyta rzutu, który wylosował GM |
-| `sheet-render-guard` | karta postaci przerysowuje się przy każdej zmianie zasobu, tak jak rysuje ją Foundry |
+| `sheet-render-guard` | arkusz postaci przerysowuje się przy każdej zmianie zasobu, tak jak rysuje go Foundry |
 | `passages-move` | żaden token nie przejdzie tajnym przejściem w tej przeglądarce, a GM jest o tym informowany przy każdym wczytaniu |
 | `selection-drag-rectangle` | ramka przeciągania zostaje pomarańczowa, jak w Foundry |
 | `selection-controlled-colour` | ramki tokenów zostają pomarańczowe, jak w Foundry |
@@ -2402,8 +2402,8 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `region-included-in-level` | region, który nie wskazuje żadnego piętra, liczy się jako leżący na każdym piętrze; region, który o swoje piętro odpowiada błędem, jest czytany według pięter, które wskazuje |
 | `hook-duality-configured` | kość Free Critical nie jest ładowana |
 | `hook-roll-dialog-render` | okno rzutu otwarcia nie jest oznaczone jako okno otwarcia |
-| `hook-character-sheet-render` | karta postaci jest rysowana tak, jak rysuje ją Daggerheart |
-| `hook-character-sheet-close` | obserwator zamkniętej karty patrzy na odłączony element aż do przeładowania strony |
+| `hook-character-sheet-render` | arkusz postaci jest rysowany tak, jak rysuje go Daggerheart |
+| `hook-character-sheet-close` | obserwator zamkniętego arkusza patrzy na odłączony element aż do przeładowania strony |
 | `hook-countdowns-render` | taca odliczań jest rysowana tak, jak rysuje ją Daggerheart, a HUD nie jest przerysowywany razem z nią |
 | `hook-dice-so-nice-ready` | wyglądy kości nie są porządkowane |
 | `hook-dice-so-nice-message` | Dice So Nice rzuca taki rzut na każdym ekranie, w kolorach GM-a |
@@ -2413,7 +2413,7 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `token-bars-reserve` | paski na żetonach uczniów rosną, gdy uczeń traci punkty, jak rysuje je Daggerheart, a inny gracz widzi pasek Sanity |
 | `state-icons-off-token` | ikony Breakdown i Wounded są widoczne na każdym żetonie, dla każdego |
 | `dead-icon-own` | nakładka zmarłego to nagrobek z Daggerheart |
-| `hook-party-sheet-render` | karta drużyny liczy, co każdy członek stracił, jak rysuje ją Daggerheart, i pokazuje Sanity każdego członka każdemu graczowi |
+| `hook-party-sheet-render` | arkusz drużyny liczy, co każdy członek stracił, jak rysuje go Daggerheart, i pokazuje Sanity każdego członka każdemu graczowi |
 | `user-permission-broadcast-audio` | niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również |
 | `rtc-client-keys` | klucz, którego Foundry już nie trzyma, jest czytany jako domyślny (bez wyciszenia, pełna głośność, widoczny), a zapis do niego niczego nie zmienia |
 | `push-to-talk-key` | wiersz o mówieniu na przycisk nie podaje klawisza |
@@ -2432,7 +2432,7 @@ Co stół dostaje zamiast tego, wiersz po wierszu. Ustawienie albo flaga, które
 | `escape-dismiss-order` | Escape może zamknąć okna przed własnymi krokami Foundry albo nigdy |
 | `focus-chat` | klawisz czatu może ustawić kursor w polu ukrytego okna |
 | `image-popout-options` | okno zdjęcia może pokazywać tytuł i przyciski Foundry |
-| `sheet-anchors` | to, co moduł dodaje w miejscu, którego nie znajduje, nie jest tam rysowane, a reszta karty jest rysowana jak zwykle |
+| `sheet-anchors` | to, co moduł dodaje w miejscu, którego nie znajduje, nie jest tam rysowane, a reszta arkusza jest rysowana jak zwykle |
 | `foundry-rails` | pasek, którego nie znaleziono po jego identyfikatorze, zostaje tam, gdzie stawia go Foundry, poza oknem modułu |
 | `interface-theme` | okna nie noszą klasy motywu, a paski w środku przejmują motyw strony |
 | `camera-popout-id` | mówca z wyskakującej kamery nie jest znajdowany i liczy się jako niesłyszalny |
