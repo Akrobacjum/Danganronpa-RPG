@@ -237,7 +237,8 @@ export function goToSection(text, section) {
  * text and is listed (`unknown`). Measured 14.11.2026: every reference of the six books names a section of its own book
  * (R6602), so a jump never needs another book.
  */
-const SECTION_REFERENCE = /\b(sections?|sekcj(?:a|i|ę|ą|e|ach|ami|om))(\s+)(\d+(?:\.\d+)?)(?![\d.]*\d)/giu;
+/* Built from a string: R22's scan of calls reads a regular expression literal's "word(" as a call. */
+const SECTION_REFERENCE = new RegExp(String.raw`\b(sections?|sekcj(?:a|i|ę|ą|e|ach|ami|om))(\s+)(\d+(?:\.\d+)?)(?![\d.]*\d)`, "giu");
 
 /** The "section N" references of a book's Markdown, in order, with the book's own sections as `sections` (a Set). */
 export function sectionReferences(markdown) {
