@@ -551,7 +551,7 @@ export async function endClassTrial() {
     const notChapter = (trialProgress().verdictApplied
         ? box("info", `${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}`) : "")
         + (sentenced.length ? box("warning", `${game.i18n.format("DRPG.Floor.endTrialExecutes", {
-            names: sentenced.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}`) : "");
+            names: listOf(sentenced.map(actor => foundry.utils.escapeHTML(actor.name))) })}`) : "");
 
     /* AND IT SAYS WHERE THE TABLE GOES (E13 C3b, 12.10.2026; the owner's answer f of 09.10). With a
        trial hall linked, leaving the trial takes the table out of the hall, and the students' tokens
@@ -1222,7 +1222,7 @@ export function trialConsoleHtml(view) {
             ? (progress.voteClosed ? "" : `<p>${game.i18n.localize("DRPG.Vote.notRunning")}</p>`)
             : pending.length
                 ? box("info", `${game.i18n.format("DRPG.Vote.stillOut", {
-                    n: pending.length, who: esc(pending.map(v => v.name).join(", "))
+                    n: pending.length, who: esc(listOf(pending.map(v => v.name)))
                 })}`)
                 : `<p>${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
         // How many are back and the bar a conviction needs, as the vote window
@@ -1932,7 +1932,7 @@ export async function openVoteDialog() {
         const recipients = ballotRecipients();
         const who = recipients.length
             ? `<p>${plural("DRPG.Vote.recipients", {
-                n: recipients.length, who: esc(recipients.map(r => `${r.name} (${r.user.name})`).join(", "))
+                n: recipients.length, who: esc(listOf(recipients.map(r => `${r.name} (${r.user.name})`)))
             })}</p>`
             : box("warning", `${game.i18n.localize("DRPG.Vote.nobodyConnected")}`);
         return `<p class="notes">${game.i18n.localize("DRPG.Vote.sendFirst")}</p>${who}`;
@@ -1944,7 +1944,7 @@ export async function openVoteDialog() {
         const outstanding = waiting?.length
             ? box("info", `${game.i18n.format("DRPG.Vote.stillOut", {
                 n: waiting.length,
-                who: foundry.utils.escapeHTML(waiting.map(p => p.name).join(", "))
+                who: foundry.utils.escapeHTML(listOf(waiting.map(p => p.name)))
             })}`)
             : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
         const status = waiting === null

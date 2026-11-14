@@ -46115,7 +46115,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             recipients.push(`${actor.name} (${user.name})`);
         }
         const whoLine = recipients.length
-            ? plural("DRPG.Vote.recipients", { n: recipients.length, who: recipients.join(", ") })
+            ? plural("DRPG.Vote.recipients", { n: recipients.length, who: (await import("./utils.mjs")).listOf(recipients) })
             : game.i18n.localize("DRPG.Vote.nobodyConnected");
         const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
         const pending = [];

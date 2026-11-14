@@ -37698,6 +37698,34 @@ const INVARIANTS = [
             "[each site: the keys it no longer names, its joins by hand, calls listOf; the Loot texts that quote a placeholder, EN and PL; Loot.itemQuoted EN and PL]");
     }],
 
+    ["R6901 - the lists the trial's texts name are joined by utils.mjs `listOf` (needsCode, 14.11.2026; EN2, DB35): trial-floor-ui.mjs `endClassTrial` (`Floor.endTrialExecutes`), `trialConsoleHtml` and `openVoteDialog` (`Vote.stillOut`, `recipients`), vote.mjs `closeRound` (`Vote.accusesLineMany`), verdict.mjs `openVerdictDialog` (`Vote.namedByTable`, `accusedDead`, `unfoundDead`), `askBlackenedRule` (`Vote.blackenedRuleUnfound`), `postVerdictCard` (`Vote.executionPending`, `executionNow`) and `verdictDespair` (`Vote.despairFilled`), events.mjs `afterVerdictCard` (`Vote.executionPending`) and trial-modes.mjs `startRound` (`Floor.round.startedLine`); what stays joined by hand is a label's list (the known Blackened) and English for the console", async () => {
+        /*
+         * The needsCode line (claude/needscode-113), from line C's batch B10a (docs/dev/e71/NEEDSCODE.md #60-#68, #70,
+         * #71; askBlackenedRule's line is the same fault, found beside them). Red at 747c91eb: each joined its names with
+         * ", ", so \"A, B, C\" in English and in Polish. Read from source; the cards and windows are tier 2's and 63's.
+         * `joins`: what stays by hand in the function - in openVerdictDialog the known Blackened after their label.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["trial-floor-ui.mjs", "endClassTrial", ["DRPG.Floor.endTrialExecutes"], 0],
+            ["trial-floor-ui.mjs", "trialConsoleHtml", ["DRPG.Vote.stillOut"], 0],
+            ["trial-floor-ui.mjs", "openVoteDialog", ["DRPG.Vote.recipients", "DRPG.Vote.stillOut"], 0],
+            ["vote.mjs", "closeRound", ["DRPG.Vote.accusesLineMany"], 1],
+            ["verdict.mjs", "openVerdictDialog", ["DRPG.Vote.namedByTable", "DRPG.Vote.accusedDead", "DRPG.Vote.unfoundDead"], 1],
+            ["verdict.mjs", "askBlackenedRule", ["DRPG.Vote.blackenedRuleUnfound"], 0],
+            ["verdict.mjs", "postVerdictCard", ["DRPG.Vote.executionPending", "DRPG.Vote.executionNow"], 0],
+            ["verdict.mjs", "verdictDespair", ["DRPG.Vote.despairFilled"], 0],
+            ["events.mjs", "afterVerdictCard", ["DRPG.Vote.executionPending"], 0],
+            ["trial-modes.mjs", "startRound", ["DRPG.Floor.round.startedLine"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(`"${key}"`)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\blistOf\(/.test(bodies[i])]);
+        equal(stableJson(read), stableJson(SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true])),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

@@ -103,9 +103,9 @@ async function startRound(mode, { seconds = null, order = null } = {}) {
         return null;
     }
     try {
-        const { announce, esc } = await import("./utils.mjs");
+        const { announce, esc, listOf } = await import("./utils.mjs");
         const { trialEventCard } = await import("./trial-floor-ui.mjs");
-        const names = written.round.order.map(id => esc(game.actors.get(id)?.name ?? "-")).join(", ");
+        const names = listOf(written.round.order.map(id => esc(game.actors.get(id)?.name ?? "-")));
         await announce({ content: trialEventCard(`DRPG.Floor.mode.${mode}`,
             game.i18n.format("DRPG.Floor.round.startedLine", { seconds: turn, names })) });
     } catch (err) {
