@@ -9,7 +9,7 @@
  * later is not a new script somebody forgets to call. Each part prints its own
  * numbers - what it read as well as what it found, because a part that read
  * nothing has proved nothing - and the exit code is 1 when any part is red.
- * Only `names`, `moves`, `text` and `comments` need `npm ci` in audit/harness (they
+ * Only `names`, `moves`, `text`, `comments` and `keys` need `npm ci` in audit/harness (they
  * parse with espree; `text` since E65 C10, for the screen map); the rest are bare
  * Node, so release.yml runs `stamps notes` before installing anything.
  *
@@ -211,6 +211,12 @@
  *             above a row, and red below it until the row is lowered in the same
  *             commit (`node tools/comments-lint.mjs --write`), so the count only
  *             falls. Needs espree (`npm ci` in audit/harness).
+ *   keys      the keys lint (E56 part 1; tools/keys-lint.mjs, whose header says
+ *             what it reads and what it does not hold): every key of
+ *             lang/en.json read by a string of the code, under a prefix a
+ *             builder of the code makes keys from, or under a row of its short
+ *             KEY_PREFIXES - after its two plants, the finder's fixture and one
+ *             unread key added to the real tree, are each seen. Needs espree.
  *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
  *             header says what it reads): its self-check, then every pair of
  *             tools/contrast-pairs.json in its theme from the tokens the sheets
@@ -1533,6 +1539,16 @@ async function comments() {
     return problems;
 }
 
+/* ---------------------------------- keys ---------------------------------- */
+
+/* THE KEYS LINT (E56 part 1): tools/keys-lint.mjs reads the tree and plants its own unread key first. */
+async function keys() {
+    const { keysLint } = await import(url.pathToFileURL(path.join(REPO, "tools", "keys-lint.mjs")).href);
+    const { problems, summary } = await keysLint(REPO);
+    console.log(summary);
+    return problems;
+}
+
 /* -------------------------------- contrast -------------------------------- */
 
 /* THE CONTRAST (E44 C1c, 04.11.2026; D29 = 2): the arithmetic is tests-css.mjs's, which R1312 runs on the served files. */
@@ -1601,6 +1617,8 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
 PARTS.package = pkg;
 // E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
 PARTS.comments = comments;
+// E56 part 1: on its own line, for the same reason.
+PARTS.keys = keys;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);
