@@ -8,9 +8,9 @@ R6600-R6699. Kept current as the line goes; the coordinator's ledger is the reco
 | Item | State | Commit | Tests |
 | --- | --- | --- | --- |
 | Merge of the 1.2.113 assembly | done | 30053fec | quick green |
-| C0 spec and inventory | done | (this commit) | none (a book) |
-| C1 guards: stale-pl `--check`, `--sheet`, `--stamp`, `lang/pl.reviewed.json`, T9 FAIL | done | - | R6600; R1058 widened; `check text` with T9 and the tool's self-check (a planted English moved alone seen) |
-| C2 rules-parity, check part `rules` | done | - | the part's 14 planted faults |
+| C0 spec and inventory | done | fb4f3a47 | none (a book) |
+| C1 guards: stale-pl `--check`, `--sheet`, `--stamp`, `tools/pl-reviewed.json`, T9 FAIL | done | 78e4576e | R6600; R1058 widened; `check text` with T9 and the tool's self-check (a planted English moved alone seen) |
+| C2 rules-parity, check part `rules` | done | (this commit) | the part's 14 planted faults |
 | C3 D34 | waits for E54 (settings.mjs, utils.mjs) | - | - |
 | C4 D35 "?" in six windows | - | - | - |
 | C4 the Investigation dashboard's "?" and tabs | waits for E54 (investigation.mjs) | - | - |

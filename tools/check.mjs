@@ -261,6 +261,17 @@
  *             main's held row of its file, unit and kind), on a stage's
  *             row once the stage shipped, and on a tipAttr/tipText key with no
  *             words in either language. Needs espree (`npm ci` in audit/harness).
+ *   rules     the handbooks' rule numbers against config.mjs and the code
+ *             (E57 C2; tools/rules-parity.mjs, whose header says how a rule
+ *             reads): run as a child process, since its composed numbers
+ *             import the module's scripts behind a stand-in of Foundry. Red
+ *             on any problem - a number a handbook gives that config.mjs or
+ *             the composing function does not, a Polish unit that does not
+ *             give its English unit's numbers in order, a sentence no anchor
+ *             reaches any longer - and on any of its planted faults not seen:
+ *             a number changed in a copy of each config table it reads, a
+ *             Polish number changed, and the trap card's "four to six" put
+ *             back into a copy of the GM handbook.
  */
 
 import fs from "node:fs";
@@ -477,6 +488,19 @@ async function prose() {
         ? [] : [`config-prose.mjs --check with no file exits ${bare.status ?? bare.signal} ${usage ? "" : "without its usage "}- it should print its usage and exit 2 (S13-60)`];
     return [...noFile, ...(r.wanted ? [] : ["config.mjs yielded no prose to cover"]),
         ...r.missing.map(k => `lang/pl.json lacks DRPG.Config.${k}`), ...r.extra.map(k => `lang/pl.json has DRPG.Config.${k}, which config.mjs does not`)];
+}
+
+/* ---------------------------------- rules ---------------------------------- */
+
+/* E57 C2: tools/rules-parity.mjs in a child process (its stand-in of Foundry must not reach the other parts' globals). */
+function rulesParity() {
+    const run = spawnSync(process.execPath, [path.join(REPO, "tools", "rules-parity.mjs"), "--json"], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+    let r;
+    try { r = JSON.parse(run.stdout); } catch { return [`tools/rules-parity.mjs --json did not answer JSON (exit ${run.status}): ${String(run.stderr).trim().split("\n").slice(0, 3).join(" ")}`]; }
+    const t = r.tally;
+    console.log(`rules: ${t.rules} rule(s), ${t.matches} sentence(s) and ${t.rows} row(s) read, ${t.words} number(s) in words (T7's, reported); `
+        + `self-check ${r.self.plants - r.self.missed.length}/${r.self.plants} plant(s) seen; ${r.problems.length} problem(s)`);
+    return [...r.problems, ...r.self.missed.map(m => `self-check: ${m}`), ...(t.rules > 0 && t.matches + t.rows > 0 ? [] : ["it read nothing"])];
 }
 
 /* ---------------------------------- names ---------------------------------- */
@@ -1617,6 +1641,8 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
 PARTS.package = pkg;
 // E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
 PARTS.comments = comments;
+// E57 C2: the same, its own line.
+PARTS.rules = rulesParity;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);
