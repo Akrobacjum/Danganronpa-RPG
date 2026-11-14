@@ -1755,13 +1755,14 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
        token's room on `updateToken` read a refused room until its put-back landed. */
     /* Until E77 fix r1-G2 the GM heard nothing here: only the browser that settles a route announced it (review round 1
        O3, cor F1). */
+    /* The card's words are DRPG.Move.entered, "You are now in {room}." since texts-e71 (E71, 2dbf3c88; "You enter {room}." before). */
     check("W2: p1's crossing into the Porch is announced once on p1, which settles it, after the update was written and the "
         + "crossing paid with Dorm A still p1's room, once on the GM, which owns Aiko, and not on p2; and its card names the Porch "
         + "without its words (E77 C2, fix r1-G2)",
     J(acceptedW.p1.heard) === J([true]) && J(acceptedW.p1.written) === J(["Dorm A"]) && porchW(acceptedW.p1.view)
         && J(acceptedW.p1.crossed) === J([["Dorm A", "66 W Porch", "Dorm A"]])
         && J(acceptedW.p2.heard) === J([]) && J(acceptedW.gm.heard) === J([true])
-        && crossW.length === 1 && crossW[0].includes("You enter 66 W Porch.") && !crossW[0].includes("66W-porch") && !crossW[0].includes("drpg-room-prose"),
+        && crossW.length === 1 && crossW[0].includes("You are now in 66 W Porch.") && !crossW[0].includes("66W-porch") && !crossW[0].includes("drpg-room-prose"),
     J({ acceptedW, crossW }));
     check("W3: a step taken while waypoints are pending is not announced, and the route's last step is, once (E77 C2)",
         J(pendingW.during.heard) === J([]) && J(pendingW.after.heard) === J([true]) && porchW(pendingW.after.view),

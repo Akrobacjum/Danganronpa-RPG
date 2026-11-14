@@ -242,11 +242,12 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         await new Promise(r => setTimeout(r, 1500));
         const words = await Promise.all(game.messages.contents.slice(before).map(m => S.wordsOf(m)));
         return { cards: words.map(String).filter(text => text.includes("74 Porch")), tile: read(), painted: take(), ...at() };`, { timeout: 30000 });
+    /* The card's words are DRPG.Move.entered, "You are now in {room}." since texts-e71 (E71, 2dbf3c88; "You enter {room}." before). */
     check("B1: p1's crossing into the Porch paints p1's tile once, when the route has settled - Dorm A still on it as the update is "
         + "written - with the Porch's words and picture, and the card names the Porch and its price without the words",
     J(crossB.painted) === J(["74 Porch"]) && J(crossB.written) === J(["Dorm A"]) && J(crossB.settled) === J([[true, "74 Porch"]])
         && crossB.tile?.state === "room" && crossB.tile.prose === WORDS.Porch && crossB.tile.art === `url("${IMAGES.Porch}")`
-        && crossB.cards.length === 1 && crossB.cards[0].includes("You enter 74 Porch.") && !crossB.cards[0].includes("S74 Porch"),
+        && crossB.cards.length === 1 && crossB.cards[0].includes("You are now in 74 Porch.") && !crossB.cards[0].includes("S74 Porch"),
     J({ setB, crossB }));
 
     /* One action, the free move spent: from the Porch through Dorm A (a step with waypoints pending, as 66 W stands it in)
