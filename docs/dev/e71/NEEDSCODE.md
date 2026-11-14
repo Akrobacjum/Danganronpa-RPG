@@ -18,7 +18,7 @@ Verdicts:
 
 | Id | Question | Evidence | Default |
 | --- | --- | --- | --- |
-| Q-NC-1 | O5/M5 ("numbers only from placeholders") are marked "to confirm in E71 (row 1.2.122)" in docs/text-style.md. 25 texts here write a number the code knows as a word or a digit ("two", "one Hope", "45 s", "+2", "1.5 rooms"), each needing a config field or a `PROSE_NUMBERS` row and a placeholder in both languages. Confirm O5 and do them as one family? | text-style.md O5, M5 ("to confirm in E71"); each row marked Q-NC-1 names its constant | Kept as they are: the numbers match config today (each read); the family is one stage's work once O5 is confirmed |
+| Q-NC-1 | O5/M5 ("numbers only from placeholders") are marked "to confirm in E71 (row 1.2.122)" in docs/text-style.md. 26 texts here write a number the code knows as a word or a digit ("two", "one Hope", "45 s", "+2", "1.5 rooms"), each needing a config field or a `PROSE_NUMBERS` row and a placeholder in both languages. Confirm O5 and do them as one family? | text-style.md O5, M5 ("to confirm in E71"); each row marked Q-NC-1 names its constant | Kept as they are: the numbers match config today (each read); the family is one stage's work once O5 is confirmed |
 | Q-NC-6 | The Overflow card cannot say which time of day a darkening takes (a spill's takes the next one; some lines say "this time of day"). A body per case? | overflow.mjs announceOverflow passes no time of day | Keep: the text names none, so it is not false |
 | Q-NC-7 | Analyze's roll card lands under its result card; Find Stash and Find Passage post theirs first. Reorder? | action-analyze.mjs analyseBullet after requestAnalyzeResolve; locateStash, locatePassage before (E80 r1-G3, E16 e1-G2) | Keep: the order rides the bridge's timing and wants a look at a table |
 | Q-NC-8 | In a zone mode an Objection is refused with "during an Objection". Which reason should a zone mode give? | trial-floor.mjs floorRefusal | E73's line decides |
@@ -27,6 +27,8 @@ Verdicts:
 | Q-NC-11 | `confirmClearFaint` and `confirmSweepBullets` have no caller at the table since E64-inv; their keys are drawn only by the suite and scenario 62. Keep the roads? | gm-panel.mjs; scenario 62 | Keep both roads and their keys |
 | Q-NC-12 | `CaseMap.problem.incomplete` in Polish keeps a label-colon line because `CaseMap.needs.*` are nominative. A genitive fragment family? | case-map.mjs | Keep |
 | Q-NC-13 | `Tables.tierPoolCreated` is reached only for a room table whose base is a category's name. Keep the branch? | tables-editor.mjs createPoolFrom, poolNameRefusal | Keep |
+| Q-NC-14 | The sequences' display capitals (14 keys, `Sequence.*`) are read by X16 as ALL-CAPS emphasis; group B asked for allow rows in docs/text-budgets.json (Q-B-7). Allow rows carry the owner's approval. Add them? | X16 13/13 reports in `node tools/check.mjs text`; the existing X15/X16 rows say "the owner approved this allow row" | Not added until the owner says so |
+| Q-NC-15 | A Level Up the GM *offers* from its own window (the player picks) still shows the player the kind's reason ("A wrong vote let the Blackened go free." for any Reinforced). The offer's record (`recordOffer`: kind, extra, deferred, only) and its bridge row (`requestOfferRecord`) carry no reason; carrying one is a change on a GM-to-GM bridge row and the offers' store. Do it? | level-up.mjs offerAdvancement, recordOffer, playerPickerBody; bridge-asks.mjs requestOfferRecord | Not done here: a store and bridge change wants its own stage and a security read |
 
 ## The table
 
@@ -80,7 +82,7 @@ Verdicts:
 | 46 | `DRPG.Vault.stashEmpty` | -B08 | `rifleStashDialog` joins {who} with ", "; `listOf` would read "the stash of Kaede and Makoto". | stash-reach.mjs rifleStashDialog | **DEF** Defect (EN2). |
 | 47 | `DRPG.Vault.keyCopiesTakenGm` | -B08 | `keyCopiesAfterOwnerLeft` joins {holders} with ", "; `listOf` gives the Oxford comma (EN2). | vault-store.mjs clearSplitPiece (keyCopiesAfterOwnerLeft) | **DEF** Defect (EN2). |
 | 48 | `DRPG.Passage.tab.shared` | -B08 | {players} is joined with ", " in passages-tab.mjs `rowHtml`, and {names} in DRPG.Passage.tab.pending likewise: a list the code builds goes through utils.mjs `listOf` (EN2, Oxford comma). | passages-tab.mjs rowHtml | **DEF** Defect (EN2): {players} and {names} joined with ", ". |
-| 49 | `DRPG.Facility.editor.tabLine` | -B08 | docs/text-budgets.json's rule for `.tab...` names catches DRPG.Facility.editor.tabLine, a note line: it needs its own rule or an allow row (T4). | docs/text-budgets.json (T4 name rule) | **ND** Not a code defect: the key it names is deleted with #50, so no budget row is needed. |
+| 49 | `DRPG.Facility.editor.tabLine` | -B08 | docs/text-budgets.json's rule for `.tab...` names catches DRPG.Facility.editor.tabLine, a note line: it needs its own rule or an allow row (T4). | docs/text-budgets.json (T4 name rule) | **DEF** Defect of the lint: the tab rule (`\.tab[A-Z]...`) took `Facility.editor.tabLine`, a pane's note line, for a tab label and counted it over the tab's limit; ...Line left out of the rule (788a56b6). |
 | 50 | `DRPG.Facility.editor.tabNote` | -B08 | The key is not rendered (R4470 asserts its absence); T4 places it as a tab by its name (`.tab...`) and finds it over the tab limit. Either remove the key with R4470's absence check, or add an allow row for T4 with that reason; no wording of a whole sentence fits a tab's 8 words. | facility-editor.mjs (no reader) | **DEF** Dead key (R4470 holds it absent): deleted from both files. |
 | 51 | `DRPG.Facility.applied.searchToken` | -B08 | {n} is the amount the GM set, while each token given back is capped at the room's maximum (search-tokens.mjs `giveBack`), so the line can say more than came back; and the English reads '+3 Search Token' for any n. Passing the count given back and making the key a plural family (`.one`/`.other`) would fix both. | facilities-gm.mjs (searchToken effect) | **DEF** Defect: the line says the GM's n though giveBack caps each token at the room's maximum (and a non-primary GM gives none); "+3 Search Token" not a plural family. |
 | 52 | `DRPG.Character.initNote` | -B08 | to say the numbers, the code would pass the action count (STARTING.actions) as a placeholder | config.mjs STARTING.actions | **Q** Q-NC-1 (O5/M5): a number the code knows typed into the prose |
@@ -106,8 +108,8 @@ Verdicts:
 | 72 | `DRPG.Floor.roundWindow.length` | -B10a | {n} is passed through game.i18n.format, not plural(), so the count can only stand after a label; a plural family would let it read "{n} speakers" / "{n} mówców". | trial-floor-ui.mjs (round window) | **ND** Not a defect: {n} stands after its label and reads for any count. |
 | 73 | `DRPG.TrialScene.noWayBack` | -B10a | DRPG.TrialScene.noWayBack is read by no code (fact 0): its live copy is DRPG.TrialScene.noWayBackLine. A code stage removes the key from lang/en.json and lang/pl.json (a key's removal is not a text change). | (no reader) | **DEF** Dead key: deleted. |
 | 74 | `DRPG.Chapter.typeless` | -B10b | "not analysed" stays British because R357 holds the warning to DRPG.Investigation.unidentified ("Not analysed"); when that key becomes "Not analyzed" (EN1, outside this slice) this text follows it. / EN1: "not analysed" -> "not analyzed" needs DRPG.Investigation.unidentified (en.json "Not analysed") and R357's expectation in scripts/tests-tier1.mjs changed with it; en.json's other "analysed" strings (revealKeeps, presentWithoutNote, cardUnread among them) go in the same sweep. | chapter.mjs; lang | **DONE** Done by line C (26c17b9a): both keys say "analyzed". |
-| 75 | `DRPG.Advance.reason.reinforced` | -B10b | The reason is chosen by kind (level-up.mjs openAdvancement, `DRPG.Advance.reason.${kind}`): a Reinforced a GM grants from the sheet's menu, which the menu's hint offers "For an exceptional chapter", still says the wrong-vote reason. A reason passed from the sheet's menu (or none there) would make it true. | level-up.mjs advanceMenu -> openAdvancement | **DEF** Defect: a Level Up the GM grants from the sheet's menu gives the wrong-vote (or the class-vote) reason. |
-| 76 | `DRPG.Monocub.cannotMeddle` | -B10b | sheet.mjs abilityButton and monocub.mjs performCubAbility test the row's cost and hopeCost, while the GM charges priceOf (a move done to order costs its action and no Hope): a Monocub with an open order and no Hope is told it lacks Hope and refused on its own browser though the GM would carry the move out. | monocub.mjs performCubAbility; sheet.mjs abilityButton | **DEF** Defect: the browser tests the row's price, the GM charges priceOf; a move to order with no Hope is refused here. monocub.mjs fixed; sheet.mjs abilityButton is E54's and waits. |
+| 75 | `DRPG.Advance.reason.reinforced` | -B10b | The reason is chosen by kind (level-up.mjs openAdvancement, `DRPG.Advance.reason.${kind}`): a Reinforced a GM grants from the sheet's menu, which the menu's hint offers "For an exceptional chapter", still says the wrong-vote reason. A reason passed from the sheet's menu (or none there) would make it true. | level-up.mjs advanceMenu -> openAdvancement | **DEF** Defect: a Level Up the GM grants from its own window gave the wrong-vote (or the class-vote) reason; fixed for the GM's picks (4dadd182). An offer sent from the same window still says its kind's reason: Q-NC-15. |
+| 76 | `DRPG.Monocub.cannotMeddle` | -B10b | sheet.mjs abilityButton and monocub.mjs performCubAbility test the row's cost and hopeCost, while the GM charges priceOf (a move done to order costs its action and no Hope): a Monocub with an open order and no Hope is told it lacks Hope and refused on its own browser though the GM would carry the move out. | monocub.mjs performCubAbility; sheet.mjs abilityButton | **DEF** Defect: the browser tested the row's price, the GM charges priceOf; a move to order with no Hope was refused here. monocub.mjs fixed (173256af); sheet.mjs `abilityButton` is E54's: **E54**, waits. |
 | 77 | `DRPG.Monocub.needHope` | -B10b | monocub.mjs performCubAbility tests row.hopeCost, not priceOf: a move done to order (no Hope) is refused here with this toast when the Monocub has no Hope (the same item as DRPG.Monocub.cannotMeddle). | monocub.mjs performCubAbility | **DEF** As #76. |
 | 78 | `DRPG.Monokuma.panelNote` | -B10b | The GM review marks this note "usunąć" (docs/dev/e71/STATUS.md, For the coordinator); removing a row is E101's change of the window. This after holds until then. | gm-team-dialog.mjs (Monokuma panel note) | **ND** Not a code defect: the GM review's "usunąć" is E101's window change; the text is true. |
 | 79 | `DRPG.Monokuma.sharedPool` | -B10b | gm-team-dialog.mjs wireMonokumaLive joins {actors} with ', ' rather than utils.mjs listOf, so the English list has no 'and' and no Oxford comma (EN2). | gm-team-dialog.mjs wireMonokumaLive | **DEF** Defect (EN2). |
@@ -169,7 +171,7 @@ Verdicts:
 | 135 | `DRPG.Zones.noQuestion` | -B17 | DRPG.Zones.noQuestion never reaches the GM: trial-floor.mjs zoneStartInStep returns null on the machine's refusal, so startZone shows DRPG.Zones.notStarted. Handing the refusal's key back would let the toast say why. | trial-zones.mjs startZone | **DEF** As #134. |
 | 136 | `DRPG.Zones.noSet` | -B17 | DRPG.Zones.noSet never reaches the GM: trial-floor.mjs zoneStartInStep returns null on the machine's refusal, so startZone shows DRPG.Zones.notStarted. Handing the refusal's key back would let the toast say why. | trial-zones.mjs startZone | **DEF** As #134. |
 | 137 | `DRPG.Zones.notStarted` | -B17 | DRPG.Zones.notStarted: handing the machine's refusal key (DRPG.Zones.noAnswers, noQuestion, noSet) back from trial-floor.mjs zoneStartInStep would let the toast say the one reason instead of the list. | trial-zones.mjs startZone | **DEF** As #134. |
-| 138 | `DRPG.Zones.dive.openedBare` | -B17 | DRPG.Zones.dive.openedBare is never posted: zone-machine.mjs zoneStart refuses a Logic Dive with no question, so trial-floor.mjs zoneStartInStep always picks dive.opened. | trial-floor.mjs zoneStartInStep | **DEF** Dead key: a Logic Dive is refused with no question, so dive.openedBare is never posted: deleted. |
+| 138 | `DRPG.Zones.dive.openedBare` | -B17 | DRPG.Zones.dive.openedBare is never posted: zone-machine.mjs zoneStart refuses a Logic Dive with no question, so trial-floor.mjs zoneStartInStep always picks dive.opened. | trial-floor.mjs zoneStartInStep | **ND** Not a defect: kept. trial-floor.mjs `zoneStartInStep` names `Zones.<mode>.openedBare` for every zone mode and tier 0 holds each mode's family whole; a Logic Dive cannot reach it only while zone-machine.mjs refuses a dive with no question - a guard, not a reader gone. |
 | 139 | `DRPG.Zones.dive.outcome.played` | -B17 | DRPG.Zones.dive.outcome.played: trial-zones-ui.mjs replayWarning puts "played" into DRPG.Zones.dive.replay's "it ended {when}" when outcome is null, a set started and never ended (usedAt, no endedAt); a host key of its own ("it was started {when} and not finished") would let the line say so. | trial-zones-ui.mjs replayWarning | **DEF** Defect: a set started and never ended is said to have "ended". |
 | 140 | `DRPG.Zones.picker.hint.straw` | -B17 | DRPG.Zones.picker.hint.straw, dive and scrum write 45, 60 and 120 s into the prose (O5, M5): trial-zones-ui.mjs openZonePicker localizes them with no words; a format with TRIAL.modes.zones' seconds as placeholders would let the numbers follow config. | config.mjs TRIAL.modes.zones | **Q** Q-NC-1 (O5/M5): a number the code knows typed into the prose |
 | 141 | `DRPG.Rooms.renamed` | -B17 | DRPG.Rooms.renamed prints every count, zeros too: a list of only the non-zero rows, joined by utils.mjs listOf (EN2), would be shorter and is code work in fog.mjs carryRename. / DRPG.Rooms.renamed, DRPG.Vault.neighboursColumn and the column's note move from "Neighbours" to "Neighbors" (EN1, glossary neighbor) together, in one change with the GM handbook's quotes; until then this text keeps "Neighbours". | fog.mjs carryRename | **ND** Not a defect: every count printed is true; a shorter list is style. "Neighbours" -> "Neighbors" is a text change with the handbook (text and handbook lines). |
@@ -184,7 +186,7 @@ Verdicts:
 | S4 | `DRPG.Loot.tookUnfound, DRPG.Loot.traceNote` | B08 (STATUS-B) | Items joined with ", ", one pair of quotes. | anonymity.mjs takeFromBody; handover.mjs | **DEF** Defect (EN2, EN17), with #40. |
 | S5 | `DRPG.Vault.stashesNote` | B08 (STATUS-B) | "16+" is config.mjs stashThreshold typed into the prose. | room-setup.mjs | **Q** Q-NC-1 (O5/M5): a number the code knows typed into the prose |
 | S6 | `DRPG.Passage.tab.intro, DRPG.Passage.pick.cancel` | B08 (STATUS-B) | Dead keys. | (no reader) | **DEF** Dead keys: deleted. |
-| S7 | `T15 fixtures {until}, {life}; X16 rows for the Sequence's capitals` | B09 (STATUS-B, Q-B-7) | The lint renders placeholders it has no value for; X16 reads display capitals as emphasis. | scripts/tests-text.mjs; docs/text-budgets.json | **DEF** Defect of the lint, with #56: fixture values added. The X16 allow rows: see the commit. |
+| S7 | `T15 fixtures {until}, {life}; X16 rows for the Sequence's capitals` | B09 (STATUS-B, Q-B-7) | The lint renders placeholders it has no value for; X16 reads display capitals as emphasis. | scripts/tests-text.mjs; docs/text-budgets.json | **DEF** Defect of the lint, with #56: fixture values added (788a56b6). The X16 allow rows: Q-NC-14. |
 | S8 | `DRPG.Monocub.nobodyDead, manageTitle, dialogIntro, isOne, tickFirst, student` | B10b (STATUS-C) | Dead keys. | monocub.mjs (no reader; the templates read only a row's choices and the critical keys) | **DEF** Dead keys: deleted. |
 | S9 | `DRPG.TrialScene.hallDark, prepare, noWayBack` | B10a (STATUS-C) | Dead keys. | trial-scene.mjs (hallDark is a row id; prepare reads prepareOnSave) | **DEF** Dead keys: deleted (noWayBack is #73). |
 | S10 | `DRPG.TrialScene.scenesIntro` | B10a (STATUS-C) | Named dead. | trial-scene.mjs (the Scenes part's intro, when it has no lead) | **ND** Not a defect: read literally by trial-scene.mjs; the screen map's "unassigned" is not "unread". |
@@ -193,4 +195,43 @@ Verdicts:
 
 ## Fixes
 
-(Filled as the commits land.)
+Each commit red first (its test failing on the commit before it, the reading quoted in the message), then green;
+`npm run quick` green before every push but one (7af2ca7c went in with `check text` red - a stale dash baseline row
+- and d2afa5f4 is its fix). Tests are tier 1 unless said.
+
+| Commit | Entries | Test | What |
+| --- | --- | --- | --- |
+| 747c91eb | #40, #42-#48, #54, #142, S3, S4 | R6900 | group B's lists through `listOf`; a taken item's name in its own quotes (`Loot.itemQuoted`) |
+| 1d2b2125 | #60-#68, #70, #71 | R6901 | the trial's lists through `listOf` |
+| 7af2ca7c, d2afa5f4 | #33, #34, #79, #82, #86, #87, #106, #122, #124 | R6902 | the other lists through `listOf`; a roll's negative source with "-"; T6's baseline row gone |
+| 729987e4 | S1 (Q-B-2), #30, #31, #32 | R6903 | a Call that would move nothing refused before the price, an unmoved bar refunded; `Calls.progressRefused` gone; damage, refund and item rows in the page's words |
+| 2883945f | #50, #53, #58, #59, #73, #96, #113, #115, #129, #130, #133, S6, S8, S9, S11 | R6904 | 26 dead keys and look.mjs `scaleNote` gone |
+| 173256af | #76, #77 (monocub.mjs) | R6905 | a Monocub's browser checks `priceOf` |
+| 4522d6f7 | #83, #114 | R6906 | a project's scale through `plural`; a picture's size through `localeFormat` |
+| a5030c9c | #105, #144 | R6907 | `Season.resetPools`, `Diagnostics.cast.experiences` as plural families |
+| 99d1541c | #37, #41, #128 | R6908 | a ruling's two paragraphs; the cover roll's threshold in its title; the case summary's confirmation shown |
+| 1c89f07a | #134-#137, #139 | R6909, R6910 | a zone start's refusal reason told; an unfinished Logic Dive set not "ended" |
+| 4b30a27a | #51 | R6911 | a room action's Search Tokens line counts what came back |
+| 4bc27697 | #117, S2 (Q-B-6) | R6912 | `roomPhrase`: a room with its preposition, so a spot outside the rooms reads in Polish |
+| 4dadd182 | #75 (the GM's picks) | R6913 | a Level Up the GM grants says the GM granted it |
+| 788a56b6 | #49, #56, #57, S7 | `node tools/check.mjs text` | the lint's fixtures for {alive}, {until}, {life}; the tab rule leaves a ...Line out |
+
+Waiting for E54's files: #28, #29 (cleanup.mjs), #36 (remnants.mjs), #38 and #76's sheet half (sheet.mjs), #127
+(investigation.mjs).
+
+## Counts
+
+On this table (158 rows: 146 needsCode, 12 from the STATUS files): defects fixed 73 rows (two in part: #75's offer path
+is Q-NC-15, #76's sheet half waits for E54), defects waiting for E54 5, questions 35 rows (26 of them Q-NC-1, O5's
+numbers; 9 more under Q-NC-6 to Q-NC-13), not defects 18, done by a text line 13, for the handbook line 13, open 1
+(S12). Questions asked of the owner: 10 (Q-NC-1, Q-NC-6 to Q-NC-15).
+
+## Needs a local Foundry
+
+- The Polish of the new phrases at a table: `Movement.at`, `into`, `out` in their five hosts (a token sent back, a drop
+  removed, an unlawful arrival, a token dropped from nowhere, Refund last crossing's tooltip), and the lists `listOf`
+  now joins on the cards a GM and a player read (the vote, the verdict, a Take, a stash's rifle). Headless renders the
+  strings; nobody has read them in place.
+- A Monocub with an open order and no Hope pressing a move to order on a real table (the sheet's button still asks the
+  row's price until E54 lands; the console road is fixed).
+- A Call refused at a project at 0 and one refunded after a race: the race needs two GMs and real timing.
