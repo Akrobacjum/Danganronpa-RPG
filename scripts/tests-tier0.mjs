@@ -19074,7 +19074,7 @@ const REGRESSIONS = [
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
-            baselines: [["dashesIn", 9], ["familyFormats", 0]],
+            baselines: [["dashesIn", 3], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -19131,7 +19131,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 7, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -19612,7 +19612,9 @@ const REGRESSIONS = [
                 // E71 B04 (R6400): the Rest report's three lines, a count before Health, Sanity or Hope.
                 "Rest.applied.health", "Rest.applied.sanity", "Rest.applied.hope",
                 // E71 B01b and B03: the Overflow's explainer and the Mastermind's purse, a count before Despair or Hope.
-                "Overflow.explainBody", "Mastermind.hopeReadout"
+                "Overflow.explainBody", "Mastermind.hopeReadout",
+                // E71 B10b and B12 (line C, 14.11.2026): Confusion's least to give, a count before Despair; a Reroll's Work, a count before progress.
+                "Monocub.giveAtLeast", "Reroll.progressAdjusted"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -19638,19 +19640,23 @@ const REGRESSIONS = [
                 "Investigation.filterCount", "Investigation.keyLimitLine", "Investigation.keySummary",
                 "Overflow.clearAsk", "Overflow.current", "Overflow.currentDrawn", "Overflow.currentWaiting",
                 "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
-                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable",
+                "Passage.pick.step", "Sound.groupAssigned", "Vote.barLine", "Vote.namedByTable",
                 // E24 C1b: the incident card's reserves, "3 of 4 Health" / "3 z 4 Health" (the sheet's "Left: 3 / 4").
                 "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou",
                 // The owner's report of 13.11.2026 (R5900): a zone mode's line on the Event card, "Question 2 of 3" /
                 // "Pytanie 2 z 3", "Turn 1 of 4" / "Tura 1 z 4" - the seconds are the card's clock.
                 "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak"
+                // E71 B10a (line C, 14.11.2026): Vote.accusesLine left the table - "a majority of {n} out of {total}" puts no count before a noun.
             ].map(key => [key, "R"]),
             ...[
                 "Vault.roomRatio"
             ].map(key => [key, "D"]),
             ...[
                 "Items.woreOnDespair"
-            ].map(key => [key, "P"])
+            ].map(key => [key, "P"]),
+            /* T: a count before „razy”, which every count of 2 and more takes (2, 5, 12, 22 razy) - E71 B10b, line C,
+               14.11.2026: level-up.mjs reads Advance.introMany only when its picks are not 1 (introOne is the one). */
+            ...["Advance.introMany"].map(key => [key, "T"])
         ].map(([key, why]) => [`DRPG.${key}`, why]));
         const lang = {};
         for (const code of ["en", "pl"]) {
@@ -19664,7 +19670,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 76, S: 39, R: 29, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 78, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -19802,7 +19808,7 @@ const REGRESSIONS = [
                 waits: "Your next roll gets what was armed after this window opened: advantage and a flat bonus or penalty.",
                 price: ["You get 2 actions back.", true, true],
                 reserves: "You lose 1 Health and 2 Sanity.",
-                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). Press the button beside your name on your sheet and choose - you have 3 picks.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). You have 3 picks. Press Level Up beside your name on your sheet to make them.",
                     overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true,
                     eclipse: "The GM wants to start the Night Eclipse. Are you done with this time of day?" },
                 picks: ["Level Up (pick 4)", "Reinforced Level Up (pick 7)"], roller: true
@@ -19815,7 +19821,7 @@ const REGRESSIONS = [
                 waits: "Na twój następny rzut czeka też to, co doszło po otwarciu tego okna: przewaga i stała premia albo kara.",
                 price: ["Odzyskujesz: 2 akcje.", true, true],
                 reserves: "Tracisz 1 Health i 2 Sanity.",
-                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - masz 3 wybory.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Masz 3 wybory. Naciśnij przycisk Level Up obok swojego imienia na arkuszu i wybierz.",
                     overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true,
                     eclipse: "GM chce zacząć Eclipse (Noc). Czy kończysz już tę porę dnia?" },
                 picks: ["Level Up (wybierz 4)", "Reinforced Level Up (wybierz 7)"], roller: true

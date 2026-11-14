@@ -331,7 +331,7 @@
    "kind": "select",
    "key": "DRPG.Chapter.whoseBody",
    "count": 1,
-   "why": "none needed: The label says it is optional and its first option, 'Do not name them', says what leaving it does."
+   "why": "none needed: The label says it is optional and its first option, 'Name nobody', says what leaving it does."
   },
   {
    "file": "scripts/chapter.mjs",
@@ -1687,7 +1687,7 @@
    "kind": "dom:button",
    "key": "DRPG.Notices.markRead",
    "count": 1,
-   "why": "none needed: each label says what it does (Mark all read, New notices - show them, Open the conversation)"
+   "why": "none needed: each label says what it does (Mark all as read, Show new notices, Open the conversation)"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1695,7 +1695,7 @@
    "kind": "dom:button",
    "key": "DRPG.Notices.newPill",
    "count": 1,
-   "why": "none needed: each label says what it does (Mark all read, New notices - show them, Open the conversation)"
+   "why": "none needed: each label says what it does (Mark all as read, Show new notices, Open the conversation)"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1719,7 +1719,7 @@
    "kind": "dom:button",
    "key": "DRPG.Notices.openConversation",
    "count": 1,
-   "why": "none needed: each label says what it does (Mark all read, New notices - show them, Open the conversation)"
+   "why": "none needed: each label says what it does (Mark all as read, Show new notices, Open the conversation)"
   },
   {
    "file": "scripts/notice-history-app.mjs",
