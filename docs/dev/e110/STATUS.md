@@ -117,3 +117,17 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
   server, avclient-livekit 0.6.8, a LiveKit server, two browsers.
 - How Panic feels with per-turn muting: a table of 6+ players.
 - The redirect seen on two browsers (GM and player): a v14 server.
+
+## Final runs at 3dd5f6d7 (14.11.2026, headless harness, 4 cores)
+
+- tier 1 full: 1612 passed, 0 failed, 16 skipped, 0 red.
+- tier 2 by name (E110, Re-point, E70-T8, Testimony, Closing Argument, Scrum, Straw Poll, Objection, music, stash,
+  bedroom, E69-T7): 201 passed, 2 failed, 1 skipped. The two: "a close breaks the knife..." leaves a mask standing and
+  E69-T7 after it reads that leftover. The pair fails the same at 6dd02975 (this line's base) and at e7a4fece; fervent's
+  t2-rest commits (b6c61ced, 99979f8a, 2b43ffde, 93f91a60) address the standing masks. Not this line's; recheck after
+  the merge.
+- `DRPG_SUITE_SHARD=1/8 node run-all.mjs suite`: 01-runtests 19/22, suite 1614 passed, 1 failed - "one account is only
+  ever sent to one voice room" (PlayerThree, A1 with an incident open, and A3): E69 C8's `maskedRow` copy, which
+  fervent's 08dd8d34 fixes in the test. This line copies no voice row. Recheck after the merge.
+- scenarios: 67 52/53 (1 expected red), 68 34/34, 30 302/304 (2 expected reds), 33 89/90 (1 expected red), 72 135/138
+  (3 expected reds), 87 36/36; 0 failed in each.
