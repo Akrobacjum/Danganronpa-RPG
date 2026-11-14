@@ -40,6 +40,7 @@ question, not a fix. B-S11's second half (the case summary as a sixth sequence) 
 | 3f3a9eb7 | B-T4, B-T9, B-H5, B-H8, B-R9, B-R6's quote, B-S11 (half), B-S13 (handbooks) | text |
 | 9f649b06 | B-M7 the Traces tab's rule, B-S10 the sound hints | R7171 |
 | 227b1b86 | B-M8 the trap victim's failure text | text |
+| c990b6f0 | five older source readers brought to the changes above | R3812, R311, R1453, R1157, R827 |
 
 Each break's commit is cited in its row of CHAINS.md. One commit per break, except cd81893a and 3f3a9eb7, which change
 the same paragraphs of the handbooks for several breaks each; their messages name every break.
@@ -81,4 +82,7 @@ Measured here (4 cores, 14.11.2026), one harness at a time:
 - Tier 2 run with `--only`: E50-T2 (5), E15-T14, PV-DOORS-T1..T3, E92+E93 (10 with R7163), E74-T2 (5), "a clean-up and
   a body moved ...", "a close then a discovery ..." (6), "a Spectator's microphone ...", "E62 C3b ..." (8).
 - `npm run quick` before every push: green each time.
-- The full tier 1 on the final tip: see the report (below, when written).
+- The full tier 1 at 79ac9342: 1699 ran, 5 failed - five older source readers (R3812, R311, R1453, R1157, R827) read
+  lines this line changed on purpose; c990b6f0 brings each to the change (its message says how).
+- The full tier 1 at c990b6f0 (the code of the final tip): 1684 passed, 0 failed, 16 skipped, 0 red, 476 s wall
+  (1672 at the base plus R7160-R7171).
