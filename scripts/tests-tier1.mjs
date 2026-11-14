@@ -58629,7 +58629,7 @@ const INVARIANTS = [
         /* owner-115 item 2, 14.11.2026; the owner at a table on 1.2.114: "Gdy token postaci jest w tym samym miejscu co remnant,
            postac zawsze niech bedzie na wierzchu". Foundry's primary group orders by elevation, then sortLayer, then sort
            (fvtt-types 14.370, primary-canvas-object.d.mts), and Isometric Perspective 14.0.6 rewrites every token's sort by
-           depth (autosorting.js `applyDepthSort`), ties by id - so `sort: -10` held nothing. Stand-ins; nothing written. */
+           depth (autosorting.js applyDepthSort), ties by id - so `sort: -10` held nothing. Stand-ins; nothing written. */
         const R = await import("./remnant-ring.mjs");
         ok(typeof R.keepUnderCharacters === "function" && typeof R.traceLayer === "function", "remnant-ring.mjs has no keepUnderCharacters or traceLayer");
         if (typeof R.keepUnderCharacters !== "function" || typeof R.traceLayer !== "function") return;

@@ -144,7 +144,10 @@ rooms are read off it). The primary group is asked to sort again only when the l
 | --- | --- |
 | R7400 (tier 1) before the change | FAIL: remnant-ring.mjs had no `keepUnderCharacters` |
 | R7400 after | ok |
-| quick, tier 1, scenario 86 | in the item's report |
+| quick at 7e5cb85e | RED, check part comments: two names of Isometric Perspective's code in backticks, which no code here holds; written plainly since, then green |
+| tier 1 at 7e5cb85e | 1688 passed, 0 failed, 16 skipped, 0 red |
+| scenario 86 at 7e5cb85e | 105/105; `remnantRing.layer` counted in none of its events (30 Remnants refreshed), so the layer is not set again on a refresh |
+| a probe scenario, not kept (placeRemnant on the scene, then another player's step) | the Remnant's mesh on sort layer 699 on the GM's browser and p1's; `remnantRing.layer` 1 on each, still 1 after the step. Characters have no mesh in the harness, so the order against them is the table's (LIVE-OWN115-02) |
 
 ### Needs a local Foundry
 

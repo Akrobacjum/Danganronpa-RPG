@@ -96,7 +96,7 @@ const PROJECT_FALLBACK = 0xd8c98a;   // PROJECT_TOKEN.workingTint, if the tint c
  * (fvtt-types 14.370, primary-canvas-object.d.mts: the types, not v14's source, which is not on this machine), and
  * Isometric Perspective 14.0.6, which this module requires, rewrites every token's `sort` - its mesh's and its document's,
  * on this browser - by depth on the screen, on every token's render flags, ties broken by id (scripts/autosorting.js
- * `applyDepthSort` and `sortByDepth`, read in its release zip on 14.11.2026; installed at `init` on every scene). So a
+ * applyDepthSort and sortByDepth, read in its release zip on 14.11.2026; installed at `init` on every scene). So a
  * trace's sort said nothing, and two tokens on one spot fell by their ids.
  * The trace's mesh goes one sort layer under the tokens' instead: under every character, Monokuma and Monocub at its
  * elevation whatever their sorts, and still above the tiles and drawings (500, 600). Isometric Perspective sorts the
