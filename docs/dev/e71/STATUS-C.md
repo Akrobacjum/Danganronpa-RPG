@@ -134,10 +134,18 @@ Reroll's lines in the GM's language; Bridge.why.criticalHint on every critical G
 
 ## Tests on the final tip
 
-Full tier 1 (`node run-tests.mjs --tier 1`): see the coordinator report; R2001 is the known base failure.
-R4420 (the curtain's hand-over, a 250 ms slack on the plan's end) failed in two of three full runs of this line's
-tips and passed alone each time (4 of 4) and in one full run of the base: a timing reading not tied to a text
-(the plan's times read no text this line changed); measured, not proved.
+Full tier 1 (`node run-tests.mjs --tier 1`) at 26c17b9a, alone on the machine: 1605 tests ran, 418.5 s wall;
+1589 passed, 1 failed (R2001, the known base failure), 16 skipped, 0 red.
+R4420 (the curtain's hand-over, a 250 ms slack on the plan's end) failed in two earlier full runs of this line's tips
+(25423c19's tree, and 09f20502's) and passed alone each time (4 of 4), in the final full run, and in one full run of
+the base: a timing reading not tied to a text (the plan's times read no text this line changed); measured, not proved.
+
+Scenarios (one at a time): 33-bridge-paths, 41-trial-scene, 65-season, 67-trial-modes, 87-messenger-sound,
+30-security, 73-notice-history, 10-murder, 62-investigation, 72-canary, 75-voice-tile, 88-flow-length green on
+25423c19's tree; 50-lang 45/45, 63-class-trial 79/79, 15-held 40/40, 40-flow 89/89, 76-passages 118/119 (its one
+expected red) green after the fixes of 39d3b18c, e74cdf43 and 09f20502; 61-gmstore-case 113/114, Z2 red at the base
+(DRPG.Case.*, line D's). Not re-run after b6246b79 and 26c17b9a, which changed Reroll.crisisReplayed,
+Chapter.typeless and Investigation.unidentified (no scenario quotes them; grep).
 
 ## Needs a local Foundry
 

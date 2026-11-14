@@ -1474,7 +1474,7 @@
    "pilot": null,
    "facts": [
     {
-     "fact": "chapterEndForm shows a warning when Truth Bullets not analysed have no real type recorded, with {who} the holders joined by commas.",
+     "fact": "chapterEndForm shows a warning when Truth Bullets not analyzed have no real type recorded, with {who} the holders joined by commas.",
      "file": "scripts/chapter.mjs",
      "fn": "chapterEndForm",
      "note": null
@@ -1486,7 +1486,7 @@
      "note": null
     },
     {
-     "fact": "R357 reads that the warning names both holders and contains the dashboard's term DRPG.Investigation.unidentified in lower case (\"not analysed\" / „bez analizy”), at a count of 2.",
+     "fact": "R357 reads that the warning names both holders and contains the dashboard's term DRPG.Investigation.unidentified in lower case (\"not analyzed\" since 26c17b9a / „bez analizy”), at a count of 2.",
      "file": "scripts/tests-tier1.mjs",
      "fn": "chapterEndForm",
      "note": null
