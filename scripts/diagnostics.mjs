@@ -631,7 +631,7 @@ function despairBarLines(lines, root) {
     } else {
         const bar = document.querySelector("#drpg-despair");
         const before = getComputedStyle(pip, "::before");
-        // One mask on every client since D3 (despair.mjs `buildRow`: the count is
+        // One mask on every client since D3 (despair.mjs `despairRowOf`: the count is
         // public; only the overflow caption hides its number from a player), so
         // the useful question is whether the skull landed at all. No mask plus a
         // background is a solid square on screen.

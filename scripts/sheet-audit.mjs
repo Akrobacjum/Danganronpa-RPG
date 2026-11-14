@@ -219,7 +219,7 @@ const PAYMENTS = new Set(["price", "call", "meddle"]);
 /** How long credit is kept: a Reroll's window, the longest a module refund comes after its price. */
 const CREDIT_KEPT_MS = TIMING.rerollWindowMinutes * 60_000;
 /** How long an item used waits for its consumption by the same user (the plan's 2.5, chosen). */
-export const JUDGE_WAIT_MS = 2000;
+const JUDGE_WAIT_MS = 2000;
 /** How recent a Daggerheart roll must be to cover the Hope the relay writes for it (the plan's 2.5, chosen). */
 const ROLL_COVER_MS = 60_000;
 
@@ -347,7 +347,7 @@ function docData(doc) {
  * an item (`onItem`, G3) counts only where Daggerheart applies it to the student: transferred, which a new effect
  * is unless it says otherwise (Daggerheart 2.10.5 `baseEffect.mjs`, actor.mjs `allApplicableEffects`, read).
  */
-export function touchesHeld(data, { onItem = false } = {}) {
+function touchesHeld(data, { onItem = false } = {}) {
     if (!data || (onItem && data.transfer === false)) return false;
     if ([...(data.statuses ?? [])].some(id => MODULE_STATUSES.has(id))) return true;
     // Daggerheart 2.10.5 keeps an effect's changes in `system.changes` (read in its source, 05.10.2026); older ones at the top.
@@ -1783,7 +1783,8 @@ async function coverOf(actor, mark, credit, gains, moves, stamp, user, seen) {
  * and not yet taken back; each gain is within its pick (all marks for a long rest, half rounded up
  * for a short; Breath 2 or 1 Hope) and no more picks than the kind allows. A Relief's free rest
  * (`ref` "relief") moves no stamp and is paid by that Call's price instead of the room and the
- * action. Answers what it covers, or null - and then its stamp goes back too.
+ * action, and covers no Hope: its Breath is refused (rest.mjs `BREATH_REFUSED`, 1.2.112). Answers
+ * what it covers, or null - and then its stamp goes back too.
  */
 async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     const { restStamp, roomAllows } = await import("./rest.mjs");
@@ -1805,7 +1806,7 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!rules) return null;
     const full = kind === "long";
     const marks = key => moves[key]?.base ?? 0;
-    const allowed = { hope: full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
+    const allowed = { hope: relief ? 0 : full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
         stress: full ? marks("stress") : Math.ceil(marks("stress") / 2) };
     const picked = Object.keys(gains);
     if (picked.length > rules.picks || picked.some(key => !(gains[key] <= (allowed[key] ?? 0)))) return null;
@@ -2286,18 +2287,17 @@ async function placeStands(actor, item, before, now) {
  * A SEARCH'S FIND (the plan's 2.6): an item created `searchFind`, its `ref` the GMs' record of a
  * Search (roll-draw.mjs `rollRecord`; action-search.mjs `grantDrawn` names it) of this student by
  * this player that hit, not used for a find before, and the item's tier at most what the record's
- * total - with the hidden stash's step the GM drew - earns on the Search's table (action-search.mjs
- * `searchTier`, the reading the Search itself makes). Answers the student's finds with this one in
+ * total earns on the Search's table (action-search.mjs `searchTier`, the reading the Search itself
+ * makes; with the hidden stash's step the GM drew, until 1.2.112). Answers the student's finds with this one in
  * them, or null. A find whose record is swept is forgotten with it: a record past a Reroll's reach
  * names no find any more.
  *
  * NOT A SEARCH THAT ENDED WITHOUT A DRAW (round 1's m6, 05.10.2026). A hit asked of the GM ("something
- * specific", action-search.mjs `searchSpecific`) or taken from a stash (`searchStash`) creates nothing
+ * specific", action-search.mjs `searchSpecific`) - or, until 1.2.112, taken from a stash - creates nothing
  * through `grantDrawn`, so its record stayed unused and a console's item named after it stood - a
- * second item for one Search. The record now keeps the Search's goal as the roller sent it (roll-draw.mjs
- * `CONTEXT_SENT`, the roller's word like the category beside it), and a stash's theft settles the
- * record's "search" (bridge-guards.mjs `rollsFor`); a find on either is refused. The other way round,
- * a theft named after a record a find already stood on is refused by bridge-runs-acts.mjs `searchTheftOf`.
+ * second item for one Search. The record keeps the Search's goal as the roller sent it (roll-draw.mjs
+ * `CONTEXT_SENT`, the roller's word like the category beside it), and a find on it is refused, as on a
+ * record whose "search" something else settled (bridge-guards.mjs `rollsFor`).
  *
  * NOR A SEARCH WHOSE TOKEN THE GM NEVER SPENT (E29 fix r2-H11, 06.10.2026). A Search spends its
  * room's token after its roll, and a refused spend settles the record (search-tokens.mjs
@@ -2315,7 +2315,7 @@ async function searchFind(actor, mark, data, stamp, user) {
     if (!record.tokenSpentAt) return null;
     if (record.goal === "specific" || (Array.isArray(record.resolved) && record.resolved.includes("search"))) return null;
     const { searchTier } = await import("./action-rolls.mjs");
-    const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical }, record.used?.stash?.change ?? 0);
+    const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical });
     const found = foundry.utils.getProperty(data, `flags.${MODULE_ID}.${ITEM_FLAGS.tier}`);
     if ((!hit && !record.isCritical) || !Number.isInteger(found) || found > tier) return null;
     const kept = Object.entries(mark.finds ?? {}).filter(([rollId]) => rollStore.has(rollId));

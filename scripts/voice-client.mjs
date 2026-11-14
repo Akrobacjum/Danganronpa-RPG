@@ -485,6 +485,19 @@ export function isDeadRoom(room) {
 export const SPECTATOR_ROOM = `${ROOM_PREFIX}spectators`;
 
 /**
+ * A Scrum Debate's camp rooms (the owner's 13.11.2026: "a moment for each side to confer in separate LiveKit rooms"):
+ * while a Scrum Debate's floor is in its Confer phase, Zone A's members talk in the first and Zone B's in the second
+ * (voice.mjs `placeVoices`, `camps`). One of ours by the prefix, named as no scene's room, dead room or Eclipse room is.
+ * One pair for the world: one Scrum runs at a time, in the one trial.
+ */
+export const SCRUM_ROOMS = Object.freeze({ a: `${ROOM_PREFIX}scrum-a`, b: `${ROOM_PREFIX}scrum-b` });
+
+/** Which camp's room `room` is: "a", "b", or null for any other room. */
+export function scrumCampOfRoom(room) {
+    return room === SCRUM_ROOMS.a ? "a" : room === SCRUM_ROOMS.b ? "b" : null;
+}
+
+/**
  * Where a player's voice goes in an Eclipse: nowhere (E19 C4, 19.10.2026; the owner's answer of 25.09, audit S11-11).
  * The primary GM sends this name, and the browser it names leaves voice on it rather than joining it (`applyBreakout`).
  * Until C4 the browser joined it, a LiveKit room of one, connected through the whole placement window. Still one

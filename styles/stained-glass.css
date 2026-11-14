@@ -2481,6 +2481,8 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip {
     opacity: 0.25;
 }
 body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip.filled { opacity: 1; }
+/* Owed, on a GM's bar alone (despair.mjs `despairRowOf`; the owner's report of 13.11.2026): filled, and dimmer. */
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip.filled.owed { opacity: 0.6; }
 body.drpg-theme-stained-glass #drpg-despair .drpg-despair-button {
     --brush: var(--drpg-sg-despair);
     color: var(--drpg-sg-despair);
@@ -3873,11 +3875,13 @@ body.drpg-theme-stained-glass #countdowns::before {
     background-color: transparent;
 }
 
-/* HOPE IS A STAR, NOT A DIAMOND, AND NOT A DOT.
-   Daggerheart draws the Hope track with `fa-diamond`, and `fa-diamond` is the one glyph
-   the pixel sprite has no entry for, so it stayed Font Awesome: at pip size a filled
-   diamond reads as a dot. It takes the star the audit settled on. The declarations
-   mirror the generated sheet's own, since this glyph is missing from it. */
+/* A DAGGERHEART `fa-diamond` INSIDE A MODULE HOST, MASKED (A113-C4-4, 13.11.2026: this header said "Hope is a star,
+   not a diamond", which gaps-111 (1b1daa92) overturned - under the glass Hope is batch 5's diamond, drawn by the slot's
+   `::before` further down, R4932). The rule draws nothing on Daggerheart 2.12.8: its only two `fa-diamond` places,
+   the character sheet's header.hbs:67 and the Party sheet's party-members.hbs:73, are both
+   `.hope-section .hope-value > i`, which the rule "ONE STAR PER SLOT" below hides (`display: none !important`);
+   measured in Chromium on 13.11.2026 with module.json's stylesheets inside a drpg- host - the mask computes, the icon
+   is not shown. Left as it stands: a later Daggerheart that drew `fa-diamond` outside a Hope slot would get the star. */
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-diamond,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-diamond:is(i, span) {
     /* NO `display` HERE, deliberately. The generated sheet sets `display: inline-block` on
@@ -4066,6 +4070,11 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
    rule above), for the 24 px drawing on its grid. */
 body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
     --drpg-stat-mark-size: 28px;
+}
+/* The width the widest statistic needs under the glass, its 28 px mark inside its plate: "Shadow" 115 px in Chromium
+   (danganronpa.css, "THE HEADER AT ANY WIDTH"; the glass's slider factor is 1). */
+body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
+    --drpg-trait-need: 7.5rem;
 }
 body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark > i.drpg-stat-glyph {
     width: 24px;
@@ -4796,7 +4805,12 @@ body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .
     -webkit-mask: var(--drpg-pix-diamond) center / contain no-repeat;
     mask: var(--drpg-pix-diamond) center / contain no-repeat;
 }
-body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value:has(> i:is(.fa-circle, .fa-regular))::before {
+/* SPENT IS READ FROM `fa-solid` ALONE (13.11.2026; the owner's table on 1.2.112: held Hope looked spent). This read
+   `:has(> i:is(.fa-circle, .fa-regular))`, whose `:is()` carries an id and so outranks every held rule; sheet.mjs
+   `repaintInPlace` toggled fa-solid and fa-regular only, so a slot that became held without a render carried
+   `fa-solid fa-circle`, matched `.fa-circle` and drew at 0.34 (measured in Chromium at 1.2.111 and 1.2.112). The
+   held state is `fa-solid` and nothing else, as every held rule reads it; R5720. */
+body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value:not(:has(> i.fa-solid))::before {
     opacity: 0.34;
 }
 

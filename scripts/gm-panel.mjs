@@ -19,14 +19,13 @@ import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
 import { launcher, drpgWindow, box } from "./ui-kit.mjs";
-import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
-import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
-import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
+import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
+import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoveries } from "./chapter.mjs";
+import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
-import { incidentAsksHtml } from "./case-map.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
@@ -598,13 +597,10 @@ export async function openGmPanel() {
             // below), and a listener bound to a button that has since been
             // replaced is a "Do it" that does nothing.
             dialog.element.addEventListener("click", async ev => {
-                /* THE CASE'S INCIDENT REMNANTS (E97 C12): Place on the map and Show run as a tile does, so the panel comes
-                   back after them from the one place below (R1318). */
-                const caseLine = ev.target.closest?.("[data-drpg-case-place], [data-drpg-case-show]");
-                const button = caseLine ?? ev.target.closest?.("[data-drpg-run]");
+                const button = ev.target.closest?.("[data-drpg-run]");
                 if (!button || !dialog.element.contains(button)) return;
                 ev.preventDefault();
-                const item = caseLine ? { key: "caseLine", run: () => runCaseLine(caseLine) } : lookup.get(button.dataset.drpgRun);
+                const item = lookup.get(button.dataset.drpgRun);
                 if (!item) return;
                 await dialog.close();
                 let answer = null;
@@ -628,16 +624,6 @@ export async function openGmPanel() {
     });
 }
 
-/** The case line's buttons (E97 C12): Place on the map opens New Remnant filled in; Show, the Investigation panel on the
- *  Remnant's node (answering RAISED where that window stood open already). */
-async function runCaseLine(button) {
-    const I = await import("./investigation.mjs");
-    if (button.dataset.drpgCasePlace) {
-        const [chapter, id] = button.dataset.drpgCasePlace.split(":");
-        return I.placeIncident(Number(chapter), id);
-    }
-    return I.openInvestigationDashboard({ node: button.dataset.drpgCaseShow });
-}
 
 /**
  * Keep the whole panel true for as long as it is open - not just its first line.
@@ -687,27 +673,6 @@ function keepPanelFresh(dialog) {
         watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark] }
     });
 }
-
-/**
- * Announce (or end) the Final Trial. World-scoped and public on purpose - the
- * table already knows the endgame trial is happening the moment it starts;
- * only the Mastermind's identity stays hidden, and that lives elsewhere.
- */
-/**
- * Alive / dead / Monocub, in one place, in both directions.
- *
- * The module already had every one of these operations and no honest way to
- * reach them. `A character dies` only kills; the Monocub dialog only opts in
- * somebody the module already believes is dead; and `reviveCharacter` existed
- * solely on `game.drpg`. So a GM who mis-clicked a death, or wanted to bring
- * somebody back as a Monocub on the spot rather than after a trial, was writing
- * console commands mid-session.
- *
- * Deliberately does NOT re-run the death procedure. `killCharacter` destroys an
- * inventory and cannot be undone, and this is the repair tool - it moves the two
- * flags and nothing else. Killing somebody properly is still `A character dies`,
- * one section up, where the warning about the inventory lives.
- */
 
 /**
  * Everything this client has failed at since the page loaded.
@@ -968,6 +933,11 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
        find on the scene this GM is viewing names its room; one only on another scene gets the line
        without the room; none, the line without the witnesses (tier 2 "the GM's next line tells a
        hidden body to be announced by hand"). */
+    /* A DISCOVERY WAITING FOR YOUR WORD (1.2.113; the owner's decision A of 13.11.2026). Two witnesses found a body and the
+       primary was asked (chapter.mjs `askPendingBodies`); "Not yet" leaves it here, so the line names its room and opens
+       the discovery window, which opens on it. */
+    const [asked] = pendingBodyDiscoveries({ clock, held: flagsHeldNow });
+    if (asked) return { text: game.i18n.format("DRPG.Panel.nextBodyAsked", { room: esc(asked.room) }), action: "bodyDialog" };
     const waiting = bodyWaiting(clock);
     if (waiting) {
         let findable = [];
@@ -1123,7 +1093,9 @@ function buildPanelContent() {
                      button stood at the window's left edge under it (R4058). */ ""}
                 <p class="drpg-gmp-advance-row">${advance}</p>
                 ${suggestion}
-                ${incidentAsksHtml(clock.chapter)}
+                ${/* No list of the case's planned Remnants here since 13.11.2026 (the owner: "Let's remove 'the case waits...'
+                     from the GM panel"; E97 C12 drew it): a planned Remnant or Final Truth is placed from its own node on
+                     the Investigation window's Map, Place on the map (investigation.mjs placeIncident). */ ""}
                 ${studentsLeftHtml()}
             </div>`;
 }

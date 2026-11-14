@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, whisperToGms, localeFormat } from "./utils.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
@@ -49,7 +49,7 @@ const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
  * world's items, `Scene.<id>...` by the scene. A row whose actor was deleted in this
  * world reads as another world's and is left in the old key, where it was.
  */
-export function uuidInThisWorld(uuid) {
+function uuidInThisWorld(uuid) {
     const [kind, id] = String(uuid ?? "").split(".");
     if (kind === "Actor") return Boolean(game.actors?.has(id));
     if (kind === "Item") return Boolean(game.items?.has(id));
@@ -949,10 +949,11 @@ export const lootRollStore = defineGmStore({
 
 /**
  * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
- * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at }`, the
+ * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at, unseen }`, `at` the
  * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time
- * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`). A Search's find
- * writes and reads none: it paid an action for its reach. The audit's fix named an actor flag (`FLAGS.rifled`) on
+ * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`); `unseen` (1.2.112)
+ * a reach that took something while the stash's owner was not in the room, whose notice waits for the owner's next
+ * crossing into it (`tellStashDisturbed`), then false. Until 1.2.112 a Search's find wrote and read none. The audit's fix named an actor flag (`FLAGS.rifled`) on
  * the thief, which the thief's own console could clear - the GMs' memory instead (design note 14). Written and read
  * by the GM that serves the reach, synced so that another GM serves the next one alike; not backed up: a row is worth
  * one time of day, and a restore that lost one gives one reach back. Cut by the reset's "stashesFound" group with the
@@ -963,6 +964,22 @@ export const rifleStore = defineGmStore({
     name: "rifles", key: SETTINGS.gmRifles,
     kind: "ledger", resetGroup: "stashesFound", backup: false, sync: true,
     exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
+});
+
+/**
+ * A SECRET PASSAGE'S "FINISHED" HELD FOR ITS FINDER (PV, 13.11.2026; the owner's rule #3: the card on the finder's next
+ * entry to that room). A row per finder and project, keyed `<userId>:<countdownId>`: `{ name, room, sceneId, at }`,
+ * written by the primary at the passage's completion for each finder by Observe (`foundBy`) none of whose characters
+ * stands in its room (projects.mjs `COMPLETION_EFFECTS` `opensPassage`), and posted and dropped by the primary when one
+ * of that user's characters next stands there (projects-seen.mjs `tellFoundOnEntry`, at a move and at its ready).
+ * Synced, so another GM who becomes the primary posts it alike; backed up, as the card is owed. The subject is the
+ * user: the project itself is gone by then (a finished Secret Passage is removed). Cut by the reset's "projects" group.
+ * No player copy - the finder's browser holds nothing until the card - and no old key.
+ */
+export const foundDoneStore = defineGmStore({
+    name: "foundDone", key: SETTINGS.gmFoundDone,
+    kind: "ledger", resetGroup: "projects", backup: true, sync: true,
+    exists: key => Boolean(game.users?.has(String(key).split(":")[0]))
 });
 
 /**
@@ -994,6 +1011,34 @@ export const watchStore = defineGmStore({
 });
 
 /**
+ * THE DISCOVERIES WAITING FOR THE GM'S WORD (1.2.113; the owner's decision A of 13.11.2026: "When the body has been seen by
+ * the required number of students, the module should ask the GM before it moves the players to the body, plays the sound,
+ * etc."). A row per room where the witnesses reached the count, keyed `<sceneId>:<room>`: `{ room, sceneId, victimId,
+ * deathId, witnessIds, chapter, epoch, at }` - `victimId` the body the walk found first, named by the announcement.
+ * Written by the primary's walk check (chapter.mjs `checkBodyFound`), read by its prompt (`askPendingBodies`) and the
+ * GM's discovery window, dropped by the discovery that announces its room or when its body is no longer one to find.
+ * Synced, so the GM who becomes the primary asks it; backed up. Cut by the reset's "deaths" group, with the deaths it
+ * waits on. No player copy: which body waits, and who saw it, is the GMs'.
+ */
+export const pendingBodyStore = defineGmStore({
+    name: "pendingBodies", key: SETTINGS.gmPendingBodies,
+    kind: "ledger", resetGroup: "deaths", backup: true, sync: true
+});
+
+/**
+ * THE BODIES EACH CHARACTER HAS HEARD (1.2.113; the owner's decision B of 13.11.2026: the finders get the discovery sound
+ * "even when they are alone in the room ... It is enough that they enter a room with a body"). A row per character and
+ * body, keyed `<actorId>:<bodyId>`: `{ deathId, at }`, the death heard - a body revived and killed again is heard again.
+ * Written by the primary (chapter.mjs `checkBodySound`, and the announcement for everyone it gathers), read by it alone.
+ * Synced and backed up, so a reload or another primary plays nothing twice. Cut by the reset's "deaths" group. No player
+ * copy.
+ */
+export const bodyHeardStore = defineGmStore({
+    name: "bodiesHeard", key: SETTINGS.gmBodiesHeard,
+    kind: "ledger", resetGroup: "deaths", backup: true, sync: true
+});
+
+/**
  * THE BARRICADES STANDING (E74 C2, 12.11.2026; the owner's audit entry E74, DA25, DA47). A row per barricaded room, keyed
  * `<sceneId>:<room>`: `{ sceneId, room, authorId, strength, at, userId }` - `strength` the Body roll's total off the GMs'
  * record (Force the Door contests it, a later commit), `authorId` the character inside who put it up. Written, read and
@@ -1004,6 +1049,22 @@ export const watchStore = defineGmStore({
 export const barricadeStore = defineGmStore({
     name: "barricades", key: SETTINGS.gmBarricades,
     kind: "ledger", resetGroup: "actions", backup: false, sync: true
+});
+
+/**
+ * THE BEDROOM NOTES WAITING (privacy line 1, 13.11.2026; the owner's rule #1: a player learns what their character could
+ * know in the fiction, when they could know it). A row per bedroom's owner, scene and room, keyed `<ownerId>:<sceneId>:<room>`
+ * (doors-gm.mjs `bedroomNoteKey`): `{ ownerId, sceneId, room, picked, forced, breached, mended, unsealed }` - each of the four
+ * the time it happened (Date.now()) while the owner stood elsewhere, `unsealed` the seal period a breach lifted a seal in.
+ * Written by the GM that runs the door or the completion (doors-gm.mjs `noteBedroom`), read and dropped by the primary on the
+ * owner's crossing into that room (`tellBedroomNotes`, from traps.mjs `onCrossed` and arrival-notices.mjs's roads, as the
+ * stash notice's `unseen` mark of `rifleStore` is). Synced; not backed up, as the rifles are not. Cut by the reset's "actions" group. No player copy: what
+ * waits for whom, and when it happened, is the GMs'. No old key.
+ */
+export const bedroomNoteStore = defineGmStore({
+    name: "bedroomNotes", key: SETTINGS.gmBedroomNotes,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
 });
 
 /**
@@ -1064,6 +1125,46 @@ export const lockpickStore = defineGmStore({
  */
 export const lockpickCopy = defineGmCopy({
     name: "lockpicks", key: SETTINGS.mineLockpicks, from: "lockpicks", resetGroup: "actions", fallback: {},
+    combine: offersCombine
+});
+
+/**
+ * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a), the plan's C6). A row per listener, keyed by the listener's
+ * actor id - one channel at a time: `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, `from` the room
+ * the listener stands in, `into` the neighbouring room whose voice channel they hear, `mark` the time of day it began in
+ * (a repeat on `into` is free for the rest of it), `active` whether they are in that channel now, `endedAt` when it ended
+ * (the microphone stays blocked a moment after, `EAVESDROP_GRACE_MS`). Written, read and dropped by the primary alone
+ * (eavesdrop-gm.mjs); synced, so a new primary keeps the listener where they are; backed up, and its owners told again
+ * after a restore (R182). Cut by the reset's "actions" group. No old key.
+ */
+export const eavesdropStore = defineGmStore({
+    name: "eavesdrops", key: SETTINGS.gmEavesdrops,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    afterRestore: () => import("./eavesdrop-gm.mjs").then(m => m.retellEavesdrops()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c), the plan's C8). A row per killer behind a "?", keyed by the
+ * killer's actor id: `{ killerId, victimId, userIds, mark, tokens, at }` - `userIds` the killer's owners, whose
+ * microphone the mask blocks, `mark` the time of day it began in (it ends with it), `tokens` each masked token's
+ * `{ sceneId, tokenId, look }`, what it looked like (mask-gm.mjs `lookOf`), written back at the end. Written, read and
+ * dropped by the primary alone (mask-gm.mjs); synced, so a new primary ends it; backed up. Cut by the reset's "actions"
+ * group. No player copy - a player reads only the token's flag, which names nobody - and no old key.
+ */
+export const maskStore = defineGmStore({
+    name: "masks", key: SETTINGS.gmMasks,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S EAVESDROPS (E69 C6): `{ actorId: { sceneId, from, into, mark, active } }` for the characters this user owns,
+ * as the primary GM sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the voice
+ * tile (its Stop listening, the microphone's reason) and the Listen window (a free repeat).
+ */
+export const eavesdropCopy = defineGmCopy({
+    name: "eavesdrops", key: SETTINGS.mineEavesdrops, from: "eavesdrops", resetGroup: "actions", fallback: {},
     combine: offersCombine
 });
 
@@ -1131,7 +1232,7 @@ export const clockBeatStore = defineGmStore({
  */
 export const takeBackStore = defineGmStore({
     name: "takeBack", key: SETTINGS.gmTakeBack,
-    kind: "record", fields: ["lastAdvance"], resetGroup: "clock", backup: false, sync: true
+    kind: "record", fields: ["lastAdvance", "eclipseTimed", "eclipsePasses"], resetGroup: "clock", backup: false, sync: true
 });
 
 /**
@@ -1685,7 +1786,7 @@ export const discoveryStore = defineGmStore({
  * rows on this browser (`discoveryMine`) are taken in weak on every load (`claim`):
  * the only copy of the ledger outside the GMs', which the primary's rebuild asks for.
  */
-export function fogCombine(held, offered, { cut = 0 } = {}) {
+function fogCombine(held, offered, { cut = 0 } = {}) {
     if (sectionProblem(offered?.value)) return null;
     const before = mergeSections(held?.value ?? null, null, discoveryStore.spec);
     const merged = mergeSections(before, offered.value, discoveryStore.spec);
@@ -1789,11 +1890,6 @@ export function spectatorFogSection(section, watcherId, { mastermindId = null } 
         out.t[key] = { "": 0, ...Object.fromEntries([...rooms].map(([room, c]) => [room, c.s])) };
     }
     return out;
-}
-
-/** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
-export function gmStoreLegacyChanged(name) {
-    return gmStoreByName(name)?.legacyChanged() ?? false;
 }
 
 /** Take what changed in a store's old key since the upgrade, by the rules on the handle's `reclaim`. */

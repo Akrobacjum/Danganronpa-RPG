@@ -45,6 +45,8 @@ import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from "./utils.mjs";
 // The card a project token opens stays true while it is open (E44 C9). live.mjs imports config.mjs and utils.mjs alone (R161).
 import { keepLive } from "./live.mjs";
+// What a player saw last (PV): the card's bar as its reader last saw it. It does not import this file.
+import { asSeen } from "./projects-seen.mjs";
 import { discoveryStore, fogCopy } from "./gm-stores.mjs";
 
 /** The actor every project token is an unlinked copy of. */
@@ -474,7 +476,7 @@ async function sweepOnce({ live = allProjects().map(p => p.id), scenes = game.sc
  * player may not be in on.
  * @returns {string|null} what was told
  */
-export function warnProjectDuplicates(duplicates) {
+function warnProjectDuplicates(duplicates) {
     if (!game.user.isGM || !duplicates?.length) return null;
     const names = new Map(allProjects().map(p => [p.id, p.name]));
     const where = new Map();
@@ -815,9 +817,8 @@ function showProjectCard(app, element) {
     const token = actor.isToken ? actor.token : null;
     const id = token ? projectIdOf(token) : null;
     const draw = () => {
-        const project = typeof id === "string" && knowsProject(id)
-            ? allProjects().find(p => p.id === id) ?? null
-            : null;
+        // As this reader last saw it (PV, 13.11.2026; the owner's rule #2): projects-seen.mjs `asSeen` asks `knowsProject`.
+        const project = typeof id === "string" && knowsProject(id) ? asSeen(allProjects().find(p => p.id === id) ?? null) : null;
         return project ? projectCard(project) : unknownProjectCard(Boolean(token));
     };
 
@@ -830,7 +831,7 @@ function showProjectCard(app, element) {
         build: draw,
         // ... and a card's words stored (secret.mjs `drpgSecretStored`): a secret project's description reaches its players on one (E44 fix FG6).
         // ... and the discovery record and a move settled here, so a card opened while its project was unknown turns into it (E43; Open 96).
-        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled"], stores: [discoveryStore, fogCopy] },
+        watch: { settings: ["projectMeta"], settingKeys: [COUNTDOWNS_KEY], hooks: ["drpgSecretStored", "drpgRouteSettled", "drpgSeenChanged"], stores: [discoveryStore, fogCopy] },
         after: wireProjectCard
     }));
     // Sized for a stat block; this is a card, exactly as the trace's is - and a frame
@@ -863,11 +864,15 @@ export function projectCard(project) {
     const t = key => game.i18n.localize(key);
     const target = Number(project.start) || 0;
     const current = Math.max(0, Math.min(target || Infinity, Number(project.current) || 0));
-    const share = target > 0 ? Math.round((current / target) * 100) : 0;
+    // A project this browser has never seen in its room (PV: projects-seen.mjs `asSeen`, `seen: "unknown"`): "?" and an empty bar.
+    const unknown = project.seen === "unknown";
+    const share = target > 0 && !unknown ? Math.round((current / target) * 100) : 0;
     const description = typeof project.description === "string" ? project.description.trim() : "";
+    const seenNote = unknown ? "DRPG.Project.seenUnknown" : project.seen === "last" ? "DRPG.Project.seenAsLast" : null;
 
     const rows = [
-        [t("DRPG.Project.cardProgress"), `${current} / ${target}`],
+        [t("DRPG.Project.cardProgress"), `${unknown ? "?" : current} / ${target}`
+            + (seenNote ? ` <span class="notes">${esc(t(seenNote))}</span>` : "")],
         [t("DRPG.Project.room"), esc(project.room ?? t("DRPG.Project.anyRoom"))]
     ];
     let actions = "";
@@ -899,7 +904,7 @@ export function projectCard(project) {
             <div class="drpg-remnant-title"><h3>${esc(project.name ?? "")}</h3></div>
         </header>
         <div class="drpg-project-card-bar" role="progressbar" aria-label="${esc(t("DRPG.Project.cardProgress"))}"
-             aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${current}"><span style="width: ${share}%"></span></div>
+             aria-valuemin="0" aria-valuemax="${target}"${unknown ? "" : ` aria-valuenow="${current}"`}><span style="width: ${share}%"></span></div>
         ${description ? `<section class="drpg-remnant-box drpg-project-card-description">
             <p class="drpg-remnant-text">${esc(description).replace(/\n/g, "<br>")}</p>
         </section>` : ""}

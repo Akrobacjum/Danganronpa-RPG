@@ -15,7 +15,7 @@
 import {
     MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
     USABLE_KIND_EFFECTS, EQUIPPABLE, itemIcon,
-    TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
+    TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, RECIPIENT_EVERYONE
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
     pickableCategories, isStashed, isBroken, ITEM_FLAGS }
@@ -38,7 +38,7 @@ function recipientOptions(students, selectedId) {
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }
-import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
+import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
@@ -1238,7 +1238,12 @@ function bulletCreatePane(fill = null, { nameField = "name" } = {}) {
            for it. The Autopsy dialog further down deliberately has no twin of this box: an autopsy identifies itself,
            so no Analyze will ever be thrown at it - see SELF_EVIDENT in truth-bullets.mjs. */
         row("DRPG.TruthBullet.analyzedText", "drpg-bullet-analyzedText", text("analyzedText", "DRPG.TruthBullet.analyzedTextPlaceholder", f.analysis)),
-        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder", f.note))]);
+        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder", f.note)),
+        /* A PLANNED TRUTH BULLET'S PICTURE (1.2.113; the owner's "yes", 13.11.2026): shown, and carried to the bullet, only
+           when the plan holds one. Write new opened by hand has no picture field (the coordinator's default, kept): its
+           bullet wears the category's drawing, as it always did. */
+        ...(f.img ? [row("DRPG.CaseMap.field.img", "drpg-bullet-plannedImg", `<img src="${esc(f.img)}" alt="" class="drpg-project-portrait drpg-bullet-planned-img" />`
+            + `<input type="hidden" name="plannedImg" id="drpg-bullet-plannedImg" value="${esc(f.img)}" />`)] : [])]);
 }
 
 /** The name follows the picked trace; the trace list follows the recipient. */
@@ -1311,7 +1316,9 @@ function readBulletFields(f, active, { recipient = "recipient", nameField = "nam
         tied: f.elements.tied.checked,
         playerText: f.elements.playerText.value.trim(),
         analyzedText: f.elements.analyzedText.value.trim(),
-        gmNote: f.elements.gmNote.value.trim()
+        gmNote: f.elements.gmNote.value.trim(),
+        // a planned Truth Bullet's picture (1.2.113), when the window was opened from a plan that holds one
+        img: f.elements.plannedImg?.value || null
     };
 }
 
@@ -1415,7 +1422,9 @@ function bulletFromForm(result) {
         // what the GM typed is what the bullet keeps. It still waits in the
         // secret until the holder identifies it, like every other reading.
         analyzedText: result.analyzedText,
-        gmNote: result.gmNote
+        gmNote: result.gmNote,
+        // the plan's picture (1.2.113); null leaves the category's drawing (inventory.mjs `grantItem`)
+        img: result.img || null
     };
 }
 
@@ -1439,10 +1448,12 @@ export const GIVEN_ALREADY = Symbol("drpg.givenAlready");
  * receiver's queue now (utils.mjs `serialWrite` under observe.mjs `observeFindKey`), as Observe's find, Monokuma's
  * Reveal and a hand-over are (tier 0 R1289). A bullet written by hand names no trace and is only queued. Answers the
  * bullet, `GIVEN_ALREADY`, or null when none could be made. Exported for the suite.
- * ON ONE GM'S BROWSER (E60's fix round, FG6; the end review's C-m8, S-m4): the queue is this browser's memory, and the
- * give runs on whichever GM opened the window, while Observe's find and a hand-over run on the primary - a give on a
- * second GM's browser beside the primary's find of the same trace for the same receiver can still make two copies.
- * No road a GM's give could take to the primary exists; the race across GMs is E38's (row 1.2.126).
+ * ON THE PRIMARY GM'S BROWSER SINCE E38 (D153; the queue is one browser's memory): the window carries the give to the
+ * primary (bridge-asks.mjs `requestGiveBullet`, `bullet.give`), where Observe's find and a hand-over run, so the two
+ * share one queue and the second reads the first's copy. Before E38 the give ran on whichever GM opened the window, so
+ * a give on a second GM beside the primary's find of the same trace for the same receiver made two copies (E60's fix
+ * round FG6; the end review's C-m8, S-m4; 97-two-gms G). Called here by the bridge's run on the primary and by the
+ * suite; the window no longer calls it (tier 0 R5000).
  */
 export async function giveBullet(who, payload) {
     const { observeFindKey } = await import("./observe.mjs");
@@ -1459,7 +1470,10 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
         return false;
     }
 
-    const recipients = recipientOptions(students, initial.id);
+    /* EVERYONE (1.2.113; config.mjs `RECIPIENT_EVERYONE`): last in the list, picked where the plan names it */
+    const everyone = fill?.recipient === RECIPIENT_EVERYONE;
+    const recipients = recipientOptions(students, everyone ? null : initial.id)
+        + `<option value="${RECIPIENT_EVERYONE}"${everyone ? " selected" : ""}>${esc(game.i18n.localize("DRPG.Items.everyone"))}</option>`;
     const { traces, writers, traceContextLine } = await bulletTraces(only);
 
     const existingPane = bulletExistingPane(traces, initial, traceContextLine);
@@ -1486,7 +1500,38 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
     });
 
     if (!result || result === "cancel") return false;
+    if (result.recipient === RECIPIENT_EVERYONE) return giveToEveryone(result, traces, writers);
     return giveBulletNow(result, game.actors.get(result.recipient) ?? initial, traces, writers);
+}
+
+/**
+ * GIVE A TRUTH BULLET TO EVERYONE (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to everyone'
+ * option"): the window's own give (`giveBulletNow`) once for each living student (chapter.mjs `livingStudentsForGm`; who
+ * that is, config.mjs `RECIPIENT_EVERYONE`), one after another, so each copy takes the road a single give takes - its
+ * queue, its answer key, its receipt when Tell the player is ticked, and its own line. On the browser of the GM who
+ * pressed Give, as a single give is (`giveBullet`'s note). A copy that is not made (the give answered no, or threw) is
+ * kept by name, and the GM told who got none. Answers true only when every one got theirs, false otherwise and when there
+ * is nobody to give it to. Exported for the suite.
+ */
+export async function giveToEveryone(result, traces, writers) {
+    if (!result.name) {
+        ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.needsName"));
+        return false;
+    }
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    const students = livingStudentsForGm();
+    if (!students.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
+        return false;
+    }
+    const missed = [];
+    for (const who of students) {
+        let made = false;
+        try { made = await giveBulletNow(result, who, traces, writers); } catch (err) { error(`Give to everyone: no Truth Bullet for ${who.name}`, err); }
+        if (made !== true) missed.push(who.name);
+    }
+    if (missed.length) ui.notifications.warn(game.i18n.format("DRPG.TruthBullet.everyoneMissed", { names: listOf(missed) }));
+    return !missed.length;
 }
 
 /* Every scene's traces, as Give a Truth Bullet lists them, with the writers a give from one needs (E101 F2: its window
@@ -1528,14 +1573,22 @@ async function giveBulletNow(result, who, traces, writers) {
         : bulletFromForm(result);
     if (!payload) return false;
 
-    const item = await giveBullet(who, payload);
-
-    if (item === GIVEN_ALREADY) {
+    /* THE GIVE GOES TO THE PRIMARY (E38; D153): the bullet is made in the one receiver's finds' queue, which lives on
+       the primary GM's browser - the same queue Observe's find uses - so a give on a second GM's browser beside the
+       primary's find of the same trace no longer makes a second copy (97-two-gms G). This GM, when it is the primary,
+       still makes it on its own browser (`requestGiveBullet`'s `local`, `onPrimary`). The bridge says why on a refusal,
+       so this reads only the value. */
+    const { requestGiveBullet } = await import("./gm-bridge.mjs");
+    const res = await requestGiveBullet(who, payload);
+    const given = res.value?.given ?? null;
+    if (given === "already") {
         ui.notifications.warn(game.i18n.format("DRPG.TruthBullet.alreadyGiven", { actor: who.name }));
         return false;
     }
-    if (!item) {
-        ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
+    if (given !== "bullet") {
+        // A refusal or no GM the bridge has already said (card.give is not quiet); a local give that made nothing
+        // (res.ok, no value) is the old `!item` path, said here.
+        if (res.ok) ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
         return false;
     }
 
@@ -1651,8 +1704,9 @@ export async function issueAutopsyDialog() {
  * TAKING AWAY
  * ========================================================================== */
 
-/** Remove one item the module knows about. */
 /**
+ * Remove one item the module knows about.
+ *
  * @param {Actor} [actor]        Whose pockets, as a default the window can change.
  * @param {object} [options]
  * @param {?string} [options.only]  One category key, or null for everything.

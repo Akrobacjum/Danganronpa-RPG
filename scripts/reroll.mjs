@@ -44,7 +44,7 @@
 
 import { MODULE_ID, ACTIONS, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
 import { resolveThreshold, log, error, plural, esc, isPrimaryGm, gmIds, ownerIdsOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
-import { searchTier, findOf, stashStepFor, stashText, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
+import { searchTier, findOf, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
     sabotageExtrasHeld, dynamicBar, offerDynamicFind, withdrawDynamicFind } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
@@ -653,7 +653,7 @@ async function makeReroll(actor, sender) {
     // Reroll subtracted a number the project no longer held.
     await journal({ phase: "replaying", total: after.total ?? null });
     if (cutHere("replaying")) return { cut: "replaying" };
-    const patch = await replayAction(actor, bookmark, after, done, rerolled, before);
+    const patch = await replayAction(actor, bookmark, after, done, before);
     if (patch === null) {
         await giveBack(actor, message, firstRolls, cost);
         return { refused: "the replay was refused; its Hope and the first roll are given back", say: "DRPG.Reroll.failed" };
@@ -906,6 +906,42 @@ export function recoverRerollJournal({ gone = null } = {}) {
     return recovering;
 }
 
+/**
+ * THE NAME OF AN ACTION THE GMs' REROLL BOOKMARK KEEPS (audit A113-C3-3, 13.11.2026), for the lines about a roll: this
+ * file's `recoverOne`, and calls.mjs `rollAfterReload` and `callAbout` (by `import()`). They printed
+ * `ACTIONS[key]?.label ?? key`, and of the keys `replayAction` replays a dozen are no tile: the Infiltrate tile's rows, a
+ * room action, Palm's Take, a Frisk's two rolls, a Dynamic action (R5904 found it; the audit's list did not name it), a
+ * crisis action, a clean-up and a Take from the body read as their code words. Each has its name where the module
+ * already says it; a key nobody names is still itself. R5904 reads the keys off `replayAction`. Here, not in
+ * infiltrate-reroll.mjs, which is fetched at idle after ready (open-cost.mjs; R4200 was red when calls.mjs imported it).
+ */
+const ROLL_ACTION_NAMES = Object.freeze({
+    dash: () => game.i18n.localize("DRPG.Infiltrate.row.dash.label"),
+    tail: () => game.i18n.localize("DRPG.Infiltrate.row.tail.label"),
+    shut: () => game.i18n.localize("DRPG.Infiltrate.row.shut.label"),
+    force: () => game.i18n.localize("DRPG.Infiltrate.row.force.label"),
+    pick: () => game.i18n.localize("DRPG.Infiltrate.row.pick.label"),
+    keepWatch: () => game.i18n.localize("DRPG.Infiltrate.row.keepWatch.label"),
+    facility: () => ACTIONS.rest?.label,
+    steal: () => ACTIONS.palm?.label,
+    rummage: () => ACTIONS.palm?.rummage?.label,
+    frisk: () => ACTIONS.palm?.frisk?.label,
+    dynamic: () => game.i18n.localize("DRPG.Action.dynamicLabel"),
+    crisis: () => game.i18n.localize("DRPG.Roll.crisis"),
+    cleanup: () => game.i18n.localize("DRPG.Remnant.action.resolution"),
+    loot: () => game.i18n.localize("DRPG.Bridge.what.body.loot")
+});
+
+export function rollActionName(key) {
+    if (!key) return null;
+    return ACTIONS[key]?.label ?? ROLL_ACTION_NAMES[key]?.() ?? null;
+}
+
+/** `rollActionName`, or the key itself where nothing names it (the GMs' lines, which name the action whatever it is). */
+export function rollActionLabel(key) {
+    return rollActionName(key) ?? key ?? null;
+}
+
 async function recoverOne(actorId, row) {
     const actor = game.actors.get(actorId) ?? null;
     const message = game.messages.get(row.messageId ?? "") ?? null;
@@ -933,7 +969,7 @@ async function recoverOne(actorId, row) {
         return "givenBack";
     }
     // `replaying`, or a phase this build does not know: told, not guessed.
-    const action = esc(ACTIONS[row.action]?.label ?? row.action ?? "-");
+    const action = esc(rollActionLabel(row.action) ?? "-");
     await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Reroll.title"))}</h3><p>${game.i18n.format("DRPG.Reroll.interruptedGm", {
         name, action, first: esc(String(row.first ?? "?")), total: esc(String(row.total ?? "?"))
     })}</p>`);
@@ -1064,7 +1100,7 @@ async function settleCritHope(actor, before, after, done) {
  * (`settleCrisis`), and the Reroll is then taken back whole (`giveBack`).
  * ========================================================================== */
 
-async function replayAction(actor, bookmark, after, done, rerolled = null, before = null) {
+async function replayAction(actor, bookmark, after, done, before = null) {
     const key = bookmark?.actionKey ?? null;
 
     try {
@@ -1073,7 +1109,7 @@ async function replayAction(actor, bookmark, after, done, rerolled = null, befor
 
         switch (key) {
             case "project": return await settleProgress(actor, bookmark, after, done);
-            case "search": return await settleSearch(actor, bookmark, after, done, rerolled);
+            case "search": return await settleSearch(actor, bookmark, after, done);
             case "sabotage": return await settleSabotage(actor, bookmark, after, done);
             case "dynamic": return await settleDynamic(actor, bookmark, after, done, before);
             case "listen": return await settleListen(actor, bookmark, after, done);
@@ -1177,9 +1213,7 @@ async function settleProgress(actor, bookmark, after, done) {
  * Take back a Search and run it again.
  *
  * The search token is deliberately NOT returned: the room was searched, and the
- * guide's three tokens count attempts, not successes. `rerolled` is the new roll
- * itself (`after` is its duality alone), whose dice a hidden stash's step reads.
- * Exported for the suite.
+ * guide's three tokens count attempts, not successes. Exported for the suite.
  *
  * A PLANT COMES BACK AS ITSELF (E08+E28 C6a, 03.10.2026; audit S08-04). A Search handed
  * a trap's planted object was taken back like any find and drawn afresh: the object left
@@ -1195,50 +1229,30 @@ async function settleProgress(actor, bookmark, after, done) {
  * it went, and the Search is replayed as an ordinary one. Its identity and its roles are read
  * as the GMs hold them since E29 fix r2-H22 (step 1 below).
  */
-/**
- * Whether a Search's Reroll takes a hidden stash's step again. For a roll the GM drew, the
- * record's answer: the GM drew a step with the dice or it did not (`used.stash`, roll-draw.mjs
- * `drawOnGm`, E08+E28 C12b; the plan's 2.5) - a step the GM did not draw is not taken. Else the
- * bookmark's `stashDie`, the roller's claim, as before. Exported for the suite.
- */
-export async function stashDieOf(bookmark) {
-    const { drawnRecordOf } = await import("./roll-draw.mjs");
-    const record = drawnRecordOf(game.messages.get(bookmark?.messageId ?? ""));
-    return record ? Boolean(record.used?.stash) : Boolean(bookmark?.stashDie);
-}
-
-export async function settleSearch(actor, bookmark, after, done, rerolled = null) {
+export async function settleSearch(actor, bookmark, after, done) {
     // A GM'S (E33 C1a, 06.10.2026; R220's census): a Reroll is replayed on the GM that makes it
     // (`rerollOnGm`, then `replayAction`). Exported, this deleted on a player's console the item a
     // handed bookmark named, from any sheet that console could write, and could draw a find in
     // its place.
     if (!game.user.isGM) return {};
 
-    // A Search whose token was refused never searched the room, and a Search
-    // that opened a stash found what the drawer held: neither is a draw from
-    // the room's table, so neither is drawn again on new dice (ROLL-02).
+    // A Search whose token was refused never searched the room: it is no draw from
+    // the room's table, so it is not drawn again on new dice (ROLL-02).
     if (bookmark.claimed === false) {
         done.push(game.i18n.localize("DRPG.Reroll.searchNeverRan"));
         return {};
     }
-    if (bookmark.fromVault) {
-        done.push(game.i18n.localize("DRPG.Reroll.searchStashStands"));
-        return {};
-    }
 
-    // A hidden stash's step on the new dice, with a new draw (E32+E07 C11e, action-search.mjs
-    // `stashStep`). Until 1.2.65 the stash's disadvantage die was one of the roll's dice and
-    // `rerollKeepingDice` threw it again; the step is not thrown with the dice, so it is taken
-    // again here on what they rolled - a die set aside drawn afresh, a die added rolled afresh.
-    // A 1.2.65 bookmark (E06 C11) carries a flat -1 and is scored with it; one from before
-    // 1.2.65 has neither, and is scored on the dice alone.
+    // The new dice on the room's table. A Search reaches into no stash since 1.2.112 (action-search.mjs
+    // `searchOdds`): a stash's step is taken again on no Reroll, whatever an older bookmark says (`stashDie`), and
+    // no bookmark says a Search opened a stash (`fromVault`; its Reroll said "the stash find stands" until then).
+    // A 1.2.65 bookmark (E06 C11) carries a flat -1 and is scored with it; one from before 1.2.65 has none, and is
+    // scored on the dice alone.
     const def = ACTIONS.search;
-    const step = await stashDieOf(bookmark) ? await stashStepFor(rerolled ?? after, actor) : null;
-    const change = step ? step.change : Number(bookmark.penalty) || 0;
+    const change = Number(bookmark.penalty) || 0;
     const { hit, tier, score } = searchTier(after, change, def);
     const found = Boolean(hit) || after.isCritical;
-    if (step) done.push(stashText(step, score));
-    else if (change) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(change), total: score }));
+    if (change) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(change), total: score }));
 
     // 1. The thing the first roll put in the inventory goes back on the shelf.
     // THE PLANT AS THE GMS HOLD IT (E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (b)). It was found by the identity on

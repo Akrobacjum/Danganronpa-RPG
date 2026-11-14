@@ -61,6 +61,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return { x: t.x, y: t.y, scene: canvas.scene.id, look };`);
     check("setup: the Death fade mapped for the run, Chie's token read", sfx === "sounds/s94-fade.ogg" && Number.isFinite(start?.x), JSON.stringify({ sfx, start }));
     await settle(800);
+    /* THE LOAD'S MIGRATION FIRST (13.11.2026; red 1 run in 3 at ceb9e9c8 as before this fix). The primary GM's load runs the
+       data migration and the DA39 pass (migrate.mjs `runMigrationOnLoad`), which write `migratedVersion` and
+       `levelUpsMigrated`; on a slow boot they landed between "secret"'s two reads of p1's world and were counted as the
+       death's. Waited on the module's own signal (`migrationOnLoad`, as 01-runtests and 65-season wait), then until p1
+       holds the GM's world settings - every module world setting, not those two alone - so the check still reads every one. */
+    const settled = await gm.eval(`await (${imp("migrate.mjs")}).migrationOnLoad();
+        const mod = "danganronpa-rpg", out = {};
+        for (const [key, s] of game.settings.settings) if (key.startsWith(mod + ".") && s.scope === "world") {
+            try { out[key] = JSON.stringify(game.settings.get(mod, key.slice(mod.length + 1))); } catch { out[key] = "(unread)"; } }
+        return out;`, { timeout: 60000 });
+    const sameAsGm = await p1.eval(`const want = ${JSON.stringify(settled ?? {})}, mod = "danganronpa-rpg", until = Date.now() + 15000;
+        const read = () => Object.entries(want).filter(([key, v]) => { try { return JSON.stringify(game.settings.get(mod, key.slice(mod.length + 1))) !== v; } catch { return v !== "(unread)"; } }).map(([key]) => key);
+        let differ = read();
+        while (differ.length && Date.now() < until) { await new Promise(r => setTimeout(r, 100)); differ = read(); }
+        return differ;`, { timeout: 30000 });
+    check("setup: the load's migration has run on the primary and p1 holds every module world setting as the GM does",
+        Boolean(settled) && Array.isArray(sameAsGm) && sameAsGm.length === 0, JSON.stringify({ differ: sameAsGm }));
 
     let watcherId = null, watcherToken = null, noToken = null;
     try {

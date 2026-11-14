@@ -61,6 +61,10 @@ body {
     --drpg-kit-tab-on-bg: var(--drpg-ink);
     --drpg-kit-tab-on-edge: var(--drpg-kit-tab-selected-edge);
     --drpg-kit-tab-on-ink: var(--drpg-bone);
+    /* the open tab's and the hovered tab's words, and the brush they stand on where a theme draws one (the glass; Legacy
+       draws none, so its brush is only declared): Bone as every tab's words here (13.11.2026, R5860) */
+    --drpg-kit-tab-lit-ink: var(--drpg-bone);
+    --drpg-kit-tab-brush: var(--drpg-ink);
     --drpg-kit-tab-bar: transparent;
     --drpg-kit-tab-radius: 3px;
     --drpg-kit-tab-size: max(11px, var(--drpg-text-sm));
@@ -199,6 +203,10 @@ body.drpg-theme-stained-glass {
     --drpg-kit-tab-on-bg: transparent;
     --drpg-kit-tab-on-edge: transparent;
     --drpg-kit-tab-on-ink: var(--drpg-sg-ink);
+    /* the kit bar's brush Ink and the words on it Bone, as the sheet's bar since E100 (13.11.2026, R5860): the on-ink above
+       stays Ink for Settings' sections and the Daggerheart settings window, which read it on their own Bone */
+    --drpg-kit-tab-lit-ink: var(--drpg-sg-bone);
+    --drpg-kit-tab-brush: var(--drpg-sg-ink);
     --drpg-kit-tab-bar: var(--drpg-sg-bone);
     /* the size and the padding of a tab under the glass are the brush's (below); its spacing, 0.08em measured on M1
        today at 1366x768, is the kit's, and the one-line fit's lever here */
@@ -349,10 +357,6 @@ body .application.drpg-window-newtrace .drpg-wide-col label > :is(select, .drpg-
 .drpg-case-summary ul { margin: 0; padding-left: 1rem; }
 .drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-kit-help-size); }
 .drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-kit-help-size); color: var(--drpg-kit-help-ink); }
-/* The GM panel's line of the case's Incident Remnants to place (E97 C12): one row each, its button at the end. */
-.drpg-case-asks ul { margin: 0.25rem 0 0; padding: 0; list-style: none; }
-.drpg-case-asks .drpg-case-ask { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 2px 0; }
-.drpg-case-asks .drpg-case-ask.is-placed > span { color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case-realize table.drpg-case-realize select { width: 100%; min-width: 0; }
 /* `[data-drpg-role]`, which every kit footer button carries: the glass's button rule (stained-glass.css, `.drpg-panel
    button:not(...)` x5, 0,7,2) holds a button's words on one line, and they were cut in a cell of a fifth of the footer */
@@ -447,6 +451,21 @@ body.drpg-theme-stained-glass .application .drpg-tabs[role="tablist"] > button[d
     --brush-on: 1;
     --brush-ink: var(--drpg-kit-tab-on-ink);
     --brush-edge: var(--brush);
+}
+/* THE OPEN TAB IS AN INK BRUSH ON THE BONE BAR (13.11.2026; the owner at a table on 1.2.112: "some tabs still don't show
+   which one is open, e.g. in the Investigation table or the chat"). Under the glass the bar is Bone (`--drpg-kit-tab-bar`)
+   and the panel's brush, which every kit tab wears (every kit window is a .drpg-panel, ui-kit.mjs KIT_CLASSES, or the
+   messenger), Bone since E48 K2; the open tab's words were Ink (`--drpg-kit-tab-on-ink`), so it drew Ink on Bone on Bone,
+   as every other tab: read in Chromium at ceb9e9c8 on every captured kit window and the messenger's Chat and Note, the
+   open tab and an unopened one both rgb(7, 7, 10) on rgb(242, 238, 230). The sheet's bar had the fault and E100 its fix;
+   this is that model on the kit's bar: the brush Ink, its words Bone - the open tab, and the one under the cursor, whose
+   brush the panel's hover rule lights. Both rules are written for both themes, through two tokens (`--drpg-kit-tab-brush`,
+   `--drpg-kit-tab-lit-ink`): under Legacy the words are the Bone they were, and no brush is drawn. The brush's rule is level
+   with the glass's panel brush (0,5,2) and later than it, as the tab's rule above. R5860; audit/style-sweep.mjs --tabs. */
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"] { --brush: var(--drpg-kit-tab-brush); }
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:is([aria-selected="true"], :hover:not(:disabled)) {
+    --brush-ink: var(--drpg-kit-tab-lit-ink);
+    color: var(--drpg-kit-tab-lit-ink);
 }
 body:not(.drpg-theme-stained-glass) .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:hover:not([aria-selected="true"]) { background: var(--drpg-kit-tab-hover); }
 /* Q13's edge under Legacy (the tokens above): a 2 px bar along the selected tab's foot, inset, as the sheet's tab
@@ -3360,6 +3379,10 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
     border: 1px solid var(--drpg-kit-line);
 }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-graph.is-panning { cursor: grabbing; }
+/* THE GRAB OVER A NODE TOO (13.11.2026): the middle button pans over a node, whose rule says `pointer` (eight classes and
+   two elements); the `:is()` takes its weight from the node's own selector, one class over it, so the whole map shows the
+   grab while it pans (Chromium: `pointer` over the node at eight classes and one element). */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-graph.is-panning .drpg-case-canvas :is(button[data-drpg-node], *) { cursor: grabbing; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
 body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { transition: none; }
@@ -3471,13 +3494,15 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) .
    place (case-map.mjs `is-editing`; the fields' top is the face's, case-view.mjs `relayoutCaseMap`). At the node rule's
    weight and one class more. */
 body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-editing { display: none; }
-/* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box under its face, at its width, joined to it -
-   what the node says, then the Table's own cells one under another. A node not open keeps its fields in the form,
-   out of sight. Its box grows with its fields as the face grows with its words; the camera brings it into view. */
+/* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box in its face's place, at the width of the node
+   clicked (the owner, 13.11.2026; 352 px until then, the node 240) - the node rule's width here, and the face's measured
+   width written on it by case-view.mjs `relayoutCaseMap` - what the node says, then the Table's own cells one under
+   another, each text box the box's whole width. A node not open keeps its fields in the form, out of sight. Its box
+   grows with its fields as the face grows with its words; the camera brings it into view. */
 .application.drpg-window-case .drpg-case-canvas > .drpg-case-edit {
     position: absolute;
     box-sizing: border-box;
-    width: 352px;
+    width: 240px;
     margin: 0;
     padding: 0.25rem 0.5rem 0.5rem;
     min-width: 0;
@@ -3817,6 +3842,17 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(.drp
     align-items: center;
     gap: 0.25em 0.6em;
 }
+
+/* THE TOP BLOCK CENTRED ON THE PANEL'S WIDTH, NOT ON A PARAGRAPH'S MEASURE (13.11.2026; the owner at a 1.2.112 table, the GM
+   Panel at about 692 px: the clock's row, Next time of day, the students line and the version line centred near x 280
+   while the Next box, the section heads and the tiles span the panel, centre about 346). The rows were centred, but in
+   their own box: each is a `p`, and stained-glass.css caps every paragraph of a window at a measure (`max-width: 74ch`,
+   "A MEASURE FOR THE WIDE WINDOWS" and the prose rung's rule), so under the glass each stood 74ch wide at the panel's
+   left. Measured in Chromium (audit/windows/gm-panel.html redrawn as 1.2.112's `buildPanelContent`, 692 px, panel
+   centre 346): the clock's row, the advance and the students line at 321 (607 px boxes), the version line at 281 (528
+   px); Monokuma Legacy caps nothing and stood at 346. A measure is for running text; these are single centred lines,
+   so they take the panel's width in both themes. R5721. */
+body .application.drpg-window-panel .drpg-gm-panel :is(.drpg-gmp-standing > p, p.drpg-gmp-version) { max-width: none; }
 
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
    section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass
@@ -4353,6 +4389,14 @@ body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-wind
     color: var(--drpg-sg-ink);
     background: var(--drpg-sg-bone);
     border-color: var(--drpg-sg-bone);
+}
+/* A TAB UNDER THE CURSOR KEEPS ITS INK (13.11.2026, read by audit/style-sweep.mjs --tabs in Chromium at ceb9e9c8): the
+   hover above takes the tab's ground to `--drpg-kit-tab-hover`, transparent under the glass, so the Bone bar showed
+   through behind the Bone words, 1:1. Under the glass the hovered tab stays Ink and takes the open tab's colour as an
+   edge at its foot. */
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:hover:not(.active) {
+    background: var(--drpg-ink);
+    box-shadow: inset 0 -2px 0 var(--drpg-sg-bone);
 }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:focus-visible,
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a:focus-visible {

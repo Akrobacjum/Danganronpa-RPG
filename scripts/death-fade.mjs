@@ -148,13 +148,22 @@ let running = null;
 /* glass.mjs, read once the page is ready (`registerDeathFade`): its panes as the curtain last cut them (`LAST.panes`). */
 let glassModule = null;
 
-/** The rest state on this page: `bare` true or false. Every batch layer and group class goes. */
+/**
+ * The rest state on this page: `bare` true or false. Every batch layer and group class goes.
+ *
+ * Only a class the body carries is removed (1.2.112's release CI, 13.11.2026): `classList.remove` of a class that is not
+ * there still writes the attribute, and each write wakes the body's observers (scenario 14-quiet). A death's copy settles
+ * the rest state 1.5 s after the deaths change, on every page and the GMs' too, so at a world's start that was seven
+ * writes for nothing - and 14-quiet's clock check, which watches the body's class, read them as the clock's (7 records,
+ * red on run 43488628121 and three times out of three in a session at 5090bf9b).
+ */
 export function setRest(bare) {
     const body = document.body;
     stopRunning();
     body.classList.toggle(BARE_CLASS, Boolean(bare));
-    for (const cls of [...LEGACY_GROUPS, "drpg-bare-b4", "drpg-bare-b5"]) body.classList.remove(cls);
-    body.classList.remove("drpg-bare-seams");
+    for (const cls of [...LEGACY_GROUPS, "drpg-bare-b4", "drpg-bare-b5", "drpg-bare-seams"]) {
+        if (body.classList.contains(cls)) body.classList.remove(cls);
+    }
     for (const c of document.querySelectorAll(".drpg-bare-layer")) c.remove();
     curtainPart("pulse")?.style.removeProperty("opacity");
     return Boolean(bare);

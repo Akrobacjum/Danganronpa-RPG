@@ -293,8 +293,7 @@ export function candidatesFor(voterActorId) {
  * are the primary GM's (`runVoteOp`): this asks for them through `vote.run` and
  * tells the GM who pressed what came of it. Answers how many ballots went out,
  * or null.
- */
-/**
+ *
  * @param {object} [options]
  * @param {number} [options.picks]  How many names each ballot must carry.
  *   Guide, p. 32: "Jeśli jest dwóch blackened jednej nocy, należy wskazać obu."

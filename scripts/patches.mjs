@@ -233,6 +233,15 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
  * THE PIP LAYOUT'S PLACES (E24 C1a, 08.11.2026). sheet.mjs `paintReserves` draws Health and Sanity in either of the
  * system's layouts (the owner's D46): the bar layout's places stay as they were, and the pip layout's slots, found by
  * their toggles, are optional - a client on the bar layout has none, and draws the bars instead.
+ *
+ * AND THE BAR LAYOUT'S PLACES THE OTHER WAY ROUND (A113-C1-3, 13.11.2026). Daggerheart's `useResourcePips` is a
+ * client option (2.12.8 module/data/settings/Appearance.mjs; the `appearance` setting is scope client), and with it on
+ * resource-bar.hbs draws `.slot-value > .slot-bar > .slot` and no `.status-bar`, `input.bar-input` or `progress`
+ * (those three occur nowhere else in 2.12.8's character sheet templates). Until this fix they were required, so a GM
+ * on pips was told the sheet "has no" them and that what the module puts there "is not drawn", while `paintReserves`
+ * drew the pips. They are optional now, as the pips are: neither layout fails the row by drawing the other. What is
+ * lost is the alarm for a Daggerheart that renamed the bars while a client is on the bar layout; the row's note still
+ * names every optional place it did not find (R6000).
  */
 export const SHEET_ANCHORS = Object.freeze([
     { selector: ".window-content", what: "the window's body" },
@@ -245,9 +254,9 @@ export const SHEET_ANCHORS = Object.freeze([
     { selector: ".hope-section .hope-value", what: "Hope's pips" },
     { selector: ".character-traits .trait-value, .trait .trait-value", what: "the traits' values" },
     { selector: ".character-sidebar-sheet", what: "the sidebar" },
-    { selector: ".character-sidebar-sheet .resources-section .status-bar", what: "the sidebar's bars" },
-    { selector: "input.bar-input", what: "a bar's input" },
-    { selector: "progress.progress-bar", what: "a bar's progress" },
+    { selector: ".character-sidebar-sheet .resources-section .status-bar", what: "the sidebar's bars", optional: "the pip layout's instead" },
+    { selector: "input.bar-input", what: "a bar's input", optional: "the pip layout's instead" },
+    { selector: "progress.progress-bar", what: "a bar's progress", optional: "the pip layout's instead" },
     { selector: ".slot[data-action='toggleHitPoints']", what: "Health's pips", optional: "the bar layout's instead" },
     { selector: ".slot[data-action='toggleStress']", what: "Sanity's pips", optional: "the bar layout's instead" },
     { selector: ".equipment-section h3", what: "the equipment heading", optional: "found by its text instead" },
@@ -1227,7 +1236,7 @@ export const PATCHES = [
  * ========================================================================== */
 
 /** The three answers a row of the contract may give. */
-export const CONTRACT_STATES = Object.freeze(["ok", "failed", "unknown"]);
+const CONTRACT_STATES = Object.freeze(["ok", "failed", "unknown"]);
 
 /* The own property relay-guard.mjs's wrapper carries (`ensureWrapped`). */
 const GUARD_MARK = "__drpgRelayGuard";
@@ -1360,7 +1369,7 @@ function whereOf(entry) {
  * sentence of its own (a stand-in a test draws) and is never what a GM reads in a sentence of the table's language
  * when the register has one.
  */
-export function insteadOf(entry) {
+function insteadOf(entry) {
     const key = `DRPG.Contract.instead.${entry.insteadKey ?? entry.id}`;
     return game.i18n?.has?.(key) ? game.i18n.localize(key) : entry.fallback;
 }

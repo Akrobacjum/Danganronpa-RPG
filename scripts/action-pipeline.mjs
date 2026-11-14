@@ -55,10 +55,10 @@ export const DRPG_ACTION_ROLL = "drpgActionRoll";
 
 /**
  * The roll was drawn by the primary GM (E08+E28 C12a; roll-draw.mjs): `{ rollId, messageId,
- * stash, loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
+ * loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
  * the message, settled the roll's resources and spent the Calls it applied, so
- * `commitResources` commits nothing for it and `throwDice` spends nothing; `stash` is the
- * hidden stash's step the GM drew (`stashStepOf`), `loaded` whether it loaded the die (C12b).
+ * `commitResources` commits nothing for it and `throwDice` spends nothing; `loaded` is whether
+ * it loaded the die (C12b). A hidden stash's step (`stash`) rode beside them until 1.2.112.
  * Never sent: it is put on the config after the roll has left for the GM.
  */
 export const DRAWN_ROLL = "drpgDrawn";
@@ -95,8 +95,7 @@ function suiteRolling() {
  * `result.resourceUpdates` for the caller to commit. The sheet's own trait
  * button calls `updateResources()`; ours has to as well, or actions roll dice
  * and quietly hand out nothing.
- */
-/**
+ *
  * @param {Actor} actor
  * @param {string} drpgTrait
  * @param {object} [options]
@@ -228,7 +227,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
          * per roll turns a forty-second run into minutes and times the
          * scenarios out - measured, three failures, none of them about the
          * thing under test. Whether the window opens at all is its own
-         * question with its own scenario. See `autoRollForSuite`.
+         * question with its own scenario. See `suiteRolling` above (the suite's own
+         * switch, `game.drpg.suiteRolling`).
          */
         dialog: { configure: !suiteRolling() },
         /*
@@ -527,7 +527,7 @@ export async function noteRollContext(actor, data) {
  * not listed claims nothing.
  */
 export const ROLL_CLAIMS = Object.freeze({
-    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", stashDie: "bool", claimed: "bool", fromVault: "bool",
+    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", claimed: "bool",
         gmRuled: "bool", label: "text", request: "text" }),
     project: Object.freeze({ relief: "num", bonus: "num", refunded: "bool", burst: "bool" }),
     sabotage: Object.freeze({ penalty: "num", relief: "num" }),

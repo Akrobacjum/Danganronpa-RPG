@@ -52,10 +52,13 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased, BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural } from "./utils.mjs";
+import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural, esc } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
+import { isMaskedActor } from "./mask-gm.mjs";
+import { spectatorViewer } from "./spectator.mjs";
 
 import { tipAttr, setTip } from "./ui-kit.mjs";
+import { choiceRowHtml } from "./ui-columns.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
@@ -113,8 +116,15 @@ function onRenderSheet(app, element) {
     const root = element instanceof HTMLElement ? element : element?.[0];
 
     try {
-        if (!enforcing()) return;
         const actor = app?.document;
+        // A KILLER BEHIND A "?" (E69 C8; mask-gm.mjs): another player's browser closes the sheet, whatever this world's
+        // anonymity says, read off the token flag it holds. A GM and a Spectator see through the mask.
+        if (maskedSheetClosed(actor, game.user)) {
+            if (root) root.style.display = "none";
+            app?.close?.({ force: true, animate: false })?.catch?.(() => {});
+            return;
+        }
+        if (!enforcing()) return;
         if (!actor || actor.type !== "character") return;
 
         // Nobody may open the settings sheet, their own included (Dawid,
@@ -142,6 +152,16 @@ function onRenderSheet(app, element) {
             // Nothing left to try. The error above is the record.
         }
     }
+}
+
+/**
+ * Whether `user`'s browser closes `actor`'s sheet because the actor stands behind a "?" (E69 C8): not a GM, not an owner,
+ * not a Spectator, and a token of the actor masked (`masked` the suite's, R6031).
+ */
+export function maskedSheetClosed(actor, user, { masked = isMaskedActor(actor), spectator = spectatorViewer() } = {}) {
+    if (!actor || !user || user.isGM || spectator) return false;
+    if (actor.testUserPermission?.(user, "OWNER")) return false;
+    return Boolean(masked);
 }
 
 /**
@@ -234,22 +254,15 @@ function redactTabs(root) {
  * use buttons and the handover buttons, none of which belong to somebody
  * standing over a body.
  *
- * A TAKE THE GATE REFUSES IS GREYED, WITH ITS REASON (E14 part 1 C1; audit S11-06). The Take showed on every row of a
- * body this browser knows dead, wherever the viewer's character stood: from a bedroom across the school, in a Class
- * Trial, as a dead spectator. Each row's Take now asks the one gate the GMs judge the loot by (inventory.mjs
- * `transferRefusal`, mode "loot"), read on this browser, and one it refuses is shut with the sentence the player would
- * be told (`DRPG.Bridge.why.<code>`). A display: the GMs' gate judges the request again.
- *
- * READ AGAIN AS THE TABLE MOVES (E14 fix e1-G6, 24.10.2026; the review's E14R-07, goal): the greying was read once, when
- * the sheet was drawn, so a viewer who walked into the body's room with the sheet open found every Take still shut "not
- * where it needs to be" (and one who walked out, or whose Class Trial began, found them open) until the sheet was
- * opened again, which nothing told them to do. The list carries the body and the taker (`data-drpg-body`,
- * `data-drpg-taker`), and `regreyOpenLoot` reads the gate again for every list on the page when either one's token is
- * written, the body's tile is (E95 C3) or the clock is (registerAnonymity's hooks), opening a Take it no longer
- * refuses. A Take already pressed stays shut. `taker` is the viewer's character (`myCharacter`); a test hands its own.
- * Answers the greying's promise, or undefined where there is no Take.
+ * THE SHEET SHOWS, THE WINDOW TAKES (1.2.113; A113-C5-7, the owner's E68 decision of 10.11.2026, "Q4 ... zastosowac to
+ * do wszystkich akcji", .github/release-notes/v1.2.104.md:231-232). Until 1.2.113 each row here carried its own Take and
+ * a tick, and a button under the list took the ticked: the one action left on the sheet's own list when every other
+ * action had moved onto the two-column window (E68 C12; v1.2.104.md:256 recorded it as a gap). The list is now what the
+ * body carries, its picture and its name, and nothing on it takes; one button under it opens the action's window
+ * (`openBodyLoot`), where the rows are picked and greyed. The taker is read when the button is pressed (`openBodyLoot`'s
+ * default, `myCharacter`), as the row's Take read it.
  */
-export function buildBodyLoot(root, actor, taker = myCharacter()) {
+export function buildBodyLoot(root, actor) {
     // A body this browser knows of (E05 C10, the owner's Q2): the table's, or one nobody has
     // found that this player was in the incident of - the GMs judge the taking again.
     if (!isDeadForGm(actor)) return;
@@ -264,9 +277,7 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
     const box = document.createElement("div");
     box.className = "drpg-loot";
 
-    const items = actor.items.filter(i =>
-        i.getFlag(MODULE_ID, "category") && !isTruthBullet(i) && !isStashed(i));
-
+    const items = lootableItems(actor);
     box.innerHTML = `<h4>${game.i18n.localize("DRPG.Loot.heading")}</h4>`;
     if (!items.length) {
         box.innerHTML += `<p class="notes">${game.i18n.localize("DRPG.Loot.empty")}</p>`;
@@ -275,99 +286,200 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
     }
 
     const list = document.createElement("ul");
-    list.className = "drpg-loot-list";
-    list.dataset.drpgBody = actor.id;
-    if (taker) list.dataset.drpgTaker = taker.id;
+    list.className = "drpg-loot-items";
     for (const item of items) {
         const row = document.createElement("li");
         row.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
             <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>`;
-
-        const take = document.createElement("button");
-        take.type = "button";
-        take.className = "drpg-mini-button drpg-loot-take";
-        take.textContent = game.i18n.localize("DRPG.Loot.take");
-        take.dataset.tooltip = game.i18n.localize("DRPG.Loot.takeTooltip");
-        take.addEventListener("click", async event => {
-            event.preventDefault();
-            event.stopPropagation();
-            // Disabled on the way in, not on the way back: the round trip goes
-            // through the GM's client and a second click would take the same
-            // object twice.
-            take.disabled = true;
-            take.dataset.drpgTaken = "true";
-            if (await takeFromBody(actor, [item])) return;
-            /* NOTHING TAKEN, SO THE TAKE IS OPEN AGAIN (E50 C4; audit S11-36). Until C4 a Take the primary refused (the
-               taker gone from the room, the body looted by somebody else meanwhile), one no GM answered and one with no
-               character stayed shut, marked as pressed, until the sheet was drawn again, and the gate's re-reading
-               passed it by. Now it is the gate's again: open, then shut with the reason's sentence where the gate still
-               refuses it here. A Take that took stays shut. */
-            delete take.dataset.drpgTaken;
-            take.disabled = false;
-            take.removeAttribute("aria-disabled");
-            if (taker) await greyRefused(list, actor, taker);
-        });
-        /* SEVERAL UNDER ONE ROLL (E68 C10): a tick per row, and one Take for the ticked below the list - one Hand roll
-           for all of them, as the row's own Take rolls one for its item. */
-        const pick = document.createElement("input");
-        pick.type = "checkbox";
-        pick.className = "drpg-loot-pick";
-        setTip(pick, "DRPG.Tips.Setup.onALootedItemTooltip");
-        pick.value = item.id;
-        pick.setAttribute("aria-label", item.name);
-        row.prepend(pick);
-        row.append(take);
         list.append(row);
     }
 
     const foot = document.createElement("p");
     foot.className = "drpg-loot-foot";
-    const many = document.createElement("button");
-    many.type = "button";
-    many.className = "drpg-mini-button drpg-loot-take-picked";
-    many.textContent = game.i18n.localize("DRPG.Loot.takePicked");
-    many.dataset.tooltip = game.i18n.localize("DRPG.Loot.takePickedTooltip");
-    many.addEventListener("click", async event => {
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "drpg-mini-button drpg-loot-open";
+    open.innerHTML = `<i class="fa-solid fa-hand" inert></i> ${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Loot.open"))}`;
+    open.dataset.tooltip = game.i18n.localize("DRPG.Loot.openTooltip");
+    open.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        const ids = [...list.querySelectorAll(".drpg-loot-pick:checked")].map(box => box.value);
-        const picked = ids.map(id => actor.items.get(id)).filter(Boolean);
-        if (!picked.length) {
-            ui.notifications.info(game.i18n.localize("DRPG.Loot.pickNone"));
-            return;
-        }
-        many.disabled = true;
-        const took = await takeFromBody(actor, picked);
-        many.disabled = false;
-        if (took) for (const box of list.querySelectorAll(".drpg-loot-pick:checked")) box.closest("li")?.remove();
-        else if (taker) await greyRefused(list, actor, taker);
+        openBodyLoot(actor).catch(err => error("Could not open Take from the Body", err));
     });
-    foot.append(many);
+    foot.append(open);
 
     box.append(list, foot);
     pane.replaceChildren(box);
-    return taker ? greyRefused(list, actor, taker) : undefined;
+}
+
+/** What a body carries that may be taken: the module's items, no Truth Bullet (they die with it), nothing in a stash. */
+function lootableItems(body) {
+    return body.items.filter(i => i.getFlag(MODULE_ID, "category") && !isTruthBullet(i) && !isStashed(i));
 }
 
 /**
- * Shut every Take in `list` the one gate refuses `taker` off `body` now, with the reason's sentence, and open again one
- * it no longer refuses (`buildBodyLoot`, `regreyOpenLoot`); a Take already pressed stays shut.
+ * TAKE FROM THE BODY, THE ACTION'S WINDOW (1.2.113; A113-C5-7). On the module's one layout for an action (action-menus.mjs
+ * `actionWindow`, E68 C12): the briefing on the left - what the Take rolls and costs, the room, who would see it - and
+ * on the right the body's things as rows (ui-columns.mjs `choiceRowHtml`, ticks, the first open one ticked), and Take.
+ * Answers whether something was taken (`takeFromBody`), null when the window was closed or nothing was ticked.
+ *
+ * A ROW THE GATE REFUSES IS GREYED, WITH ITS REASON (E14 part 1 C1; audit S11-06), as the sheet's row was: the one gate
+ * the GMs judge the loot by (inventory.mjs `transferRefusal`, mode "loot"), read on this browser, shuts every row and
+ * Take with the sentence the player would be told (`DRPG.Bridge.why.<code>`). A row is also shut on its own where the
+ * taker's hands hold the most of its kind and they have no stash to take the rest (inventory.mjs `canCarry`, the GM's
+ * `transferItem` with TRANSFER_POLICY.loot "overflow"; the words of `DRPG.Loot.handsFull`); with a stash it is open and
+ * says the thing goes there. A display: the GMs' gate judges the request again, and a piece that joins a stack the taker
+ * holds takes no slot there, so a row is left open wherever this browser cannot tell.
+ *
+ * READ AGAIN AS THE TABLE MOVES (E14 fix e1-G6, E95 C3): the window's list carries the body and the taker
+ * (`data-drpg-body`, `data-drpg-taker`), and `regreyOpenLoot` reads the gate again for every open list when either one's
+ * token, the body's tile, the clock or a body's announcement changes (registerAnonymity's hooks), opening a row it no
+ * longer refuses.
+ *
+ * THE TAKE IS THE ONE ROAD AS BEFORE: the picked items go to `takeFromBody`, which rolls Hand once for all of them (and
+ * Shadow with a witness), spends no action (E68 C10) and asks the primary (gm-bridge.mjs `requestBodyLoot`), whose card,
+ * trace and Truth Bullet are handover.mjs `lootBody`'s. `taker` is read when the window is asked for (`myCharacter`):
+ * with none it says so and opens nothing. `check`: the ids ticked when the window opens (a test's, a scenario's).
  */
-async function greyRefused(list, body, taker) {
-    const { transferRefusal } = await import("./inventory.mjs");
-    const why = await transferRefusal(body, taker, { mode: "loot", asker: game.user });
-    const { reasonOf } = await import("./bridge-guards.mjs");
-    const said = why ? game.i18n.localize(`DRPG.Bridge.why.${reasonOf(why)}`) : game.i18n.localize("DRPG.Loot.takeTooltip");
-    for (const take of list.parentElement?.querySelectorAll(".drpg-loot-take, .drpg-loot-take-picked") ?? list.querySelectorAll(".drpg-loot-take")) {
-        if (take.dataset.drpgTaken) continue;
-        take.disabled = Boolean(why);
-        if (why) take.setAttribute("aria-disabled", "true");
-        else take.removeAttribute("aria-disabled");
-        take.dataset.tooltip = said;
+export async function openBodyLoot(body, { taker = myCharacter(), check = null } = {}) {
+    if (!taker) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Loot.noCharacter"));
+        return false;
     }
+    if (!body || !isDeadForGm(body)) return null;
+    const items = lootableItems(body);
+    const reading = await lootReading(body, taker, items);
+    const ticked = check ? new Set([].concat(check)) : new Set([items.find(i => !reading.rows.get(i.id)?.why && !reading.gate)?.id].filter(Boolean));
+    const rows = items.map(item => {
+        const row = reading.rows.get(item.id);
+        const why = reading.gate ?? row.why;
+        return choiceRowHtml({ value: item.id, label: item.name, icon: "fa-hand", hint: row.hint, disabled: Boolean(why), why },
+            { type: "checkbox", name: "item", checked: !why && ticked.has(item.id) });
+    }).join("");
+    const ask = items.length
+        ? `<p>${esc(game.i18n.localize("DRPG.Loot.prompt"))}</p>
+            <div class="drpg-choice-list drpg-loot-list" data-drpg-body="${esc(body.id)}" data-drpg-taker="${esc(taker.id)}">${rows}</div>`
+        : `<p class="notes">${esc(game.i18n.localize("DRPG.Loot.empty"))}</p>`;
+
+    const { briefingBlock } = await import("./action-briefing.mjs");
+    const { actionWindow } = await import("./action-menus.mjs");
+    const brief = briefingBlock(taker, "loot", {
+        description: game.i18n.format("DRPG.Loot.brief", { body: body.name }),
+        traits: [LOOT.trait],
+        cost: 0
+    }, { extraFacts: [game.i18n.localize("DRPG.Loot.noAction"), game.i18n.format("DRPG.Loot.coverFact", { n: LOOT.cover.threshold })] });
+
+    const picked = await actionWindow({
+        title: game.i18n.localize("DRPG.Loot.windowTitle"),
+        classes: ["drpg-loot-window"],
+        // A declaration the game waits on, kept above the sheet it was opened from, as every action menu (stacking.mjs).
+        prompt: true,
+        brief,
+        ask,
+        render: (event, dialog) => wireLootRows(dialog?.element, reading),
+        footer: !items.length ? { close: "close" } : {
+            primary: {
+                action: "ok",
+                label: game.i18n.localize("DRPG.Loot.take"),
+                callback: (e, b, d) => [...(d?.element?.querySelectorAll('.drpg-loot-list input[name="item"]:checked') ?? [])]
+                    .filter(box => !box.disabled).map(box => box.value)
+            },
+            close: "cancel"
+        },
+        rejectClose: false
+    });
+    if (!Array.isArray(picked)) return null;
+    const chosen = picked.map(id => body.items.get(id)).filter(Boolean);
+    if (!chosen.length) {
+        ui.notifications.info(game.i18n.localize("DRPG.Loot.pickNone"));
+        return null;
+    }
+    return takeFromBody(body, chosen);
 }
 
-/** Every body's loot window on this page, its Takes read against the one gate again (fix e1-G6; `buildBodyLoot`). */
+/**
+ * What the gate and the hands say of a Take of `items` off `body` by `taker`, on this browser (`openBodyLoot`): `gate`,
+ * the sentence of the one gate's refusal or null; `rows`, per item id `{ why, hint }` - `why` the row's own refusal (full
+ * hands and no stash) or null, `hint` the line an open row reads.
+ */
+async function lootReading(body, taker, items = lootableItems(body)) {
+    const { transferRefusal, canCarry, capacityLabel, ITEM_FLAGS } = await import("./inventory.mjs");
+    const { reasonOf } = await import("./bridge-guards.mjs");
+    const refused = await transferRefusal(body, taker, { mode: "loot", asker: game.user });
+    const gate = refused ? game.i18n.localize(`DRPG.Bridge.why.${reasonOf(refused)}`) : null;
+    let stash;
+    const stashOf = async () => {
+        if (stash !== undefined) return stash;
+        const { primaryStashRoom } = await import("./vault.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { homeScene } = await import("./rooms.mjs");
+        return (stash = primaryStashRoom(taker, locateActor(taker)?.scene ?? homeScene()) ?? null);
+    };
+    const rows = new Map();
+    for (const item of items) {
+        const category = item.getFlag(MODULE_ID, ITEM_FLAGS.category);
+        const kind = capacityLabel(category);
+        const room = canCarry(taker, category);
+        const identity = item.getFlag(MODULE_ID, ITEM_FLAGS.identity);
+        const joins = Boolean(identity) && taker.items.some(i => i.name === item.name && !isStashed(i) && i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity);
+        if (room.ok || joins) { rows.set(item.id, { why: null, hint: kind }); continue; }
+        const into = await stashOf();
+        rows.set(item.id, into
+            ? { why: null, hint: game.i18n.format("DRPG.Loot.toStash", { category: kind, room: into }) }
+            : { why: game.i18n.format("DRPG.Loot.rowHandsFull", { category: kind, limit: room.limit }), hint: kind });
+    }
+    return { gate, rows };
+}
+
+/**
+ * The drawn window's rows and Take, as `reading` says (`openBodyLoot`, `greyRefused`): a refused row shut, its line its
+ * reason; an open one its hint. The Take (`drpg-loot-take`) is shut with the gate's sentence, or with the
+ * rows' while no row is open, or while nothing is ticked; open, it says what a Take does. A tick tells the Take again.
+ */
+function wireLootRows(root, reading) {
+    const list = root?.querySelector?.(".drpg-loot-list[data-drpg-taker]");
+    if (!list) return;
+    for (const box of list.querySelectorAll('input[name="item"]')) setTip(box, "DRPG.Tips.Setup.onALootedItemTooltip");
+    root.querySelector('[data-action="ok"]')?.classList.add("drpg-loot-take");
+    list.addEventListener("change", () => syncLootTake(list));
+    paintLootRows(list, reading);
+}
+
+function paintLootRows(list, { gate, rows }) {
+    for (const box of list.querySelectorAll('input[name="item"]')) {
+        const row = rows.get(box.value) ?? { why: null, hint: "" };
+        const why = gate ?? row.why;
+        // A tick stays under a shut row (the Take reads only open ones), so a row the gate opens again is ticked as it was.
+        box.disabled = Boolean(why);
+        const label = box.closest(".drpg-choice");
+        label?.classList.toggle("unavailable", Boolean(why));
+        const line = label?.querySelector(".drpg-choice-text small");
+        if (line) line.textContent = why ?? row.hint ?? "";
+    }
+    list.drpgGate = gate;
+    list.drpgRowWhy = [...rows.values()].find(r => r.why)?.why ?? null;
+    syncLootTake(list);
+}
+
+function syncLootTake(list) {
+    const take = list.closest(".drpg-loot-window")?.querySelector(".drpg-loot-take");
+    if (!take) return;
+    const boxes = [...list.querySelectorAll('input[name="item"]')];
+    const open = boxes.some(box => !box.disabled);
+    const said = list.drpgGate ?? (!open ? list.drpgRowWhy : null)
+        ?? (boxes.some(box => box.checked && !box.disabled) ? null : game.i18n.localize("DRPG.Loot.pickNone"));
+    take.disabled = Boolean(said);
+    if (said) take.setAttribute("aria-disabled", "true");
+    else take.removeAttribute("aria-disabled");
+    take.dataset.tooltip = said ?? game.i18n.localize("DRPG.Loot.takeTooltip");
+}
+
+/** Shut every row of an open window's `list` the gate or the hands refuse now, and open one they no longer refuse. */
+async function greyRefused(list, body, taker) {
+    paintLootRows(list, await lootReading(body, taker));
+}
+
+/** Every open Take from the Body window on this page, its rows read against the one gate again (fix e1-G6; `openBodyLoot`). */
 function regreyOpenLoot() {
     for (const list of document.querySelectorAll(".drpg-loot-list[data-drpg-taker]")) {
         const body = game.actors.get(list.dataset.drpgBody ?? ""), taker = game.actors.get(list.dataset.drpgTaker ?? "");
@@ -383,8 +495,9 @@ function regreyOpenLoot() {
  * somehow none, the button says so rather than sending a request the GM will
  * refuse.
  *
- * Answers whether something was taken (E50 C4): true only on the GM's answer that took it, so the Take opens again
- * on a refusal, on no GM answering and with no character (`buildBodyLoot`).
+ * Answers whether something was taken (E50 C4): true only on the GM's answer that took it - false on a refusal, on no
+ * GM answering and with no character. Since 1.2.113 the Take from the Body window's Take (`openBodyLoot`), which closes
+ * as it is pressed, as every action window; the window opened again reads the gate afresh.
  */
 async function takeFromBody(body, items) {
     const taker = myCharacter();

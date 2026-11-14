@@ -14,12 +14,12 @@
  * public: when Monokuma acts, the room should know.
  */
 
-import { MODULE_ID, ACTIONS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
-import { announce, whisperToOwner, log, error, esc, proseOf } from "./utils.mjs";
+import { announce, whisperToOwner, log, error, esc, proseOf, gmIds } from "./utils.mjs";
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass, callRowsHtml, pickedRow, callPriceShort } from "./call-pickers.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -471,11 +471,13 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
         // Despair is now spent. Applying the effect is separated from the
         // announcement above so a failure in one cannot cost the other.
         let done = [];
+        let secret = [];
         let failed = false;
         try {
             const { applyCall } = await import("./call-effects.mjs");
             const result = await applyCall(actor, key, "despair", choice);
             done = result.lines;
+            secret = result.secret ?? [];
             failed = result.failed;
         } catch (err) {
             error(`${call.label} was paid for but its effect failed`, err);
@@ -525,6 +527,18 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")} - ${esc(call.label)}</h3>${body}`,
             flags: { [MODULE_ID]: { popupTone: "fear", sfx: { key: "despairCall", gm: true } } }
         });
+        /* WHAT THE PUBLIC CARD LEAVES OUT (privacy line 2, #5; the owner's rule of 13.11.2026): a secret project's line -
+           its name and its progress - on a veiled card to the GMs and those who may know the project (call-effects.mjs
+           `progressEffect`), its document every browser's in nobody's voice, its words theirs alone. A failure is logged:
+           the Call has landed and its public card is posted. */
+        for (const { line, whisper } of secret) {
+            try {
+                await announce({ content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")} - ${esc(call.label)}</h3><ul><li>${esc(line)}</li></ul>`,
+                    whisper: [...new Set([...gmIds(), ...(whisper ?? [])])], veiled: true });
+            } catch (err) {
+                error(`Could not tell the insiders of ${call.label}'s secret project`, err);
+            }
+        }
 
         Hooks.callAll("drpgDespairCall", { actor, user, key, call, note, choice });
         return call;
@@ -557,7 +571,8 @@ async function callAbout(call, actor) {
     if (typeof last?.total !== "number") return rollAfterReload(actor);
     const duality = game.i18n.localize(last.isCritical ? "DRPG.Action.duality.critical"
         : last.withFear ? "DRPG.Action.duality.despair" : "DRPG.Action.duality.hope");
-    const action = ACTIONS[last.actionKey]?.label ?? null;
+    const { rollActionName } = await import("./reroll.mjs");
+    const action = rollActionName(last.actionKey);
     return action
         ? game.i18n.format("DRPG.Reroll.lastRoll", { action, total: last.total, duality })
         : game.i18n.format("DRPG.Reroll.lastRollPlain", { total: last.total, duality });
@@ -587,8 +602,9 @@ export async function rollAfterReload(actor, { gm = Boolean(game.user?.isGM) } =
         const row = rerollBookmarkStore.get(actor.id);
         const roll = game.messages?.get(row?.messageId ?? "")?.rolls?.[0] ?? null;
         if (!duality(roll)) return game.i18n.localize("DRPG.Reroll.nothingToReroll");
+        const { rollActionLabel } = await import("./reroll.mjs");
         return game.i18n.format("DRPG.Reroll.lastRollGmRow", { name: actor.name,
-            action: ACTIONS[row.actionKey]?.label ?? row.actionKey ?? "?", total: roll.total, duality: named(roll) });
+            action: rollActionLabel(row.actionKey) ?? "?", total: roll.total, duality: named(roll) });
     }
     // The character as its card's speaker, or as the roll's source (Daggerheart's `source.actor`, the actor's uuid).
     const of = m => m.speaker?.actor === actor.id || String(m.rolls?.[0]?.options?.source?.actor ?? "").endsWith(actor.id);

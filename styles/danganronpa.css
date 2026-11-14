@@ -846,7 +846,8 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
 
 .tab-navigation nav.sheet-tabs a[data-tab="loadout"],
 .character-sidebar-sheet .loadout-section,
-.character-sidebar-sheet .domain-card-section {
+.character-sidebar-sheet .domain-card-section,
+.character-sidebar-sheet .equipment-section .items-sidebar-list > li:not([data-drpg-equipped], .drpg-equipped-empty) {
     display: none !important;
 }
 
@@ -1252,6 +1253,17 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
     color: var(--drpg-blood);
     opacity: 1;
     filter: drop-shadow(0 0 3px var(--drpg-blood-glow));
+}
+
+/* OWED, ON A GM'S BAR ALONE (the owner's report of 13.11.2026 on 1.2.112; despair.mjs `despairRowOf`). A conversion
+   to Hope's Despair, still in the pool until the next time of day pays it: the skull filled, dimmer and unlit, in a
+   dashed box - told from a lit and an empty skull by the box, not by colour alone (measured in Chromium, 13.11.2026:
+   at 0.45 and no box, Stained Glass's owed skull stood 1.40:1 from its empty one, the same hue). */
+#drpg-despair .drpg-despair-pip.filled.owed {
+    opacity: 0.6;
+    filter: none;
+    outline: 1px dashed currentColor;
+    outline-offset: 1px;
 }
 
 #drpg-despair.gm-editable .drpg-despair-pip:hover {
@@ -6383,10 +6395,16 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
    a Cleaning Tool (see `injectEquippedTools`). Daggerheart fills the same list
    with its own weapons and armour, so a character with nothing readied showed
    "Unarmed Attack" and nothing else: the one row that can never matter here,
-   standing where the row that decides an incident should be. */
-.equipment-section .items-sidebar-list > li.inventory-item:not([data-drpg-equipped]) {
-    display: none;
-}
+   standing where the row that decides an incident should be.
+   THE RULE THAT HIDES THEM STANDS WITH THE LOADOUT'S, earlier in this file (fix-113e, 13.11.2026; the owner at a table
+   on 1.2.112: "An empty field above the equipped item?"). It stood here as a plain `display: none` and lost to
+   Daggerheart 2.12.8's `.application.daggerheart.dh-style .inventory-item.inventory-item-compact { display: grid }`,
+   heavier (0,5,0 to 0,4,1) and in v14 in a cascade layer above this sheet: in Chromium on the system's own sidebar.hbs
+   and stylesheet (audit/sheet-column.mjs) its unarmed row (drawn while no weapon is
+   equipped) stood 45 px tall under the glass and 44 under Legacy above the readied rows and above the empty line. In
+   that selector list it is `!important`, which no specificity in a higher layer outweighs; 0 px after. Every li that
+   is neither a readied row nor the empty line goes, not only the unarmed one. R5841. */
+
 
 /* The empty state that replaces it. Without this, hiding the system rows left
    a titled box with nothing in it. */
@@ -6444,6 +6462,16 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
     display: grid !important;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     column-gap: 0 !important;
+}
+/* WHAT THE MODULE WRITES INTO THE LIST SPANS ITS THREE TRACKS (fix-113e, 13.11.2026; the owner at a table on 1.2.112: "The
+   scroll in the character sheet still occurs", a student with no experiences). The grid above put `noteEmptyExperience`'s
+   one line (`p.drpg-experience-empty`) into its first track, `max-content`, so the sentence never wrapped and the track
+   grew to it: Chromium, Daggerheart 2.12.8's own sidebar.hbs and stylesheet with these, the column's scrollWidth 623 in a
+   clientWidth of 264 under the glass and 1032 in 264 under Legacy, at 1366x768 and 1920x1080, both resource layouts. Every
+   child that is not one of the system's rows takes the whole width: 264 in 264 after. audit/sheet-column.mjs, R5840. */
+.application.sheet.actor .character-sidebar-sheet .experience-section .experience-list > :not(.experience-row) {
+    grid-column: 1 / -1;
+    min-width: 0;
 }
 .application.sheet.actor .character-sidebar-sheet .experience-section .experience-row {
     width: auto !important;
@@ -8019,6 +8047,50 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked::before {
     content: none;
+}
+
+/* THE HEADER AT ANY WIDTH (13.11.2026; the owner's screenshot of 1.2.112: a 667 px sheet under Monokuma Legacy, the name
+   drawn one letter a line, the statistics' glyphs over their neighbours' names). Two causes, both the module's, neither
+   Daggerheart's: its header is the same at 2.12.8 as at 2.6.5 (header.hbs, header.less). The name is Daggerheart's
+   `flex: 1` (a 0 basis) with `word-break: break-word`, and since 1.2.105 the name row also holds the captioned Level Up
+   and Give / take (sheet.mjs `headerButton`), which never shrink: in Legacy's pixel face at 1.15em they took 480 px of a
+   row of 392 (a 667 px sheet) or 545 (the default 850), and the name took what was left - 34 and 58.6 px, seven lines.
+   And the statistics' plates are `width: 100%` with the mark's room added as padding (1.2.105, above), so each ran
+   18-24 px past its column into the next one, the next one's mark on it, and the six ran 100 px past the header at 667.
+   Now the name row wraps and the name is sized by its words, breaking inside one only when that word is wider than the
+   row: the buttons go to a second line before the name gives way. A named plate holds its mark's room inside its width.
+   The statistics stand on a grid of equal columns, each statistic centred in its own at the width its widest name needs
+   (`--drpg-trait-need`: "Shadow" with its mark, 106 px under Legacy and 115 under the glass, measured in Chromium), six
+   columns where six fit and three where they do not (the `min()` turns negative once the row is wider than six), and the
+   row as wide as six need, which Daggerheart's 38.5rem was not. Daggerheart's selectors with `body` before them: one
+   element over its (0,8,1). R5760 reads the cascade; the drawing is the commit's measurement (Chromium, Daggerheart
+   2.12.8's stylesheet built from its source, no Foundry stylesheet). */
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .name-row {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 4px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .name-row h1.actor-name {
+    flex: 1 1 auto;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
+    box-sizing: border-box;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
+    --drpg-trait-gap: 0.5rem;
+    --drpg-trait-need: calc(6.75rem * var(--drpg-slider-scale, 1));
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(max(calc((100% - 5 * var(--drpg-trait-gap)) / 6),
+        min(calc((100% - 2 * var(--drpg-trait-gap)) / 3), calc((6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap) - 100%) * 999))), 1fr));
+    gap: 0.5rem var(--drpg-trait-gap);
+    max-width: calc(6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap));
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait {
+    justify-self: center;
+    width: min(100%, var(--drpg-trait-need));
+    min-width: 0;
 }
 
 .application.sheet.actor .glassy,
@@ -12442,8 +12514,9 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     color: var(--drpg-attention);
 }
 
-/* Folded away: the title bar stays, everything under it goes. */
-#countdowns.drpg-projects-collapsed .countdowns-container {
+/* Folded away: the title bar stays, everything under it goes - the "no projects yet" line too, which stands
+   under the header where Daggerheart 2.12.8 draws no rows' container (A113-C1-1). */
+#countdowns.drpg-projects-collapsed :is(.countdowns-container, .drpg-projects-empty) {
     display: none;
 }
 
@@ -13090,7 +13163,7 @@ body.drpg-high-contrast .drpg-trace-context {
     font-size: var(--drpg-text-xs);
 }
 
-.drpg-loot-list {
+.drpg-loot-items {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -13099,7 +13172,7 @@ body.drpg-high-contrast .drpg-trace-context {
     gap: 3px;
 }
 
-.drpg-loot-list li {
+.drpg-loot-items li {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -13109,26 +13182,21 @@ body.drpg-high-contrast .drpg-trace-context {
     background: rgba(var(--drpg-bone-rgb), 0.04);
 }
 
-.drpg-loot-list img {
+.drpg-loot-items img {
     width: 1.4rem;
     height: 1.4rem;
     border: 0;
     flex: 0 0 auto;
 }
 
-.drpg-loot-list .drpg-item-name {
+.drpg-loot-items .drpg-item-name {
     flex: 1 1 auto;
 }
 
-/* Taking is one press and it is not undoable, so the button says so by being
-   the only lit thing in a window of grey. */
-.drpg-loot-take {
-    flex: 0 0 auto;
-}
-
-.drpg-loot-take[disabled] {
-    opacity: 0.5;
-    cursor: default;
+/* Nothing on the list takes since 1.2.113: the one button under it opens Take from the Body's window
+   (anonymity.mjs `openBodyLoot`), where the rows are ticked and the Take is pressed. */
+.drpg-loot-foot {
+    margin: 0.5rem 0 0;
 }
 
 /* An emptied pane. It reads as locked rather than as broken, which is the whole
@@ -17770,6 +17838,8 @@ body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
         background: Canvas;
     }
     .drpg-despair-pip.filled { background: CanvasText; }
+    /* Owed (despair.mjs `despairRowOf`): opacity is taken here, so the owed skull is told by its dashed outline. */
+    .drpg-despair-pip.filled.owed { outline-style: dashed; }
 
     /* THE REST OF THE STATES (E48 K3, 11.11.2026; tests-css.mjs FORCED_STATES, R3440, audit/forced-sweep.mjs).
        A pip, a Hope star and every pixel glyph is a mask over `background-color: currentColor`, and forced
@@ -19124,6 +19194,28 @@ body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.dagger
 body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(input, select, textarea, button, a, [tabindex]):focus-visible {
     outline: 2px solid var(--drpg-attention);
     outline-offset: 1px;
+}
+/* A DISABLED FIELD READS AS DISABLED (13.11.2026; the owner on Dice So Nice's settings, whose colour fields - label,
+   dice, outline, edge, a text field and its `input[type=color]` twin - Dice So Nice disables itself unless the colorset
+   is "custom", module/ui/DiceConfig.js `toggleCustomColors` at 6.4.5: "they look broken"). Legacy painted every field
+   of these windows Bone on Ink with no disabled state, so a disabled text field was drawn as the enabled one (Chromium,
+   Dice So Nice's style.css with the module's sheets: colour, ground and opacity equal); neither theme gave a disabled
+   field the not-allowed cursor, and the colour swatch was dimmed by Dice So Nice's own `opacity: 0.3` alone. Now, in
+   both themes and in every framed window that is not the module's (an ApplicationV2, or a v1 `.window-app`) but an
+   actor's sheet, which keeps its own locked look: a disabled field, select or text area half opaque with the
+   not-allowed cursor, a colour field greyed as well, and under Legacy its ink the dim one and its edge dashed, as the
+   glass already drew it (stained-glass.css, its section 3). An enabled field is not named. R5761. */
+body :is(.application, .app.window-app):not([class*="drpg-"]):not(.sheet.actor) .window-content :is(input, select, textarea):disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+body :is(.application, .app.window-app):not([class*="drpg-"]):not(.sheet.actor) .window-content input[type="color"]:disabled {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea):disabled {
+    color: var(--drpg-bone-dim);
+    border-style: dashed;
 }
 /* The FilePicker's lists (v13's file-picker.hbs: `ol.subdirs` of folders, `ol.files-list` of files, the chosen one
    `.picked`): a row under the pointer the theme's wash, the picked one the theme's Bone edge on its left. */

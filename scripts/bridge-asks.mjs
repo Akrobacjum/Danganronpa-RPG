@@ -34,7 +34,8 @@ import {
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -60,7 +61,6 @@ export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = 
     });
 }
 
-/** Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`). */
 /** Shut the Door (E74 C2): the Body roll named by its message; answers `{ room }` as `.value`. */
 export function requestDoorShut({ actorId, total = 0, rollId = null }) {
     const packet = { actorId, total, rollId };
@@ -110,6 +110,38 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
     });
 }
 
+/** Listen's eavesdrop (E69 C6): after a good Listen roll (`rollId`), or a free repeat (none); answers `{ moved, free }` as `.value`. */
+export function requestEavesdrop({ actorId, room, total = 0, isCritical = false, rollId = null }) {
+    const packet = { actorId, room, total, isCritical, rollId };
+    return ask(ACTION_LISTEN_EAVESDROP, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdrop(packet, game.user))
+    });
+}
+
+/** Stop listening (E69 C6). */
+export function requestEavesdropStop({ actorId }) {
+    return ask(ACTION_LISTEN_STOP, { actorId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEavesdropStop({ actorId }, game.user))
+    });
+}
+
+/** Echoes (E69 C7): answers `{ room, steps }` as `.value`, `room` null when nobody is found. */
+export function requestEchoes({ actorId }) {
+    return ask(ACTION_LISTEN_ECHOES, { actorId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEchoes({ actorId }, game.user))
+    });
+}
+
+/** A killer behind a "?" reveals themselves (E69 C8). */
+export function requestMaskReveal({ actorId }) {
+    return ask(ACTION_MASK_REVEAL, { actorId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleMaskReveal({ actorId }, game.user))
+    });
+}
+
+/**
+ * Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`).
+ */
 export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))
@@ -139,6 +171,23 @@ export function requestOfferRecord(actorId, offer, offerId = null) {
 export function requestCardPost(card) {
     return ask(ACTION_CARD, card, {
         local: () => import("./secret.mjs").then(m => m.postAsked(game.user, card))
+    });
+}
+
+/**
+ * Give a Truth Bullet, carried to the primary GM so its copy lands in the one receiver's finds' queue (E38; D153;
+ * `handleGiveBullet`). The window runs on whichever GM opened it; this asks the primary, or, when this GM is the
+ * primary, makes the bullet here (`local`, `onPrimary`), each in that queue. The value is `{ given, id }` -
+ * `"already"` when the receiver holds a copy of the trace, `"bullet"` with the item's id when one was made - as the
+ * run answers it, so the window reads the same whichever GM gave. `giveBullet`'s own copy check stands in the queue.
+ */
+export function requestGiveBullet(who, bullet) {
+    return ask(ACTION_BULLET_GIVE, { whoId: who?.id ?? null, bullet }, {
+        onPrimary: true,
+        local: () => import("./gm-items.mjs").then(async m => {
+            const item = await m.giveBullet(who, bullet);
+            return item === m.GIVEN_ALREADY ? { given: "already" } : item?.id ? { given: "bullet", id: item.id } : null;
+        })
     });
 }
 
@@ -1084,16 +1133,13 @@ export function requestCubAbility({ actorId, key, targetId, choice }) {
 }
 
 /**
- * Pull one item out of somebody else's stash. GM-only on both ends.
- *
- * `viaSearch` marks the route that has already paid for a concealed stash with
- * an action, a search token and a penalised roll - see `stealFromVault`. A
- * player's names that Search's roll (`rollId`), which the GM reads `viaSearch`
- * and `clumsy` off (`searchTheftOf`, E08+E28 C15).
+ * Pull one item out of somebody else's stash - the rifle, free and once a stash a time of day. GM-only on both ends.
+ * Until 1.2.112 a Search came this way too, saying it had paid for a concealed stash (`viaSearch`, with its roll's
+ * `rollId` and whether it fumbled, `clumsy`); a Search reaches into no stash now - see `stealFromVault`.
  */
-export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false, rollId = null }) {
-    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId, viaSearch, clumsy, rollId }, {
-        local: () => import("./vault.mjs").then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch, clumsy }))
+export function requestVaultSteal({ thiefId, ownerId, itemId }) {
+    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId }, {
+        local: () => import("./vault.mjs").then(m => m.stealFromVault({ thiefId, ownerId, itemId }))
     });
 }
 
@@ -1108,13 +1154,13 @@ export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false,
  */
 export function requestSteal({
     thiefId, victimId, itemId = null,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, unseenWithHope = true, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
+    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope, rollId, unseenRollId }, {
         // A GM's own Palm refused is said as the bridge would say it, and its answer keeps the refusal, which the Palm
         // reads to give its action back (palm.mjs `performPalm`; E14 part 1 C1, Q3).
         local: () => import("./vault.mjs").then(m => m.stealFromPerson({
-            thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+            thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope
         })).then(out => {
             if (out?.refused) sayNotDone(ACTION_STEAL, reasonOf(out.refused));
             return out;
@@ -1204,11 +1250,11 @@ export function requestFriskFollow({ searcherId, askId, rollId = null, total = 0
  */
 export function requestPlant({
     plannerId, victimId, itemId,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, unseenWithHope = true, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
+    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope, rollId, unseenRollId }, {
         local: () => import("./vault.mjs").then(m => m.plantOnPerson({
-            plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+            plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope
         })).then(out => {
             if (out?.refused) sayNotDone(ACTION_PLANT, reasonOf(out.refused));
             return out;

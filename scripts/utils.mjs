@@ -445,7 +445,6 @@ export function primaryGmId({ arriving = null, leaving = null, users = game.user
     return pool[0] ?? null;
 }
 
-/** The player user who owns this actor, if any. */
 /**
  * "an evident trace", not "a evident trace".
  *
@@ -470,6 +469,30 @@ export function article(word) {
 export function easedBy(thresholds, relief) {
     if (!relief) return thresholds;
     return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
+}
+
+/**
+ * THE FIRST OF `keys` THE LANGUAGE FILE HOLDS, localized; the last key's localize (its raw key) when it holds none.
+ * For a name read from a set that grows elsewhere: the trial's floor names a mode on the HUD and the Event panel by
+ * `DRPG.Hud.trial.<mode>` and falls back to the console's `DRPG.Floor.mode.<mode>`, so a mode added without its short
+ * name shows its long one rather than a key (the owner's report of 13.11.2026: "DRPG.Hud.trial.scrum"; R5900 holds every
+ * mode to its short name in both files).
+ *
+ * @param {string[]} keys
+ * @returns {string}
+ */
+export function localizeFirst(keys) {
+    const list = keys.filter(Boolean);
+    return game.i18n.localize(list.find(key => game.i18n.has(key)) ?? list.at(-1) ?? "");
+}
+
+/**
+ * A trial floor mode's name on the HUD's row, the Event panel's card and a Monocub's voice line (hud.mjs `trialSlotFace`,
+ * events.mjs `trialFloorCard`, voice.mjs `cubLine`): its short name, else the console's. Here, not in hud.mjs, because
+ * hud.mjs imports events.mjs and voice.mjs (R161).
+ */
+export function trialModeLabel(mode) {
+    return localizeFirst([`DRPG.Hud.trial.${mode}`, `DRPG.Floor.mode.${mode}`]);
 }
 
 /**

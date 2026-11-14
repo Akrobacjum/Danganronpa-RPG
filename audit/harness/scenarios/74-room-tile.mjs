@@ -242,11 +242,12 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         await new Promise(r => setTimeout(r, 1500));
         const words = await Promise.all(game.messages.contents.slice(before).map(m => S.wordsOf(m)));
         return { cards: words.map(String).filter(text => text.includes("74 Porch")), tile: read(), painted: take(), ...at() };`, { timeout: 30000 });
+    /* The card's words are DRPG.Move.entered, "You are now in {room}." since texts-e71 (E71, 2dbf3c88; "You enter {room}." before). */
     check("B1: p1's crossing into the Porch paints p1's tile once, when the route has settled - Dorm A still on it as the update is "
         + "written - with the Porch's words and picture, and the card names the Porch and its price without the words",
     J(crossB.painted) === J(["74 Porch"]) && J(crossB.written) === J(["Dorm A"]) && J(crossB.settled) === J([[true, "74 Porch"]])
         && crossB.tile?.state === "room" && crossB.tile.prose === WORDS.Porch && crossB.tile.art === `url("${IMAGES.Porch}")`
-        && crossB.cards.length === 1 && crossB.cards[0].includes("You enter 74 Porch.") && !crossB.cards[0].includes("S74 Porch"),
+        && crossB.cards.length === 1 && crossB.cards[0].includes("You are now in 74 Porch.") && !crossB.cards[0].includes("S74 Porch"),
     J({ setB, crossB }));
 
     /* One action, the free move spent: from the Porch through Dorm A (a step with waypoints pending, as 66 W stands it in)
@@ -740,26 +741,37 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     J(eclipseH));
 
     /* Aiko marked dead where she stands (chapter.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which
-       asks for the dead) with actions to walk on, and p1 takes her back into Dorm A; then alive again. */
+       asks for the dead) with actions to walk on, and p1 takes her back into Dorm A; then alive again.
+       Since E62 C3b (13.11.2026, the owner's Q-C3b-7, confirmed "E62 c3b wszystko sie zgadza"; merged into 1.2.112 at
+       3b0d8075) the death leaves Aiko's own token the corpse, which no player moves, and gives her Spectator a token
+       where it lies; the Monocub walks that token, re-linked to Aiko (`FLAGS.cubToken`, spectator-dead.mjs
+       `watcherBecomesMonocub`), and the revive takes it away, leaving Aiko where her body lay. Until then p1 walked
+       Aiko's own token: CI 43479554811 (af9792c5) read that move refused - the token, the tile and the view all still
+       the Porch. So p1 walks the Monocub's token here, the corpse is read to stay in the Porch, and Aiko is read back in
+       the Porch after the revive, where H3 finds her. */
     const deadH = { set: await gm.eval(`${AIKO} const C = await import("${repoUrl}/scripts/chapter.mjs");
         await C.markDeceased(aiko); ${SLEEP(1200)} return [game.drpg.isDeadForGm(aiko), M.roomOfToken(t)];`, { timeout: 30000 }) };
     deadH.body = await p1.eval(`${VIEW} return seen(() => false, 0);`);
     deadH.cub = await gm.eval(`${AIKO} const Mc = await import("${repoUrl}/scripts/monocub.mjs");
         const made = Boolean(await Mc.setMonocub(aiko, true)); await game.drpg.setActions(aiko, 3); ${SLEEP(1200)} return [made, Mc.isMonocub(aiko)];`,
     { timeout: 30000 });
-    deadH.cubTile = await p1.eval(`${VIEW} return seen(() => false, 0);`);
-    deadH.cross = await p1.eval(`${AIKO} ${VIEW} await t.update(M.positionIn("Dorm A", t));
-        return { ...await seen(() => read()?.name === "Dorm A"), token: M.roomOfToken(t) };`, { timeout: 30000 });
+    const CUB = `const cub = academy.tokens.find(x => x.actorId === aiko.id && x.getFlag("${MOD}", "cubToken"));`;
+    deadH.cubTile = await p1.eval(`${AIKO} ${CUB} ${VIEW} return { ...await seen(() => false, 0), cubAt: cub ? M.roomOfToken(cub) : null };`);
+    deadH.cross = await p1.eval(`${AIKO} ${CUB} ${VIEW} if (cub) await cub.update(M.positionIn("Dorm A", cub));
+        return { ...await seen(() => read()?.name === "Dorm A"), token: cub ? M.roomOfToken(cub) : null, body: M.roomOfToken(t) };`, { timeout: 30000 });
     deadH.back = await gm.eval(`${AIKO} const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
         await Mc.setMonocub(aiko, false); await C.reviveCharacter(aiko, { quiet: true }); ${SLEEP(800)}
-        return [game.drpg.isDeadForGm(aiko), Mc.isMonocub(aiko)];`, { timeout: 30000 });
-    check("H2: dead, p1's tile keeps the Porch her body lies in, unpainted; a Monocub, the same, and it follows her walk into Dorm A, "
-        + "painted once",
+        return [game.drpg.isDeadForGm(aiko), Mc.isMonocub(aiko), academy.tokens.filter(x => x.actorId === aiko.id).length, M.roomOfToken(t)];`,
+    { timeout: 30000 });
+    check("H2: dead, p1's tile keeps the Porch her body lies in, unpainted; a Monocub, the same, and it follows the Monocub's own token's "
+        + "walk into Dorm A, painted once, while the corpse stays in the Porch; revived, Aiko is her one token, in the Porch (E62 C3b)",
     J(deadH.set) === J([true, "74 Porch"]) && deadH.body.state === "room" && deadH.body.name === "74 Porch"
         && J(deadH.body.view) === J(["room", "74 Porch"]) && J(deadH.body.painted) === "[]"
-        && J(deadH.cub) === J([true, true]) && deadH.cubTile.name === "74 Porch" && J(deadH.cubTile.view) === J(["room", "74 Porch"])
-        && J(deadH.cubTile.painted) === "[]" && deadH.cross.token === "Dorm A" && deadH.cross.name === "Dorm A"
-        && J(deadH.cross.view) === J(["room", "Dorm A"]) && J(deadH.cross.painted) === J(["Dorm A"]) && J(deadH.back) === J([false, false]),
+        && J(deadH.cub) === J([true, true]) && deadH.cubTile.cubAt === "74 Porch" && deadH.cubTile.name === "74 Porch"
+        && J(deadH.cubTile.view) === J(["room", "74 Porch"]) && J(deadH.cubTile.painted) === "[]"
+        && deadH.cross.token === "Dorm A" && deadH.cross.body === "74 Porch" && deadH.cross.name === "Dorm A"
+        && J(deadH.cross.view) === J(["room", "Dorm A"]) && J(deadH.cross.painted) === J(["Dorm A"])
+        && J(deadH.back) === J([false, false, 1, "74 Porch"]),
     J(deadH));
 
     /* A Class Trial opened as 01-runtests and 10 open one (`setClock({ phase: "classTrial" })`; no hall is linked in this
@@ -775,14 +787,15 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
             located: M.locateActor(H.viewerActor())?.room ?? null };`;
     for (const [who, c] of [["p1", p1], ["p2", p2], ["gm", gm]]) trialH[who] = await c.eval(TRIAL);
     trialH.end = await gm.eval(`await game.drpg.setClock(globalThis.__s74.clock); ${SLEEP(1200)} return game.drpg.getClock().phase;`, { timeout: 30000 });
-    trialH.after = await p1.eval(`${VIEW} return seen(() => read()?.name === "Dorm A");`);
+    trialH.after = await p1.eval(`${VIEW} return seen(() => read()?.name === "74 Porch");`);
     check("H3: in a Class Trial every tile - p1's, p2's and the GM's - is the trial's, painted once, though each viewer still stands in a "
-        + "school room, and shows the trial's label with no hall linked (E79 C11); after it p1's tile is Dorm A again",
+        + "school room, and shows the trial's label with no hall linked (E79 C11); after it p1's tile is the Porch Aiko was revived in "
+        + "again (E62 C3b)",
     trialH.set === "classTrial" && ["p1", "p2", "gm"].every(who => trialH[who].state === "roomBare" && trialH[who].name === trialH[who].label
             && trialH[who].hidden === null && J(trialH[who].view) === J(["trial", null]))
-        && J(["p1", "p2", "gm"].map(who => trialH[who].located)) === J(["Dorm A", "74 Shed", "Hall"])
+        && J(["p1", "p2", "gm"].map(who => trialH[who].located)) === J(["74 Porch", "74 Shed", "Hall"])
         && J(trialH.p1.painted) === J([trialH.p1.label]) && trialH.end !== "classTrial"
-        && trialH.after.name === "Dorm A" && J(trialH.after.view) === J(["room", "Dorm A"]) && J(trialH.after.painted) === J(["Dorm A"]),
+        && trialH.after.name === "74 Porch" && J(trialH.after.view) === J(["room", "74 Porch"]) && J(trialH.after.painted) === J(["74 Porch"]),
     J(trialH));
 
     /* p4 gets a character of its own, S74 Daku, whose only token stands on a scene of two floors built here: a Lab on the
@@ -1063,7 +1076,11 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
        header with its title, the rows' container; a row from parts/countdowns.hbs whose countdown is no project, which
        hideUndiscovered keeps), hides it as countdowns.mjs:93 does - for anybody but a GM while it holds no countdown -
        and calls the render hook the tray's render calls, twice on the same element (a line is never drawn twice). Three renders
-       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after. */
+       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after.
+       A113-C1-1 (13.11.2026): the rows' container is drawn as Daggerheart 2.12.8's countdowns-view.hbs:24-28 draws it, only
+       `{{#if countdownTypesWithVisibleEntries.length}}` - so not at all with no countdown - where until then it stood
+       always and U1 was green on markup 2.12.8 never draws. The line is looked for anywhere in the tray. Red at ceb9e9c8:
+       with no container `showTrayToPlayer` drew no line (U1, U2). */
     const TRAYU = renders => `const out = [], want = game.i18n.localize("DRPG.Project.trayEmpty");
         const ROW = '<div class="countdown-category-container"><div class="countdown-container" data-countdown="S74NOPROJECT0001"><div class="countdown-main-container">'
             + '<img src=""><div class="countdown-content"><header>S74 countdown</header><div class="countdown-tools"><div class="countdown-tool-controls">'
@@ -1075,12 +1092,12 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
             for (const rows of ${J(renders)}) {
                 el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i><span class="window-title"></span>'
                     + '<div class="header-type-toggles"></div><a class="header-control" data-action="toggleViewMode"></a></header>'
-                    + '<div class="countdowns-container">' + ROW.repeat(rows) + '</div></div>';
+                    + (rows ? '<div class="countdowns-container">' + ROW.repeat(rows) + '</div>' : '') + '</div>';
                 el.querySelector(".window-title").textContent = game.i18n.localize("DAGGERHEART.UI.Countdowns.title");
                 el.hidden = !game.user.isGM && el.querySelectorAll(".countdown-container").length === 0;
                 Hooks.callAll("renderDhCountdowns", { render() {} }, el);
                 Hooks.callAll("renderDhCountdowns", { render() {} }, el); // the same element heard twice: one line, not two
-                const line = el.querySelectorAll(".countdowns-container .drpg-projects-empty");
+                const line = el.querySelectorAll(".drpg-projects-empty");
                 out.push({ hidden: el.hidden, title: el.querySelector(".window-title")?.textContent ?? null, rows: el.querySelectorAll(".countdown-container").length,
                     empty: line.length === 1 && line[0].textContent === want ? "line" : line.length, gear: Boolean(el.querySelector(".drpg-projects-gear")) });
             }
@@ -1095,6 +1112,51 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     J({ trayP1, trayGm }));
     check("U2: on p1 the line goes when a countdown is drawn and comes back, once, when Daggerheart draws the tray again with none left",
         J(trayP1.out.slice(1)) === J([shownU(trayP1, 1, 0, false), shownU(trayP1, 0, "line", false)]), J(trayP1.out));
+
+    /* The tray's title where Daggerheart 2.12.8 draws none (13.11.2026; the owner's table on 1.2.112). 2.12.8's
+       countdowns-view.hbs (Foundryborne/daggerheart head e9c61d7) draws the header with the clock icon, the type toggles and
+       the header controls and no `.window-title`; the module's name for the tray, the override on
+       DAGGERHEART.UI.Countdowns.title, was then read by nothing. projects-tray.mjs `addTrayTitle` writes one inside the
+       header on every render, after the icon and after the fold caret. Each page draws that header, renders twice on the
+       same element, then draws it afresh (as the tray's re-render does) and renders once more; and once more with 2.6.5's
+       header, whose title must stay the one Daggerheart drew. Red before the fix: no title on the 2.12.8 header. */
+    const TRAYV = `const el = document.createElement("div");
+        el.id = "s74-countdowns-212";
+        document.body.append(el);
+        const draw = title => { el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i>'
+            + (title ? '<span class="window-title">' + title + '</span>' : '')
+            + '<div class="header-type-toggles"></div><div class="header-controls"><a class="header-control" data-action="toggleViewMode"></a></div></header>'
+            + '<div class="countdowns-container"></div></div>'; };
+        const read = () => { const head = el.querySelector(".countdowns-header"), titles = head.querySelectorAll(".window-title");
+            return { titles: titles.length, text: titles[0]?.textContent ?? null, lang: titles[0]?.getAttribute("lang") ?? null,
+                foldLang: head.querySelector(".drpg-projects-fold")?.getAttribute("lang") ?? null, order: [...head.children].map(c => c.matches(".drpg-projects-fold") ? "fold" : c.matches("i") ? "icon"
+                    : c.matches(".window-title") ? "title" : c.matches(".drpg-projects-gear") ? "gear" : c.className || c.tagName) }; };
+        try {
+            const out = {};
+            draw(null);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.twice = read();
+            draw(null);
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.redrawn = read();
+            draw("Daggerheart's own");
+            Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+            out.older = read();
+            return { want: game.i18n.localize("DAGGERHEART.UI.Countdowns.title"), lang: out.twice.foldLang, out };
+        } finally { el.remove(); }`;
+    const titleP1 = await p1.eval(TRAYV, { timeout: 15000 });
+    const titleGm = await gm.eval(TRAYV, { timeout: 15000 });
+    const titled = (read, order) => J({ titles: 1, text: read.want, lang: read.lang, foldLang: read.lang, order });
+    check("U3: on Daggerheart 2.12.8's header, which draws no title, the tray is named Projects inside the header - once over two renders, again "
+        + "after the header is drawn afresh - after the fold caret and the clock icon, in the module's language; 2.6.5's own title is kept, "
+        + "and no second one added; the GM's the same with the gear after",
+    titleP1.want === "Projects" && typeof titleP1.lang === "string" && titleP1.lang.length > 0 && J(titleP1.out.twice) === titled(titleP1, ["fold", "icon", "title", "header-controls"])
+        && J(titleP1.out.redrawn) === titled(titleP1, ["fold", "icon", "title", "header-controls"])
+        && J(titleP1.out.older) === J({ titles: 1, text: "Daggerheart's own", lang: null, foldLang: titleP1.lang, order: ["fold", "icon", "title", "header-controls"] })
+        && J(titleGm.out.twice) === titled(titleGm, ["fold", "icon", "title", "header-controls", "gear"])
+        && J(titleGm.out.redrawn) === titled(titleGm, ["fold", "icon", "title", "header-controls", "gear"]),
+    J({ titleP1, titleGm }));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

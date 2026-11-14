@@ -2,7 +2,7 @@
  * Danganronpa RPG - the dead as Spectators (E62 C3b, 13.11.2026; docs/dev/e62/STORYBOARD-C3.md on the e62-c3 line, the
  * owner's answers to Q-C3b-1..6 and the default of Q-C3b-7).
  * ---------------------------------------------------------------------------
- * A student who dies, and is no Monocub, watches the rest of the season as a Spectator: a new actor of its own (the
+ * A student who dies, is no Monocub and is some player's (`isNpcAtDeath`, 1.2.113), watches the rest of the season as a Spectator: a new actor of its own (the
  * "watcher"), owned by the student's player, named after the student and carrying the student's sheet image and token
  * image (Q-C3b-2: "zmiana typu na obserwatora zawsze ma pozostawiac ten sam obraz karty i tokenu"), with one token where
  * the body's token stands. The body's own token stays the corpse.
@@ -34,7 +34,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { log, warn, error, forcedDeletion } from "./utils.mjs";
+import { log, warn, error, forcedDeletion, isPrimaryGm } from "./utils.mjs";
 import { deathStore } from "./gm-stores.mjs";
 import { isDeadForGm } from "./settings.mjs";
 
@@ -101,9 +101,28 @@ export function tokenLookOf(tokenDoc) {
     return look;
 }
 
-/** The non-GM owners of `student`, the watcher's owners. */
-function playerOwners(student) {
-    return (game.users ?? []).filter(u => !u.isGM && student.testUserPermission?.(u, "OWNER")).map(u => u.id);
+/**
+ * The non-GM owners of `student`, the watcher's owners: every user Foundry lists, connected or away, so a student whose
+ * player is offline at the death is still that player's (owner or ownership's default at OWNER, as Foundry's
+ * `testUserPermission` reads it).
+ */
+export function playerOwners(student, users = game.users) {
+    return [...(users ?? [])].filter(u => !u.isGM && student?.testUserPermission?.(u, "OWNER")).map(u => u.id);
+}
+
+/**
+ * NO SPECTATOR FOR AN NPC (the owner's decision of 13.11.2026, 1.2.113). A dead student no player owns - read off
+ * `playerOwners` at the moment of the death, a player away counting as one who owns it - is an NPC, and gets no
+ * Spectator: no actor, no token. Until 1.2.113 one was made at every such death (E62 C3b), owned by nobody but the GMs
+ * (scenario 41's "S41 Ghost"); voice.mjs `watchesForTheDead` gave it no voice row from 1.2.112 (R5469), and the actor
+ * and its token stayed. A watcher made before 1.2.113 stays in the world until a GM deletes it (the GM handbook).
+ * A kept death decides at the kill and the GMs' row keeps the answer (`watcher.npc`), so its publication makes none
+ * either, whoever owns the student by then.
+ */
+export function isNpcAtDeath(student, { row = undefined, users = game.users } = {}) {
+    if (row?.watcher?.npc === true) return true;
+    if (row?.watcher?.actorId) return false;
+    return playerOwners(student, users).length === 0;
 }
 
 /** Every token of `actor` on every scene, `{ scene, tokenDoc }`. */
@@ -116,6 +135,22 @@ export function tokensOf(actor) {
     return out;
 }
 
+/*
+ * WHO WAS FADED (the auditor's A113-C2-5, 13.11.2026; the coordinator's default: one sound per moment per browser). The
+ * Spectator's token made at a death in play plays `deathFade` on its owners' browsers (`playMoment`), and the death's own
+ * sound (`death`) went to the same players when they were in the incident's audience (chapter.mjs `killCharacter`): two
+ * sounds, by default one file, on the victim's browser (scenario 79 measured it). So the users a fade went to are kept
+ * here, by the student's id, for the death's sound to leave out (`takeFadedFor`, once).
+ */
+const fadedFor = new Map();
+
+/** The users the last fade of `studentId`'s death went to (none: []), handed once and forgotten. */
+export function takeFadedFor(studentId) {
+    const users = fadedFor.get(studentId) ?? [];
+    fadedFor.delete(studentId);
+    return users;
+}
+
 /**
  * MAKE THE WATCHER (Q-C3b-1, Q-C3b-2). On a GM, for a student dead in the GMs' records and no Monocub, once: the actor
  * with both images and E92's flag, owned by the student's players, and a token where the body's token stands (none when
@@ -124,13 +159,20 @@ export function tokensOf(actor) {
  */
 export async function ensureDeadSpectator(student, { silent = false, kept = false } = {}) {
     if (!game.user?.isGM || !student || student.type !== "character") return null;
+    fadedFor.delete(student.id);
     const store = deathStore;
     const { isMonocub } = await import("./monocub.mjs");
     if (isMonocub(student)) return null;
-    const existing = watcherActorOf(student, { row: store.get(student.id) ?? null });
+    const row = store.get(student.id) ?? null;
+    const existing = watcherActorOf(student, { row });
     if (existing) {
         if (!kept) await linkPublicly(existing, student);
         return existing;
+    }
+    if (isNpcAtDeath(student, { row })) {
+        if (kept && row && row.watcher?.npc !== true) await store.patch(student.id, { watcher: { npc: true } });
+        log(`${student.name} is no player's: no Spectator.`);
+        return null;
     }
     const { locateActor } = await import("./movement.mjs");
     const place = locateActor(student);
@@ -160,6 +202,7 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
             const level = at.level ?? at._source?.level;
             if (level !== undefined) data.level = level;
             await place.scene.createEmbeddedDocuments("Token", [data], { [DEAD_SPECTATOR_OPTION]: { phase: "fade", silent } });
+            if (!silent) fadedFor.set(student.id, playerOwners(student));
         } catch (err) {
             error(`Could not place ${student.name}'s Spectator where the body lies`, err);
         }
@@ -281,7 +324,20 @@ export async function monocubBecomesWatcher(student) {
     const cubTokens = tokensOf(student).filter(({ tokenDoc }) => tokenDoc.getFlag?.(MODULE_ID, FLAGS.cubToken));
     if (!cubTokens.length) return ensureDeadSpectator(student, { silent: true });
     const watcher = await ensureWatcherActorOnly(student);
-    if (!watcher) return null;
+    if (!watcher) {
+        /* An NPC Monocub no more (1.2.113, `isNpcAtDeath`): no Spectator to give the token to, so the token it walked goes,
+           silently, as a revive takes it (`removeDeadSpectator`); the corpse stays. */
+        if (isNpcAtDeath(student)) {
+            for (const { scene, tokenDoc } of cubTokens) {
+                try {
+                    await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent: true } });
+                } catch (err) {
+                    error(`Could not take ${student.name}'s Monocub token off the map`, err);
+                }
+            }
+        }
+        return null;
+    }
     for (const { tokenDoc } of cubTokens) {
         try {
             /* ONE WRITE (E62 C3b fix; the e93 review's F5): the re-link and the mark's removal together, so no browser reads a
@@ -303,6 +359,7 @@ async function ensureWatcherActorOnly(student) {
     if (!game.user?.isGM) return null;
     const existing = watcherActorOf(student);
     if (existing) return existing;
+    if (isNpcAtDeath(student)) return null;
     const ownership = { default: NONE };
     for (const id of playerOwners(student)) ownership[id] = OWNER;
     try {
@@ -315,6 +372,66 @@ async function ensureWatcherActorOnly(student) {
         error(`Could not make ${student.name}'s Spectator`, err);
         return null;
     }
+}
+
+/*
+ * ONE WATCHER A STUDENT, WHOEVER MADE IT (the coordinator's task of 13.11.2026 after the owner's report of a third token;
+ * scenario 78 part gm2). `ensureDeadSpectator` looks for a watcher, then makes one: two GMs running it at the same moment
+ * - both marking a student dead in the Players window, say - each find none and each make an actor and a token, and
+ * scenario 78 measured two Spectator tokens where the body lies. Nothing a GM's browser does before its write can see the
+ * other GM's, so the primary settles it after: on every watcher's actor or token it sees made (`registerDeadSpectator`),
+ * the watchers flagged with one student (`watchersOf`) are cut to one (`keptWatcher`: the smallest id, the same answer on
+ * every browser), the others' tokens and actors deleted with no moment (no fade, no return), and a token made later for a
+ * watcher it took away is deleted when it arrives (`lostWatchers`). A kept death's watcher carries no flag (its link is
+ * the GMs' row), so two GMs keeping one death at once are not settled here; only `killCharacter` keeps a death, from one
+ * GM's button. The victim's browser may play the fade twice before the second token goes (not measured).
+ */
+
+/** The watchers this browser took away as a second of one student's (`settleWatchers`), so a token made after goes too. */
+const lostWatchers = new Set();
+
+/** The Spectator actors flagged as `studentId`'s watcher (`FLAGS.watcherOf`), in `actors`. */
+export function watchersOf(studentId, actors = game.actors) {
+    if (!studentId) return [];
+    return [...(actors ?? [])].filter(a => a?.getFlag?.(MODULE_ID, FLAGS.spectator) && a.getFlag(MODULE_ID, FLAGS.watcherOf) === studentId);
+}
+
+/** Of `watchers`, the one kept (pure; tier 1 R5874): the smallest id, so every browser that asks answers the same. */
+export function keptWatcher(watchers) {
+    return [...(watchers ?? [])].filter(w => w?.id).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0] ?? null;
+}
+
+/** On the primary GM: `studentId`'s watchers cut to one (`keptWatcher`), the others' tokens and actors deleted. Answers how many went. */
+export async function settleWatchers(studentId) {
+    if (!isPrimaryGm() || !studentId) return 0;
+    const all = watchersOf(studentId);
+    if (all.length < 2) return 0;
+    const keep = keptWatcher(all);
+    let gone = 0;
+    for (const watcher of all) {
+        if (watcher === keep) continue;
+        lostWatchers.add(watcher.id);
+        try {
+            for (const { scene, tokenDoc } of tokensOf(watcher)) await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
+            await watcher.delete();
+            gone += 1;
+        } catch (err) {
+            error(`Could not take a second Spectator of the same student away`, err);
+        }
+    }
+    if (gone) log(`${gone} second Spectator(s) of one student taken away; ${keep?.name ?? "?"} keeps one.`);
+    return gone;
+}
+
+/** The primary's answer to a watcher's actor or token made on any browser (`registerDeadSpectator`). */
+async function onWatcherMade(actorId, tokenDoc = null) {
+    if (!isPrimaryGm() || !actorId) return;
+    if (lostWatchers.has(actorId)) {
+        if (tokenDoc?.parent?.tokens?.get?.(tokenDoc.id)) await tokenDoc.parent.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
+        return;
+    }
+    const studentId = game.actors?.get?.(actorId)?.getFlag?.(MODULE_ID, FLAGS.watcherOf);
+    if (studentId) await settleWatchers(studentId);
 }
 
 /* ==========================================================================
@@ -369,4 +486,8 @@ export function registerDeadSpectator() {
     Hooks.on("createToken", (tokenDoc, options) => on(tokenDoc, options));
     Hooks.on("deleteToken", (tokenDoc, options) => on(tokenDoc, options));
     Hooks.on("updateToken", (tokenDoc, _change, options) => on(tokenDoc, options));
+    // One watcher a student (the primary's, above `lostWatchers`): settled after each watcher's actor or token is made.
+    const settle = (actorId, tokenDoc) => { onWatcherMade(actorId, tokenDoc).catch(err => error("Could not settle the Spectators of one student", err)); };
+    Hooks.on("createActor", actor => { if (actor?.getFlag?.(MODULE_ID, FLAGS.watcherOf)) settle(actor.id); });
+    Hooks.on("createToken", tokenDoc => { if (tokenDoc?.actorId) settle(tokenDoc.actorId, tokenDoc); });
 }

@@ -203,6 +203,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
         isCritical: Boolean(hand.isCritical),
         unseenTotal: shadow.total,
         unseenCritical: Boolean(shadow.isCritical),
+        unseenWithHope: Boolean(shadow.withHope),
         ...rolls
     });
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
@@ -370,6 +371,7 @@ export async function performPalm(actor, def, options) {
         isCritical: Boolean(hand.isCritical),
         unseenTotal: shadow.total,
         unseenCritical: Boolean(shadow.isCritical),
+        unseenWithHope: Boolean(shadow.withHope),
         ...rolls
     });
     /*
@@ -575,13 +577,15 @@ async function tellPalmVictim(victim, html, { body = false } = {}) {
  * @param {boolean} [options.isCritical]
  * @param {number} options.unseenTotal     The Shadow roll.
  * @param {boolean} [options.unseenCritical]
+ * @param {boolean} [options.unseenWithHope] The Shadow roll's Hope (the GMs' record's, `palmRolls`): a missed one with
+ *   Despair names the item to the room (privacy line 2, #7). Absent, it reads as Hope, and the item stays unnamed.
  * @param {object} [context]
  * @param {User|null} [context.asker]     The user whose packet asked (bridge-runs-acts.mjs `handleSteal`): a body the GMs keep
  *   from that user is robbed as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function stealFromPerson({
     thiefId, victimId, itemId = null,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, unseenWithHope = true
 } = {}, { asker = null } = {}) {
     if (!game.user.isGM) return null;
 
@@ -717,7 +721,7 @@ export async function stealFromPerson({
         ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
 
     /*
-     * THE VICTIM, AND ONLY WHEN THEY NOTICED.
+     * THE VICTIM, AND ONLY WHEN THEY NOTICED - and, since privacy line 2 (#7), the room with them (below).
      *
      * Named, unlike the stash's "somebody has been in here", and that asymmetry
      * is the point of the two rolls. An emptied hiding place is discovered
@@ -741,6 +745,12 @@ export async function stealFromPerson({
         } catch (err) {
             error("Could not tell the victim of a theft", err);
         }
+        // AND THE ROOM (privacy line 2, #7; the owner's rule of 13.11.2026): the students who see it read the hand by its
+        // owner's name, the item only with Despair on the Shadow roll, as a Take from a body names it (handover.mjs
+        // `lootCover`); until 1.2.113 only the victim was told. `unseenWithHope` is the GMs' record's (`palmRolls`).
+        const { tellOnlookers } = await import("./frisk.mjs");
+        await tellOnlookers(thief, victim, `<p>${game.i18n.format(took && !unseenWithHope ? "DRPG.Steal.wTaking" : "DRPG.Steal.wHand",
+            { who: esc(thief.name), target: esc(victim.name), item: esc(item?.name ?? "") })}</p>`, { body });
     }
 
     log(`${thief.name} ${took ? "took" : "failed to take"} `
@@ -770,13 +780,14 @@ export async function stealFromPerson({
  *   pockets - no critical branch, because there is nothing left to choose.
  * @param {number} options.total        The Hand roll.
  * @param {number} options.unseenTotal  The Shadow roll.
+ * @param {boolean} [options.unseenWithHope] The Shadow roll's Hope, as a theft's (`stealFromPerson`).
  * @param {object} [context]
  * @param {User|null} [context.asker]   The user whose packet asked (bridge-runs-acts.mjs `handlePlant`): a body the GMs keep
  *   from that user is planted on as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function plantOnPerson({
     plannerId, victimId, itemId = null,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, unseenWithHope = true
 } = {}, { asker = null } = {}) {
     if (!game.user.isGM) return null;
 
@@ -886,7 +897,8 @@ export async function plantOnPerson({
     // noticed."). The pocket was never reached, so the line says the victim felt nothing, seen or not.
 
     /*
-     * AND THE VICTIM, ONLY WHEN THEY NOTICED - with the item named.
+     * AND THE VICTIM, ONLY WHEN THEY NOTICED - with the item named. The room reads the hand then too, and the item
+     * only with Despair (privacy line 2, #7: `tellOnlookers`).
      *
      * The asymmetry with a theft is worth stating: a stolen thing is missed
      * later, so the silent case has a natural discovery. A planted thing has
@@ -905,6 +917,10 @@ export async function plantOnPerson({
         } catch (err) {
             error("Could not tell the victim of a plant", err);
         }
+        // And the room, as a theft's (privacy line 2, #7): the hand by name, the item only with Despair on the Shadow roll.
+        const { tellOnlookers } = await import("./frisk.mjs");
+        await tellOnlookers(planter, victim, `<p>${game.i18n.format(done && !unseenWithHope ? "DRPG.Steal.wPlanting" : "DRPG.Steal.wHand",
+            { who: esc(planter.name), target: esc(victim.name), item: esc(item.name) })}</p>`, { body });
     }
 
     log(`${planter.name} ${done ? "planted" : "failed to plant"} `

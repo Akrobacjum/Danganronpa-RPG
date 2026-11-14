@@ -196,6 +196,37 @@ export function roomWitnessesOnGm(room, scene, { except = [] } = {}) {
         .map(token => game.actors.get(token.actor?.id) ?? null).filter(actor => actor && !left.has(actor.id));
 }
 
+/**
+ * A HAND THE VICTIM CAUGHT IS SEEN BY THE ROOM (privacy line 2, #7; the owner's rule of 13.11.2026: a player learns what
+ * their character could know in the fiction, when they could know it). A Palm's or an unseen Frisk's missed Shadow roll
+ * told the victim alone, while a Take from a body rolls its cover against every witness (handover.mjs `lootCover`). Now
+ * the students who see `actor`'s room as the GMs read it (`roomWitnessesOnGm`, `actor` and `victim` left out) read
+ * `html` too, on one veiled card to each owner of each and the GMs, as an open Frisk's room is told (`tellWitnesses`); a
+ * witness with no player reads nothing, and nobody watching posts nothing. At a body the GMs keep (`body`) the card is
+ * posted the same, its words to the GMs alone (`whisperToGms`), as the victim's own card is (palm.mjs `tellPalmVictim`):
+ * no player reads of a person the table does not know is dead, and every browser gets the documents a living victim's
+ * Palm posts. The caller words the line - the hand by its owner's name, the item only with Despair, as a Take's cover
+ * names it. Answers the card's readers, or []; a failure is logged, never thrown. On the primary GM.
+ */
+export async function tellOnlookers(actor, victim, html, { body = false } = {}) {
+    const here = gmPlaceOf(actor);
+    const watching = roomWitnessesOnGm(here?.room ?? null, here?.scene ?? null, { except: [actor?.id, victim?.id] });
+    const owners = new Set(watching.flatMap(ownerIdsOf));
+    if (!owners.size) return [];
+    try {
+        if (body) {
+            await whisperToGms(html, { veiled: true });
+            return [...gmIds()];
+        }
+        const readers = [...new Set([...owners, ...gmIds()])];
+        await announce({ content: html, whisper: readers, veiled: true });
+        return readers;
+    } catch (err) {
+        error("Could not tell the room of a hand in somebody's pocket", err);
+        return [];
+    }
+}
+
 /* ==========================================================================
  * FRISK UNSEEN (E80 part 2 C2, S16-24; the A11 design's steps 4, 5 and 9)
  * ========================================================================== */
@@ -207,7 +238,7 @@ export function roomWitnessesOnGm(room, scene, { except = [] } = {}) {
  * wear, no roles and no identity, so an item a trap is planted on reads byte for byte as a clean one (the trap's only
  * mark is the identity the GMs' `trapLedger` keeps). A key is in the pocket under its own name, 'Key - {room}'.
  */
-export function friskLine(item) {
+function friskLine(item) {
     const category = ITEM_CATEGORIES[item?.getFlag?.(MODULE_ID, "category")]?.label ?? "";
     const tier = item?.getFlag?.(MODULE_ID, "tier");
     const count = Number(item?.system?.quantity) || 1;
@@ -220,7 +251,7 @@ export function friskLine(item) {
  * What a searcher sees of `target`'s pockets: the heading and a `<ul>` of `friskLine`s, or the empty pocket's line.
  * The same for every student - the Mastermind's pockets read as anybody's.
  */
-export function friskListHtml(target, pockets) {
+function friskListHtml(target, pockets) {
     return listOfLines(target, (pockets ?? []).map(friskLine));
 }
 
@@ -241,8 +272,10 @@ function listOfLines(target, lines, heading = "DRPG.Frisk.listHeading") {
  * the pockets; the cover (`rummage.unseen`, Shadow 15) whether the target felt it. A critical hand always sees and a
  * critical cover is never felt; neither adds anything else. The searcher is told both, on one card to its owner and
  * the GMs: the list (or that they got no proper look) and 'Nobody saw you do it.' or 'They noticed.'. The target is
- * told only when it noticed, on its own card with the `stolen` sound, by name: caught looking, or caught trying. No
- * witness is told (as a Palm and Tail Someone). Unnoticed, no card and no card's words reach the target (tier 2 "A11-5").
+ * told only when it noticed, on its own card with the `stolen` sound, by name: caught looking, or caught trying. Since
+ * privacy line 2 (#7, the owner's rule of 13.11.2026) the students in the room are told then too, the hand by name and
+ * no item (`tellOnlookers`), as a Palm's room is; until 1.2.113 no witness was told. Unnoticed, no card and no card's
+ * words reach the target or the room (tier 2 "A11-5").
  * A TARGET THE GMS ALONE KNOW DEAD (E80 fix sec1-G1, the review's sec-1; the owner's Q8, option A, 20.10.2026, over the
  * design's step 8(d), which had such a Frisk always come out unnoticed and post no card of the target's): the searcher's
  * side is judged as at a living target on the same dice. Its card says 'They noticed.' under a missed cover, and the
@@ -282,6 +315,8 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
         const words = `<p>${game.i18n.format(sees ? "DRPG.Frisk.caught" : "DRPG.Frisk.caughtTrying", { who: esc(searcher.name) })}</p>`;
         const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
         await (body ? whisperToGms(words, card) : whisperToOwner(target, words, card));
+        // And the room (privacy line 2, #7): the hand, by name; a Frisk takes nothing, so no item is ever named.
+        await tellOnlookers(searcher, target, say("DRPG.Steal.wHand", { who: searcher.name, target: target.name }), { body });
     }
     log(`${searcher.name} frisked ${target.name} unseen: ${sees ? `saw ${pockets.length} item(s)` : "got no proper look"}, ${
         noticed ? (body ? "noticed as a living target would be, a body the GMs keep (its card's words to the GMs alone)" : "noticed") : "unnoticed"}.`);
@@ -414,7 +449,7 @@ const FRISK_ASK = "frisk.ask";
 /** primary -> the same people: the ask is answered or over, its window closes. */
 const FRISK_CANCEL = "frisk.cancel";
 /** The outcomes that end an ask before its row is written, the action handed back by the searcher's browser. */
-export const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youBusy", "isBody"]);
+const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youBusy", "isBody"]);
 /**
  * The outcomes whose action the searcher's browser hands back, by what it paid (action-pipeline.mjs `abort`, its receipt):
  * those above, and an ask `interrupted` with no dice thrown. Handed back there and not by the primary, which cannot tell
@@ -423,9 +458,9 @@ export const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youB
  * nobody waits any more (a page reloaded), so its card says only that the moment has passed, and the browser that hands
  * the action back says it is back (`DRPG.Frisk.actionBack`; E80 fix r2-G1, the review's fx-1).
  */
-export const FRISK_HANDED_BACK = Object.freeze([...FRISK_REFUNDED, "interrupted"]);
+const FRISK_HANDED_BACK = Object.freeze([...FRISK_REFUNDED, "interrupted"]);
 /** How long past its force's clock a refused or unanswered row waits for the follow that ends it (`TIMING.friskMarginMs`). */
-export const FRISK_MARGIN_MS = TIMING.friskMarginMs;
+const FRISK_MARGIN_MS = TIMING.friskMarginMs;
 
 /** The pairs asked, `searcherId>targetId`, with the time of day they were asked in: one ask a pair a time of day (chosen). */
 const askedPairs = new Map();
@@ -466,7 +501,9 @@ async function cardToGms(html, extra = {}) {
 
 /**
  * One veiled card to the students who saw it happen in the ask's room (`roomWitnessesOnGm`, the two left out) - each
- * owner of each, a Monocub's among them - and the GMs; none where nobody saw it. No item is ever named on it.
+ * owner of each, a Monocub's among them - and the GMs; none where nobody saw it. Its words are the caller's: since
+ * privacy line 2 (#6, the owner's rule of 13.11.2026) a "shown" or "forced" end carries the searcher's list, as the
+ * room saw the pockets turned out (`endAsk`); every other end names no item.
  */
 async function tellWitnesses(row, html) {
     const scene = game.scenes?.get(row.sceneId) ?? null;
@@ -516,8 +553,9 @@ function standing(row) {
 /**
  * Ends `row` as `outcome`, on the primary, once: its windows closed, its ticket closed to a force, its cards posted
  * and the searcher's wait answered where it still waits. The outcomes, the design's words for each:
- *   shown          the list as it was at the ask to the searcher, 'You turn out your pockets' to the target, the room told;
- *   forced         the same list under 'is carrying:', the target forced, the room told;
+ *   shown          the list as it was at the ask to the searcher, 'You turn out your pockets' to the target, the room told
+ *                  with the same list (privacy line 2, #6);
+ *   forced         the same list under 'is carrying:', the target forced, the room told with the list;
  *   forceFailed    the searcher's neutral miss, the target shook them off, the room told;
  *   letGo          'Leave it', the force's clock, the searcher leaving, a refusal with `friskForce` off: the target and the room;
  *   gone           the target walked away: the searcher ('before answering', or after a refusal without it) and the room;
@@ -562,7 +600,12 @@ async function endAsk(row, outcome) {
         const words = say(forTarget[outcome], { who });
         await (row.silent ? cardToGms(words) : cardTo(target, words));
     }
-    if (forRoom[outcome] && asked) await tellWitnesses(row, say(forRoom[outcome], { who, target: them }));
+    // POCKETS TURNED OUT IN FRONT OF THE ROOM ARE SEEN BY THE ROOM (privacy line 2, #6; the owner's rule of 13.11.2026: a
+    // player learns what their character could know in the fiction, when they could know it). The witnesses of a "shown"
+    // or "forced" end read the list the searcher reads, the ask's snapshot (`row.lines`: `pocketsFrom`'s, never a Truth
+    // Bullet, never a stash); until 1.2.113 their card named no item.
+    const roomList = ["shown", "forced"].includes(outcome) ? listOfLines(target, row.lines) : "";
+    if (forRoom[outcome] && asked) await tellWitnesses(row, `${say(forRoom[outcome], { who, target: them })}${roomList}`);
     log(`${who} frisked ${them} openly: ${outcome}${["shown", "forced"].includes(outcome) ? `, ${row.lines.length} item(s) listed` : ""}.`);
     answerSearcher(row, { askId: row.askId, outcome, forceMs: null });
     return true;
@@ -1012,7 +1055,7 @@ export function friskPacketRefusal(payload, senderId, { me = game.user, users = 
 }
 
 /** A `frisk.ask` or `frisk.cancel` on this browser; answers whether it was taken. */
-export async function onFriskPacket(payload, senderId) {
+async function onFriskPacket(payload, senderId) {
     if (![FRISK_ASK, FRISK_CANCEL].includes(payload?.action)) return false;
     const why = friskPacketRefusal(payload, senderId);
     if (why) {

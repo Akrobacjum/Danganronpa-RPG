@@ -19,11 +19,9 @@
  *
  * E99 READS: `caseGraphHtml` (the graph alone, any size of container), `mapPlace`, `edgePath` and `nodeState`.
  */
-import { esc, plural } from "./utils.mjs";
+import { esc } from "./utils.mjs";
 import { REMNANT_TYPES, TRUTH_BULLET_TYPES } from "./config.mjs";
-import { caseRows, caseNodeOf } from "./case-schema.mjs";
-import { remnantById } from "./remnants.mjs";
-import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
+import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
    places the drawn nodes at their measured size and moves the camera; read here, and by E99, under these names. */
@@ -42,7 +40,7 @@ export function nodeState(node, finders = null) {
 }
 
 /** The token id of a ledger key `sceneId.tokenId` (the bullets' answer keys name the token, investigation.mjs). */
-export function tokenIdOf(key) {
+function tokenIdOf(key) {
     const s = String(key ?? "");
     const dot = s.indexOf(".");
     return dot < 0 ? s : s.slice(dot + 1);
@@ -74,8 +72,12 @@ export function modeLabel(mode) {
     return game.i18n.has?.(key) ? L(key) : String(mode ?? "");
 }
 
-const STATE_KEYS = { held: "DRPG.CaseMap.state.held", onMap: "DRPG.CaseMap.state.onMap", planned: "DRPG.CaseMap.state.planned" };
-const STATE_GLYPHS = { held: "held", onMap: "on-map", planned: "planned" };
+/* A state's word and glyph, each state `nodeState` answers but "schema". "sent" since audit A113-C3-1 (13.11.2026): 6964661f
+   taught `nodeState` the answer and both files its word, and this table neither, so a sent Autopsy or a given Truth Bullet
+   lost its state on the node and its State row on the panel (R5902 reads the states off `nodeState` itself). */
+const STATE_KEYS = { held: "DRPG.CaseMap.state.held", onMap: "DRPG.CaseMap.state.onMap", planned: "DRPG.CaseMap.state.planned",
+    sent: "DRPG.CaseMap.state.sent" };
+const STATE_GLYPHS = { held: "held", onMap: "on-map", planned: "planned", sent: "send" };
 /**
  * A glyph's slot (E48's inventory names the drawing: tests-glyphs.mjs rows 33, 34, 92-94). The drawings of E97's and E98's
  * rows are in tools/glyphs.json but not yet declared as `--drpg-pix-*` in styles/pixel-icons.css, which tools/glyph-map.mjs
@@ -142,7 +144,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
     const shown = fold && unrelated.size
         ? { ...layout, positions: Object.fromEntries(Object.entries(layout.positions).filter(([id]) => !unrelated.has(id))), unrelated: [...unrelated] }
         : layout;
-    const place = mapPlace(shown);
+    const place = mapPlace(shown, MAP_GEOMETRY, null, { edges: graph?.edges ?? [] });
     if (fold && unrelated.size) place.height = Math.max(place.height, (place.gapY ?? 0) + MAP_GEOMETRY.pitch);
     const heads = [];
     const cols = (layout?.columns ?? []).length;
@@ -508,31 +510,3 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
     return camera;
 }
 
-/**
- * THE CASE'S INCIDENT REMNANTS TO PLACE, IN THE GM PANEL (E97 C12; the goal: "the list of Incident Remnants still to
- * place is in the GM panel"). The chapter's planned Incident Remnants: each not on the map yet with "Place on the map"
- * (New Remnant, filled in), each placed with "Show" (the Investigation panel on its node). Nothing when the case plans
- * none. A GM's (the schema is a GM store; a player's panel has no standing block).
- */
-export function incidentAsksHtml(chapter) {
-    if (!game.user?.isGM) return "";
-    // a planned Final Truth waits here too (E104)
-    const rows = Object.entries(caseRows(chapter).rows).map(([id, raw]) => [id, caseNodeOf(raw)]).filter(([, n]) => n?.kind === "incident" || n?.kind === "final");
-    if (!rows.length) return "";
-    const placed = n => {
-        if (!n.trace) return false;
-        const [sceneId, tokenId] = n.trace.split(".");
-        return Boolean(remnantById(sceneId, tokenId));
-    };
-    const waiting = rows.filter(([, n]) => !placed(n)).length;
-    const line = ([id, n]) => {
-        const on = placed(n);
-        const what = [n.label || L("DRPG.CaseMap.noName"), n.room].filter(Boolean).join(" · ");
-        return `<li class="drpg-case-ask${on ? " is-placed" : ""}"><span>${esc(what)}</span>`
-            + (on ? `<button type="button" class="drpg-mini-button" data-drpg-case-show="${esc(n.trace)}">${esc(L("DRPG.CaseMap.showOnMap"))}</button>`
-                : `<button type="button" class="drpg-mini-button" data-drpg-case-place="${esc(`${chapter}:${id}`)}">${esc(L("DRPG.CaseMap.placeOnMap"))}</button>`)
-            + `</li>`;
-    };
-    const head = waiting ? plural("DRPG.CaseMap.waiting", { n: waiting }) : L("DRPG.CaseMap.waitingNone");
-    return `<div class="drpg-case-asks"><p><strong>${esc(head)}</strong></p><ul>${rows.map(line).join("")}</ul></div>`;
-}

@@ -103,8 +103,8 @@
         "en": "Remnant",
         "pl": "Remnant",
         "gender": "m",
-        "inflection": "Inflected as a countable noun: Remnantu (DB4).",
-        "declension": {"countable": true, "gen": "Remnantu"},
+        "inflection": "Inflected as a countable noun: Remnantu, and in the plural Remnanty, Remnantów - also in \"Key Remnanty\", \"Faint Remnanty\", \"Final Truth Remnanty\" (DB4; the owner, 12.11.2026: the English plural \"Remnants\" does not stand in a Polish sentence).",
+        "declension": {"countable": true, "gen": "Remnantu", "plural": "Remnanty"},
         "forbidden": {"en": {"variants": [{"stem": "trace", "endings": ["", "s"]}], "scope": ["ui", "handbooks"], "case": "any", "except": ["Secure a Trace", "Erase a Trace", "Reshape a Trace", "Hide the Traces", "Follow My Traces"]}, "pl": {"variants": [{"stem": "ślad", "endings": ["", "u", "owi", "em", "zie", "y", "ów", "om", "ami", "ach"]}], "scope": ["ui", "handbooks"], "case": "any"}},
         "stage": "E71",
         "source": ["DB15", "DB6", "DB4", "DB28"],
@@ -1086,6 +1086,17 @@
         "stage": "E73",
         "source": ["DX5"],
         "note": "A place on the scene, not a mode: TR18 does not cover it."
+      },
+      {
+        "id": "camps-confer",
+        "en": "Camps confer",
+        "pl": "Narada obozów",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E73",
+        "source": ["E73 plan"],
+        "note": "The owner's word of 13.11.2026, after E73: Scrum Debate's second phase, between Sides and the debate: each camp talks in a voice room of its own. A phase, not a mode: TR18 does not cover it, so it is Polish in the Polish UI."
       },
       {
         "id": "discussion",

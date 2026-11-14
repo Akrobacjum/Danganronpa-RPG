@@ -150,7 +150,7 @@ export function restSpent(actor, kind, clock = null) {
  * reads as spent - the S07-23 refusal, once, for a character who has not rested since the update (sheet-audit.mjs
  * `restCovers` judges new writes by `restStamp` alone). Pure.
  */
-export function legacyRestStamp(kind, clock) {
+function legacyRestStamp(kind, clock) {
     return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
@@ -223,10 +223,10 @@ function currentClock() {
 }
 
 /**
- * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, or not
+ * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, more than the purse holds (1.2.113), or not
  * allowed in this room. Both reasons used to be printed above a pair of buttons that stayed live regardless, so the
  * player could pick the one the list had just told them they could not have. Out of action-rest.mjs `performRest`
- * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (`restShutReason`).
+ * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (action-facilities.mjs `facilitiesRows`).
  */
 export function restVariants(actor) {
     const place = locateActor(actor);
@@ -237,6 +237,14 @@ export function restVariants(actor) {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
         const barred = kind === "short" && sleepless;
+        /* THE PRICE GREYS THE ROW TOO (1.2.113, 13.11.2026; the owner's ask (c)). A rest its character cannot pay for - a
+           Wounded student's one action and no Burst against the Long Rest's two, or no action at all - was open here and
+           refused only by `takeRest`'s warning after the pick (measured at aabf28b8; nothing was spent). The same test
+           (`canPayFor`) and the same sentence (`DRPG.Actions.notEnough`) as that warning, so the row and the refusal say
+           one thing; `takeRest` keeps its check. Last among the reasons: the insomnia, the allowance and the room say
+           more than the purse. Tier 2 "1.2.113 the Rest window greys a rest ..." reads both rows over four purses. */
+        const cost = REST[kind].actionCost;
+        const unpaid = !canPayFor(actor, cost);
         // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
         // character's scene, the school's for one with no token (E12 fix r1-G4).
         const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
@@ -245,28 +253,18 @@ export function restVariants(actor) {
             icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
             label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
             hint: `${plural("DRPG.Action.willCost",
-                { n: REST[kind].actionCost, left: actionsLeft(actor) })} · ${
+                { n: cost, left: actionsLeft(actor) })} · ${
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
                     : elsewhere}`,
-            disabled: spent || !allowed || barred,
+            disabled: spent || !allowed || barred || unpaid,
             why: barred ? game.i18n.localize("DRPG.Rest.insomnia") : spent
                 ? game.i18n.localize(kind === "long"
                     ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
-                : elsewhere
+                : !allowed || !unpaid ? elsewhere
+                    : plural("DRPG.Actions.notEnough", { actor: actor.name, left: actionsLeft(actor), needed: cost }, "left")
         };
     });
-}
-
-/**
- * Why neither rest can be taken now, row by row ("Short rest: ... · Long rest: ..."), or null while one can: the Rest
- * tile's tooltip (sheet.mjs `roomBlockFor`; E16 part 2 C4, audit S02-26). The tile stays pressable, as every dimmed
- * tile does, and its window shows the same two rows greyed.
- */
-export function restShutReason(actor) {
-    const rows = restVariants(actor);
-    if (rows.some(row => !row.disabled)) return null;
-    return rows.map(row => `${row.label}: ${row.why}`).join(" · ");
 }
 
 /* ==========================================================================
@@ -329,7 +327,7 @@ export async function takeRest(actor, kind = "short", {
 
         // `false`, not null: a player who backed out is not a rest that failed,
         // and Relief refunds the two differently (review, 17.09).
-        const picks = await choosePicks(kind, rules.picks, cost);
+        const picks = await choosePicks(kind, rules.picks, cost, { relief: free });
         if (!picks) return false;
 
         if (cost > 0 && !await spendAction(actor, cost)) return null;
@@ -361,8 +359,9 @@ export async function takeRest(actor, kind = "short", {
 /**
  * Ask which benefits to take. A long rest takes two, a short one takes one. `cost` is the actions the rest spends after
  * this window (0 for a Relief's free rest), and Do it's tooltip says it (REVIEW-102 T8: the button pays a price).
+ * `relief`: a Relief's free rest, whose Breath is greyed (`BREATH_REFUSED`).
  */
-async function choosePicks(kind, count, cost = 0) {
+async function choosePicks(kind, count, cost = 0, { relief = false } = {}) {
     /*
      * THE COUNT IS ENFORCED IN THE WINDOW, NOT AFTER IT.
      *
@@ -384,16 +383,17 @@ async function choosePicks(kind, count, cost = 0) {
     // Breath is Hope, and under the Despair darkening no Hope is earned - so it
     // is offered greyed with the reason rather than taken and turned into
     // nothing (CALL-05).
+    // And a Relief's rest greys it with its own reason (`BREATH_REFUSED`, 1.2.112).
     const { overflowBlocksHope } = await import("./overflow.mjs");
-    const noBreath = overflowBlocksHope();
+    const noBreath = relief ? "relief" : overflowBlocksHope() ? "overflow" : null;
     const options = Object.entries(REST.options)
         .map(([key, opt]) => {
-            const off = key === "breath" && noBreath;
+            const off = key === "breath" ? noBreath : null;
             return `<label class="drpg-rest-option"${off
-                ? ` title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Overflow.noHopeNow"))}"` : ""}>
+                ? ` title="${foundry.utils.escapeHTML(game.i18n.localize(off === "overflow" ? "DRPG.Overflow.noHopeNow" : BREATH_REFUSED.relief))}"` : ""}>
                 <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}"${off ? " disabled data-drpg-blocked" : ""} />
                 <span><strong>${opt.label}</strong> - ${off
-                    ? game.i18n.localize("DRPG.Overflow.noHopeNow")
+                    ? game.i18n.localize(BREATH_REFUSED[off])
                     : (kind === "long" ? opt.long : opt.short)}</span>
             </label>`;
         }).join("");
@@ -454,6 +454,16 @@ async function choosePicks(kind, count, cost = 0) {
     return picks;
 }
 
+/*
+ * WHY BREATH IS NOT OFFERED, BY CASE (1.2.112). Under the Despair darkening no Hope is earned (CALL-05). And a Relief's
+ * rest gives none (the owner's decision of 13.11.2026): Relief costs 4 Hope (config.mjs `HOPE_CALLS.relief`), and its
+ * Breath gave back 1 - three Hope lost for nothing, a pick no one would make on purpose. Greyed with the reason in the
+ * picker (`choosePicks`) and refused by `applyRest`, and the GMs' audit covers no Hope on a Relief's rest (sheet-audit.mjs
+ * `restCovers`). Tier 2's "Relief's rest offers Breath greyed ..." and "a Relief rest's Hope is put back ..." read them.
+ * Written out, so each key is a literal the lang check can find.
+ */
+const BREATH_REFUSED = Object.freeze({ overflow: "DRPG.Overflow.noHopeNow", relief: "DRPG.Rest.reliefNoBreath" });
+
 /**
  * Apply the chosen benefits.
  *
@@ -491,10 +501,10 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 applied.push(`${opt.label}: ${cleared} Sanity cleared`);
             }
 
-            if (pick === "breath" && hopeBlocked) {
-                // The picker greys Breath under the Despair darkening; this is the
-                // authority for a pick that got past it (CALL-05).
-                applied.push(`${opt.label}: ${game.i18n.localize("DRPG.Overflow.noHopeNow")}`);
+            if (pick === "breath" && (relief || hopeBlocked)) {
+                // The picker greys Breath under the Despair darkening (CALL-05) and on a
+                // Relief's rest (1.2.112); this is the authority for a pick that got past it.
+                applied.push(`${opt.label}: ${game.i18n.localize(relief ? BREATH_REFUSED.relief : BREATH_REFUSED.overflow)}`);
             } else if (pick === "breath") {
                 const gain = full ? 2 : 1;
                 const max = maxOf("hope") || STARTING.hopeMax;

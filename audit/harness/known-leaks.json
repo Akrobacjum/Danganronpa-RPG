@@ -120,6 +120,17 @@
       "detectedBy": [{"scenario": "33-bridge-paths", "check": "A21b: a Monocub's move paid from its purse is read off its sheet - p3's copy of Botan shows no Hope go while the GMs' purse pays"}],
       "readme": "leak:foundry-cub-purse",
       "measuredAt": "E72, 12.11.2026, before its commit (parent f5ec657): in 33-bridge-paths A21b, after Botan accepted Aiko's Bribe (purse 1), the GMs' spendCubHope took the 1 from the purse (total 1 -> 0) and p3's copy of Botan read Hope 0 before and after"
+    },
+    {
+      "id": "foundry-masked-token-actor",
+      "findings": ["A113-C5-2"],
+      "class": "metadata",
+      "severity": "info",
+      "what": "A killer behind a \"?\" after a murder's opening keeps their token document's actorId, so a player's browser console resolves the \"?\" to the killer's actor and name; the token's name, picture and flags, the cast copies and the module's packets name nobody, and nothing in the interface does.",
+      "foundryLimit": "Foundry v14 sends every Token document to every connected client, and a token's actorId is what makes it that character's token: the module cannot point it at another actor without breaking the killer's own moves, sheet and rolls.",
+      "detectedBy": [{"scenario": "30-security", "check": "a masked token's actor is read from a player's console - on p2 and p3 the \"?\" token's actorId resolves to the killer's name"}],
+      "readme": "leak:foundry-masked-token-actor",
+      "measuredAt": "E69 C8, 13.11.2026, on 04b62b02: p2 (the victim) and p3 (a witness) read game.actors.get(token.actorId).name as Aiko's on the \"?\" token (30-security, phase 'the killer behind a \"?\", read from a console')"
     }
   ]
 }

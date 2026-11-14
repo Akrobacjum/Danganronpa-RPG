@@ -898,7 +898,6 @@ async function verdictOverflow() {
     await resetOverflow();
 }
 
-/** What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order. */
 /**
  * THE WRONG VERDICT'S CARD TO THE MONOCUBS (E72 C7, 12.11.2026; audit S18-58, the owner's DC16). A wrong verdict lets the
  * killer go, and the Monocubs who know who it was - the case's own dead (a death of this chapter, not an execution) and
@@ -943,6 +942,9 @@ async function finalVerdictBets(context) {
     await settleBets({ ...context, record: finalBetsRecord(context.final) });
 }
 
+/**
+ * What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order.
+ */
 const VERDICT_STEP = {
     sentence: readSentence, card: verdictCard,
     levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, remind: remindOnWrongVerdict,

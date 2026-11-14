@@ -577,7 +577,7 @@ export async function placeCast(choice, actors = studentActors()) {
     return placed;
 }
 
-/**
+/*
  * THE RESET'S OWN ENTRIES (E42 C3). Six groups have no owner but the reset: three cast groups whose part on each
  * student's sheet is `wipeStudent`'s, the chat in two groups, and the clock. Each a named function, registered below
  * like any owner's; their bodies and their comments are the runs of `wipeSeason` they were until C3. And the cast's

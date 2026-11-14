@@ -519,7 +519,7 @@ export function judgeRelay(payload, sender, world = liveWorld()) {
 }
 
 /** Daggerheart's refresh packet, kept only when it is one of its own. */
-export function validRefresh(refresh) {
+function validRefresh(refresh) {
     if (!refresh || typeof refresh !== "object" || !REFRESH_TYPES.has(refresh.refreshType)) return null;
     const kept = { refreshType: refresh.refreshType };
     if (typeof refresh.action === "string") kept.action = refresh.action;

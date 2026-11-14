@@ -168,5 +168,7 @@ export default [
     { files: ["audit/float-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     // the case map sweep (E97 fix): its page.evaluate bodies run in the page
     { files: ["audit/case-map-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
+    // the sheet column's check (fix-113e): its page.evaluate bodies run in its own page of Daggerheart's sidebar
+    { files: ["audit/sheet-column.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     { files: ["audit/live/page-hooks.js"], languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: { ...BROWSER, ...FOUNDRY } }, rules: RULES }
 ];

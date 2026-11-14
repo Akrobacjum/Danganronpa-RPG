@@ -162,22 +162,6 @@ async function diceSettled(messageId) {
  * ========================================================================== */
 
 /**
- * The header for a card that reports a roll and nothing more about it.
- *
- * Five call sites in this file had these exact three slots written out
- * longhand, and they had drifted: four used `Label - total · <em>Critical</em>`
- * and Listen used `Label · Shadow · total`, with the trait name typed in as an
- * English literal rather than read off the roll. Same card, three shapes.
- *
- * `report()` does not go through here because it has a room and an outcome to
- * put in the other two slots.
- *
- * The duality bar comes with it. These cards replace Daggerheart's - the
- * system's copy of the roll is claimed and never rendered, see
- * `supersedingRoll` - so a card that showed only a total would have taken the
- * two faces off the table rather than moved them.
- */
-/**
  * WHAT THE DICE DID, AS A COLOUR.
  *
  * The card prints the total; what it cannot say at a glance is which way the
@@ -205,6 +189,22 @@ export function rollCardFlags(def, roll) {
     return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll) } } };
 }
 
+/**
+ * The header for a card that reports a roll and nothing more about it.
+ *
+ * Five call sites in this file had these exact three slots written out
+ * longhand, and they had drifted: four used `Label - total · <em>Critical</em>`
+ * and Listen used `Label · Shadow · total`, with the trait name typed in as an
+ * English literal rather than read off the roll. Same card, three shapes.
+ *
+ * `report()` does not go through here because it has a room and an outcome to
+ * put in the other two slots.
+ *
+ * The duality bar comes with it. These cards replace Daggerheart's - the
+ * system's copy of the roll is claimed and never rendered, see
+ * `supersedingRoll` - so a card that showed only a total would have taken the
+ * two faces off the table rather than moved them.
+ */
 export function rollHead(def, roll) {
     return cardHead({
         action: def.label,
@@ -360,10 +360,7 @@ export async function report(actor, def, roll, outcome) {
                 popupTitle: def.label,
                 // See `rollTone`, which the five cards that go through
                 // `rollHead` share with this one.
-                popupTone: rollTone(roll),
-                // A hidden stash's step (`stashStep`): the dice it read, the one it set aside
-                // or rolled, and the total that counts - with the words, to the card's readers.
-                ...(outcome.stash ? { stashStep: outcome.stash } : {})
+                popupTone: rollTone(roll)
             }
         },
         summary: {

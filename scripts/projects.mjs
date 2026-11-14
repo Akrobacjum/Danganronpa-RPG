@@ -183,6 +183,20 @@ export function knowsProject(countdownId, user = game.user) {
 }
 
 /**
+ * WHETHER `user` KNOWS THIS PROJECT IS THERE WITHOUT HAVING SEEN ITS ROOM (PV, 13.11.2026): in on a secret one (a
+ * viewer, its builder, a finder by Observe), its proposer, or one who knew it while it was sealed - the roads of
+ * `knowsProject` above that are not the room's. Such a reader knows the project exists wherever they stand; what they
+ * see of its bar is still what they saw last (projects-seen.mjs `asSeen`). A repair is nobody's by this road: the
+ * sabotage that made it happened in a room the reader may not have been in.
+ */
+export function knowsWithoutRoom(countdownId, user = game.user) {
+    if (!user || !rawCountdown(countdownId) || !canSee(countdownId, user) || repairs(countdownId)) return false;
+    if (isSecret(countdownId)) return true;
+    if (proposedBy(countdownId, user)) return true;
+    return (metaFor(countdownId).sealedViewers ?? []).includes(user.id);
+}
+
+/**
  * WHETHER `user` PROPOSED THIS PUBLIC PROJECT, AS THIS BROWSER MAY KNOW IT (H84 fix G3, 27.10.2026; the end review's
  * H84-SEC-02, H84R-5). Who proposed a project is the GMs' (`by`, projects-secrecy.mjs `PROJECT_SECRET_FIELDS`), so it is
  * read where it is held: on a GM's browser from `by` (an owner of the proposing character); on the proposer's own
@@ -204,7 +218,7 @@ export const PROJECT_KNOWN = "projectKnown";
 let toldHere = null;
 
 /** The meta key of a GM's private card that carries a secret project's description to its players (`tellDescription`). */
-export const PROJECT_WORDS = "projectWords";
+const PROJECT_WORDS = "projectWords";
 
 /* The newest description each secret project's cards on this browser carry (`toldDescription`); emptied with `toldHere`. */
 let wordsHere = null;
@@ -214,7 +228,7 @@ let wordsHere = null;
  * that carry it (`PROJECT_WORDS`, posted by `tellDescription`), whose words and meta reach their readers alone
  * (secret.mjs); null when no card here does. A card a GM did not write counts for nothing.
  */
-export function toldDescription(countdownId) {
+function toldDescription(countdownId) {
     if (!wordsHere) {
         wordsHere = new Map();
         for (const message of game.messages ?? []) {
@@ -249,8 +263,15 @@ export async function tellDescription(countdownId) {
     const words = secretsOf(countdownId).description;
     if (typeof words !== "string" || !words) return 0;
     const told = { ...(secretsOf(countdownId).descriptionTold ?? {}) };
-    // Not to a Spectator (E92, the coordinator's 12.11: "secret projects stay secret (GMs' half untouched)"): it sees the name and progress.
-    const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
+    /* AND TO EVERY SPECTATOR, IN EVERY ROOM (the owner's answer to Q-E92-6 on DRPG-D1, 12.11.2026: "Widzi wszystkie projekty
+       w tym prywatne"; docs/dev/e92/STATUS.md). ce1ffadb took the Spectators out of this list on the coordinator's note of
+       12.11, written before that answer reached it ("secret projects stay secret (GMs' half untouched)"); the audit of
+       1.2.113 (A113-C5-3) read the narrowing as no owner's word, and the owner had every change of the audit go in 1.2.113.
+       The words alone: the GMs' half - the store's other fields, the GMs' note - is in no card. Who is a Spectator is read
+       as the GMs hold the flag (`spectatorUserIds`); a living student and a dead one who is no Spectator read what they
+       read before. */
+    const readers = [...new Set([...insidersOf(countdownId), ...spectatorUserIds()])]
+        .filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
     if (!readers.length) return 0;
     const name = shownName(countdownId) || "?";
     const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.descriptionTold", { name }))}</p><p>${esc(words).replace(/\n/g, "<br>")}</p>`,
@@ -277,7 +298,7 @@ export async function tellDescription(countdownId) {
  * GMs' rows (gm-stores.mjs `projectSightCopy`), a client setting no chat action touches, asked again at every load
  * (`askForSight`); the player's browser says what changed on a notification (`noticeSight`), in the words the cards had.
  */
-export async function tellSight(countdownId) {
+async function tellSight(countdownId) {
     if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
     const name = secretsOf(countdownId).secretName;
     // No name here yet (the GMs' row not arrived, E101 R1): nothing is known to tell.
@@ -313,7 +334,7 @@ const SIGHT_ASK = "projects.sightAsk";
  * whose name this browser does not hold yet. Every stamp is this answer's: an answer is the user's whole set, sent by the
  * primary alone, so the newest is the truth (`offersCombine`).
  */
-export function sightFor(userId, { also = [], held = [] } = {}) {
+function sightFor(userId, { also = [], held = [] } = {}) {
     const user = game.users.get(userId);
     const sight = {}, stamps = {};
     if (!game.user?.isGM || !user || user.isGM) return { sight, stamps };
@@ -337,7 +358,7 @@ export function sightFor(userId, { also = [], held = [] } = {}) {
  * answer made before them would name none of the projects and empty the player's copy. Nothing while the suite holds the
  * stores. Answers whether it sent.
  */
-export async function sendSightTo(userId, { also = [], held = [] } = {}) {
+async function sendSightTo(userId, { also = [], held = [] } = {}) {
     const user = game.users.get(userId);
     if (!isPrimaryGm() || !user?.active || user.isGM || gmStoresQuiet()) return false;
     if (await projectSecretStore.whenHydrated() === "timedOut") return false;
@@ -361,7 +382,7 @@ export async function retellSights() {
 }
 
 /** Player: take a GM's answer where it is newer (`projectSightCopy`), for this world's projects only; then say what changed. */
-export async function receiveSight(sight, stamps) {
+async function receiveSight(sight, stamps) {
     const before = projectSightCopy.read() ?? {};
     const mine = {}, own = {};
     for (const [id, s] of Object.entries(stamps ?? {})) {
@@ -424,7 +445,7 @@ function onSightSocket(payload, senderId) {
  * readers alone (secret.mjs) and no other student's browser holds them. An action taken off is told as none, to those
  * told one before. Who was told what is the GMs' (`facilityTold`, in their row). Answers how many players were told.
  */
-export async function tellFacility(countdownId) {
+async function tellFacility(countdownId) {
     if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
     const { PROJECT_FACILITY_CARD, cleanFacility } = await import("./facilities.mjs");
     const raw = secretsOf(countdownId).facility ?? null;
@@ -465,7 +486,7 @@ function projectsToldHere() {
  * card was posted: none for a secret project, one with no room (known to everybody who sees it), or a character no
  * player owns.
  */
-export async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name = shownName(countdownId), room = roomOf(countdownId) } = {}) {
+async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name = shownName(countdownId), room = roomOf(countdownId) } = {}) {
     if (!game.user?.isGM || !countdownId || !room || isSecret(countdownId)) return false;
     const actor = game.actors.get(by ?? "");
     if (!actor || !ownerIdsOfId(actor.id).some(id => !game.users.get(id)?.isGM)) return false;
@@ -1001,6 +1022,8 @@ export const COMPLETION_EFFECTS = [
         has: meta => meta.target?.preset === "secretPassage" && Boolean(meta.passage),
         onCrossed: ({ id, name, meta, by }) => {
             const finders = new Set(Object.keys(meta.foundBy ?? {}));
+            // Where it stood, read before the step removes it: a finder's card waits for an entry to this room (PV).
+            const where = { room: roomOf(id), sceneId: projectScene(id)?.id ?? null };
             const builders = new Set(ownerIdsOfId(meta.by));
             // Only while it is secret (fix e1-G1, SEC-2): a project made public some other way has every player a viewer.
             const users = isSecret(id) ? viewersOf(id).filter(u => !finders.has(u.id) && !builders.has(u.id)) : [];
@@ -1020,11 +1043,11 @@ export const COMPLETION_EFFECTS = [
                         return;
                     }
                     await (await import("./passages-gm.mjs")).tellPassageBuilt(made);
+                    /* ON THE FINDER'S NEXT ENTRY (PV, 13.11.2026; the owner's rule #3). A finder whose character stands
+                       in the room is told now; every other finder's card waits in the GMs' `foundDone` until one of
+                       their characters walks in (projects-seen.mjs `holdFoundDone`, `tellFoundOnEntry`). */
                     const told = [...finders].filter(userId => game.users.get(userId) && !game.users.get(userId).isGM);
-                    if (told.length) {
-                        await announce({ content: `<p>${game.i18n.format("DRPG.Observe.projectFoundDone", { name: esc(name) })}</p>`,
-                            whisper: Array.from(new Set([...gmIds(), ...told])) });
-                    }
+                    if (told.length) await (await import("./projects-seen.mjs")).holdFoundDone(id, name, told, where);
                 }
             };
             return answer;
@@ -2518,7 +2541,7 @@ export async function clearAllProjects() {
 }
 
 /** The season reset's projects group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): `clearAllProjects`. */
-export async function clearSeasonProjects() {
+async function clearSeasonProjects() {
     await clearAllProjects();
 }
 
@@ -2584,7 +2607,7 @@ export async function sealOldRepairs() {
 }
 
 /** Human-readable scale label for a progress target. */
-export function scaleFor(target) {
+function scaleFor(target) {
     const entry = Object.values(PROJECT_SCALE).find(s => s.progress === target);
     return entry?.label ?? null;
 }
@@ -2649,11 +2672,13 @@ export async function resealSecretProjects() {
 
 /**
  * THE SPECTATORS' SIGHT, AFTER A ROLE CHANGED (E92, the owner's DRPG-D1 of 12.11.2026: a Spectator sees every project,
- * the secret ones too - their name and progress; the GMs' half, the words among it, stays theirs). Called by monokuma.mjs
+ * the secret ones too - their name, progress and words since the audit of 1.2.113, A113-C5-3; the GMs' half stays
+ * theirs). Called by monokuma.mjs
  * `setSpectator` once the flag is written, on a GM. `gone` are the users who stopped playing a Spectator with it: each is
  * taken off every secret project it does not build (an `unshare`, the entry's own), since a Spectator's observer entry is
  * not told from a share in the map - so a student who watched and comes back loses the secret projects it was let in on
- * before (the GM shares them again). Then every secret project is resealed, which puts the Spectators in (`ownershipMap`).
+ * before (the GM shares them again). Then every secret project is resealed, which puts the Spectators in (`ownershipMap`),
+ * and its name and words are told to them (`tellSight`, `tellDescription`).
  */
 export async function seeAsSpectators(gone = []) {
     if (!game.user?.isGM) return 0;
@@ -2667,6 +2692,8 @@ export async function seeAsSpectators(gone = []) {
     const resealed = await resealSecretProjects();
     // A Spectator's name card, and a former one's goodbye (S17-31): a lifted project reseals to nothing, so it is asked here.
     for (const project of secret) await tellSight(project.id).catch(err => error(`Could not tell the Spectators of ${project.id}`, err));
+    // And its words (A113-C5-3): a new Spectator is sent each secret project's description, as an insider is.
+    for (const project of secret) await tellDescription(project.id).catch(err => error(`Could not tell the Spectators the words of ${project.id}`, err));
     return resealed;
 }
 

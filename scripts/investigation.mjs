@@ -25,7 +25,7 @@
 
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL,
-    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
+    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, itemIcon, RECIPIENT_EVERYONE } from "./config.mjs";
 import { SETTINGS, isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
@@ -33,7 +33,7 @@ import {
     shownBand, bandOptions, removeRemnant,
     traceContextLine, traceLabel, authorOptions
 } from "./remnants.mjs";
-import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
+import { bulletsOf, isTruthBullet, secretOf, truthBulletData, BULLET_CATEGORY } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
@@ -42,7 +42,7 @@ import {
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_NODE, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
@@ -53,7 +53,19 @@ import { roomRegions } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
-const ICON = "icons/svg/hazard.svg";
+/*
+ * THE PICTURE A PLAN STARTS WITH (1.2.113; the owner, 13.11.2026: "let the module choose the already available Truth
+ * Bullet glyph by default"): the module's Truth Bullet drawing, `icons/item-truthBullet.svg` (config.mjs `itemIcon` of
+ * the bullet's category; tools/item-icons.mjs draws it). Until 1.2.113 it was Foundry's `icons/svg/hazard.svg`. A planned
+ * Remnant, a planned Final Truth and a Key slot draw it in their empty picture field, and a plan with no picture places
+ * its Remnant with it (`placeIncident`, `placePlannedFinal`, `createKeyRemnant`), so the finder's Truth Bullet carries it
+ * (observe.mjs `createFind` copies the trace's picture); a planned Truth Bullet, whose picture field came in 1.2.113 as well,
+ * is given with its planned picture or, with none, this one (truth-bullets.mjs `createTruthBullet` -> inventory.mjs
+ * `grantItem`). Never written into the plan itself. One
+ * drawing for every type: the module ships no Truth Bullet glyph per type (`TRUTH_BULLET_TYPES` holds no picture, and
+ * icons/ one `item-truthBullet.svg`; the `remnant-*.svg` are the actions' marks on the map, not a Truth Bullet's).
+ */
+const PLANNED_GLYPH = itemIcon(BULLET_CATEGORY);
 
 /** The five difficulty steps, named where the scale itself is defined. */
 const SCALE_LABELS = KEY_REMNANTS.scaleLabels;
@@ -353,7 +365,7 @@ export async function clearSeasonKeyPlan() {
  * before the "clock" step sends the chapter back to 1, because after that every chapter is "other than the clock's".
  * Its failure is logged and the group stays kept.
  */
-export async function keepSeasonKeyPlan() {
+async function keepSeasonKeyPlan() {
     const keptChapter = getClock().chapter;
     try {
         const dropped = await keepOnlyKeyPlanChapter(keptChapter);
@@ -906,7 +918,7 @@ function keyPlanExtras(i, shows, aria) {
     const field = (key, html) => `<label class="drpg-key-plan-field"><span class="notes">${esc(L(key))}</span>${html}</label>`;
     return field("DRPG.Investigation.visibility", `<select name="keyvis:${i}"${aria("DRPG.Investigation.visibility")}>${vis}</select>`)
         + field("DRPG.Remnant.authorLabel", `<select name="keyauthor:${i}"${aria("DRPG.Remnant.authorLabel")}>${authorOptions(shows.author || null, studentActors())}</select>`)
-        + `<div class="drpg-key-plan-field"><span class="notes">${esc(L("DRPG.CaseMap.field.img"))}</span><img src="${esc(img || ICON)}" alt="" title="${
+        + `<div class="drpg-key-plan-field"><span class="notes">${esc(L("DRPG.CaseMap.field.img"))}</span><img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${
             esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="key-${i}" data-drpg-portrait-field="keypicture:${i}" /><input type="hidden" name="keypicture:${i}" value="${
             esc(img)}" data-drpg-drawn="${esc(img)}" /></div>`;
 }
@@ -1294,15 +1306,15 @@ async function createKeyRemnant(row, scene) {
            while the clue sat in the ledger. `createFind` in observe.mjs has always done this
            correctly and says why: two names for one object is a false contradiction the table
            has to spend the trial resolving. Same call, same fields, same reason. */
-        if (token && (row.name || row.text || row.analysis || row.img)) {
+        if (token) {
             await setRemnantPublic(token, {
                 ...(row.name ? { name: row.name } : {}),
                 ...(row.text ? { playerText: row.text } : {}),
                 // What the finder reads once they analyse it (21.09) - kept back
                 // until then like any trace's, however self-evident the kind.
                 ...(row.analysis ? { analyzedText: row.analysis } : {}),
-                // and the slot's planned picture (E104), as the Table writes it
-                ...(row.img ? { img: row.img } : {})
+                // and the slot's planned picture (E104), as the Table writes it; with none, the Truth Bullet's (1.2.113)
+                img: row.img || PLANNED_GLYPH
             });
         }
         return token;
@@ -1605,34 +1617,6 @@ function evidenceByStudent() {
 }
 
 /**
- * The Investigation at a glance - and, now, the one place a GM edits any of
- * it. One window, three tabs sharing a single Save, because the questions
- * they answer ("what are my clues", "have I placed them", "who has found
- * what") are one GM's one sitting, not three separate trips through the panel.
- *
- *   Traces        every Remnant on every scene - the old per-scene Remnant
- *                 Manager, widened to the whole world, plus the `public`
- *                 record a player will eventually see (see remnants.mjs's
- *                 "ONE RECORD, THREE VIEWS").
- *   Key Remnants  the planner, folded in, now showing how many the opening
- *                 roll actually allows this chapter.
- *
- * THE ENDGAME IS NOT HERE. This window used to carry a third tab holding the
- * Mastermind's identity and the Final Truth Remnant, which meant two screens
- * could write the same two records - and two screens that write one record are
- * two chances to write it differently. Both live on the Mastermind window now,
- * which is the one place the endgame is edited; traces typed `final` still
- * appear in the Traces table here like every other trace, because reading them
- * is not the same act as deciding them.
- *
- * Information only beyond that: an earlier version also handed each Monokuma
- * Despair for every Key Remnant nobody reached, which turned the GM's own
- * planning miss into a resource the GM side got to spend. A clue the players
- * never found is already its own consequence - the trial gets harder - and
- * the "this is getting thin" warning is what a GM actually needs from here.
- */
-
-/**
  * The Truth Bullet sweep, asked for by a person (Z7).
  *
  * The twin of `confirmClearFaint` in remnants.mjs, and deliberately the same
@@ -1771,7 +1755,7 @@ function tableBody(markup) {
  * whole name in `title` (`lines: 2`; under Legacy's pixel face a one-word head such as "Reinforced" is as wide as the
  * column) - but the last two, short words, the Breakdown's tooltip the sentence. Exported for R2067.
  */
-export function caseStudentColumns() {
+function caseStudentColumns() {
     const L = key => game.i18n.localize(key);
     return [
         { key: "student", label: L("DRPG.Investigation.student"), cls: "case-student", lines: 2 },
@@ -1823,7 +1807,7 @@ function findableKind(key) {
  */
 function traceShows(data) {
     return {
-        img: data.public?.img || ICON,
+        img: data.public?.img || PLANNED_GLYPH,
         name: data.public?.name || "",
         text: data.public?.playerText || "",
         analysis: data.public?.analyzedText || "",
@@ -2077,7 +2061,7 @@ export function caseKeyRows({ plan, status, placed, limit }) {
 }
 
 /** The Key Remnants planner's columns, in the hand table's order (D31). Exported for R2067 and R2068. */
-export function caseKeyColumns() {
+function caseKeyColumns() {
     const L = key => game.i18n.localize(key);
     return [
         { key: "scale", label: L("DRPG.Investigation.difficulty"), cls: "case-scale", lines: 2 },
@@ -2176,7 +2160,6 @@ function caseKeyCells({ plan, status, placed, limit }) {
     });
 }
 
-/** The Key Remnants tab: the planner and its warnings. */
 /**
  * The warning that the case is getting thin (E66 C3; S13-29, E66-14): a plural family on the Key Remnants found, and
  * its own sentence for none, which the family's "Only 0 Key Remnants" was. Exported for R1156.
@@ -2187,6 +2170,9 @@ export function tooThinLine(found) {
         : game.i18n.format("DRPG.Investigation.tooThinNone", { min: KEY_REMNANTS.minimum });
 }
 
+/**
+ * The Key Remnants tab: the planner and its warnings.
+ */
 function caseKeyPanel({ plan, status, placed, limit }) {
     // The guide's floor is three Key Remnants; the plan's own warning threshold
     // is one above it, so a GM is told the trial is getting thin BEFORE it is
@@ -2367,7 +2353,7 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
  * since C9 (the owner's E: "Map by default"; Q-E: the parity test green, R3653, and the owner shown both views, round
  * 1 of 12.11.2026). Not a secret: world-secrets.mjs forbids one User flag only (`preSessionNote.text`).
  */
-export const INVESTIGATION_VIEWS = Object.freeze(["map", "table"]);
+const INVESTIGATION_VIEWS = Object.freeze(["map", "table"]);
 export function investigationView(user = game.user) {
     const v = user?.getFlag?.(MODULE_ID, "investigationView");
     return INVESTIGATION_VIEWS.includes(v) ? v : "map";
@@ -2629,8 +2615,9 @@ function schemaEditor(graph, node) {
     if (node.kind === "bullet") {
         /* A PLANNED TRUTH BULLET MADE BY HAND (E104; the owner, 13.11.2026: "kazdemu zaplanowanemu remnantowi/bulletowi"):
            the Give Truth Bullet window's Write new fields in its order and words (gm-items.mjs `bulletCreatePane`: name,
-           real type, shown as, visibility, Faint, tied, the player's words, the analysis, the GM's note), then its recipient
-           rows (who gets it, Tell the player). Give opens that window filled in (`placeIncident` -> `givePlannedBullet`). */
+           real type, shown as, visibility, Faint, tied, the player's words, the analysis, the GM's note), its picture as a
+           planned Remnant has (1.2.113; the owner's "yes", 13.11.2026), then its recipient rows (who gets it, Tell the
+           player). Give opens that window filled in (`placeIncident` -> `givePlannedBullet`), the picture with it. */
         const types = Object.entries(TRUTH_BULLET_TYPES).map(([key, t]) => `<option value="${key}"${key === (node.realType ?? "neutral") ? " selected" : ""}>${
             esc(t.label)}</option>`).join("");
         const shown = [["auto", "DRPG.TruthBullet.shownAuto"], ["neutral", "DRPG.TruthBullet.shownNeutral"], ["real", "DRPG.TruthBullet.shownReal"]]
@@ -2639,7 +2626,9 @@ function schemaEditor(graph, node) {
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
         const check = (field, key, on) => editRow(L(key), `<input type="checkbox" name="${esc(name(field))}" aria-label="${esc(L(key))}"${on ? " checked" : ""} />`);
         const recipients = `<option value=""${node.recipient ? "" : " selected"}>${esc(L("DRPG.CaseMap.noRecipient"))}</option>`
-            + studentActors().map(a => `<option value="${esc(a.id)}"${a.id === node.recipient ? " selected" : ""}>${esc(a.name)}</option>`).join("");
+            + studentActors().map(a => `<option value="${esc(a.id)}"${a.id === node.recipient ? " selected" : ""}>${esc(a.name)}</option>`).join("")
+            // every living student, a copy each (1.2.113; config.mjs `RECIPIENT_EVERYONE`)
+            + `<option value="${RECIPIENT_EVERYONE}"${node.recipient === RECIPIENT_EVERYONE ? " selected" : ""}>${esc(L("DRPG.Items.everyone"))}</option>`;
         return [
             ...(node.sent ? [`<p class="drpg-case-info-note">${esc(L("DRPG.CaseMap.bulletGiven"))}</p>`] : []),
             editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
@@ -2655,6 +2644,8 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.TruthBullet.gmNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(node.img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+                esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(node.img ?? "")}" data-drpg-drawn="${esc(node.img ?? "")}" />`),
             editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}">${recipients}</select>`),
             check("tell", "DRPG.Items.tellPlayer", node.tell !== false),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
@@ -2681,7 +2672,7 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.Investigation.finalNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
-            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
                 esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
@@ -2718,7 +2709,7 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.Investigation.keyNoteLabel"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.Investigation.keyNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
-            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
                 esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
                 esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
@@ -3001,7 +2992,7 @@ export function wireKeyLimitOverride(root) {
  */
 function wireCase(dialog) {
     const root = dialog.element;
-    wirePortraitPickers(root, { defaultImg: ICON });
+    wirePortraitPickers(root, { defaultImg: PLANNED_GLYPH });
 
     // `win` and `app` (E21 C2a): the bar may widen the window, and a press puts it back on the screen (C1b).
     wireKitTabs(root, { win: root, app: dialog });
@@ -3144,7 +3135,7 @@ export async function placeIncident(chapter, id) {
     // every field it plans (E104); with no room planned, New Remnant asks for one instead of starting on the first
     const token = await openNewTrace({ room: row.room, sceneId: row.scene, type, name: row.label, text: row.text, tied: row.tie ?? "",
         author: row.author || "", vis: row.vis, reinforced: row.reinforced === true, analysis: row.analysis || "", note: row.note || "",
-        img: row.img || "", askRoom: !row.room });
+        img: row.img || PLANNED_GLYPH, askRoom: !row.room });
     if (token) await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     return token;
 }
@@ -3278,7 +3269,8 @@ export async function runDashboardButton(action) {
  * A PLANNED TRUTH BULLET GIVEN (E104): the Give Truth Bullet window (gm-items.mjs `giveTruthBulletDialog`) opens on Write
  * new with every field the plan holds, on its planned recipient (else the first student, which the window shows), and
  * the GM gives it there; given, the plan is marked so (`given`). The window refuses one with no name, as ever. Answers
- * whether it was given.
+ * whether it was given. A plan to Everyone (1.2.113) opens on Everyone, and is marked only when every living student got
+ * a copy: the window names those who did not, and the plan stays to be given again.
  */
 async function givePlannedBullet(chapter, id, row) {
     const { giveTruthBulletDialog } = await import("./gm-items.mjs");
@@ -3316,7 +3308,7 @@ async function placePlannedFinal(chapter, id, row) {
     const token = await placeFinalRemnant({ room, scene, visibility: row.vis ?? "evident", note: row.note ?? "", name: row.label ?? "",
         text: row.text ?? "", analysis: row.analysis ?? "", author: row.author ?? "" });
     if (!token) return null;
-    if (row.img) await setRemnantPublic(token, { img: row.img });
+    await setRemnantPublic(token, { img: row.img || PLANNED_GLYPH });
     await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn", { room }));
     return token;
@@ -3357,6 +3349,33 @@ async function placeFinalFromDashboard(action) {
     }
 }
 
+/**
+ * The Investigation at a glance - and, now, the one place a GM edits any of
+ * it. One window, three tabs sharing a single Save, because the questions
+ * they answer ("what are my clues", "have I placed them", "who has found
+ * what") are one GM's one sitting, not three separate trips through the panel.
+ *
+ *   Traces        every Remnant on every scene - the old per-scene Remnant
+ *                 Manager, widened to the whole world, plus the `public`
+ *                 record a player will eventually see (see remnants.mjs's
+ *                 "ONE RECORD, THREE VIEWS").
+ *   Key Remnants  the planner, folded in, now showing how many the opening
+ *                 roll actually allows this chapter.
+ *
+ * THE ENDGAME IS NOT HERE. This window used to carry a third tab holding the
+ * Mastermind's identity and the Final Truth Remnant, which meant two screens
+ * could write the same two records - and two screens that write one record are
+ * two chances to write it differently. Both live on the Mastermind window now,
+ * which is the one place the endgame is edited; traces typed `final` still
+ * appear in the Traces table here like every other trace, because reading them
+ * is not the same act as deciding them.
+ *
+ * Information only beyond that: an earlier version also handed each Monokuma
+ * Despair for every Key Remnant nobody reached, which turned the GM's own
+ * planning miss into a resource the GM side got to spend. A clue the players
+ * never found is already its own consequence - the trial gets harder - and
+ * the "this is getting thin" warning is what a GM actually needs from here.
+ */
 export async function openInvestigationDashboard({ said = null, node = null, view = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

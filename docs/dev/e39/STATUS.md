@@ -20,7 +20,7 @@ The plan lays out no commits C1..Cn, only five work items (its section 3). They 
 
 | Commit | What | Where |
 | --- | --- | --- |
-| C1 (0ec727b6) | **70-movement**, the planned row: a refusal that names no undiscovered room; a route's last leg vetoed past the budget, the room paid for kept; ten crossings at once over three pages, each paid exactly once; the GM's Refund at the exact price, a second refused; an Afternoon Eclipse's allowance, the crossing past it refused on the mover and, from a console past its own veto, put back. LIVE-E39-01 added to AUDIT 9.2 | audit/harness/scenarios/70-movement.mjs, README row 70, tests-flows.mjs (two rows name 70), AUDIT-1.2.42.md item 507 |
+| C1 (0ec727b6) | **70-movement**, the planned row: a refusal that names no undiscovered room; a route's last leg vetoed past the budget, the room paid for kept; ten crossings at once over three pages, each paid exactly once; the GM's Refund at the exact price, a second refused; an Afternoon Eclipse's allowance, the crossing past it refused on the mover and, from a console past its own veto, put back. LIVE-E39-01 added to AUDIT 9.2 | audit/harness/scenarios/70-movement.mjs, README row 70, tests-flows.mjs (two rows name 70), AUDIT-1.2.42.md item 512 (507 at first; 508 after the merge of main at 984d1fb1, whose LIVE-E64-01 took 507; 512 after the merge of a2b233d2, whose E102-E106 items came before it) |
 | C2 (6a243316) | **99-actions**, the plan's driveAction: every row of `ACTIONS` driven from p1's page; a census that fails on a row without a driver; each row's price; every row with thresholds (Search, Projects, Listen, Sabotage) at one below each band, at each band and on a critical, against config.mjs | audit/harness/scenarios/99-actions.mjs, README row 99, tests-flows.mjs (action-roll names 99) |
 | C3 (8b1f3445) | tier 2 **E35-T10** holds every mode of `TRANSFER_POLICY` to a road it drives (a census, then each mode into full hands with a stash read against the policy itself); at HEAD a sixth mode `lend` passed it unread | scripts/tests-tier2.mjs |
 | C4 (fbb29935) | tier 2 **E39-T1**, the one project entry's cases on fresh projects: null for no project, an empty change and a removed one; +1; a fill crossing once; a full bar renamed not crossing again; alreadyFull and alreadyEmpty; uncrossing; the clamp at both ends; a lowered target crossing; a name and a room; a frozen bar refused; a target of 0 written as 1 | scripts/tests-tier2.mjs |
@@ -99,6 +99,8 @@ keep or drop.
   tier 2 by name - E35-T10, E39-T1, and E36-T2, E36-T3 beside them - 5 ran, 0 failed (28 s). No scenario reads
   tests-tier2.mjs by name (`git grep`); 01-runtests runs it whole in CI's shards. The first push (C1, C2 and the STATUS)
   went with "[skip ci]" on its head commit, so this push is CI's first run of C1-C4.
+- CI run 522 (a00b3967, C1-C4 and STATUS): green, every job - lint, check and gate, the suite's eight shards and
+  their merge, the scenario buckets with 70-movement and 99-actions in them.
 
 ## Gaps left (named, not built)
 
@@ -119,6 +121,10 @@ None: nothing visible changed (tests and documents only).
 
 - Q-E39-1, Q-E39-2, Q-E39-3: defaults taken above, owner to confirm.
 - The S09 list for the 14 project cases: not in this checkout; E36-T2..T11 stand for it until it is handed over.
+
+## Status
+
+E39 is done on this line: C1-C4 pushed, CI green (run 522). What is open is named under "Gaps left" and "Waits for".
 
 ## Tokens so far
 

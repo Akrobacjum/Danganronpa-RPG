@@ -25,7 +25,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFr
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, actingStudents } from "./monokuma.mjs";
-import { sheetMode, moveSlots, moveFeetHtml, moveLegend } from "./sheet.mjs";
+import { sheetMode, moveSlots, moveFeetHtml, moveLegend, moveDragSaid } from "./sheet.mjs";
 import { isMonocub, purseOf } from "./monocub.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -34,7 +34,6 @@ import { error, plural, markLanguage } from "./utils.mjs";
 import { count } from "./perf-counters.mjs";
 // The r112 review's P2 (13.11.2026): Move's drag sentence only where Move is a drag. Its own line, so the import above
 // merges with the e72 line's next to it.
-import { moveDragSaid } from "./sheet.mjs";
 
 const WIDGET_ID = "drpg-player-status";
 
@@ -297,8 +296,7 @@ function box() {
  *
  * The classes are the sheet's own, so the masks, the filled/empty states and
  * the pixel rendering all come from the rules that already style them.
- */
-/**
+ *
  * @param {{from: number, to: number}|null} [options.spent]  Which pips went out
  *   since this tray last drew this pool - see `spentSince`. The tray keeps its
  *   own memory separate from the sheet's, so both surfaces flash the same

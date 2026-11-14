@@ -86,12 +86,14 @@ export function handbookPath(id, lang = pageLanguage()) {
 
 const rendered = new Map();
 
-/** One handbook as HTML: fetched and converted once per session and language. */
 /** The converter on its own, for the suite: Markdown in, the viewer's HTML out. */
 export function markdownToHtml(markdown) {
     return toHtml(markdown);
 }
 
+/**
+ * One handbook as HTML: fetched and converted once per session and language.
+ */
 export function handbookHtml(id, lang = pageLanguage()) {
     const key = `${id}.${lang}`;
     if (!rendered.has(key)) {

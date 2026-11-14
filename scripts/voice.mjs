@@ -45,15 +45,17 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, dea
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
-import { allRooms, moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
+import { moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
-import { deathStore, trialMuteStore } from "./gm-stores.mjs";
-import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
-import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
+import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore } from "./gm-stores.mjs";
+import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
+import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
+// A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
+import { conferCamps } from "./zone-machine.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 
@@ -317,6 +319,16 @@ export function registerVoice() {
     // mid-conversation is a placement window everybody can hear - and ending it
     // puts them all back in a single pass.
     Hooks.on("drpgEclipseChanged", () => scheduleReconcile({ immediate: true, force: true }));
+    // A Scrum Debate's camps begin or stop conferring (the owner's 13.11.2026): the floor is a world setting every
+    // browser hears; a pass is asked at once only when the camps' rooms change (`conferTurn`), not on every floor write.
+    for (const hook of ["createSetting", "updateSetting"]) {
+        Hooks.on(hook, setting => {
+            if (setting?.key !== `${MODULE_ID}.${SETTINGS.trialQueue}`) return;
+            const turn = conferTurn(conferSeen, getSetting(SETTINGS.trialQueue));
+            conferSeen = turn.key;
+            if (turn.changed) scheduleReconcile({ immediate: true });
+        });
+    }
 
     Hooks.once("ready", () => {
         game.socket.on(SOCKET_EVENT, onVoiceSocket);
@@ -330,6 +342,21 @@ export function registerVoice() {
                 .catch(err => error("Could not place the voices once the cast arrived", err));
         }
     });
+}
+
+/** The camps this browser last saw conferring (`conferTurn`'s key), "" for none. */
+let conferSeen = "";
+
+/**
+ * Whether the Scrum Debate's conferring camps changed with a write of the floor (the owner's 13.11.2026; R5913): `seen`
+ * the key the browser held, `floor` the floor as stored now. `{ key, changed }`, the key "" when no camp confers - so the
+ * Confer's start, its end by any road (the clock, Skip, End this mode, the trial's end clearing the floor) and nothing
+ * else asks the voice pass. Pure.
+ */
+export function conferTurn(seen, floor) {
+    const camps = conferCamps(floor);
+    const key = camps ? JSON.stringify([camps.a, camps.b]) : "";
+    return { key, changed: key !== (seen ?? "") };
 }
 
 /** The document hooks `reconcileTrigger` answers. */
@@ -865,9 +892,15 @@ export async function voiceTargets() {
     // dry run's `voicePlan` and at every change of primary), so a GM who becomes the primary starts with nothing kept.
     standDownRoomsKept();
     const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
+    // Listen's eavesdrops that stand (E69 C6; eavesdrop-gm.mjs, which ends on the primary the ones that do not).
+    const listens = eclipse || trial ? new Map() : await (await import("./eavesdrop-gm.mjs")).listensInForce();
+    // The killers behind a "?" (E69 C8; mask-gm.mjs): each in a silent room of their own while the mask stands.
+    const masks = new Set(Object.keys(maskStore.entries() ?? {}));
     const { rows, byUser, claims, waits, held } = await placeVoices({
+        listens, masks,
         actors: game.actors.filter(a => a.type === "character" && !watchesForTheDead(a)), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
+        camps: trial ? conferCamps(getSetting(SETTINGS.trialQueue)) : null,
         locate: gaps.locate,
         users: game.users.filter(u => u.active)
     });
@@ -936,11 +969,14 @@ export function contestedOf(claims) {
  * @param {Function} [facts.dead]        the GMs' record (`isDeadForGm`)
  * @param {Function} [facts.monokumaOf]  `isMonokuma`
  * @param {User[]} [facts.users]         the connected accounts, each given a row of its own when no character gives one
+ * @param {{a: string[], b: string[]}|null} [facts.camps]  a Scrum Debate's camps while they confer (zone-machine.mjs
+ *   `conferCamps`), read only in the trial
  * @returns {Promise<{rows: Array, byUser: Map<string, object>, claims: Map<string, Array>, waits: Map<string, string[]>,
  *   held: Set<string>}>}  `held`: the players' accounts sent nothing while the cast is unknown (a kept account's room)
  */
-export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null,
-    userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma, users = [] } = {}) {
+export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null, camps = null,
+    userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma, users = [],
+    listens = new Map(), masks = new Set() } = {}) {
     // Nobody's death is asked in an Eclipse or the trial (`voiceClaim`; R117), so nor are the facts of one.
     const asked = !eclipse && !trial;
     const facts = asked ? death ?? await deathFacts() : null;
@@ -991,6 +1027,26 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         byUser.set(user.id, row);
     }
 
+    /* THE SCRUM DEBATE'S CAMPS CONFER APART (the owner's 13.11.2026, after a table on 1.2.112: "a moment for each side
+       to confer in separate LiveKit rooms"). While the floor's Scrum Debate is in its Confer phase (zone-machine.mjs
+       `conferCamps`: the camps as they stood at the Sides' end, the trial's participants alone), a player's account
+       whose character is in a camp goes to that camp's room (voice-client.mjs `SCRUM_ROOMS`), so Zone A's members hear
+       only Zone A and Zone B's only Zone B. Nobody else moves: a GM (and a Monokuma, a GM's voice) stays in the trial's
+       room, as does every account the camps do not name - the dead on the trial's list, a Monocub, a late joiner. A
+       Spectator talking goes to the Spectators' room below, whatever it is. The claim stays the trial's. One rule of
+       this decision, so the reconcile, its retries, the who-am-I answer to a reload and the heartbeat all apply it; the
+       floor leaving Confer by any road gives every camp back to the trial's room on the next pass (`conferTurn`). */
+    if (trial && camps) {
+        const sideOf = new Map([...(camps.a ?? []).map(id => [id, "a"]), ...(camps.b ?? []).map(id => [id, "b"])]);
+        for (const [userId, row] of byUser) {
+            if (!row.user || row.user.isGM || row.monokuma) continue;
+            const side = (claims.get(userId) ?? []).map(r => sideOf.get(r.actor?.id)).find(Boolean) ?? null;
+            if (!side) continue;
+            byUser.set(userId, { ...row, target: SCRUM_ROOMS[side], camp: side,
+                why: `Scrum Debate - Zone ${side.toUpperCase()} confers in its own room` });
+        }
+    }
+
     /* THE SPECTATORS' ROOM (E92 C6, 12.11.2026; the owner's 04.11 amend: "if one connection cannot listen in one room and
        speak in another, a 'Spectator talk' switch moves them to their room until they return"). This file's client
        holds one LiveKit room at a time (voice-client.mjs `applyBreakout` - a reading of this code, not of avclient-livekit;
@@ -1000,6 +1056,17 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         if (!row.user || !spectatorTalks(row.user, { actors })) continue;
         byUser.set(userId, { ...row, room: null, target: SPECTATOR_ROOM, claim: CLAIM.inRoom, kept: false, keep: false,
             why: "a Spectator, talking with the Spectators" });
+    }
+
+    // LISTEN'S EAVESDROP (E69 C6; eavesdrop-gm.mjs): one more rule over the account's row, after the Spectators' room.
+    for (const [userId, row] of byUser) {
+        const heard = listeningRow(row, listens);
+        if (heard !== row) byUser.set(userId, heard);
+    }
+    // THE KILLER BEHIND A "?" (E69 C8; mask-gm.mjs): one more rule, after the eavesdrop's (`maskedRow`).
+    for (const [userId, row] of byUser) {
+        const hidden = maskedRow(row, masks);
+        if (hidden !== row) byUser.set(userId, hidden);
     }
 
     const waits = new Map();
@@ -1018,7 +1085,8 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
     }
     const cast = facts?.cast ?? new Set();
     // Never a Spectator (E92 C2): it watches, and is nobody's witness.
-    const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma
+    // Nor a listener at a door (E69 C6): they hear the room and are not in it.
+    const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma && !row.listening && !row.masked
         && !isSpectator(row.actor) && !dead(row.actor) && !cast.has(row.actor.id));
     for (const [index, row] of rows.entries()) {
         if (!row.fallen || row.gone !== false || !row.target || !row.user?.active) continue;
@@ -1034,6 +1102,72 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         for (const [userId] of near) waits.set(userId, [...new Set([...(waits.get(userId) ?? []), row.user.id])]);
     }
     return { rows, byUser, claims, waits, held };
+}
+
+/**
+ * LISTEN'S EAVESDROP, THE RULE (E69 C6, 13.11.2026; the owner's 10.11 (a); eavesdrop-gm.mjs holds the rows). An account's
+ * row whose character listens at a door (`listens`: actor id -> `{ sceneId, from, into }`, `listensInForce`) and stands
+ * in a room of its own in the room it listens from is sent into the voice channel of the room it listens at, marked
+ * `listening`; its microphone is the trial's block's (`settleTrialVoices`). Any other row - no eavesdrop, another
+ * room, another scene, no room (a doorway's gap the pass did not keep), a Spectator's room, the dead channel - is
+ * answered as it came: the primary's sweep ends an eavesdrop whose listener has left (`eavesdropEnd`). Pure (R6020).
+ */
+export function listeningRow(row, listens = new Map()) {
+    const listen = row?.actor ? listens.get(row.actor.id) : null;
+    if (!listen || row.claim !== CLAIM.inRoom || row.target === SPECTATOR_ROOM) return row;
+    if ((row.scene?.id ?? null) !== listen.sceneId || row.room !== listen.from) return row;
+    return { ...row, target: liveKitRoomFor(listen.sceneId, listen.into), listening: { from: listen.from, into: listen.into },
+        kept: false, why: `listening at the door of ${listen.into}, from ${listen.from}` };
+}
+
+/**
+ * THE KILLER BEHIND A "?", THE RULE (E69 C8, 13.11.2026; the coordinator's answer of 13.11: a name in the victim's voice
+ * list would defeat the mask). An account whose voice character is a killer the GMs hold masked (`masks`, killer actor
+ * ids) is sent to a silent room of its own (voice-client.mjs `silentRoomFor`, the word its browser leaves voice on, as
+ * in an Eclipse): it neither speaks to the room nor hears it, and no list in the room names it. Outside an Eclipse and
+ * the trial only (`placeVoices` is not asked them there); the account goes back to its token's room when the mask
+ * ends. Pure (R6032).
+ */
+export function maskedRow(row, masks = new Set()) {
+    if (!row?.actor || !row.user || row.user.isGM || !masks.has(row.actor.id)) return row;
+    return { ...row, room: null, target: silentRoomFor(row.user.id), claim: CLAIM.inRoom, masked: true, kept: false, keep: false,
+        why: "behind a \"?\" after a murder's opening - a silent room of its own" };
+}
+
+/** On a GM: the accounts whose character stands behind a "?" now, from the GMs' rows (E69 C8). */
+function maskedIds() {
+    if (!game.user?.isGM) return new Set();
+    return new Set(Object.values(maskStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
+}
+
+/**
+ * Whether this browser's own character stands behind a "?" (E69 C8), read off the one flag of its tokens: a player
+ * knows their own mask. Inline rather than mask-gm.mjs's `myMask`, which voice.mjs would import back through its run.
+ */
+function ownMasked(user = game.user) {
+    if (!user || user.id !== game.user?.id || user.isGM) return false;
+    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (token.flags?.[MODULE_ID]?.masked && token.actor?.testUserPermission?.(user, "OWNER")) return true;
+    }
+    return false;
+}
+
+/** On a GM: the accounts whose character listens at a door now, from the GMs' rows (E69 C6). */
+function listeningIds() {
+    if (!game.user?.isGM) return new Set();
+    return new Set(Object.values(eavesdropStore.entries() ?? {}).filter(row => row?.active && row.userId).map(row => row.userId));
+}
+
+/**
+ * The LiveKit room this browser's own character listens into, from the owner's copy (E69 C6), or null: `micHold`'s
+ * "listening" is asked of the room the primary sent this browser, so a stale copy holds nothing.
+ */
+function ownListenRoom(user = game.user) {
+    if (!user || user.id !== game.user?.id || user.isGM) return null;
+    for (const [actorId, row] of Object.entries(eavesdropCopy.read() ?? {})) {
+        if (row?.active && game.actors?.get(actorId)?.isOwner) return liveKitRoomFor(row.sceneId, row.into);
+    }
+    return null;
 }
 
 /**
@@ -1169,12 +1303,16 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  * and not external, and a renamed Room or `state` as offline.
  */
 export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
-    canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts() } = {}) {
+    canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts(), listening = ownListenRoom(user),
+    masked = ownMasked(user) } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
     // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
     // but in the Spectators' room, once the primary has sent it there (E92 C6): a line, not held.
     if (spectatorAccount(user, { actors })) return room === SPECTATOR_ROOM ? { reason: "spectatorTalk", held: false } : { reason: "spectator", held: true };
+    // Behind a "?" after a murder's opening (E69 C8): HELD - out of voice in a silent room of its own, named before the
+    // Eclipse's reading of that same silent room, until the reveal or the end of the time of day.
+    if (masked) return { reason: "masked", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
     // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
     if (!connected && !eclipse) return { reason: "offline", held: false };
@@ -1189,6 +1327,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // `listed`), as vote.mjs `trialParticipants` seats it: the lowest id alone muted a living voter as dead.
     const speaker = inTrial ? accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null : null;
     if (speaker && isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
+    // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
+    // browser in the room it listens into.
+    if (listening && room === listening) return { reason: "listening", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
@@ -1213,8 +1354,12 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
  * nobody is located at all. The facts can be handed in, as `micHold`'s.
  */
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
-    dead = isDeadForGm } = {}) {
+    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds() } = {}) {
     if (!game.user?.isGM || !user) return null;
+    // Behind a "?" (E69 C8): the mask's block, which the GM's own is not offered over either.
+    if (masked.has(user.id)) return { reason: "masked", held: true };
+    // Listening at a door (E69 C6): the eavesdrop's block, which the GM's own is not offered over.
+    if (listening.has(user.id)) return { reason: "listening", held: true };
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
     const actor = row?.actor;
     // A Spectator's block is the module's (E92 C2, `settleTrialVoices`): the GM's own block is not offered over it -
@@ -1230,11 +1375,21 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
  * character (E92's flag) owned by an account that still owns its dead student, so the account is no Spectator's
  * (`spectatorAccount`) and its voice is the dead student's - the Spectators' room below (`voiceClaim`). Left in the
  * rows, the Spectator's token would claim the room it walks into as a living character's and outrank the dead.
+ *
+ * THE ACCOUNT BY OWNERSHIP, NOT BY CONNECTION (13.11.2026, the 1.2.112 tree; CI 43479554811, scenario 41 h1; R5469).
+ * Until then the account was `voiceUserOf`'s, the connected owner alone: a watcher no player owns - chapter.mjs made one
+ * for every dead student until 1.2.113, scenario 41's "S41 Ghost" whom nobody plays, and one made then stays in a world
+ * until a GM deletes it (spectator-dead.mjs `isNpcAtDeath`) - and the watcher of a player who is away read no
+ * account, so stood in `voiceTargets`' rows (h1: eight, the Ghost twice) and in `trialVoicesPending` as an E92 Spectator.
+ * Now the connected owner, else any player who owns it; a Spectator's character no player owns is nobody's voice and
+ * has no row. An E92 Spectator's account, connected or away, is still read as one (`spectatorAccount`) and keeps its row.
  */
 export function watchesForTheDead(actor, { actors = null } = {}) {
     if (!isSpectator(actor)) return false;
-    const user = voiceUserOf(actor, false);
-    return Boolean(user && !user.isGM && !spectatorAccount(user, { actors }));
+    const user = voiceUserOf(actor, false)
+        ?? game.users?.find?.(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+    if (!user) return true;
+    return !user.isGM && !spectatorAccount(user, { actors });
 }
 
 /**
@@ -1263,7 +1418,7 @@ export function spectatorAccount(user, { actors = null, held = actor => actor } 
  * Whether a Spectator's account talks in the Spectators' room (E92 C6): its own switch (scripts/spectator.mjs
  * `talkSwitchOn`), honoured for a Spectator's account alone. The flag is the player's own to write.
  */
-export function spectatorTalks(user, { actors = null, held = actor => actor } = {}) {
+function spectatorTalks(user, { actors = null, held = actor => actor } = {}) {
     return talkSwitchOn(user) && spectatorAccount(user, { actors, held });
 }
 
@@ -1318,7 +1473,7 @@ function accountRow(user, { actors, eclipse = false, trial = false, silenced, li
 
 /** The facts the trial's lines are read from on this browser, or null outside a Class Trial: the clock, the floor
  *  (`active` only, as trial-floor.mjs `trialFloor` reads it), the stored record and the season. */
-export function trialFacts() {
+function trialFacts() {
     const clock = getClock();
     if (clock?.phase !== "classTrial") return null;
     const floor = getSetting(SETTINGS.trialQueue) ?? {};
@@ -1359,7 +1514,7 @@ function cubLine(actor, trial) {
     if (voice === "speak") return { reason: "cubSpeak", held: false };
     if (!trial?.floor) return { reason: "cubVote", held: false };
     const mode = trial.floor.mode === "discussion" ? "debate" : trial.floor.mode;
-    return { reason: "cubListen", held: false, data: { mode: game.i18n.localize(`DRPG.Hud.trial.${mode}`) } };
+    return { reason: "cubListen", held: false, data: { mode: trialModeLabel(mode) } };
 }
 
 /**
@@ -1490,6 +1645,12 @@ async function restoreTrialBlock(user, row) {
  */
 export async function settleTrialVoices({ release = false } = {}) {
     if (!game.user?.isGM || !isPrimaryGm()) return null;
+    // Listen's eavesdrop blocks by the same write (E69 C6, eavesdrop-gm.mjs): a listener's account, and for a moment after.
+    const eavesdrop = await import("./eavesdrop-gm.mjs");
+    await eavesdropStore.whenHydrated();
+    // And the murder's privacy (E69 C8, mask-gm.mjs): a killer behind a "?", one more reason of the same block.
+    const mask = await import("./mask-gm.mjs");
+    await maskStore.whenHydrated();
     if (await deathStore.whenHydrated() === "timedOut") warn("The trial's dead are listed from the deaths this GM holds: the other GMs' have not arrived.");
     await trialMuteStore.whenHydrated();
     const vote = await import("./vote.mjs");
@@ -1529,7 +1690,9 @@ export async function settleTrialVoices({ release = false } = {}) {
             // trial's exit and a role given back put back exactly what the block found; `release` gives it back too.
             // While it talks in the Spectators' room the block is lifted (E92 C6), and written again when it leaves.
             const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
-            if (watching || (voice && listed.has(voice.id))) {
+            const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
+            const masked = !release && mask.maskMutedIds().has(user.id);
+            if (watching || listening || masked || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }
@@ -1564,15 +1727,15 @@ function trialVoicesPending() {
     return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0
         || Boolean(game.actors?.some?.(actor => isSpectator(actor) && !watchesForTheDead(actor)));
 }
-function scheduleTrialVoices() {
-    if (!isPrimaryGm() || !trialVoicesPending()) return;
+function scheduleTrialVoices({ force = false } = {}) {
+    if (!isPrimaryGm() || (!force && !trialVoicesPending())) return;
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
         settleTimer = null;
         settleTrialVoices().catch(err => error("Could not settle the trial's voices", err));
     }, 250);
 }
-export function registerTrialVoices() {
+function registerTrialVoices() {
     Hooks.on("drpgDeathsChanged", scheduleTrialVoices);
     Hooks.on("updateActor", (_actor, changes) => {
         // Any of the module's flags (a death, a revival, a Monocub's) or the ownership; the settle reads what stands.
@@ -1582,6 +1745,8 @@ export function registerTrialVoices() {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) scheduleTrialVoices();
     });
     Hooks.on("drpgPrimaryReady", () => scheduleTrialVoices());
+    // Listen's eavesdrop (E69 C6): its block written and lifted by the same settle, whatever else is pending.
+    Hooks.on("drpgEavesdropChanged", () => scheduleTrialVoices({ force: true }));
     // The Spectator's switch (E92 C6): its block lifted in the Spectators' room, written again when it leaves.
     Hooks.on("updateUser", (_user, changes) => { if (changes?.flags?.[MODULE_ID]) scheduleTrialVoices(); });
     Hooks.once("ready", () => {
@@ -1996,7 +2161,7 @@ export function contestedWarning(userId, list, chosen) {
  * @param {{main: string, dead: string}} words
  * @returns {string}
  */
-export function placeName(row, { main, dead }) {
+function placeName(row, { main, dead }) {
     if (isDeadRoom(row?.target) || row?.claim === CLAIM.dead) return dead;
     return row?.room ?? main;
 }

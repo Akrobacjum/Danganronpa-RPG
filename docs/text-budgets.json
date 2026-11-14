@@ -165,5 +165,258 @@
             "note": "A card announce posts with no whisper list; one with a list is private (utils.mjs announce), and goes to the player or GM card by its list."
         }
     ],
-    "allow": []
+    "allow": [
+        {
+            "key": "DRPG.Floor.debateOpenedTitle",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Floor.objectionNote",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Floor.holdingDebate",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.presentNote",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objection",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionBanner",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionByButton",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionPickTitle",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionAtNow",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionAtLast",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionAtNamed",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionFailed",
+            "rule": "X15",
+            "why": "The genre's call-out: \"OBJECTION!\" is the button's own name and \"Nonstop Debate!\" the debate's title card, kept as written; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Floor.objectionNote",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Floor.holdingDebate",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.presentNote",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objection",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionBanner",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionByButton",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionPickTitle",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionAtNow",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionAtLast",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionAtNamed",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Trial.objectionFailed",
+            "rule": "X16",
+            "why": "\"OBJECTION!\" is the button's own name in capitals, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Mastermind.defeatedBanner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Mastermind.revealedBanner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Mastermind.finalBanner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Vote.banner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Vote.resultBanner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Vote.executionCardTitle",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Vote.verdictCardTitle",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Chapter.bodyBanner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Calls.gatherBanner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Motive.banner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Motive.dueBanner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Safeword.banner",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Clock.summaryEclipse",
+            "rule": "X16",
+            "why": "A banner or card title set in capitals as display type, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Season.resetWord",
+            "rule": "X16",
+            "why": "A word the reader types or presses exactly as shown, so its capitals are its spelling, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Legacy.safeword",
+            "rule": "X16",
+            "why": "A word the reader types or presses exactly as shown, so its capitals are its spelling, not emphasis; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Music.diag.off",
+            "rule": "X16",
+            "why": "A status word in the GM's music diagnostics, set in capitals so it stands out in a list, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Music.diag.cueMissing",
+            "rule": "X16",
+            "why": "A status word in the GM's music diagnostics, set in capitals so it stands out in a list, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Music.diag.missingPlaylist",
+            "rule": "X16",
+            "why": "A status word in the GM's music diagnostics, set in capitals so it stands out in a list, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Music.diag.emptyPlaylist",
+            "rule": "X16",
+            "why": "A status word in the GM's music diagnostics, set in capitals so it stands out in a list, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
+            "until": "E71"
+        }
+    ]
 }

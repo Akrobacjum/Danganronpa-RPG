@@ -9,11 +9,17 @@
  * a GM's write) and keeps a row, in the character's list in the GMs' store `timedEffects` (gm-stores.mjs
  * `timedEffectStore`, keyed by character, the list written whole), with its end, `until`:
  *
- *   - `timeOfDay`: when the time of day it was given in ends (`mark`, facilities.mjs `facilityMark`);
- *   - `day`: when the clock's day changes (`day`, `dayMark`).
+ *   - `timeOfDay`: when the time of day it was given in ends (`mark`, facilities.mjs `facilityMark`) - with an Eclipse,
+ *     as it starts;
+ *   - `day`: when the clock's day changes (`day`, `dayMark`) - with an Eclipse, as Night's starts.
  *
- * WHEN IT ENDS. On the primary at `drpgTimeOfDayChanged` (`endTimedEffects`): each row past its end is taken back
- * (`KINDS[kind].take`) and dropped. A GM may end one by hand (`endTimedEffect`).
+ * WHEN IT ENDS. On the primary as an Eclipse starts (`endAtEclipseStart`, A113-C2-6: the one boundary, read on the
+ * clock the Eclipse leads into) and at `drpgTimeOfDayChanged` (`endTimedEffects`): each row past its end is taken back
+ * (`KINDS[kind].take`) and dropped; a row that lasts until an Eclipse at its end (`endEclipseEffects`). Those two are
+ * the only callers of `endTimedEffect` outside the tests (through `endAtEclipseStart` too): no window, button or game.drpg command ends a row by hand
+ * (A113-C6-5, 13.11.2026; this line said "a GM may end one by hand" until then). A GM who edits a trait the row raised
+ * back to its number by hand does not end the row, and its end takes the bonus again from whatever the sheet holds:
+ * measured headless on 13.11.2026, a +2 on a trait of 0, edited back to 0, read -2 after `endTimedEffect`.
  *
  * WHO SEES IT. The GMs (the store), and each owner of the character, through a copy of their own characters' rows
  * (gm-stores.mjs `timedEffectCopy`), sent by the primary when a row is given or ends and when the owner asks (at load, at
@@ -35,7 +41,7 @@ const ACTION_TIMED = "timed.effects";
 const ACTION_TIMED_ASK = "timed.effectsAsk";
 
 /** The day a row belongs to: the season, the chapter and the clock's day. Pure. */
-export function dayMark(clock = getClock()) {
+function dayMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.day ?? 1].join(".");
 }
 
@@ -62,6 +68,12 @@ const KINDS = Object.freeze({
         give: async (actor, row) => {
             const { trustedWrite } = await import("./resource-guard.mjs");
             row.ref = foundry.utils.randomID(16);
+            await trustedWrite(actor, { [`system.experiences.${row.ref}`]: { name: row.label, value: row.n } }, { reason: "facility" });
+        },
+        // Put back by the Eclipse's take-back (`putBackAtTakeBack`) under the id it had, not a new one.
+        restore: async (actor, row) => {
+            if (!row.ref) return;
+            const { trustedWrite } = await import("./resource-guard.mjs");
             await trustedWrite(actor, { [`system.experiences.${row.ref}`]: { name: row.label, value: row.n } }, { reason: "facility" });
         },
         take: async (actor, row) => {
@@ -116,6 +128,14 @@ export async function takeDespairShield(actor, message = null) {
     tellOwners(actor);
     if (message?.setFlag) await message.setFlag(MODULE_ID, "despairShielded", true).catch(err => error("Could not mark a shielded roll", err));
     log(`${actor.name}'s protection from Despair stopped a roll's point.`);
+    /* The GMs are told (the audit's A113-C6-1, 13.11.2026): the roll's card says "with Despair" and the pool does not move,
+       so with the console line alone a GM could not tell why. A whisper to the GMs; the players are told no more. */
+    try {
+        const { whisperToGms } = await import("./utils.mjs");
+        await whisperToGms(`<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Facility.shieldTook", { name: actor.name }))}</p>`);
+    } catch (err) {
+        error("Could not tell the GMs a protection from Despair took a roll's point", err);
+    }
     return true;
 }
 
@@ -195,7 +215,7 @@ export async function endTimedEffect(id) {
 }
 
 /** Whether `row` is past its end at `clock`. Pure. */
-export function pastItsEnd(row, clock = getClock()) {
+function pastItsEnd(row, clock = getClock()) {
     if (row?.until === "timeOfDay") return row.mark !== facilityMark(clock);
     if (row?.until === "day") return row.day !== dayMark(clock);
     return false;
@@ -253,7 +273,7 @@ export function timedEffectsFor(userId) {
 }
 
 /** Primary GM: send one user their rows. Addressed, and only while they are here; nothing while the suite holds the stores. */
-export function sendTimedEffectsTo(userId) {
+function sendTimedEffectsTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     const { effects, stamps } = timedEffectsFor(userId);
@@ -279,7 +299,7 @@ export async function retellTimedEffects() {
 }
 
 /** Owner: take the primary's answer where it is newer (`timedEffectCopy`), for this user's own characters only. */
-export async function receiveTimedEffects(effects, stamps) {
+async function receiveTimedEffects(effects, stamps) {
     const mine = {}, own = {};
     for (const [actorId, s] of Object.entries(stamps ?? {})) {
         if (!game.actors.get(actorId)?.isOwner) continue;
@@ -318,13 +338,71 @@ function onTimedSocket(payload, senderId) {
     receiveTimedEffects(payload.effects, payload.stamps).catch(err => error("Could not keep a timed effect", err));
 }
 
-/** At ready: the copy's listener on every client, an owner's first ask, and the primary's clock listener. */
+/**
+ * ONE BOUNDARY: THE ECLIPSE'S START (A113-C2-6, 13.11.2026; the coordinator's default, the owner asked). "Until this
+ * time of day ends" ended at two moments: the grants, the seals and the barricades as an Eclipse begins (eclipse.mjs:
+ * "the Eclipse is the boundary, not a part of the day it follows"), these rows only at `drpgTimeOfDayChanged`, which
+ * with an Eclipse is its END - so a +2 Body bought in the afternoon lasted through the dark, and at the lights
+ * `endTimedEffects`, started from that hook, raced `judgePendingMurders` over whether it was still on the killer's sheet
+ * as the fight opened. Now, as an Eclipse starts, every row is ended that would be past its end on the clock the Eclipse
+ * leads into (clock.mjs `clockAfter`): the time of day's, and at Night's Eclipse the day's too, since that advance
+ * begins a new day. Nothing given before the dark is left to end at the lights; a row given during it ends there, as
+ * before. A time of day changed with no Eclipse still ends them at `drpgTimeOfDayChanged`. Answers how many ended.
+ *
+ * TAKEN BACK WITH THE BOUNDARY (the coordinator's follow-up, 13.11.2026): the rows it ends are kept in the GMs'
+ * take-back record (clock.mjs `keepEndedAtStart`), and an Eclipse ended without advancing while its take-back stands
+ * puts them back as they stood (`putBackAtTakeBack`), with the budgets, grants and seals - before C2-6 such a misclick
+ * left them standing, and it costs no more now. A barricade is still not put back, as before.
+ */
+export async function endAtEclipseStart(clock = getClock()) {
+    const { clockAfter, boundaryStamp, keepEndedAtStart } = await import("./clock.mjs");
+    const to = { ...clock, ...clockAfter(clock) };
+    const ended = [];
+    for (const actorId of Object.keys(timedEffectStore.entries() ?? {})) {
+        for (const row of timedEffectsOf(actorId)) {
+            if (!pastItsEnd(row, to)) continue;
+            const kept = foundry.utils.deepClone(row);
+            if (await endTimedEffect(row.id)) ended.push({ actorId, row: kept });
+        }
+    }
+    await keepEndedAtStart("eclipseTimed", boundaryStamp(clock), ended);
+    return ended.length;
+}
+
+/**
+ * The rows `endAtEclipseStart` ended at the boundary `stamp`, put back as they stood: the same row (its id, end and
+ * mark), and what its kind wrote written again - a trait's number raised again, an Experience under the id it had
+ * (`restore`). A row standing again already is left. Answers how many came back. GM only (the Eclipse's take-back,
+ * eclipse.mjs `endEclipse`).
+ */
+export async function putBackAtTakeBack(stamp) {
+    if (!game.user?.isGM) return 0;
+    const { takeEndedAtStart } = await import("./clock.mjs");
+    let n = 0;
+    for (const { actorId, row } of await takeEndedAtStart("eclipseTimed", stamp)) {
+        const actor = game.actors.get(actorId);
+        const kind = KINDS[row?.kind];
+        if (!actor || !kind || timedEffectsOf(actorId).some(r => r.id === row.id)) continue;
+        try {
+            await (kind.restore ?? kind.give)(actor, row);
+            await writeList(actorId, [...timedEffectsOf(actorId), row]);
+            tellOwners(actor);
+            n++;
+        } catch (err) {
+            error(`Could not put back ${actor.name}'s timed effect`, err);
+        }
+    }
+    return n;
+}
+
+/** At ready: the copy's listener on every client, an owner's first ask, and the primary's clock listeners. */
 export function registerTimedEffects() {
     game.socket.on(SOCKET_EVENT, onTimedSocket);
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) endTimedEffects().catch(err => error("The timed effects past their end could not be ended", err));
     });
     Hooks.on("drpgEclipseChanged", active => {
+        if (active === true && isPrimaryGm()) endAtEclipseStart().catch(err => error("The timed effects could not be ended as the Eclipse began", err));
         if (active === false && isPrimaryGm()) endEclipseEffects().catch(err => error("The Eclipse's extra crossings could not be ended", err));
     });
     if (game.user.isGM) return;

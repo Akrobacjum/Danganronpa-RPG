@@ -1,0 +1,339 @@
+{
+  "about": "What each module file of scripts/ may hold, held by tools/comments-lint.mjs (node tools/check.mjs comments): `citations` (a backticked name in a comment that no code, language key or stylesheet of the repository holds: renamed, removed, or somebody else's) and `doubledJsdoc` (two JSDoc blocks with nothing between them; a file's header before its first declaration's block not counted). A count above its row fails: a comment added one. A count below fails until the row is lowered in the same commit, so the budget only falls. `known` holds names read and kept, each with its reason (a Foundry, Daggerheart or browser name; a history line), which are counted nowhere. Written at a31e7a3b's counts on 13.11.2026 (E56 C1 on main's base; prep-54 first wrote it at 4dfac3a9: 175 names, 63 doubled blocks); E56 lowers it to zero or to `known` names. The rows are written by `node tools/comments-lint.mjs --write`, which lowers a row to its count and never raises one, from a run, never by hand.",
+  "known": {
+    "anyCub": "gm-students.mjs: history - the E47-C8 defect (a function read as a value), told at the cub cells' comment and pointed to by the pools' one (E56 C3, 13.11.2026)",
+    "shownTraces": "investigation.mjs: history - the S1-m7 snapshot the form replaced in E09 C3 ('until then')",
+    "shownKeyPlan": "investigation.mjs: history - the E05 C5 snapshot the form replaced in E09 C3 ('until then')",
+    "incidentVeil": "secret.mjs: history - fix r1-G3's call-site veil, replaced by `incidentVeils` in fix r2-G2 (past tense in both comments)",
+    "difficultyTag": "remnants.mjs: history - the Observe DC's word the header says is gone",
+    "attemptTransform": "cleanup.mjs: a function that was not written ('a second ... would have been a copy'), named to say why",
+    "raisesVisibility": "cleanup.mjs, config.mjs: history - an outcome field no outcome carries any more, said so in both comments",
+    "searchTheftOf": "stash-reach.mjs: history - the Search's road into a stash (bridge-runs-acts.mjs), removed with that road in 1.2.112, named as the road that was (E56, after the merge of 13.11.2026)",
+    "sanitizeAppearance": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "resolveRoleSlot": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "systemDefaults": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "playDelayBase": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "playDelayJitter": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "handleSpecialEffectsInit": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "SAVED": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "DEFAULT_SFX": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "SFX_LIST": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "APPEARANCE": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "addSFXDefaults": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "ROLE_APPEARANCE": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "NEEDS_OWN_BRIEFING": "action-rolls.mjs: history - the list that went with the Move window, said so ('went with the window')",
+    "searchStash": "action-search.mjs: history - the Search's road into a stash, 'gone in 1.2.112' as the comment says",
+    "tierWanted": "action-search.mjs: the camelCase spelling `dataset` would lowercase, named to say why the keys are lowercase",
+    "tierwanted": "action-search.mjs: what `dataset` turns `tierWanted` into, named with it",
+    "restShutReason": "action-facilities.mjs: history - rest.mjs's two-rest reason the Facilities tile read until fix line 113f deleted it (13.11.2026)",
+    "nightFoldsIntoBoard": "day-summary.mjs: history - the Night's summary folded into the roll-over's board until 13.11.2026 (fix line 113j)",
+    "visibleCountdownTypes": "projects-tray.mjs: Daggerheart 2.12.8's countdowns.mjs function, not this module's (fix line 113n, A113-C1-2)",
+    "actorResources": "resources.mjs: Daggerheart 2.12.8's feature field read by its `_cleanupOptionalResources`, not this module's (compat-113)"
+  },
+  "files": {
+    "scripts/a11y.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/action-murder.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/action-observe.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/action-pipeline.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/action-project.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/api.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/boundary.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/bridge-asks.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/bridge-guards.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/bridge-table.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/call-pickers.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/camera-view.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/chapter.mjs": {
+      "citations": 0,
+      "doubledJsdoc": 1
+    },
+    "scripts/chrome.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/config.mjs": {
+      "citations": 5,
+      "doubledJsdoc": 0
+    },
+    "scripts/dh-settings.mjs": {
+      "citations": 3,
+      "doubledJsdoc": 0
+    },
+    "scripts/diagnostics.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/enforced.mjs": {
+      "citations": 0,
+      "doubledJsdoc": 1
+    },
+    "scripts/facilities.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/float-text.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/floor-machine.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/fog-diagnostics.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/fog-reveal.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/fog.mjs": {
+      "citations": 4,
+      "doubledJsdoc": 0
+    },
+    "scripts/glass.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/gm-bridge.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/gm-items.mjs": {
+      "citations": 0,
+      "doubledJsdoc": 1
+    },
+    "scripts/gm-stores.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/handbooks.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/hud.mjs": {
+      "citations": 4,
+      "doubledJsdoc": 0
+    },
+    "scripts/incident-store.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/investigation.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/iso-shield.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/level-up.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/live.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/monocub.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/monokuma.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/motion.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/movement-audit.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/movement.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/murder-rules.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/music-play.mjs": {
+      "citations": 4,
+      "doubledJsdoc": 0
+    },
+    "scripts/patches.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/private-rolls.mjs": {
+      "citations": 5,
+      "doubledJsdoc": 0
+    },
+    "scripts/projects-secrecy.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/projects-ui.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/projects.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/relay-guard.mjs": {
+      "citations": 6,
+      "doubledJsdoc": 0
+    },
+    "scripts/remnant-ring.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/remnants.mjs": {
+      "citations": 3,
+      "doubledJsdoc": 0
+    },
+    "scripts/reroll-receipts.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/reroll.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/resources.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/roll-dialog.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/roll-draw.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/search-tokens.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/season-setup.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/settings-window.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/settings.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sfx-play.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-audit.mjs": {
+      "citations": 11,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet.mjs": {
+      "citations": 5,
+      "doubledJsdoc": 0
+    },
+    "scripts/sound-panel.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/states.mjs": {
+      "citations": 7,
+      "doubledJsdoc": 0
+    },
+    "scripts/tables-pools.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/trial-floor-ui.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/trial-scene.mjs": {
+      "citations": 3,
+      "doubledJsdoc": 0
+    },
+    "scripts/trial-speakers.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/truth-bullets.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/ui-kit.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/utils.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/visibility.mjs": {
+      "citations": 3,
+      "doubledJsdoc": 0
+    },
+    "scripts/voice-client.mjs": {
+      "citations": 6,
+      "doubledJsdoc": 0
+    },
+    "scripts/voice-panel.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/voice-tile.mjs": {
+      "citations": 3,
+      "doubledJsdoc": 0
+    },
+    "scripts/voice.mjs": {
+      "citations": 2,
+      "doubledJsdoc": 0
+    }
+  }
+}

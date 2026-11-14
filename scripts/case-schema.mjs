@@ -87,7 +87,7 @@ export function autopsiesDue({ count = 1, rows = {}, sent = {}, bodies = 0 } = {
 }
 /** The kinds a trial mode stands on, and a planned minigame's fields on them (13.11.2026, `caseNodeOf`). */
 const SCHEMA_KINDS = Object.freeze(["deduction", "counter", "solution"]);
-export const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
+const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
 /* A PLANNED REMNANT'S TYPE (the owner, 13.11.2026: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz
    incident i keys"): an "incident" row plans a Remnant of one of these, Incident by default (every row before this).
    Not a Key Remnant (the Key plan's slots plan those), a Final Truth Remnant (the Final Truth form places it) or an
@@ -135,7 +135,8 @@ function incidentFields(raw) {
         tie: own ? (TIES.includes(raw.tie) ? raw.tie : ((PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") === "incident" ? "tied" : "")) : null,
         reinforced: own ? raw.reinforced === true : null,
         analysis: on || bullet ? (typeof raw.analysis === "string" ? raw.analysis : "") : null,
-        img: str(raw.img),
+        // and a picture, a planned Truth Bullet's as well since 1.2.113 (the owner's "yes", 13.11.2026)
+        img: on || bullet ? (typeof raw.img === "string" ? raw.img : "") : null,
         ...bulletFields(raw)
     };
 }
@@ -307,7 +308,7 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
             nodes.push({ id, kind: "bullet", evidence: true, planned: true, slot: null, trace: null, type: node.realType, label: node.label,
                 tied: node.tied === true, faint: node.faint === true, room: null, chapter, foundAt: null, text: node.text, recipient: node.recipient,
                 tell: node.tell, realType: node.realType, shown: node.shown, vis: node.vis, analysis: node.analysis, note: node.note,
-                given: node.given, sent: node.given !== null, needs: [...(node.label ? [] : ["name"]), ...(node.recipient ? [] : ["recipient"])] });
+                img: node.img, given: node.given, sent: node.given !== null, needs: [...(node.label ? [] : ["name"]), ...(node.recipient ? [] : ["recipient"])] });
             continue;
         }
         // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)
@@ -501,7 +502,7 @@ export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noT
 /**
  * THE CASE'S CONSISTENCY (E97 C8; STAGE C8, Q-E97-7's default: warnings that block nothing). Pure: `graph` of `graphOf`,
  * `reach` of `reachability`, `cycle` the nodes the layout found on a cycle, `modes` the trial's modes, `keyMax` the Key
- * Remnants a chapter prepares. Answers `[{ code, node, ref }]`, one per problem, in CASE_PROBLEMS' order:
+ * Remnants a chapter prepares. Answers `[{ code, node, ref }]`, one per problem, in the order of this list:
  * - noInputs: a deduction or the solution resting on nothing;
  * - cycle: a node on a circle of inputs (the map leaves those out);
  * - missing: a node naming a node, Remnant or Key slot that is not there (`ref` the name);

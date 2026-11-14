@@ -115,11 +115,6 @@ function stateOf(userId) {
     return { written: written === true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : null };
 }
 
-/** When it was last written, or `null`. */
-export function noteUpdatedAt(userId) {
-    return stateOf(userId).updatedAt;
-}
-
 /** Has this player written anything at all? Drives the GM's roster column. */
 export function hasNote(userId) {
     return stateOf(userId).written;
@@ -143,7 +138,7 @@ export async function clearSeasonNotes() {
 }
 
 /** What the reset window counts of the notes: the GMs' notes alone (E11 C9; season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonNotes() {
+function tallySeasonNotes() {
     return [plural("DRPG.Season.resetPreNotes", { n: game.users.filter(u => hasNote(u.id)).length })];
 }
 
@@ -357,7 +352,7 @@ export async function settleNoteFlags() {
 }
 
 /** Player: take a GM's copy of this user's own note, as `noteCombine` decides. A GM's copy is never a draft. */
-export async function receiveNote(note, stamp) {
+async function receiveNote(note, stamp) {
     const value = note && typeof note === "object" && typeof note.text === "string"
         ? { text: note.text, updatedAt: Number.isFinite(note.updatedAt) ? note.updatedAt : null, byGm: Boolean(note.byGm) }
         : {};

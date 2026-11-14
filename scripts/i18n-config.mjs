@@ -39,7 +39,7 @@ export const PROSE_KEYS = new Set([
 ]);
 
 /** A sentence or a name: has a space, or is not the shape of an identifier. */
-export function isProse(value) {
+function isProse(value) {
     if (typeof value !== "string" || !value) return false;
     if (/\s/.test(value)) return true;
     return !/^[a-z][A-Za-z0-9_.-]*$/.test(value) && !/^[A-Z][A-Z0-9_]*$/.test(value);

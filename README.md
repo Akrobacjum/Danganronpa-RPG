@@ -295,7 +295,10 @@ passages. <!-- leak:foundry-secret-door-type --> A Monocub's purse is
 hidden, but a move paid from it shows on the sheet as actions spent and no
 Hope. <!-- leak:foundry-cub-purse --> In a Class Trial every dead student's
 microphone is off, a body nobody has found yet among them, and every browser
-holds that list while the trial runs. <!-- leak:TR30 --> It is a curtain, not a
+holds that list while the trial runs. <!-- leak:TR30 --> A killer behind a "?"
+after a murder's opening keeps their token's actor, so a player's browser
+console can still tell whose token it is; the interface does not.
+<!-- leak:foundry-masked-token-actor --> It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The

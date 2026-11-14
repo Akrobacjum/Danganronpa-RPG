@@ -58,14 +58,6 @@ export const SOCKET = `module.${MODULE_ID}`;
  * Never spell these out inline - a typo in a flag name fails silently.
  */
 export const FLAGS = {
-    /**
-     * A Level Up the GM has handed to the player (N-2, Dawid 20.09).
-     *
-     * `{ kind, by, at }`. It is an OFFER, not an advancement: nothing is written
-     * to the character until they choose, and the GM's client checks this flag
-     * again before it applies anything, because the player's picks arrive over a
-     * socket and a socket carries claims rather than facts.
-     */
     /** Character: the student's Ultimate talent, shown under their name. */
     ultimate: "ultimate",
     /**
@@ -98,7 +90,7 @@ export const FLAGS = {
      * in the GM's incident cast now (`murder.mjs`, `CAST_FIELDS`). An actor flag
      * is world data every client receives, so for the whole of Stage 6 these
      * two named the accomplice, the killer and the weapon to anybody reading
-     * `game.actors`. The keys stay so `migrateIncidentSecrets` can lift a live
+     * `game.actors`. The keys stay so `liftIncidentSecrets` (migrate.mjs) can lift a live
      * offer and scrub the rest off a world that updated mid-chapter.
      *
      * The offer itself is unchanged: `{ thirdId, killerId, chapter, day }`,
@@ -798,8 +790,7 @@ export const TIER_EFFECTS = {
  * labels feed the table names ("DRPG Usables (Healing) - Tier 2") through
  * USABLE_GOALS in tables-pools.mjs, so renaming one here renames what a fresh world
  * installs.
- */
-/**
+ *
  * `chip` is the short form, for the tag on an inventory row.
  *
  * Separate from `label` rather than replacing it: the long names go into item
@@ -898,33 +889,11 @@ export const USABLE_EFFECTS = {
  * The guide never says a weapon has to be drawn - but "Jeśli zdobyła przedmiot,
  * którego może użyć jako broń" and the crime tool being consumed after a murder
  * both assume a specific object is in hand, and the incident engine had no way
- * to be told WHICH. Equipping is that answer: one per category, and it is what
- * `bestWeaponTier` reads first.
+ * to be told WHICH. Equipping is that answer: one per category, and the murder's
+ * weapon is the one readied (murder-rules.mjs `equippedWeapon`, through `equippedFor`).
  */
 export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
 
-/**
- * Categories that share one carry limit between them.
- *
- * THREE SLOTS FOR EVERYTHING YOU HOLD IN YOUR HANDS (Dawid, 27.08, G-43).
- *
- * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
- * proportions. The total stands; the division goes. Which three you have is
- * decided by what the dice turned up and what you chose to keep - a player who
- * found two knives no longer has to leave one behind while a slot sits empty
- * beside it, and the new Tool category does not quietly make the number five.
- *
- * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
- * `canCarry` asks changes shape: it stops being "how many of these" and becomes
- * "how much of this budget is spent". Categories with no group keep the old
- * behaviour exactly - Usables still cap at three of their own, Truth Bullets and
- * keys are still uncapped - so nothing outside this group notices.
- *
- * It is also what makes item ROLES safe. With separate counters, moving an
- * item's home moved which counter it drew from, so a screwdriver filed under
- * Tools could serve as a weapon without spending the weapon slot. With one
- * counter every item costs one slot whatever its home and whatever it can do.
- */
 /**
  * How much one stash holds (D10b).
  *
@@ -959,6 +928,28 @@ export const TOOL_IN_HAND = {
     tierReducesThreshold: true
 };
 
+/**
+ * Categories that share one carry limit between them.
+ *
+ * THREE SLOTS FOR EVERYTHING YOU HOLD IN YOUR HANDS (Dawid, 27.08, G-43).
+ *
+ * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
+ * proportions. The total stands; the division goes. Which three you have is
+ * decided by what the dice turned up and what you chose to keep - a player who
+ * found two knives no longer has to leave one behind while a slot sits empty
+ * beside it, and the new Tool category does not quietly make the number five.
+ *
+ * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
+ * `canCarry` asks changes shape: it stops being "how many of these" and becomes
+ * "how much of this budget is spent". Categories with no group keep the old
+ * behaviour exactly - Usables still cap at three of their own, Truth Bullets and
+ * keys are still uncapped - so nothing outside this group notices.
+ *
+ * It is also what makes item ROLES safe. With separate counters, moving an
+ * item's home moved which counter it drew from, so a screwdriver filed under
+ * Tools could serve as a weapon without spending the weapon slot. With one
+ * counter every item costs one slot whatever its home and whatever it can do.
+ */
 export const LIMIT_GROUPS = {
     /*
      * TWO SLOTS, NOT THREE (D10c).
@@ -1047,6 +1038,16 @@ export const REMNANT_TYPES = {
         reinforced: true
     }
 };
+
+/**
+ * "EVERYONE" AS A TRUTH BULLET'S RECIPIENT (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to
+ * everyone' option"): the value Give a Truth Bullet's recipient select and a Planned Truth Bullet's `recipient` hold for
+ * every living student - chapter.mjs `livingStudentsForGm`, the roster less the dead for the GMs, so no Monocub (a dead
+ * student back), no Spectator, no Monokuma and no NPC (monokuma.mjs `studentActors`): the planned Autopsies' roster
+ * (case-realize.mjs). No actor id is 8 letters long, so it never names one. Each gets a copy of their own
+ * (gm-items.mjs `giveToEveryone`).
+ */
+export const RECIPIENT_EVERYONE = "everyone";
 
 /**
  * Truth Bullet types - same keys as REMNANT_TYPES, since every Truth Bullet
@@ -1421,10 +1422,13 @@ export const KEY_REMNANTS = {
  *   an Objection   1 action, else 1 Hope, else 1 Sanity
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
- *   Tamper         1 action, else 1 Sanity. No Hope step, deliberately: an
- *                  Objection buys a moment of the trial's attention, and this
- *                  buys the destruction of evidence - Hope is the wrong currency
- *                  for it, and Tamper was the one action already priced twice.
+ *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
+ *                  killer's own Stage 6 reaches the Sanity step: anyone else's
+ *                  Tamper costs 1 action and no Sanity, and with no action left
+ *                  there is no Tamper (cleanup.mjs `tamperPriceSkip`). No Hope
+ *                  step, deliberately: an Objection buys a moment of the trial's
+ *                  attention, and this buys the destruction of evidence - Hope is
+ *                  the wrong currency for it.
  *
  * ARRAY ORDER IS PAYMENT ORDER, and `steps[0].amount` is also the action cost
  * the tile shows, so `ACTIONS.<key>.cost` and this table must agree - there is a
@@ -1724,9 +1728,9 @@ export const ACTIONS = {
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
-        hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
-            + "Keep Watch. Each costs an action.",
+        variants: ["listen", "echoes", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        hint: "Listen at a wall, hear Echoes, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick "
+            + "the Lock or Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -1752,8 +1756,8 @@ export const ACTIONS = {
      * first question the window asks.
      *
      * Not the stash, in either direction. Stealing from one has its own route
-     * with its own conditions (`rifleStashDialog`, and the Search branch for
-     * concealed ones); a Palm that reached into a stash would walk past all of
+     * with its own conditions (`rifleStashDialog`: an open stash, or a hidden one
+     * Find Stash found); a Palm that reached into a stash would walk past all of
      * them, and planting into one would be the same hole in reverse.
      */
     palm: {
@@ -1824,12 +1828,13 @@ export const ACTIONS = {
      * unreachable, and made planting a false trail a privilege of the one
      * person who least needs to be believed.
      *
-     * ONE PRICE ON BOTH ROADS, AND IT IS A CHAIN (T-1, Dawid 17.09). An attempt
-     * costs 1 action, and only with no action left 1 Sanity - see
-     * `PRICE_CHAINS.tamper`. It used to cost an action AND a Sanity mark on this
-     * tile (the paragraph here said otherwise from 29.08 until T-1, and the code
-     * charged both), which made Tamper the one action priced twice. The killer on
-     * their own night pays no action, so for them the chain starts at the Sanity.
+     * ONE ACTION, NO SANITY (E64, 12.11.2026; the owner's answer: "Tamper kosztuje
+     * 1 akcje, domyslnie bez Sanity"). An attempt costs 1 action, and with no
+     * action left there is no Tamper: cleanup.mjs `tamperPriceSkip` skips the
+     * Sanity step of `PRICE_CHAINS.tamper` for everyone but the killer on their own
+     * night, who pays no action, so for them the chain starts at the Sanity (D3).
+     * From T-1 (Dawid 17.09) until 1.2.105 the chain went on to 1 Sanity with no
+     * action left; before T-1 this tile charged an action AND a Sanity mark.
      * Both roads end in `attemptCleanup` / `attemptStageSix` with a flag saying
      * which door they came through - see `viaAction` in cleanup.mjs.
      */
@@ -1882,10 +1887,13 @@ export const ACTIONS = {
         icon: "fa-shoe-prints",
         traits: [],
         cost: 0,
+        // "A free crossing", not "Sprint" (1.2.112): a Dash and a Facilities room action bank theirs in the same counter
+        // as a Sprint (actions.mjs `grantFreeMoves`), and a crossing takes whichever is there (`takeMove`).
         hint: "Moving inside a room is free. Each time of day, your first crossing into another room uses your Free "
-            + "Move; each crossing after that costs an action, or one of the extra crossings you bought with Sprint.",
+            + "Move; each crossing after that takes a free crossing if you hold one (Sprint, Dash, Facilities), or "
+            + "an action.",
         description: "Moving inside your room is free. Each time of day, crossing into another room uses your Free "
-            + "Move, then Sprint crossings, then actions; with none left, the crossing is undone. An Overflow can "
+            + "Move, then your free crossings, then actions; with none left, the crossing is undone. An Overflow can "
             + "block the Free Move, and the GMs can turn the charge off.",
         instruction: "Drag your token. Crossing into another room is what counts - the cost "
             + "is applied when you arrive."
@@ -2165,6 +2173,9 @@ export const REST = {
  * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
  *
  *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
+ *           A good roll is also an eavesdrop on that room's voice (E69 C6, eavesdrop-gm.mjs).
+ *   echoes  Echoes (E69 C7): no roll; the nearest room by crossings with a living student of another player, read on
+ *           the GM (echoes-gm.mjs); struck through in an Eclipse (Q-E69-3's default).
  *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (`traits`: the player proposes one on
  *           E68's card and a GM picks, trait-ruling.mjs `definitionOf`'s generic `tail`, as R213 holds every list of
  *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
@@ -2177,6 +2188,8 @@ export const REST = {
  */
 export const INFILTRATE = Object.freeze({
     listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
+    // Echoes (E69 C7; the owner's 10.11 (b)): one action, no roll - the nearest room with a living student of another player.
+    echoes: Object.freeze({ traits: Object.freeze([]), cost: 1 }),
     tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
         unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
     dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
@@ -2470,18 +2483,23 @@ export const HOPE_CALLS = {
          *
          * Both waivers are deliberate (decision 4). The once-per-time-of-day
          * limit and the marked room are what make a Short Rest a decision about
-         * where you are and what you have already done - and a Call for five
+         * where you are and what you have already done - and a Call for `cost`
          * Hope that could only be spent when you did not need it would be a Call
          * nobody buys. The moment you want this is exactly the moment both gates
          * are shut.
          *
-         * The benefits themselves are `applyRest`'s, unchanged, so "as though
-         * they had taken a rest" is literally what happens rather than a second
-         * table that agrees with the first until somebody edits one.
+         * The benefits themselves are `applyRest`'s, so "as though they had taken
+         * a rest" is literally what happens rather than a second table that
+         * agrees with the first until somebody edits one - with one exception
+         * since 1.2.112 (4ef5cceb): Breath is refused, because it would give
+         * back less Hope than Relief costs (rest.mjs `BREATH_REFUSED`, greyed
+         * in the picker, refused by `applyRest`). The effect text says so
+         * (the audit of 1.2.113, A113-C4-5; R5981).
          */
         freeRest: "short",
         effect: "Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time "
-            + "of day stays available. Back out of choosing what to restore, and the Hope you paid comes back."
+            + "of day stays available. This rest offers no Breath: it would give back less Hope than Relief costs. "
+            + "Back out of choosing what to restore, and the Hope you paid comes back."
     },
     determination: {
         /*
@@ -3758,6 +3776,17 @@ export const INCIDENT = {
 };
 
 /**
+ * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
+ * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
+ * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
+ * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
+ * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
+ * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
+ * whose threshold falls to free as the victim runs out of Health.
+ */
+export const DEFENSE = Object.freeze({ cap: 1 });
+
+/**
  * Crisis actions, by who may take them. Guide pp. 20–25.
  *
  * Every one of these is a roll with three good branches and one bad, and most
@@ -3769,17 +3798,6 @@ export const INCIDENT = {
  * victim takes something of the killer's and makes evidence of it" is a
  * sentence a human has to finish.
  */
-/**
- * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
- * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
- * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
- * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
- * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
- * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
- * whose threshold falls to free as the victim runs out of Health.
- */
-export const DEFENSE = Object.freeze({ cap: 1 });
-
 export const CRISIS_ACTIONS = {
     /**
      * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
@@ -3868,13 +3886,20 @@ export const CRISIS_ACTIONS = {
     secureTrace: {
         side: "victim", label: "Secure a Trace", icon: "fa-hand-holding",
         threshold: 15, traits: ["hand", "leg", "shadow"],
-        hint: "On a hit, you secure a Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and "
-            + "Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and "
-            + "a critical leaves two.",
+        hint: "On a hit, you leave a Reinforced Remnant tied to the crime at the scene: Evident with Hope, Subtle with "
+            + "Despair, Obvious on a critical, and your turn goes on. In an indirect murder, a critical leaves two.",
         // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
-        short: "On a hit, take a Remnant tied to the crime with you.",
+        short: "On a hit, leave a Reinforced Remnant tied to the crime at the scene.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
-        criticalReinforced: true,
+        /*
+         * REINFORCED ON EVERY HIT (1.2.112; the owner's decision of 13.11.2026). Until then this entry was Leave a
+         * Clue's at 15 instead of 12 - the same Remnants, Reinforced on a critical alone - so the harder roll bought
+         * nothing. What it buys now is a trace the killer cannot wipe in Stage 6, whatever the band: murder-rules.mjs
+         * `applyRemnant` reads `alwaysReinforced` beside `criticalReinforced` and the indirect table's `reinforced`.
+         * The Remnant is left at the scene, as every incident Remnant is; nothing goes into the victim's hands.
+         * Tier 2's "Secure a Trace leaves a Reinforced Remnant at the scene on every hit ..." reads it.
+         */
+        alwaysReinforced: true,
         // G-17, as on Leave a clue.
         criticalKeepsTurn: true,
         failure: "No Remnant, but advantage on the next attempt. Only on a Hope failure.",
@@ -4296,7 +4321,7 @@ export const TRIAL = {
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
      * 17.10.2026: the bullet is chosen AFTER the objection, and the card waits "pending" for it). The floor is the
      * objector's while they choose, and the minute above starts only when the bullet is on the card
-     * (trial-floor.mjs `fillObjection`), so the minute is the minute they argue with it. Past these seconds the
+     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so the minute is the minute they argue with it. Past these seconds the
      * Objection is withdrawn, the floor goes back to the debate and the price stays paid (trial-floor.mjs
      * `advanceIfDue`): an interruption that stopped the room and showed nothing is not free. The owner's default D4.
      */
@@ -4352,7 +4377,9 @@ export const TRIAL = {
          * in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, closed early once everybody
          * stands on one side after `earlyAfterSeconds` (chosen here, so stands left in one zone do not close a question at
          * its first second), then `pauseSeconds` with the count shown before the judgement; a set holds 1 to
-         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form, then 2 x the larger camp's turns of
+         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form (Sides), `conferSeconds` for each camp to talk
+         * apart in a voice room of its own (Camps confer; the owner's 13.11.2026 order, 120 s the coordinator's default),
+         * then 2 x the larger camp's turns of
          * `budgetSeconds` / turns, held to `minTurn`-`maxTurn` (3:2 40 s, 4:3 37.5 s, 8:7 20 s); a thesis up to
          * `thesisLength`. The texts' lengths: `questionLength`, `answerLength`. Chosen from the plan, not measured at a
          * table (LIVE-E73-02).
@@ -4360,7 +4387,7 @@ export const TRIAL = {
         zones: {
             straw: { seconds: 45 },
             dive: { seconds: 60, pauseSeconds: 5, earlyAfterSeconds: 10, maxQuestions: 5 },
-            scrum: { setupSeconds: 45, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
+            scrum: { setupSeconds: 45, conferSeconds: 120, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
             questionLength: 200, answerLength: 80
         }
     },
@@ -4574,30 +4601,6 @@ export const CLEANUP = {
     remnantType: "resolution",
 
     /**
-     * G-20: what a critical may turn a trace INTO, instead of erasing it.
-     *
-     * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
-     * already on the map: what kind of thing it is, and how easy it is to see.
-     * Erasing is still on the table and is still usually stronger - nothing at
-     * all beats a decoy. What this buys is the option to leave something that
-     * argues for the wrong story rather than a room that has been scrubbed
-     * suspiciously clean.
-     *
-     * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
-     * here, a critical would turn any piece of evidence into any other - and
-     * the four types left out are left out for one reason each:
-     *
-     *   key       the GM placed it for the case to be solvable at all
-     *   final     the same, for the Mastermind
-     *   autopsy   issued from the GM panel, never found in a room
-     *   neutral   a state a Truth Bullet is in, not a kind of trace
-     *
-     * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
-     * business - its own Stage 6 action, with its own roll and its own price -
-     * and folding it in here would make a critical clean-up strictly better than
-     * an action somebody has to spend Sanity on.
-     */
-    /**
      * TRANSFORM AS AN ACTION OF ITS OWN (Z5), not only a critical's reward.
      *
      * The season run's verdict on Stage 6 was that erasing is a bad bet and
@@ -4661,20 +4664,35 @@ export const CLEANUP = {
         limits: { name: 60, text: 400 }
     },
 
+    /**
+     * G-20: what a critical may turn a trace INTO, instead of erasing it.
+     *
+     * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
+     * already on the map: what kind of thing it is, and how easy it is to see.
+     * Erasing is still on the table and is still usually stronger - nothing at
+     * all beats a decoy. What this buys is the option to leave something that
+     * argues for the wrong story rather than a room that has been scrubbed
+     * suspiciously clean.
+     *
+     * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
+     * here, a critical would turn any piece of evidence into any other - and
+     * the four types left out are left out for one reason each:
+     *
+     *   key       the GM placed it for the case to be solvable at all
+     *   final     the same, for the Mastermind
+     *   autopsy   issued from the GM panel, never found in a room
+     *   neutral   a state a Truth Bullet is in, not a kind of trace
+     *
+     * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
+     * business - its own Stage 6 action, with its own roll and its own price -
+     * and folding it in here would make a critical clean-up strictly better than
+     * an action somebody has to spend Sanity on.
+     */
     transform: {
         types: ["faint", "prep", "incident", "resolution"],
         visibilities: ["obvious", "evident", "subtle", "hidden"]
     },
 
-    /**
-     * Both tools are destroyed when Stage 6 closes, not per attempt.
-     *
-     * The crime tool half is the guide's: a weapon that was used in an incident
-     * is gone. The cleaning tool follows it for the
-     * same reason - one crime scene, one set of gloves - rather than being spent
-     * on each individual wipe, which would make a Tier 3 kit worth exactly one
-     * roll and the carry limit of two meaningless.
-     */
     /**
      * The crime tool goes when Stage 6 closes. The cleaning tool does NOT.
      *
@@ -4830,7 +4848,8 @@ export const LOOT = Object.freeze({
  * gave were whatever the roller's browser had armed. This is the one list of it, each row read on
  * the GM by one reader of the same name (roll-draw.mjs `LEGAL_READERS`) from what that GM holds:
  *   - `kind` says how it reaches the roll: the faces of a die, a flat number, advantage dice, the
- *     face a die is forced to, a step taken after the dice, or the roll's own kind;
+ *     face a die is forced to, or the roll's own kind (a hidden stash's step taken after the dice,
+ *     `stashStep`, was a row until 1.2.112);
  *   - `reader` names where the GM reads it (a path on the character or the store it comes from);
  *   - `bound` is the number the reader holds it to: a die's faces where the rules say none, one
  *     experience, Breakdown's one die, the hostile Call's grace;
@@ -4857,7 +4876,6 @@ export const LEGAL_ROLL_MODIFIERS = Object.freeze([
     { key: "breakdown", kind: "dice", reader: "system.resources.stress", bound: -1, label: "DRPG.Rolls.legal.breakdown" },
     { key: "situation", kind: "dice", reader: "actionKey", bound: null, label: "DRPG.Rolls.legal.situation" },
     { key: "loadedDie", kind: "face", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.loadedDie" },
-    { key: "stashStep", kind: "after", reader: "vault", bound: null, label: "DRPG.Rolls.legal.stashStep" },
     { key: "kind", kind: "kind", reader: "appliedEffects", bound: null, label: "DRPG.Rolls.legal.kind" }
 ].map(row => Object.freeze(row)));
 
@@ -4931,6 +4949,26 @@ export const SFX_CATEGORIES = {
 
 
 /**
+ * How far a repeated sound is allowed to wander.
+ *
+ * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
+ * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
+ * where the second number does its work.
+ *
+ * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
+ * but it is not enough - it sounds a bit like there are two versions of the
+ * sound, they differ so little." The number went to 0.14 and the shape of the
+ * draw changed with it, because a wider spread alone would not have answered
+ * that sentence: half of a uniform draw lands in the middle and is inaudible.
+ *
+ * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
+ * lot for anything with a pitch and nothing at all for a click - which is what
+ * the eleven events that bend actually are. A GM who maps a tonal sting to one
+ * of them will hear it wander against the music; the answer then is to leave
+ * that event out of the bending list, not to flatten the eleven.
+ *
+ * WHAT CAME BEFORE (the note that stood here first, at 0.08; the numbers above replaced it):
+ *
  * How far a varied sound may bend, as a fraction of its normal rate.
  *
  * ONE KNOB, NOT THREE. "Pitch and speed" sound like two controls and are one:
@@ -4967,25 +5005,6 @@ export const SFX_CATEGORIES = {
  *
  * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
  * reasoning settles - which is the lesson of the paragraph this one replaced.
- */
-/**
- * How far a repeated sound is allowed to wander.
- *
- * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
- * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
- * where the second number does its work.
- *
- * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
- * but it is not enough - it sounds a bit like there are two versions of the
- * sound, they differ so little." The number went to 0.14 and the shape of the
- * draw changed with it, because a wider spread alone would not have answered
- * that sentence: half of a uniform draw lands in the middle and is inaudible.
- *
- * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
- * lot for anything with a pitch and nothing at all for a click - which is what
- * the eleven events that bend actually are. A GM who maps a tonal sting to one
- * of them will hear it wander against the music; the answer then is to leave
- * that event out of the bending list, not to flatten the eleven.
  */
 export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };
 
@@ -5268,18 +5287,18 @@ export const SFX_EVENTS = {
     /* ---- Incident ------------------------------------------------------- */
     death: {
         label: "A student dies",
-        hint: "Heard by the GMs and by everyone whose character was part of the incident. Nobody else learns of a death this way.",
+        hint: "Heard by the GMs and by everyone whose character was part of the incident, but the dead student's player, who hears the Death fade. Nobody else learns of a death this way. An execution plays its own sound instead.",
         category: "incident"
     },
     deathFade: {
         label: "Death fade",
-        hint: "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction.",
+        hint: "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction or an execution.",
         category: "incident",
         fallsBackTo: "death"
     },
     bodyFound: {
         label: "A body is found",
-        hint: "Heard by the whole table. The moment the chapter changes genre.",
+        hint: "Heard by the whole table when the GM announces the discovery: the moment the chapter changes genre. Also heard by a student's player alone, once a body, when their character walks into a room where a body lies.",
         category: "incident"
     },
     cleanupFailed: {
@@ -5578,6 +5597,7 @@ export const DRPG = {
     PRICE_CHAINS,
     PROJECT_OBSERVE,
     PROSE_NUMBERS,
+    RECIPIENT_EVERYONE,
     RESOLUTION_HEALTH_COST,
     ROOM_IMAGE_LIMITS,
     ROOM_OWNER_FLAG,

@@ -440,7 +440,7 @@ export function polygonArea(flat) {
  * edge of the rect at a time). The rect is convex, so the area of what is left is the area of the
  * polygon inside it, a concave polygon included (E20 C1, S07-13: `sceneUncoveredPercent`).
  */
-export function clipToRect(flat, rect) {
+function clipToRect(flat, rect) {
     const x0 = rect.x, y0 = rect.y, x1 = rect.x + rect.width, y1 = rect.y + rect.height;
     // Each edge of the rect: which points it keeps, and where a segment crosses it.
     const sides = [

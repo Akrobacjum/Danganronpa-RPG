@@ -30,6 +30,18 @@
  * squares on the tile's scene. The floor is the flag's, not the tile's own field, so the rule does not wait on what
  * v14 calls that field.
  *
+ * THE TILE IS DATA, NOT A PICTURE (the owner's report of 13.11.2026 at a table on 1.2.112: "Killing a character makes 3
+ * tokens appear: the body, the Spectator and... a third, inactive token"; scenario 78 measured it on every road: the
+ * corpse's own token, the Spectator's token, and this tile drawn with the token's picture, its dead sign and caption).
+ * The coordinator's default for the owner: a death shows the body and the Spectator and nothing else. So the tile is laid
+ * at alpha 0 (`bodyTileSpec`) and draws nothing of its own (`drawBodyMark`), and its caption "{name}'s body" is drawn over
+ * the corpse's token instead (`drawCorpseCaption`), which already wears Foundry's dead overlay. Alpha and not `hidden`:
+ * `hidden` is the rule's - a hidden tile refuses the loot (frisk.mjs `personActionRefusal` through `bodyPlaceOf`) and
+ * follows the token's own `hidden` (`followedTile`) - and Foundry draws a hidden tile to a GM at half alpha. A tile at
+ * alpha 0 keeps every reader (`bodyPlaceOf`, `bodyRoomOf`, `followBody`, `removeBodyTiles`) and stays a document a GM
+ * selects and deletes on the Tiles layer. Tiles laid at 1.2.112 or before are set to alpha 0 once (migrate.mjs
+ * `bodyTilesUnseen`). Whether v14 draws a Tile at alpha 0 to nobody, a GM included, was not read: LIVE-E95-01.
+ *
  * Imports config.mjs, settings.mjs and movement.mjs only (tier 1 R3142), so frisk.mjs reads it with no cycle (R161).
  */
 
@@ -65,7 +77,8 @@ export function noTokenWarns(record) {
  * The data of the tile `tokenDoc` leaves as `actorId`'s body for `record` (pure; E95 C2 creates it): the token's corner,
  * its squares in pixels on its scene's grid, its height and its picture, hidden as the token is, and the flag `{ actorId,
  * deathId, level, at }` - the floor as an id (`level` handed as an id or a Level), `at` epoch ms. The caption and the
- * death sign are drawn over it (E95 C3), not baked into the picture. HIDDEN AS THE TOKEN (E95 fix RV-3, 10.11.2026):
+ * death sign were drawn over it (E95 C3) until the report of 13.11.2026; at alpha 0 (the header's THE TILE IS DATA): the
+ * picture is kept, so a GM who raises the alpha on the Tiles layer sees whose body it is. HIDDEN AS THE TOKEN (E95 fix RV-3, 10.11.2026):
  * before E95 a hidden body token refused the loot; a tile laid unhidden turned a body the GM had hidden into a visible,
  * captioned one searchable from its room. A hidden tile refuses the loot as the hidden token did (frisk.mjs
  * `personActionRefusal` reads the tile's `hidden`), and the GM shows it as any tile.
@@ -79,6 +92,7 @@ export function bodyTileSpec({ tokenDoc, actorId, record = null, level = null, a
         height: (Number(tokenDoc?.height) || 1) * size,
         elevation: Number.isFinite(tokenDoc?.elevation) ? tokenDoc.elevation : 0,
         texture: { src: tokenDoc?.texture?.src ?? null },
+        alpha: 0,
         hidden: Boolean(tokenDoc?.hidden),
         flags: { [MODULE_ID]: { [FLAGS.bodyOf]: { actorId: actorId ?? null, deathId: record?.deathId ?? null, level: floorId(level), at } } }
     };
@@ -333,99 +347,103 @@ export function registerBodyFollow() {
     });
 }
 
-/** The name the body's mark carries on its tile (E95 C3): a redraw finds its own by it, and touches nothing else. */
+/** The name the body's caption carries on its corpse's token (E95 C3's mark, on its tile until 13.11.2026): a redraw finds its own by it, and touches nothing else. */
 export const BODY_MARK_NAME = "drpg-body-mark";
 
-/** The dead status's picture as this browser has it (states.mjs `ownDeadIcon` may have put the module's on it). */
-function deadIconOf() {
-    const dead = (globalThis.CONFIG?.statusEffects ?? []).find(entry => entry?.id === "dead");
-    return dead?.img ?? dead?.icon ?? globalThis.CONFIG?.controlIcons?.defeated ?? "icons/svg/skull.svg";
+/** Every mark this file drew on `placeable`, taken off and destroyed but `keep`. */
+function takeOffMarks(placeable, keep = null) {
+    for (const child of (placeable?.children ?? []).filter(c => c?.name === BODY_MARK_NAME)) {
+        if (child === keep) continue;
+        placeable.removeChild(child);
+        child.destroy?.({ children: true });
+    }
 }
 
 /**
- * THE BODY'S CAPTION AND DEATH SIGN (E95 C3, 10.11.2026; QUESTIONS Q4, the default: in E95). Until E72 the Monocub's
- * token keeps Foundry's `dead` overlay, so a tile with only the victim's picture beside it read as a second copy of the
- * same student; the caption says which one is the body. Drawn over a flagged tile placeable (`tile`, its document
- * `tile.document`) on every browser that draws it, from Foundry's `drawTile` and `refreshTile` (`registerBodyMarks`):
- * a display only - nothing is written, and a player's browser draws what its own copy of the tile and the actors hold
- * (a tile is laid only for a death already public, its name on the discovery's card).
- *   - the sign: the `dead` status's picture (`deadIconOf`), over the tile's centre at six tenths of its shorter side,
- *     at 0.85 alpha - the overlay a dead token wears, smaller, so the picture under it still reads;
- *   - the caption `DRPG.Body.tile` ("{name}'s body" / "Ciało: {name}") with the student's name as this browser's
- *     actors hold it, in this browser's language, under the tile's bottom edge at the size of the tunnel marks' words
- *     (H81-06, fog-doorways.mjs `addTunnelMarks`: `max(20, grid * 0.36)` over a keyline of `max(4, grid * 0.07)`):
- *     white over the ink keyline in both themes, as the map is not themed. No name (a student gone from the world):
- *     the sign alone;
- *   - a hidden tile: on a GM's browser the mark at half alpha; on any other browser no mark, and one drawn before it was
- *     hidden is taken off (E95 fix RV-5, 10.11.2026: the caption names the body, and whether Foundry v14 hides a hidden
- *     Tile placeable's children from a player was not read - LIVE-E95-01 item (4) - so it is not left to it). `gm` is
- *     handed in by tier 1 R3144 only.
- * ONCE PER REDRAW. Refresh runs often (a hover, a move), so the mark is one container named `BODY_MARK_NAME` with the
- * inputs it was drawn from as its key: the same inputs keep it (its alpha set again), changed ones replace it, and a
- * tile that lost its flag loses its mark. Answers the mark, or null where none is drawn. The sizes are chosen, not
- * measured; the local coordinates (0, 0)-(width, height) are Foundry's Tile placeable's as remembered from v12, and
- * whether a child of the placeable shows while the Tiles layer is not the one in use was not read: LIVE-E95-01. Tier 1
- * R3144 draws on a stub; Foundry's draw and refresh hooks are not in the harness.
+ * A BODY TILE DRAWS NOTHING (the owner's report of 13.11.2026; the header's THE TILE IS DATA). From E95 C3 until then a
+ * flagged tile wore the dead status's picture over its centre and the caption "{name}'s body" under it, and beside the
+ * corpse's own token and the Spectator's that made the third thing on the map. Now Foundry's `drawTile` and `refreshTile`
+ * only take off a mark drawn before - a browser that loaded 1.2.112 and stayed open, or a tile redrawn - and answer null.
+ * The caption is the corpse's token's (`drawCorpseCaption`). Tier 1 R5871.
  */
-export function drawBodyMark(tile, { actors = game.actors, gm = Boolean(game.user?.isGM) } = {}) {
-    if (!tile || tile.destroyed || typeof tile.addChild !== "function" || !globalThis.PIXI) return null;
-    const doc = tile.document ?? null;
-    const mark = doc?.hidden && !gm ? null : markOf(doc);
+export function drawBodyMark(tile) {
+    if (!tile || tile.destroyed || typeof tile.removeChild !== "function") return null;
+    takeOffMarks(tile);
+    return null;
+}
+
+/**
+ * Whether `tokenDoc` is a body this browser captions: its actor's death is the table's (settings.mjs `deathRecord`, the
+ * flag every browser holds - a death the GMs keep is captioned nowhere, as no tile was laid for one) and the token is
+ * that death's corpse (movement.mjs `isCorpseToken`: the dead student's own token, or a Monocub's corpse beside the token
+ * it walks - never the Monocub's walking token, `FLAGS.cubToken`, nor a Spectator's, whose actor is not the student).
+ */
+export function isCaptionedCorpse(tokenDoc) {
+    const actor = tokenDoc?.actor ?? globalThis.game?.actors?.get?.(tokenDoc?.actorId) ?? null;
+    if (!actor || !deathRecord(actor)) return false;
+    return isCorpseToken(tokenDoc);
+}
+
+/**
+ * THE BODY'S CAPTION, ON ITS TOKEN (the owner's report of 13.11.2026; DC6's label "Ciało: {imię}", E95 C3's caption moved
+ * off the tile). Drawn over a token placeable (`token`, its document `token.document`) on every browser that draws it,
+ * from Foundry's `drawToken` and `refreshToken` (`registerBodyMarks`): a display only, nothing written. The token wears
+ * Foundry's dead overlay already (chapter.mjs `markDeceased` toggles it), so the caption alone is drawn: `DRPG.Body.tile`
+ * ("{name}'s body" / "Ciało: {name}") with the student's name as this browser's actors hold it, in this browser's
+ * language, over the token's top edge (the nameplate Foundry draws stands under it), at the size of the tunnel marks'
+ * words (H81-06: `max(20, grid * 0.36)` over a keyline of `max(4, grid * 0.07)`), white over the ink keyline in both
+ * themes. Which tokens: `isCaptionedCorpse`. A hidden token: on a GM's browser the caption at half alpha, on any other
+ * none, and one drawn before it was hidden is taken off (E95 fix RV-5's rule, kept). No name: none.
+ * ONCE PER REDRAW, AND NO CLICK. One container named `BODY_MARK_NAME`, keyed by its inputs: the same inputs keep it,
+ * changed ones replace it, a token that is no captioned corpse any more (a revive, a Monocub's walking token) loses it.
+ * `eventMode` "none" (E106's rule for every drawing the module lays on the map: the caption stands over the token, whose
+ * double-click opens its sheet). The local coordinates (0, 0)-(w, h) are a Token placeable's as remembered from v12
+ * (`token.w`, `token.h`, else the document's squares on the grid); how it sits over a real token is LIVE-E95-01's. `gm`
+ * is handed in by tier 1 only. Answers the caption, or null where none is drawn. Tier 1 R3144, R5402, R5872.
+ */
+export function drawCorpseCaption(token, { actors = game.actors, gm = Boolean(game.user?.isGM) } = {}) {
+    if (!token || token.destroyed || typeof token.addChild !== "function" || !globalThis.PIXI) return null;
+    const doc = token.document ?? null;
+    const shown = Boolean(doc) && !(doc.hidden && !gm) && isCaptionedCorpse(doc);
+    const name = shown ? (actors?.get?.(doc.actorId)?.name ?? doc.actor?.name ?? "") : "";
     const grid = gridOf(doc?.parent);
-    const width = Number(doc?.width) || grid, height = Number(doc?.height) || grid;
-    const name = mark ? (actors?.get?.(mark.actorId)?.name ?? "") : "";
-    const icon = deadIconOf();
-    const key = mark ? JSON.stringify([name, width, height, grid, game.i18n?.lang ?? null, icon]) : null;
-    const drawn = (tile.children ?? []).filter(child => child?.name === BODY_MARK_NAME);
-    const kept = drawn.find(child => !child.destroyed && child.drpgKey === key) ?? null;
-    for (const child of drawn) {
-        if (child === kept) continue;
-        tile.removeChild(child);
-        child.destroy?.({ children: true });
-    }
-    if (!mark) return null;
+    const width = Number(token.w) || (Number(doc?.width) || 1) * grid;
+    const key = name ? JSON.stringify([name, width, grid, game.i18n?.lang ?? null]) : null;
+    const kept = key ? ((token.children ?? []).find(c => c?.name === BODY_MARK_NAME && !c.destroyed && c.drpgKey === key) ?? null) : null;
+    takeOffMarks(token, kept);
+    if (!key) return null;
     const group = kept ?? new PIXI.Container();
-    group.alpha = doc?.hidden ? 0.5 : 1;
+    group.alpha = doc.hidden ? 0.5 : 1;
     if (kept) return kept;
     group.name = BODY_MARK_NAME;
     group.drpgKey = key;
-    /* NO CLICK (E106, 13.11.2026; the owner: the Monocub's token "nie pozwala odpalic karty postaci"). The mark stands over
-       the tile laid where the token stood, and every other drawing the module lays on the map takes no pointer
-       (gm-overlay.mjs, own-ring.mjs, remnant-ring.mjs); whether v14 hands a token's double-click to a tile's child was not
-       read (LIVE-E106-01), so the mark takes none whatever it does. Tier 1 R5402. */
     group.eventMode = "none";
     group.interactiveChildren = false;
-    const sign = PIXI.Sprite.from(icon);
-    const side = Math.round(Math.min(width, height) * 0.6);
-    sign.width = side;
-    sign.height = side;
-    sign.anchor.set(0.5, 0.5);
-    sign.position.set(width / 2, height / 2);
-    sign.alpha = 0.85;
-    group.addChild(sign);
-    if (name) {
-        const text = new PIXI.Text(game.i18n.format("DRPG.Body.tile", { name }), {
-            fontFamily: '"Special Elite", "Courier New", monospace',
-            fontSize: Math.max(20, Math.round(grid * 0.36)),
-            fill: 0xffffff,
-            stroke: 0x1a1620,
-            strokeThickness: Math.max(4, Math.round(grid * 0.07)),
-            align: "center"
-        });
-        text.resolution = 2;
-        text.anchor.set(0.5, 0);
-        text.position.set(width / 2, height + Math.round(grid * 0.05));
-        group.addChild(text);
-    }
-    tile.addChild(group);
+    const text = new PIXI.Text(game.i18n.format("DRPG.Body.tile", { name }), {
+        fontFamily: '"Special Elite", "Courier New", monospace',
+        fontSize: Math.max(20, Math.round(grid * 0.36)),
+        fill: 0xffffff,
+        stroke: 0x1a1620,
+        strokeThickness: Math.max(4, Math.round(grid * 0.07)),
+        align: "center"
+    });
+    text.resolution = 2;
+    text.anchor.set(0.5, 1);
+    text.position.set(width / 2, -Math.round(grid * 0.05));
+    group.addChild(text);
+    token.addChild(group);
     return group;
 }
 
 /**
- * The body's mark on every browser (E95 C3; module.mjs `init`): Foundry's `drawTile` and `refreshTile` hand the Tile
- * placeable, as v12 and v13 name them (not read on v14: LIVE-E95-01). Draws only (`drawBodyMark`).
+ * The body's caption on every browser (E95 C3; module.mjs `init`; moved onto the corpse's token on 13.11.2026): Foundry's
+ * `drawToken` and `refreshToken` hand the Token placeable, `drawTile` and `refreshTile` the Tile placeable, as v12 and
+ * v13 name them (not read on v14: LIVE-E95-01). Draws only: the caption on a corpse's token (`drawCorpseCaption`), and a
+ * body tile's old mark taken off (`drawBodyMark`).
  */
 export function registerBodyMarks() {
     Hooks.on("drawTile", tile => { drawBodyMark(tile); });
     Hooks.on("refreshTile", tile => { drawBodyMark(tile); });
+    Hooks.on("drawToken", token => { drawCorpseCaption(token); });
+    Hooks.on("refreshToken", token => { drawCorpseCaption(token); });
 }

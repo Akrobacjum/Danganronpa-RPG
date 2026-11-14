@@ -14,7 +14,7 @@
  * name, so a system rename cannot quietly disable this.
  */
 
-import { MODULE_ID, FLAGS, TRAITS, TRAIT_BY_DH } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
@@ -518,7 +518,7 @@ function isStudentRoll(actor) {
  * downstream could tell which character's Calls to honour. Every other handle
  * the config offers is tried before giving up.
  */
-function actorOf(app) {
+export function actorOf(app) {
     const config = app?.config;
     if (!config) return null;
 
@@ -529,7 +529,11 @@ function actorOf(app) {
         if (actor) return actor;
     }
 
-    // The roll data usually carries the actor's own data model.
+    // Where Daggerheart 2.12's window keeps it (d20RollDialog.mjs:43-45 at 2.12.8, `config.actor`, which its MoveContext
+    // sets; its roll data has no `parent`). Until 13.11.2026 only 2.10.5's road below was tried. R5764; exported for it.
+    if (config.actor?.documentName === "Actor") return config.actor;
+
+    // 2.10.5's road: the roll data carried the actor's own data model.
     const parent = config.data?.parent;
     if (parent?.documentName === "Actor") return parent;
     if (parent?.actor) return parent.actor;
@@ -631,8 +635,7 @@ export function lockTrait(root, app, armed) {
 // disadvantage a Monokuma just paid two Despair for.
 //
 // Two sources feed in - a Call somebody paid Hope or Despair for, and the
-// situation itself (searching a fitting room, digging through a hidden
-// stash). They are added and clamped, so they cancel rather than one
+// situation itself (searching a fitting room). They are added and clamped, so they cancel rather than one
 // silently outranking the other: a Monokuma's Obstacle against a player
 // rummaging in exactly the right place is a fair fight, not a loss for
 // whichever mechanism happens to be read second.
@@ -1048,9 +1051,8 @@ function stateGrant(actor) {
  * beyond the first was silently free: a Hope Call spent in a room that favours
  * exactly what you are looking for bought nothing the room had not already
  * given. And the arithmetic being thrown away was real - `performSearch` sums a
- * favouring room and a hindering room (a concealed stash was the third term until E06 C11;
- * since E32+E07 C11e it is the same step of disadvantage, taken on the dice once they have
- * landed - action-search.mjs `stashStep`, which reads this cap); a crisis roll sums a
+ * favouring room and a hindering room (a concealed stash was the third term until E06 C11, and
+ * a step taken on the dice after them from E32+E07 C11e until 1.2.112); a crisis roll sums a
  * weapon in hand, a second try after a miss and the guide's compensation for
  * dying alone to a trap. All of it computed, then rounded to a sign.
  *

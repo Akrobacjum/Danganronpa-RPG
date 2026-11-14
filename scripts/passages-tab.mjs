@@ -60,7 +60,7 @@ const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", 
     built: "DRPG.Passage.tab.howBuilt", shared: "DRPG.Passage.tab.howShared" };
 
 /** A passage's rooms as the tab and its windows name it: "Kitchen - Dining Hall", or that none is named. */
-export function passageTitle(passage) {
+function passageTitle(passage) {
     const rooms = (passage?.rooms ?? []).filter(r => typeof r === "string" && r);
     return rooms.length ? rooms.join(" - ") : t("DRPG.Passage.tab.noRooms");
 }

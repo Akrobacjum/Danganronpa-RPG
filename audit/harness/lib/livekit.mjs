@@ -78,7 +78,7 @@
  * server gone or a network lost, which livekit-client names otherwise; the numbers are voice-client.mjs's
  * reading, not livekit-client's source read here).
  */
-import { getProperty, setProperty } from "./futil.mjs";
+import { setProperty } from "./futil.mjs";
 
 /** The room a client stands in when nobody gave it a breakout: not one of the module's `drpg-` rooms. */
 export const MAIN_ROOM = "harness-main-room";

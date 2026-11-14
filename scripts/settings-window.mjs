@@ -38,7 +38,7 @@
  * LIVE-E49-02's): each setting whose value changed is written by `game.settings.set` - which runs its `onChange`, once -
  * and a setting left as it was is not written at all; when one written carries `requiresReload`, the reload is asked
  * once after the last write, through Foundry's own `SettingsConfig.reloadConfirm({ world })` (`world` when a world
- * setting asked: Foundry then reloads every client), as i18n.mjs `confirmLanguageReload` asks it. Nothing of a setting
+ * setting asked: Foundry then reloads every client), in `askReload` below. Nothing of a setting
  * row is written before Save; Cancel and the window's close write nothing. The volumes and the Voice section are not
  * setting rows (`data-drpg-setting`) and keep their own writes, at once, as the Look window had them: a volume is heard
  * while it moves, and a device is tried as it is picked; the section says so in a line of its own.
@@ -120,7 +120,7 @@ function registered(key) {
 }
 
 /** Whether `user` may write world settings: Foundry's own permission (the Assistant GM up). */
-export function mayModifyWorld(user = game.user) {
+function mayModifyWorld(user = game.user) {
     try {
         return typeof user?.can === "function" ? Boolean(user.can("SETTINGS_MODIFY")) : Boolean(user?.isGM);
     } catch {
@@ -260,7 +260,7 @@ function extrasOf(key, { voice = false } = {}) {
 }
 
 /** The sections of `sections` that `user` is drawn, each with its keys and extras: one with nothing to draw is left out. */
-export function sectionsFor(sections, user = game.user, { voice = false } = {}) {
+function sectionsFor(sections, user = game.user, { voice = false } = {}) {
     return sections.map(s => ({ ...s, shown: keysFor(s, user), extra: s.place === "game" && !mayModifyWorld(user) ? { html: "", count: 0 } : extrasOf(s.key, { voice }) }))
         .filter(s => s.shown.length || s.extra.count);
 }
@@ -360,7 +360,7 @@ export function placeVoice(root, fieldset) {
 }
 
 /** The rows of the other theme's settings disabled, the rest enabled, for `theme` (the window's select before Save). */
-export function syncTheme(root, theme) {
+function syncTheme(root, theme) {
     for (const row of root?.querySelectorAll?.("[data-drpg-theme-only]") ?? []) {
         const off = row.dataset.drpgThemeOnly !== theme;
         row.classList.toggle("is-off", off);
@@ -386,7 +386,7 @@ function fieldValue(field, reg) {
 }
 
 /** Foundry's reload question after a setting with `requiresReload` (SettingsConfig `reloadConfirm`), else a plain reload. */
-export async function askReload({ world = false } = {}) {
+async function askReload({ world = false } = {}) {
     try {
         const SettingsConfig = foundry.applications?.settings?.SettingsConfig ?? globalThis.SettingsConfig;
         if (SettingsConfig?.reloadConfirm) return SettingsConfig.reloadConfirm({ world });

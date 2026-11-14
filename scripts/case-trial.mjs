@@ -81,7 +81,7 @@ export async function tickFromSchema(chapter, nodeId, ticked) {
  * every second while a floor runs), and calls `mountTrialSchema` on it at render. E73's console (mockup B) keeps the
  * same hook, and since the owner's 13:15 it is the only way to the schema at the trial.
  */
-export const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
+const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
 
 /*
  * The schema's region in `dialog` kept live on its own watches, answering the stop. Its graph is wired read only by the

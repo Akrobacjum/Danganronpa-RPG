@@ -258,38 +258,6 @@
       "file": "rooms-fog.html"
     },
     {
-      "id": "rooms-scenes",
-      "client": "gm",
-      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"scenes\" })",
-      "captured": true,
-      "title": "Room setup - Academy - Floor 1",
-      "classes": [
-        "application",
-        "dialog",
-        "drpg-panel",
-        "drpg-projects",
-        "drpg-room-setup",
-        "drpg-window-rooms",
-        "drpg-ui",
-        "drpg-kit-fit"
-      ],
-      "tag": "dialog",
-      "width": 400,
-      "buttons": [
-        {
-          "action": "ok",
-          "label": "Apply",
-          "default": true
-        },
-        {
-          "action": "cancel",
-          "label": "Cancel",
-          "default": false
-        }
-      ],
-      "file": "rooms-scenes.html"
-    },
-    {
       "id": "rooms-passages--rows",
       "client": "gm",
       "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"passages\" })",
@@ -2393,6 +2361,102 @@
         }
       ],
       "file": "rest-pick.html"
+    },
+    {
+      "id": "action-loot",
+      "client": "p1",
+      "opener": "anonymity.mjs m.openBodyLoot(lootBody)",
+      "captured": true,
+      "title": "Take from the Body",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-loot-window",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Take",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "action-loot.html"
+    },
+    {
+      "id": "action-loot--long",
+      "client": "p1",
+      "opener": "anonymity.mjs m.openBodyLoot(lootBody)",
+      "captured": true,
+      "title": "Take from the Body",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-loot-window",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Take",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "action-loot--long.html"
+    },
+    {
+      "id": "rooms-scenes",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"scenes\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-scenes.html"
     }
   ]
 }

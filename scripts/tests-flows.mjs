@@ -107,6 +107,14 @@ export const FLOWS = Object.freeze([
     // E69 C5 (12.11.2026): 33 dashes from p1's page (E69-A); 30 forges the packet.
     { id: "dash", what: "A Dash: the Leg roll drawn on the GM, the free crossings its band earns granted by the GM",
         entry: { bridge: ["dash.settle"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E69 C6, C7 (13.11.2026): 33 hears Echoes, stops an eavesdrop and repeats it free from p1's page (E69-C); 30 forges the
+    // packets; tier 2's E69-T5 and E69-T6 run the rolled eavesdrop and Echoes' distances. The copy is eavesdrop-gm.mjs's socket.
+    { id: "eavesdrop", what: "Listen's eavesdrop and Echoes: the Listen roll read on the GM, the listener moved into the room's voice channel with the microphone blocked, ended by Stop listening or by the GM; Echoes' room read on the GM",
+        entry: { bridge: ["listen.eavesdrop", "listen.stop", "listen.echoes"], sockets: ["eavesdrop-gm.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.113" },
+    // E69 C8 (13.11.2026): 30 reads a victim's and a witness's console behind the "?" and refuses another's reveal; tier 2's
+    // E69-T7 masks and reveals on the GMs' record. The killer's own reveal from their page is tier 2's alone.
+    { id: "mask", what: "The murder's privacy: a killer behind a \"?\" after an opening on Hope or a critical, their microphone blocked, the cast's copies holding no killer, ended by the killer's reveal or the time of day",
+        entry: { bridge: ["mask.reveal"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
     // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
     // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
     // socket), which the owner's sheet reads.
@@ -141,12 +149,14 @@ export const FLOWS = Object.freeze([
     // tier 2 E70-T12 from a player's owner and from another's.
     // E73 C2, C5: a participant with no hall token picking a side (`trial.side`, trial-zones-ui.mjs `offerSidePick`) and a
     // Scrum speaker's thesis (`trial.keyword`); 68-trial-zones drives both from the players.
+    // E40 C5 (13.11.2026): 18-trial drives the trial step by step - real ballots from the three players, the count, a
+    // wrong verdict, the close - with a player leak scan after every step.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, an Objection raised, proved and re-pointed, and a round's turns",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
             "trial.claim", "trial.present", "trial.side", "trial.keyword"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "18-trial", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
     // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
     // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
     // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the
@@ -417,8 +427,8 @@ export const FLOWS = Object.freeze([
         entry: { api: ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"],
             calls: ["trial-scene.mjs#followPhase", "trial-scene.mjs#selfRepair", "trial-scene.mjs#watchCast"] },
         scenarios: ["41-trial-scene"], status: "covered", stage: "1.2.74" },
-    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, and each player's copy of which traces their own came from",
-        entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary"], status: "partial", stage: "E38" },
+    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, each player's copy of which traces their own came from, and a GM's Give carried to the primary so one copy is made across two GMs (E38, bullet.give)",
+        entry: { sockets: ["truth-bullets.mjs"], bridge: ["bullet.give"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary", "97-two-gms"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",
         entry: { sockets: ["voice.mjs", "voice-client.mjs"] }, scenarios: [], status: "planned", stage: "E58" }
 ]);

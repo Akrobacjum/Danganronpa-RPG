@@ -208,7 +208,7 @@ export function isCastToken(tokenDoc) {
 }
 
 /** The hall's cast: its tokens whose actor is a "character". */
-export function castTokens(scene) {
+function castTokens(scene) {
     return scene?.tokens?.filter?.(isCastToken) ?? [];
 }
 
@@ -375,7 +375,7 @@ export function castDiff(cast, { reveal, sceneId, rows = {}, epoch = seasonEpoch
  * its actor (E81 DZ6; the token's own 1.2.74 row as `castRow`'s fallback, this being the actor's first
  * token), else `defaultReveal` - and a second token of one actor never by a row. Pure: `castDiff` asks it.
  */
-export function castShows(token, { sceneId, rows = {}, epoch = seasonEpoch() } = {}) {
+function castShows(token, { sceneId, rows = {}, epoch = seasonEpoch() } = {}) {
     const row = token.second ? null : castRow(rows, sceneId, token.actorId, epoch, token.id);
     return row ? row.reveal : defaultReveal(token);
 }
@@ -715,6 +715,26 @@ export async function enterTrialScene(hall = trialScene()) {
 }
 
 /**
+ * The scene `leaveTrialScene` would take the table to, read now and taking nothing: the one the GM chose at End the
+ * trial (`exit`, this client's `setTrialExit`), else `leaveDestination`'s; null with no hall or nowhere to go.
+ */
+export function exitDestination(hall = trialScene(), exit = trialExit) {
+    if (!hall) return null;
+    const chosen = exit && exit.sceneId !== hall.id ? game.scenes?.get?.(exit.sceneId) ?? null : null;
+    return chosen ?? leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall });
+}
+
+/**
+ * Whether leaving the trial now activates a scene (fix-113r, 13.11.2026): a destination that is not active already.
+ * clock.mjs `setClock` stamps it on the clock as it crosses out (`trialExitScene`), so every browser's closed curtain
+ * knows whether to wait for a scene (sequence.mjs `playTrialExit`) - a table that stays in the hall waits for none.
+ */
+export function exitSwitchesScene(hall = trialScene(), exit = trialExit) {
+    const destination = exitDestination(hall, exit);
+    return Boolean(destination) && !destination.active;
+}
+
+/**
  * Out of the trial, on a GM: activate the scene the GM chose at End the trial (`setTrialExit`,
  * taken once - on the first line, so a close that returns early leaves nothing held either), else
  * the one `leaveDestination` names, then clear the hall (`stageHall`: the module's tokens saved and
@@ -727,7 +747,7 @@ export async function leaveTrialScene(hall = trialScene()) {
     trialExit = null;
     if (!game.user?.isGM || !hall) return null;
     const chosen = exit && exit.sceneId !== hall.id ? game.scenes?.get?.(exit.sceneId) ?? null : null;
-    const destination = chosen ?? leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall });
+    const destination = exitDestination(hall, exit);
     if (!destination) {
         await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.noSchool")}</p>`);
         return null;
@@ -1632,7 +1652,7 @@ export function hallPreparePatch(scene, { playlist = false, voice = false,
 }
 
 /** "Prepare the hall" on a GM: one update of `hallPreparePatch`'s fields, told to this GM. Answers the fields written. */
-export async function prepareTrialScene(scene, { playlist = false, voice = false } = {}) {
+async function prepareTrialScene(scene, { playlist = false, voice = false } = {}) {
     if (!game.user?.isGM || !scene) return null;
     const update = hallPreparePatch(scene, { playlist, voice });
     if (Object.keys(update).length) await scene.update(update);

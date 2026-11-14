@@ -630,7 +630,7 @@ const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOIC
    is compact, as the GM's is. */
 const VOICE_FULL = 114, VOICE_MIN = 42;
 /** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
-export const OPEN_AREAS = [];
+const OPEN_AREAS = [];
 
 /* AN EMPTY PANE LETS THE MAP THROUGH (E49 B1, S12-64; the owner's amend [1]). A pane cut for a block that is not
    there - the notice tile between notices, a GM's bar on a player's screen, any block measured as absent - was painted
@@ -667,7 +667,7 @@ const voiceWall = W => W - (PIN.rail ?? 0);
  * stacked screen, which puts it in the tiles' row, or Monokuma Legacy). Upright here; `buildColumn`
  * settles it against its column's turn (`settleVoice`).
  */
-export function voicePlacement(W, H, tray) {
+function voicePlacement(W, H, tray) {
   if (!tray || !document.getElementById("drpg-voice-tile") || narrowLayout()) return null;
   if (!document.body.classList.contains("drpg-theme-stained-glass")) return null;
   const w = Math.round(VOICE_WIDE * noteTile().w * uiScale()), y = Math.round(tray.y + trayCapacity(tray) + VOICE_SEAM);
@@ -1540,7 +1540,7 @@ function hitStack() {
   };
 }
 /** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
-export function debugGlass() {
+function debugGlass() {
   /* `panes` and `live` are here for one question: does the pane cut for a block actually
      straddle the block? A tone missing from `panes` means that block lost its pane to a
      neighbour's column; a pane whose x0/x1 do not sit either side of the block's live box
@@ -1983,7 +1983,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          (C3's Open 6: about 90 px at 2000x1072, Chromium, the glass harness, `?windows=off`). Where the tile's
          pane, centred on the side, starts below the tiles' run (`coreY[1]`, the band's foot) where it enters the
          band, the tile stands at the screen's own wall as it does without the rail, and its pane and the pane over
-         it run into the wall (`tailHug` below); the strip is cut around them (`cutStrips`). A rail whose run
+         it run into the wall (`railHug` below); the strip is cut around them (`cutStrips`). A rail whose run
          reaches the tile's rows keeps the tile at the pin, as C3 left it. */
       const rb = ctx.railBands?.right, hugsR = c.x1 + PAD_SIDE > W - HUG;
       if (!hugsR && rb && rb.real !== false && rb.coreY && Number.isFinite(rb.band)) {
@@ -3757,7 +3757,7 @@ export const FLASH_KF = (() => {
   return out;
 })();
 const meanOf = poly => [poly.reduce((s, q) => s + q[0], 0) / poly.length, poly.reduce((s, q) => s + q[1], 0) / poly.length];
-/* the panes from the centre of the screen outward (MK-R1 `byCentre`): the order a phase's colour and its flash take */
+/* the panes from the centre of the screen outward (the MK-R1 design's name for it was byCentre): the order a phase's colour and its flash take */
 function centreOrder(panes, W, H) {
   const cx = W / 2 || 1, cy = H / 2 || 1;
   const dist = panes.map(p => { const [x, y] = meanOf(p.poly); return Math.hypot((x - cx) / cx, (y - cy) / cy); });
@@ -4463,35 +4463,37 @@ export function entryPieces() {
   const j = curtains[0];
   if (!j?.panes || !j.painted || !glassRoom()) return null;
   j.turn?.cancel();
-  holdPulse(true);
+  /* the pulse stands for the whole sequence, and the scene's wait under the closed curtain is part of it (sequence.mjs
+     SCENE_WAIT_MS, 15 s, and the frames' 3.4 s): 25 s, so it never restarts by itself before the copies hand back */
+  holdPulse(true, { max: 25000 });
   pulseJob(j, pulseNow());
   const oldPanes = snapshotPanes(j), oldLook = snapshotLook(j, j.painted, { glow: true });
   if (!oldLook) { holdPulse(false); return null; }
   clearTimeout(stateTimer);
   entryHold = true;
   try { rebuildAll(); } finally { entryHold = false; }
-  pulseJob(j, pulseNow());
-  const newLook = snapshotLook(j, true, { glow: true }) ?? oldLook;
   const W = j.W, H = j.H, trial = j.panes;
-  const same = oldPanes.length === trial.length && oldPanes.every((p, i) => p.poly.length === trial[i].poly.length && p.poly.every((q, k) => q[0] === trial[i].poly[k][0] && q[1] === trial[i].poly[k][1]));
+  /* ONE CURTAIN THROUGH THE WHOLE MOVE (fix-113r; the owner at a table on 1.2.112, 13.11.2026: "between covering the
+     screen and uncovering it, the curtain's layout changes"). Until this fix the close was cut on the panes on screen and
+     their fill (A), and the closed curtain and the opening on the cut `rebuildAll` had just made and a fill of its own
+     (B): wherever the interface had moved under the clock's change - the HUD's trial row, a tile - A and B were two
+     different cuts, and at 900 ms the closing panes were swapped for B's in one frame, then opened as B. Now the closed
+     curtain is A's own paint, in the new phase's colour, and it opens the way it closed, from A, frozen at the moment
+     it is whole: nothing recut under it (the scene's load, the canvas's resize, the HUD's render) reaches the copies. The
+     live curtain, held at 0 and recut as it likes (`rebuildAll`'s gate), is what the copies hand back to at the end. */
   const fillA = fillHole(oldPanes, W, H, rng(j.seed + FILL_SEED));
-  const fillB = same ? fillA : fillHole(trial.map(p => ({ poly: p.poly })), W, H, rng(j.seed + FILL_SEED));
-  // the closed curtain, in the trial's colour: the curtain's own paint of the standing panes and the new ones as one cut
-  const paintClosed = (standing, fill) => {
-    const all = [...standing, ...fill.map(f => ({ poly: f.poly, content: false, kind: "fill" }))];
+  // the closed curtain, in the new colour: the curtain's own paint of the standing panes and the new ones as one cut
+  let lookA = null;
+  try {
+    const all = [...oldPanes, ...fillA.map(f => ({ poly: f.poly, content: false, kind: "fill" }))];
     all.meta = trial.meta;
     j.panes = all;
-    try { curtainPaint(j); pulseJob(j, pulseNow()); return snapshotLook(j, true, { glow: true }); } finally { j.panes = trial; }
-  };
-  let lookA = null, lookB = null;
-  try {
-    lookA = paintClosed(oldPanes, fillA);
-    lookB = same ? lookA : paintClosed(trial, fillB);
+    try { curtainPaint(j); pulseJob(j, pulseNow()); lookA = snapshotLook(j, true, { glow: true }); } finally { j.panes = trial; }
   } finally {
     curtainPaint(j);
     pulseJob(j, pulseNow());
   }
-  if (!lookA || !lookB) { holdPulse(false); return null; }
+  if (!lookA) { holdPulse(false); return null; }
   const order = paneOrder(oldPanes, W, H, "inward"), per = Math.ceil(order.length / TURN_BATCHES), batchOf = [];
   order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
   count("sequence.glassPieces", oldPanes.length + fillA.length);
@@ -4500,19 +4502,23 @@ export function entryPieces() {
     return { box, poly, batch, canvas: cutLook(look, [poly], box, "drpg-seq-pane"), old: old ? cutLook(old, [poly], box, "drpg-seq-pane") : null };
   };
   // each new pane's slide out from behind the glass beside it (round 4), and its glass cut from the closed curtain
-  const slid = (standing, fill, look) => slidePlan(standing.map(p => ({ poly: p.poly })), fill, W, H).map(p => ({ ...p, ...piece(p.poly, look) }));
+  const fill = slidePlan(oldPanes.map(p => ({ poly: p.poly })), fillA, W, H).map(p => ({ ...p, ...piece(p.poly, lookA) }));
   return {
     W, H, acc: j.acc, ...holdCurtain(j),
-    close: { panes: oldPanes.map((p, i) => piece(p.poly, newLook, oldLook, batchOf[i] ?? 0)), fill: slid(oldPanes, fillA, lookA), batchOf },
-    closed: lookB,
-    open: { panes: trial.map(p => piece(p.poly, newLook)), fill: slid(trial, fillB, lookB) }
+    // the standing panes go from the old look to the closed curtain's paint of the same panes, the fill slides in
+    close: { panes: oldPanes.map((p, i) => piece(p.poly, lookA, oldLook, batchOf[i] ?? 0)), fill, batchOf },
+    closed: lookA,
+    // the cut the closed curtain is the paint of: the standing panes and the fill
+    closedCut: [...oldPanes.map(p => p.poly), ...fillA.map(f => f.poly)],
+    // and the same panes, cut from the same paint, open: the fill slides back out the way it came
+    open: { panes: oldPanes.map(p => piece(p.poly, lookA)), fill }
   };
 }
-/* THE EXIT'S CUT (the owner's decision of 12.11.2026, every default accepted): the entry's pieces taken the other way
-   round - the panes on screen are the trial's, the curtain is painted in the phase the clock moved to (the sequence
-   writes `data-drpg-phase` first, so the colour is Daily Life's at this hour), and the cut it opens onto is the one the
-   screen has at the exit's start, its one fixed time; a recut while it plays (the school's scene loading under the
-   closed curtain) paints the held curtain without turning, and the copies hand over to it at the end. */
+/* THE EXIT'S CUT (the owner's decision of 12.11.2026, every default accepted; fix-113r): the entry's pieces, taken as the
+   exit starts - the panes on screen are the trial's, the curtain is painted in the phase the clock moved to (the sequence
+   writes `data-drpg-phase` first, so the colour is Daily Life's at this hour) - and it opens from that same cut; the
+   school's scene loading under the closed curtain recuts the held live curtain without turning, and the copies hand
+   over to it at the end. */
 export function exitPieces() {
   return entryPieces();
 }

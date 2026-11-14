@@ -51,9 +51,11 @@ export {
 } from "./call-world.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
-async function tell(actor, key) {
+async function tell(actor, key, data = null) {
     try {
-        await whisperToOwner(actor, { tone: "warning", body: `<p>${game.i18n.localize(key)}</p>` });
+        const words = data ? game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, foundry.utils.escapeHTML(String(v ?? ""))])))
+            : game.i18n.localize(key);
+        await whisperToOwner(actor, { tone: "warning", body: `<p>${words}</p>` });
     } catch {
         // The restriction stands whether or not the notice got through.
     }
@@ -86,8 +88,7 @@ export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
  * Advantage that nobody paid Hope for.
  *
  * Some advantage comes from the situation rather than from a Call: looking for
- * bandages in the medic's office, digging through a stash somebody has taken
- * pains to hide. It is armed around one roll and cleared straight after, and it
+ * bandages in the medic's office. It is armed around one roll and cleared straight after, and it
  * hides behind the same shield as a Call so a supporting roll cannot eat it.
  *
  * A module-level value for the same reason `shielded` is one: the roll dialog
@@ -96,8 +97,8 @@ export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
  * IT IS A COUNT, NOT A SIGN (E7). This used to store `Math.sign(value)`, and
  * the arithmetic it flattened was already being done: `performSearch` adds a
  * favouring room, a hindering room and (until E06 C11 moved it after the roll,
- * `searchOdds`) somebody's concealed stash, whose disadvantage die is taken on the
- * dice once they have landed since E32+E07 C11e (`stashStep`); a crisis
+ * `searchOdds`) somebody's concealed stash, whose die went with the Search's
+ * reach into a stash in 1.2.112; a crisis
  * roll adds a weapon in hand, a second try after a miss and the guide's
  * "the victim gets advantage on every roll" for dying alone to a trap. All of
  * that was summed, carefully, and then thrown away at this line. A victim with
@@ -290,8 +291,11 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     if (from && from !== actor.id && !quiet) {
         // "Another student spent Hope on you" was said for Monokuma's Obstacle
         // too, and for a Monocub's Meddle - whose author must stay unnamed.
+        // A student's Hope Call names the student who spent it (the owner's rule #9,
+        // 13.11.2026): both stand in one room, so the beneficiary could see it done.
+        const buyer = kind === "hope" ? game.actors.get(String(from)) ?? null : null;
         const voice = kind === "despair" ? "DRPG.Calls.armedByMonokuma"
-            : kind === "hope" ? "DRPG.Calls.armedForYou"
+            : kind === "hope" ? (buyer ? "DRPG.Calls.armedForYouBy" : "DRPG.Calls.armedForYou")
             : "DRPG.Calls.armedByNobody";
         // Veiled for that one (E06 C10, 28.09.2026; audit S09-10): its list named the target to
         // every console at the moment a Monocub rolled Confusion in the room, and the roll does not
@@ -301,7 +305,8 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
         })}<p>${
             // The accusative: "nałożył na twój następny rzut {what}", "rzut ma {what}", "rzut niesie {what}" (`grantWords`).
             game.i18n.format(voice, {
-                what: grantWords(grants, "acc")
+                what: grantWords(grants, "acc"),
+                name: foundry.utils.escapeHTML(buyer?.name ?? "")
             })
         }</p>`, voice === "DRPG.Calls.armedByNobody" ? { veiled: true } : {});
     }
@@ -550,14 +555,6 @@ export function spentByGm(nonce) {
     return typeof nonce === "string" && (gmSpent.get(nonce) ?? -Infinity) >= Date.now() - GM_SPENT_MS;
 }
 
-/**
- * The single-slot name, kept so a caller written before CALL-02 still spends
- * every armed Call rather than none. Answers with the first one spent.
- */
-export async function consumeCall(actor) {
-    return (await consumeCalls(actor))[0] ?? null;
-}
-
 /** Does this character have permission for a given roll control right now? */
 export function grants(actor, what) {
     return pendingCalls(actor).some(entry => entry.grants === what);
@@ -659,7 +656,7 @@ async function spendConfusions(actor, spent) {
  * GM: one user's own characters' Confusions, and only those, with a stamp per character
  * they own - the newest decision about its row, 0 for one this browser never held.
  */
-export function confusionsFor(userId) {
+function confusionsFor(userId) {
     const user = game.users.get(userId);
     const confusions = {}, stamps = {};
     if (!game.user?.isGM || !user || user.isGM) return { confusions, stamps };
@@ -673,7 +670,7 @@ export function confusionsFor(userId) {
 }
 
 /** GM: send one user their Confusions. Addressed, and only while they are here; nothing while the suite holds the stores. */
-export function sendConfusionsTo(userId) {
+function sendConfusionsTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     const { confusions, stamps } = confusionsFor(userId);
@@ -701,7 +698,7 @@ export async function retellConfusions() {
 }
 
 /** Owner: take a GM's answer where it is newer (`confusionCopy`), for this user's own characters only. */
-export async function receiveConfusions(confusions, stamps) {
+async function receiveConfusions(confusions, stamps) {
     const mine = {}, own = {};
     const shape = entry => entry && typeof entry === "object" && typeof entry.grants === "string" && typeof entry.nonce === "string"
         ? { key: CONFUSION, kind: typeof entry.kind === "string" ? entry.kind : null, grants: entry.grants,
@@ -1092,9 +1089,28 @@ async function damageEffect(actor, call, choice, done) {
 // note above the project Calls in config.mjs. The branch went too rather
 // than being left standing for nothing: an unreachable handler is how a
 // deleted rule comes back by accident.
-async function progressEffect(actor, call, choice, done, { key, kind }) {
+async function progressEffect(actor, call, choice, done, { key, kind, secret = [] }) {
     const { addProgress, allProjects, isIndirectMurder } = await import("./projects.mjs");
+    // Read past the facade, as monocub.mjs and doors-gm.mjs read it: projects.mjs exports no `insidersOf`.
+    const { isSecret, insidersOf } = await import("./projects-secrecy.mjs");
     const project = allProjects().find(p => p.id === choice.project);
+    /*
+     * A SECRET PROJECT'S NAME AND NUMBERS STAY OFF THE PUBLIC CARD (privacy line 2, #5; the owner's rule of 13.11.2026: a
+     * player learns what their character could know in the fiction, when they could know it). A Despair Call's card is
+     * public (calls.mjs `spendDespairCallFor`), and on the GM's browser that buys it `project.name` is the secret name
+     * (projects-secrecy.mjs `shownName`): Game Integrity or Patronage on a secret project told the table the plan's name
+     * and its progress. The public line says "a project" now, and the whole line goes on a veiled card to the GMs and to
+     * those who may know the project, as the tray decides (`insidersOf`: its viewers and its builder's players; and the
+     * Spectators, whom `canSee` lets in) - `secret`, posted by the caller after the public card. A Hope Call's receipt is
+     * its buyer's, who chose the project from what they may see, and is left as it was.
+     */
+    const veiled = kind === "despair" && Boolean(project) && isSecret(project.id);
+    const { spectatorUserIds } = await import("./spectator.mjs");
+    const say = line => {
+        if (!veiled) return done.push(line);
+        done.push(game.i18n.localize("DRPG.Calls.progressSecret"));
+        return secret.push({ line, whisper: [...new Set([...insidersOf(project.id), ...spectatorUserIds()])] });
+    };
 
     if (!project) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
@@ -1110,13 +1126,13 @@ async function progressEffect(actor, call, choice, done, { key, kind }) {
         // is forwarded, so the answer comes back as a whisper instead -
         // never claim a number this side of the socket.
         if (applied.changed === false) {
-            done.push(game.i18n.format("DRPG.Calls.progressRefused", { name: project.name }));
+            say(game.i18n.format("DRPG.Calls.progressRefused", { name: project.name }));
         } else if (applied.changed) {
-            done.push(game.i18n.format("DRPG.Calls.progressedTo", {
+            say(game.i18n.format("DRPG.Calls.progressedTo", {
                 name: project.name, current: applied.to, target: applied.target
             }));
         } else {
-            done.push(game.i18n.format("DRPG.Calls.progressSent", {
+            say(game.i18n.format("DRPG.Calls.progressSent", {
                 name: project.name, n: call.progress > 0 ? `+${call.progress}` : call.progress
             }));
         }
@@ -1186,7 +1202,7 @@ async function freeRestEffect(actor, call, choice, done) {
         free: true, ignoreRoom: true, ignoreLimit: true, quiet: true
     });
     // Backing out of the "what do you want back" picker is a real
-    // cancel: nothing was restored, so the five Hope come back.
+    // cancel: nothing was restored, so the Call's price (`cost`) comes back.
     // NothingToDo, not a fault, when the player chose not to (live check,
     // 17.09 - the refund arrived under a "Tell the GM" error toast). A rest
     // that FAILED is a fault and is logged as one: `takeRest` answers false
@@ -1255,10 +1271,10 @@ async function chainEffect(actor, call, choice, done) {
     const { roomOfActor } = await import("./movement.mjs");
     const here = roomOfActor(choice.target);
     await restrict(choice.target, { chained: true, room: here });
-    done.push(game.i18n.format("DRPG.Calls.chained", {
-        name: choice.target.name, room: here ?? "-"
-    }));
-    await tell(choice.target, "DRPG.Calls.chainedNotice");
+    // The room stays off the public card (privacy line 2, #5; the owner's rule of 13.11.2026): the card is the table's, and
+    // where the target stands is theirs and the GMs' to know. The target's own notice names it.
+    done.push(game.i18n.format("DRPG.Calls.chained", { name: choice.target.name }));
+    await (here ? tell(choice.target, "DRPG.Calls.chainedNoticeIn", { room: here }) : tell(choice.target, "DRPG.Calls.chainedNotice"));
 }
 
 /* --- a motive: a demand, a deadline and a price for missing it ---
@@ -1337,6 +1353,8 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
     if (!call) return { lines: [], failed: true };
 
     const done = [];
+    // Lines for a veiled card beside the public one (`progressEffect`): `{ line, whisper }`, the GMs added by the poster.
+    const secret = [];
 
     try {
         // The branches, in the order they have always run.
@@ -1344,7 +1362,7 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
         if (call.grantsHope && choice.target) await hopeFromDespairEffect(actor, call, choice, done);
         if (call.feedsOverflow) await feedOverflowEffect(actor, call, choice, done);
         if (call.damage && choice.target) await damageEffect(actor, call, choice, done);
-        if (call.progress && choice.project) await progressEffect(actor, call, choice, done, { key, kind });
+        if (call.progress && choice.project) await progressEffect(actor, call, choice, done, { key, kind, secret });
         if (call.freeMoves) await freeMovesEffect(actor, call, choice, done);
         if (call.freeActions) await freeActionsEffect(actor, call, choice, done);
         if (call.freeRest) await freeRestEffect(actor, call, choice, done);
@@ -1358,7 +1376,7 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
         if (call.gathersEveryone && choice.room) await gatherEffect(actor, call, choice, done);
         if (call.target === "item" && choice.item) await destroyItemEffect(actor, call, choice, done);
     } catch (err) {
-        if (err instanceof NothingToDo) return { lines: done, failed: true };
+        if (err instanceof NothingToDo) return { lines: done, failed: true, secret };
         // A Call that has been paid for and did nothing must say so, and must
         // give the price back. Failing quietly is how "Contribution adds no
         // progress, no error" happened.
@@ -1367,11 +1385,11 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
         // toast here as well contradicted it a second later ("paid for, but
         // could not be applied" then "did nothing, so it has been returned").
         done.push(game.i18n.format("DRPG.Calls.effectFailed", { call: call.label }));
-        return { lines: done, failed: true };
+        return { lines: done, failed: true, secret };
     }
 
     // Nothing thrown, but nothing happened either: a Call whose every branch was
     // skipped because the picker came back empty is still a Call that took the
     // resource and delivered none of what it promised.
-    return { lines: done, failed: done.length === 0 };
+    return { lines: done, failed: done.length === 0, secret };
 }

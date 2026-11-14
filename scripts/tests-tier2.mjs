@@ -479,6 +479,29 @@ function drawnAdvanceButton(student, { lit = false } = {}) {
 }
 
 /**
+ * THE DISCOVERY'S PROMPT, ANSWERED (1.2.113; the owner's decision A of 13.11.2026). Two witnesses leave a discovery waiting
+ * for the GM's word (chapter.mjs `askPendingBodies`): a walk-in test's stand-in `wait` answers its window "announce", as the
+ * GM's press would, and every other window nothing (`announceTheBody`). `bodyRowsNow` and `bodyRowsBack` drop again the rows
+ * a walk wrote in the GMs' discoveries waiting and bodies heard (gm-stores.mjs `pendingBodyStore`, `bodyHeardStore`).
+ */
+function announceTheBody(cfg) {
+    return cfg?.window?.title === game.i18n.localize("DRPG.Chapter.pendingTitle") ? "announce" : null;
+}
+
+async function bodyRowsNow() {
+    const S = await import("./gm-stores.mjs");
+    return [S.pendingBodyStore, S.bodyHeardStore].map(store => new Set(Object.keys(store.entries() ?? {})));
+}
+
+async function bodyRowsBack(before) {
+    const S = await import("./gm-stores.mjs");
+    for (const [i, store] of [S.pendingBodyStore, S.bodyHeardStore].entries()) {
+        const added = Object.keys(store.entries() ?? {}).filter(key => !before[i].has(key));
+        if (added.length) await store.dropMany(added);
+    }
+}
+
+/**
  * Every window `run` opens through DialogV2.wait answered by `answer(seen)` (E10 C6): `seen` is
  * `{ kind, choices }` - "advance" for a Level Up picker, "menu" for `chooseVariant`'s (action-rolls.mjs)
  * with the values of its rows. Answers the windows seen, in order; Foundry's own `wait` is put back.
@@ -1870,6 +1893,34 @@ async function despairOf(who) {
 }
 
 /** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
+/**
+ * THE ROOMS OF A SCENE IN A LINE OF DOORS (E69 C6, C7): the harness's scene draws no doors, so each room's doors are Room
+ * Setup's word (`ROOM_FLAGS.neighbours`), written on every piece: each room next to the one before and the one after it in
+ * `allRooms`' order. Answers the rooms and `putBack`, which writes every piece's list back as it was.
+ */
+async function roomsInLine(scene) {
+    const M = await import("./movement.mjs");
+    const { roomRegions } = await import("./rooms.mjs");
+    const rooms = M.allRooms(scene);
+    const were = [];
+    for (const [i, room] of rooms.entries()) {
+        const list = [rooms[i - 1], rooms[i + 1]].filter(Boolean).join(", ");
+        for (const piece of roomRegions(scene, room)) {
+            were.push([piece, piece.getFlag(MODULE_ID, M.ROOM_FLAGS.neighbours) ?? null]);
+            await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list);
+        }
+    }
+    return {
+        rooms,
+        putBack: async () => {
+            for (const [piece, was] of were) {
+                if (was === null) await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.neighbours);
+                else await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, was);
+            }
+        }
+    };
+}
+
 async function playerInRoom() {
     const { locateActor } = await import("./movement.mjs");
     const found = game.users.filter(u => !u.isGM && u.active).flatMap(player => game.actors
@@ -2294,8 +2345,9 @@ function playerRollCard(player, student) {
  * A ROLL WINDOW (E08+E28 C7, 03.10.2026; Daggerheart's own since E33 C2b). The window Daggerheart's
  * duality roll opens (its `DefaultDialog`: at a table Daggerheart's, headless the harness's stand-in,
  * lib/dh-dice/applications/dialogs/d20RollDialog.mjs), on that roll built from `config` as its `build`
- * builds one (`createRollInstance`) - its data the character's roll data with the character as its
- * `parent` unless `config.data` names some, its advantage none unless `config.roll` says. The module's
+ * builds one (`createRollInstance`) - with 2.12.8's MoveContext's shape (the character as `actor`, `hasRoll`), its
+ * data the character's roll data with its experiences unless `config.data` names some, its advantage none unless
+ * `config.roll` says. The module's
  * hooks run on it as Foundry fires them, every other window hook of the module's too. `open()` renders
  * it and waits for the renders its hooks asked for; `renders` counts the renders the hooks were handed;
  * `submit()` presses Roll and `cancel()` closes it unsubmitted, each waiting for what the close hook
@@ -2305,8 +2357,12 @@ function playerRollCard(player, student) {
  */
 async function rollWindow(actor, config = {}) {
     const DR = game.system.api.dice.DualityRoll;
-    const data = config.data ?? Object.defineProperty(actor.getRollData(), "parent", { value: actor, configurable: true });
-    const cfg = { ...config, roll: { advantage: 0, ...(config.roll ?? {}) }, source: { actor: actor.uuid, ...(config.source ?? {}) }, data };
+    /* The config 2.12.8's MoveContext hands the window (move-context.mjs :38-136): the character as `actor`, `hasRoll`, and
+       roll data that carries the character's experiences (:131) and no `parent` - the window reads the actor off the
+       config (d20RollDialog.mjs:43-45) and draws its roll's controls only under `hasRoll` (rollSelection.hbs:3). Until
+       13.11.2026 this built 2.10.5's: the character as the roll data's `parent`, which 2.12.8's window does not read. */
+    const data = config.data ?? { ...actor.getRollData(), experiences: actor.system?.experiences ?? {} };
+    const cfg = { hasRoll: true, actor, ...config, roll: { advantage: 0, ...(config.roll ?? {}) }, source: { actor: actor.uuid, ...(config.source ?? {}) }, data };
     const app = new DR.DefaultDialog(DR.createRollInstance(cfg), cfg);
     let renders = 0;
     const counting = Hooks.on("renderApplicationV2", shown => { if (shown === app) renders += 1; });
@@ -2568,15 +2624,41 @@ async function withLootTrace(run) {
     });
 }
 
+/**
+ * Take from the Body's window for `taker` off `body`, drawn on this GM as the body's sheet opens it (anonymity.mjs
+ * `openBodyLoot`; 1.2.113, A113-C5-7: the owner's E68 decision carried to the last action left on the sheet's own list).
+ * Answers null where no window was drawn within 6 s (or no `openBodyLoot`, as before 1.2.113), else `{ el, take, rows,
+ * close }`: `take()` the window's Take as [disabled, tooltip], `rows()` per row [item id, disabled, its line], and
+ * `close()` closes the window and waits for the opener's answer. The caller closes it, in a finally.
+ */
+async function lootWindowFor(body, taker, opts = {}) {
+    const A = await import("./anonymity.mjs");
+    if (typeof A.openBodyLoot !== "function") return null;
+    const list = `.drpg-loot-list[data-drpg-body="${CSS.escape(body.id)}"][data-drpg-taker="${CSS.escape(taker.id)}"]`;
+    const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector(list)) ?? null;
+    const run = A.openBodyLoot(body, { taker, ...opts }).catch(() => null);
+    if (!await until(() => Boolean(drawn()?.element?.querySelector(".drpg-loot-take")), 6000)) {
+        await drawn()?.close?.();
+        await run;
+        return null;
+    }
+    const app = drawn(), el = app.element;
+    const take = () => { const b = el.querySelector(".drpg-loot-take"); return b ? [b.disabled, b.dataset.tooltip ?? ""] : null; };
+    const rows = () => [...el.querySelectorAll(`${list} input[name="item"]`)].map(box =>
+        [box.value, box.disabled, box.closest(".drpg-choice")?.querySelector(".drpg-choice-text small")?.textContent.trim() ?? null]);
+    const close = async () => { if (app.rendered) await app.close(); return run; };
+    return { app, el, take, rows, close };
+}
+
 async function withBodyTile(run) {
     const { isPrimaryGm } = await import("./utils.mjs");
     must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
     needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body, each a token on the scene on screen");
     needs(world.atLeast("namedRooms", 2), "a room for the two and another to lay the tile in");
+    needs(env.dialogs(), "Take from the Body's window is drawn and its Take read (`drawn`)");
     const Mv = await import("./movement.mjs");
     const B = await import("./body-tile.mjs");
     const INV = await import("./inventory.mjs");
-    const A = await import("./anonymity.mjs");
     const { levelOf } = await import("./rooms.mjs");
     const { deathRecord } = await import("./settings.mjs");
     const { livingStudents } = await import("./chapter.mjs");
@@ -2594,16 +2676,16 @@ async function withBodyTile(run) {
         must(Mv.roomOfToken(takerToken) === room, `the taker could not be stood in ${room} - this would measure nothing`);
     };
     const NAME = "SUITE E95 C1 a lighter on the body";
+    // The Take of Take from the Body's window (1.2.113; `lootWindowFor`), read once it is drawn and closed again.
     const drawn = async () => {
-        const root = document.createElement("div");
-        root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
         const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
         await sheetAuditIdle();
-        await A.buildBodyLoot?.(root, body, taker);
-        const take = root.querySelector(".drpg-loot-take");
+        const win = await lootWindowFor(body, taker);
+        const take = win ? win.take() : null;
+        await win?.close();
         if (item) await item.delete();
         await sheetAuditIdle();
-        return take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+        return take;
     };
     let tile = null;
     try {
@@ -3085,6 +3167,7 @@ async function reshapeCopiesFixture(who, holders, note, place = {}) {
             const had = new Set(game.messages.map(m => m.id));
             const tried = await F.scrub(30, { mode: "transform", change: C9_STORY });
             await settle();
+            await until(() => game.messages.some(m => !had.has(m.id)));
             const said = await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000)));
             const card = said.find(html => html.includes('data-drpg-call="approveReshape"') && html.includes(`data-trace="${F.trace.id}"`)) ?? null;
             const applied = await approveHeld(who, F.trace.id);
@@ -3430,21 +3513,6 @@ const MODIFIER_FIXTURES = Object.freeze([
     { key: "loadedDie", cite: "player-handbook.en.md:346 (Loaded Die: one die is set to 12)", road: "a Loaded Die armed by a GM, the packet's mark",
         arrange: t => c3Call(t.theirs, { key: "freeCrit", kind: "hope", grants: "critical" }),
         claim: (t, s, on) => (on ? { edit: p => ({ ...p, loaded: s.nonce, calls: [s.nonce] }) } : {}), expect: true, moves: 7 },
-    { key: "stashStep", cite: "player-handbook.en.md:435 (a hidden stash: one more step of disadvantage)", road: "a concealed stash of another student's in the room, written by a GM",
-        arrange: async t => {
-            const V = await import("./vault.mjs");
-            const INV = await import("./inventory.mjs");
-            const room = await c3Room(t.theirs, { stashes: [{ actorId: t.other.id, concealed: true }] });
-            const item = await INV.grantItem(t.other, { name: "SUITE E33 C3 hidden", category: "usable", tier: 1, override: true, quiet: true });
-            const gone = async () => { if (item) await t.other.items.get(item.id)?.delete(); };
-            if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: room.room });
-            await settle();
-            if (!item || V.stashItemsIn(t.other, room.room, canvas?.scene).length !== 1) { await gone(); await room.back(); }
-            must(item && V.stashItemsIn(t.other, room.room, canvas?.scene).length === 1, "the thing is not in the hidden stash - this would measure nothing");
-            return { off: async () => { await gone(); await room.set(); }, undo: async () => { await gone(); await room.back(); } };
-        },
-        claim: (t, s, on) => ({ edit: p => ({ ...p, context: { category: "usable", ...(on ? { stashDie: true } : {}) } }) }),
-        expect: true, moves: ["rolled", null], moved: (A, B) => [A.stash?.kind ?? null, B.stash?.kind ?? null] },
     { key: "kind", cite: "roll-draw.mjs `onGmTerms` (a critical guaranteed by the character's own effects, a death move's Blaze of Glory); no handbook line",
         road: "an effect a GM made guaranteeing a critical",
         arrange: t => c3Effect(t.theirs, "SUITE E33 C3 critical", [{ key: "system.rules.roll.guaranteedCritical", value: "true", type: "override" }]),
@@ -4422,6 +4490,7 @@ const SCENARIOS = [
             const stage = M.murderState()?.stage ?? null;
             await M.endMurder({ reason: "closed", followUp: false });
             await settle();
+            await until(() => messages.length > 0);
             let cards = 0;
             for (const message of messages) if (String(await wordsOf(message, 300)).includes(title)) cards++;
             equal(stableJson([stage, cards, isDeadForGm(victim), again, closes]), stableJson(["resolution", 1, true, 0, 1]),
@@ -4470,6 +4539,7 @@ const SCENARIOS = [
             const had = new Set(game.messages.contents.map(m => m.id));
             await M.resolveCrisisAction({ actorId: killer.id, key: "strike", total: 99, isCritical: true, withHope: true, choice: "stress" });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(card)));
             message = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(card)) ?? null;
         });
         await M.endMurder({ reason: "closed", followUp: false });
@@ -4512,6 +4582,7 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 1, isCritical: false, withHope: false });
         await settle();
+        await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(note)));
         const told = game.messages.contents.filter(m => !had.has(m.id)).some(m => String(contentOf(m) ?? "").includes(note));
         await M.endMurder({ reason: "closed", followUp: false });
         equal(stableJson([killer.system.resources.stress.value, marks(victim), told]), stableJson([1, victimBefore, true]),
@@ -4705,6 +4776,7 @@ const SCENARIOS = [
             const whole = [INV.isBroken(doc(one)), INV.wearOf(doc(one))];
             answered.push(await breakOnDespair(actor, one, fear));
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Items.singleUseSpent", { item: foundry.utils.escapeHTML(zero[0].name) }))));
             const words = game.i18n.format("DRPG.Items.singleUseSpent", { item: foundry.utils.escapeHTML(zero[0].name) });
             const told = game.messages.contents.filter(m => !had.has(m.id)).some(m => String(contentOf(m) ?? "").includes(words));
             equal(stableJson([answered, zero.map(item => [INV.isBroken(doc(item)), isEquipped(doc(item))]), whole, INV.isBroken(doc(one)), told]),
@@ -4798,6 +4870,7 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 10, fear: 3 };
             const taken = await M.takeCrisisAction(killer, "finishingBlow");
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(killer.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(killer.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(taken?.roll?.withHope && isDeadForGm(victim) && row?.facts?.crisis === "finishingBlow" && message,
@@ -5288,6 +5361,7 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 10, fear: 3 };
             await M.takeCrisisAction(killer, "finishingBlow");
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(killer.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(killer.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(!isDeadForGm(victim) && row?.facts?.crisis === "finishingBlow" && row?.trait && message,
@@ -5787,6 +5861,7 @@ const SCENARIOS = [
                     const from = new Set(game.messages.map(m => m.id));
                     const handled = await R.recoverRerollJournal();
                     await settle();
+                    await until(() => game.messages.filter(m => !from.has(m.id)).length >= (cut === "replaying" && ownerOf(who) ? 2 : 1));
                     // The words of a card this GM receives; a card to the player alone is read by its addressee.
                     const cards = game.messages.filter(m => !from.has(m.id));
                     const said = (await Promise.all(cards.map(m => wordsOf(m, 2000)))).map(text);
@@ -7153,6 +7228,7 @@ const SCENARIOS = [
             };
             await performAction(actor, "project", { free: true });
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && contentOf(m).includes(line)));
             const traces = left().map(t => remnantData(t)).map(d => [d.type, d.visibility, d.tiedToCrime === true]);
             const carded = game.messages.some(m => !seen.has(m.id) && contentOf(m).includes(line));
             equal(stableJson([thrown, traces, carded]), stableJson([["finesse", "closed"], [["prep", "obvious", true]], true]),
@@ -10761,18 +10837,14 @@ const SCENARIOS = [
             "a Confusion reported spent with no drawn roll naming it was dropped, or one a record names stayed (unnamed held, named held)");
     }],
 
-    ["a Search at a hidden stash takes the step the GM drew", async () => {
+    ["a Search's drawn roll takes no stash step, whatever its packet says about a hidden stash", async () => {
         /*
-         * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on C11e. A hidden stash's step -
-         * the advantage die set aside, drawn at random, or one more disadvantage die - was drawn in
-         * the searcher's browser and was in no message. The GM draws it with the dice now, where the
-         * room it sees the searcher in holds a hidden stash, and the searcher takes that step and
-         * draws none (action-search.mjs `stashStepOf`). A player's character stood alone in a room
-         * where another student keeps a hidden stash with one thing in it, its Search's packet
-         * naming the stash; the GM's randomiser scripted to give a 6 for the extra die, then the
-         * searcher's to give a 1. Read: the step the GM answered and recorded, and the step the
-         * searcher's half takes from the answer. Until C12b the GM drew none and the searcher drew
-         * its own, the 1.
+         * 1.2.112, the owner's decision of 13.11.2026: a Search reaches into no stash, so nothing about a stash touches its
+         * roll. From E08+E28 C12b (04.10.2026) until then the GM drew a hidden stash's step with the dice where the room it
+         * saw the searcher in held one, and answered it (`stash`) for the searcher to take. A player's character stood alone
+         * in a room where another student keeps a hidden stash with one thing in it, its Search's packet still naming the
+         * stash (`stashDie`, a 1.2.111 browser's word). Read: what the GM answered and recorded of a step, the context it
+         * recorded, and the thing still in the stash. Until 1.2.112 the GM answered and recorded a step.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
@@ -10780,7 +10852,6 @@ const SCENARIOS = [
         const { player, theirs } = playerAndCharacters();
         const owner = cast(2).find(a => a.id !== theirs.id);
         must(owner, "no other student keeps the stash - this would measure nothing");
-        const rolls = await import("./action-rolls.mjs");
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
         const stood = await standAlone(theirs);
@@ -10788,50 +10859,42 @@ const SCENARIOS = [
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
         const path = k => `flags.${MODULE_ID}.${k}`;
-        const Dice = CONFIG.Dice;
-        const hadU = Object.hasOwn(Dice, "randomUniform"), realU = Dice.randomUniform;
-        let item = null, F = null, taken = null;
+        let item = null, F = null, read = null;
         try {
             must(region, `${stood.room} has no region`);
             await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
                 [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
-            item = await INV.grantItem(owner, { name: "SUITE C12b hidden", category: "usable", tier: 1, override: true, quiet: true });
+            item = await INV.grantItem(owner, { name: "SUITE 1.2.112 hidden", category: "usable", tier: 1, override: true, quiet: true });
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
             await settle();
             must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
-            // ceil((1 - 0.01) * 6) = 6 on the GM; ceil((1 - 0.99) * 6) = 1 on the searcher's half.
-            Dice.randomUniform = () => 0.01;
             F = await drawnForPlayer(player, theirs, { edit: p => ({ ...p, context: { category: "usable", stashDie: true } }) });
-            Dice.randomUniform = () => 0.99;
-            const drawn = { rollId: F.value?.rollId ?? null, messageId: F.value?.messageId ?? null, stash: F.value?.stash ?? null, loaded: false };
-            taken = typeof rolls.stashStepOf === "function"
-                ? await rolls.stashStepOf({ raw: { [rolls.DRAWN_ROLL]: drawn } }, theirs, true)
-                : await rolls.stashStepFor(F.message?.rolls?.[0] ?? {}, theirs);
+            must(F.message && F.record, "the GM drew nothing - this would measure nothing");
+            read = [F.value?.stash ?? null, F.record?.used?.stash ?? null, F.record?.legal?.stashDie ?? null,
+                (F.record?.flags ?? []).map(f => f.kind), V.stashItemsIn(owner, stood.room, canvas?.scene).length];
         } finally {
-            if (hadU) Dice.randomUniform = realU;
-            else delete Dice.randomUniform;
             if (F) await F.putBack();
             if (item) await owner.items.get(item.id)?.delete();
             if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
             await stood.back();
         }
-        const answered = F?.value?.stash ?? null;
-        equal(stableJson([answered?.kind ?? null, answered?.rolled ?? null, stableJson(F?.record?.used?.stash ?? null) === stableJson(answered),
-            stableJson(taken) === stableJson(answered)]), stableJson(["rolled", 6, true, true]),
-            "the GM did not draw the hidden stash's step, did not record the one it answered, or the searcher took a step of its own (kind, die, recorded, taken)");
+        equal(stableJson(read), stableJson([null, null, null, [], 1]),
+            "the GM answered, recorded or expected a hidden stash's step for a Search, flagged the packet over it, or the stash lost its thing "
+            + "(answered, recorded, expected, flag kinds, things in the stash)");
     }],
 
-    ["a drawn roll's Reroll takes its statistic, experiences and stash from the GM's record, not the bookmark", async () => {
+    ["a drawn roll's Reroll takes its statistic and experiences from the GM's record, not the bookmark", async () => {
         /*
          * E08+E28 C12b, 04.10.2026; round 1's security review (a Reroll's formula took the statistic and
          * the experiences from the bookmark's row - the roller's claim, which it may send again) and the
          * plan's 2.5 (a Search's Reroll takes the stash's step from the record once it is there). The GM
          * keeps them on the record as it draws (roll-draw.mjs `drawOnGm`), and the Reroll reads them
-         * there for a roll the GM drew (reroll.mjs `rollAsThrown`, `stashDieOf`). A player's Search,
+         * there for a roll the GM drew (reroll.mjs `rollAsThrown`). A player's Search,
          * drawn; a bookmark naming its message that says Hand, an experience and a hidden stash. Read:
-         * the statistic and the experiences of the roll the Reroll rebuilds, and whether it takes a
-         * stash's step. Until C12b all three were the bookmark's.
+         * the statistic and the experiences of the roll the Reroll rebuilds. Until C12b both were the bookmark's.
+         * Its third part, the stash's step from the record (`stashDieOf`), went in 1.2.112 with the step itself: no
+         * Search takes one ("a Reroll of a Search takes no stash step ...").
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -10843,9 +10906,8 @@ const SCENARIOS = [
             // The roll as the class rebuilds it from the packet's JSON: the harness's message keeps its rolls as JSON alone.
             const original = game.system.api.dice.DualityRoll.fromData(configuredRollOf(F.packet));
             const thrown = await R.rollAsThrown(original, theirs, F.message, bookmark);
-            const stash = typeof R.stashDieOf === "function" ? await R.stashDieOf(bookmark) : bookmark.stashDie;
-            equal(stableJson([thrown?.options?.roll?.trait ?? null, thrown?.options?.experiences ?? null, stash]), stableJson(["instinct", [], false]),
-                "a drawn roll's Reroll was rebuilt from the bookmark's statistic or experiences, or took a stash's step the GM did not draw (statistic, experiences, step)");
+            equal(stableJson([thrown?.options?.roll?.trait ?? null, thrown?.options?.experiences ?? null]), stableJson(["instinct", []]),
+                "a drawn roll's Reroll was rebuilt from the bookmark's statistic or experiences (statistic, experiences)");
         } finally {
             await F.putBack();
         }
@@ -12271,7 +12333,7 @@ const SCENARIOS = [
             `${owner.name}'s Tool a player made and no GM decided on, then decided (in the theft's pool, in the Frisk's list, log lines naming it)`);
     }],
 
-    ["an unseen Frisk is judged on the primary from a player's two drawn rolls (A11-5, A11-15): the list or a miss at the searcher alone, the target told only when it noticed, a third student in the room told nothing, both criticals as the design words them, and a console's own totals or another action's roll refused", async () => {
+    ["an unseen Frisk is judged on the primary from a player's two drawn rolls (A11-5, A11-15): the list or a miss at the searcher alone, the target told only when it noticed, a third student in the room told of a noticed hand and never shown the list (privacy line 2, #7), both criticals as the design words them, and a console's own totals or another action's roll refused", async () => {
         /*
          * E80 part 2 C2, 19.10.2026; the A11 design's steps 5 and 6, its A11-5 and A11-15. The harms: a target told of a
          * Frisk it did not notice (or never told of one it did), a list read by anybody but the searcher and the GMs, and a
@@ -12295,6 +12357,9 @@ const SCENARIOS = [
          * third's documents (a sheet redraws on its document's update). An unnoticed Frisk sends the two nothing and
          * writes nothing; a noticed one sends the target its card alone. Red with `friskPerson` whispering the list to
          * `roomWitnessesOnGm(searcher)` (the review's mutant): the third gets a card.
+         * Privacy line 2 (#7, the owner's rule of 13.11.2026) changed this test: a noticed Frisk sends the third one card,
+         * the hand by name (`DRPG.Steal.wHand`, frisk.mjs `tellOnlookers`), with no item and no list; an unnoticed one still
+         * sends the two nothing. Until 1.2.113 a noticed one sent the third nothing too.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
         needs(world.atLeast("studentTokensOnScreen", 3), "the searcher, the one searched and a third, each a token on the scene on screen");
@@ -12330,6 +12395,7 @@ const SCENARIOS = [
             if (words.includes(line("DRPG.Frisk.missed", other))) return "missed";
             if (words.includes(line("DRPG.Frisk.caughtTrying", theirs))) return "caughtTrying";
             if (words.includes(line("DRPG.Frisk.caught", theirs))) return "caught";
+            if (words.includes(game.i18n.format("DRPG.Steal.wHand", { who: foundry.utils.escapeHTML(theirs.name), target: foundry.utils.escapeHTML(other.name) }))) return "witness";
             return `other: ${words.slice(0, 80)}`;
         };
         const judged = async (rolls, out) => {
@@ -12408,13 +12474,15 @@ const SCENARIOS = [
             const mixed = [];
             const wrongKind = await judged({ rollId: take.message.id, unseenRollId: shadow.message.id }, mixed);
             const P = ["player"], PT = targetOwner ? ["player", "target"] : ["player"];
-            const felt = targetOwner ? ["target secret.card"] : [];
+            // A noticed Frisk: the target's card, and the third's (privacy line 2, #7), neither naming the item.
+            const PTW = [...PT, "third"], felt = [...(targetOwner ? ["target secret.card"] : []), "third secret.card"];
+            const W = ["witness", null, null, false];
             equal(stableJson(read.map(r => [r.out, r.cards, r.to.filter(who => who !== "gm"), r.needle, r.inData, r.reached, r.wrote])), stableJson([
                 [["settled"], [["list", "unseen", null, true]], P, [], 0, [], []],
-                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0, felt, []],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false], W], PTW, [], 0, felt, []],
                 [["settled"], [["missed", "unseen", null, false]], P, [], 0, [], []],
-                [["settled"], [["missed", "seen", null, false], ["caughtTrying", null, "stolen", false]], PT, [], 0, felt, []],
-                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0, felt, []],
+                [["settled"], [["missed", "seen", null, false], ["caughtTrying", null, "stolen", false], W], PTW, [], 0, felt, []],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false], W], PTW, [], 0, felt, []],
                 [["settled"], [["missed", "unseen", null, false]], P, [], 0, [], []]
             ]), "[for each Frisk: the reply, the cards (what it says, seen or unseen, its sound, the item named), "
                 + "who the words went to besides the GMs, who else had the item's name, the cards' documents naming it, "
@@ -12772,6 +12840,237 @@ const SCENARIOS = [
         for (const [phase, want] of Object.entries(expected)) {
             equal(stableJson(seen[phase] ?? null), stableJson(want), `${phase}: what the ask, its answers and its end did`);
         }
+    }],
+
+    ["an open Frisk turned out in front of the room shows each witness the searcher's list (privacy line 2, #6; the owner's rule of 13.11.2026): the third student's card names what the target carries, never a Truth Bullet, never a stashed item, and the target's own card no list", async () => {
+        /*
+         * Privacy line 2 (#6), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. Pockets turned out in front of the room are seen by the room: the witnesses' card of a
+         * "shown" or "forced" open Frisk carries the list the searcher gets, the ask's snapshot (frisk.mjs `endAsk`,
+         * `row.lines`), which `pocketsFrom` already holds to no Truth Bullet and no stashed item. Before, the witnesses read
+         * only "{target} turns out their pockets for {who}." A player's character and another (whose connected player
+         * answers) alone in a room, a third student with a connected player of their own walked in; the target given a tool,
+         * a Truth Bullet and an item in a stash, each named here; the player's `action.friskAsk` judged as the bridge judges
+         * it after a payment written as the player's, and the target's player's allow. Read: each card with words, as [the
+         * line it opens with, who its words went to besides the GMs, the tool, the Truth Bullet, the stashed item named].
+         * The forced road's card is the same list and is read in scenario 40's "an open Frisk at the table" (p3, forceWon).
+         * Red at af9792c5: the third's card names no item.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the searcher, the one asked and a third, each a token on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const F = await import("./frisk.mjs");
+        const D = await import("./roll-draw.mjs");
+        const S = await import("./secret.mjs");
+        const Mv = await import("./movement.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const scene = canvas.scene;
+        const third = game.actors.find(a => a.type === "character" && ![theirs.id, other.id].includes(a.id) && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && scene?.tokens?.some(t => t.actorId === a.id) && ownerIdsOf(a).some(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active)) ?? null;
+        must(third, "no third student with a connected player of their own has a token on the scene on screen - this would measure nothing");
+        const thirdUser = ownerIdsOf(third).find(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active);
+        const role = id => (id === player.id ? "searcher" : id === answerer ? "target" : id === thirdUser ? "third" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const TOOL = "Suite PV6 a silver lighter", BULLET = "Suite PV6 a torn receipt", STASHED = "Suite PV6 a hidden ledger";
+        const ACT = "system.resources.actions.value";
+        const left = actionsLeft(theirs), top = Math.max(1, left);
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", [D.PAID_AS_PLAYER]: true });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", [D.PAID_AS_PLAYER]: true });
+        };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [["toRoom shown", "DRPG.Frisk.wShown", { who: theirs.name, target: other.name }],
+            ["shownList", "DRPG.Frisk.shownHeading", { who: other.name }], ["toTarget shown", "DRPG.Frisk.shown", { who: theirs.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? `other: ${words.slice(0, 80)}`;
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        const judged = async (action, fields, from) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `PV6${foundry.utils.randomID(8)}`, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const force = game.settings.settings.has(`${MODULE_ID}.friskForce`) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const stood = await aloneTogether(theirs, other);
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        let seen = null;
+        try {
+            F.forgetFriskAsks?.();
+            await INV.grantItem(other, { name: TOOL, category: "tool", tier: 1, override: true, quiet: true });
+            await INV.grantItem(other, { name: BULLET, category: "truthBullet", tier: 1, override: true, quiet: true });
+            await INV.grantItem(other, { name: STASHED, category: "tool", tier: 1, override: true, quiet: true, location: INV.LOCATIONS.vault });
+            must(other.items.some(i => i.name === STASHED && INV.isStashed(i)), "the stashed item is not in a stash - this would measure nothing");
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await settle();
+            must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
+            const from = made.length, sent = packets.length;
+            await pay();
+            const asked = await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id);
+            const row = [...(F.friskAsks?.values?.() ?? [])].find(r => r.searcherId === theirs.id) ?? null;
+            const yes = row ? await judged("action.friskAnswer", { askId: row.askId, allow: true }, answerer) : null;
+            const fresh = packets.slice(sent);
+            seen = { asked, yes, cards: made.slice(from).map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null)
+                .map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort(),
+                    words.includes(TOOL), words.includes(BULLET), words.includes(STASHED)]) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            F.forgetFriskAsks?.();
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const i of other.items.filter(i => [TOOL, BULLET, STASHED].includes(i.name))) await i.delete();
+            await thirdToken.update(thirdWas, PLACE);
+            await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            await stood.back();
+        }
+        equal(stableJson(seen), stableJson({ asked: [], yes: ["shown"], cards: [
+            ["shownList", ["searcher"], true, false, false], ["toTarget shown", ["target"], false, false, false],
+            ["toRoom shown", ["third"], true, false, false]] }),
+        "{asked, the allow's answer, cards: [the card's line, its readers besides the GMs, names the tool, the Truth Bullet, the stashed item]}");
+    }],
+
+    ["a Palm or an unseen Frisk the victim catches is seen by the room (privacy line 2, #7; the owner's rule of 13.11.2026): a third student reads the hand by name, the item only with Despair on the Shadow roll the GMs drew, and nothing when the cover holds", async () => {
+        /*
+         * Privacy line 2 (#7), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. A Palm's or an unseen Frisk's missed Shadow roll told the victim alone (palm.mjs
+         * `stealFromPerson`, `plantOnPerson`; frisk.mjs `friskPerson`: "No witness is told"), while a Take from a body rolls
+         * its cover against every witness and names the items only with Despair (handover.mjs `lootCover`). Now the
+         * students in the room read the hand too (frisk.mjs `tellOnlookers`), the item only when the Shadow roll the GMs
+         * drew came with Despair (bridge-runs-acts.mjs `palmRolls`: its Hope in `unseenWithHope`). A player's character,
+         * another (whose connected player is the victim) and a third student with a connected player of their own, stood in
+         * one room; the other given items named here. Each Palm is the player's `action.steal` or `action.plant` judged as
+         * the bridge judges it, naming a hand and a Shadow roll the GM drew from that player on set faces
+         * (`drawnForPlayer`): a Steal, its Shadow missed with Despair; a Steal, missed with Hope; a Steal whose Shadow holds;
+         * a Plant, missed with Despair. Then an unseen Frisk judged on this GM (`friskPerson`) with a missed cover. Read for
+         * each: the cards whose words went to the victim's or the third's player, as [the line, its readers besides the
+         * GMs, the item named]. Red at af9792c5: the third reads nothing.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the thief, the victim and a third, each a token on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const F = await import("./frisk.mjs");
+        const S = await import("./secret.mjs");
+        const Mv = await import("./movement.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const victimUser = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(victimUser, `${other.name} has no connected player - this would measure nothing`);
+        const scene = canvas.scene;
+        const third = game.actors.find(a => a.type === "character" && ![theirs.id, other.id].includes(a.id) && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && scene?.tokens?.some(t => t.actorId === a.id) && ownerIdsOf(a).some(id => ![player.id, victimUser].includes(id) && game.users.get(id)?.active)) ?? null;
+        must(third, "no third student with a connected player of their own has a token on the scene on screen - this would measure nothing");
+        const thirdUser = ownerIdsOf(third).find(id => ![player.id, victimUser].includes(id) && game.users.get(id)?.active);
+        const role = id => (id === player.id ? "thief" : id === victimUser ? "victim" : id === thirdUser ? "third" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const NAMES = ["Suite PV7 a brass key", "Suite PV7 a paper crane", "Suite PV7 a spare button", "Suite PV7 a folded note"];
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const LINES = [["wHand", "DRPG.Steal.wHand"], ["wTaking", "DRPG.Steal.wTaking"], ["wPlanting", "DRPG.Steal.wPlanting"],
+            ["caughtTaking", "DRPG.Steal.caughtTaking"], ["caughtPlanting", "DRPG.Steal.caughtPlanting"], ["caughtTrying", "DRPG.Steal.caughtTrying"],
+            ["frisk caught", "DRPG.Frisk.caught"], ["frisk caughtTrying", "DRPG.Frisk.caughtTrying"]];
+        // A line's words up to its item (the whole line where it names none): wHand, which names none, is asked first, as its
+        // words begin wPlanting's.
+        const kindOf = words => LINES.find(([, key]) => words.includes(line(key, { who: theirs.name, target: other.name, item: "\u0000" }).split("\u0000")[0]))?.[0]
+            ?? `other: ${words.slice(0, 80)}`;
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const read = item => {
+            const fresh = packets.slice(marks.packets);
+            const out = made.slice(marks.made).map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null)
+                .map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort(),
+                    Boolean(item) && words.includes(esc(item))])
+                .filter(([, to]) => to.includes("victim") || to.includes("third"));
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const drawn = [];
+        const palm = async (action, fields, hand, cover) => {
+            const h = await drawnForPlayer(player, theirs, { actionKey: "steal", faces: hand });
+            const c = await drawnForPlayer(player, theirs, { actionKey: "palm", faces: cover });
+            drawn.push(h, c);
+            must(h.record && c.record, `the GM kept no record of a roll it drew - this would measure nothing: ${stableJson([h.value, c.value])}`);
+            marks = { packets: packets.length, made: made.length };
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `PV7${foundry.utils.randomID(8)}`, total: 0, isCritical: false, unseenTotal: 30,
+                unseenCritical: true, unseenWithHope: true, rollId: h.message.id, unseenRollId: c.message.id, ...fields }, player.id, { send: () => {} });
+            await settle();
+            return [c.record.total >= ACTIONS.palm.unseen.threshold || c.record.isCritical ? "cover held" : c.record.withHope ? "missed, Hope" : "missed, Despair"];
+        };
+        const stood = await aloneTogether(theirs, other);
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        const seen = {};
+        try {
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await settle();
+            must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
+            const give = async (actor, name) => {
+                const item = await grantItem(actor, { name, category: "usable", tier: 1, override: true, quiet: true });
+                must(item, `${actor.name} could not be handed ${name} - this would measure nothing`);
+                return item;
+            };
+            const HIGH = { hope: 11, fear: 12 }, DESPAIR = { hope: 1, fear: 2 }, HOPE = { hope: 2, fear: 1 }, HELD = { hope: 12, fear: 11 };
+            await give(other, NAMES[0]);
+            seen.stealDespair = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, DESPAIR), read(NAMES[0])];
+            for (const i of other.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await give(other, NAMES[1]);
+            seen.stealHope = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, HOPE), read(NAMES[1])];
+            for (const i of other.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await give(other, NAMES[2]);
+            seen.stealUnseen = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, HELD), read(NAMES[2])];
+            const planted = await give(theirs, NAMES[3]);
+            seen.plantDespair = [...await palm("action.plant", { plannerId: theirs.id, victimId: other.id, itemId: planted.id }, HIGH, DESPAIR), read(NAMES[3])];
+            marks = { packets: packets.length, made: made.length };
+            const frisked = await F.friskPerson({ searcherId: theirs.id, targetId: other.id, total: 0, isCritical: false, unseenTotal: 0, unseenCritical: false });
+            await settle();
+            seen.friskCaught = [frisked?.outcome ?? frisked?.refused ?? null, read(NAMES[3])];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            // Newest first: each puts Fear back to what it was before its own draw.
+            for (const d of drawn.reverse()) await d.putBack();
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await thirdToken.update(thirdWas, PLACE);
+            await stood.back();
+        }
+        equal(stableJson(seen), stableJson({
+            stealDespair: ["missed, Despair", [["caughtTaking", ["victim"], true], ["wTaking", ["third"], true]]],
+            stealHope: ["missed, Hope", [["caughtTaking", ["victim"], true], ["wHand", ["third"], false]]],
+            stealUnseen: ["cover held", []],
+            plantDespair: ["missed, Despair", [["caughtPlanting", ["victim"], true], ["wPlanting", ["third"], true]]],
+            friskCaught: ["settled", [["frisk caughtTrying", ["victim"], false], ["wHand", ["third"], false]]]
+        }), "{each Palm: [its Shadow roll as the GMs drew it, the cards to the victim's and the third's players: [line, readers besides the GMs, the item named]]; the unseen Frisk: [its outcome, the cards]}");
     }],
 
     ["an open Frisk is forced only behind the searcher's own refused or unanswered ask, on a Body roll the GMs drew for it inside its window (A11-8): won, the list as at the ask; lost, the neutral miss; another's roll, one older than the ask or past its window refused; no force before an answer, none with the GMs' friskForce off; 'Leave it' names no roll", async () => {
@@ -14626,6 +14925,7 @@ const SCENARIOS = [
                 return true;
             }, () => performAction(actor, "palm", { free: true }));
             await settle();
+            await until(() => game.messages.some(m => !before.has(m.id) && String(SH.secretHtml(m) ?? m.content ?? "").includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Frisk.sent", { name: RENAMED })))));
             const sent = foundry.utils.escapeHTML(game.i18n.format("DRPG.Frisk.sent", { name: RENAMED }));
             // The card's words as the GMs hold them (a veiled card's content is a stub).
             const cards = game.messages.filter(m => !before.has(m.id)).map(m => String(SH.secretHtml(m) ?? m.content ?? ""));
@@ -15650,20 +15950,16 @@ const SCENARIOS = [
             "a crisis action of one statistic was not held to it at its character's turn: a roll on another went unflagged, or one on it was flagged (per draw: statistic flags, statistic expected, its row)");
     }],
 
-    ["a console's theft from a stash that says a Search found it is refused without that Search's roll, and read off the GMs' record of it", async () => {
+    ["a console's theft from a hidden stash it has not found is refused, whatever Search it says found it", async () => {
         /*
-         * E08+E28 C15, 04.10.2026; audit S10-06. `vault.steal` took `viaSearch` and `clumsy` on the
-         * sender's word: a packet saying a Search had paid for a concealed stash opened it, and one
-         * saying the hand was steady kept the owner from being told. A packet that says `viaSearch`
-         * names the Search's roll now, and both are read off the GMs' record of it (bridge-runs-acts.mjs
-         * `searchTheftOf`). The room a player's character stands in holds a concealed stash of
-         * another character's with an item in it (region and item put back after); the theft judged
-         * as the bridge judges that player's packet saying `viaSearch` and a steady hand: naming no
-         * roll; naming a Search of theirs the record says came to 3; naming one the record says came
-         * to 20 with Despair. Read: the codes the first two were refused with and whether the item is
-         * still stashed after each; after the third, the refusals told, whether it is still stashed,
-         * whether the thief holds it, and whether a "stolen" whisper went to its owner - the record's
-         * fumble, not the packet's steady hand. Red at C14's runtime: the first packet takes it.
+         * 1.2.112, the owner's decision of 13.11.2026: a stash is found by Analyze's Find Stash and by nothing else, and a
+         * Search reaches into none. From E08+E28 C15 (04.10.2026; audit S10-06) a `vault.steal` packet saying `viaSearch`
+         * and naming a Search of the thief's that hit opened a concealed stash, and its record's Despair told the owner.
+         * The room a player's character stands in holds a concealed stash of another character's with an item in it
+         * (region and item put back after); the theft judged as the bridge judges that player's packet saying `viaSearch`
+         * and a steady hand: naming no roll; naming a Search of theirs the record says came to 20 with Despair. Read: the
+         * refusals told, whether the item is still stashed after each, whether the thief holds it, and whether a "stolen"
+         * whisper went to its owner. Until 1.2.112 the second packet took it and told the owner.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the stash is in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -15678,11 +15974,13 @@ const SCENARIOS = [
         must(owner, "the world has no second character to own the stash");
         const region = V.regionsByName(where.scene).get(where.room);
         must(region, `the room ${where.room} has no region to hide a stash in`);
-        const NAME = "Suite C15 stashed";
+        must(!V.hasFoundStash(actor, where.room, owner.id, where.scene), `${actor.name} has found that stash already - this would measure nothing`);
+        const NAME = "Suite 1.2.112 stashed";
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
         const putBack = [], whispers = [];
         const hook = Hooks.on("createChatMessage", message => whispers.push(message.id));
+        let read = null;
         try {
             await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: true }],
                 [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
@@ -15690,32 +15988,24 @@ const SCENARIOS = [
             must(item, `${owner.name} could not be handed an item - this would measure nothing`);
             await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: where.room });
             must(V.stashItemsIn(owner, where.room, canvas?.scene).some(i => i.id === item.id), "the item is not in the stash - this would measure nothing");
-            const searched = [];
-            for (const total of [3, 20]) {
-                const { message } = await neutralRoll(actor);
-                must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
-                putBack.push(async () => game.messages.get(message.id)?.delete());
-                const R = await recordFor(message, player, actor, "search", { total, withHope: false });
-                putBack.push(R.putBack);
-                await rollStore.patch(R.rollId, { withFear: true });
-                searched.push(message.id);
-            }
+            const { message } = await neutralRoll(actor);
+            must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+            putBack.push(async () => game.messages.get(message.id)?.delete());
+            const R = await recordFor(message, player, actor, "search", { total: 20, withHope: false });
+            putBack.push(R.putBack);
+            await rollStore.patch(R.rollId, { withFear: true });
             const told = [];
-            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "vault.steal", requestId: `C15${foundry.utils.randomID(8)}`,
+            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "vault.steal", requestId: `S112${foundry.utils.randomID(8)}`,
                 thiefId: actor.id, ownerId: owner.id, itemId: item.id, viaSearch: true, clumsy: false, ...(rollId ? { rollId } : {}) },
             player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
             const stashed = () => owner.items.has(item.id);
             await ask(null);
             const unnamed = [told.at(-1) ?? null, stashed()];
-            await ask(searched[0]);
-            const missed = [told.at(-1) ?? null, stashed()];
-            const from = whispers.length;
-            await ask(searched[1]);
+            await ask(message.id);
             await settle();
-            const stolen = whispers.slice(from).map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
-            equal(stableJson([unnamed, missed, [told.length, stashed(), actor.items.some(i => i.name === NAME), stolen]]),
-                stableJson([["rollUnknown", true], ["rollMissed", true], [2, false, true, 1]]),
-                "the theft was not refused without its Search's roll or on a miss, or not read off the record's find and fumble (code, stashed; code, stashed; refusals, stashed, the thief's, owner told)");
+            const named = [told.at(-1) ?? null, stashed()];
+            const stolen = whispers.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+            read = [unnamed, named, told.length, actor.items.some(i => i.name === NAME), stolen];
         } finally {
             Hooks.off("createChatMessage", hook);
             for (const a of [owner, actor]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
@@ -15723,6 +16013,10 @@ const SCENARIOS = [
             for (const id of whispers) await game.messages.get(id)?.delete();
             await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
         }
+        must(read[0][0], `the first packet was not refused - this reading has no refusal to compare: ${stableJson(read)}`);
+        equal(stableJson(read), stableJson([[read[0][0], true], [read[0][0], true], 2, false, 0]),
+            "a theft that says a Search found a hidden stash was not refused as one with no Search is, took the thing, or told its owner "
+            + "([code, still stashed] naming no roll, naming a Search of 20 with Despair; refusals; the thief holds it; owner told)");
     }],
 
     ["an item handed over, planted or stolen arrives as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
@@ -16924,6 +17218,7 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 5, fear: 4 };
             try { await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(actor.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(row?.actionKey === "dynamic" && row?.by === game.user.id && message && !traces().length,
@@ -17220,6 +17515,7 @@ const SCENARIOS = [
                 } });
             CONFIG.Dice.randomUniform = real;
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal)));
             toldCub = game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal));
         } finally {
             CONFIG.Dice.randomUniform = real;
@@ -17264,6 +17560,7 @@ const SCENARIOS = [
             out = await M.performCubAbility(cub, "meddle", { targetId: target.id, choice: "help" });
             CONFIG.Dice.randomUniform = real;
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && (m.rolls?.length ?? 0) > 0));
             armed = pendingCalls(target).find(entry => entry.key === "meddle" && !nonces.has(entry.nonce)) ?? null;
             paid = [cub.system.resources.actions.value, cub.system.resources.hope.value];
             cards = game.messages.contents.filter(m => !had.has(m.id) && (m.rolls?.length ?? 0) > 0)
@@ -17406,6 +17703,7 @@ const SCENARIOS = [
                 } });
             CONFIG.Dice.randomUniform = real;
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal)));
             hope = cub.system.resources.hope.value;
             toldCub = game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal));
         } finally {
@@ -17839,6 +18137,96 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ a: [false, true], b: [[], false, false], c: [[], true, false, true], d: [["refused"], true, false],
             e: [["refused"], false, false, false] }),
             "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
+    }],
+
+    ["the trial's exit after End of chapter names the trial's own chapter, not the one the clock moved to (A113-C2-3)", async () => {
+        /*
+         * A113-C2-3 (audit 113, 13.11.2026). End of chapter with "end the trial" moves the clock to chapter N+1 while the
+         * phase is still the Class Trial (chapter.mjs's `clock` step), then closes the trial (`trial` step), so the exit -
+         * drawn from the clock after both writes - read "Chapter N+1 · Back to school" for chapter N's trial. The owner's
+         * decision of 12.11.2026 says the exit carries "the chapter's line when the clock has a chapter"; the default
+         * taken here (the coordinator's, the owner may override): the trial's own chapter, its record's
+         * (trial-progress.mjs `trialProgressChapter`), the clock's where the record names none. The record says chapter 1
+         * and the exit's clock chapter 2, as after the move; then the record names none. Red at ceb9e9c8: "Chapter 2".
+         */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const stamp = `A113-C2-3:${Date.now()}`, read = [];
+        const sub = async (k, record) => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            await settle();
+            S.endSequence("cut");
+            await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 2, trialEndedAt: `${stamp}${k}`, trialCut: true }, { on: true });
+            const text = document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-title-sub`)?.textContent ?? null;
+            S.endSequence("cut");
+            return text;
+        };
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            read.push(await sub("a", { ...stored, chapter: 1 }));
+            const { chapter: _gone, ...none } = stored;
+            read.push(await sub("b", none));
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([1, 2].map(chapter => game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter }))),
+            "the exit does not name the trial's record's chapter, or the clock's where the record names none [record 1, clock 2 | no record, clock 2]");
+    }],
+
+    ["the Students window's Monocub to alive is one step: no Spectator made on the way, one toast, the student alive and no Monocub (A113-C2-4)", async () => {
+        /*
+         * A113-C2-4 (audit 113, 13.11.2026). The State list's "alive" on a Monocub ran `setMonocub(actor, false)`, which
+         * made the dead student's Spectator (spectator-dead.mjs `monocubBecomesWatcher`, a Spectator actor and, where a
+         * Monocub token or a body stands, its token) and toasted "no longer a Monocub", then `reviveCharacter`, which
+         * took that Spectator away again and toasted "revived": every browser saw a Spectator come and go, the GM read
+         * two toasts for one change. Now the flag is cleared with no Spectator and no toast of its own (`setMonocub`'s
+         * `watcher: false`, `quiet`), and the revive is the one step. A living student marked dead and a Monocub by its
+         * flags, then "alive" applied: read the actors created, the toasts, and the state after. Red at ceb9e9c8: a
+         * Spectator actor created and two toasts.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to make a Monocub");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { livingStudents, isDeceased } = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const [actor] = livingStudents();
+        const names = [FLAGS.deceased, FLAGS.monocub];
+        const flagsWas = Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(actor.getFlag(MODULE_ID, f))]));
+        const actorsHad = new Set(game.actors.contents.map(a => a.id));
+        const clock = getClock();
+        const toasts = [], made = [];
+        const info = ui.notifications.info;
+        const onActor = doc => made.push(`Actor ${doc.id}`), onToken = doc => made.push(`Token ${doc.id}`);
+        let read = null;
+        try {
+            await actor.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            await actor.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            must(M.isMonocub(actor) && isDeceased(actor), `${actor.name} was not made a Monocub by its flags - this test would read nothing`);
+            ui.notifications.info = (...args) => { toasts.push(String(args[0])); return null; };
+            Hooks.on("createActor", onActor);
+            Hooks.on("createToken", onToken);
+            const changed = await applyAliveStates({ [actor.id]: { state: "alive" } });
+            await settle();
+            read = [changed, made, toasts.length, M.isMonocub(actor), isDeceased(actor)];
+        } finally {
+            Hooks.off("createActor", onActor);
+            Hooks.off("createToken", onToken);
+            ui.notifications.info = info;
+            for (const f of names) {
+                if (flagsWas[f] === undefined || flagsWas[f] === null) await actor.unsetFlag(MODULE_ID, f);
+                else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
+            }
+            for (const a of game.actors.contents.filter(a => !actorsHad.has(a.id))) { try { await a.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([1, [], 1, false, false]),
+            "Monocub to alive made a Spectator or a token on the way, toasted more or less than once, or left a Monocub or a dead student [changed, made, toasts, a Monocub, dead]");
     }],
 
     ["a wrong verdict tells the case's dead and the chapter's crime witnesses among the Monocubs, and no other Monocub, that the killer walks free (E72 C7)", async () => {
@@ -18962,6 +19350,219 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a Monocub paid for a crossing, or walked into a murder's room, or was told something no public fact explains, or a GM's move was refused ([free step, the murder room's code and words, its put-back mark, the put-back's line on the player, a GM's move])");
     }],
 
+    ["1.2.113 a Monocub's crossing costs nothing once its Free Move is spent - the movement charge, handed a Monocub with no Free Move, no free crossing, no Burst and no action, the movement cost on and no Eclipse, lets its crossing stand and writes nothing; the same character as no Monocub is put back (movement.mjs `chargeRoute`, E72 C10; what sheet.mjs `monocubMoveNote` says)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. The Monocub's panel says Move's price (sheet.mjs `monocubMoveNote`); from the r112 review's
+         * P2 it read actions.mjs `nextCrossingPrice` once the Free Move was spent - a Sprint, a Burst, an action - on the
+         * premise that a Monocub pays its crossings as a student does. Measured here on the charge itself, as E17-T4 drives
+         * it: movement.mjs's `onUpdateToken` taken off `Hooks.events`, handed a plain token of a plain character whose id is
+         * a student's and whom no connected player owns, so the primary GM settles the route; recorded by our own revert in
+         * the first room of two joined ones, then moved into the second. The character: the Free Move used, no free
+         * crossings, no Burst, no action. Read: what was written back (a put-back), as a Monocub and as no Monocub.
+         * Not red first: it pins what a2b233d2's charge does (E72 C10: "A MONOCUB MOVES FREE"), the fact the label is
+         * fixed to.
+         */
+        needs(env.primaryGm(), "the primary pays a route no connected player owns");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        const chargeWas = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const ROOMS = ["SUITE M113 Hall", "SUITE M113 Study"];
+        const region = (name, i) => ({ id: `suite-m113-${i}`, name, behaviors: [], levels: new Set(), shapes: [],
+            bounds: { x: 400 * i, y: 0, width: 400, height: 400 },
+            testPoint: point => point.x >= 400 * i && point.x < 400 * (i + 1) && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-m113-scene", name: "SUITE M113", grid: { size: 100 }, regions: new Set(ROOMS.map(region)) };
+        const plain = cub => ({ id: student.id, name: student.name, type: "character", items: [], isOwner: false,
+            system: { resources: { actions: { value: 0, max: 2 } } },
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined
+                : key === FLAGS.monocub ? cub : key === FLAGS.freeMoveUsed ? true : key === FLAGS.freeMoveGrants ? 0 : key === FLAGS.freeActionGrants ? 0 : undefined),
+            testUserPermission: () => false, update: async () => { throw new Error("the stand-in was written"); },
+            setFlag: async () => { throw new Error("the stand-in was written"); } });
+        const cross = async cub => {
+            const written = [];
+            const actor = plain(cub);
+            const token = { id: `suite-m113-${foundry.utils.randomID(6)}`, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene,
+                actor, update: async data => { written.push(data); return token; } };
+            await charge(token, { x: 100, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            Object.assign(token, { x: 500, y: 100, movement: { pending: { waypoints: [] } } });
+            let threw = null;
+            try {
+                await charge(token, { x: 500, y: 100 }, {}, player.id);
+            } catch (err) {
+                threw = String(err?.message ?? err);
+            }
+            await until(() => written.length > 0, cub ? 600 : 2000);
+            return [written.map(w => `${w.x},${w.y}`), threw];
+        };
+        let read = null;
+        try {
+            must(M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false, "the two rooms do not join - this would measure nothing");
+            if (clock.phase !== "dailyLife" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            if (!chargeWas) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            Hooks.on("createChatMessage", onMessage);
+            read = { monocub: await cross(true), student: await cross(false) };
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== chargeWas) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeWas);
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ monocub: [[], null], student: [["100,100"], null] }),
+            "a crossing with nothing to pay with ([what was written back, a throw]: as a Monocub, as no Monocub)");
+    }],
+
+    ["1.2.113 a Monocub's 'Go through' a tunnel and its door moves in an Eclipse cost nothing - on the primary GM's own roads, a Monocub with the Free Move unused and no action goes through a tunnel and back and keeps its Free Move; in an Eclipse it goes through counted nothing and walks one door past the allowance unrefused; a living character with the same purse pays the first crossing with its Free Move and is refused the second, and in the Eclipse is counted and put back (movement.mjs `crossesFree`, E72 C10)", async () => {
+        /*
+         * 1.2.113, 13.11.2026 (the owner's ask (a)). A Monocub's crossing is free (E72 C10: no Move, no action and no
+         * Eclipse count): `chargeRoute`, the charge of a door's route, read it, and the veto (`crossingVerdict`) did; the
+         * price of a tunnel's 'Go through', taken on the primary (`settleCrossingOnGm`), and the primary's Eclipse sightings of
+         * a door move (`eclipseSighting`) did not. On scenes of the suite's own, two characters of the suite's own, each
+         * owned by a player: a Monocub (dead, the flag on) and a living one, each with the Free Move unused, no Sprint, no
+         * Burst and no action, the movement cost on. (a) Daily Life: a tunnel between two rooms made and given in a GM-store
+         * world of the suite's own, 'Go through' and back on the primary (passages-gm.mjs `crossTunnel`); read per crossing
+         * the answer, the Free Move used and the actions left. (b) An Eclipse: the same tunnel once, read the answer and the
+         * count. (c) An Eclipse, a row of rooms that touch, the allowance walked and one door more, each a player's move as
+         * the primary hears it (`SENT_BACK`, as E17-T4): read the room it stands in and the count. Red at a43e865e: the
+         * Monocub's first crossing took its Free Move and the second was refused for no budget; in the Eclipse its tunnel
+         * was counted, and its door move past the allowance put back.
+         */
+        needs(env.primaryGm(), "the tunnel's price and the Eclipse's sightings are the primary GM's");
+        needs(world.atLeast("playerAccounts", 1), "the door moves are a player's");
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const M = await import("./movement.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./gm-store.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const ACT = await import("./actions.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const clock = getClock() ?? {};
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const made = [], actors = [], scenes = [];
+        const onMessage = message => { made.push(message.id); };
+        const purse = { "system.resources.actions.value": 0, [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0 };
+        const make = async (name, flags) => {
+            const actor = await Actor.create({ name: `SUITE M113b ${name}`, type: "character", ownership: { [player.id]: 3 }, flags: { [MODULE_ID]: flags } });
+            actors.push(actor);
+            await actor.update(purse);
+            return actor;
+        };
+        const scene = async (name, rooms) => {
+            const made = await Scene.create({ name: `SUITE M113b ${name}`, width: 400 * rooms.length, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            scenes.push(made);
+            await made.createEmbeddedDocuments("Region", rooms.map((room, i) => ({ name: room, shapes: [{ type: "rectangle", x: 400 * i, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] })));
+            return made;
+        };
+        const placed = async (where, actor, x) => {
+            const [token] = await where.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x, y: 100, width: 1, height: 1 }]);
+            return token;
+        };
+        const answerOf = answer => (answer?.refused ? B.reasonOf(answer.refused) : answer?.crossed ? "crossed" : stableJson(answer));
+        let read = null;
+        try {
+            if (!charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            if (clock.phase !== "dailyLife" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            Hooks.on("createChatMessage", onMessage);
+            const cub = await make("cub", { [FLAGS.deceased]: true, [FLAGS.monocub]: true });
+            const living = await make("living", {});
+            await settle();
+            must(!M.isCorpse(cub) && !M.isCorpse(living), "the Monocub reads as a corpse - this would measure nothing");
+            const ROW = ["SUITE M113b T0", "SUITE M113b T1", "SUITE M113b T2"];
+            const tunnelScene = await scene("tunnel", ROW);
+            read = await G.withGmStoreWorld(`suite-m113b-${foundry.utils.randomID(8)}`, async () => {
+                // The tunnel joins the first room and the third, which do not touch, so only the tunnel takes a token across.
+                const id = await P.createPassage({ sceneId: tunnelScene.id, shape: "tunnel", ends: [{ x: 150, y: 150 }, { x: 950, y: 150 }] }, { scene: tunnelScene });
+                must(typeof id === "string", "the tunnel was not made - this would measure nothing");
+                const out = { daily: {}, eclipse: {}, doors: {} };
+                const tokens = {};
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    must(await P.grantPassage(id, actor.id), `the tunnel was not given to the ${key} - this would measure nothing`);
+                    tokens[key] = await placed(tunnelScene, actor, 100);
+                }
+                await settle();
+                // (a) Daily Life: through and back
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    out.daily[key] = [];
+                    for (let i = 0; i < 2; i++) {
+                        const answer = await P.crossTunnel({ actorId: actor.id, passageId: id }, { asker: player });
+                        await settle();
+                        out.daily[key].push([answerOf(answer), M.roomOfToken(tokens[key]), Boolean(actor.getFlag(MODULE_ID, FLAGS.freeMoveUsed)), ACT.actionsLeft(actor)]);
+                    }
+                }
+                // (b) an Eclipse: the tunnel once
+                await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "sendBack");
+                const allowance = E.eclipseAllowance();
+                must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    await S.eclipseMoveStore.drop(actor.id);
+                    const answer = await P.crossTunnel({ actorId: actor.id, passageId: id }, { asker: player });
+                    await settle();
+                    out.eclipse[key] = [answerOf(answer), E.movesUsed(actor)];
+                    await S.eclipseMoveStore.drop(actor.id);
+                }
+                // (c) an Eclipse: the allowance walked through doors, and one door more
+                const DOORS = Array.from({ length: allowance + 2 }, (_, i) => `SUITE M113b D${i}`);
+                const doorScene = await scene("doors", DOORS);
+                for (const [key, actor] of [["cub", cub], ["living", living]]) {
+                    const token = await placed(doorScene, actor, 100);
+                    await settle();
+                    let y = 100;
+                    const steps = [];
+                    for (let i = 1; i <= allowance + 1; i++) {
+                        const to = { x: 400 * i + 100, y: (y += 7) };
+                        await token.update(to, { ...PLACE, [M.SENT_BACK]: player.id });
+                        await settle();
+                        await until(() => token.x !== to.x || token.y !== to.y || M.standingOf(token)?.lawful !== false, 1200);
+                        await settle();
+                        steps.push([M.roomOfToken(token), E.movesUsed(actor)]);
+                    }
+                    out.doors[key] = steps.at(-1);
+                    await S.eclipseMoveStore.drop(actor.id);
+                }
+                out.allowance = allowance;
+                return out;
+            });
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const actor of actors) await S.eclipseMoveStore.drop(actor.id).catch(() => {});
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            for (const where of scenes) await where.delete().catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            await setClock(clock);
+            await settle();
+        }
+        const A = read?.allowance;
+        equal(stableJson(read), stableJson({
+            daily: { cub: [["crossed", "SUITE M113b T2", false, 0], ["crossed", "SUITE M113b T0", false, 0]],
+                living: [["crossed", "SUITE M113b T2", true, 0], ["noBudget", "SUITE M113b T2", true, 0]] },
+            eclipse: { cub: ["crossed", 0], living: ["crossed", 1] },
+            doors: { cub: [`SUITE M113b D${A + 1}`, 0], living: [`SUITE M113b D${A}`, A] },
+            allowance: A
+        }), "{daily: per character, each crossing as [the answer, the room it stands in, the Free Move used, the actions left]; eclipse: [the tunnel's answer, the count]; doors: [the room it stands in after the allowance and one door more, the count]}");
+    }],
+
     ["a Monocub's owner is sent every room the class found under the Monocub's own row, not who found which, and not the Mastermind's (E72 C10)", async () => {
         /*
          * E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11. A Monocub's player saw only the rooms its own
@@ -19079,6 +19680,468 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson([picker, seen.includes(locked), out?.total ?? null, Boolean(out?.roll), armed ? [armed.grants, armed.amount] : null, kept]),
             stableJson([null, true, null, false, null, [2, 2]]),
             "in an Eclipse the picker was not shut with the Eclipse's sentence, or the GM carried out a Confusion or took its price (picker, said, the answer's total, a roll answered, the Call armed, actions and Hope after)");
+    }],
+
+    // E40 item 4, slice A: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["the action budget comes back as the Eclipse opens, and its end with the clock moved hands out no second one (E40 item 4: R25's rule, driven; was R25)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R25 (tier 0, removed in E40) read eclipse.mjs as text: `resetAllActions(` in
+         * `startEclipse`'s body, no `resetActions: true` anywhere in the file, and ACTIONS.directMurder's cost of 1. It
+         * missed a second refill asked any other way - `endEclipse` calling `resetAllActions()` after the advance, or
+         * clock.mjs `advanceTimeOfDay` refilling by default - since neither spells `resetActions: true` in eclipse.mjs.
+         * Driven here on this GM with one student: the budget spent to 0, an Eclipse opened (read: refilled to the
+         * maximum), one action spent in the dark as a declaration spends it, the Eclipse ended with the clock moved on
+         * (read: that one action still gone, so the declaration came off the budget the opening handed out). The clock,
+         * the student's actions and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { actionsLeft, actionsMax, setActions } = await import("./actions.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const actionsWas = { value: actionsLeft(student), max: student.system?.resources?.actions?.max ?? null };
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        let read = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await setActions(student, 0);
+            must(actionsLeft(student) === 0, "the student's budget could not be spent to 0 - this would measure nothing");
+            const opened = await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            const given = actionsLeft(student);
+            await setActions(student, given - 1);
+            const timeOfDay = getClock().timeOfDay;
+            await E.endEclipse({ advance: true });
+            await settle();
+            read = [opened, given > 0 && given === actionsMax(student), actionsLeft(student) === given - 1, isEclipse(),
+                getClock().timeOfDay !== timeOfDay, ACTIONS.directMurder?.cost ?? null];
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await student.update({ "system.resources.actions.value": actionsWas.value,
+                ...(actionsWas.max === null ? {} : { "system.resources.actions.max": actionsWas.max }) });
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([true, true, true, false, true, 1]),
+            "the Eclipse did not refill the budget as it opened, or its end with the clock moved refilled it again, or a Direct Murder spends no action "
+            + "(startEclipse's answer, refilled to the maximum, the dark's action still spent after the end, an Eclipse still running, the clock moved, Direct Murder's cost)");
+    }],
+
+    ["the Eclipse lifts the seals and the restrictions bought for the time of day it ends (E40 item 4: R35's first rule, driven; was R35's first half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R35's first half (tier 0, trimmed in E40 to its second) read eclipse.mjs
+         * `startEclipse` for the text `clearSeals()`; it held a call that clears nothing (`if (false) await clearSeals()`,
+         * or call-world.mjs `clearSeals` emptied) as kept. Driven here: a room sealed and the student silenced and chained
+         * (call-world.mjs `sealRoom`, `restrict`), an Eclipse opened; read the seal and both restrictions before and
+         * after. The clock, the seals, the restrictions and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const W = await import("./call-world.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const room = "SUITE E40 item 4 R35 a sealed room";
+        const was = foundry.utils.deepClone(getClock());
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const held = () => [W.isSealed(room), W.isCallSilenced(student), W.isChained(student)];
+        let read = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await W.sealRoom(room);
+            await W.restrict(student, { silenced: true, chained: true });
+            const before = held();
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            read = [before, held()];
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([[true, true, true], [false, false, false]]),
+            "the Eclipse opened with a seal or a restriction of the time of day it ends still on ([sealed, silenced, chained] before the Eclipse; the same after it opened)");
+    }],
+
+    ["the murder window in an Eclipse is refused before it draws anything, and says why (E40 item 4: R59's first rule, driven; was R59's Eclipse half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R59 (tier 0, trimmed in E40 to the rest of its reads) read murder-ui.mjs
+         * `openMurderDialog` for `isEclipse(` before `drpgWindow(`; it held a guard that asks the Eclipse and lets the
+         * window through (`if (isEclipse() && false)`) as kept. Driven here: an Eclipse opened, the window asked for as the
+         * trap card's "fire the trap" asks (`openMurderDialog`); read its answer, whether a murder window was drawn within
+         * half a second, the warning, and the incident still none. The clock and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!M.murderState(), "an incident is running - the window would open its tracker, and this would measure nothing");
+        const words = game.i18n.localize("DRPG.Eclipse.murderWindowLocked");
+        const drawn = () => [...foundry.applications.instances.values()].some(a => a.rendered && a.options?.classes?.includes("drpg-window-murder"));
+        must(!drawn(), "a murder window was already on screen - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const warn = ui.notifications.warn, warned = [];
+        let read = null, answer;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            answer = Promise.resolve().then(() => M.openMurderDialog({})).catch(err => `threw: ${err?.message ?? err}`);
+            await until(drawn, 500).catch(() => null);
+            const shown = drawn();
+            const settled = await Promise.race([answer, wait(500).then(() => "unsettled")]);
+            read = [settled ?? null, shown, warned.filter(w => w === words).length, M.murderState() ?? null];
+        } finally {
+            ui.notifications.warn = warn;
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.options?.classes?.includes("drpg-window-murder"))) await app.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([null, false, 1, null]),
+            "the murder window in an Eclipse was drawn, or did not answer null at once, or did not say the Eclipse locks it once (its answer, a window drawn, the warnings, the incident)");
+    }],
+
+    ["Edit campaign's Apply in an Eclipse warns that the Eclipse still runs only when the time moved (E40 item 4: R69's rule, driven; was R69)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R69 (tier 0, removed in E40) read gm-campaign.mjs `applyCampaignForm` as text:
+         * no `result.timeOfDay !== undefined`, a `before.timeOfDay`, the clock read before the write and the warning after
+         * it, and no `before.session` or `before.phase`. It held a turned condition (`before.eclipse && !moved`) as kept.
+         * Driven here: an Eclipse opened, then Apply with the clock as it stands and a new campaign name, with the session
+         * one on, and with the time of day one on; read the warnings `DRPG.Clock.eclipseStillOn` after each. The clock and
+         * the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { applyCampaignForm } = await import("./gm-campaign.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const words = game.i18n.localize("DRPG.Clock.eclipseStillOn");
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const form = (patch = {}) => {
+            const c = getClock();
+            return { campaignName: c.campaignName, chapter: Number(c.chapter), day: Number(c.day ?? 1), phase: c.phase, session: Number(c.session),
+                timeOfDay: c.timeOfDay, reset: false, ...patch };
+        };
+        const warn = ui.notifications.warn, warned = [];
+        const count = async patch => {
+            const from = warned.length;
+            await applyCampaignForm(form(patch));
+            await settle();
+            return warned.slice(from).filter(w => w === words).length;
+        };
+        let read = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife", timeOfDay: TIMES_OF_DAY[0] });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const renamed = await count({ campaignName: `${getClock().campaignName ?? ""} SUITE E40 R69` });
+            const session = await count({ session: Number(getClock().session ?? 1) + 1 });
+            const moved = await count({ timeOfDay: TIMES_OF_DAY[1] });
+            read = [renamed, session, moved, getClock().timeOfDay, isEclipse()];
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([0, 0, 1, TIMES_OF_DAY[1], true]),
+            "Edit campaign's Apply in an Eclipse warned that the clock moved when it had not, or did not warn when it had "
+            + "(warnings after a rename, after the session moved, after the time of day moved; the time of day written; an Eclipse still running)");
+    }],
+
+    ["what shuts the whole Calls menu is answered by one reader, on the rules of each side (E40 item 4: R82's first rule, driven; was R82's reader half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R82 (tier 0, trimmed in E40 to the sheet's order) read calls.mjs `callBarred` for
+         * `isEclipse()`, `overflowBlocksCalls()`, a `classTrial` within 200 characters of `if (despair)` and the dead test;
+         * it held a turned phase test (`!== "classTrial"`) as kept. Driven here on one student, a Hope Call's reading and a
+         * Despair Call's (`{ despair: true }`) in daily life, under the overflow's Silence, in a Class Trial (the clock
+         * written raw, so no trial is entered), with the student dead on a published death, and in an Eclipse. The clock,
+         * the overflow and the student's life are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { callBarred } = await import("./calls.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const say = key => game.i18n.localize(key);
+        const both = async () => [await callBarred(student), await callBarred(student, { despair: true })];
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const read = {};
+        let lift = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            read.daily = await both();
+            lift = await e93Darkening("silence");
+            read.silence = await both();
+            await lift();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial" });
+            await settle();
+            read.trial = await both();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await settle();
+            read.dead = await whileDead(student, both);
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            read.eclipse = await both();
+        } finally {
+            if (lift) await lift();
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({
+            daily: [null, null], silence: [say("DRPG.Overflow.silenced"), null], trial: [null, say("DRPG.Trial.callsLocked")],
+            dead: [game.i18n.format("DRPG.Chapter.deadCannotAct", { name: student.name }), null],
+            eclipse: [say("DRPG.Eclipse.actionsLocked"), say("DRPG.Eclipse.actionsLocked")]
+        }), "callBarred did not answer each side by its rules ([a Hope Call's reading, a Despair Call's] in daily life, under the overflow's Silence, "
+            + "in a Class Trial, with the student dead, in an Eclipse)");
+    }],
+
+    ["a Monocub is refused every action but Move, at the door and above the Eclipse (E40 item 4: R86's first rule, driven; was R86's list half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R86 (tier 0, trimmed in E40 to the gate's order against the betrayal, the fight
+         * and the dead test) read config.mjs for `dispatchable: ["move"]` and action-rolls.mjs `performAction` for
+         * `MONOCUB.dispatchable.includes(actionKey)`; it held a gate that asks it of nobody (`cubCheck(null)`) as kept.
+         * Driven here on one student marked a Monocub by its flag (monocub.mjs `isMonocub` reads it) and pressed with each
+         * ACTIONS key but Move (`performAction`), then Search again in an Eclipse; read each answer and the warnings. Move
+         * itself is not pressed: its briefing is a window. The flag, the clock and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { ACTIONS, MONOCUB } = await import("./config.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const [cub] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        must(!isMonocub(cub), `${cub.name} is a Monocub already - this would measure nothing`);
+        const words = game.i18n.localize("DRPG.Monocub.onlyTwoActions");
+        const keys = Object.keys(ACTIONS).filter(key => key !== "move");
+        must(keys.length >= 8, `only ${keys.length} ACTIONS keys besides Move - this would measure nothing`);
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const flagWas = cub.getFlag(MODULE_ID, FLAGS.monocub);
+        const warn = ui.notifications.warn, warned = [];
+        const press = async key => {
+            const from = warned.length;
+            const answer = await Promise.race([performAction(cub, key), wait(3000).then(() => "unsettled")]);
+            return [answer ?? null, warned.slice(from).filter(w => w === words).length];
+        };
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            must(isMonocub(cub), "the flag did not make the student a Monocub - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            read.list = MONOCUB.dispatchable;
+            const answers = [];
+            for (const key of keys) answers.push(await press(key));
+            read.refused = keys.filter((key, i) => J(answers[i]) !== J([null, 1]));
+            ui.notifications.warn = warn;
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            read.eclipse = await press("search");
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (flagWas === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({ list: ["move"], refused: [], eclipse: [null, 1] }),
+            "a Monocub was let past the door with an action but Move, or the Eclipse answered it first ({list: what a Monocub may dispatch; refused: the ACTIONS "
+            + "keys not refused at once with the Monocub's sentence; eclipse: Search in an Eclipse - its answer and the Monocub's sentence})");
+    }],
+
+    ["one Despair Call bought from the sheet posts one card, after its effect, with its price on it (E40 item 4: R81's first rule, driven; was R81's card half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R81 (tier 0, trimmed in E40 to the refund's place) read despair.mjs
+         * `spendDespairCall` and calls.mjs `spendDespairCallFor` as text: the `announce` flag, its `if (!post) return
+         * true;`, the `{ announce: false }` at the sheet's call, the price's key on the road and `applyCall(` before
+         * `announce({`. It held a card built and never posted, or a price sentence that never reaches the card, as kept.
+         * Driven here as the fuelTheCub tests buy one: a Monokuma's pool given the price, Fuel a Monocub bought for a
+         * student marked a Monocub by its flag (`spendDespairCallFor`); read what it answered, the pool, the target's Hope
+         * (the effect), and the new chat cards that name the Call: one, carrying the price sentence. The pool, the Hope,
+         * the flag and the cards are put back.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool pays the Call");
+        const J = stableJson;
+        const D = await import("./despair.mjs");
+        const MK = await import("./monokuma.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)?.id === game.user.id) ?? MK.monokumaActors().find(a => MK.poolUserFor(a)) ?? null;
+        const pool = kuma ? MK.poolUserFor(kuma) : null;
+        must(kuma && pool, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!isEclipse() && getClock().phase !== "classTrial", "an Eclipse or a Class Trial shuts the Despair Calls - this would measure nothing");
+        const call = DESPAIR_CALLS.fuelTheCub;
+        must(call?.cost > 0, "Fuel a Monocub has no price - this would measure nothing");
+        const [who] = cast(1);
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(who._source, HOPE);
+        const flagWas = who.getFlag(MODULE_ID, FLAGS.monocub);
+        const despairWas = D.getDespair(pool.id);
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(Object.entries(despairOwedStore.entries())
+            .filter(([k]) => k === pool.id || k.startsWith(`${pool.id}:`))));
+        const label = foundry.utils.escapeHTML(call.label);
+        const price = game.i18n.format("DRPG.Despair.spent", { name: foundry.utils.escapeHTML(D.poolLabel(pool) ?? pool.name ?? "?"), cost: call.cost });
+        const had = new Set(game.messages.map(m => m.id));
+        let read = null;
+        try {
+            const owed = Object.keys(owedWas);
+            if (owed.length) await despairOwedStore.dropMany(owed);
+            await who.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(who, { [HOPE]: 0 }, { reason: "gmRuling" });
+            await D.setDespair(pool.id, call.cost);
+            await settle();
+            const bought = await spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: who } });
+            await settle();
+            const cards = game.messages.filter(m => !had.has(m.id)).map(m => String(contentOf(m) ?? "")).filter(text => text.includes(label));
+            read = [Boolean(bought), D.getDespair(pool.id), resourceValue(who, "hope") > 0, cards.length, cards.filter(text => text.includes(price)).length];
+        } finally {
+            for (const m of game.messages.filter(m => !had.has(m.id))) await m.delete();
+            await D.setDespair(pool.id, despairWas);
+            const nowOwed = Object.keys(despairOwedStore.entries()).filter(k => k === pool.id || k.startsWith(`${pool.id}:`));
+            if (nowOwed.length) await despairOwedStore.dropMany(nowOwed);
+            for (const [k, v] of Object.entries(owedWas)) await despairOwedStore.patch(k, v);
+            await trustedWrite(who, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            if (flagWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub); else await who.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            await settle();
+        }
+        equal(J(read), J([true, 0, true, 1, 1]),
+            "one Despair Call from the sheet did not post exactly one card naming it, with its price, after an effect that landed "
+            + "(bought, the pool after, the target's Hope given, the cards naming the Call, those carrying the price)");
+    }],
+
+    ["four doors a console used are shut on the side that writes: a Despair Call bought or paid there, a seal said there, a handover in the dark (E40 item 4: R144's driven rules; was R144's first half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R144 (tier 0, trimmed in E40 to what is not driven here) read `if
+         * (!game.user.isGM)` in the first 700 characters of calls.mjs `spendDespairCallFor` and in despair.mjs
+         * `spendDespairCall`, `return Boolean(await writeWorld(` in call-world.mjs `sealRoom`, and `if (isEclipse()) return`
+         * in inventory.mjs `transferRefusal`. It held a gate whose condition reads nobody (`if (!game.user.isGM && false)`)
+         * as kept. Driven here with this browser reading as a player for each road's synchronous start (`asConsole`):
+         * Fuel a Monocub bought, the same Call paid straight from the pool, a room sealed - read each answer, the pool and
+         * the seal; then a handover between two students stood alone in one room, asked of the one gate out of an Eclipse and in one. The pool, the
+         * seals, the clock and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool a console would spend");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two of the handover are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const J = stableJson;
+        const D = await import("./despair.mjs");
+        const MK = await import("./monokuma.mjs");
+        const E = await import("./eclipse.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { sealRoom, isSealed } = await import("./call-world.mjs");
+        const { transferRefusal } = await import("./inventory.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)) ?? null;
+        const pool = kuma ? MK.poolUserFor(kuma) : null;
+        must(kuma && pool, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const [from, to] = cast(2);
+        const call = DESPAIR_CALLS.fuelTheCub;
+        const room = "SUITE E40 item 4 R144 a room a console sealed";
+        must(!isSealed(room), "the suite's room is sealed already - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const despairWas = D.getDespair(pool.id);
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        let stood = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await D.setDespair(pool.id, call.cost + 2);
+            await settle();
+            const held = D.getDespair(pool.id);
+            const bought = await asConsole(() => spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: to } }));
+            const paid = await asConsole(() => D.spendDespairCall(pool.id, "fuelTheCub", { announce: false }));
+            const sealed = await asConsole(() => sealRoom(room));
+            await settle();
+            read.console = [bought ?? null, paid, sealed, D.getDespair(pool.id) === held, isSealed(room)];
+            stood = await aloneTogether(from, to, { asked: true });
+            read.daylight = await transferRefusal(from, to, { mode: "give" });
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            read.dark = await transferRefusal(from, to, { mode: "give" });
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (stood) await stood.back();
+            await setClock(was);
+            await D.setDespair(pool.id, despairWas);
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            for (const m of game.messages.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(J([read.console, read.daylight, typeof read.dark === "string" && read.dark.length > 0]), J([[null, false, false, true, false], null, true]),
+            "a console's road wrote on its own side, or the gate let a handover through in the dark ([Fuel a Monocub bought, the Call paid from the pool, "
+            + "the room sealed, the pool unmoved, the room unsealed] as a player; the gate's answer in daylight; a refusal in the Eclipse)");
     }],
 
     ["a Monocub marked a crime witness this chapter lands Confusion like any other", async () => {
@@ -21038,6 +22101,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const had = new Set(game.messages.map(m => m.id));
             await F.scrub(30, { mode: "transform", change });
             await settle();
+            await until(() => game.messages.some(m => !had.has(m.id)));
             const said = await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000)));
             const card = said.find(html => html.includes('data-drpg-call="approveReshape"') && html.includes(`data-trace="${F.trace.id}"`)) ?? "";
             must(card, "no reshape card was raised for the fixture's trace - this would measure nothing");
@@ -21165,6 +22229,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
             await F.scrub(30, { mode: "transform", change });
             await settle();
+            await until(() => rulings.length > 0);
             Hooks.off("createChatMessage", hook);
             must(rulings.length === 1, "no card was posted for the hook to rule on - this would measure nothing");
             const first = await rulings[0];
@@ -22993,7 +24058,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             asked: [killer, `<h3>${esc(game.i18n.format("DRPG.Items.useTitle", { item: items.odd.name }))}</h3>`],
             sent: [killer, game.i18n.localize("DRPG.Items.creativeSent")],
             ruled: [killer, used(items.odd)],
-            support: [victim, game.i18n.format("DRPG.Calls.armedForYou", { what: grant("advantage") })],
+            // Names the bystander who spent the Hope (the owner's rule #9, 13.11.2026; "Another student" until then), in the card's words alone.
+            support: [victim, game.i18n.format("DRPG.Calls.armedForYouBy", { name: esc(bystander.name), what: grant("advantage") })],
             obstacle: [killer, game.i18n.format("DRPG.Calls.armedByMonokuma", { what: grant("disadvantage") })],
             drink: [bystander, used(items.drink)],
             snap: [bystander, broke(items.snap)],
@@ -23428,6 +24494,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const before = new Set(game.messages.map(m => m.id));
         await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 99, isCritical: false, withHope: false });
         await settle();
+        await until(() => game.messages.some(m => !before.has(m.id)));
         const def = CRISIS_ACTIONS.selfDefence;
         const said = await Promise.all(game.messages.filter(m => !before.has(m.id)).map(m => wordsOf(m, 2000)));
         const card = said.map(String).find(w => w.includes(`<h3>${def.label} - `)) ?? "";
@@ -23674,6 +24741,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-c11b-pick", actorId: killer.id, kind: "crisis",
                 key: "weaponAttack", variant: null }, mine.id, { send: () => null });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
             const card = game.messages.contents.find(m => !had.has(m.id));
             must(String(contentOf(card) ?? "").includes('data-drpg-call="pickTrait"'), "no statistic card was posted for the fixture's request");
             const press = async (trait, rewritten = null) => {
@@ -25429,6 +26497,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             asked = await withVerdictOpen(() => withAdvanceWindows(() => null,
                 () => applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] })));
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "veiled") === true));
             const cards = game.messages.filter(m => !from.has(m.id));
             equal(stableJson([writes, killer.system?.resources?.hitPoints?.max ?? null, killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0]),
                 stableJson([0, hpMax, advances]), "the wrong verdict wrote on the surviving Blackened (writes, maximum Health, advances)");
@@ -25717,6 +26786,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await withAdvanceWindows(() => null,
                     () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return { panel: trialCard({ phase: "classTrial", chapter: getClock().chapter }), stage: V.trialProgress().verdict?.stage ?? null };
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -25970,6 +27040,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "a GM who is not the primary finished the verdict, or was not told whom to ask (answer, stage, told)");
             await Promise.all([V.finishVerdict(), V.finishVerdict()]);
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id)));
             const said = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000)));
             equal(stableJson([V.trialProgress().verdict?.stage ?? null, said.filter(words => String(words ?? "").includes(title)).length]),
                 stableJson(["done", 1]), "two presses of Finish on the primary did not finish the verdict once (stage, summaries)");
@@ -26705,6 +27776,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict(answer));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return V.trialProgress().verdict?.stage ?? null;
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -26746,6 +27818,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [killer.id], blackenedIds: [killer.id] }));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return V.trialProgress().verdict?.stage ?? null;
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -26798,6 +27871,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 };
                 await V.applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] });
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && !(m.whisper?.length) && !m.blind));
             }));
             const fresh = game.messages.filter(m => !from.has(m.id) && !(m.whisper?.length) && !m.blind);
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
@@ -26866,6 +27940,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: false, executedIds: [victim.id], blackenedIds: [] }));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return V.trialProgress().verdict?.stage ?? null;
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -27020,6 +28095,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await E.parkDirectMurder({ killerId: killer.id, room: stood.room, note: NOTE, proposed: "hand" });
             await settle();
+            await until(() => game.messages.contents.slice(from).some(m => contentOf(m).includes(NOTE)));
             const card = game.messages.contents.slice(from).find(m => contentOf(m).includes(NOTE));
             must(card, "the declaration's card was not posted in the GMs' log");
             const root = document.createElement("div");
@@ -28450,6 +29526,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 made.push(item);
                 const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 1 });
                 await settle();
+                await until(() => game.messages.contents.some(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(title)));
                 const fresh = game.messages.contents.filter(m => !seen.has(m.id));
                 for (const m of fresh) seen.add(m.id);
                 const words = fresh.map(m => String(contentOf(m) ?? "")).filter(w => w.includes(title)).at(-1) ?? "";
@@ -28650,6 +29727,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const result = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30,
                 withHope: true, viaAction: true, price: "action" });
             await settle();
+            await until(() => game.messages.contents.some(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Cleanup.trailPlanted", { name: foundry.utils.escapeHTML(framed.name), visibility: label }))));
             const said = game.messages.contents.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? ""));
             const planted = game.i18n.format("DRPG.Cleanup.trailPlanted", { name: foundry.utils.escapeHTML(framed.name), visibility: label });
             const trace = traces().find(t => !before.has(t.id));
@@ -29830,7 +30908,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await gmStoresIdle();
         }
         equal(stableJson(seen), stableJson({
-            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "recipient", "tell"],
+            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "img", "recipient", "tell"],
             stored: { label: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true, text: "SUITE e104 bullet words",
                 analysis: "SUITE e104 bullet lab", note: "SUITE e104 bullet note", recipient: student.id, tell: false },
             window: { tab: "create", name: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true,
@@ -29838,6 +30916,319 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             given: { name: "SUITE e104 the bullet", real: "incident", vis: "subtle", note: "SUITE e104 bullet note" },
             marked: true
         }), "{the editor's fields in order; the row after the close; the Give window's tab and fields; the given Truth Bullet: name, real type, visibility, GM note; the plan marked given}");
+    }],
+
+    ["planned kinds draw the Truth Bullet glyph by default: a planned Remnant's, a planned Final Truth's and a Key slot's picture field, left empty, shows the module's Truth Bullet drawing (config.mjs `itemIcon(\"truthBullet\")`), the plan keeps its picture empty, the placed Final Truth and a realized Key slot carry it as their Remnant's picture, and a planned Truth Bullet given with no picture carries it (1.2.113; the owner, 13.11.2026: \"let the module choose the already available Truth Bullet glyph by default\")", async () => {
+        /*
+         * investigation.mjs `PLANNED_GLYPH`: `schemaEditor`'s planned Remnant and Final Truth, `keyPlanExtras` (a Key slot
+         * not yet placed, on the Table), `traceShows` (the Traces tab's row of a placed trace with no picture) and the
+         * pickers' starting folder. Fixture plans in the chapter running, none with a picture: their nodes opened on the
+         * Map and the picture read, then closed (every close writes the node), and the rows read back; the first Key slot
+         * not yet placed read on the Table with its picture emptied for the test; the Final Truth placed from its plan
+         * (`placePlannedFinal`, which writes no picture it was not given) and its Traces row drawn (`caseTraceRows`); the
+         * planned Truth Bullet given through its window and the item's picture read; the Key slot realized
+         * (case-realize.mjs `runRealization` -> `createKeyRemnant`) and its Remnant's picture read. The Remnants, the
+         * bullet, the rows, the slot and the case's marks are put back. Red at ceb9e9c8: every picture field drew
+         * Foundry's `icons/svg/hazard.svg`, and a plan with no picture placed its Remnant with the question mark
+         * (remnants.mjs `defaultPublic`), which Observe copies onto the finder's Truth Bullet.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { itemIcon } = await import("./config.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        const { workingScene } = await import("./utils.mjs");
+        const R = await import("./case-realize.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const glyph = itemIcon("truthBullet");
+        const plan = I.keyPlan();
+        const chapter = plan.chapter;
+        const slot = plan.entries.findIndex(e => !e.tokenId);
+        must(slot >= 0, "every Key slot of the chapter is placed - nothing to read");
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give it to - this would measure nothing");
+        const scene = workingScene();
+        const room = allRooms(scene)[0] ?? null;
+        must(room, "the working scene has no room - the Final Truth could not be placed");
+        const ids = { incident: "incident-suiteglyph", final: "final-suiteglyph", bullet: "bullet-suiteglyph" };
+        const key = `${chapter}:${slot}`;
+        const slotBefore = foundry.utils.deepClone(keyPlanStore.get(key) ?? null);
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const bulletsBefore = new Set(TB.bulletsOf(student).map(i => i.uuid));
+        const fresh = () => TB.bulletsOf(student).filter(i => !bulletsBefore.has(i.uuid));
+        const seen = {};
+        let win = null, token = null, keyToken = null;
+        try {
+            await S.setCaseNode(chapter, ids.incident, { kind: "incident", label: "SUITE glyph remnant" });
+            await S.setCaseNode(chapter, ids.final, { kind: "final", label: "SUITE glyph truth", room, scene: scene?.id ?? null });
+            await S.setCaseNode(chapter, ids.bullet, { kind: "bullet", label: "SUITE glyph bullet", recipient: student.id, tell: false });
+            if (slotBefore?.img) await keyPlanStore.patch(key, { img: "" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            seen.preview = {};
+            for (const kind of ["incident", "final"]) {
+                const id = ids[kind];
+                root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+                await until(() => root?.querySelector(`img[data-drpg-portrait="${id}"]`), 3000).catch(() => {});
+                seen.preview[kind] = root?.querySelector(`img[data-drpg-portrait="${id}"]`)?.getAttribute("src") ?? null;
+                root?.querySelector(".drpg-case-edit:not([hidden]) [data-drpg-case-close]")?.click();
+                await wait(300);
+            }
+            await win.close();
+            win = await drawnCaseWindow({ view: "table" });
+            seen.preview.key = win.app?.element?.querySelector(`img[data-drpg-portrait="key-${slot}"]`)?.getAttribute("src") ?? null;
+            await win.close();
+            win = null;
+            await gmStoresIdle();
+            seen.stored = Object.fromEntries(["incident", "final"].map(kind => [kind, S.caseNodeOf(S.caseRows(chapter).rows[ids[kind]])?.img ?? null]));
+            seen.stored.key = I.keyPlan().entries[slot]?.img ?? null;
+            token = await I.placeIncident(chapter, ids.final);
+            const data = token ? remnants.remnantData(token) : null;
+            const host = document.createElement("table");
+            host.innerHTML = data ? I.caseTraceRows([{ token, data, scene: token.parent }], new Map()) : "";
+            seen.placed = data ? { img: data.public?.img || null, row: host.querySelector("img[data-drpg-portrait]")?.getAttribute("src") ?? null } : null;
+            const giving = I.placeIncident(chapter, ids.bullet).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            giveWindow()?.element?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([giving, wait(5000)]);
+            await gmStoresIdle();
+            seen.given = fresh()[0]?.img ?? null;
+            await R.runRealization(chapter, [{ slot, room, sceneId: scene?.id ?? null }]);
+            const placedSlot = I.keyPlan().entries[slot];
+            keyToken = placedSlot?.tokenId ? game.scenes.get(placedSlot.sceneId)?.tokens?.get(placedSlot.tokenId) ?? null : null;
+            seen.key = keyToken ? remnants.remnantData(keyToken)?.public?.img ?? null : null;
+        } finally {
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const t of [token, keyToken]) {
+                if (!t) continue;
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                await t.delete().catch(() => {});
+            }
+            for (const item of fresh()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.setCaseMeta(chapter, { run: metaBefore.run, made: metaBefore.made }).catch(() => {});
+            for (const id of Object.values(ids)) await S.dropCaseNode(chapter, id).catch(() => {});
+            await keyPlanStore.drop(key).catch(() => {});
+            if (slotBefore) await keyPlanStore.patch(key, slotBefore).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            preview: { incident: glyph, final: glyph, key: glyph },
+            stored: { incident: "", final: "", key: "" },
+            placed: { img: glyph, row: glyph },
+            given: glyph,
+            key: glyph
+        }), "{the empty picture field of a planned Remnant, a planned Final Truth and a Key slot; the three plans' pictures after the close; the placed Final Truth's own picture and its Traces row's; the given planned Truth Bullet's picture; the realized Key slot's Remnant's picture}");
+    }],
+
+    ["planned Truth Bullet's picture: its node draws a picture field after the GM's note (the Truth Bullet glyph while empty), keeps a picked picture at the node's close, the plan's Give window shows it and the student's new Truth Bullet carries it, and until the give no world data holds it (1.2.113; the owner, 13.11.2026: \"yes\" to a picture field like a planned Remnant's)", async () => {
+        /*
+         * investigation.mjs `schemaEditor`'s planned Truth Bullet, case-schema.mjs `caseNodeOf`, `givePlannedBullet` ->
+         * gm-items.mjs `giveTruthBulletDialog` (`fill.img`) -> `bulletFromForm`. A fixture plan for the first student, not
+         * told: its node opened on the Map, the field names in order and the empty picture's preview read, a picture set
+         * (a path no world data holds: the probe), the node closed and the row read back. Then, before the give, every
+         * world setting and every actor's, item's, user's, scene's token's and chat message's flags searched for the
+         * probe (the plan is a GM store, a client setting: R3374), the search's control being the same search finding it
+         * on the given item after. Then Give: the window's picture read, Give pressed, the
+         * new Truth Bullet's picture read. The bullet and the row are taken away. Red at 1ffc6fc2: no picture field, and
+         * the given bullet wore the glyph whatever the plan held.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { itemIcon } = await import("./config.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const glyph = itemIcon("truthBullet");
+        const probe = "icons/svg/book.svg?drpg-plan-picture-probe";
+        const chapter = I.keyPlan().chapter;
+        const id = "bullet-suitepicture", base = `case:${chapter}:${id}`;
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give it to - this would measure nothing");
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const before = new Set(TB.bulletsOf(student).map(i => i.uuid));
+        const fresh = () => TB.bulletsOf(student).filter(i => !before.has(i.uuid));
+        const inWorld = () => {
+            const hits = [];
+            const look = (where, value) => { try { if (JSON.stringify(value ?? null).includes("drpg-plan-picture-probe")) hits.push(where); } catch { /* unreadable */ } };
+            /* the world's settings as the suite's world dump reads them (tests-kit.mjs `worldDump`): each registered one of
+               world scope, through `game.settings.get` */
+            for (const [full, def] of game.settings.settings) {
+                if (def?.scope !== "world") continue;
+                const [, space, key] = full.match(/^([^.]+)\.(.+)$/) ?? [];
+                if (!key) continue;
+                try { look(`setting ${full}`, game.settings.get(space, key)); } catch { /* unreadable */ }
+            }
+            for (const a of game.actors) { look(`actor ${a.name}`, a.flags); for (const i of a.items) look(`item ${a.name}/${i.name}`, { img: i.img, flags: i.flags }); }
+            for (const i of game.items) look(`item ${i.name}`, { img: i.img, flags: i.flags });
+            for (const u of game.users) look(`user ${u.name}`, u.flags);
+            for (const sc of game.scenes) for (const t of sc.tokens) look(`token ${sc.name}/${t.name}`, t.flags);
+            for (const m of game.messages) look(`message ${m.id}`, { flags: m.flags, content: m.content });
+            return hits;
+        };
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE picture bullet", recipient: student.id, tell: false });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
+            const edit = root?.querySelector(".drpg-case-edit:not([hidden])");
+            must(edit && win.field(`${base}:recipient`), "the planned Truth Bullet's node did not open with its fields");
+            seen.order = [...edit.querySelectorAll("[name]")].map(el => el.getAttribute("name").split(":").pop());
+            seen.empty = edit.querySelector(`img[data-drpg-portrait="${id}"]`)?.getAttribute("src") ?? null;
+            const field = win.field(`${base}:img`);
+            if (field) field.value = probe;
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[id])?.img === probe, 4000).catch(() => {});
+            seen.stored = S.caseNodeOf(S.caseRows(chapter).rows[id])?.img ?? null;
+            await win.close();
+            win = null;
+            seen.worldBefore = inWorld();
+            const giving = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            const el = giveWindow()?.element;
+            seen.window = el?.querySelector("img.drpg-bullet-planned-img")?.getAttribute("src") ?? null;
+            el?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([giving, wait(5000)]);
+            await gmStoresIdle();
+            seen.given = fresh()[0]?.img ?? null;
+            // the scan's control: the same search finds the picture once it is on the given item
+            seen.worldAfter = inWorld().filter(hit => hit.startsWith("item ")).length;
+        } finally {
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const item of fresh()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "img", "recipient", "tell"],
+            empty: glyph,
+            stored: probe,
+            worldBefore: [],
+            window: probe,
+            given: probe,
+            worldAfter: 1
+        }), "{the node's fields in order; the empty picture's preview; the row's picture after the close; world data holding the planned picture before the give; the Give window's picture; the given Truth Bullet's picture; the scan's control: items holding it after the give}");
+    }],
+
+    ["planned Truth Bullet to Everyone: its node's recipient offers Everyone, kept at the close; its Give opens on Everyone and gives each living student their own copy (the dead, a Monocub and a Spectator none), the plan marked given once; a copy refused for one student gives the rest, names who got none and leaves the plan not given (1.2.113; the owner, 13.11.2026: \"In planned bullets I'm missing a 'give it to everyone' option\")", async () => {
+        /*
+         * investigation.mjs `schemaEditor`'s planned Truth Bullet, `givePlannedBullet` -> gm-items.mjs
+         * `giveTruthBulletDialog` with config.mjs `RECIPIENT_EVERYONE` -> `giveToEveryone`, which runs the window's own
+         * `giveBulletNow` once per student of chapter.mjs `livingStudentsForGm`. Fixtures: of four students, the third dead
+         * for the GMs (the deaths store) and back as a Monocub (its flag), the fourth a Spectator (its flag); both put back
+         * after. A plan set to Everyone in its node and closed; given through its window; every character's new Truth
+         * Bullets counted and the plan's `given` read. Then a second plan to Everyone with a `preCreateItem` hook refusing
+         * the first living student's item (as another module could): the others get theirs, the window answers no, the
+         * warning names the student and the plan stays not given. Every new bullet, the rows, the hook and the flags are
+         * taken away. Red at 68057fcf: no Everyone to pick, so one student got one copy.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const C = await import("./config.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const EVERYONE = C.RECIPIENT_EVERYONE;
+        const students = studentActors();
+        must(students.length >= 4 && students.slice(0, 4).every(a => !deathStore.has(a.id)), "four living students are needed - this would measure nothing");
+        const cub = students[2], spectator = students[3];
+        const chapter = I.keyPlan().chapter;
+        const ids = ["bullet-suiteeveryonea", "bullet-suiteeveryoneb"];
+        const characters = game.actors.filter(a => a.type === "character");
+        const before = new Map(characters.map(a => [a.id, new Set(TB.bulletsOf(a).map(i => i.uuid))]));
+        const fresh = a => TB.bulletsOf(a).filter(i => !before.get(a.id)?.has(i.uuid));
+        const counts = () => Object.fromEntries(characters.map(a => [a.id, fresh(a).length]).filter(([, n]) => n));
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const flagsWere = { cub: cub.getFlag(MODULE_ID, FLAGS.monocub), spectator: spectator.getFlag(MODULE_ID, FLAGS.spectator) };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        const seen = {};
+        let win = null, hook = null, dead = false, living = [];
+        const give = async id => {
+            const giving = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            const picked = giveWindow()?.element?.querySelector('select[name="recipient"]')?.value ?? null;
+            giveWindow()?.element?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            const answer = await Promise.race([giving, wait(8000).then(() => "timeout")]);
+            await gmStoresIdle();
+            return { picked, answer };
+        };
+        try {
+            await deathStore.patch(cub.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            dead = true;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await spectator.setFlag(MODULE_ID, FLAGS.spectator, true);
+            living = livingStudentsForGm().map(a => a.id);
+            must(living.length >= 2, "fewer than two living students once the fixtures stand - this would measure nothing");
+            for (const id of ids) await S.setCaseNode(chapter, id, { kind: "bullet", label: `SUITE everyone ${id.slice(-1)}`, tell: false });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const base = `case:${chapter}:${ids[0]}`;
+            root?.querySelector(`[data-drpg-node="${ids[0]}"]`)?.click();
+            await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
+            const select = win.field(`${base}:recipient`);
+            must(select, "the planned Truth Bullet's node did not open with its recipient");
+            seen.option = [...select.options].find(o => o.value === EVERYONE)?.textContent.trim() ?? null;
+            select.value = EVERYONE;
+            root.querySelector(".drpg-case-edit:not([hidden]) [data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.recipient === EVERYONE, 4000).catch(() => {});
+            seen.stored = S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.recipient ?? null;
+            await win.close();
+            win = null;
+            const first = await give(ids[0]);
+            seen.first = { picked: first.picked, answer: first.answer, copies: counts(), given: Number.isFinite(S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.given) };
+            // the second plan, Everyone written in its row, one living student's copy refused
+            const before2 = counts();
+            await S.setCaseNode(chapter, ids[1], { recipient: EVERYONE });
+            await gmStoresIdle();
+            const refused = living[0];
+            hook = Hooks.on("preCreateItem", item => (item.parent?.id === refused ? false : undefined));
+            ui.notifications.warn = (msg, ...rest) => { warned.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+            const second = await give(ids[1]);
+            const after2 = counts();
+            seen.second = { answer: second.answer, added: Object.fromEntries(Object.entries(after2).map(([id, n]) => [id, n - (before2[id] ?? 0)]).filter(([, n]) => n)),
+                named: warned.some(m => m.includes(game.actors.get(refused)?.name ?? "\u0000")), given: S.caseNodeOf(S.caseRows(chapter).rows[ids[1]])?.given ?? null };
+        } finally {
+            ui.notifications.warn = warn;
+            if (hook !== null) Hooks.off("preCreateItem", hook);
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const a of characters) for (const item of fresh(a)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            for (const id of ids) await S.dropCaseNode(chapter, id).catch(() => {});
+            if (dead && deathStore.has(cub.id)) await deathStore.drop(cub.id);
+            if (flagsWere.cub === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagsWere.cub);
+            if (flagsWere.spectator === undefined) await spectator.unsetFlag(MODULE_ID, FLAGS.spectator); else await spectator.setFlag(MODULE_ID, FLAGS.spectator, flagsWere.spectator);
+            await gmStoresIdle();
+        }
+        const one = list => Object.fromEntries(list.map(id => [id, 1]));
+        equal(stableJson(seen), stableJson({
+            option: game.i18n.localize("DRPG.Items.everyone"),
+            stored: EVERYONE,
+            first: { picked: EVERYONE, answer: true, copies: one(living), given: true },
+            second: { answer: false, added: one(living.slice(1)), named: true, given: null }
+        }), "{the node's Everyone option; the row's recipient after the close; the first give: the window's recipient, its answer, each character's new Truth Bullets, the plan given; the second, one copy refused: its answer, the copies it added, the warning naming the student, the plan's given}");
     }],
 
     ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {
@@ -30318,6 +31709,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await Z.countNow();
             await settle();
+            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 }))));
             const rec = V.trialProgress();
             read.strawEnd = [F.trialFloor(), (rec.findings ?? []).map(f => f.text), rec.strawPoll?.split ?? null, hall.tokens.get(t2.id)?.x ?? null,
                 game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 })))];
@@ -30466,10 +31858,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             back: { a: read.ids[0], b: read.ids[1] }, stored: true, selected: read.ids, warned: ["zonesGap"], ids: undefined
         }), "{listed: Zone A's options (no room); live: the warning as the selects change; roles: written; back: the zones after a reload; stored: the hall kept; selected: drawn again; warned: the gap again}");
     }],
-    ["E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place on the map, and one on the map with Show", async () => {
+    ["the GM panel lists no planned Remnants to place (the owner, 13.11.2026: \"Let's remove 'the case waits...' from the GM panel\"; E97 C12 drew the list): with two planned Incident Remnants, one of them on the map, the panel's standing block draws no case line, no Place on the map and no Show, and no words of it", async () => {
         /*
-         * E97 C12, 12.11.2026. Two planned Incident Remnants in the GMs' store, one of them pointed at a Remnant on the
-         * map; the GM panel's standing block is read. Red at a860754: no such line.
+         * fix-113d, 13.11.2026; until then "E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place
+         * on the map, and one on the map with Show", whose fixture this keeps. A planned Remnant is placed from its own node
+         * on the Investigation window's Map (investigation.mjs `placeIncident`). Red at 58170191: the block and its two rows.
          */
         const S = await import("./case-schema.mjs");
         const P = await import("./gm-panel.mjs");
@@ -30481,16 +31874,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const panel = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector(".drpg-gmp-standing")) ?? null;
         let read = null;
         try {
-            token = await remnants.placeRemnant({ type: "incident", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter, note: "test fixture - E97 C12" });
+            token = await remnants.placeRemnant({ type: "incident", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter, note: "test fixture - the GM panel's case line" });
             must(token, "could not place the fixture Remnant");
             await S.setCaseNode(chapter, "incident-suitea", { kind: "incident", label: "SUITE C12 waits", room: "Library" });
             await S.setCaseNode(chapter, "incident-suiteb", { kind: "incident", label: "SUITE C12 placed", trace: `${canvas.scene.id}.${token.id}` });
             await gmStoresIdle();
             const opened = Promise.resolve(P.openGmPanel()).catch(() => null);
-            await until(() => panel()?.element?.querySelector(".drpg-case-asks"), 6000).catch(() => {});
-            const el = panel()?.element?.querySelector(".drpg-case-asks");
-            read = el ? { head: el.querySelector("strong")?.textContent ?? null,
-                rows: [...el.querySelectorAll("li")].map(li => [li.querySelector("span")?.textContent ?? "", li.querySelector("[data-drpg-case-place]") ? "place" : li.querySelector("[data-drpg-case-show]") ? "show" : null]) } : null;
+            await until(() => panel()?.element?.querySelector(".drpg-gmp-standing"), 6000).catch(() => {});
+            const el = panel()?.element ?? null;
+            const text = el?.querySelector(".drpg-gmp-standing")?.textContent ?? "";
+            read = el ? {
+                standing: Boolean(el.querySelector(".drpg-gmp-standing")),
+                asks: el.querySelectorAll(".drpg-case-asks, .drpg-case-ask").length,
+                buttons: el.querySelectorAll("[data-drpg-case-place], [data-drpg-case-show]").length,
+                named: ["SUITE C12 waits", "SUITE C12 placed"].filter(n => text.includes(n))
+            } : null;
             await panel()?.close().catch(() => {});
             await Promise.race([opened, wait(2000)]);
         } finally {
@@ -30498,9 +31896,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.dropCaseNode(chapter, "incident-suiteb").catch(() => {});
             if (token) { await remnants.dropRemnantSecret(token).catch(() => {}); await token.delete().catch(() => {}); }
         }
-        const { plural } = await import("./utils.mjs");
-        equal(stableJson(read), stableJson({ head: plural("DRPG.CaseMap.waiting", { n: 1 }), rows: [["SUITE C12 waits · Library", "place"], ["SUITE C12 placed", "show"]] }),
-            "{head: the line's count; rows: each planned Incident Remnant [its name and room, its button]}");
+        equal(stableJson(read), stableJson({ standing: true, asks: 0, buttons: 0, named: [] }),
+            "{standing: the panel's standing block drawn; asks: the case line and its rows; buttons: Place on the map and Show; named: the planned Remnants' names in the block}");
     }],
 
     ["a field changed under the window is marked and refused while the rest is saved", async () => {
@@ -34694,6 +36091,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         await settle();
         await eclipse.endEclipse();
         await settle();
+        await until(() => game.messages.some(m => !before.has(m.id) && [m.getFlag(MODULE_ID, "sfx")].map(f => (typeof f === "string" ? f : f?.key ?? null))[0] === "eclipseEnd"));
 
         const fresh = game.messages.filter(m => !before.has(m.id));
         const carried = fresh.map(m => {
@@ -35733,6 +37131,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await cleanup.resolveCleanup({ actorId: who.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true,
                     viaAction: true, mode: "transform", price: "stress", change: { name: "SUITE C8 a kettle", text: "SUITE C8 it was always there" } });
                 await settle();
+                await until(() => game.messages.some(m => !before.has(m.id) && contentOf(m).includes('data-drpg-call="approveReshape"')));
                 card = game.messages.find(m => !before.has(m.id) && contentOf(m).includes('data-drpg-call="approveReshape"')) ?? null;
                 must(card, "no reshape card was raised - this would measure nothing");
                 await settleCall(card, "Suite: settled");
@@ -36421,6 +37820,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null },
                     mine.id, { send: () => null });
                 await settle();
+                await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="pickTrait"')));
                 const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="pickTrait"'));
                 must(card, "no statistic card was posted for the fixture's request - this would measure nothing");
                 const body = document.createElement("div");
@@ -36572,6 +37972,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null,
                 proposed: "hand", note: "" }, mine.id, { send: () => null });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"')));
             const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'));
             must(card, "no statistic card was posted for the proposal - this would measure nothing");
             const drawing = () => {
@@ -37096,6 +38497,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.judge(BRIDGE_ACTIONS, { action: "dynamic.difficulty", requestId: rid, actorId: student.id,
                 description: "E18 G7 a question", actorName: student.name, room: null }, asker.id, { send: () => null });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && cardFlag(m, "rid")?.id === rid));
             const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "rid")?.id === rid);
             must(card, "no card was posted for the question - this would measure nothing");
             read.push(cardFlag(card, "thread") === asker.id);
@@ -37149,11 +38551,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await callGm(student, { title: "E91 C6", body: "<p>E91 C6 a project</p>", thread: asker.id,
                 actions: [{ action: "declineProject", label: "Decline", data: { by: student.id } }] });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && cardFlag(m, "thread") === asker.id));
             const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "thread") === asker.id);
             must(card, "no card was posted in the asker's thread - this would measure nothing");
             const before = new Set(game.messages.contents.map(m => m.id));
             await pressCard(card, "declineProject", { by: student.id });
             await settle();
+            await until(() => game.messages.contents.some(m => !before.has(m.id) && cardFlag(m, "thread")));
             const notes = game.messages.contents.filter(m => !before.has(m.id) && cardFlag(m, "thread"));
             read = notes.map(m => (cardFlag(m, "thread") === asker.id ? "asker" : "other"));
         } finally {
@@ -38384,6 +39788,808 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         ]), "[the answer, each card posted: whom its document is whispered to, whom its words are sent to, a private card's stub] for: the owner's search, "
             + "a GM's search, the owner's show to the third player's student - a card left the private cards' road, or a GM's search missed a co-owner");
     }],
+
+    // E40 item 4, slice B: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["a Truth Bullet whose real kind is Neutral is analysed against the number of the evidence it stands in for, and its card says there is nothing more in it (E40 item 4: R87's rule, driven; was R87)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R87 (tier 0, removed in E40) read two lines as text: config.mjs `analyzeDc`
+         * looking its column up through `ANALYZE_TYPE_ALIAS[realType] ?? realType`, and analyze.mjs naming
+         * `TRUTH_BULLET_TYPES[realType]?.analysedHint`. It passed a mutant that kept both lines and broke the rule: the
+         * alias table without its `neutral` row (the lookup's text unchanged, a Neutral's number null again, so every roll
+         * on one misses - analyze.mjs reads a null as a miss since 21.09), and the card reading `hint` before
+         * `analysedHint` (the name still there, the un-analysed sentence printed again). ACT-10, 20.09: a trace of unstated
+         * origin is priced like the ordinary evidence it stands in for. Here: the number for each visibility, a Neutral's
+         * against a Prep's, and two Neutral bullets on one student analysed on the GM, one at that number less one and one
+         * at it; read for each the verdict and which of the two sentences its card carries.
+         */
+        const [student] = cast(1);
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { analyzeDc, ANALYZE_DC, TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        const bands = Object.keys(ANALYZE_DC);
+        must(bands.length >= 4, "the Analyze table has fewer than four visibilities - this would measure less than it says");
+        const priced = bands.map(v => [analyzeDc(v, "neutral"), analyzeDc(v, "prep")]);
+        const dc = analyzeDc("evident", "prep");
+        must(Number.isFinite(dc) && dc > 1, `a Prep bullet's evident number is ${dc} - a total under it cannot be thrown, and this would measure nothing`);
+        const said = foundry.utils.escapeHTML(TRUTH_BULLET_TYPES.neutral?.analysedHint ?? "");
+        const unread = foundry.utils.escapeHTML(TRUTH_BULLET_TYPES.neutral?.hint ?? "");
+        must(said && unread && said !== unread, "the Neutral kind has no two sentences to tell apart - this would measure nothing");
+        const titles = ["DRPG.Analyze.identifiedTitle", "DRPG.Analyze.failedTitle"].map(k => game.i18n.localize(k));
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        const made = [], read = [];
+        try {
+            for (const total of [dc - 1, dc]) {
+                const item = await bullets.createTruthBullet(student, { name: `SUITE E40 R87 a Neutral at ${total}`, realType: "neutral", visibility: "evident" });
+                must(item, "the fixture's Neutral bullet was not made");
+                made.push(item);
+                const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total });
+                await settle();
+                const card = () => game.messages.contents.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? ""))
+                    .find(w => titles.some(t => w.includes(t)));
+                await until(card);
+                const words = card() ?? "";
+                for (const m of game.messages.contents) seen.add(m.id);
+                read.push([verdict?.success ?? null, words.includes(titles[0]), words.includes(said), words.includes(unread)]);
+            }
+        } finally {
+            for (const item of made) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+        equal(stableJson([priced.every(([n, p]) => p !== null && n === p), read]),
+            stableJson([true, [[false, false, false, false], [true, true, true, false]]]),
+            "a Neutral bullet was not priced as the Prep evidence it stands in for, or its card printed the un-analysed sentence "
+                + "([each visibility's Neutral number a Prep's], then for a total one under that number and at it: verdict, the "
+                + "identified card, the sentence that there is nothing more in it, the sentence to analyse it)");
+    }],
+
+    ["an Observe's Nothing was there marks the Sanity and gives nothing back, and a free action's refusal gives back nothing (E40 item 4: R88's rule, driven; was R88)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R88 (tier 0, trimmed in E40 to the four lines it still reads as text) read
+         * action-pipeline.mjs `declineAction` and messenger-app.mjs `ruleObserveMiss` and `CARD_ACTIONS` as text. It passed
+         * two mutants that kept every line it matched: `declineAction`'s data spread a `paid: ""` after its `paid` line for
+         * a card with no receipt (the legacy branch of `refundOnCard`, which hands one action back), and `CARD_ACTIONS`
+         * handed `observeMiss` to `ruleDecline` in a statement after the table. ACT-14 and ACT-17, 20.09: a refusal hands
+         * back what the card says was paid and nothing for a free action; "Nothing was there" on an Observe is its
+         * result, so it marks the Sanity the rule asks and gives no action back. Here: what `declineAction` writes for a
+         * Burst's receipt and for none; then a student with a player, one action spent and no Sanity marked, gets two
+         * cards in their thread (`callGm`), one with the Observe's miss and one with a free action's refusal, and each
+         * button is pressed as a GM presses it (`wireCallActions`). Read per press: the actions and the Sanity marks
+         * moved, the refusal's sentence and the GM's "Nothing was there" ruling said, and the card settled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the cards go to a player's thread");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { missAction, declineAction } = await import("./action-pipeline.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const drawn = [declineAction(student, { pay: "burst", amount: 2, grant: true }).data, declineAction(student, null).data]
+            .map(d => [d.paid, d.amount, d.grant]);
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const marks = () => Number(foundry.utils.getProperty(student._source, STRESS)) || 0;
+        const had = { [ACT]: foundry.utils.getProperty(student._source, ACT), [STRESS]: foundry.utils.getProperty(student._source, STRESS) };
+        must(actionsMax(student) >= 1 && Number(student.system.resources?.stress?.max) >= 1,
+            `${student.name} has no action to spend or no Sanity to mark - this would measure nothing`);
+        const declined = foundry.utils.escapeHTML(game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }));
+        const ruled = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Bridge.nothingThere"));
+        const posted = [];
+        const read = [];
+        try {
+            await student.update({ [ACT]: actionsMax(student) - 1, [STRESS]: 0 });
+            await settle();
+            for (const [call, button] of [["observeMiss", missAction(student)], ["decline", declineAction(student, null)]]) {
+                const before = new Set(game.messages.contents.map(m => m.id));
+                await callGm(student, { title: `SUITE E40 R88 ${call}`, actions: [button] });
+                const withButton = () => game.messages.contents.find(m => !before.has(m.id)
+                    && String(contentOf(m) ?? "").includes(`data-drpg-call="${call}"`));
+                await until(withButton, 8000);
+                const card = withButton();
+                must(card, `the ${call} card was not posted`);
+                posted.push(card.id);
+                const [actions, stress] = [actionsLeft(student), marks()];
+                const since = new Set(game.messages.contents.map(m => m.id));
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                const pressed = body.querySelector(`[data-drpg-call="${call}"]`);
+                must(pressed, `the ${call} card's button was not drawn`);
+                pressed.click();
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+                await settle();
+                const fresh = game.messages.contents.filter(m => !since.has(m.id));
+                for (const m of fresh) posted.push(m.id);
+                const said = fresh.map(m => String(contentOf(m) ?? ""));
+                read.push([actionsLeft(student) - actions, marks() - stress, said.some(w => w.includes(declined)),
+                    said.some(w => w.includes(ruled)), Boolean(cardFlag(game.messages.get(card.id), "settled"))]);
+            }
+        } finally {
+            for (const id of posted) await game.messages.get(id)?.delete();
+            await student.update(had);
+            await settle();
+        }
+        equal(stableJson([drawn, read]), stableJson([[["burst", "2", "true"], ["none", "0", "false"]],
+            [[0, 1, false, true, true], [0, 0, false, false, true]]]),
+            "a refusal's card did not say what was paid, an Observe's Nothing was there was taken as a refusal, or a free action's "
+                + "refusal gave something back ([declineAction's paid, amount, grant for a Burst of 2 and for none]; then per press of "
+                + "the Observe's miss and the free refusal: actions moved, Sanity marks moved, the refusal's sentence, the GM's Nothing "
+                + "was there, the card settled)");
+    }],
+
+    ["an Observe with no record on the GM tells the GMs and the player and gives nothing back, and the record is this browser's (E40 item 4: R89's rule, driven; was R89)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R89 (tier 0, trimmed in E40 to the write-through it still reads as text) read
+         * settings.mjs's registration of `SETTINGS.observePending` and observe.mjs `resolveObserve` as text: `scope:
+         * "client"` within 400 characters of the key, the two keys `resolveLost` and `resolveLostOwner` named, no
+         * `refundAction`. It passed two mutants that kept those lines: a `scope: "world"` after the client one in the same
+         * registration (the later key wins, and every player's browser holds the answer key), and the owner's whisper
+         * behind a condition that is never true (the key still named, the player told nothing). ACT-08, 20.09: a resolve
+         * with no record says so on both screens, and refunds nothing on a packet's word. Here: the scope Foundry holds
+         * for the store's key, then a student with a player resolved on the GM under a key nobody minted. Read: what the
+         * resolve answered, the GMs' card and the player's card among the new messages, and the actions moved.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the player's card goes to a student's owner");
+        const observe = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        // The store's key read off its row (`observeStore.spec.key`): R171 forbids the raw key outside the engine.
+        must(observeStore?.spec?.key, "the Observe store names no key - this would measure nothing");
+        const scope = game.settings.settings.get(`${MODULE_ID}.${observeStore.spec.key}`)?.scope ?? null;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const total = 17;
+        const toGms = game.i18n.format("DRPG.Observe.resolveLost", { name: foundry.utils.escapeHTML(student.name), total });
+        const toOwner = game.i18n.localize("DRPG.Observe.resolveLostOwner");
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const fresh = () => game.messages.contents.filter(m => !since.has(m.id));
+        const actions = actionsLeft(student);
+        let read = null;
+        try {
+            const answer = await observe.resolveObserve({ key: `suite-e40-r89-${foundry.utils.randomID()}`, total, isCritical: false,
+                actorId: student.id, senderId: player(student).id, senderIsGm: false });
+            await settle();
+            await until(() => fresh().some(m => String(contentOf(m) ?? "").includes(toOwner)));
+            const cards = fresh().map(m => [String(contentOf(m) ?? ""), m.whisper ?? []]);
+            const gms = game.users.filter(u => u.isGM).map(u => u.id);
+            read = [answer, cards.some(([w, to]) => w.includes(toGms) && to.length && to.every(id => gms.includes(id))),
+                cards.some(([w, to]) => w.includes(toOwner) && to.includes(player(student).id)), actionsLeft(student) - actions];
+        } finally {
+            for (const m of fresh()) await m.delete();
+            await settle();
+        }
+        equal(stableJson([scope, read]), stableJson(["client", [null, true, true, 0]]),
+            "the Observe record reaches every browser, or a resolve with no record was silent on a screen or gave something back "
+                + "([the store's scope], then: what the resolve answered, the GMs told, the player told, actions moved)");
+    }],
+
+    ["Analyze on the GM refuses a bullet it may not read now and an undo with no throw this chapter, whatever the packet says (E40 item 4: R145's Analyze half, driven; was R145)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R145 (tier 0, trimmed in E40 to its Stage 6 half) read analyze.mjs
+         * `resolveAnalyze` as text: `!undo && !isAnalysable(held, chapter)` and `analysedChapter !== chapter` in its body.
+         * It passed mutants that kept both texts and dropped the refusals (each condition joined by `&& false`). E03,
+         * 24.09.2026; audit S05-40: one Analyze per bullet per chapter was the sheet's rule alone, and a console's packet -
+         * `undo` included - bought a second reading. Here, on the GM: a bullet missed with a 1 (locked this chapter), then
+         * asked again with a 40; a second, fresh bullet asked to undo a throw it never had. Read: the three answers, and
+         * whether the first bullet was identified by the second ask.
+         */
+        const [student] = cast(1);
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const made = [];
+        let read = null;
+        try {
+            for (const n of [1, 2]) {
+                const item = await bullets.createTruthBullet(student, { name: `SUITE E40 R145 bullet ${n}`, realType: "prep" });
+                must(item, "the fixture's bullet was not made");
+                made.push(item);
+            }
+            const [locked, fresh] = made;
+            const miss = await resolveAnalyze({ actorId: student.id, itemId: locked.id, total: 1 });
+            await settle();
+            must(miss?.success === false, `the fixture's miss did not miss: ${stableJson(miss)}`);
+            const again = await resolveAnalyze({ actorId: student.id, itemId: locked.id, total: 40, isCritical: true });
+            const undo = await resolveAnalyze({ actorId: student.id, itemId: fresh.id, total: 40, undo: true });
+            await settle();
+            const shows = student.items.get(locked.id)?.getFlag(MODULE_ID, bullets.TRUTH_BULLET_FLAGS.analyzed) ?? null;
+            read = [again?.refused ?? again, undo?.refused ?? undo, Boolean(shows)];
+        } finally {
+            for (const item of made) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["that bullet cannot be analysed now", "no Analyze of that bullet this chapter to take back", false]),
+            "Analyze on the GM read a bullet its holder may not read now, or took back a throw this chapter never had (the second "
+                + "ask of a locked bullet, an undo of a fresh one, the locked bullet identified)");
+    }],
+
+    ["the GM judges a plant by the plant's own bars, not a theft's (E40 item 4: R36's plant half, driven; was R36)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R36 (tier 0, trimmed in E40 to its Tamper half) read palm.mjs `plantOnPerson`
+         * as text: `def.plant?.threshold` and `def.plant?.unseen` named in it. It passed a mutant that named both and
+         * judged by the theft's bars all the same (`def.plant?.threshold ? def.threshold : def.threshold`, and the unseen
+         * bar likewise). ACT-01, 17.09: the player's menu measures a plant against `ACTIONS.palm.plant` (D10a: easier on
+         * both axes), and the GM's side, which decides, measured it against the steal's. Two students alone in one room
+         * (`aloneTogether`); the first plants a Tool on the second twice, as the GM's side is asked: once at the plant's
+         * bars exactly, once one under each. Read: what each answered (done, seen), and whether the second holds the Tool.
+         */
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ACTIONS, ITEM_CATEGORIES } = await import("./config.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const def = ACTIONS.palm;
+        const bar = def.plant?.threshold, unseen = def.plant?.unseen;
+        must(Number.isFinite(bar) && Number.isFinite(unseen) && (bar < def.threshold || unseen < def.unseen?.threshold),
+            "the plant's bars are not below the theft's on either axis - this would measure nothing");
+        const [planter, victim] = cast(2);
+        const fixture = await aloneTogether(planter, victim);
+        const NAME = "SUITE E40 R36 a planted tool", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const stowed = [], read = [];
+        try {
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(victim, "tool").ok) for (const i of victim.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(victim, "tool").ok, `${victim.name} has no hand free for a Tool - this would measure nothing`);
+            for (const [total, unseenTotal] of [[bar, unseen], [bar - 1, unseen - 1]]) {
+                const item = await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                must(item, `${planter.name} could not be handed a Tool - this would measure nothing`);
+                await sheetAuditIdle();
+                const answer = await V.plantOnPerson({ plannerId: planter.id, victimId: victim.id, itemId: item.id, total, isCritical: false,
+                    unseenTotal, unseenCritical: false });
+                await settle();
+                read.push([answer?.done ?? null, answer?.seen ?? null, victim.items.some(i => i.name === NAME)]);
+                for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            }
+        } finally {
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const [i, was] of stowed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[true, false, true], [false, true, false]]),
+            "the GM's side judged a plant by other bars than the plant's (at the plant's bars, and one under each: done, seen, "
+                + "the victim holds the Tool)");
+    }],
+
+    ["the GM's New trace places the trace the window was told, with its two flags and its words, and refuses a player and a kind off the form (E40 item 4: R91's rule, driven; was R91)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R91 (tier 0, trimmed in E40 to the dashboard's door and the window's keys) read
+         * investigation.mjs `openNewTrace` as text: the GM gate in its first 400 characters, `tiedToCrime: tieTaken(...)`
+         * and `reinforced: result.reinforced`, `placeRemnant(` and `setRemnantPublic(token, {` and `playerText:
+         * result.text`, the kind checked. It passed mutants that kept every one of those lines: `reinforced:
+         * result.reinforced && false` (a ticked box carried as unticked: the matched text is a prefix of it), and the
+         * public words written under `{ ...(result.text ? { playerText: result.text } : {}), playerText: "" }`. N-4, Dawid
+         * 21.09: a hand-placed trace can be tied or not and reinforced or not, and the GM's name and description reach the
+         * player's record. Here the window is answered as a GM fills it (`answerWindows`): the first room, Prep, evident,
+         * tied, reinforced, a name and a description; then a kind the list does not hold written into the form, then an
+         * Autopsy; then the function called from a player's console. Read: the ledger's row and public pair of the trace
+         * placed, what the three refused calls answered (the first, and whether it was told as no kind at all: without the
+         * kind's own check the Observe-number check below it still refuses one, in other words), whether the console's call
+         * asked any window, and `game.drpg.newTrace`.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        needs(world.atLeast("namedRooms", 1), "a room to place the trace in");
+        const inv = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const NAME = "SUITE E40 R91 a trace", TEXT = "SUITE E40 R91 what the student reads";
+        const before = new Set(canvas.scene.tokens.map(t => t.id));
+        let kind = "prep";
+        const handle = answerWindows((cfg, root) => {
+            const form = root.querySelector("form");
+            if (!form) return null;
+            form.room.selectedIndex = 0;
+            if (![...form.type.options].some(o => o.value === kind)) {
+                const option = document.createElement("option");
+                option.value = kind;
+                form.type.append(option);
+            }
+            form.type.value = kind;
+            form.vis.value = "evident";
+            form.tied.value = "tied";
+            form.reinforced.checked = true;
+            form.tname.value = NAME;
+            form.ttext.value = TEXT;
+            return press(cfg, root);
+        });
+        let read = null;
+        try {
+            const token = await inv.openNewTrace();
+            await settle();
+            must(token, "New trace placed nothing - this would measure nothing");
+            const row = R.remnantData(token), shown = R.remnantPublic(token);
+            kind = "suite-not-a-kind";
+            const warn = ui.notifications.warn, warned = [];
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            let offList;
+            try {
+                offList = [await inv.openNewTrace(), warned.includes(game.i18n.localize("DRPG.Investigation.newTraceBadType"))];
+            } finally {
+                ui.notifications.warn = warn;
+            }
+            kind = "autopsy";
+            const unfindable = await inv.openNewTrace();
+            const asked = handle.asked.length;
+            const consoled = await asConsole(() => inv.openNewTrace());
+            await settle();
+            read = [[row?.type ?? null, row?.tiedToCrime ?? null, row?.reinforced ?? null, shown?.name ?? null, shown?.playerText ?? null],
+                offList, unfindable, consoled, handle.asked.length - asked, game.drpg?.newTrace === inv.openNewTrace];
+        } finally {
+            handle.restore();
+            for (const doc of canvas.scene.tokens.filter(t => !before.has(t.id))) {
+                if (typeof R.removeRemnant === "function") await R.removeRemnant(doc);
+                else await doc.delete();
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["prep", true, true, NAME, TEXT], [null, true], null, null, 0, true]),
+            "New trace placed another trace than the window was told, or placed one it should refuse ([the row's kind, tie, "
+                + "reinforced; the public name and description], [a kind off the list, told it is no kind], an Autopsy, a player's console call, windows "
+                + "the console's call asked, game.drpg.newTrace)");
+    }],
+
+    ["a reshape's ruling is the GM's, reads the trace as it stands, bounds the words and refunds nothing on a decline (E40 item 4: R92's ruling half, driven; was R92)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R92 (tier 0, trimmed in E40 to the writers' census and the card's keys) read
+         * cleanup.mjs `applyReshapeRuling` and `declineReshapeRuling` as text: the GM gate, `findRemnantToken(tokenId)`,
+         * `if (data.reinforced)`, `plainText(name,` and `plainText(text,`, no refund in the decline's first 900
+         * characters. It passed a mutant that kept every one of those and handed the proposal's raw name to `reshapeTrace`
+         * (`name: String(name)` where `name: safeName` stood). N-3, Dawid 21.09: bounding is not ruling, and the ruling
+         * reads the world as it stands. A trace placed for one student (`placeRemnant`), and a proposal written on that
+         * student's row as a Tamper leaves one (`proposeOnRow`) before each ruling: Approve from a player's console; Approve
+         * on the trace reinforced since; Approve of a name with markup and over the limit and a text over its limit;
+         * Decline, the student's actions and Sanity read around it; Approve on a trace id nothing holds. Read: each answer,
+         * the trace's public name after each, the bounded pair, the resources moved by the decline.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const cleanup = await import("./cleanup.mjs");
+        const R = await import("./remnants.mjs");
+        const { cleanupAttemptStore } = await import("./gm-stores.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const limits = CLEANUP.transformAction?.limits ?? {};
+        must(Number.isFinite(limits.name) && Number.isFinite(limits.text), "the reshape's limits are not stated - this would measure nothing");
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const hadRow = foundry.utils.deepClone(await cleanup.attemptOf(who.id));
+        const token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: "SUITE E40 R92 a trace" });
+        must(token, "the fixture trace was not placed - this would measure nothing");
+        const nameNow = () => R.remnantPublic(canvas.scene.tokens.get(token.id))?.name ?? null;
+        const STRESS = "system.resources.stress.value", ACT = "system.resources.actions.value";
+        const resources = () => [STRESS, ACT].map(p => Number(foundry.utils.getProperty(who._source, p)) || 0);
+        const rule = async (proposal, run = cleanup.applyReshapeRuling, tokenId = token.id) => {
+            const attempt = await proposeOnRow(who, token.id, proposal);
+            return run({ actorId: who.id, tokenId, attempt });
+        };
+        let read = null;
+        try {
+            const start = nameNow();
+            // Written first: `asConsole` holds a player's seat for the call's synchronous start alone.
+            const consoleAttempt = await proposeOnRow(who, token.id, { name: "SUITE E40 R92 console" });
+            const consoled = await asConsole(() => cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id, attempt: consoleAttempt }));
+            await settle();
+            const afterConsole = nameNow();
+            await R.setRemnantFlags(token, { reinforced: true });
+            const reinforced = await rule({ name: "SUITE E40 R92 reinforced" });
+            await settle();
+            const afterReinforced = nameNow();
+            await R.setRemnantFlags(token, { reinforced: false });
+            const long = await rule({ name: `<b>SUITE E40 R92</b> ${"n".repeat(2 * limits.name)}`, text: "t".repeat(2 * limits.text) });
+            await settle();
+            const shown = R.remnantPublic(canvas.scene.tokens.get(token.id)) ?? {};
+            const was = resources();
+            const declined = await rule({ name: "SUITE E40 R92 declined" }, cleanup.declineReshapeRuling);
+            await settle();
+            const moved = resources().map((v, i) => v - was[i]);
+            const gone = await rule({ name: "SUITE E40 R92 gone" }, cleanup.applyReshapeRuling, "suiteNoSuchTrace");
+            await settle();
+            read = [[consoled, afterConsole === start], [reinforced, afterReinforced === start],
+                [long, /[<>]/.test(shown.name ?? "<"), (shown.name ?? "").length <= limits.name, String(shown.playerText ?? "").length <= limits.text,
+                    String(shown.name ?? "").includes("SUITE E40 R92")],
+                [Boolean(declined), moved, Boolean(canvas.scene.tokens.get(token.id))], gone];
+        } finally {
+            if (canvas.scene.tokens.get(token.id)) {
+                if (typeof R.removeRemnant === "function") await R.removeRemnant(canvas.scene.tokens.get(token.id));
+                else await canvas.scene.tokens.get(token.id).delete();
+            }
+            if (hadRow) await cleanupAttemptStore.patch(who.id, hadRow);
+            else await cleanupAttemptStore.drop(who.id);
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[null, true], [null, true], [true, false, true, true, true], [true, [0, 0], true], null]),
+            "a reshape's ruling ran for a player, on a reinforced trace or on none, wrote unbounded words, or a decline moved "
+                + "the resources ([the console's answer, the name unchanged], [on a reinforced trace], [approved, markup in the name, "
+                + "the name and the description within their limits, the name the proposal's], [declined, Sanity and actions moved, "
+                + "the trace standing], the answer on a trace nothing holds)");
+    }],
+
+    ["a planted item goes to the first Search that finds something, never to one that misses (E40 item 4: R34's rule, driven; was R34)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R34 (tier 0, trimmed in E40 to the plant check's late answer and the one
+         * caller of `takePlant`) read search-tokens.mjs and the action family as text: no `takePlant` in `runSpend`,
+         * `SearchTokens.takePlant(` once and inside `searchDraw`, and `searchDraw(` standing after `searchSpecific(`,
+         * `searchNothing(` and `searchStash(` in `performSearch`. It passed a mutant that kept all of that and took the
+         * plant at the miss as well (`searchNothing` handed a call of `searchDraw` first, whose answer it drops). ACT-03,
+         * 17.09: the plant left the room on every spend, a failed Search used it up and the next successful one in any
+         * room was handed it. A student alone in a room with no stash (`standAlone`), a thing planted there; a free Search
+         * whose roll misses, then one whose roll reaches the first tier, each with its windows' defaults (`answerWindows`)
+         * and the character's `rollTrait` answering the total. Read: whether the miss granted anything, and whether the hit
+         * granted the planted thing.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const T = await import("./traps.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const bars = ACTIONS.search.thresholds.map(t => t.min);
+        const low = Math.min(...bars);
+        must(low > 2, "the Search's lowest bar leaves no total under it - this would measure nothing");
+        const stood = await standAlone(actor);
+        const region = V.regionsByName(canvas?.scene).get(stood.room);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        const start = new Set(actor.items.map(i => i.id)), had = new Set(start);
+        const windows = answerWindows(press);
+        const read = [];
+        try {
+            must(region, `${stood.room} has no region`);
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [], [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+            must(SearchTokens.left(stood.room, canvas?.scene) >= 2 && !SearchTokens.sealed(stood.room, canvas?.scene),
+                `${stood.room} has fewer than two search tokens left - this would measure nothing`);
+            const identity = await T.plantItem("SUITE-E40-R34", stood.room, { sceneId: canvas.scene.id, name: "SUITE E40 R34 a planted thing" });
+            must(identity, "nothing was planted - this would measure nothing");
+            for (const total of [low - 1, low]) {
+                actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
+                    options: { roll: { trait: "instinct" } } } });
+                await rolls.performAction(actor, "search", { free: true });
+                await settle();
+                const fresh = actor.items.filter(i => !had.has(i.id));
+                for (const i of fresh) had.add(i.id);
+                read.push([fresh.length, fresh.some(i => i.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identity)]);
+            }
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            for (const i of actor.items.filter(i => !start.has(i.id) || i.name === "SUITE E40 R34 a planted thing")) await i.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([[0, false], [1, true]]),
+            "a Search that missed took the plant, or the first one that found something was not handed it "
+                + "([things granted, the plant among them] for a total under the lowest bar, then at it)");
+    }],
+
+    ["a Key row's Save pushes the plan's words onto its trace only when the row was pointed at it, not on another field's edit (E40 item 4: R32's plan-row half, driven; was R32)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R32 (tier 0, trimmed in E40 to its form-reading half) read investigation.mjs
+         * `saveKeyPlan` as text: `repointed` and `stored.name` in it. It passed a mutant that kept both and pushed the
+         * plan's words on every Save (`const repointed = "token" in take || true;`). F6, 17.09: Save pushed the Key plan's
+         * old name back over a rename on the Traces tab. A Key trace placed, a chapter nobody has planned made the clock's,
+         * its plan's first row pointed at the trace with a name of the plan's own; the trace renamed as the Traces tab
+         * renames it (`setRemnantPublic`); the dashboard's Save of that row with its note alone changed, as the form hands it
+         * on (`applyDashboardSave`). Then a second trace, and the row pointed at it. Read: the first trace's name after the
+         * note's Save, and the second's after the repoint.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./gm-stores.mjs");
+        const PLAN = "SUITE E40 R32 the plan's name", RENAMED = "SUITE E40 R32 renamed on the Traces tab";
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        const placed = [];
+        let read = null;
+        try {
+            for (const x of [100, 300]) {
+                const token = await R.placeRemnant({ type: "key", visibility: "evident", x, y: 100, scene: canvas.scene, chapter: fresh, note: "SUITE E40 R32 a Key" });
+                must(token?.id, "the fixture's Key trace was not placed - this would measure nothing");
+                placed.push(token);
+            }
+            const [first, second] = placed;
+            await setClock({ chapter: fresh });
+            await I.setKeyPlan({ chapter: fresh, entries: [{ scale: "standard", tokenId: first.id, sceneId: canvas.scene.id, name: PLAN }] });
+            await gmStoresIdle();
+            await R.setRemnantPublic(first, { name: RENAMED });
+            await settle();
+            let plan = I.keyPlan();
+            must(plan.entries[0]?.tokenId === first.id && R.remnantPublic(first)?.name === RENAMED,
+                "the plan's row does not point at the renamed trace - this would measure nothing");
+            await I.applyDashboardSave({ traces: [], keyRows: [{ slot: 0, scale: plan.entries[0].scale,
+                fields: { note: { value: "SUITE E40 R32 a note", drawn: plan.entries[0].note ?? "" } } }] }, { traces: [], plan });
+            await settle();
+            const afterNote = R.remnantPublic(first)?.name ?? null;
+            plan = I.keyPlan();
+            await I.applyDashboardSave({ traces: [], keyRows: [{ slot: 0, scale: plan.entries[0].scale,
+                fields: { token: { value: `${second.id}|${canvas.scene.id}`, drawn: `${first.id}|${canvas.scene.id}` } } }] }, { traces: [], plan });
+            await settle();
+            read = [afterNote, I.keyPlan().entries[0]?.tokenId === second.id, R.remnantPublic(second)?.name ?? null];
+        } finally {
+            const rows = Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await setClock(clock);
+            for (const token of placed) {
+                const doc = canvas.scene.tokens.get(token.id);
+                if (doc) await R.removeRemnant(doc);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([RENAMED, true, PLAN]),
+            "a Key row's Save put the plan's name on its trace over a rename, or a repoint did not carry it (the first trace's "
+                + "name after the note's Save, the row on the second trace, the second's name)");
+    }],
+
+    ["a Tamper window closed after a landed concealment roll keeps its price, and one closed with nobody watching gives it back (E40 item 4: R37's rule, driven; was R37)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R37 (tier 0, removed in E40) read cleanup.mjs as text: `concealFromWitnesses`
+         * returning "rolled", `releaseTamper`'s `if (rolled)` branch without `refundPrice(`, and no `spendStress(` or
+         * `isCleaner(` in `releaseTamper`. It passed a mutant that kept all of that and asked `releaseTamper` with
+         * `rolled: cover === "roll"` at `attemptCleanup`'s closed window (never true). ACT-04's review, 17.09: a closed
+         * Tamper window refunded the price after a concealment roll had landed and paid its Hope. A student stood with
+         * another in one room (`aloneTogether`: watched), then alone in one (`standAlone`), each with an action spent by
+         * nothing yet and no Sanity marked, Tampers a trace (`attemptCleanup`, the tile's road) with the windows' defaults
+         * (`answerWindows`); the character's `rollTrait` lands the concealment (a 30 with Hope) and closes the main roll's
+         * window. Read for each: the actions and the Sanity marks moved.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to one, or to the two");
+        const [who, other] = cast(2);
+        const Cl = await import("./cleanup.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(who._source, ACT), [STRESS]: foundry.utils.getProperty(who._source, STRESS) };
+        const marks = () => Number(foundry.utils.getProperty(who._source, STRESS)) || 0;
+        must(actionsMax(who) >= 1, `${who.name} has no action to spend - this would measure nothing`);
+        const F = await cleanupFixture(who, "SUITE E40 R37 a trace");
+        const windows = answerWindows(press);
+        const read = [];
+        try {
+            must(F.trace, "the fixture's trace was not placed - this would measure nothing");
+            for (const stand of ["watched", "alone"]) {
+                const stood = stand === "watched" ? await aloneTogether(who, other, { asked: true }) : await standAlone(who);
+                try {
+                    await who.update({ [ACT]: actionsMax(who), [STRESS]: 0 });
+                    await settle();
+                    const thrown = [];
+                    who.rollTrait = async (trait, config) => {
+                        thrown.push(trait);
+                        return thrown.length === 1 && stand === "watched" ? { total: 30, isCritical: false, withHope: true } : null;
+                    };
+                    const [actions, stress] = [actionsLeft(who), marks()];
+                    await Cl.attemptCleanup(who, F.trace.id, { viaAction: true });
+                    await settle();
+                    read.push([stand, thrown.length, actionsLeft(who) - actions, marks() - stress]);
+                } finally {
+                    delete who.rollTrait;
+                    await stood.back();
+                }
+            }
+        } finally {
+            windows.restore();
+            await F.putBack();
+            await who.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["watched", 2, -1, 0], ["alone", 1, 0, 0]]),
+            "a Tamper window closed after a landed concealment roll gave the price back, or one closed unwatched kept it "
+                + "([stood, rolls asked, actions moved, Sanity marks moved] watched, then alone)");
+    }],
+
+    ["Analyze takes its price before the dice, gives it back on a closed window, is free for a GM alone, and a refusal's card refunds the table's step, not its own amount (E40 item 4: R46's rule, driven; was R46)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R46 (tier 0, trimmed in E40 to its order against the GM check and two
+         * censuses) read action-analyze.mjs `performAnalyze` and messenger-app.mjs `refundOnCard` as text: `payPrice(`
+         * before `rollTrait(`, the free road's `options.free && game.user.isGM` in one of two spellings, `refundPrice(`
+         * named, `PRICE_CHAINS` in the refund and no `amount: data.` read. It passed mutants that kept every one of those:
+         * a free road open to anybody asking for it (`Boolean(options.free) && game.user.isGM || Boolean(options.free)
+         * && !game.user.isGM`: the spelling it matched still in it), and a refund that took the card's amount through a
+         * name of its own (`const amount = Number(data.amount) || step.amount`). T-1: the
+         * price is taken before the dice and a closed roll window keeps none of it; the free road is the GM's; and the
+         * card a refusal is pressed on is authored on the player's own client, so what comes back is the table's step.
+         * A student with a player and an analysable bullet: Analyze asked as a player's console asks it, `free: true`
+         * (`asConsole`: the free road is read before the first await), then as the GM with `free: true`, the
+         * character's `rollTrait` noting the actions it sees and closing its window. Then a refusal card in the
+         * student's thread naming an action paid and an amount of 5, pressed as a GM presses it (`wireCallActions`).
+         * Read: the actions moved at the dice and after each Analyze, and moved by the press.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the refusal card goes to a player's thread");
+        const { performAnalyze } = await import("./action-analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const step = PRICE_CHAINS.analyze?.steps?.[0];
+        must(step?.pay === "action" && actionsMax(student) >= step.amount + 1,
+            "the Analyze chain does not open on an action, or the student cannot spend one - this would measure nothing");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(student._source, ACT), [STRESS]: foundry.utils.getProperty(student._source, STRESS) };
+        const since = new Set(game.messages.contents.map(m => m.id));
+        let item = null;
+        const read = [];
+        try {
+            item = await bullets.createTruthBullet(student, { name: "SUITE E40 R46 a bullet", realType: "prep" });
+            must(item, "the fixture's bullet was not made");
+            for (const asked of ["console", "gm"]) {
+                await student.update({ [ACT]: actionsMax(student), [STRESS]: 0 });
+                await settle();
+                const start = actionsLeft(student);
+                let atDice = null;
+                student.rollTrait = async () => { atDice = actionsLeft(student) - start; return null; };
+                const run = () => performAnalyze(student, ACTIONS.analyze, { free: true, bulletId: item.id });
+                await (asked === "console" ? asConsole(run) : run());
+                await settle();
+                delete student.rollTrait;
+                read.push([asked, atDice, actionsLeft(student) - start]);
+            }
+            await student.update({ [ACT]: 0 });
+            await settle();
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await callGm(student, { title: "SUITE E40 R46 a refusal", actions: [{ action: "decline", label: "SUITE refuse",
+                data: { by: student.id, paid: "action", amount: "5", grant: "false", words: "refused" } }] });
+            const withButton = () => game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+            await until(withButton, 8000);
+            const card = withButton();
+            must(card, "the refusal card was not posted");
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const pressed = body.querySelector('[data-drpg-call="decline"]');
+            must(pressed, "the refusal card's button was not drawn");
+            pressed.click();
+            await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+            await settle();
+            read.push(["refused", actionsLeft(student)]);
+        } finally {
+            delete student.rollTrait;
+            if (item) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await student.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["console", -step.amount, 0], ["gm", 0, 0], ["refused", step.amount]]),
+            "Analyze paid after the dice, kept a price its closed window never rolled for, let a player's console take the free road, "
+                + "or a refusal's card gave back its own amount ([asked as, actions moved at the dice, after]; [the press, the actions after it from 0])");
+    }],
+
+    ["an Analyze of a bullet whose answer key holds no reading publishes its trace's reading (E40 item 4: R49's reading half, driven; was R49)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R49 (tier 0, trimmed in E40 to the copy makers' and the give dialog's lines)
+         * read truth-bullets.mjs `publishReading` as text: `secret.analyzedText || remnantPublicById(` in it. It passed a
+         * mutant that kept that text and read a field the trace's public record does not hold (`?.analyzedTextX`). T-2's
+         * road, which Analyze and the chapter's reveal share: a bullet whose answer key has no reading asks the trace it
+         * came from. A trace placed and given a reading on its public record, then a bullet of it on one student made with
+         * no reading of its own; the bullet analysed on the GM at 40. Read: the reading on the answer key before, and
+         * the bullet's reading flag after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const [student] = cast(1);
+        const R = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const READING = "SUITE E40 R49 what the trace says when read";
+        let token = null, item = null, read = null;
+        try {
+            token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: "SUITE E40 R49 a trace" });
+            must(token, "the fixture trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(token, { analyzedText: READING });
+            await settle();
+            must(R.remnantPublic(token)?.analyzedText === READING, "the trace's reading was not written - this would measure nothing");
+            item = await bullets.createTruthBullet(student, { name: "SUITE E40 R49 a bullet", realType: "prep", visibility: "evident",
+                remnantId: token.id, sceneId: canvas.scene.id });
+            must(item, "the fixture's bullet was not made");
+            await settle();
+            const keyed = bullets.secretOf(item.uuid)?.analyzedText ?? "";
+            const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 40 });
+            await settle();
+            const live = student.items.get(item.id);
+            read = [keyed, verdict?.success ?? null, live?.getFlag(MODULE_ID, bullets.TRUTH_BULLET_FLAGS.analyzedText) ?? null];
+        } finally {
+            if (item) {
+                const uuid = item.uuid;
+                try { await student.items.get(item.id)?.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            const doc = token ? canvas.scene.tokens.get(token.id) : null;
+            if (doc) await R.removeRemnant(doc);
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["", true, READING]),
+            "an Analyze of a bullet with no reading on its answer key did not publish its trace's reading (the answer key's "
+                + "reading before, the verdict, the bullet's reading after)");
+    }],
+
+    ["Tamper takes its price after the concealment and before the dice, and a watched attempt on a full Sanity track is refused before either (E40 item 4: R47's order, driven; was R47)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R47 (tier 0, trimmed in E40 to the GM side's charges, the claim's road and
+         * Stage 6's attempt) read cleanup.mjs `attemptCleanup` as text: `concealFromWitnesses(`, `chargeTamper(` and
+         * `rollTrait(` in that order, and `tamperWatchBlock(` named. It passed mutants that kept both: a price paid
+         * before the concealment through `payPrice` beside the `chargeTamper` it read (the attempt paid twice, the first
+         * time before the cover story could take the point), and the watch block's refusal behind `if (watched && false)`.
+         * T-1: the charge sits between the concealment and the dice, because the concealment's own Sanity can take the
+         * point the price needed; a full track stops an attempt somebody is watching. A student stood with another in one
+         * room (`aloneTogether`), Tampering a trace (`attemptCleanup`, the tile's road) with the windows' defaults; the
+         * character's `rollTrait` noting the actions moved at each roll it is asked, landing the concealment and closing
+         * the main roll. Then the same with the student's Sanity track full. Read: per roll asked, the actions moved
+         * then; the actions moved after; and for the full track, the rolls asked and the actions moved.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the two");
+        const [who, other] = cast(2);
+        const Cl = await import("./cleanup.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(who._source, ACT), [STRESS]: foundry.utils.getProperty(who._source, STRESS) };
+        const max = Number(who.system.resources?.stress?.max) || 0;
+        must(actionsMax(who) >= 1 && max >= 1, `${who.name} has no action to spend or no Sanity track - this would measure nothing`);
+        const F = await cleanupFixture(who, "SUITE E40 R47 a trace");
+        const windows = answerWindows(press);
+        const stood = await aloneTogether(who, other, { asked: true });
+        const read = [];
+        try {
+            must(F.trace, "the fixture's trace was not placed - this would measure nothing");
+            for (const track of [0, max]) {
+                await who.update({ [ACT]: actionsMax(who), [STRESS]: track });
+                await settle();
+                const start = actionsLeft(who), seen = [];
+                who.rollTrait = async () => {
+                    seen.push(actionsLeft(who) - start);
+                    return seen.length === 1 ? { total: 30, isCritical: false, withHope: true } : null;
+                };
+                await Cl.attemptCleanup(who, F.trace.id, { viaAction: true });
+                await settle();
+                delete who.rollTrait;
+                read.push([track === max ? "full" : "empty", seen, actionsLeft(who) - start]);
+            }
+        } finally {
+            delete who.rollTrait;
+            windows.restore();
+            await stood.back();
+            await F.putBack();
+            await who.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["empty", [0, -1], -1], ["full", [], 0]]),
+            "Tamper took its price before the concealment or after the dice, or a watched attempt on a full track went ahead "
+                + "([the Sanity track, the actions moved at each roll asked, the actions moved after])");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*
@@ -40564,6 +42770,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const from = new Set(game.messages.map(m => m.id));
             const granted = await D.convertDespairToHope(donor.id, who, 2);
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "veiled") === true));
             equal(stableJson([granted, ...state(), resourceValue(who, "hope")]), stableJson([2, 5, 2, 3, 2]),
                 "the conversion took the pool down at once, owes nothing, or gave no Hope (granted, pool, owed, spendable, Hope)");
             const cards = game.messages.filter(m => !from.has(m.id));
@@ -40611,6 +42818,335 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await despairOwedStore.drop(donor.id);
             await settle();
         }
+    }],
+
+    ["giving a Monocub Hope, road by road: the Students window's Give, Give 2 pressed on the chat card of its Ask for Hope and a GM's answer to that ask owe the Despair until the next time of day and pay it then, Fuel a Monocub's Call is charged at once, a Bounty's Despair is owed, named on the GMs' card and given back as it lapses unclaimed, and a GM's own write of its Hope takes no Despair; the owed Despair is drawn on this GM's bar (the owner's report of 13.11.2026 on 1.2.112; the audit's A113-C6-2, C6-3)", async () => {
+        /*
+         * The owner, 13.11.2026, at a table on 1.2.112: "Giving a Monocub Hope doesn't take Despair from the GM." Measured
+         * here road by road, on this GM, a Monokuma's pool of this GM's at 5 owing nothing and a Monocub with no Hope:
+         * - window: the Students window's Give pressed drawn, 2 from this GM's pool (gm-students.mjs, `convertDespairToHope`);
+         * - card: the road the owner took - the Monocub's Ask for Hope posted (`performCubAbility`, "askHope"), its card's
+         *   Give 2 pressed through the card's own click handler (messenger-app.mjs `wireCallActions`, which the chat log's
+         *   `renderChatMessageHTML` and the messenger both put on a card), claimed and ruled (`claimCard`, `ruleCubHope`);
+         * - ask: this GM's Give 2 on the Monocub's Ask for Hope called directly (monocub.mjs `answerHopeAsk`, E72 C5);
+         * - fuel: Fuel a Monocub bought for the Monokuma actor whose pool that is (calls.mjs `spendDespairCallFor`);
+         * - bounty: a Bounty this GM posts on another living student (monocub.mjs `postBounty` -> despair.mjs `oweDespair`,
+         *   E72 C16; the audit's A113-C6-2), its Hope never claimed, so it lapses at the time of day's change and its
+         *   Despair goes back (A113-C6-3, the owner's default: until fc4dc27c the pool paid it, [4, 0]) - and the words the
+         *   GMs' card of it says (`bountyCard`: names the debt);
+         * - sheet: this GM's own write of the Monocub's Hope, the write Daggerheart's `toggleHope` on the Hope pips makes
+         *   (`system.resources.hope.value`; read off the module's notes, not off Daggerheart's source, which the harness
+         *   does not hold).
+         * Read after each: [pool, owed, the Monocub's Hope, the owed pips on this GM's bar]; then after the time of day moved on
+         * by the clock's own change (`setTimeOfDay`, which lapses a Bounty; a bare write of the clock pays what is owed and
+         * lapses none): [pool, owed]. The clock is put back between roads (a change of the time of day, which pays nothing owed then). The Mastermind window
+         * gives to the Mastermind, never to a Monocub, and is not a road here. The rows are dropped here; the clock, the
+         * pools and the Hope are put back by tier 2's restore.
+         */
+        needs(env.dialogs(), "the Students window's Give is pressed drawn");
+        needs(world.atLeast("monokumas", 1), "a Monokuma actor whose pool pays Fuel a Monocub");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const MK = await import("./monokuma.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { cubStore, despairOwedStore, bountyStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue, resourceMax } = await import("./character.mjs");
+        const { TIMES_OF_DAY, DESPAIR_CALLS } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const C = await import("./clock.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)?.id === game.user.id) ?? null;
+        must(Boolean(kuma), "no Monokuma actor draws on this GM's pool - this would measure nothing");
+        must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
+        const donor = game.user;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(cub, [HOPE, `flags.${MODULE_ID}.${FLAGS.monocub}`]);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const clock = foundry.utils.deepClone(getClock());
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const ownRows = () => Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(ownRows().map(k => [k, despairOwedStore.get(k)])));
+        const dropOwed = async () => { const rows = ownRows(); if (rows.length) await despairOwedStore.dropMany(rows); };
+        const alive = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const owedPips = () => document.querySelectorAll(`#drpg-despair .drpg-despair-row[data-user-id="${CSS.escape(donor.id)}"] .drpg-despair-pip.owed`).length;
+        const warned = ui.notifications.warn;
+        let bountyOn = null;
+        const read = {};
+        const roads = {
+            window: async () => {
+                void Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+                must(await until(() => alive()[0]?.element?.querySelector(`[data-drpg-give="${CSS.escape(cub.id)}"]`), 6000),
+                    "the Students window drew no Give on the Monocub's row - this would measure nothing");
+                const el = alive()[0].element;
+                el.querySelector(`[name="donor:${CSS.escape(cub.id)}"]`).value = donor.id;
+                el.querySelector(`[name="amount:${CSS.escape(cub.id)}"]`).value = "2";
+                el.querySelector(`[data-drpg-give="${CSS.escape(cub.id)}"]`).click();
+                await until(() => resourceValue(cub, "hope") === 2, 4000);
+                for (const a of alive()) await a.close().catch(() => {});
+            },
+            card: async () => {
+                const before = new Set(game.messages.contents.map(m => m.id));
+                const asked = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+                await settle();
+                const card = game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes("data-drpg-call=\"cubGiveHope\""));
+                must(asked?.done && card, "the Ask for Hope posted no card with a Give - this would measure nothing");
+                const body = document.createElement("div");
+                body.innerHTML = String(contentOf(card) ?? "");
+                wireCallActions(body, card);
+                const give2 = body.querySelector('[data-drpg-call="cubGiveHope"][data-n="2"]');
+                must(give2, "the card has no Give 2 - this would measure nothing");
+                give2.click();
+                await until(() => resourceValue(cub, "hope") === 2 && !cubStore.get(cub.id)?.askOpen, 4000);
+            },
+            ask: () => M.answerHopeAsk(cub, 2),
+            fuel: () => spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: cub } }),
+            bounty: async () => {
+                const other = livingStudents().find(a => a.id !== cub.id && !MK.isMonokuma(a) && !M.isMonocub(a));
+                must(other && !bountyStore.has(other.id), "no living student free of a Bounty to post one on - this would measure nothing");
+                bountyOn = other;
+                const before = new Set(game.messages.contents.map(m => m.id));
+                must(await M.postBounty(donor.id, other), "the Bounty was not posted - this would measure nothing");
+                await settle();
+                const owedWords = plural("DRPG.Despair.owedGiven", { n: DESPAIR_CALLS.bounty.cost, pool: D.poolLabel(donor) });
+                const fresh = game.messages.contents.filter(m => !before.has(m.id));
+                read.bountyCard = [fresh.filter(m => String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(owedWords))).map(m => (m.whisper ?? []).every(id => game.users.get(id)?.isGM)),
+                    fresh.filter(m => String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyPosted", { name: other.name, reward: DESPAIR_CALLS.bounty.reward ?? 1 })))).length > 0];
+            },
+            sheet: () => cub.update({ [HOPE]: 2 })
+        };
+        try {
+            if (getClock().phase === "classTrial") await setClock({ phase: "investigation" });
+            ui.notifications.warn = () => null;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            must(M.isMonocub(cub) && M.purseOf(cub) === 0, `${cub.name} is no Monocub, or holds a purse - this would measure nothing`);
+            must((resourceMax(cub, "hope") || STARTING.hopeMax) >= 2, `${cub.name}'s Hope maximum is under 2 - this would measure nothing`);
+            for (const [road, give] of Object.entries(roads)) {
+                if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+                await dropOwed();
+                await D.setDespair(donor.id, 5);
+                await trustedWrite(cub, { [HOPE]: 0 }, { reason: "gmRuling" });
+                await settle();
+                await give();
+                await settle();
+                await until(() => owedPips() === D.owedOf(donor.id), 3000);
+                const now = [D.getDespair(donor.id), D.owedOf(donor.id), resourceValue(cub, "hope"), owedPips()];
+                // The clock's own change of the time of day (clock.mjs `setTimeOfDay`, the road of Next time of day): a write of
+                // the clock alone settles what is owed (`drpgTimeOfDayChanged`) but lapses no Bounty (measured 13.11.2026).
+                await C.setTimeOfDay(next, { resetSearchTokens: false, announce: false });
+                await until(() => D.owedOf(donor.id) === 0, 4000);
+                await D.settleOwed();
+                await settle();
+                read[road] = [now, [D.getDespair(donor.id), D.owedOf(donor.id)]];
+                if (road === "bounty") read.lapsed = !bountyStore.has(bountyOn.id);
+                await setClock({ timeOfDay: clock.timeOfDay });
+                await D.settleOwed();
+                await settle();
+            }
+        } finally {
+            ui.notifications.warn = warned;
+            for (const a of alive()) await a.close().catch(() => {});
+            if (bountyOn && bountyStore.has(bountyOn.id)) await bountyStore.drop(bountyOn.id);
+            await dropOwed();
+            for (const [key, row] of Object.entries(owedWas)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
+            await putBack();
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            window: [[5, 2, 2, 2], [3, 0]],
+            card: [[5, 2, 2, 2], [3, 0]],
+            ask: [[5, 2, 2, 2], [3, 0]],
+            fuel: [[4, 0, 1, 0], [4, 0]],
+            bounty: [[5, 1, 0, 1], [5, 0]],
+            bountyCard: [[true], true],
+            lapsed: true,
+            sheet: [[5, 0, 2, 0], [5, 0]]
+        }), "a road of Hope to a Monocub took its Despair other than as measured on 13.11.2026, or this GM's bar did not draw the debt, or the GMs' card of a Bounty did not name it ({road: [[pool, owed, Hope, owed pips] after the gift, [pool, owed] after the time of day moved on]; bountyCard: [GMs alone, for each card naming the debt], the Monocubs' card posted; lapsed: the unclaimed Bounty gone at the time of day's change})");
+    }],
+
+    ["a gift of Hope from Despair tells the giving GM what is owed, and the GM's bar draws the owed pips until the next time of day pays them (the owner's report of 13.11.2026 on 1.2.112)", async () => {
+        /*
+         * The owner, 13.11.2026, at a table on 1.2.112: "Giving a Monocub Hope doesn't take Despair from the GM." The
+         * Despair is owed and paid at the next time of day (E05 C12), and until then this GM's bar drew the pool
+         * unchanged. On this GM, a pool of this GM's at 5 owing nothing and a Monocub with no Hope: this GM gives 2 on
+         * its Ask for Hope (monocub.mjs `answerHopeAsk`). Read: the notices this browser was given that name the debt,
+         * the owed pips on this browser's bar (`#drpg-despair`, redrawn as the store changes), and whether the Despair
+         * window's GM body names the debt; then the time of day moves on and the bar is read again. The rows are dropped
+         * here; the clock, the pools and the Hope are put back by tier 2's restore. Red on ceb9e9c8: no notice, no pip.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const { cubStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { despairExplainerBody } = await import("./explain.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const donor = game.user;
+        ok(D.monokumas().some(u => u.id === donor.id), "this GM holds no Despair pool to give from - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(cub, [HOPE, `flags.${MODULE_ID}.${FLAGS.monocub}`]);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const clock = foundry.utils.deepClone(getClock());
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const ownRows = () => Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(ownRows().map(k => [k, despairOwedStore.get(k)])));
+        const dropOwed = async () => { const rows = ownRows(); if (rows.length) await despairOwedStore.dropMany(rows); };
+        const owedPips = () => document.querySelectorAll(`#drpg-despair .drpg-despair-row[data-user-id="${CSS.escape(donor.id)}"] .drpg-despair-pip.owed`).length;
+        const told = [];
+        const ownInfo = ui.notifications.info;
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            await dropOwed();
+            await D.setDespair(donor.id, 5);
+            await trustedWrite(cub, { [HOPE]: 0 }, { reason: "gmRuling" });
+            await settle();
+            must(document.querySelector(`#drpg-despair .drpg-despair-row[data-user-id="${CSS.escape(donor.id)}"]`), "this GM's pool has no row on the bar - this would measure nothing");
+            ui.notifications.info = (text, ...rest) => { told.push(String(text)); return ownInfo.call(ui.notifications, text, ...rest); };
+            await M.answerHopeAsk(cub, 2);
+            await settle();
+            await until(() => owedPips() === 2, 3000);
+            read.gift = [D.owedOf(donor.id), told.filter(t => t === plural("DRPG.Despair.owedGiven", { n: 2, pool: D.poolLabel(donor) })).length, owedPips(),
+                (await despairExplainerBody({ gm: true })).includes(foundry.utils.escapeHTML(plural("DRPG.Despair.owed", { n: 2 })))];
+            await setClock({ timeOfDay: next });
+            await until(() => D.owedOf(donor.id) === 0, 4000);
+            await D.settleOwed();
+            await settle();
+            await until(() => owedPips() === 0, 3000);
+            read.paid = [D.getDespair(donor.id), D.owedOf(donor.id), owedPips()];
+        } finally {
+            ui.notifications.info = ownInfo;
+            await setClock({ timeOfDay: clock.timeOfDay });
+            await D.settleOwed();
+            await dropOwed();
+            for (const [key, row] of Object.entries(owedWas)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
+            await putBack();
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gift: [2, 1, 2, true], paid: [3, 0, 0] }),
+            "the gift did not tell this GM its debt once, or this GM's bar or Despair window did not draw it, or the bar kept it once paid ({gift: [owed, notices naming it, owed pips, the window names it], paid: [pool, owed, owed pips]})");
+    }],
+
+    ["an unclaimed Bounty's lapse gives its Despair back and tells the GMs and the Monocubs: lapsed before the settlement, the debt is dropped; lapsed after it, the pool is paid back (the audit's A113-C6-3, 13.11.2026)", async () => {
+        /*
+         * The audit's A113-C6-3, 13.11.2026, the owner's default: an unclaimed Bounty lapsed at the turn with no card, and its
+         * Despair, owed through `oweDespair`, was still taken. The Bounty keeps the key of its owed row (`owedKey`); at the
+         * lapse (monocub.mjs `lapseBounties`) a row still owed is dropped, and a row already paid by a settlement
+         * (`settleOwed`) is paid back into the pool (`adjustDespair`, held at the maximum: nothing spills); the GMs' card says
+         * "{name}'s Bounty lapsed unclaimed" with which of the two it was, and every Monocub's player is told the lapse, as
+         * the post was told to them. On this GM, its pool at 5 owing nothing, a Monocub with a player and another living
+         * student: (a) a Bounty posted and lapsed before any settlement; (b) one posted, its debt paid by a write of the clock
+         * (which settles and lapses nothing, measured 13.11.2026), then lapsed. Read for each: [pool, owed] after the post,
+         * after the settlement (b), after the lapse, and [the GMs' cards naming the lapse with their sentence, the Monocub's
+         * player told]. Red on fc4dc27c: no card, and the Despair kept.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player to tell");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const MK = await import("./monokuma.mjs");
+        const { cubStore, despairOwedStore, bountyStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { TIMES_OF_DAY, DESPAIR_CALLS } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const donor = game.user;
+        ok(D.monokumas().some(u => u.id === donor.id), "this GM holds no Despair pool - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const other = livingStudents().find(a => a.id !== cub.id && !MK.isMonokuma(a));
+        must(other, "no second living student to put a Bounty on - this would measure nothing");
+        const putBack = sheetAsFound(cub, [`flags.${MODULE_ID}.${FLAGS.monocub}`]);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const clock = foundry.utils.deepClone(getClock());
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const seen = new Set(had);
+        const ownRows = () => Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(ownRows().map(k => [k, despairOwedStore.get(k)])));
+        const dropOwed = async () => { const rows = ownRows(); if (rows.length) await despairOwedStore.dropMany(rows); };
+        const state = () => [D.getDespair(donor.id), D.owedOf(donor.id)];
+        const cost = DESPAIR_CALLS.bounty.cost;
+        const lapsedWords = foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyLapsed", { name: other.name }));
+        const cards = sentence => {
+            const fresh = game.messages.contents.filter(m => !seen.has(m.id));
+            fresh.forEach(m => seen.add(m.id));
+            const lapse = fresh.filter(m => String(contentOf(m) ?? "").includes(lapsedWords));
+            const toGms = m => (m.whisper ?? []).length > 0 && m.whisper.every(id => game.users.get(id)?.isGM);
+            return [lapse.filter(toGms).map(m => String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(sentence))),
+                lapse.some(m => (m.whisper ?? []).includes(player(cub)?.id))];
+        };
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            if (bountyStore.has(other.id)) await bountyStore.drop(other.id);
+            await dropOwed();
+            await D.setDespair(donor.id, 5);
+            await settle();
+            cards("");
+
+            must(await M.postBounty(donor.id, other), "the first Bounty was not posted - this would measure nothing");
+            await settle();
+            read.a = [state()];
+            await M.lapseBounties();
+            await settle();
+            await D.settleOwed();
+            await settle();
+            read.a.push(state(), cards(plural("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool: D.poolLabel(donor) })));
+
+            must(await M.postBounty(donor.id, other), "the second Bounty was not posted - this would measure nothing");
+            await settle();
+            read.b = [state()];
+            await setClock({ timeOfDay: next });
+            await until(() => D.owedOf(donor.id) === 0, 4000);
+            await D.settleOwed();
+            await settle();
+            read.b.push(state(), bountyStore.has(other.id));
+            await M.lapseBounties();
+            await settle();
+            read.b.push(state(), cards(plural("DRPG.Monocub.bountyDespairBack", { n: cost, pool: D.poolLabel(donor) })));
+        } finally {
+            await setClock({ timeOfDay: clock.timeOfDay });
+            await D.settleOwed();
+            if (bountyStore.has(other.id)) await bountyStore.drop(other.id);
+            await dropOwed();
+            for (const [key, row] of Object.entries(owedWas)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
+            await putBack();
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            a: [[5, cost], [5, 0], [[true], true]],
+            b: [[5, cost], [5 - cost, 0], true, [5, 0], [[true], true]]
+        }), "an unclaimed Bounty's lapse kept its Despair, or did not tell the GMs which way it went back, or did not tell the Monocub ({a: lapsed before the settlement: [pool, owed] posted, after the lapse, [[the GMs' cards of the lapse naming the debt dropped], the Monocub's player told]; b: lapsed after it: posted, paid, still open, after the lapse, [[the GMs' cards naming the Despair paid back], told]})");
     }],
 
     ["the Despair counters wait for the rows the other GMs hold", async () => {
@@ -40993,6 +43529,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ok(await trial.presentBullet(who, item, { objection: false, comment: "free" }),
                 "the free Present was refused");
             await settle();
+            await until(() => game.messages.size > was);
             equal(game.messages.size, was + 1, "the free Present posted no card");
 
             const logged = trial.presentedThisChapter()
@@ -42349,6 +44886,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(forged.author?.id === owner.id, "this Foundry did not keep the author a GM gave the card - this would measure nothing");
             await until(() => forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || floorMod.trialFloor()?.holderId === O.id);
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && (m.whisper ?? []).length));
             const whispers = await Promise.all(game.messages.filter(m => !seen.has(m.id) && (m.whisper ?? []).length).map(m => wordsOf(m, 2000)));
             read.push(Boolean(forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, shown(forged),
                 O.system.resources.actions.value, whispers.some(w => String(w ?? "").includes(told)));
@@ -44245,6 +46783,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
             await T.markOverruled(null, { objectorId: objector.id, state: null });
             await settle();
+            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content ?? "").includes(game.i18n.localize("DRPG.Floor.overrule.over"))));
             const card = game.messages.filter(m => !seen.has(m.id)).find(m => String(m.content ?? "").includes(game.i18n.localize("DRPG.Floor.overrule.over")));
             read.sound = card ? soundFromMessage(card)?.key ?? null : "no card";
         } finally {
@@ -44794,6 +47333,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await verdictStore.patch(RECORD, { finalAt: 4343, finalSentenced: [A.id] });
             await V.executeAtExit({ chapter });
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && m.getFlag(MODULE_ID, "executionCard")));
             const cards = game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, "executionCard"));
             read = [isDeadForGm(A), cards.length, cards.map(m => (m.whisper?.length ?? 0) === 0), cards.map(m => m.getFlag(MODULE_ID, "sfx")?.key ?? null),
                 cards.some(m => String(m.content ?? "").includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(A.name) })))];
@@ -46635,6 +49175,106 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the fight's tile kept its name, its cost or the GM's chip, was live off-turn or lit on the turn, or the press and the other tiles did not say the sentence (killer's tile, victim's tile, said, Search's tooltip)");
     }],
 
+    ["every action's tile and its press agree on whether it is locked and why, in every phase that locks (E40-T3): daily life, an Eclipse, the Class Trial and a fight - for every key of ACTIONS, the sheet's tile (sheet.mjs `actionButton`) and the press (`performAction`) say the same lock sentence or none; and a fight and an Eclipse never stand together", async () => {
+        /*
+         * E40 C4, 13.11.2026; plan E40 item 3, "a phase x action matrix on one shared 'allowed now' predicate". Two readers
+         * decide whether an action may run now, each with its own chain: the tile (`actionButton`: `locked` and its
+         * `lockReason`) and the press (`performAction`'s gates). The matrix holds them to each other, cell by cell: the
+         * states that lock - an Eclipse (the clock's flag, written raw), the Class Trial (its phase) and a fight (a direct
+         * murder opened here, invitations held, the victim's turn) - and every key of ACTIONS, on
+         * the victim, a student with a player, with her actions full so no tile is dimmed by its price. A tile is read for
+         * the lock sentence in its tooltip; a press, with every window answered null (nothing it asks is answered, so
+         * nothing runs past its first window), for the lock sentence it warns. The four lock sentences are
+         * DRPG.Murder.actionsLocked, DRPG.Eclipse.murderOnlyInEclipse, DRPG.Trial.actionsLocked and DRPG.Eclipse.actionsLocked.
+         * A new key of ACTIONS is a row of the matrix by itself.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { actionButton } = await import("./sheet.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(killer && victim, "two living students with players - this would measure nothing");
+        const keys = Object.keys(ACTIONS);
+        const fightTile = game.i18n.localize("DRPG.Murder.tileFightBack");
+        const SENTENCES = {
+            fight: game.i18n.format("DRPG.Murder.actionsLocked", { tile: fightTile }),
+            murderOnlyInEclipse: game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse"),
+            trial: game.i18n.localize("DRPG.Trial.actionsLocked"),
+            eclipse: game.i18n.localize("DRPG.Eclipse.actionsLocked")
+        };
+        const which = text => Object.entries(SENTENCES).filter(([, line]) => String(text ?? "").includes(line)).map(([k]) => k).join("+") || null;
+        const D = foundry.applications.api.DialogV2;
+        const kept = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptNotes = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const read = async () => {
+            await game.drpg.setActions(victim, game.drpg.actionsMax(victim));
+            const row = {};
+            for (const key of keys) {
+                const tile = actionButton(victim, key, ACTIONS[key]);
+                const said = [];
+                for (const k of ["warn", "info", "error"]) notes[k] = message => { said.push(String(message)); };
+                for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+                try { await performAction(victim, key); } catch (err) { said.push(`threw ${err?.message ?? err}`); }
+                finally {
+                    for (const [k, d] of Object.entries(kept)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                    for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+                }
+                row[key] = { tile: which(tile.dataset.tooltip), press: which(said.join(" | ")) };
+            }
+            await settle();
+            return row;
+        };
+        const matrix = {}, reachable = {};
+        try {
+            matrix.daily = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            matrix.eclipse = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            matrix.trial = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            });
+            await settle();
+            must(M.murderState()?.stage === "incident", `no fight opened: ${stableJson(M.murderState())}`);
+            matrix.fight = await read();
+            /* A FIGHT IN AN ECLIPSE IS NO STATE THE MODULE REACHES (measured here, so the matrix leaves it out by evidence):
+               an Eclipse is not started while a fight runs (eclipse.mjs `startRefusal`), and a fight is not opened in an
+               Eclipse (murder-rules.mjs `openMurder`). Written raw, as this test's first draft did, the tile said the fight's
+               sentence and the press the Eclipse's for ten keys (13.11.2026) - a disagreement only a console can reach. */
+            const E = await import("./eclipse.mjs");
+            reachable.startInFight = await E.startRefusal();
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await M.endMurder({ followUp: false }).catch(() => null);
+        await settle();
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            const said = [];
+            for (const k of ["warn", "info", "error"]) notes[k] = message => { said.push(String(message)); };
+            try {
+                reachable.openInEclipse = await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            } finally {
+                for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+            }
+            reachable.stageAfter = M.murderState()?.stage ?? null;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        equal(stableJson(reachable), stableJson({ startInFight: "DRPG.Eclipse.incidentFirst", openInEclipse: null, stageAfter: null }),
+            "a fight and an Eclipse can stand together after all - the matrix must read that state too (an Eclipse started in a fight, a fight opened in an Eclipse, the fight's stage after)");
+        const disagree = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)
+            .filter(([, cell]) => cell.tile !== cell.press).map(([key, cell]) => `${state}/${key}: tile ${cell.tile}, press ${cell.press}`));
+        ok(Object.keys(matrix).length === 4 && keys.length > 0, `the matrix was not read in every state (${Object.keys(matrix).join(", ")})`);
+        equal(stableJson(disagree), "[]", `a tile and its press disagree on whether the action is locked, or why: ${stableJson(matrix)}`);
+    }],
+
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {
         /*
          * E32+E07 C16, 03.10.2026; audit S02-30. The killer's notice "This roll is yours"
@@ -46848,6 +49488,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
         }
+    }],
+
+    ["Secure a Trace leaves a Reinforced Remnant at the scene on every hit, and Leave a Clue's Hope stays plain", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: Secure a Trace was Leave a Clue at 15 instead of 12 - the same
+         * Remnants, Reinforced on a critical alone - so the harder roll bought nothing. Every hit of it leaves its Remnant
+         * Reinforced now (config.mjs `alwaysReinforced`, murder-rules.mjs `applyRemnant`). A direct murder between two
+         * students with players: Secure a Trace made with Hope, with Despair and as a critical, then Leave a Clue made with
+         * Hope, the control (a reading that saw every incident trace Reinforced would pass the first three). Read: each
+         * action's new traces as [visibility, Reinforced, tied to the crime]. Until 1.2.112 the Hope and the Despair hit
+         * read false.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const traces = () => game.scenes.contents.flatMap(s => R.remnantsOn(s));
+        const placed = [];
+        const read = {};
+        const act = async (key, total, isCritical, withHope) => {
+            await turnFor(M, victim, key);
+            const before = new Set(traces().map(t => t.key));
+            await M.resolveCrisisAction({ actorId: victim.id, key, total, isCritical, withHope });
+            await settle();
+            const fresh = traces().filter(t => !before.has(t.key));
+            placed.push(...fresh);
+            return fresh.map(t => R.remnantData(t)).map(d => [d?.visibility ?? null, d?.reinforced ?? null, d?.tiedToCrime ?? null]);
+        };
+        try {
+            await fightOpen(M, killer, victim);
+            read.hope = await act("secureTrace", 30, false, true);
+            read.despair = await act("secureTrace", 30, false, false);
+            read.critical = await act("secureTrace", 30, true, true);
+            read.clue = await act("leaveClue", 30, false, true);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const t of placed) {
+                await R.dropRemnantSecret(t.document ?? t).catch(() => {});
+                await t.document?.delete?.().catch(() => {});
+            }
+        }
+        equal(stableJson(read), stableJson({ hope: [["evident", true, true]], despair: [["subtle", true, true]],
+            critical: [["obvious", true, true]], clue: [["evident", false, true]] }),
+            "a hit of Secure a Trace left a Remnant that is not Reinforced, at another visibility or not tied to the crime, or Leave a Clue's "
+            + "Hope hit became Reinforced with it (each action's new traces: [visibility, Reinforced, tied to the crime])");
     }],
 
     ["no player's packet holds the fight's last turns", async () => {
@@ -52217,6 +54904,24 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, id) => !projects.secretsOf(id).condition,
                 back: id => stableJson([projects.secretsOf(id).killerId, projects.secretsOf(id).condition]) === stableJson([holder.id, "SUITE backed-up condition"])
             },
+            // A discovery waiting for the GM's word and a body heard (1.2.113): rows of another season, so no prompt and no walk reads them.
+            pendingBodies: {
+                seed: async () => {
+                    await S.pendingBodyStore.patch("SUITE113:SUITE room", { room: "SUITE room", sceneId: "SUITE113", victimId: victim.id,
+                        deathId: null, witnessIds: [holder.id], chapter: 99, epoch: -1, at: 1 });
+                    return "SUITE113:SUITE room";
+                },
+                gone: (report, id) => !S.pendingBodyStore.has(id),
+                back: id => S.pendingBodyStore.get(id)?.room === "SUITE room" && S.pendingBodyStore.get(id)?.chapter === 99
+            },
+            bodiesHeard: {
+                seed: async () => {
+                    await S.bodyHeardStore.patch(`${holder.id}:SUITE113BODY0000`, { deathId: "SUITE113DEATH000", at: 1 });
+                    return `${holder.id}:SUITE113BODY0000`;
+                },
+                gone: (report, id) => !S.bodyHeardStore.has(id),
+                back: id => S.bodyHeardStore.get(id)?.deathId === "SUITE113DEATH000"
+            },
             // A room action's timed effect, through its store (Q-E93-3, 12.11.2026): a crossing for a day no clock here is on.
             timedEffects: {
                 seed: async () => {
@@ -52560,6 +55265,18 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, key) => !S.traceDigestStore.has(key),
                 back: key => stableJson([S.traceDigestStore.get(key)?.note, S.traceDigestStore.get(key)?.chapter]) === stableJson(["SUITE backed-up digest row", 99])
             },
+            // A Secret Passage's "finished" held for its finder, through its store (PV, 13.11.2026; `backup: true`: the card is
+            // owed). Keyed by this GM's user and a countdown no world holds: no move of this test posts it, and tier 2's
+            // restore takes it back.
+            foundDone: {
+                seed: async () => {
+                    const key = `${game.user.id}:SUITEPVFOUNDDONE`;
+                    await S.foundDoneStore.patch(key, { name: "SUITE backed-up finished card", room: "SUITE PV room", sceneId: "SUITEPVSCENE0000", at: 1 }, { whole: true });
+                    return key;
+                },
+                gone: (report, key) => !S.foundDoneStore.has(key),
+                back: key => stableJson([S.foundDoneStore.get(key)?.name, S.foundDoneStore.get(key)?.room]) === stableJson(["SUITE backed-up finished card", "SUITE PV room"])
+            },
             // A Logic Dive set, through its store (E73 C4; backed up with the case, `backup: true`). Backed up with no
             // fixture here from 5101742, and this test failed naming it (CI 12.11, run 43164772167, shard 7). A set no
             // floor plays: no card is posted and nobody is sent it.
@@ -52888,10 +55605,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * the action back - so opening a Search said whether somebody had hidden something
          * in the room, for nothing. Built here: the searcher's room a poor place for
          * usable things, and somebody else's hidden stash in it with one thing inside. The
-         * window's part is the room's -1 alone; the stash's step comes after the roll. At
-         * 1.2.64 the armed count was -2 and there was no second part. Since E32+E07 C11e the
-         * second part is `stashDie` (a step of disadvantage on the dice) where E06 C11 had
-         * `penalty: -1`.
+         * window's part is the room's -1 alone; the stash's step came after the roll. At
+         * 1.2.64 the armed count was -2 and there was no second part. From E32+E07 C11e the
+         * second part was `stashDie` (a step of disadvantage on the dice) where E06 C11 had
+         * `penalty: -1`; since 1.2.112 (the owner's decision of 13.11.2026) a Search reaches into
+         * no stash, and `searchOdds` answers the room's part alone, whatever stash is there.
          */
         const rolls = await import("./action-rolls.mjs");
         const V = await import("./vault.mjs");
@@ -52915,11 +55633,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             must(V.stashItemsIn(owner, room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
-            equal(stableJson(odds && [odds.situational, odds.stashDie, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
-                stableJson([-1, true, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its step");
+            equal(stableJson(odds), stableJson({ situational: -1 }), "the window's count holds the stash, or the Search still reads the stash");
             // E41 C4 (1.2.97): `performSearch` moved into action-search.mjs.
             const search = fnSource(stripComments((await moduleSources()).get("action-search.mjs") ?? ""), "performSearch");
-            ok(/\{ situational, stashDie\b[^}]*\} = searchOdds\(/.test(search)
+            ok(/\{ situational \} = searchOdds\(/.test(search)
                 && [...search.matchAll(/armSituational\(([^)]*)\)/g)].map(m => m[1]).join() === "situational",
                 "performSearch arms something other than searchOdds' situational part");
         } finally {
@@ -52929,22 +55646,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["a hidden stash's die lands on the total after the roll, and the card says so", async () => {
+    ["a Search where somebody keeps a stash, hidden or open, draws from the room and leaves the stash as it was", async () => {
         /*
-         * E32+E07 C11e, 02.10.2026; the owner's decision of 28.09.2026 (replaces E06 C11's "a
-         * hidden stash's -1 lands on the total after the roll, and the card says so"). A student
-         * stood alone in a room (`standAlone`) where another student keeps a hidden stash with
-         * one thing in it, the room favouring and hindering nothing, searches from this GM's
-         * browser, free, the goal window pressed as a player's default. The character's
-         * `rollTrait` hands back what the system's would - two bonus dice, a 5 and a 2, inside a
-         * total one above the lowest band's - and throws nothing; Foundry's randomiser
-         * (`CONFIG.Dice.randomUniform`, which the step draws from) is fixed so that the 5 is the
-         * die set aside, and the 2 is left: 3 off, a miss. Read: the card's line and its meta
-         * (`stashStep`), the bookmark's `stashDie`, the messages and the Dice So Nice throws the
-         * Search made (the card alone, none), and `stashDiceOf` on a roll as `rollTrait` hands it
-         * back with a die some reroll replaced, a `Roll` with a d8 penalty die, and one with
-         * neither; and in the source, that every other card a Search ends in is handed the line
-         * and the step. Until C11e the card said "-1" and the total that counts was one below.
+         * 1.2.112, the owner's decision of 13.11.2026: "a roll to discover, no roll to search or take an item". Until then a
+         * successful Search in a room where somebody else kept a stash with something in it took a random thing out of that
+         * stash instead of drawing from the room (action-search.mjs `searchStash`) - an open one first, a hidden one with one
+         * more step of disadvantage taken after the dice (`stashStep`, E32+E07 C11e). A hidden stash is found by Analyze's
+         * Find Stash now, and a found or open one is gone through with the free rifle. A student stood alone in a room
+         * (`standAlone`) where another student keeps a stash with one thing in it, the room favouring and hindering
+         * nothing, searches from this GM's browser, free, the goal window pressed as a player's default; the character's
+         * `rollTrait` hands back a total five above the lowest band's with no bonus dice and throws nothing, and Foundry's
+         * randomiser is fixed so that a stash's extra die would be a 1. Once with the stash hidden, once open. Read for each:
+         * the messages and Dice So Nice throws the Search made, a stash step in the card's meta, the bookmark's stash
+         * fields and its tier, and the things in the stash and whether the owner still holds the one. Until 1.2.112 both
+         * took the thing out of the stash (the hidden one at a total one lower) and the bookmark said `fromVault`.
          */
         needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
         needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
@@ -52953,8 +55668,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { ACTIONS } = await import("./config.mjs");
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
-        const { wordsOf, cardFlag } = await import("./secret.mjs");
+        const { cardFlag } = await import("./secret.mjs");
         const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
+        const total = low + 5;
+        const tier = ACTIONS.search.thresholds.filter(t => t.min <= total).sort((a, b) => b.min - a.min)[0]?.tier ?? null;
         const stood = await standAlone(actor);
         const region = V.regionsByName(canvas?.scene).get(stood.room);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
@@ -52964,34 +55681,36 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const hadU = Object.hasOwn(D, "randomUniform"), realU = D.randomUniform;
         const dsn = game.dice3d ?? null, ownThrow = dsn ? Object.getOwnPropertyDescriptor(dsn, "showForRoll") : null;
         const windows = answerWindows(press);
-        const had = new Set(game.messages.contents.map(m => m.id));
         let item = null, thrown3d = 0;
+        const read = {};
         try {
             must(region, `${stood.room} has no region`);
-            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
-                [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
-            item = await INV.grantItem(owner, { name: "SUITE C11e hidden", category: "usable", tier: 1, override: true, quiet: true });
+            item = await INV.grantItem(owner, { name: "SUITE 1.2.112 stashed", category: "usable", tier: 1, override: true, quiet: true });
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
-            await settle();
-            must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
-            const total = low + 1;
             actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
-                options: { roll: { trait: "instinct" } },
-                dAdvantage: { faces: 6, number: 2, results: [{ result: 5, active: true }, { result: 2, active: false, discarded: true }] } } });
-            // draw(2) = ceil((1 - 0.9) * 2) = 1: the first die, the 5.
-            D.randomUniform = () => 0.9;
+                options: { roll: { trait: "instinct" } } } });
+            // A stash's extra die, were one drawn: ceil((1 - 0.99) * 6) = 1.
+            D.randomUniform = () => 0.99;
             if (dsn) dsn.showForRoll = async () => { thrown3d++; };
-            await rolls.performAction(actor, "search", { free: true });
-            await until(() => game.messages.contents.some(m => !had.has(m.id)));
-            await settle();
-            const made = game.messages.contents.filter(m => !had.has(m.id));
-            const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
-            const line = `<p><em>${game.i18n.format("DRPG.Action.stashSetAside", { set: "5", total: total - 3 })}</em></p>`;
-            equal(stableJson([made.length, thrown3d, words.includes(line), made[0] ? cardFlag(made[0], "stashStep") : null,
-                rolls.rollInHand(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room, canvas?.scene).length]),
-            stableJson([1, 0, true, { kind: "setAside", read: [5, 2], setAside: 5, rolled: null, change: -3, score: total - 3 }, true, 1]),
-            "the Search made more than its card or threw dice, its card does not say the step and the total that counts, its meta does not hold the dice, or the bookmark lost the stash (messages, throws, line, meta, bookmark, stash)");
+            for (const concealed of [true, false]) {
+                await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed }],
+                    [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+                await settle();
+                must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the stash - this would measure nothing");
+                const had = new Set(game.messages.contents.map(m => m.id));
+                thrown3d = 0;
+                await rolls.performAction(actor, "search", { free: true });
+                await until(() => game.messages.contents.some(m => !had.has(m.id)));
+                await settle();
+                const made = game.messages.contents.filter(m => !had.has(m.id));
+                const mark = rolls.rollInHand(actor) ?? {};
+                read[concealed ? "hidden" : "open"] = [made.length, thrown3d, made.map(m => cardFlag(m, "stashStep") ?? null).filter(Boolean).length,
+                    mark.fromVault ?? null, mark.stashDie ?? null, mark.tier ?? null,
+                    V.stashItemsIn(owner, stood.room, canvas?.scene).length, owner.items.has(item.id)];
+                if (mark.itemId) await actor.items.get(mark.itemId)?.delete();
+                for (const m of made) await m.delete();
+            }
         } finally {
             windows.restore();
             delete actor.rollTrait;
@@ -53002,43 +55721,24 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 else delete dsn.showForRoll;
             }
             if (item) await owner.items.get(item.id)?.delete();
+            for (const i of actor.items.filter(i => i.name === "SUITE 1.2.112 stashed")) await i.delete();
             if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
             await stood.back();
         }
-        const read = typeof rolls.stashDiceOf === "function" ? [
-            rolls.stashDiceOf({ raw: { roll: { dAdvantage: { faces: 6, results: [{ result: 4 }, { result: 1, rerolled: true }, { result: 6 }] } } } }),
-            rolls.stashDiceOf({ dDisadvantage: { faces: 8, results: [{ result: 3 }] } }),
-            rolls.stashDiceOf({ total: 12 })
-        ] : null;
-        equal(stableJson(read), stableJson([{ sign: 1, results: [4, 6], faces: 6 }, { sign: -1, results: [3], faces: 8 }, { sign: 0, results: [], faces: 6 }]),
-            "the step reads the wrong dice off a roll: a replaced result, the penalty die's faces, or a die nobody threw");
-        // The other two cards a Search can end in, read in the source as E06 C11's test read them,
-        // and the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4).
-        // Since E37 C6 the stash's and the specific's card is built as `outcome` first, which `drpgActionResolved`
-        // carries too (`searchTold`): either shape holds the line and the step.
-        // E41 C4 (1.2.97): the Search's four ends and `performSearch` moved into action-search.mjs.
-        const actions = stripComments((await moduleSources()).get("action-search.mjs") ?? "");
-        equal(stableJson(["searchNothing", "searchStash", "searchSpecific"].map(name =>
-            /report\(actor, def, roll, \{[^}]*\bextra\b[^}]*\bstash\b|const outcome = \{[^}]*\bextra\b[^}]*\bstash\b[^}]*\};\s*await report\(actor, def, roll, outcome\)/
-                .test(fnSource(actions, name)))
-            .concat(/gmBody: `[\s\S]*?<\/p>\$\{extra\}`/.test(fnSource(actions, "searchSpecific")),
-                /\bextra,\s*stash,/.test(fnSource(actions, "performSearch")))),
-        stableJson([true, true, true, true, true]),
-        "a Search's card that is not a miss does not carry the step's line and its dice (nothing, stash, specific, the GM's specific, a find)");
+        const left = [1, 0, 0, null, null, tier, 1, true];
+        equal(stableJson(read), stableJson({ hidden: left, open: left }),
+            "a Search reached into a stash, took a step for it, or did not score its own dice on the room's table "
+            + "(per stash: messages, throws, stash steps in the meta, bookmark fromVault, bookmark stashDie, bookmark tier, things in the stash, the owner holds it)");
     }],
 
-    ["a Reroll of a Search at a hidden stash throws the stash's die again", async () => {
+    ["a Reroll of a Search takes no stash step, whatever an older bookmark says, and a 1.2.65 bookmark's -1 still lands", async () => {
         /*
-         * E32+E07 C11e, 02.10.2026. Until 1.2.65 the stash's disadvantage die was one of the
-         * roll's dice, and a Reroll threw it again with the others (reroll.mjs
-         * `rerollKeepingDice`). The step is taken after the dice now, so `settleSearch` takes it
-         * again on the new roll with a new draw. A missed Search is replayed from its bookmark on
-         * a new roll one below the lowest band's total, with no bonus or penalty dice: with `stashDie`
-         * and Foundry's randomiser fixed first to a 6 and then to a 1; with `stashDie` on a new
-         * roll that kept one bonus die, a 4 (in a total of 3 above the band, so the step decides
-         * the miss); with a 1.2.65 bookmark's `penalty: -1`; and with neither, a bookmark from
-         * before 1.2.65, whose receipt is the rest of every other's. Nothing is found, so nothing
-         * is drawn. Read: each receipt's first line, the rest against the plain one, the tier.
+         * 1.2.112, the owner's decision of 13.11.2026: a Search reaches into no stash, so a Reroll of one takes no stash step.
+         * From E32+E07 C11e (02.10.2026) `settleSearch` took the hidden stash's step again on the new dice with a new draw.
+         * A missed Search is replayed from its bookmark on a new roll one below the lowest band's total, with no bonus or
+         * penalty dice: plain; with a bookmark written before 1.2.112 that says `stashDie`, Foundry's randomiser fixed to a
+         * 6; and with a 1.2.65 bookmark's `penalty: -1`. Nothing is found, so nothing is drawn. Read: each receipt against
+         * the plain one, the -1's first line, the tier. Until 1.2.112 the stashDie bookmark's receipt began with the step.
          */
         const [actor] = cast(1);
         const R = await import("./reroll.mjs");
@@ -53046,35 +55746,29 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
         const D = CONFIG.Dice;
         const hadU = Object.hasOwn(D, "randomUniform"), realU = D.randomUniform;
-        const replay = async (extra, u, rerolled = { total: low - 1 }) => {
+        const replay = async (extra, u) => {
             if (u !== null) D.randomUniform = () => u;
             const done = [];
             const bookmark = { actionKey: "search", claimed: true, room: null, category: "usable", goal: "healing", itemId: null, ...extra };
-            const patch = await R.settleSearch(actor, bookmark, { total: rerolled.total, isCritical: false, withHope: true, withFear: false }, done, rerolled);
+            const after = { total: low - 1, isCritical: false, withHope: true, withFear: false };
+            const patch = await R.settleSearch(actor, bookmark, after, done, after);
             return { done, tier: patch?.tier ?? null };
         };
         let runs = null;
         try {
-            if (typeof R.settleSearch === "function") {
-                runs = [await replay({}, null), await replay({ stashDie: true }, 0), await replay({ stashDie: true }, 0.99),
-                    await replay({ stashDie: true }, 0, { total: low + 3, dAdvantage: { faces: 6, results: [{ result: 4 }] } }),
-                    await replay({ penalty: -1 }, null)];
-            }
+            runs = [await replay({}, null), await replay({ stashDie: true }, 0), await replay({ penalty: -1 }, null)];
         } finally {
             if (hadU) D.randomUniform = realU;
             else delete D.randomUniform;
             await settle();
         }
-        must(runs === null || runs[0].tier === null, "the plain replay one below the lowest band found something");
-        const plain = runs?.[0].done ?? [];
-        const say = (key, data) => game.i18n.format(key, data);
-        equal(stableJson(runs && runs.slice(1).map(r => [r.done[0], stableJson(r.done.slice(1)) === stableJson(plain), r.tier])),
-            stableJson([
-                [say("DRPG.Action.stashRolled", { rolled: "6", total: low - 7 }), true, null],
-                [say("DRPG.Action.stashRolled", { rolled: "1", total: low - 2 }), true, null],
-                [say("DRPG.Action.stashSetAsideOnly", { set: "4", total: low - 1 }), true, null],
-                [say("DRPG.Action.situationAfterRoll", { n: "-1", total: low - 2 }), true, null]
-            ]), "a Reroll does not take the stash's step again on the new dice and a new draw, or lost a 1.2.65 bookmark's -1 (first line, rest as the plain replay's, tier)");
+        must(runs[0].tier === null, `the plain replay one below the lowest band found something - this would measure nothing: ${stableJson(runs[0])}`);
+        const plain = runs[0].done;
+        equal(stableJson([stableJson(runs[1].done) === stableJson(plain), runs[1].tier,
+            runs[2].done[0], stableJson(runs[2].done.slice(1)) === stableJson(plain), runs[2].tier]),
+        stableJson([true, null, game.i18n.format("DRPG.Action.situationAfterRoll", { n: "-1", total: low - 2 }), true, null]),
+        "a Reroll of a Search took a stash step for a bookmark that says stashDie, or lost a 1.2.65 bookmark's -1 "
+            + "(stashDie's receipt as the plain one's, its tier; the -1's first line, the rest as the plain one's, its tier)");
     }],
 
     ["a GM report's document holds no words", async () => {
@@ -53834,6 +56528,91 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson(["putBack", 2, null, [`putBack:${[HOPE, RESTS].sort().join(",")}`]]),
             "a Rest in a room not marked for one kept its Hope or its stamp, or was not recorded as one put-back");
+    }],
+
+    ["Relief's rest offers Breath greyed with the reason, and a Breath picked past it gives no Hope", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: Relief costs 4 Hope and its Short Rest let Breath be picked, which
+         * gives 1 - three Hope lost for nothing. Relief's rest window (rest.mjs `choosePicks`) shows Breath disabled with
+         * the reason (DRPG.Rest.reliefNoBreath), and `applyRest` refuses a Breath that got past it, as it refuses one under
+         * the Despair darkening. A student at 2 Hope: Relief's rest (`takeRest`'s `free`, the Call's road) with Breath
+         * ticked on the drawn form whatever it says; then an ordinary Short Rest's window, closed unanswered, the control
+         * (a reading that greyed Breath everywhere would pass the first). Read: Breath disabled, its row's tooltip, what
+         * the rest said it gave and the Hope after; the control's Breath disabled. Until 1.2.112 Breath was offered and
+         * gave 1 Hope.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student to rest");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(!overflowBlocksHope(), "the Despair darkening holds Hope down - Breath would be greyed for that reason, and this would measure nothing");
+        const [student] = livingStudents();
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(student, [HOPE, "system.resources.hitPoints.value", "system.resources.stress.value"]);
+        const reason = game.i18n.localize("DRPG.Rest.reliefNoBreath");
+        const breathOf = element => element.querySelector('[name="pick"][value="breath"]');
+        let read = null;
+        try {
+            await trustedWrite(student, { [HOPE]: 2 }, { reason: "gmRuling" });
+            let rested = null;
+            const relief = await withFormAnswered(element => {
+                const box = breathOf(element);
+                if (box) box.checked = true;
+                return true;
+            }, async () => { rested = await takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }); });
+            const ordinary = await withFormAnswered(() => false, () => takeRest(student, "short", { ignoreRoom: true, ignoreLimit: true, quiet: true }));
+            const box = relief[0] ? breathOf(relief[0]) : null;
+            read = { offered: box ? [box.disabled, box.closest("label")?.getAttribute("title") === reason] : null,
+                applied: (rested?.applied ?? []).map(line => line.includes(reason)), hope: student.system.resources.hope.value,
+                ordinary: ordinary[0] ? breathOf(ordinary[0])?.disabled ?? null : null };
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ offered: [true, true], applied: [true], hope: 2, ordinary: false }),
+            "Relief's rest offered Breath, or greyed it without the reason, a Breath picked past it gave Hope or did not say why not, "
+            + "or an ordinary Short Rest greyed it too (Breath [disabled, its reason], each line said the reason, Hope after, the ordinary rest's Breath disabled)");
+    }],
+
+    ["a Relief rest's Hope is put back and its Meal stands", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: the GMs' side refuses Breath on a Relief's rest, as the roller's
+         * `applyRest` does (the test above). The GMs' audit (sheet-audit.mjs `restCovers`, `ref` "relief") covered a Relief
+         * rest's 1 Hope as any Short Rest's. A student at 5 Hope and 2 Sanity marked: Relief's 4 Hope paid, then its rest
+         * written with 1 Hope back (Breath); then the same from the start with its Sanity cleared instead (Meal), each as
+         * the player's write the primary hears. Read: the two rests' verdicts and the Hope and Sanity after. Until 1.2.112
+         * both stood, Hope 2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const r = student.system.resources;
+        const cost = HOPE_CALLS.relief.cost;
+        must(Number(r?.hope?.max) >= cost + 1 && Number(r?.stress?.max) >= 2, "the student's Hope or Sanity is too small for a Relief and a Meal");
+        const HOPE = "system.resources.hope.value", STRESS = "system.resources.stress.value";
+        const putBack = sheetAsFound(student, [HOPE, STRESS]);
+        let read = null;
+        try {
+            const relief = async rest => {
+                await student.update({ [HOPE]: cost + 1, [STRESS]: 2 });
+                await auditFromScratch(student);
+                await asPlayerWrite(student, { [HOPE]: 1 }, player(student), { reason: "call" });
+                const verdict = await asPlayerWrite(student, rest, player(student), { reason: "rest", ref: "relief" });
+                await sheetAuditIdle();
+                return verdict?.verdict ?? null;
+            };
+            const breath = await relief({ [HOPE]: 2 });
+            const hope = foundry.utils.getProperty(student._source, HOPE);
+            const meal = await relief({ [STRESS]: 1 });
+            read = [breath, hope, meal, foundry.utils.getProperty(student._source, STRESS)];
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson(["putBack", 1, "stands", 1]),
+            "a Relief rest's Hope stood, or its Meal was put back ([Breath's verdict, Hope after, Meal's verdict, Sanity after])");
     }],
 
     ["a Daggerheart roll message with Hope covers one Hope through the relay, once", async () => {
@@ -55918,7 +58697,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * back (`refundPrice`), Despair turned into Hope (despair.mjs `convertDespairToHope`), an item's effect a GM
          * grants (use-items.mjs `grantItemEffect`), a Despair Call's Hope (call-effects.mjs, Fuel a Monocub), a Hope Call
          * a GM buys on the sheet (calls.mjs `spendHopeCall`, a Sprint at 2) and a rest a GM gives (rest.mjs `takeRest`,
-         * Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
+         * Breath; paid with an action since 1.2.112, when a Relief's free rest stopped giving Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
          * Hope, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red) each road wrote from the
          * console's 5, on the sheet and in the mark alike: the Objection left 4 (1 since), the refund, the conversion, the
          * ruling, the Call and the rest 6 (3 since), the Sprint 3 (0 since).
@@ -55964,7 +58743,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.fuel = await inWindow(() => applyCall(null, "fuelTheCub", "despair", { target: student }));
             read.sprint = await inWindow(() => spendHopeCall(student, "sprint"));
             Dialog.wait = async () => ["breath"];
-            read.rest = await inWindow(() => takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }));
+            // A rest paid with an action: a Relief's free rest gives no Breath since 1.2.112 (rest.mjs `BREATH_REFUSED`).
+            await trustedWrite(student, { [ACTS]: 1 }, { reason: "gmRuling" });
+            read.rest = await inWindow(() => takeRest(student, "short", { ignoreRoom: true, ignoreLimit: true, quiet: true }));
             read.failedCall = await inConsoleWindow(student, player(student), { honest: { [HOPE]: 4 }, forged: { [HOPE]: 5 }, paths: [HOPE], during: true },
                 forge => {
                     Dialog.wait = async () => {
@@ -56827,6 +59608,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "the write did not stand on the item alone, outside the GMs' mark - this would measure nothing");
             await grantItemEffect(student, thing, { hitPoints: 1 });
             await settle();
+            await until(() => game.messages.contents.some(m => !before.has(m.id) && cardFlag(m, "usedItem")));
             const card = game.messages.contents.find(m => !before.has(m.id) && cardFlag(m, "usedItem"));
             read = [INV.isBroken(student.items.get(thing.id)), card ? cardFlag(card, "usedItem")?.id === identity : null];
         } finally {
@@ -57118,21 +59900,22 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a card whose row was swept kept its buttons or said nothing, or a young card without its row lost them (per card: buttons, the line)");
     }],
 
-    ["a Search asked of the GM or taken from a stash names no find, and a stash's theft on a record a find stood on is refused", async () => {
+    ["a Search asked of the GM or one a stash's theft settled names no find, and a stash's theft reads no Search's record (1.2.112)", async () => {
         /* Round 1's m6. A Search drawn for the player's packet with the goal "something specific" keeps
            that goal on the GMs' record (roll-draw.mjs `CONTEXT_SENT`), and a tier-1 item named after it is
            flagged; so is one named after a record a stash's theft settled ("search" in its `resolved`, as
            bridge-guards.mjs `rollsFor` writes it); and the vault steal's reading of a record a find stood on
-           refuses the theft (bridge-runs-acts.mjs `searchTheftOf`), where the same reading of a fresh record takes
-           it. At HEAD the record kept no goal, both items stood, and the theft was taken. */
+           refused the theft (bridge-runs-acts.mjs `searchTheftOf`), where the same reading of a fresh record took
+           it. At HEAD the record kept no goal, both items stood, and the theft was taken. Since 1.2.112 a Search
+           reaches into no stash and `vault.steal` reads no roll (`rolled` gone, R5468): its half reads that, and a
+           record that says a theft settled it - an older world's - still names no find. */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const { rollStore } = await import("./gm-stores.mjs");
         const { searchTier } = await import("./action-rolls.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const theft = BRIDGE_ACTIONS["vault.steal"]?.rolled?.derive;
-        must(typeof theft === "function", "the vault steal reads no Search's record - this would measure nothing");
+        must(BRIDGE_ACTIONS["vault.steal"], "there is no vault steal to read - this would measure nothing");
         must(searchTier({ total: 13 }).tier === 1 && searchTier({ total: 13 }).hit, "the Search's table gives no tier-1 hit at 13 any more - the totals below measure nothing");
         const made = [], backs = [];
         let read = null;
@@ -57145,8 +59928,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await tokenSpent(player, theirs);
             const stash = await spentSearch(player, theirs, { total: 13 });
             const found = await spentSearch(player, theirs, { total: 13 });
-            const fresh = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
-            backs.push(stash.putBack, found.putBack, fresh.putBack);
+            backs.push(stash.putBack, found.putBack);
             must(rollStore.get(F.record.rollId)?.tokenSpentAt && stash.spent && found.spent,
                 "a spend did not mark the Search it followed - the finds below would be flagged for that alone");
             await rollStore.patch(stash.rollId, { resolved: ["search"] });
@@ -57158,16 +59940,318 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const verdicts = [await find("E29 G8 a find on a specific Search", F.record.rollId), await find("E29 G8 a find on a stash's Search", stash.rollId),
                 await find("E29 G8 a find", found.rollId)];
             await sheetAuditIdle();
-            read = [F.record.goal ?? null, ...verdicts, (await theft(rollStore.get(found.rollId)))?.why ?? null, (await theft(rollStore.get(fresh.rollId)))?.why ?? null];
+            read = [F.record.goal ?? null, ...verdicts, BRIDGE_ACTIONS["vault.steal"].rolled ?? null];
         } finally {
             await sheetAuditIdle();
             for (const item of made) if (theirs.items.get(item.id)) await item.delete();
             await sheetAuditIdle();
             for (const back of backs) await back();
         }
-        equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", "that roll has already settled that action", null]),
-            "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or a theft on a "
-                + "record a find stood on was taken, or one on a fresh record refused (the goal, the three verdicts, the two thefts' refusals)");
+        equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", null]),
+            "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or the "
+                + "vault steal still reads a roll (the goal, the three verdicts, the vault steal's roll row)");
+    }],
+
+    // E40 item 4, slice C: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["a rewind during an Eclipse is refused before it calls off an assembly or moves the clock (E40 item 4: R55's rule, driven; was R55)", async () => {
+        /*
+         * E40 item 4, the pilot, 13.11.2026. R55 (tier 0, removed in E40) read clock.mjs `rewindTimeOfDay` as text: the
+         * word "eclipse" before `cancelGather` and before `setClock(`, and the refusal's key in the body. It passed on a
+         * guard that asked anything containing "eclipse" (a mutant that tested `getClock().eclipse === "never"` kept every
+         * regex true). Here the rule is driven: an assembly called, an Eclipse opened, then the rewind pressed. Read: what
+         * the rewind answered, the clock unchanged, the assembly still standing, and the refusal's words warned.
+         */
+        const CE = await import("./call-effects.mjs");
+        const E = await import("./eclipse.mjs");
+        const C = await import("./clock.mjs");
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        must(room, "this scene has no named region to call an assembly in - this would measure nothing");
+        must(!CE.pendingGather(), "an assembly was already standing - this would measure nothing");
+        must(!E.isEclipse(), "an Eclipse was already running - this would measure nothing");
+        const refusal = game.i18n.localize("DRPG.Clock.rewindDuringEclipse");
+        const warn = ui.notifications.warn, warned = [];
+        let read = null;
+        try {
+            must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start - this would measure nothing");
+            must(CE.pendingGather(), "the assembly did not stand through the Eclipse's opening - this would measure nothing");
+            const before = stableJson(getClock());
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const answer = await C.rewindTimeOfDay();
+            await settle();
+            read = [answer, stableJson(getClock()) === before, Boolean(CE.pendingGather()), warned.includes(refusal)];
+        } finally {
+            ui.notifications.warn = warn;
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (CE.pendingGather()) await CE.cancelGather();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([null, true, true, true]),
+            "a rewind during an Eclipse was not refused before it acted (what it answered, the clock unchanged, the assembly standing, the refusal warned)");
+    }],
+
+    ["a repair moves the flags and says nothing: markDeceased writes the record and the dead marker and posts, tells and deletes nothing; the Students window's dead is no death procedure; setMonocub tells only a change it made, and clears a silence mark either way (E40 item 4: R67's rule, driven; was R67)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R67 (tier 0, its killCharacter and incidentVictimDied orders kept there as a text guard)
+         * read chapter.mjs `markDeceased` and monocub.mjs `setMonocub` as text: the flag and the marker named, four loud
+         * calls not named, `const was = isMonocub(actor)` and `if (was === Boolean(value))`. It passed a markDeceased that
+         * posted a card through any other name than the four, and a setMonocub whose `was` read nothing (mutants m3 and m2,
+         * docs/dev/e40/ITEM4-C.md). Here the repair is driven on a living student with a token on the scene on screen:
+         * `markDeceased` - the record, the dead marker, and no card, no notice, no item gone; revived, then the Students
+         * window's "dead" (gm-students.mjs `applyAliveStates`, F16) - no card; then on the dead student who is no Monocub,
+         * a silence mark planted in the GMs' row and `setMonocub(false)` - nothing told, the mark cleared; made a Monocub
+         * (told once), made one again (told nothing), unmade (told once). Put back: the flag, the row, the tracks
+         * `setMonocub` empties, the student revived, the cards made.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, where the death lays its body");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const { applyAliveStates } = await import("./gm-students.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const scene = canvas.scene;
+        const who = C.livingStudents().find(a => !M.isMonocub(a) && scene?.tokens?.some(t => t.actorId === a.id));
+        must(who, "no living student who is no Monocub has a token on the scene on screen - this would measure nothing");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const fresh = () => game.messages.contents.filter(m => !had.has(m.id)).length;
+        const items = () => who.items.size;
+        const R = "system.resources";
+        const tracks = ["hope", "hitPoints", "stress"].map(k => [`${R}.${k}.value`, foundry.utils.getProperty(who, `${R}.${k}.value`)]);
+        const flagWas = who.getFlag(MODULE_ID, FLAGS.monocub);
+        const rowWas = foundry.utils.deepClone(cubStore.get(who.id) ?? null);
+        const told = [], info = ui.notifications.info, warn = ui.notifications.warn;
+        const take = () => told.splice(0);
+        const read = {};
+        try {
+            ui.notifications.info = (text, ...rest) => { told.push(String(text)); return info.call(ui.notifications, text, ...rest); };
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const itemsBefore = items();
+            const record = await C.markDeceased(who);
+            await settle();
+            read.marked = [Boolean(record), C.isDeceased(who), Boolean(who.statuses?.has?.("dead")), fresh(), take(), items() === itemsBefore];
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            take();
+            must(await applyAliveStates({ [who.id]: { state: "dead" } }), `${who.name}'s death from the Students window was not recorded - this would measure nothing`);
+            await settle();
+            read.window = [C.isDeceased(who), fresh()];
+            take();
+            await cubStore.patch(who.id, { witness: { chapter: getClock().chapter } });
+            await M.setMonocub(who, false);
+            await settle();
+            read.unchanged = [M.isMonocub(who), cubStore.get(who.id)?.witness ?? null, take()];
+            await M.setMonocub(who, true);
+            await settle();
+            read.made = [M.isMonocub(who), take()];
+            await M.setMonocub(who, true);
+            await settle();
+            read.again = take();
+            await M.setMonocub(who, false);
+            await settle();
+            read.unmade = [M.isMonocub(who), take(), fresh()];
+        } finally {
+            ui.notifications.info = info;
+            ui.notifications.warn = warn;
+            if (flagWas === undefined) { if (who.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub); }
+            else await who.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            await who.update(Object.fromEntries(tracks));
+            if (rowWas) await cubStore.patch(who.id, rowWas);
+            else if (cubStore.has(who.id)) await cubStore.drop(who.id);
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        const L = (key, name) => game.i18n.format(key, { name });
+        equal(stableJson(read), stableJson({
+            marked: [true, true, true, 0, [], true], window: [true, 0],
+            unchanged: [false, null, []], made: [true, [L("DRPG.Monocub.opted", who.name)]], again: [], unmade: [false, [L("DRPG.Monocub.unopted", who.name)], 0]
+        }), "a repair said or did more than it moved ([marked: a record, deceased, the dead marker, cards posted, notices, the items kept]; [window: deceased, cards posted]; "
+            + "[unchanged: a Monocub, the silence mark, notices]; [made: a Monocub, notices]; again: notices; [unmade: a Monocub, notices, cards posted])");
+    }],
+
+    ["the body's gather leaves the dead where they lie and walks the living and a Monocub (E40 item 4: R29's rule, driven; was R29)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R29 (tier 0, the body rule and the discovery queue kept there as a text guard) read
+         * call-world.mjs `gatherEveryone` for a death's predicate named anywhere in it (`isDeceased(` or `isDeadForGm(`),
+         * and passed a filter that turned the Monocub's exception round - the dead walked and the Monocub stayed - with
+         * both names still in it (mutant m2, docs/dev/e40/ITEM4-C.md). Here the gather is driven: three students with a
+         * token on the scene on screen, one dead (chapter.mjs `markDeceased`), one dead and a Monocub, one living, and a
+         * room none of them stands in; `gatherEveryone(room, scene)`. Read: whether each token moved, and whether the
+         * gather's packet to the clients names it (not where it lands: the harness's regions have no `teleportTokens`, and
+         * the fallback's ring can leave a token outside a small room - "the gather tells each client where its token
+         * went", measured 10.10.2026). Put back: every token the gather moved, the Monocub's flag, both revived.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students with a token on the scene on screen: a body, a Monocub and the living");
+        needs(world.atLeast("namedRooms", 2), "a room none of the three stands in");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const { gatherEveryone } = await import("./call-world.mjs");
+        const { roomOfToken, allRooms } = await import("./movement.mjs");
+        const scene = canvas.scene;
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id);
+        const [body, cub, living] = C.livingStudents().filter(a => !M.isMonocub(a) && tokenOf(a)).slice(0, 3);
+        must(living, "fewer than three living students with a token on the scene on screen - this would measure nothing");
+        const tokens = [body, cub, living].map(tokenOf);
+        const room = allRooms(scene).find(r => tokens.every(t => roomOfToken(t) !== r));
+        must(room, "every named room on the scene on screen holds one of the three - this would measure nothing");
+        const was = new Map([...scene.tokens].map(t => [t.id, { x: t.x, y: t.y }]));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const lay = { room: roomOfToken(tokens[0]) };
+        const flagWas = cub.getFlag(MODULE_ID, FLAGS.monocub);
+        let read = null;
+        try {
+            must(await C.markDeceased(body) && await C.markDeceased(cub), "a death could not be written - this would measure nothing");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            must(C.isDeadForGm(body) && C.isDeadForGm(cub) && M.isMonocub(cub), "the body and the Monocub do not read as such - this would measure nothing");
+            const socket = game.socket, emit = socket.emit, sent = [];
+            socket.emit = function (event, packet, ...rest) {
+                if (packet?.action === "sync" && packet.kind === "gather") sent.push(...(packet.data?.tokenIds ?? []));
+                return emit.call(this, event, packet, ...rest);
+            };
+            let moved = 0;
+            try {
+                moved = await gatherEveryone(room, scene);
+                await settle();
+            } finally {
+                socket.emit = emit;
+            }
+            const [b, c, l] = tokens.map(t => scene.tokens.get(t.id));
+            const stood = t => t.x === was.get(t.id).x && t.y === was.get(t.id).y;
+            read = [moved > 0 && moved === sent.length, [stood(b), sent.includes(b.id), roomOfToken(b) === lay.room],
+                [stood(c), sent.includes(c.id)], [stood(l), sent.includes(l.id)]];
+        } finally {
+            for (const [id, at] of was) {
+                const t = scene.tokens.get(id);
+                if (t && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            }
+            if (flagWas === undefined) { if (cub.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); }
+            else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            for (const a of [body, cub]) if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, [true, false, true], [false, true], [false, true]]),
+            "the gather moved a body, or left the living or a Monocub behind ([it moved anybody, as many as it told; the body [standing where it lay, "
+            + "told, in its room]; the Monocub [standing, told]; the living [standing, told]])");
+    }],
+
+    ["in an Eclipse the body's window is refused before its form, and only to a GM: a GM is told the Eclipse, a console is told it is a GM's (E40 item 4: R56's rule, driven; was R56)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R56 (tier 0, the case dashboard's half kept there as a text guard) read chapter.mjs
+         * `openBodyDiscoveryDialog` for the order of three words - `game.user.isGM`, `isEclipse()`, `placeScenes(` - and
+         * passed an Eclipse check whose condition could never hold, the word still standing in its place (mutant m2,
+         * docs/dev/e40/ITEM4-C.md). Here the window is opened in an Eclipse (the clock's `eclipse` written, as Season
+         * setup's test writes it, so nothing an Eclipse's start does runs), with DialogV2's `wait` counted: on this GM,
+         * then from a console (`asConsole`). Read: what each answered, whether any form was drawn, and what each was
+         * told. The clock is put back.
+         */
+        needs(env.primaryGm(), "the body window opens on the primary GM alone (`discoveryHere`)");
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const clock = foundry.utils.deepClone(getSetting(SETTINGS.clock));
+        must(!clock?.eclipse, "an Eclipse was already running - this would measure nothing");
+        const told = [], warn = ui.notifications.warn;
+        let forms = 0;
+        const read = {};
+        try {
+            D.wait = async () => { forms += 1; return "cancel"; };
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            await settle();
+            must(isEclipse(), "the Eclipse did not read as running - this would measure nothing");
+            read.gm = [await openBodyDiscoveryDialog() ?? null, forms, told.splice(0)];
+            read.console = [await asConsole(() => openBodyDiscoveryDialog()) ?? null, forms, told.splice(0)];
+        } finally {
+            ui.notifications.warn = warn;
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await settle();
+        }
+        const L = key => game.i18n.localize(key);
+        equal(stableJson(read), stableJson({ gm: [null, 0, [L("DRPG.Eclipse.bodyLocked")]], console: [null, 0, [L("DRPG.Panel.gmOnly")]] }),
+            "the body's window in an Eclipse drew a form, or told a GM or a console the wrong refusal ({gm, console: [its answer, forms drawn so far, what was told]})");
+    }],
+
+    ["the trial console hears every change of the vote after the record holds it: a vote opened, a ballot, a reminder and the close, a close with nobody voting too (E40 item 4: R58's rule, driven; was R58)", async () => {
+        /*
+         * E40 item 4, 13.11.2026. R58 (tier 0, the console's tick, its watch, its view and the +30 s's road kept there as a
+         * text guard) read vote.mjs for four `Hooks.callAll("drpgBallotsChanged")` and their places: in `recordBallot`
+         * after `ballotStore.patch(`, in `closeRound` after the first "open: false" and before "nobodyVoted". It passed a
+         * ballot written to the store a tick after its event, and a close whose record was written after its event, each
+         * keeping every word in its place (mutants m2 and m3, docs/dev/e40/ITEM4-C.md). Here the vote is driven on the
+         * primary GM with the ballots caught and never sent, as "a ballot naming one student twice ..." drives it, and
+         * every `drpgBallotsChanged` heard reads what a console would redraw from: the voter's row in the GMs' store and
+         * whether the record says the vote is open. A vote opened, the voter's ballot recorded (`recordBallot`), a
+         * reminder, the close; then a vote no one answers, closed. The record, the row and the cards are put back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a voter with a connected player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which records the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const record = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const lists = new Map();
+        let voter = null;
+        const rowHeld = () => {
+            const row = voter ? ballotStore.get(voter) : null;
+            return Boolean(row && row.chapter === getClock().chapter && row.round === V.trialProgress().vote?.round);
+        };
+        const heard = [];
+        const hook = Hooks.on("drpgBallotsChanged", () => heard.push([rowHeld(), V.trialProgress().vote?.open ?? null]));
+        const read = {};
+        try {
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    for (const userId of options?.recipients ?? []) lists.set(userId, (packet.candidates ?? []).map(c => c.id));
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await settle();
+            heard.length = 0;
+            await V.openVote();
+            const { round, picks, issued } = V.trialProgress().vote ?? {};
+            voter = issued?.[0] ?? null;
+            const list = lists.get(voter) ?? [];
+            must(voter && list.length >= picks && picks > 0, `the voter's ballot lists ${list.length} name(s) for a vote that asks for ${picks} - this would measure nothing`);
+            read.opened = heard.splice(0).some(([, open]) => open === true);
+            const answer = await V.recordBallot(game.users.get(voter), round, list.slice(0, picks));
+            read.cast = [answer?.reply?.round === round, heard.splice(0)];
+            await V.remindVoters();
+            await settle();
+            read.reminded = heard.splice(0).length > 0;
+            await V.closeVote();
+            await settle();
+            read.closed = heard.splice(0).map(([, open]) => open);
+            await ballotStore.dropMany([voter]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await settle();
+            await V.openVote();
+            heard.length = 0;
+            const nobody = await V.closeVote();
+            await settle();
+            read.nobody = [nobody, V.trialProgress().voteClosed === true, heard.splice(0).map(([, open]) => open)];
+        } finally {
+            Hooks.off("drpgBallotsChanged", hook);
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (voter) await ballotStore.dropMany([voter]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ opened: true, cast: [true, [[true, true]]], reminded: true, closed: [false], nobody: [null, true, [false]] }),
+            "the console was not told of a change of the vote, or was told before the record held it ([opened: told with the vote open]; "
+            + "[cast: answered for the round, [[the row held, the vote open]] as told]; [reminded: told]; [closed: the vote open as told]; "
+            + "[nobody: what the close answered, the record closed, the vote open as told])");
     }],
 
     ["a console's call of a newly gated GM function changes nothing: syncStates", async () => {
@@ -60061,9 +63145,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const D = foundry.applications.api.DialogV2;
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
         const read = [];
+        const bodyRows = await bodyRowsNow();
         try {
             D.confirm = async () => false;
-            D.wait = async () => null;
+            // Two witnesses wait for the GM's word since 1.2.113: the prompt is answered "announce".
+            D.wait = async cfg => announceTheBody(cfg);
             await setClock({ phase: "dailyLife" });
             await tokens[0].update(positionIn(room, tokens[0]), PLACE);
             await settle();
@@ -60109,6 +63195,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await settle();
+            await bodyRowsBack(bodyRows);
         }
     }],
 
@@ -60388,9 +63475,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const D = foundry.applications.api.DialogV2;
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
         let read = null;
+        const bodyRows = await bodyRowsNow();
         try {
             D.confirm = async () => false;
-            D.wait = async () => null;
+            // Two witnesses wait for the GM's word since 1.2.113: the prompt is answered "announce".
+            D.wait = async cfg => announceTheBody(cfg);
             await setClock({ phase: "dailyLife" });
             for (const t of tokens.slice(0, 2)) {
                 await t.update(positionIn(room, t), PLACE);
@@ -60438,6 +63527,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await settle();
+            await bodyRowsBack(bodyRows);
         }
         equal(stableJson(read), stableJson([[0, 1], [body.id], [room, room], 0]),
             `an earlier chapter's dead counted as a witness or was found again, or the walk did not stand the two in ${room}, or a walk back in `
@@ -63864,7 +66954,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(favoured && hindered && owner && other, "two students and two categories - this would measure nothing");
         const K = "SUITE r1-G1 Kitchen", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
         const read = scene => [V.stashesIn(K, scene).map(entry => entry.actorId), V.stashRoomsFor(owner, scene).map(entry => entry.room),
-            V.primaryStashRoom(owner, scene), V.vaultRoomOwnedBy(owner, scene), V.vaultOwnerOf(K, scene), V.roomTable(K, scene),
+            V.primaryStashRoom(owner, scene), V.vaultOwnerOf(K, scene), V.roomTable(K, scene),
             V.roomDescription(K, scene), V.roomFavours(K, scene), V.roomHinders(K, scene), Rest.roomAllows(K, "long", scene),
             Rest.restRooms("long", scene), V.sharedRooms(scene), V.allVaults(scene).map(entry => [entry.room, entry.owner?.id, entry.bedroom])];
         let scene = null, reading = null;
@@ -63885,10 +66975,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             await scene?.delete();
         }
-        const set = [[owner.id], [K], K, K, owner.id, "SUITE r1-G1 table", "SUITE r1-G1 tiles", [favoured], [hindered], true, [K], [], [[K, owner.id, true]]];
+        const set = [[owner.id], [K], K, owner.id, "SUITE r1-G1 table", "SUITE r1-G1 tiles", [favoured], [hindered], true, [K], [], [[K, owner.id, true]]];
         equal(stableJson(reading), stableJson([set, set, [owner.id, other.id].sort(), [], 2]),
             `a Kitchen set up in one piece, then a second piece and a Teleport of its name drawn and the name marked a room ([every room reader before the mark: `
-            + "the stashes, the owner's stash rooms, primary stash room and bedroom, the bedroom's owner, the table, the description, the favours, the hindrances, "
+            + "the stashes, the owner's stash rooms, primary stash room, the bedroom's owner, the table, the description, the favours, the hindrances, "
             + "a long rest, the long-rest rooms, the shared rooms, every stash; the same after the mark; the stashes after another student's was added; "
             + "the Teleport's flags; the room's pieces])");
     }],
@@ -65365,6 +68455,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await Ev.parkDirectMurder({ killerId: student.id, room: stood.room, note: "SUITE E12 fix r2-H3 declared in the dark" });
             await Ev.endEclipse({ advance: false });
             await settle();
+            await until(() => game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name), room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) }))));
             const nobody = game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name),
                 room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) });
             read = [standing, spoke, asked.length, game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(nobody))];
@@ -66170,6 +69261,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             T.setTrialExit({ sceneId: place.id, room: GYM });
             const left = await T.leaveTrialScene(hall);
             await settle();
+            await until(() => game.messages.some(m => !said.has(m.id)));
             const whispered = await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)));
             const copy = [...place.tokens].find(t => t.actorId === away.id) ?? null;
             const fencedIn = fence.filter(t => Mv.roomOfToken(place.tokens.get(t.id)) === GYM).length;
@@ -66499,6 +69591,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await withVerdictOpen(() => withAdvanceWindows(() => null,
                 () => applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] })));
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id)));
             const cards = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 2000)));
             read = [writes, getClock().phase === phase, cards.length > 0, cards.some(text => String(text).includes(over))];
         } finally {
@@ -67154,6 +70247,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 try {
                     await rolls.performAction(hana, "analyze");
                     await settle();
+                    await until(() => posted.some(message => String(contentOf(message) ?? "").includes(game.i18n.localize("DRPG.Analyze.passageSent"))) && posted.some(message => ["searchNothing", "passageFound"].includes(cardFlag(message, "sfx")?.key)));
                     heardShown = posted.map(message => [String(contentOf(message) ?? "").includes(game.i18n.localize("DRPG.Analyze.passageSent")),
                         ["searchNothing", "passageFound"].includes(cardFlag(message, "sfx")?.key)]);
                 } finally {
@@ -68896,7 +71990,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(J(read?.gone), J([3, "string", 3, 0, false]),
             "[the walls with the wall deleted, the close's refusal, the walls after it, the breach's rows, the Lab forced] - a close with its wall gone rebuilds or deletes something, or leaves the room beyond forced");
     }],
-    ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner gets the room's card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
+    ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner standing in it no second card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
         /*
          * E15 part 2 C4 (25.10.2026; A10's S16-17, step 15; the stage's E15-50 to E15-54, its write roads "a room's lock,
          * bedroom" and "a room's seal", and E14's Q1 of 18.10: "bez klucza tunelem i breach"). The harms: a breach that
@@ -69091,12 +72185,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[Botan's built passage open to him, to Hana; Botan through it into Kenta's Den, Botan into the Den by the door] - a built passage into a bedroom asks a key, or another's bedroom opens with none");
         equal(J(read?.cut), J([true, open, true]),
             "[crossed; the Lab forced on both pieces, its seal lifted, its lock lifted, Kenta walks in, the bedroom open to him here and anywhere, the Den still shut; the Despair as before] - the breach does not force the room beyond, or pays Despair back");
-        equal(J(read?.cards1), J([[[], ["thereNamed wallBreached"], ["heard wallBreached"]], [[], ["bedroom unsealed"], []]]),
-            "[the cards to Hana's, Botan's and Kenta's players: the builder's own none, Botan in the Lab named, Kenta in the Bath a crash; the room's card to its owner, with the lifted seal] - the wrong people told of a breach");
+        // Botan stands in his own Lab, the room beyond: he saw it done and gets that room's card alone - the bedroom's card
+        // with the lifted seal, which went to its owner wherever he stood until privacy line 1 (the owner's rule #1,
+        // 13.11.2026; doors-gm.mjs `noteBedroom`), is no second card (PV-DOORS-T3 holds the owner away).
+        equal(J(read?.cards1), J([[[], ["thereNamed wallBreached"], ["heard wallBreached"]], [[], [], []]]),
+            "[the cards to Hana's, Botan's and Kenta's players: the builder's own none, Botan in the Lab named, Kenta in the Bath a crash; no bedroom card to its owner, who stood in it] - the wrong people told of a breach");
         equal(J([read?.chained, read?.trial]), J(["chained", "trialLocked"]), "[a chained Kenta into the forced Lab, anyone into it in a Class Trial] - a breach frees a chained student or opens the courtroom");
         equal(J(read?.undone), J(shut), "[the Lab after the Reroll's undo in the same time of day] - the undo leaves the room forced, unlocked or unsealed");
-        equal(J(read?.cards2), J([[[], ["bedroom unsealed", "there wallBreached"], ["here wallBreached"]], false]),
-            "[the cards of a secret breach finished with Hana in the Yard: hers none, Botan in the Lab nameless with his room's card (the seal the undo put back, lifted again), Kenta in the Hall nameless; Hana's name in any card to them] - a builder who was not there is named");
+        equal(J(read?.cards2), J([[[], ["there wallBreached"], ["here wallBreached"]], false]),
+            "[the cards of a secret breach finished with Hana in the Yard: hers none, Botan in the Lab nameless and no second bedroom card (privacy line 1: he stood in it), Kenta in the Hall nameless; Hana's name in any card to them] - a builder who was not there is named");
         equal(J(read?.sealedAgain), J([true, "roomSealed"]), "[the Lab still forced, Kenta into it after a new seal] - a breach unseals a seal set after it");
         equal(J(read?.nextUndone), J({ ...shut, sealed: false, move: "doorLocked" }), "[the Lab after the undo in the next time of day] - a seal put back into a time of day it was not lifted in");
         equal(J(read?.reset), J([true, false, [null, null]]), "[the Lab forced again, after the reset, its pieces] - the reset leaves a room forced");
@@ -69387,6 +72484,80 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[a player's own mend: the verdict, the crowbar broken after it; a mend of wear alone: the verdict, the wear after it] - a player's console mends its own item");
         equal(J(handed), J([true, true]), "[the broken tool rifled from Hana's stash, broken on the other sheet] - a hand-over mends an item");
     }],
+    ["PV - a finished Secret Passage's finder away from its room is told on their next entry to it, one standing there at once, and the card names the project (the owner's rule #3, 13.11.2026)", async () => {
+        /*
+         * PV (privacy line 3; docs/dev/pv/SPEC.md, P2). A finder by Observe was whispered "is finished" at the completion
+         * wherever they stood (projects.mjs `opensPassage`), which told them, away from the room, that somebody had just
+         * worked there. Now the primary tells at once a finder with a character in the room, and holds every other finder's
+         * card in the GMs' `foundDoneStore` until one of their characters stands there (fog.mjs `reactToMove` asks
+         * projects-seen.mjs `tellFoundOnEntry`). On a scene of the suite's own - a Dorm and a Gym - with two students of its
+         * own, played by two of the suite's players, in a GM store world of the suite's own (`withGmStoreWorld`). The token's
+         * move is a real update, through the hooks the primary hears. Red on af9792c5: projects-seen.mjs did not exist.
+         */
+        const SEEN = await import("./projects-seen.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const J = v => JSON.stringify(v);
+        const cast2 = cast(2);
+        needs(world.atLeast("livingStudents", 2), "two players of the suite's own play the two finders");
+        for (const s of cast2) needs(world.ownedByPlayer(s), "each of the two is a player's, and the suite's players own the cast");
+        const [nearUser, farUser] = cast2.map(s => ownerOf(s));
+        must(nearUser && farUser && nearUser.id !== farUser.id, "the two students are not two players' - one would be told for both");
+        const DORM = "SUITE PV Dorm", GYM = "SUITE PV Gym", ID = "SUITEPVpassage", NAME = "SUITE PV Secret Passage";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        let scene = null, read = null;
+        const actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        try {
+            scene = await Scene.create({ name: "SUITE PV a finder away", width: 1400, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(GYM, 600)]);
+            read = await E.withGmStoreWorld(`suite-pv-${foundry.utils.randomID(8)}`, async () => {
+                const make = async (name, user) => {
+                    const actor = await Actor.create({ name: `SUITE PV ${name}`, type: "character", ownership: { default: 0, [user.id]: OWNER } });
+                    actors.push(actor);
+                    return actor;
+                };
+                const near = await make("Near", nearUser), far = await make("Far", farUser);
+                const [, farToken] = await scene.createEmbeddedDocuments("Token", [
+                    { actorId: near.id, actorLink: true, name: near.name, x: 200, y: 200, width: 1, height: 1 },
+                    { actorId: far.id, actorLink: true, name: far.name, x: 800, y: 200, width: 1, height: 1 }]);
+                await settle();
+                const cards = from => posted.slice(from).map(m => [m.whisper ?? [], String(contentOf(m) ?? "")]);
+                const toUser = (list, user) => list.some(([to, html]) => to.includes(user.id) && html.includes(NAME));
+                const out = {};
+                const atDone = posted.length;
+                const done = await SEEN.holdFoundDone(ID, NAME, [nearUser.id, farUser.id], { room: DORM, sceneId: scene.id });
+                await settle();
+                out.done = [J(done.told) === J([nearUser.id]), J(done.held) === J([farUser.id]), toUser(cards(atDone), nearUser), toUser(cards(atDone), farUser),
+                    S.foundDoneStore.has(`${farUser.id}:${ID}`), S.foundDoneStore.has(`${nearUser.id}:${ID}`)];
+                // Another room is no entry to this one.
+                const atGym = posted.length;
+                out.gym = [await SEEN.tellFoundOnEntry(far, scene.id, GYM), toUser(cards(atGym), farUser), S.foundDoneStore.has(`${farUser.id}:${ID}`)];
+                // The far student walks into the Dorm: the primary's move posts the card and drops the row.
+                const atEntry = posted.length;
+                await farToken.update({ x: 300, y: 300 });
+                await settle();
+                for (let i = 0; i < 40 && S.foundDoneStore.has(`${farUser.id}:${ID}`); i++) await new Promise(r => setTimeout(r, 25));
+                out.entry = [toUser(cards(atEntry), farUser), toUser(cards(atEntry), nearUser), S.foundDoneStore.has(`${farUser.id}:${ID}`)];
+                return out;
+            });
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await settle();
+        }
+        equal(J(read?.done), J([true, true, true, false, true, false]),
+            "[told: the near finder; held: the far one; the near one's card; the far one's card; the far one's row; a row for the near one] - a finder away is told at once, or one standing there is not");
+        equal(J(read?.gym), J([0, false, true]), "[cards posted for the far finder's student in the Gym; its card; its row kept] - another room counts as the entry");
+        equal(J(read?.entry), J([true, false, false]), "[the far finder's card at the entry; a second card to the near one; the row after] - the entry does not tell, or tells twice");
+    }],
     ["E15-T16 - a Secret Passage stays the builder's side's secret: a player its Observe finder lets in is a finder too, told it is finished and given no passage; it is never made public - not by the edit window, whose Secret box is held ticked, nor by a reveal of any road - and a project made public some other way gives the passage to no viewer", async () => {
         /*
          * E15 part 2 fix e1-G1 (25.10.2026; findings SEC-1, SEC-2, END-04, R2; the stage's E15-41 "always secret" and
@@ -69478,7 +72649,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const cards = posted.slice(before).map(m => [m.whisper ?? [], String(contentOf(m) ?? "")]);
                 const toUser = (user, key, data) => cards.some(([to, html]) => to.includes(user.id) && html.includes(game.i18n.format(key, data).split("{")[0].slice(0, 24)));
                 out.found = [Boolean(pid), cell(pid, hana), cell(pid, botan), cell(pid, kenta), P.passageCopyFor(friend).value?.[pid] ?? null,
-                    toUser(friend, "DRPG.Observe.projectFoundDone", { name: "" }), toUser(friend, "DRPG.Passage.card.passageBuiltShared", {})];
+                    toUser(friend, "DRPG.Observe.projectFoundDone", { name: "" }), toUser(friend, "DRPG.Passage.card.passageBuiltShared", {}),
+                    // PV (13.11.2026; the owner's rule #3): neither finder stands in the Dorm, so each card waits for their entry.
+                    [friend, finder].map(u => S.foundDoneStore.has(`${u.id}:${found}`))];
                 await new Promise(r => setTimeout(r, 5));
                 const undone = await PR.applyProjectChange(found, { delta: -1 }, { by: { kind: "reroll", actorId: hana.id } });
                 await settle();
@@ -69540,8 +72713,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(J(read?.share), J([0, true, [finder.id, friend.id].sort()]),
             "[refusals told the finder, Botan's player let in, the project's finders] - the player a finder lets in is no finder");
-        equal(J(read?.found), J([true, "built", null, null, null, true, false]),
-            "[the passage made; Hana's, Botan's, Kenta's ways of knowing it; Botan's player's copy; that player told the project is finished, told of a passage] - a finder's share gives the passage away");
+        equal(J(read?.found), J([true, "built", null, null, null, false, false, [true, true]]),
+            "[the passage made; Hana's, Botan's, Kenta's ways of knowing it; Botan's player's copy; that player told the project is finished at once, told of a passage; Botan's and Kenta's players' cards held for their entry (PV)] - a finder's share gives the passage away, or a finder away from the room is told at once");
         equal(J(read?.mastermind), J([true, true, true, true, false]),
             "[the Mastermind's player's copy names Ume under the built passage, its door part moved by the completion; the Reroll's undo, the door part moved again, the passage in that copy] - the Mastermind's copy is not pushed with the passage, or keeps it after the undo");
         equal(J(read?.reveal), J([null, "it is always secret", true, true]),
@@ -72776,16 +75949,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a Gear arriving unseen put down the knife the victim held, readied another piece, or told them ([arrived, the knife held, the old Tool held, the planted Tool held, [packets, cards, redraws]])");
     }],
 
-    ["a stash rifled unseen does not redraw its owner's sheet, for a whole item or a piece of a stack; a clumsy hand's does (E35-T8, S08-34)", async () => {
+    ["a stash rifled unseen does not redraw its owner's sheet, for a whole item, a piece of a stack or a call that still says clumsy (E35-T8, S08-34; 1.2.112)", async () => {
         /*
          * E35 C3, 24.10.2026; audit S08-34, E35-17. The harm: somebody helping themselves from a stash is not
          * announced (the player handbook), but vault.mjs `stealFromVault` deleted the item with a bare `delete()`, so
          * an owner with their sheet open watched it leave the stash - where a Palm's unseen steal deletes with
          * `render: false`. Two students alone together, a stash of the first's in their room and the second's hands
          * free; a Tool rifled, a stack of two kits rifled (one piece: the count's write), and a Tool rifled by a
-         * clumsy hand (the Search's Despair, whose owner is told), each by a GM's own call. Read, per rifle: whether
-         * each write of the owner's items redraws their sheet, and the pieces that arrived. Red at 97437b3 (C2): the
-         * unseen rifles redrew it.
+         * clumsy hand, each by a GM's own call. Read, per rifle: whether each write of the owner's items redraws their
+         * sheet, and the pieces that arrived. Red at 97437b3 (C2): the unseen rifles redrew it. Until 1.2.112 the clumsy
+         * hand (a Search's Despair, whose owner was told at once) redrew it; a Search reaches into no stash now, every
+         * reach is unseen and its owner hears of it on walking in, so `clumsy` is a word `stealFromVault` no longer reads.
          */
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose mark the rifle reads - this would measure nothing");
@@ -72824,8 +75998,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ whole: [["delete:quiet"], 1], piece: [["update:quiet"], 1], clumsy: [["delete:redraws"], 1] }),
-            "an unseen rifle redrew its owner's sheet, a clumsy one did not, or nothing arrived (per rifle: each write of the owner's items and whether it redraws; the thief's pieces)");
+        equal(stableJson(read), stableJson({ whole: [["delete:quiet"], 1], piece: [["update:quiet"], 1], clumsy: [["delete:quiet"], 1] }),
+            "a rifle redrew its owner's sheet, or nothing arrived (per rifle: each write of the owner's items and whether it redraws; the thief's pieces)");
     }],
 
     ["each owner change's refusal and result reach its asker in its own words: into full hands and no stash a hand-over, a body's loot, a stash rifled, a Palm's steal and a Plant each leave the item where it was, and the asker reads its mode's line; with a stash of the taker's the loot, the rifle and the steal land in it, the taker reading where it went, and the hand-over and the Plant are refused as before (E35-T10, D42)", async () => {
@@ -73219,7 +76393,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["the body's loot window opens and shuts its Take again as the taker walks out of and into the body's room and as the Class Trial begins and ends, with no new draw (E14-06, S11-06)", async () => {
         /*
          * E14 fix e1-G6, 24.10.2026; the review's E14R-07 (goal). C1 greyed a Take the one gate refuses when the sheet was
-         * drawn (anonymity.mjs `buildBodyLoot`), and read it never again: a viewer who walked into the body's room with
+         * drawn (anonymity.mjs `buildBodyLoot`; since 1.2.113 Take from the Body's window, `openBodyLoot`), and read it never again: a viewer who walked into the body's room with
          * the sheet open found the Take still shut "not where it needs to be", and one whose Class Trial began found it
          * open, until the sheet was opened again. Two students alone together, the second dead on a published death (its
          * things kept), a Tool on the body; its loot window drawn once for the first into the page; then the first's token
@@ -73228,7 +76402,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         needs(world.atLeast("namedRooms", 3), "a room for the two and another to walk the first to");
         needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
-        const A = await import("./anonymity.mjs");
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
         const Mv = await import("./movement.mjs");
         const INV = await import("./inventory.mjs");
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
@@ -73241,18 +76415,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const NAME = "SUITE E14 fix e1-G6 a body's crowbar";
         const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
         const read = {};
-        let root = null, back = null;
+        let win = null, back = null;
         try {
             back = await handFreeFor(taker, "tool");
             await whileDead(body, async () => {
                 const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
                 await sheetAuditIdle();
                 must(item, "the body's Tool was not made - this would measure nothing");
-                root = document.createElement("div");
-                root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
-                document.body.append(root);
-                await A.buildBodyLoot(root, body, taker);
-                const take = () => { const b = root.querySelector(".drpg-loot-take"); return b ? [b.disabled, b.dataset.tooltip ?? ""] : null; };
+                // Take from the Body's window since 1.2.113 (`lootWindowFor`); the sheet's row Take until then.
+                win = await lootWindowFor(body, taker);
+                const take = () => (win ? win.take() : null);
                 const after = async change => { await change(); await settle(); await wait(200); return take(); };
                 read.drawn = take();
                 read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE));
@@ -73262,7 +76434,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
             });
         } finally {
-            root?.remove();
+            await win?.close();
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
             for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
             if (back) await back();
@@ -73271,7 +76443,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         const open = [false, game.i18n.localize("DRPG.Loot.takeTooltip")], why = code => [true, game.i18n.localize(`DRPG.Bridge.why.${code}`)];
         equal(stableJson(read), stableJson({ drawn: open, away: why("notThere"), back: open, trial: why("cannotNow"), over: open }),
-            "the body's open loot window did not read the gate again ([disabled, tooltip] of the Take: as drawn beside the body, after the taker walked "
+            "Take from the Body's open window did not read the gate again ([disabled, tooltip] of the Take: as drawn beside the body, after the taker walked "
             + "to another room, back, the Class Trial begun, ended)");
     }],
 
@@ -73385,7 +76557,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * dead spectator. Two students and a third, the first and the second alone together; the second a body (a
          * published death, then one the GMs keep), a Tool of its put on it, looted by the first through `lootBody` as the
          * bridge's run calls it (`askedBy`: a player's id, or none for a GM). Read: "taken", or the code of the refusal.
-         * Then the loot window (anonymity.mjs `buildBodyLoot`, drawn for the first) on a body in the room and on one in
+         * Then the loot window (anonymity.mjs `buildBodyLoot`, drawn for the first; since 1.2.113 Take from the Body's window, `lootWindowFor`) on a body in the room and on one in
          * another: whether its Take is pressable, and the words on it. Red at 7f002130 (measured on a copy of this tree with
          * the commit's scripts put back): every case reads "taken" but three - a living body and an unknown death read null
          * (told as "refused"), the body itself "refused" - and `buildBodyLoot` is not exported ([null, null]).
@@ -73394,9 +76566,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
         needs(world.atLeast("studentTokensOnScreen", 3), "the taker, the body and a third, each a token on the scene on screen");
         needs(world.atLeast("namedRooms", 3), "a room for the two and another to stand the body in");
+        needs(env.dialogs(), "Take from the Body's window is drawn and its Take read");
         const INV = await import("./inventory.mjs");
         const H = await import("./handover.mjs");
-        const A = await import("./anonymity.mjs");
         const Mv = await import("./movement.mjs");
         const M = await import("./murder.mjs");
         const { reasonOf } = await import("./bridge-guards.mjs");
@@ -73426,14 +76598,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
             return out;
         };
+        // Take from the Body's window since 1.2.113 (`lootWindowFor`): its Take as [disabled, tooltip], the window closed again.
         const drawn = async () => {
-            const root = document.createElement("div");
-            root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
             const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
             await sheetAuditIdle();
-            await A.buildBodyLoot?.(root, body, taker);
-            const take = root.querySelector(".drpg-loot-take");
-            const row = take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+            const win = await lootWindowFor(body, taker);
+            const row = win ? win.take() : null;
+            await win?.close();
             if (item) await item.delete();
             return row;
         };
@@ -73922,16 +77093,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[the count of a stack of three a player's use wrote to 2, the tool a player's use wrote broken], [the tools held ready after a GM's grant "
             + "of a second, whether the GM was warned the body's hands are still]]");
     }],
-    ["a stash is rifled once a time of day per thief, stash and owner: the second reach is told alreadyDone and takes nothing, another stash in the room or a new time of day opens again, a Search's find and its roll are not counted, a claimed Search with no roll is refused, the Mastermind is counted too, and the stamp is the GMs' (E14-T5, S08-06, D15)", async () => {
+    ["a stash is rifled once a time of day per thief, stash and owner: the second reach is told alreadyDone and takes nothing, another stash in the room or a new time of day opens again, a packet or a call claiming a Search is counted as any reach (1.2.112), the Mastermind is counted too, and the stamp is the GMs' (E14-T5, S08-06, D15)", async () => {
         /*
          * E14 part 1 C4, 24.10.2026; E14-14, D15 ("jeden rifle na postac na skrytke na pore dnia"). The harm: a player
          * standing at an open stash clicked Rifle three times and carried the whole stash off, free, and nobody was told
          * (S08-06); the "Take one thing" on the window promised a limit nothing kept. A connected player's character in a
          * named room, two other characters each with a stash there (the second's concealed later) and two or three things
          * in each. Judged as the bridge judges that player's `vault.steal` packets: a first reach into the first stash; a
-         * second; a reach into the second stash; a packet saying a Search paid for it and naming no roll (the bridge's
-         * `rolled` row, mutant r1); a Search's find as the GM serves it (`viaSearch`, read off the GMs' record by
-         * `searchTheftOf` on the bridge); the first stash again once its stamp names another time of day; the second
+         * second; a reach into the second stash; a packet saying a Search paid for it and naming no roll, and the same
+         * served on the GM (`viaSearch`) - since 1.2.112 neither is a road of its own: a Search reaches into no stash, the
+         * field is no packet's, and each is the second reach it is (until then the bridge's `rolled` row refused the
+         * first, mutant r1, and the second took the thing without asking the count); the first stash again once its stamp names another time of day; the second
          * stash, concealed, with the thief made the Mastermind (who may open it unfound, and is counted all the same).
          * Read: each reach's code (null: no refusal) and whether the thing is still in the stash, the stamps' store
          * (its reset group, synced, the thief's rows) and the time-of-day mark of a clock against its neighbours. Red at
@@ -74017,13 +77189,107 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await sheetAuditIdle();
             await settle();
         }
-        equal(stableJson(read), stableJson({ first: [null, false], again: ["alreadyDone", true], other: [null, false], claimed: ["rollUnknown", true],
-            search: [false, true], later: [null, false], mastermind: ["alreadyDone", true], store: ["stashesFound", true, 2],
+        equal(stableJson(read), stableJson({ first: [null, false], again: ["alreadyDone", true], other: [null, false], claimed: ["alreadyDone", true],
+            search: [true, true], later: [null, false], mastermind: ["alreadyDone", true], store: ["stashesFound", true, 2],
             mark: [true, true, true, true, true, true] }),
             "a stash was rifled more than once a time of day, or not again once that passed ([code, still stashed] per reach: the first, a second of "
-            + "that stash, another stash, a Search claimed with no roll, a Search's find [still stashed, the stamps untouched], a new time of day, "
+            + "that stash, another stash, a Search claimed with no roll, a Search claimed on the GM [still stashed, the stamps untouched], a new time of day, "
             + "the Mastermind at the concealed second stash; the store's [reset group, synced, the thief's rows]; the mark [the phase not in it, "
             + "then each of season, chapter, session, day, time of day in it])");
+    }],
+
+    ["a stash gone through while its owner was away is told to the owner once, when they next enter that room; one gone through before their eyes never is", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: the owner of a stash is told "somebody has been in your stash" - never
+         * who, never when - not as it happens but when they next walk into the room where it was gone through, and never
+         * for a reach made while they stood in that room. Until 1.2.112 the owner was told only of a Search that took a
+         * thing out with Despair, at once, and a rifle was never told. The GMs keep the pending notice on the reach's row
+         * (gm-stores.mjs `rifleStore`, `unseen`); the crossing the primary hears (traps.mjs `onCrossed`, also relayed from
+         * a player's browser) delivers it (stash-reach.mjs `tellStashDisturbed`). Two students stood alone together in a
+         * room where a third keeps an open stash of three things, the owner elsewhere: both reach into it (stash-reach.mjs
+         * `stealFromVault`, as the GM serves a reach); the owner's crossing into that room, twice; then the owner stood in
+         * the room, the first thief's count forgotten and a third reach made before the owner's eyes, and the owner's
+         * crossing into it again. Read: the notices to the owner (a "stolen" whisper, `DRPG.Vault.noticed`) after the two
+         * reaches, after each crossing, after the reach in their presence and after the crossing that follows. Until
+         * 1.2.112: none, anywhere.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two thieves and the owner stand by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the thieves");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { rifleStore } = await import("./gm-stores.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const [owner, first, second] = cast(4).filter(onScreen);
+        must(owner && first && second, "three students on the scene on screen - this would measure nothing");
+        const together = await aloneTogether(first, second);
+        const room = together.room;
+        const region = V.regionsByName(canvas.scene).get(room);
+        const ownerToken = canvas.scene.tokens.find(t => t.actorId === owner.id);
+        const ownerWas = { x: ownerToken.x, y: ownerToken.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const NAME = "SUITE 1.2.112 disturbed";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const notices = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+        const backs = [];
+        const read = [];
+        try {
+            must(region, `${room} has no region to hold a stash`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            const things = [];
+            for (const n of [1, 2, 3]) {
+                things.push(await INV.grantItem(owner, { name: `${NAME} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } }));
+            }
+            await settle();
+            must(V.stashItemsIn(owner, room, canvas.scene).length === 3, "the three things are not in the stash - this would measure nothing");
+            for (const thief of [first, second]) backs.push(await handFreeFor(thief, "usable"));
+            await forgetRifles(first);
+            await forgetRifles(second);
+            const cross = async () => {
+                Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: room, tokenDoc: ownerToken });
+                await settle();
+                await until(() => false, 400);
+                await settle();
+            };
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[0].id });
+            await V.stealFromVault({ thiefId: second.id, ownerId: owner.id, itemId: things[1].id });
+            await settle();
+            read.push(["away", V.stashItemsIn(owner, room, canvas.scene).length, notices()]);
+            await cross();
+            read.push(["entered", notices()]);
+            await cross();
+            read.push(["again", notices()]);
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await settle();
+            await forgetRifles(first);
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[2].id });
+            await settle();
+            read.push(["present", V.stashItemsIn(owner, room, canvas.scene).length, notices()]);
+            await cross();
+            read.push(["after", notices()]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            for (const back of backs.reverse()) await back();
+            await forgetRifles(first);
+            await forgetRifles(second);
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            await together.back();
+        }
+        equal(stableJson(read), stableJson([["away", 1, 0], ["entered", 1], ["again", 1], ["present", 0, 1], ["after", 1]]),
+            "the owner was told of a reach as it happened, not told when they entered, told twice for two reaches or two entries, "
+            + "or told of a reach made before their eyes ([after the two reaches: things left, notices], [after the entry: notices], "
+            + "[after a second entry], [after a reach in their presence: things left, notices], [after their next entry])");
     }],
 
     ["the rifle's own refusals are told: a thing its owner took out, one in a stash of another room, a stash of nobody's here and a hidden one not found each read 'missing', alike, and a thief standing in no room 'notThere'; a second reach in a time of day is told in its own words why (E14-T5, S08-20, S08-06)", async () => {
@@ -74271,6 +77537,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const gave = await gmGiveItemDialog(actor);
             answer();
             await settle();
+            await until(() => game.messages.contents.some(m => !messages.has(m.id) && String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(NAME))));
             const given = actor.items.find(i => !had.has(i.id) && i.id !== found?.id && i.name === NAME);
             const receipt = game.messages.contents.filter(m => !messages.has(m.id)).map(m => String(contentOf(m) ?? ""))
                 .find(text => text.includes(foundry.utils.escapeHTML(NAME))) ?? "";
@@ -74498,7 +77765,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             const tool = await INV.grantItem(killer, { name: "SUITE E14-T7 a stowed tool", category: "tool", tier: 1, override: true, quiet: true });
             await sheetAuditIdle();
-            must(tool && knife && INV.isStashed(killer.items.get(knife.id)) && U.stowedInGroup(killer, "gear").length === 1 && !U.readiedItem(killer),
+            must(tool && knife && INV.isStashed(killer.items.get(knife.id)) && U.stowedInGroup(killer, "gear").length === 1 && U.readiedItems(killer).length === 0,
                 `${killer.name} does not hold one stowed Tool and an empty hand, the knife stashed - this would measure nothing`);
             const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true });
             await settle();
@@ -76203,6 +79470,146 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "stood, bar, done cards, the trap's arming; every crossing: project, way, kind, character]");
     }],
 
+    // E40 item 4, slice D: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["a deferred assembly is held on its own scene, not the one on screen, and an order whose room is gone is cleared and said (E40 item 4: R83's rule, driven; was R83)", async () => {
+        /*
+         * E40 item 4 (slice D), 13.11.2026; CALL-18 (20.09). R83 (tier 0) read call-world.mjs as text: `sceneId: scene.id`
+         * in `scheduleGather`, `game.scenes.get(order.sceneId)` and `gatherEveryone(order.room, scene)` in
+         * `runPendingGather`, `gatherEveryone`'s `onScene` parameter and its `[...scene.tokens]`. It passed a mutant that
+         * kept each of those texts and read the camera after all (`gatherEveryone` taking `canvas.scene` before its
+         * `onScene`), and one whose order stored `scene.id && canvas.scene?.id`. Here the rule is driven: a scene of the
+         * suite's own, not on screen, holds a room the scene on screen has not and one student's token; the assembly is
+         * called there (`scheduleGather` with that scene), the order made ripe (another time of day, the rest as written),
+         * and `runPendingGather` run. Then an order for a room that scene does not hold. Read: the order's scene, what
+         * the run answered, the order cleared, where the token stands, and the refusal told. The harness's regions have
+         * no `teleportTokens`, so the run takes call-world.mjs `fallbackGather` (R99's road) on the order's scene.
+         */
+        const CE = await import("./call-effects.mjs");
+        const R = await import("./rooms.mjs");
+        const [student] = cast(1);
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE E40 R83 a room of another scene", GONE = "SUITE E40 R83 a room that is not there";
+        must(home, "no scene is on screen - the camera could not be told from the order's scene, and this would measure nothing");
+        must(!CE.pendingGather(), "an assembly is already pending - its order would be read as this test's");
+        must(!R.roomRegions(home, ROOM).length, `the scene on screen holds "${ROOM}" - this would measure nothing`);
+        const warn = ui.notifications.warn, told = [];
+        let away = null, read = null;
+        try {
+            away = await Scene.create({ name: "SUITE E40 R83 another scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await away.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [token] = await away.createEmbeddedDocuments("Token", [{ actorId: student.id, name: student.name, x: 1800, y: 800 }]);
+            must(token, "the student's token could not be put on the suite's scene - this would measure nothing");
+            await settle();
+            must(canvas?.scene === home, "the camera moved to the suite's scene - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return null; };
+            const record = await CE.scheduleGather(ROOM, "Suite", { scene: away });
+            await settle();
+            const ripe = order => game.settings.set(MODULE_ID, SETTINGS.pendingGather, { ...order, timeOfDay: `${order.timeOfDay} (suite: an earlier time of day)` });
+            await ripe(CE.pendingGather());
+            const held = await CE.runPendingGather();
+            await settle();
+            const placed = away.tokens.get(token.id);
+            const moved = [placed?.x, placed?.y].join(",") !== "1800,800";
+            await ripe({ ...record, room: GONE });
+            const gone = await CE.runPendingGather();
+            await settle();
+            read = [record?.sceneId === away.id, held, moved, gone, Boolean(CE.pendingGather()),
+                told.filter(text => text === game.i18n.format("DRPG.Calls.gatherRoomGone", { room: GONE })).length];
+        } finally {
+            ui.notifications.warn = warn;
+            if (CE.pendingGather()) await CE.cancelGather();
+            await away?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, { room: ROOM, moved: 1 }, true, null, false, 1]),
+            "[the order names the scene it was called on; what the ripe run answered; the student's token moved on that scene; what the run answered "
+            + "for a room that scene does not hold; an order still pending; how often the room's going was told]");
+    }],
+
+    ["the Legacy sheet's factor is the slider alone, published on both roots, and 1 under the glass, beside the other two factors (E40 item 4: R62's rule, driven; was R62)", async () => {
+        /*
+         * E40 item 4 (slice D), 13.11.2026; W-2 (Dawid 19.09). R62 (tier 0) read settings.mjs `applyTheme` as text: the
+         * two `setProperty("--drpg-legacy-scale"` writes, `theme === "stainedGlass" ? 1 : sliderScale()`, no `typeScale`
+         * on the factor's line, and the two other tokens named. It passed a mutant that kept each text and published the
+         * slider times the screen term after all (`... && effectiveScale()`). Here applyTheme is driven, through the two
+         * client settings that call it (the theme, the slider at 120 %), in both themes; read off both roots: the Legacy
+         * factor against the slider alone (`sliderScale`) and 1 under the glass, and the geometry and type factors
+         * (`effectiveScale`, `typeScale`) on both roots, as published. The sheets' half of R62 (no sheet drawn at one
+         * size reads the type factor) stays in tier 0 as text. The two settings are this browser's, put back after.
+         */
+        const S = await import("./settings.mjs");
+        const was = { theme: getSetting(SETTINGS.theme), scale: getSetting(SETTINGS.uiScale) };
+        const roots = token => [document.body.style.getPropertyValue(token), document.documentElement.style.getPropertyValue(token)];
+        const read = {}, want = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, 1.2);
+            for (const theme of ["monokumaLegacy", "stainedGlass"]) {
+                await game.settings.set(MODULE_ID, SETTINGS.theme, theme);
+                S.applyTheme();
+                read[theme] = { legacy: roots("--drpg-legacy-scale"), ui: roots("--drpg-ui-scale"), type: roots("--drpg-type-scale") };
+                const legacy = String(theme === "stainedGlass" ? 1 : S.sliderScale());
+                want[theme] = { legacy: [legacy, legacy], ui: Array(2).fill(String(S.effectiveScale())), type: Array(2).fill(String(S.typeScale())) };
+            }
+            read.measures = [S.sliderScale(), S.sliderScale() !== S.effectiveScale() || S.sliderScale() !== S.typeScale()];
+            want.measures = [1.2, true];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.theme, was.theme);
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, was.scale ?? 1);
+            S.applyTheme();
+        }
+        equal(stableJson(read), stableJson(want),
+            "per theme, the three factors on [body, html]: the Legacy factor is not the slider alone under Monokuma Legacy or not 1 under the glass, "
+            + "or a factor is missing from a root; measures: [the slider, the slider differs from a screen-term factor here]");
+    }],
+
+    ["a window under the glass arrives by its contents' fade, never its own: the window grows with no opacity of its own and each child fades in (E40 item 4: R95's rule, driven; was R95)", async () => {
+        /*
+         * E40 item 4 (slice D), 13.11.2026; Dawid, 21.09 ("the blur behind the window appears with a visible delay"):
+         * an ancestor with opacity below 1 is a Backdrop Root, so a window that faded itself in drew its glass sharp
+         * until the last frame. R95 (tier 0) read motion.mjs `animateWindowIn` as text: no `opacity` between `play(el,`
+         * and `ARRIVE())` in its glass branch, and a loop over `el.children` fading each. It passed a mutant that kept
+         * that text and faded the window through a second `play` after the loop. Here a window is opened under the
+         * Stained Glass theme with the browser's `Element.prototype.animate` recorded for the render (jsdom has none of
+         * its own: `play` would draw nothing), and the entrance read: the keyframes asked of the window element and of
+         * each of its children. The theme is this browser's, put back after.
+         */
+        const M = await import("./motion.mjs");
+        const was = getSetting(SETTINGS.theme);
+        const proto = Element.prototype, own = Object.getOwnPropertyDescriptor(proto, "animate");
+        const asked = [];
+        let dialog = null, read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.theme, "stainedGlass");
+            await settle();
+            must(M.glassOn(), "the Stained Glass theme did not take - the glass branch would not run, and this would measure nothing");
+            must(M.ENTER() > 0, "the entrance takes no time here (no motion token read, or reduced motion) - nothing would be played, and this would measure nothing");
+            proto.animate = function (keyframes) { asked.push([this, keyframes]); return { finished: Promise.resolve(), cancel() {}, finish() {} }; };
+            dialog = new foundry.applications.api.DialogV2({ window: { title: "E40 R95 entrance" }, classes: ["drpg-panel", "drpg-window-e40-r95"],
+                content: "<p>R95</p>", buttons: [{ action: "ok", label: "OK" }] });
+            await dialog.render({ force: true });
+            const el = dialog.element;
+            must(el?.children?.length, "the window drew no element with children - this would measure nothing");
+            const fades = frames => (Array.isArray(frames) ? frames : []).some(frame => "opacity" in (frame ?? {}));
+            const onWindow = asked.filter(([node]) => node === el);
+            const children = [...el.children];
+            read = { window: [onWindow.length > 0, onWindow.some(([, frames]) => fades(frames))],
+                children: children.map(child => asked.some(([node, frames]) => node === child && fades(frames))) };
+            read.expected = { window: [true, false], children: children.map(() => true) };
+        } finally {
+            if (own) Object.defineProperty(proto, "animate", own);
+            else delete proto.animate;
+            await dialog?.close({ animate: false }).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.theme, was);
+            await settle();
+        }
+        const { expected, ...seen } = read;
+        equal(stableJson(seen), stableJson(expected),
+            "{window: [the window element was animated, a frame of its own carries an opacity]; children: [each child faded in]} - under the glass the window fades itself, or its contents do not fade");
+    }],
+
+
     ["who sees a project is judged in the step (E36-T7): a revoke held in the queue with a share behind it ends without the revoked player and with the shared one, two shares queued together both land, and a seal from a window that listed the viewers keeps a player shared since the window drew them", async () => {
         /*
          * E36 fix e1-G2, 25.10.2026; findings E36-END-S2, E36-R2, F4, audit S17-18. The four ownership writers of
@@ -76409,6 +79816,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const outcome = await P.applyProjectChange(thrower, { delta: 1 }).then(r => ({ changed: r?.changed ?? null, crossed: r?.crossed ?? null }),
                 err => ({ threw: String(err?.message ?? err) }));
             await settle();
+            await until(() => game.messages.some(m => !before.has(m.id) && String(contentOf(m)).includes("(SUITE E36 T9 apply)")));
             const told = game.messages.filter(m => !before.has(m.id) && String(contentOf(m)).includes("(SUITE E36 T9 apply)"));
             seen.apply = { outcome, bar: current(thrower), afterRan, told: told.length, toGms: told.every(m => (m.whisper ?? []).length > 0) };
 
@@ -76912,6 +80320,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             globalThis.__forceRoll = { hope: 3, fear: 2 };
             try { await performAction(actor, "project", { free: true }); } finally { forceBack(); }
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(actor.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(row?.actionKey === "project" && row?.by === game.user.id && message,
@@ -77193,6 +80602,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             let news = fresh();
             await P.applyProjectChange(trap, { delta: 1 });
             await settle();
+            await until(() => receipts(news).length > 0);
             const posted = receipts(news);
             const awaiting = game.i18n.localize("DRPG.Bridge.awaitingRuling");
             const firstReceipt = { count: posted.length, awaiting: posted.some(m => String(contentOf(m)).includes(awaiting)),
@@ -78440,6 +81850,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 let out;
                 try { out = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
                 await settle();
+                await until(() => game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? ""));
                 const message = game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? "");
                 return { since, out, total: message?.rolls?.[0]?.total ?? null };
             };
@@ -78524,6 +81935,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             let out;
             try { out = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
             await settle();
+            await until(() => game.messages.some(m => !since.has(m.id) && boxOf(m).querySelector('[data-drpg-call="createItem"]')));
             const cards = game.messages.filter(m => !since.has(m.id) && boxOf(m).querySelector('[data-drpg-call="createItem"]'));
             must(out?.success === true && cards.length === 1, `the Dynamic action did not succeed with one card - this would measure nothing: ${stableJson([out?.success, cards.length])}`);
             return cards[0];
@@ -79119,6 +82531,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             globalThis.__forceRoll = { hope: 3, fear: 2 };
             await performAction(actor, "project", { free: true });
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id)));
             const fresh = game.messages.filter(m => !seen.has(m.id));
             must(fresh.length, "the Work made no card at all - this would measure nothing");
             const told = fresh.filter(m => contentOf(m).includes(line));
@@ -79144,7 +82557,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[cards with the room's sentence, each reaching the witness's player and every GM, the project named]");
     }],
 
-    ["E16-T31 - a weapon a Search takes out of a stash leaves a Prep Remnant, and a thing that is no weapon leaves none (audit S02-18, the owner's Q6)", async () => {
+    ["E16-T31 - a Search beside an open stash takes nothing out of it, a weapon or not, and leaves no trace of a thing still in it (1.2.112; audit S02-18, the owner's Q6)", async () => {
         /*
          * E16 part 2 C4, 26.10.2026. The handbooks say taking a Murder Weapon or a Cleaning Tool leaves a Prep
          * Remnant, and a Search of the room's table does (`traceTheFind`); a Search that opened a stash
@@ -79154,6 +82567,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * crime tool, then a usable thing (the control, as the room's table leaves none for it). Read for each:
          * whether the thing came out of the stash, and the Prep Remnants the Search left in the room, as [type,
          * faint, subject]. Red before C4: the crime tool came out and left nothing.
+         *
+         * 1.2.112 (the owner's decision of 13.11.2026): a Search reaches into no stash - a stash is gone through by the
+         * free rifle, and taking a thing that way leaves no Remnant, as a hand-over leaves none. The same fixtures; both
+         * things stay in the stash, and no trace names either. Until 1.2.112 both came out, the knife with its trace.
          */
         needs(world.atLeast("studentTokensOnScreen"), "the searcher stands in a room by their token");
         needs(world.atLeast("livingStudents", 2), "a searcher and a student whose stash is searched");
@@ -79203,6 +82620,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const mine = remnantsOn(canvas.scene).filter(t => !traces.has(t.id) && remnantData(t)?.subject === label);
                 read.push([label, !V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === label),
                     mine.map(t => remnantData(t)).map(d => [d.type, d.faint === true, d.action ?? null])]);
+                // Since 1.2.112 the thing stays in the stash; taken off, so the next is alone in it again.
+                if (owner.items.has(thing.id)) await thing.delete();
+                await settle();
             }
         } finally {
             windows.restore();
@@ -79218,8 +82638,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await stood.back();
             await setClock({ phase });
         }
-        equal(stableJson(read), stableJson([["SUITE E16-T31 a knife", true, [["prep", true, "search"]]], ["SUITE E16-T31 an apple", true, []]]),
-            "a Search that took a weapon out of a stash left no Prep Remnant, or a thing that is no weapon left one "
+        equal(stableJson(read), stableJson([["SUITE E16-T31 a knife", false, []], ["SUITE E16-T31 an apple", false, []]]),
+            "a Search took a thing out of a stash, or left a trace naming one "
             + "[the thing, taken out of the stash, the traces it left as [type, faint, action]]");
     }],
 
@@ -81036,6 +84456,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ok(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
             const cleared = O.clearOverflowAsGm();
             await settle();
+            await until(() => queued.length > 0);
             const beforeA = O.overflowCount();
             for (const packet of queued.splice(0)) {
                 const replies = [];
@@ -81900,6 +85321,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             root.querySelector("[data-drpg-motive-withdraw]")?.click();
             await wired?.done?.();
             await settle();
+            await until(() => game.messages.filter(m => !chatWas.has(m.id)).some(m => String(m.content ?? "").includes(withdrawn)));
             const told = game.messages.filter(m => !chatWas.has(m.id)).some(m => String(m.content ?? "").includes(withdrawn));
             read = [shown, R.motive(), told];
         } finally {
@@ -83237,6 +86659,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const mark = new Set(game.messages.map(m => m.id));
             await M.takeCrisisAction(victim, "survive");
             await settle();
+            await until(() => game.messages.filter(m => !mark.has(m.id)).some(m => String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(CRISIS_ACTIONS.survive.label))));
             const label = foundry.utils.escapeHTML(CRISIS_ACTIONS.survive.label);
             const card = game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? "")).find(w => w.includes(label));
             const recent = M.murderState()?.recent ?? [];
@@ -84466,6 +87889,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             let outcome;
             try { outcome = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? ""));
             must(outcome?.success === false, `the first throw did not miss - this would measure nothing: ${stableJson(outcome)}`);
             const row = rerollBookmarkStore.get(actor.id);
             const message = game.messages.get(row?.messageId ?? "");
@@ -84838,6 +88262,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const mark = new Set(game.messages.map(m => m.id));
             await M.resolveCrisisAction({ actorId: killer.id, key, total: 20, isCritical, withHope: true });
             await settle();
+            await until(() => game.messages.some(m => !mark.has(m.id)));
             return game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? "")).join("\n");
         };
         await calm();
@@ -85853,7 +89278,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{gm: the rows of each summary popup the GM was shown at the move; hidden: the bystander's clock hidden for the incident; "
             + "bystander: the summary popups a bystander was shown at the next move}");
     }],
-    ["E37-T5 - every Search that ran tells (E37 C6, E37-25; audit S02-48): a trap armed for \"somebody searches\" a room fires once for a Search that takes a thing out of a stash there and once for a Search for something specific there, each telling `drpgActionResolved` with the ordinary Search's shape on this GM's road and set off by the relay a player's browser sends for that event; and the primary's search ledger keeps another spend's fresh entry when it prunes", async () => {
+    ["E37-T5 - every Search that ran tells (E37 C6, E37-25; audit S02-48): a trap armed for \"somebody searches\" a room fires once for a Search there beside somebody's stash (which, since 1.2.112, draws from the room) and once for a Search for something specific there, each telling `drpgActionResolved` with the ordinary Search's shape on this GM's road and set off by the relay a player's browser sends for that event; and the primary's search ledger keeps another spend's fresh entry when it prunes", async () => {
         /*
          * E37 C6, 01.11.2026; E37-25, audit S02-48. action-rolls.mjs `performSearch` told `drpgActionResolved` only on its
          * road through the room's table: a Search that opened somebody's stash (`searchStash`) and one for something
@@ -85962,7 +89387,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 }
             }
             delete actor.rollTrait;
-            read.stash = !V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === "SUITE E37-T5 an apple");
+            // Since 1.2.112 a Search draws from the room, so the apple stays in the stash.
+            read.stash = V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === "SUITE E37-T5 an apple");
 
             // The ledger's control: a second spend's prune keeps the first spend's fresh entry, so its token comes back.
             const spendAs = ST.SEARCH_ACTIONS["searchTokens.spend"];
@@ -86001,7 +89427,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stash: true
         }), "{roads: per Search [what was looked for, the events told as [actionKey, success, room], the trap fired]; relay: per event "
             + "relayed as the player's browser sends it, the trap fired; ledger: the first of two spends' token asked back, and each room's "
-            + "count after; stash: the apple came out of the stash}");
+            + "count after; stash: the apple is still in the stash}");
     }],
     ["E37-T6 - one road of Despair to Hope (E37 C6, E37-27; audit S09-38, Q-E37-5): `convertDespairToHope` of 3 from a pool that can spend 2 to a student 1 under the Hope maximum grants 1 and owes 1, and of 3 to a student at 0 grants the 1 the pool can still spend; from a pool of 0 it refuses with \"That pool has no Despair to give.\"; Fuel a Monocub's Hope comes on a veiled card naming the paying pool, as a conversion's does; and both are refused under the Despair darkening", async () => {
         /*
@@ -86137,6 +89563,109 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "fuel: Fuel a Monocub - [bought, Hope, its cards as above]; dark: under the Despair darkening - [a conversion granted, the Call "
             + "bought, its effect failed, Hope, owed]}");
     }],
+    ["a Despair Call's public card names no secret project and no Chained room (privacy line 2, #5; the owner's rule of 13.11.2026): Patronage on a secret project says 'a project' to the table with no name and no numbers, and its whole line goes veiled to the GMs and the project's insiders alone; Chained leaves the room to the target's own notice", async () => {
+        /*
+         * Privacy line 2 (#5), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. A Despair Call's card is public (calls.mjs `spendDespairCallFor`), and on the GM's
+         * browser that buys it a secret project's name is the secret one (projects-secrecy.mjs `shownName`): Game
+         * Integrity or Patronage on a secret project put its name and its progress in front of the table, and Chained put
+         * the target's room there. A Monokuma's pool of this GM's (or the first), a secret project created here with this
+         * suite's player in on it, and another connected player who is not; Patronage bought on it, then Chained on a
+         * student who stands in a room. Read: the public card (no whisper) - whether it holds the project's name, its
+         * progress as "n/target" or "+2", the public line, and Chained's room and target; the veiled cards - whether their words
+         * name the project and who besides the GMs they went to; the target's own notice - whether it names the room.
+         * Red at af9792c5: the public card names the project and its progress, no veiled card, and the room on the card.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool pays the Calls");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a player in on the project, as Foundry names only connected ones");
+        const D = await import("./despair.mjs");
+        const M = await import("./monokuma.mjs");
+        const P = await import("./projects.mjs");
+        const S = await import("./secret.mjs");
+        const GS = await import("./gm-stores.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { contentOf } = S;
+        const { roomOfActor } = await import("./movement.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const kuma = M.monokumaActors().find(a => M.poolUserFor(a)?.id === game.user.id) ?? M.monokumaActors().find(a => M.poolUserFor(a)) ?? null;
+        const donor = kuma ? M.poolUserFor(kuma) : null;
+        must(kuma && donor, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const outsider = game.users.find(u => !u.isGM && u.active && u.id !== player.id) ?? null;
+        must(outsider, "no second connected player who is not in on the project - this would measure nothing");
+        const room = roomOfActor(other);
+        must(typeof room === "string" && room.length >= 3, `${other.name} stands in no named room - this would measure nothing`);
+        const role = id => (id === player.id ? "insider" : id === outsider.id ? "outsider" : game.users.get(id)?.isGM ? "gm" : ownerIdsOf(other).includes(id) ? "target" : `other ${id}`);
+        const NAME = "Suite PV5 the quiet plan";
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const phase = getClock().phase ?? "dailyLife";
+        const despairWas = D.getDespair(donor.id);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const fresh = () => {
+            const out = { messages: made.slice(marks.made), packets: packets.slice(marks.packets) };
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const publicOf = messages => messages.filter(m => !(m.whisper?.length) && m.getFlag(MODULE_ID, "veiled") !== true).map(m => String(contentOf(m) ?? ""));
+        const veiledOf = ({ messages, packets: sent }) => messages.filter(m => m.getFlag(MODULE_ID, "veiled") === true).map(m => [
+            Boolean(S.secretHtml(m)?.includes(esc(NAME))),
+            [...new Set(sent.filter(p => p.id === m.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort()]);
+        let id = null;
+        const read = {};
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [player.id] }))?.id ?? null;
+            must(id && P.isSecret(id), "could not create a secret project - this would measure nothing");
+            await D.setDespair(donor.id, DESPAIR_CALLS.favoriteProject.cost + DESPAIR_CALLS.chained.cost);
+            await settle();
+            fresh();
+            const bought = Boolean(await spendDespairCallFor(kuma, "favoriteProject", { choice: { project: id } }));
+            await settle();
+            const now = P.allProjects().find(p => p.id === id);
+            const patronage = fresh();
+            read.patronage = { bought, progress: now?.current ?? null,
+                // Its numbers as the receipt says them: "n/target" for a bar a GM's write moved, "+2" for progress sent.
+                public: publicOf(patronage.messages).map(text => [text.includes(esc(NAME)),
+                    /\b\d+\/\d+\b/.test(text) || text.includes(`+${DESPAIR_CALLS.favoriteProject.progress}`),
+                    text.includes(esc(game.i18n.localize("DRPG.Calls.progressSecret")))]),
+                veiled: veiledOf(patronage) };
+            const chainedBought = Boolean(await spendDespairCallFor(kuma, "chained", { choice: { target: other } }));
+            await settle();
+            const chained = fresh();
+            const notice = chained.messages.filter(m => m.whisper?.length && m.getFlag(MODULE_ID, "veiled") !== true && ownerIdsOf(other).some(u => m.whisper.includes(u)));
+            read.chained = { bought: chainedBought,
+                public: publicOf(chained.messages).map(text => [text.includes(esc(room)), text.includes(esc(other.name))]),
+                notice: notice.map(m => String(contentOf(m) ?? "").includes(esc(room))) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            if (id && GS.projectWorkStore?.has?.(id)) await GS.projectWorkStore.drop(id);
+            await D.setDespair(donor.id, despairWas);
+            for (const m of made) await game.messages.get(m.id)?.delete().catch(() => {});
+            await setClock({ phase });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            patronage: { bought: true, progress: 2, public: [[false, false, true]], veiled: [[true, ["insider"]]] },
+            chained: { bought: true, public: [[false, true]], notice: [true] }
+        }), "{patronage: [bought, the project's progress, public cards: [names the project, says its n/target or +2, says 'a project'], veiled cards: [names the project, its readers besides the GMs]]; chained: [bought, public cards: [names the room, names the target], the target's notice names the room]}");
+    }],
+
     ["E37-T7 - Daggerheart's own whole writes of the countdowns wait in the projects' queue (E37 C6, E37-29; the deferred D100): a model of the system's `updateCountdowns` (read the setting, wait, write it whole), wrapped by projects-ui.mjs `wrapCountdownUpdate` and called while a project's step holds `COUNTDOWNS_KEY`, leaves the project's +1 standing; so do the tray menu's Delete and Reveal of a row that is no project", async () => {
         /*
          * E37 C6, 01.11.2026; E37-29, D100 ("Daggerheart's whole writes inside the key", deferred 31.10). Since E36 every
@@ -87232,6 +90761,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const seen = new Set(game.messages.map(m => m.id));
             const dropped = await C.openChapterEndDialog();
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && String(contentOf(m)).includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Chapter.dropped", { steps: listOf([L("faint")]) })))));
             const droppedText = foundry.utils.escapeHTML(game.i18n.format("DRPG.Chapter.dropped", { steps: listOf([L("faint")]) }));
             read.drop = [dropped ?? null, runs, record()?.stage ?? null, record()?.notRun ?? null,
                 game.messages.filter(m => !seen.has(m.id) && String(contentOf(m)).includes(droppedText)).length,
@@ -90648,6 +94178,63 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the student's flags unchanged], the link after the publication, what the revive left)");
     }],
 
+    ["1.2.113 no Spectator for an NPC - a dead student no player owns, killed at once and killed as the GMs keep a death then published, gets no Spectator: no actor and no token; the GMs' row keeps the kill's answer for the publication (spectator-dead.mjs `isNpcAtDeath`; the owner's decision of 13.11.2026)", async () => {
+        /*
+         * 1.2.113, the owner's decision of 13.11.2026: "a Spectator for an NPC must not exist". A character made here with
+         * no player among its owners (scenario 41's "S41 Ghost" is one), its token beside a cast student's on a place
+         * scene, killed at once and revived, then killed as the GMs keep a death, published and revived. Read: the actors
+         * and tokens the deaths made, and the kept row's `watcher` before the publication. Red at a2b233d2: each death
+         * made a Spectator (an actor and a token).
+         */
+        needs(env.primaryGm(), "the watcher is made by a GM, and the deaths' row read on the primary");
+        const [student] = cast(1);
+        const C = await import("./chapter.mjs");
+        const M = await import("./movement.mjs");
+        const S = await import("./gm-stores.mjs");
+        const at = M.locateActor(student) ?? null;
+        must(at?.tokenDoc && at.scene, `${student.name} has no token on a place scene - this would measure nothing`);
+        const actorsBefore = new Set(game.actors.map(a => a.id));
+        const tokenIds = () => new Set([...game.scenes].flatMap(sc => [...sc.tokens].map(t => t.id)));
+        let npc = null, npcToken = null, read = null;
+        try {
+            npc = await Actor.create({ name: "T2 NPC 1.2.113", type: "character", ownership: { default: 0 } });
+            [npcToken] = await at.scene.createEmbeddedDocuments("Token", [{ name: npc.name, actorId: npc.id, actorLink: true,
+                x: at.tokenDoc.x + 100, y: at.tokenDoc.y, width: 1, height: 1 }]);
+            await settle();
+            const tokensBefore = tokenIds();
+            const made = () => ({ actors: game.actors.filter(a => !actorsBefore.has(a.id) && a.id !== npc.id).map(a => a.name),
+                tokens: [...tokenIds()].filter(id => !tokensBefore.has(id)).length });
+            must(await C.killCharacter(npc, { secret: false, keepBullets: true, silent: true }), "the NPC's death was not recorded");
+            await settle();
+            const publicDeath = made();
+            await C.reviveCharacter(npc, { quiet: true, silent: true });
+            await settle();
+            must(await C.killCharacter(npc, { secret: true, keepBullets: true, silent: true }), "the NPC's death was not kept by the GMs");
+            await settle();
+            const kept = { ...made(), row: S.deathStore.get(npc.id)?.watcher ?? null };
+            await C.publishDeath(npc);
+            await settle();
+            read = { publicDeath, kept, published: made() };
+        } finally {
+            if (npc) {
+                await C.reviveCharacter(npc, { quiet: true, silent: true }).catch(() => {});
+                await settle();
+                for (const a of game.actors.filter(a => !actorsBefore.has(a.id))) {
+                    for (const sc of game.scenes) {
+                        const ids = [...sc.tokens].filter(t => t.actorId === a.id).map(t => t.id);
+                        if (ids.length) await sc.deleteEmbeddedDocuments("Token", ids).catch(() => {});
+                    }
+                    await a.delete().catch(() => {});
+                }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ publicDeath: { actors: [], tokens: 0 }, kept: { actors: [], tokens: 0, row: { npc: true } },
+            published: { actors: [], tokens: 0 } }),
+            "an NPC's deaths ([the actors and tokens a public death made], [a kept death's, its row's watcher], [the publication's])");
+        ok(Boolean(npcToken), "the NPC stood on the map");
+    }],
+
     ["E62 C3b the Monocub's token - a public death's Spectator token becomes the student's own Monocub token where it stands, the Spectator actor gone and the body's token kept; a Monocub no more gets a Spectator back on that token (E62 C3b, Q-C3b-7's default)", async () => {
         /*
          * E62 C3b, 13.11.2026. A cast student killed at once (`secret: false`, `silent`), its watcher's token moved off the
@@ -92532,13 +96119,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * (body-tile.mjs `bodyPlaceOf`), and anonymity.mjs `regreyOpenLoot` heard the taker's and the body's token and
          * the clock: a GM's write on the tile moved the gate and the open window kept the Take it had. The fixture of
          * the C1 tests (`withBodyTile`), the taker stood beside the tile, a loot window for the taker put on the page
-         * (anonymity.mjs `buildBodyLoot` into a root in the document, where `regreyOpenLoot` looks), and five writes on
+         * (anonymity.mjs `buildBodyLoot` into a root in the document, where `regreyOpenLoot` looks; since 1.2.113 Take from the Body's window, `lootWindowFor`), and five writes on
          * the tile by this GM. Read: whether the Take is greyed after each, waited for up to 2 s (the greying imports
          * and asks the gate after the hook). Red at E95 C2: no write on a tile re-read the gate, so the Take stayed open
          * after every one.
          */
         await withBodyTile(async ({ taker, body, tile, room, tileRoom, standTaker }) => {
-            const A = await import("./anonymity.mjs");
+            needs(env.dialogs(), "Take from the Body's window is drawn and read");
             const INV = await import("./inventory.mjs");
             const Mv = await import("./movement.mjs");
             const { sheetAuditIdle } = await import("./sheet-audit.mjs");
@@ -92546,18 +96133,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const bodyToken = canvas.scene.tokens.find(t => t.actorId === body.id);
             const spot = Mv.positionIn(room, bodyToken);
             must(spot, `no spot in ${room} to move the tile to - this would measure nothing`);
-            const root = document.createElement("div");
-            root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
-            document.body.append(root);
             const read = {};
-            let item = null;
+            let item = null, win = null;
             try {
                 await standTaker(tileRoom);
                 item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
                 await sheetAuditIdle();
                 must(item, "the item on the body was not made - this would measure nothing");
-                await A.buildBodyLoot(root, body, taker);
-                const take = root.querySelector(".drpg-loot-take");
+                // Take from the Body's window since 1.2.113 (`lootWindowFor`), where `regreyOpenLoot` looks.
+                win = await lootWindowFor(body, taker);
+                must(win, "Take from the Body's window was not drawn - this would measure nothing");
+                const take = win.el.querySelector(".drpg-loot-take");
                 must(take && !take.disabled, "the Take beside the tile is not open before the tile is written - this would measure nothing");
                 const after = async (write, shut) => {
                     await write();
@@ -92572,7 +96158,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 read.movedBack = await after(() => tile.update(back), false);
                 read.deleted = await after(() => tile.delete(), true);
             } finally {
-                root.remove();
+                await win?.close();
                 if (item && body.items.has(item.id)) await item.delete();
                 await sheetAuditIdle();
             }
@@ -92581,7 +96167,224 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         });
     }],
 
-    ["two body tiles of one death (E95 C3; risk 4, STATUS E95 Open 7): the loot gate reads the one laid first by its `at`, whichever was made first, both wear the caption, and a revive removes both", async () => {
+    ["A113-C5-7-T1 - Take from the Body opens an action window on the shared two-column layout (1.2.113; A113-C5-7, the owner's E68 decision of 10.11.2026: \"Q4 ... zastosowac to do wszystkich akcji\"): anonymity.mjs `openBodyLoot` draws action-menus.mjs `actionWindow` - the briefing (`drpg-briefing-block`, naming the body) in the left column and the body's things as ticked rows in the right, one checkbox an item - and the body's sheet lists what it carries with no Take of its own and one button that opens that window", async () => {
+        /*
+         * 1.2.113, 13.11.2026; A113-C5-7 (docs/dev/audit-113/FINDINGS.md, on the 1.2.113 audit's branch). E68 C12 put every action's
+         * window on one layout; Take from the Body stayed the sheet's Inventory list, a Take on each row and a Take for the
+         * ticked under it (v1.2.104.md:256 recorded it as a gap). Two students alone together, the second dead on a
+         * published death, two things of the module's on the body (a Tool and a Usable). Read: the window drawn for the
+         * first (`lootWindowFor`) - its classes, the briefing block in the left column and whether it names the body, the
+         * rows in the right (their kind, name and value, sorted), and the Take in its footer; then the body's sheet pane as
+         * `buildBodyLoot` draws it into a detached root - its rows, controls on them, and the button that opens the window,
+         * pressed (a Take from the Body window drawn, for whoever this browser plays). Red at ceb9e9c8: there is no
+         * `openBodyLoot` (`window` null), and the sheet's pane holds two row Takes, two ticks and Take the ticked.
+         */
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body are stood in one room by their tokens");
+        const A = await import("./anonymity.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [taker, body] = cast(2);
+        const fixture = await aloneTogether(taker, body);
+        const NAMES = ["SUITE A113-T1 a body's crowbar", "SUITE A113-T1 a body's plaster"];
+        const any = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.classes?.includes("drpg-loot-window"));
+        const read = {};
+        let win = null, back = null;
+        try {
+            back = await handFreeFor(taker, "tool");
+            await whileDead(body, async () => {
+                const made = [await INV.grantItem(body, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true }),
+                    await INV.grantItem(body, { name: NAMES[1], category: "usable", tier: 1, override: true, quiet: true })];
+                await sheetAuditIdle();
+                must(made.every(Boolean), "the body's two things were not made - this would measure nothing");
+                const ids = made.map(i => i.id).sort();
+                win = await lootWindowFor(body, taker);
+                if (win) {
+                    const el = win.el, left = el.querySelector(".drpg-variant-brief"), right = el.querySelector(".drpg-variant-ask");
+                    const ours = [...el.querySelectorAll('.drpg-loot-list input[name="item"]')].filter(box => ids.includes(box.value));
+                    read.window = {
+                        classes: ["drpg-action-window", "drpg-loot-window"].map(c => el.classList.contains(c)),
+                        brief: [Boolean(left?.querySelector(".drpg-briefing-block")), (left?.textContent ?? "").includes(body.name)],
+                        rows: ours.map(box => [box.type, box.closest("label.drpg-choice")?.querySelector("strong")?.textContent ?? null, box.value]).sort((a, b) => String(a[2]).localeCompare(String(b[2]))),
+                        inRight: ours.every(box => right?.contains(box)),
+                        take: Boolean(el.querySelector('footer .drpg-loot-take, .form-footer .drpg-loot-take'))
+                    };
+                    await win.close();
+                    win = null;
+                } else read.window = null;
+                const root = document.createElement("div");
+                root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+                A.buildBodyLoot(root, body);
+                const before = any().length;
+                const open = root.querySelectorAll(".drpg-loot-open");
+                open[0]?.click();
+                const opened = await until(() => any().length > before, 6000);
+                for (const app of any()) await app.close();
+                read.sheet = {
+                    rows: [...root.querySelectorAll(".drpg-loot-items li")].map(li => li.textContent.trim()).filter(t => NAMES.includes(t)).sort(),
+                    controls: root.querySelectorAll(".drpg-loot-items input, .drpg-loot-items button, .drpg-loot-take, .drpg-loot-pick, .drpg-loot-take-picked").length,
+                    open: open.length,
+                    opened
+                };
+                for (const i of body.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            });
+        } finally {
+            await win?.close();
+            for (const a of [taker, body]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const byId = Object.fromEntries((read.window?.rows ?? []).map(r => [r[2], r[1]]));
+        equal(stableJson({ ...read, window: read.window && { ...read.window, rows: read.window.rows.map(r => [r[0], r[1]]) } }), stableJson({
+            window: { classes: [true, true], brief: [true, true], rows: Object.keys(byId).length === 2 ? Object.keys(byId).sort().map(id => ["checkbox", byId[id]]) : [], inRight: true, take: true },
+            sheet: { rows: [...NAMES].sort(), controls: 0, open: 1, opened: true }
+        }), "[the window: action window and loot window; the briefing block on the left, naming the body; the body's two things as checkbox rows; "
+            + "every row in the right column; the Take in the footer] [the sheet's pane: its rows; controls on them or any Take; the button that opens "
+            + "the window; a window drawn when it is pressed]");
+        equal(Object.values(byId).sort().join("|"), [...NAMES].sort().join("|"), "the window's rows are not the body's two things");
+    }],
+
+    ["A113-C5-7-T2 - Take from the Body greys a refused row with its reason: every row and the Take with the gate's sentence while the taker stands in another room, and a row of its own with the full-hands sentence while the taker carries the most of its kind and has no stash; open again as each is put right (1.2.113; A113-C5-7; E14 part 1 C1, S11-06)", async () => {
+        /*
+         * 1.2.113, 13.11.2026; A113-C5-7. The sheet's row greyed its Take with the one gate's sentence (inventory.mjs
+         * `transferRefusal`, mode "loot"); the window keeps that and adds the carry limit (inventory.mjs `canCarry`), which
+         * the GM's `transferItem` refuses only where there is no stash to take the rest (TRANSFER_POLICY.loot "overflow").
+         * A taker with no stash and a body alone together, the body dead on a published death with a Tool on it. Read, in
+         * a window drawn for the taker (`lootWindowFor`) as each is set: the Tool's row [disabled, its line] and the Take
+         * [disabled, tooltip] - beside the body with a hand free; the taker walked to another room; back; then Tools put in
+         * the taker's hands until `canCarry` refuses one; and those taken off again. Red at ceb9e9c8: no `openBodyLoot`,
+         * every read null.
+         */
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
+        needs(world.atLeast("namedRooms", 2), "a room for the two and another to walk the taker to");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body are stood in one room by their tokens");
+        const INV = await import("./inventory.mjs");
+        const Mv = await import("./movement.mjs");
+        const { primaryStashRoom } = await import("./vault.mjs");
+        const { homeScene } = await import("./rooms.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const onScene = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const taker = onScene.find(a => !primaryStashRoom(a, Mv.locateActor(a)?.scene ?? homeScene()));
+        const body = onScene.find(a => a !== taker);
+        must(taker && body, "no student on the scene without a stash, or no second one - this would measure nothing");
+        const fixture = await aloneTogether(taker, body);
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id);
+        const elsewhere = Mv.allRooms(scene).find(r => r !== fixture.room);
+        must(takerToken && elsewhere, "the taker has no token on the scene on screen, or there is no other room - this would measure nothing");
+        const NAME = "SUITE A113-T2 a body's crowbar", FILL = "SUITE A113-T2 a tool in hand";
+        const read = {};
+        let back = null;
+        const look = async () => {
+            const win = await lootWindowFor(body, taker);
+            if (!win) return null;
+            const row = win.rows().find(r => body.items.get(r[0])?.name === NAME) ?? null;
+            const out = { row: row && [row[1], row[2]], take: win.take() };
+            await win.close();
+            return out;
+        };
+        try {
+            back = await handFreeFor(taker, "tool");
+            await whileDead(body, async () => {
+                const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the body's Tool was not made - this would measure nothing");
+                read.open = await look();
+                await takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE);
+                await settle();
+                read.away = await look();
+                await takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE);
+                await settle();
+                read.back = await look();
+                for (let n = 0; n < 6 && INV.canCarry(taker, "tool").ok; n++) {
+                    await INV.grantItem(taker, { name: FILL, category: "tool", tier: 1, override: true, quiet: true });
+                    await sheetAuditIdle();
+                }
+                must(!INV.canCarry(taker, "tool").ok, "the taker's hands could not be filled with Tools - this would measure nothing");
+                read.limit = INV.canCarry(taker, "tool").limit;
+                read.full = await look();
+                for (const i of taker.items.filter(i => i.name === FILL)) await i.delete();
+                await sheetAuditIdle();
+                read.emptied = await look();
+                for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+            });
+        } finally {
+            for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME || i.name === FILL)) await i.delete();
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const { capacityLabel } = await import("./inventory.mjs");
+        const kind = capacityLabel("tool"), notThere = game.i18n.localize("DRPG.Bridge.why.notThere");
+        const full = game.i18n.format("DRPG.Loot.rowHandsFull", { category: kind, limit: read.limit });
+        const open = { row: [false, kind], take: [false, game.i18n.localize("DRPG.Loot.takeTooltip")] };
+        equal(stableJson({ open: read.open, away: read.away, back: read.back, full: read.full, emptied: read.emptied }), stableJson({
+            open, away: { row: [true, notThere], take: [true, notThere] }, back: open, full: { row: [true, full], take: [true, full] }, emptied: open
+        }), "the Tool's row [disabled, its line] and the Take [disabled, tooltip]: beside the body; the taker in another room; back; the taker's hands "
+            + "full of Tools with no stash; emptied again");
+    }],
+
+    ["A113-C5-7-T3 - Take from the Body's open window reads the gate again as the table moves: its rows and Take grey when the taker walks out of the body's room and open when they walk back, with no new draw (1.2.113; A113-C5-7; E14 fix e1-G6, E95 C3: anonymity.mjs `regreyOpenLoot` on the token, the clock, the body's tile and an announcement)", async () => {
+        /*
+         * 1.2.113, 13.11.2026; A113-C5-7. The sheet's list was read again on registerAnonymity's hooks (`regreyOpenLoot`);
+         * the window carries the body and the taker on its list (`data-drpg-body`, `data-drpg-taker`) so the same hooks
+         * read it. Two students alone together, the second dead on a published death with a Tool on it; one window drawn
+         * for the first (`lootWindowFor`), held open while the first's token is moved to another room and back. Read after
+         * each, waited for up to 2 s: per row [disabled, its line], and the Take [disabled, tooltip]. Red at ceb9e9c8: no
+         * window (null throughout).
+         */
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
+        needs(world.atLeast("namedRooms", 2), "a room for the two and another to walk the first to");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        const INV = await import("./inventory.mjs");
+        const Mv = await import("./movement.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [taker, body] = cast(2);
+        const fixture = await aloneTogether(taker, body);
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id);
+        const elsewhere = Mv.allRooms(scene).find(r => r !== fixture.room);
+        must(takerToken && elsewhere, "the first has no token on the scene on screen, or there is no other room - this would measure nothing");
+        const NAME = "SUITE A113-T3 a body's crowbar";
+        const read = {};
+        let win = null, back = null;
+        try {
+            back = await handFreeFor(taker, "tool");
+            await whileDead(body, async () => {
+                const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the body's Tool was not made - this would measure nothing");
+                win = await lootWindowFor(body, taker);
+                const state = () => (win ? { row: win.rows().filter(r => r[0] === item.id).map(r => [r[1], r[2]])[0] ?? null, take: win.take() } : null);
+                const after = async (move, shut) => {
+                    await move();
+                    await settle();
+                    await until(() => win?.take()?.[0] === shut, 2000);
+                    return state();
+                };
+                read.drawn = state();
+                read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE), true);
+                read.back = await after(() => takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE), false);
+                for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+            });
+        } finally {
+            await win?.close();
+            for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const { capacityLabel } = await import("./inventory.mjs");
+        const notThere = game.i18n.localize("DRPG.Bridge.why.notThere"), open = game.i18n.localize("DRPG.Loot.takeTooltip");
+        const kind = capacityLabel("tool");
+        equal(stableJson(read), stableJson({
+            drawn: { row: [false, kind], take: [false, open] }, away: { row: [true, notThere], take: [true, notThere] }, back: { row: [false, kind], take: [false, open] }
+        }), "the open window's Tool row [disabled, its line] and Take [disabled, tooltip]: as drawn beside the body; after the taker walked to another room; back");
+    }],
+
+    ["two body tiles of one death (E95 C3; risk 4, STATUS E95 Open 7): the loot gate reads the one laid first by its `at`, whichever was made first, neither draws a caption (since 13.11.2026 the corpse's token wears it), and a revive removes both", async () => {
         /*
          * E95 C3, 10.11.2026; STAGE E95 risk 4 ("Two GMs making one Monocub at once can lay two tiles; readers take the
          * earliest; revive and reset remove all"), untested until now. The fixture of the C1 tests (`withBodyTile`: a
@@ -92590,8 +96393,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * `bodyTileOf` is the earliest, the body's room (`bodyRoomOf`), and the loot gate (inventory.mjs
          * `transferRefusal`, mode "loot", for a player who owns neither) with the taker beside the token and beside the
          * fixture's tile. What C3 draws: the mark of each tile (body-tile.mjs `drawBodyMark` on a stand-in placeable
-         * holding the tile's document; Foundry's draw hook is not in the harness) - both captioned, as each tile is a
-         * flagged tile; which of the two is the body is the gate's and not the drawing's. Then chapter.mjs
+         * holding the tile's document; Foundry's draw hook is not in the harness) - neither captioned since the owner's
+         * report of 13.11.2026 (a body tile draws nothing; the caption is the corpse's token's, tier 1 R3144, R5871); which
+         * of the two is the body is the gate's and not the drawing's. Then chapter.mjs
          * `reviveCharacter`: the tiles left. Red at E95 C2: there is no `drawBodyMark` (the gate and the revive were
          * C0-C2's and read the same then).
          */
@@ -92641,11 +96445,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (second && scene.tiles.has(second.id)) await second.delete();
                 await settle();
             }
-            const words = [game.i18n.format("DRPG.Body.tile", { name: body.name })];
             equal(stableJson(read), stableJson({
                 secondLater: [true, tileRoom, "notThere", "ok"],
                 secondEarlier: [true, room, "ok", "notThere"],
-                drawn: [words, words],
+                drawn: [[], []],
                 revived: [false, false, 0]
             }), "per case [the body is the earliest tile, the body's room, the gate beside the token, beside the fixture's tile]: the second tile laid later, then earlier; "
                 + "the captions drawn on [the fixture's tile, the second]; after the revive [the fixture's tile there, the second there, the body tiles left]");
@@ -93547,7 +97350,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), JSON.stringify({ mood: [mood, true], added: [], numbers: [], hits: 0 }),
             "[the clock's mood, one of the three words; a field the write added beside the word; a field holding an input or the share; what the world-secrets rule finds]");
     }],
-    ["E110 day boards A - the curtain clock's Morning Eclipse ends on the end-of-day board (eclipse.mjs `startEclipse`, `endEclipse`; transitions.mjs `onClockHeard`; the owner's report at a real table on 1.2.109): at Night the Morning Eclipse is opened and ended with the advance, as the clock's right chevron and the panel's Eclipse button do; the clock lands on the next morning stamped for its boards, and this browser plays the end-of-day board of the day that ended", async () => {
+    ["E110 day boards A - the curtain clock's Morning Eclipse opens the next day on the start-of-day board, with the GM's morning line, and its end plays none (eclipse.mjs `startEclipse`, `endEclipse`; clock.mjs `openingDayPatch`, `advanceTimeOfDay`; transitions.mjs `boardsOf`; the owner's report at a real table on 1.2.109 and their rule of 13.11.2026): at Night, with a morning line in the GM's draft, the Morning Eclipse is opened - the clock still at Night on the same day, stamped for the day + 1, the line on it and the draft emptied, and this browser plays the start-of-day board of the day + 1 with the line; then ended with the advance, as the clock's right chevron and the panel's Eclipse button do - the clock on the next morning, the stamp and the line kept, and no board", async () => {
         /*
          * 12.11.2026. The owner, at a real table on 1.2.109: the boards never played on the curtain clock. Its road is
          * `endEclipse({ advance: true })`, one write of the Eclipse's end, the morning and the day + 1, which
@@ -93556,6 +97359,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * cut, so it hands on to nothing. Put back: the clock, every character's actions, the Eclipse's moves, the seals,
          * the restrictions, the motive, the search tokens, the body's record, the round and the table's switch; the day's
          * popups dismissed. Red at 1ff4bc77: no board.
+         * 13.11.2026 (the owner's rule of that day: "The start-of-day animation should show at the start of the Morning
+         * Eclipse"): the start board at the Eclipse's start, none at its end; the GM's draft is put back too. Red at
+         * ceb9e9c8: nothing at the start, the end-of-day board at the end, and the line written only at the end.
          */
         needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
         const E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs"), S = await import("./gm-stores.mjs");
@@ -93567,7 +97373,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const characters = game.actors.filter(a => a.type === "character");
         const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
         const rowsWas = new Map(actingStudents().map(a => [a.id, foundry.utils.deepClone(S.eclipseMoveStore.get(a.id) ?? null)]));
-        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences", "morningLineDraft"]
             .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
         const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
         const dismiss = () => {
@@ -93587,16 +97393,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // the jump to the test's day is a move of its own, and whatever it played is not this test's
             Q.endSequence("cut");
             const night = getClock();
-            key = `dayEnd:${night.season ?? ""}:${day}:${night.session ?? ""}`;
+            key = `day:${night.season ?? ""}:${day + 1}:${(Number(night.session) || 0) + 1}`;
+            await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "E110 A line");
             await E.startEclipse();
-            await settle();
-            read.dark = [isEclipse(), getClock().timeOfDay, getClock().day];
+            await until(() => Q.sequenceNow()?.kind === "dayStart", 6000).catch(() => {});
+            const host = document.getElementById(Q.SEQUENCE_HOST_ID);
+            read.start = [Q.sequenceNow()?.key ?? null, host?.querySelector(".drpg-seq-announce")?.lastChild?.textContent ?? null];
+            const dark = getClock();
+            read.dark = [isEclipse(), dark.timeOfDay, dark.day, dark.dayBoard ?? null, dark.morningLine ?? null, game.settings.get(MODULE_ID, SETTINGS.morningLineDraft)];
+            Q.endSequence("cut");
             await E.endEclipse({ advance: true });
-            await until(() => Q.sequenceNow()?.kind === "dayEnd", 6000).catch(() => {});
-            read.board = Q.sequenceNow()?.key ?? null;
-            read.started = Q.sequenceStarted("dayEnd", key);
+            await settle(); await new Promise(r => setTimeout(r, 1500));
+            read.end = Q.sequenceNow()?.kind ?? null;
+            read.endBoard = Q.sequenceStarted("dayEnd", `dayEnd:${night.season ?? ""}:${day}:${night.session ?? ""}`);
             const now = getClock();
-            read.clock = [now.eclipse === true, now.timeOfDay, now.day, now.dayBoard ?? null];
+            read.clock = [now.eclipse === true, now.timeOfDay, now.day, now.dayBoard ?? null, now.morningLine ?? null];
             Q.endSequence("cut");
         } finally {
             Q.endSequence("cut");
@@ -93615,16 +97426,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             Q.endSequence("cut");
             dismiss();
         }
-        equal(stableJson(read), stableJson({ dark: [true, "night", day], board: key, started: true, clock: [false, "morning", day + 1, day + 1] }),
-            "[the Eclipse open at Night on the day; the board playing as the Eclipse ended; this browser started the ended day's board; the clock after: [Eclipse, time of day, day, the boards' stamp]]");
+        equal(stableJson(read), stableJson({
+            start: [key, "E110 A line"], dark: [true, "night", day, day + 1, "E110 A line", ""],
+            end: null, endBoard: false, clock: [false, "morning", day + 1, day + 1, "E110 A line"]
+        }), "[the board playing as the Eclipse opened and its line; the clock in the Eclipse: [Eclipse, time of day, day, the start stamp, the line, the draft]; the sequence after its end; the ended day's end board started; the clock after: [Eclipse, time of day, day, the stamp, the line]]");
     }],
-    ["E110 day boards B - a day moved in Edit campaign plays no board, and Next time of day from Night still does (gm-campaign.mjs `applyCampaignForm`; clock.mjs `advanceTimeOfDay`, `setClock`; the owner's rule of 12.11.2026: the boards play on the clock on the curtain, on the GM panel's Next time of day and on the chapter end with the next morning, and never on Edit campaign - a correction): the day + 1 at the same hour and Night to Morning with the day + 1, each through Edit campaign's Apply, start no board; Next time of day from Night starts the end-of-day board", async () => {
+    ["E110 day boards B - a day moved in Edit campaign plays no board, Next time of day from Evening plays the end-of-day board and Next from Night the start-of-day board (gm-campaign.mjs `applyCampaignForm`; clock.mjs `advanceTimeOfDay`, `setClock`; the owner's rules of 12.11.2026 - the boards play on the clock on the curtain, on the GM panel's Next time of day and on the chapter end with the next morning, and never on Edit campaign, a correction - and of 13.11.2026: the end-of-day board at the start of Night, the start-of-day board at the start of the day): the day + 1 at the same hour, Evening to Night and Night to Morning with the day + 1, each through Edit campaign's Apply, start no board; Next from Evening starts the end-of-day board of the day, and Next from Night the start-of-day board of the next", async () => {
         /*
          * 12.11.2026. Driven on this GM: the clock put at a day no other test plays, then Edit campaign's Apply as its
          * window hands it on (`applyCampaignForm` with `readClockForm`'s fields, the refill box off), twice; then the clock
          * at Night and the advance the panel's Next time of day runs after its round (`advanceTimeOfDay`, the search tokens
          * and the card left alone). Each board is read by the event it would start (`sequenceStarted`). Put back as "E110
          * day boards A" puts back. Red at 1ff4bc77: both of Edit campaign's moves played the boards.
+         * 13.11.2026: Edit campaign's Evening to Night added, and Next from Evening; Next from Night reads the start board.
+         * Red at ceb9e9c8: Next from Evening played nothing and Next from Night the end-of-day board.
          */
         needs(env.primaryGm(), "the clock is moved on the primary GM");
         const C = await import("./clock.mjs"), G = await import("./gm-campaign.mjs"), Q = await import("./sequence.mjs");
@@ -93659,19 +97474,30 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.applyCampaignForm(form({ day: day + 1 }));
             await settle(); await quiet();
             read.editDay = [getClock().day, Q.sequenceNow()?.kind ?? null, Q.sequenceStarted("dayEnd", keyOf(noon))];
-            await setClock({ timeOfDay: "night" });
+            await setClock({ timeOfDay: "evening" });
             await settle();
+            const evening = getClock();
+            await G.applyCampaignForm(form({ timeOfDay: "night" }));
+            await settle(); await quiet();
+            read.editNight = [getClock().timeOfDay, Q.sequenceNow()?.kind ?? null, Q.sequenceStarted("dayEnd", keyOf(evening))];
+            Q.endSequence("cut");
             const night = getClock();
             await G.applyCampaignForm(form({ day: day + 2, timeOfDay: "morning" }));
             await settle(); await quiet();
             read.editMorning = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.kind ?? null, Q.sequenceStarted("dayEnd", keyOf(night))];
             Q.endSequence("cut");
-            await setClock({ timeOfDay: "night" });
+            await setClock({ timeOfDay: "evening" });
             await settle();
+            Q.endSequence("cut");
             const last = getClock();
             await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
             await until(() => Q.sequenceNow()?.kind === "dayEnd", 6000).catch(() => {});
-            read.next = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.key ?? null, keyOf(last)];
+            read.nightFalls = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.key ?? null, keyOf(last)];
+            Q.endSequence("cut");
+            const dark = getClock();
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await until(() => Q.sequenceNow()?.kind === "dayStart", 6000).catch(() => {});
+            read.next = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.key ?? null, `day:${dark.season ?? ""}:${dark.day + 1}:${(Number(dark.session) || 0) + 1}`];
             Q.endSequence("cut");
         } finally {
             Q.endSequence("cut");
@@ -93685,9 +97511,142 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             Q.endSequence("cut");
             dismiss();
         }
-        equal(stableJson({ ...read, next: read.next ? [read.next[0], read.next[1], read.next[2] === read.next[3]] : null }),
-            stableJson({ editDay: [day + 1, null, false], editMorning: [day + 2, "morning", null, false], next: [day + 3, "morning", true] }),
-            "[Edit campaign's day + 1: [the day, the sequence playing, the ended day's board started]; Edit campaign's Night to Morning with the day + 1: [the day, the time of day, the sequence, the board started]; Next from Night: [the day, the time of day, the ended day's board playing]]");
+        const same = r => (r ? [r[0], r[1], r[2] === r[3]] : null);
+        equal(stableJson({ ...read, nightFalls: same(read.nightFalls), next: same(read.next) }),
+            stableJson({ editDay: [day + 1, null, false], editNight: ["night", null, false], editMorning: [day + 2, "morning", null, false], nightFalls: [day + 2, "night", true], next: [day + 3, "morning", true] }),
+            "[Edit campaign's day + 1: [the day, the sequence playing, the ended day's board started]; Edit campaign's Evening to Night: [the time of day, the sequence, the board started]; Edit campaign's Night to Morning with the day + 1: [the day, the time of day, the sequence, the board started]; Next from Evening: [the day, the time of day, the day's end board playing]; Next from Night: [the day, the time of day, the next day's start board playing]]");
+    }],
+    ["E113 day boards C - the Night Eclipse's end plays the end-of-day board of the day, and its start plays none (eclipse.mjs `startEclipse`, `endEclipse`; clock.mjs `advanceTimeOfDay`; transitions.mjs `boardsOf`; the owner's rule of 13.11.2026: \"the end-of-day one after the Night Eclipse (that is, at the start of Night)\"): at Evening the Night Eclipse is opened - no board, no stamp - and ended with the advance: the clock at Night on the same day, stamped for the end-of-day board on its day with the school's mood worked out, and this browser plays the end-of-day board of that day", async () => {
+        /*
+         * 13.11.2026. Driven on this GM as "E110 day boards A" drives the Morning Eclipse, from Evening, and put back as it
+         * puts back. Red at ceb9e9c8: no board at the Night Eclipse's end, and no `nightBoard`.
+         */
+        needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
+        const E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs"), S = await import("./gm-stores.mjs");
+        const { actingStudents } = await import("./monokuma.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState() && !bodyDiscovery(), "an incident or a body's hold is open - no Eclipse starts there, and this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const rowsWas = new Map(actingStudents().map(a => [a.id, foundry.utils.deepClone(S.eclipseMoveStore.get(a.id) ?? null)]));
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!popupsWas.has(card)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const day = 8000 + Math.floor(Math.random() * 999);
+        const read = {};
+        let key = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (settingsWas.sequences === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            Q.endSequence("cut");
+            await setClock({ phase: "dailyLife", timeOfDay: "evening", day, refilledFor: null });
+            await settle();
+            Q.endSequence("cut");
+            const evening = getClock();
+            key = `dayEnd:${evening.season ?? ""}:${day}:${evening.session ?? ""}`;
+            await E.startEclipse();
+            await settle(); await new Promise(r => setTimeout(r, 1000));
+            const dark = getClock();
+            read.dark = [isEclipse(), dark.timeOfDay, dark.day, dark.nightBoard ?? null, Q.sequenceNow()?.kind ?? null];
+            Q.endSequence("cut");
+            await E.endEclipse({ advance: true });
+            await until(() => Q.sequenceNow()?.kind === "dayEnd", 6000).catch(() => {});
+            read.board = Q.sequenceNow()?.key ?? null;
+            const now = getClock();
+            read.clock = [now.eclipse === true, now.timeOfDay, now.day, now.nightBoard ?? null, Q.MOOD_BANDS.includes(now.mood)];
+            Q.endSequence("cut");
+        } finally {
+            Q.endSequence("cut");
+            dismiss();
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [id, row] of rowsWas) {
+                if (row) await S.eclipseMoveStore.patch(id, row);
+                else await S.eclipseMoveStore.drop(id);
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await settle();
+            Q.endSequence("cut");
+            dismiss();
+        }
+        equal(stableJson(read), stableJson({ dark: [true, "evening", day, null, null], board: key, clock: [false, "night", day, day, true] }),
+            "[the Night Eclipse open at Evening: [Eclipse, time of day, day, the Night stamp, the sequence playing]; the board playing as it ended; the clock after: [Eclipse, time of day, day, the Night stamp, a mood's word]]");
+    }],
+    ["1.2.113 the Rest window greys a rest its character cannot pay for, with the price as its reason - in a room that allows both rests, neither taken: with 2 actions both rows open; with 1 action and no Burst (a Wounded student's purse) the Long Rest greyed and its line \"... has 1 action left and needs 2.\", the Short open; with no action both greyed; with no action and a Burst both open (rest.mjs `restVariants`, as the drawn window shows it; `takeRest` refuses as before)", async () => {
+        /*
+         * 1.2.113, 13.11.2026 (the owner's ask (c)). aabf28b8 measured a Wounded student with 1 action and no Burst pick Long
+         * Rest and be refused by a warning after the pick (rest.mjs `takeRest`, `canPayFor`), nothing spent. Each rest's row
+         * in the window (`restVariants`) was greyed for the insomnia, the allowance and the room, and never for the price.
+         * On a scene of the suite's own: a room that allows both rests, a character of the suite's own standing in it with
+         * neither rest taken. Per purse [actions, Bursts]: each row as [greyed, its line is the price's], and the window as
+         * `performRest` draws it on this GM (`__dialogWindows`) - each row's input disabled and its line - then closed.
+         * Red at a43e865e: every row open, whatever the purse.
+         */
+        needs(env.dialogs(), "the Rest window is drawn and read");
+        const R = await import("./rest.mjs");
+        const RM = await import("./rooms.mjs");
+        const { performRest } = await import("./action-rest.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const title = ACTIONS.rest.label;
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const ROOM = "SUITE R113 Dorm";
+        let scene = null, actor = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE R113 rest", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }],
+                flags: { [MODULE_ID]: { [RM.ROOM_FLAG]: true, [R.REST_FLAGS.long]: true, [R.REST_FLAGS.short]: true } }, behaviors: [] }]);
+            actor = await Actor.create({ name: "SUITE R113 rester", type: "character" });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 100, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(R.roomAllows(ROOM, "long", scene) && R.roomAllows(ROOM, "short", scene) && !R.restSpent(actor, "long") && !R.restSpent(actor, "short"),
+                "the room does not allow both rests, or one is taken - this would measure nothing");
+            const price = (left, needed) => plural("DRPG.Actions.notEnough", { actor: actor.name, left, needed }, "left");
+            read = {};
+            for (const [actions, bursts] of [[2, 0], [1, 0], [0, 0], [0, 1]]) {
+                await actor.update({ "system.resources.actions.value": actions, "system.resources.actions.max": 2,
+                    [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: bursts });
+                await settle();
+                const rows = R.restVariants(actor);
+                const row = kind => rows.find(r => r.value === kind);
+                const run = Promise.resolve().then(() => performRest(actor)).catch(() => null);
+                const shown = await until(() => Boolean(drawn()), 6000);
+                const inWindow = kind => {
+                    const input = drawn()?.element.querySelector(`input[name="variant"][value="${kind}"]`);
+                    const line = input?.closest("label")?.querySelector("small")?.textContent.trim() ?? null;
+                    return [Boolean(input?.disabled), line === price(actions, kind === "long" ? 2 : 1)];
+                };
+                read[`${actions}/${bursts}`] = {
+                    rows: ["short", "long"].map(kind => [Boolean(row(kind)?.disabled), row(kind)?.why === price(actions, kind === "long" ? 2 : 1)]),
+                    window: shown ? ["short", "long"].map(inWindow) : "not drawn"
+                };
+                if (drawn()) await drawn().close();
+                await Promise.race([run, wait(2000)]);
+                await settle();
+            }
+        } finally {
+            if (drawn()) await drawn().close();
+            await scene?.delete();
+            await actor?.delete();
+            await settle();
+        }
+        const open = [false, false], shut = [true, true];
+        equal(stableJson(read), stableJson({
+            "2/0": { rows: [open, open], window: [open, open] },
+            "1/0": { rows: [open, shut], window: [open, shut] },
+            "0/0": { rows: [shut, shut], window: [shut, shut] },
+            "0/1": { rows: [open, open], window: [open, open] }
+        }), "per purse [actions/Bursts]: {rows: restVariants' [Short, Long] as [greyed, its line the price's]; window: the drawn window's [Short, Long] as [input disabled, its line the price's]}");
     }],
     ["E93-T1 - Insomnia bars the Short rest on the roller's browser and the GMs cover none (scripts/rest.mjs `restVariants`, `takeRest`, sheet-audit.mjs `restCovers`, overflow.mjs `overflowBlocksShortRest`; E93 C6, the owner's audit entry E93 (6)): with Insomnia drawn for this time of day the Rest window's Short row is greyed with the Insomnia line and `takeRest` refuses a Short rest before anything is asked or paid; the Long row is judged as before; with the darkening gone the Short row is what it was", async () => {
         /*
@@ -93840,6 +97799,82 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
             "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
     }],
+    ["E93-T16 - the Facilities tile is struck through only when no row of its window can be taken (scripts/action-facilities.mjs `facilitiesRows`, `facilitiesShutReason`, sheet.mjs `roomBlockFor`; the owner's report of 13.11.2026 at a table on 1.2.112: \"The Facilities action is struck through when there are no rests available in the room, even though a GM's room action or a project's action is available\"): in a room with neither rest marked, the tile is live while a GM's room action is open; with that action closed this time of day and no project it is dimmed and its reason names every row's; with a completed project's free action there it is live again; under Lockdown it is dimmed with the Lockdown line; and at each step the window's rows say the same", async () => {
+        /*
+         * 13.11.2026 (fix line 113f). A connected player's character in a named room, read on this GM's browser (`locateActor`
+         * and `canSee` answer for a GM as for its player: a public project). The room's rest marks are taken off and its GM
+         * actions written for the test; the character is given one action so the GM's action's price is covered. Read at
+         * each step: the tile's reason (sheet.mjs `roomBlockFor`, "rest") and whether every row of the window (rest.mjs
+         * `restVariants` and action-facilities.mjs `facilityRows`, the window's two halves) is greyed. Put back: the rest
+         * marks, the room's actions, `facilityClosed`, the project, the darkening, the actions. Red at ceb9e9c8: the tile
+         * read the two rests alone, so it was dimmed with the GM's action open and with the project's.
+         */
+        const F = await import("./facilities.mjs");
+        const A = await import("./action-facilities.mjs");
+        const P = await import("./projects.mjs");
+        const R = await import("./rest.mjs");
+        const sheet = await import("./sheet.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { writablePieces } = await import("./rooms.mjs");
+        const { FACILITIES, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { actor, where } = await playerInRoom();
+        const pieces = writablePieces(where.scene, where.room);
+        must(pieces.length, `the room ${where.room} has no piece to hold an action - this would measure nothing`);
+        const flagKeys = [FACILITIES.flag, R.REST_FLAGS.short, R.REST_FLAGS.long];
+        const flagsBefore = pieces.map(p => Object.fromEntries(flagKeys.map(k => [k, foundry.utils.deepClone(p.getFlag(MODULE_ID, k) ?? null)])));
+        const closedBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {});
+        const actionsBefore = Number(actor.system.resources[ACTIONS_RESOURCE]?.value) || 0;
+        const gmId = "E93T16a";
+        const gmLabel = "SUITE E93-T16 kettle";
+        const projectLabel = "SUITE E93-T16 lamp";
+        const rows = async () => [...R.restVariants(actor), ...await A.facilityRows(actor)];
+        const step = async () => {
+            const tile = sheet.roomBlockFor(actor, "rest");
+            const list = await rows();
+            return { tile: tile ?? null, windowShut: list.length > 0 && list.every(row => row.disabled), rows: list.length };
+        };
+        const read = {};
+        let id = null, dark = null;
+        try {
+            await R.setRestRoom(where.room, { short: false, long: false, scene: where.scene });
+            await F.setRoomActions(where.scene, where.room, [{ id: gmId, label: gmLabel, trait: "eye", dc: 10, effects: [{ kind: "sanity", n: 1 }] }]);
+            await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: Math.max(actionsBefore, FACILITIES.gmCost) }, { reason: "gmRuling" });
+            await settle();
+            must(R.restVariants(actor).every(row => row.disabled), `a rest can still be taken in ${where.room} - this would measure nothing`);
+            const rests = R.restVariants(actor).map(row => `${row.label}: ${row.why}`);
+            read.gmOpen = await step();
+            await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, { mark: F.facilityMark(), keys: [F.gmActionKey(where.scene.id, where.room, gmId)] });
+            await settle();
+            const closed = await step();
+            read.gmClosed = { ...closed, tile: typeof closed.tile === "string"
+                && [...rests, `${gmLabel}: ${game.i18n.localize("DRPG.Facility.closed")}`].every(part => closed.tile.includes(part)) };
+            id = (await P.createProject({ name: projectLabel, target: 1, room: where.room }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: projectLabel, effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "timesOfDay", n: 1 } });
+            await P.addProgress(id, 1);
+            await settle();
+            read.project = await step();
+            dark = await e93Darkening("lockdown");
+            const shut = await step();
+            read.lockdown = { ...shut, tile: typeof shut.tile === "string"
+                && [`${gmLabel}: ${game.i18n.localize("DRPG.Facility.shut.lockdown")}`,
+                    `${projectLabel}: ${game.i18n.localize("DRPG.Facility.shut.lockdown")}`].every(part => shut.tile.includes(part)) };
+        } finally {
+            if (dark) await dark();
+            if (id) await P.deleteProject(id);
+            await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, closedBefore);
+            await where.scene.updateEmbeddedDocuments("Region", pieces.map((p, i) => ({ _id: p.id,
+                ...Object.fromEntries(flagKeys.map(k => [`flags.${MODULE_ID}.${k}`, flagsBefore[i][k] === null ? forcedDeletion() : flagsBefore[i][k]])) })));
+            await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsBefore }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            gmOpen: { tile: null, windowShut: false, rows: 3 },
+            gmClosed: { tile: true, windowShut: true, rows: 3 },
+            project: { tile: null, windowShut: false, rows: 4 },
+            lockdown: { tile: true, windowShut: true, rows: 4 } }),
+        "{gmOpen, gmClosed, project, lockdown: {tile: its reason (null live; true where it names every row's reason), windowShut: every row of the window greyed, rows}} - the Facilities tile against its window");
+    }],
     ["E93-T4 - a completed project's room action leaves a faint Subtle trace where it is used, as a GM's does (scripts/bridge-runs-acts.mjs `handleFacilityUse`, facilities-gm.mjs `leaveTrace`; the owner's answer to Q-E93-6, 12.11.2026: \"Akcja projektu tez zostawia slad\"): a player's use of a project's action through the road places one Remnant of the action, Subtle and faint, where the character stands", async () => {
         /*
          * E93, 12.11.2026 (the owner's DRPG-D1 answers, through the coordinator). Judged as the primary judges the player's
@@ -93930,6 +97965,170 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ended: [0, 0], day: [1, 1], dayEnded: [0, 0] }),
             "{clean; given: [Body's rise, rows]; copy: [whose rows the owner's copy holds, another player's]; line: the sheet's; ended: after the next time of day; day: an effect until the day's end after the next time of day; dayEnded: after the next day} - a timed +X to a trait");
     }],
+    ["A113-C2-6 one boundary - an Eclipse's start ends the timed effects given until the time of day ends and the unused lock passes, as it ends the seals and barricades; one given until the day's end stays (but for Night's Eclipse); a new time of day with no Eclipse still ends them", async () => {
+        /*
+         * A113-C2-6 (audit 113, 13.11.2026; the coordinator's default, the owner asked: one boundary, the Eclipse's start,
+         * eclipse.mjs's "the Eclipse is the boundary, not a part of the day it follows"). Until this fix E93's timed
+         * effects and E74's passes ended at `drpgTimeOfDayChanged` alone, which with an Eclipse is its END, while grants,
+         * seals and barricades end at its start. Here, on the primary: +2 Body until the time of day ends, +1 Body until
+         * the day ends, and a pass not walked through; the Eclipse started. Read: Body's rise and the rows left, and the
+         * pass. Then the same three handed to a time of day's change with no Eclipse (`endTimedEffects` with the next
+         * clock, `passesAtNewTimeOfDay`), as E93-T5 hands it. Red at ceb9e9c8: after the start Body still +3, both rows
+         * and the pass standing.
+         */
+        needs(world.atLeast("playerCharactersInRooms", 1), "a player's character standing in a room");
+        const T = await import("./timed-effects.mjs");
+        const L = await import("./lockpick-gm.mjs");
+        const E = await import("./eclipse.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { actor, where } = await playerInRoom();
+        const body = () => Number(actor.system.traits.strength.value) || 0;
+        const was = body();
+        const passWas = foundry.utils.deepClone(L.passOf(actor.id));
+        const night = getClock().timeOfDay === TIMES_OF_DAY.at(-1);
+        const read = {};
+        try {
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 1, until: "day" });
+            await L.grantPass(actor, where.scene, where.room);
+            await settle();
+            read.given = [body() - was, T.timedEffectsOf(actor.id).map(r => r.until), Boolean(L.passOf(actor.id))];
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            read.start = [body() - was, T.timedEffectsOf(actor.id).map(r => r.until), Boolean(L.passOf(actor.id))];
+            await E.endEclipse({ advance: false });
+            await settle();
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await L.grantPass(actor, where.scene, where.room);
+            const clock = getClock(), i = TIMES_OF_DAY.indexOf(clock.timeOfDay);
+            await T.endTimedEffects({ clock: { ...clock, timeOfDay: TIMES_OF_DAY[i + 1] ?? TIMES_OF_DAY[0] } });
+            await L.passesAtNewTimeOfDay();
+            await settle();
+            read.noEclipse = [body() - was, T.timedEffectsOf(actor.id).length, Boolean(L.passOf(actor.id))];
+            // Night's Eclipse begins a new day: the boundary read on the clock it leads into ends a row of the day too.
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 1, until: "day" });
+            const ended = await T.endAtEclipseStart({ ...getClock(), timeOfDay: TIMES_OF_DAY.at(-1) });
+            await settle();
+            read.night = [ended, body() - was, T.timedEffectsOf(actor.id).length];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(actor, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (passWas) await L.grantPass(actor, game.scenes.get(passWas.sceneId), passWas.room);
+            else await L.endPass(actor.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /Body/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 120000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ given: [3, ["timeOfDay", "day"], true], start: night ? [0, [], false] : [1, ["day"], false],
+            noEclipse: [0, 0, false], night: [1, 0, 0] }),
+            "{given: [Body's rise, rows' ends, a pass]; start: the same after the Eclipse's start; noEclipse: [Body's rise, rows, a pass] after a time of day's change with no Eclipse; night: [ended, Body's rise, rows] for a row until the day's end at Night's Eclipse}");
+    }],
+
+    ["A113-C2-6 the undo - an Eclipse ended without advancing within its five minutes puts back the timed effect and the unused pass its start ended, exactly as they stood", async () => {
+        /*
+         * A113-C2-6, the coordinator's follow-up (13.11.2026): the earlier boundary must not make a misclick cost more than
+         * it did. Before C2-6 an Eclipse opened by mistake and ended without advancing left a +2 Body until the time of day
+         * ends and an unused Pick the Lock pass standing (they ended only at the clock's move); C2-6 ended them at the start
+         * and the take-back (clock.mjs `takeBackBoundary`: budgets, grants, seals) gave neither back. Now what the start
+         * ended is kept in the boundary's take-back record (gm-stores.mjs `takeBackStore`) and put back with the rest.
+         * Read: Body's rise, the row (id, kind, n, until, mark) and the pass (room, mark, entered) before the start, after
+         * it, and after "End without advancing". Red at 35a880b7: after the take-back Body +0, no row, no pass.
+         */
+        needs(world.atLeast("playerCharactersInRooms", 1), "a player's character standing in a room");
+        const T = await import("./timed-effects.mjs");
+        const L = await import("./lockpick-gm.mjs");
+        const E = await import("./eclipse.mjs");
+        const { actor, where } = await playerInRoom();
+        const body = () => Number(actor.system.traits.strength.value) || 0;
+        const was = body();
+        const passWas = foundry.utils.deepClone(L.passOf(actor.id));
+        const rows = () => T.timedEffectsOf(actor.id).map(r => [r.id, r.kind, r.n, r.until, r.mark]);
+        const pass = () => { const p = L.passOf(actor.id); return p ? [p.sceneId, p.room, p.mark, p.entered] : null; };
+        const read = {};
+        try {
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await L.grantPass(actor, where.scene, where.room);
+            await settle();
+            read.before = [body() - was, rows(), pass()];
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            read.dark = [body() - was, rows().length, pass()];
+            await E.endEclipse({ advance: false });
+            await settle();
+            read.back = [body() - was, rows(), pass()];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(actor, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (passWas) await L.grantPass(actor, game.scenes.get(passWas.sceneId), passWas.room);
+            else await L.endPass(actor.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /Body/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 120000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: read.before, dark: [0, 0, null], back: read.before }),
+            "{before: [Body's rise, rows, the pass]; dark: [Body's rise, rows, the pass] after the start; back: the same after End without advancing - expected as before}");
+        must(read.before?.[0] === 2 && read.before?.[1]?.length === 1 && read.before?.[2], "the bonus or the pass was not given - this test would read nothing");
+    }],
+
+    ["A113-C2-6 the murder at the lights - a direct murder judged at an Eclipse's end opens on the killer's sheet without a bonus given until the time of day ended", async () => {
+        /*
+         * A113-C2-6 (audit 113, 13.11.2026). At the Eclipse's end `endEclipse` advances the clock - the primary's
+         * `endTimedEffects` starts from that hook - and goes on to `judgePendingMurders`: whether a trait bonus was still
+         * on the sheet as the murder's fight opened was a race. With one boundary the bonus ended as the Eclipse began, so
+         * nothing is left to race. A killer with +2 Body until the time of day ends, alone with a victim, a declaration
+         * parked as the Eclipse runs, the Eclipse ended as the GM panel ends it (`endEclipse()`, the clock advanced and
+         * put back after), Body read as the incident stands open. Red at ceb9e9c8 with an End without advancing: Body +2
+         * (nothing ended it). Ended so since the take-back's put-back (the coordinator's follow-up): within its five
+         * minutes that End without advancing now gives the bonus back before the lights, rightly - the time of day it was
+         * given in has not ended.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./timed-effects.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const body = () => Number(killer.system.traits.strength.value) || 0;
+        const was = body();
+        const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+        let stood = null, read = null;
+        try {
+            stood = await aloneTogether(killer, victim);
+            await T.giveTimed(killer, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await settle();
+            must(body() === was + 2, "the bonus was not given - this test would read nothing");
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            must(E.isEclipse() && id, "the Eclipse did not start");
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE A113-C2-6 declared", at: 1, approved: true, eclipse: id, betrayal: null });
+            await E.endEclipse();
+            await settle();
+            const state = M.murderState();
+            read = [state?.killerId ?? null, state?.victimId ?? null, body() - was, T.timedEffectsOf(killer.id).length];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            for (const row of T.timedEffectsOf(killer.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(killer, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (stood) await stood.back();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock({ chapter, day, session, timeOfDay, phase });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([killer.id, victim.id, 0, 0]),
+            "the murder at the lights did not open, or opened on the killer's sheet with the bonus of the time of day the Eclipse closed [killer, victim, Body's rise, rows]");
+    }],
+
     ["E93-T6 - a room action's temporary Experience is on the sheet until its end and gone after (scripts/timed-effects.mjs `KINDS.experience`, facilities.mjs `cleanEffect`; the owner's answer to Q-E93-3, 12.11.2026): an Experience named by the GM, +2 until the time of day ends, is added to the character's Experiences with that name and value, its row names it, the sheet's line reads it, and the next time of day deletes it; one with no name is no effect", async () => {
         /*
          * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; the time passing handed to
@@ -94007,6 +98206,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E93, 12.11.2026. The rolls thrown on this GM, whose chat hook awards a fresh roll's point as the primary does at a
          * table (despair-award.mjs `onChatMessage` -> `awardRollDespair` with the message), with "Rolls grant Despair" on. Put back: the pool, the setting, the rows, the messages.
          * Red at e1b0ac4: no kind "despairShield".
+         * The audit's A113-C6-1 (13.11.2026): the shield stopped the point with a console line alone, while the roll's card
+         * said "with Despair" and the pool did not move, so a GM could not tell why. The GMs are whispered that the shield
+         * took the point (`DRPG.Facility.shieldTook`), once, on the roll it stopped; the players are told no more than
+         * before. Read with each roll: [whispers naming it, each to the GMs alone]. Red at 43d34e26: no whisper.
          */
         const T = await import("./timed-effects.mjs");
         const F = await import("./facilities.mjs");
@@ -94017,6 +98220,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { player, actor, where } = await playerInRoom();
         const monokuma = (await import("./assignments.mjs")).monokumaFor(actor);
         must(monokuma, `${actor.name} has no Monokuma to feed - this would measure nothing`);
+        const { contentOf } = await import("./secret.mjs");
+        const tookWords = foundry.utils.escapeHTML(game.i18n.format("DRPG.Facility.shieldTook", { name: actor.name }));
+        const seenIds = new Set(game.messages.contents.map(m => m.id));
+        const told = () => {
+            const fresh = game.messages.contents.filter(m => !seenIds.has(m.id));
+            fresh.forEach(m => { seenIds.add(m.id); if (!made.includes(m)) made.push(m); });
+            return fresh.filter(m => String(contentOf(m) ?? "").includes(tookWords)).map(m => (m.whisper ?? []).length > 0 && m.whisper.every(id => game.users.get(id)?.isGM));
+        };
         const settingWas = game.settings.get(MODULE_ID, SETTINGS.despairFromRolls);
         const poolWas = P.getDespair(monokuma.id);
         const clock = getClock();
@@ -94033,10 +98244,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // The primary's chat hook awards a fresh roll's point (despair-award.mjs `onChatMessage`), the road at a table.
             const first = await roll();
             await settle();
-            read.first = [P.getDespair(monokuma.id), Boolean(first.getFlag(MODULE_ID, "despairShielded")), T.timedEffectsOf(actor.id).length];
+            read.first = [P.getDespair(monokuma.id), Boolean(first.getFlag(MODULE_ID, "despairShielded")), T.timedEffectsOf(actor.id).length, told()];
             const second = await roll();
             await settle();
-            read.second = [P.getDespair(monokuma.id), Boolean(second.getFlag(MODULE_ID, "despairShielded"))];
+            read.second = [P.getDespair(monokuma.id), Boolean(second.getFlag(MODULE_ID, "despairShielded")), told()];
             await applyEffects(actor, [effect], where, player);
             await T.endTimedEffects({ clock: nextTime });
             read.unused = T.timedEffectsOf(actor.id).length;
@@ -94049,8 +98260,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ first: [0, true, 0], second: [1, false], unused: 0 }),
-            "{first: [the pool, the roll marked, rows left] after a roll with Fear; second: [the pool, marked] after the next; unused: rows after a time of day} - protection from Despair");
+        equal(stableJson(read), stableJson({ first: [0, true, 0, [true]], second: [1, false, []], unused: 0 }),
+            "{first: [the pool, the roll marked, rows left, the GMs' whispers that the shield took the point (each to the GMs alone)] after a roll with Fear; second: [the pool, marked, those whispers] after the next; unused: rows after a time of day} - protection from Despair");
     }],
     ["E93-T9 - a room action's extra crossing in an Eclipse raises that character's allowance alone until the next Eclipse ends (scripts/timed-effects.mjs, eclipse.mjs `eclipseAllowanceFor`, `movesLeft`; the owner's answer to Q-E93-3, 12.11.2026): one more crossing raises the character's allowance and crossings left by one and nobody else's, reads on the sheet, and an Eclipse's end takes it away; a free-placement Eclipse stays free", async () => {
         /*
@@ -94341,6 +98552,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await tellUse(actor, { label }, true, ["SUITE line one", "SUITE line two"]);
             await settle();
+            await until(() => game.messages.some(m => !before.has(m.id)));
             const message = game.messages.find(m => !before.has(m.id));
             must(message, "no whisper was posted - this would measure nothing");
             // A whisper's words are secret.mjs's (`postSecret`): read as its readers read them.
@@ -95001,6 +99213,107 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             crossings: [1, 1, 0, 0], counted: [1, 1, 3], end: [1, null, 4], theirs: "notYours", noRoll: "rollUnknown" }),
             "{low, kept: [answer, the row]; start: [posts taken, the post is the watcher's room, cards so far]; crossings: [in, out, elsewhere, no Eclipse]; counted: [entered, left, cards so far]; end: [summaries, the row, cards so far]; theirs; noRoll} - a watch on the GMs' record of its roll");
     }],
+    ["1.2.113 Keep Watch missed with Despair takes 1 Sanity - judged as the primary judges the player's `watch.declare`, a Body roll below the watch's number with Despair on the GMs' record marks one Sanity whatever the packet claims; a miss with Hope marks none, and so does a kept watch (watch-gm.mjs `declareWatch`; the player handbook's Keep Watch)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. The player handbook's Keep Watch: "A failure with Despair takes 1 Sanity". A read-only audit
+         * did not find where the code charges it; measured here on the bridge's road, as E74-T4 drives it: the player's
+         * packet judged on the primary (`G.judge`), the roll a message of the character's with the GMs' record of it
+         * (`recordFor`) - the record's `total`, `isCritical` and `withHope` are what the run reads (bridge-guards.mjs
+         * `ROLL_INTO`), so the packet here claims a 20 with Hope on every ask and the record decides. E74-T9 asks
+         * `declareWatch` directly; this one goes through the table. Sanity is Daggerheart's `stress`: a mark is +1 on its
+         * value. Not red first: at a2b233d2 the code charges it (watch-gm.mjs `declareWatch`, E74 C6); this pins it.
+         */
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { player, actor } = await playerInRoom();
+        const path = "system.resources.stress.value";
+        const max = Number(actor.system?.resources?.stress?.max) || 0;
+        must(max >= 2, `${actor.name}'s Sanity holds fewer than two marks - this would measure nothing`);
+        const was = Number(foundry.utils.getProperty(actor, path)) || 0;
+        const made = [], told = [];
+        const ask = async (total, withHope) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, "keepWatch", { total, withHope });
+            made.push({ message, kept });
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "watch.declare", requestId: `W113${foundry.utils.randomID(8)}`, actorId: actor.id,
+                total: 20, isCritical: false, withHope: true, rollId: message.id }, player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            return [reply?.action === "bridge.refused" ? reply.reason : reply?.value?.kept ?? null, Number(foundry.utils.getProperty(actor, path)) || 0];
+        };
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            await trustedWrite(actor, { [path]: 0 }, { reason: "gmRuling" });
+            await settle();
+            const low = INFILTRATE.keepWatch.dc - 1;
+            read.despair = await ask(low, false);
+            read.hope = await ask(low, true);
+            read.keptDespair = await ask(INFILTRATE.keepWatch.dc, false);
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && m.speaker?.actor === actor.id)) await m.delete();
+            await trustedWrite(actor, { [path]: was }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ despair: [false, 1], hope: [false, 1], keptDespair: [true, 1] }),
+            "Keep Watch's Sanity ([kept, Sanity marked after]: a miss with Despair, then a miss with Hope, then a kept watch with Despair)");
+    }],
+    ["1.2.113 a Wounded student and the Long Rest - with no Health left and its one action, a Long Rest (two actions) is refused and nothing is spent or restored; with a banked Burst it is taken, the Burst paying the whole rest (rest.mjs `takeRest`, actions.mjs `canPayFor`, `spendAction`; the handbooks' Wounded, Rest and Burst rows)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. The handbooks: Wounded gives one action a time of day in Daily Life and the Investigation,
+         * the Long Rest costs two, a Burst makes "your next action cost nothing - the whole action, however many it would
+         * have cost". Neither book says in so many words whether a Wounded student may take a Long Rest; this measures
+         * what the code does. A cast student in Daily Life, every point of Health marked (Wounded), one action and no Burst,
+         * then one action and a Burst; the rest asked as `performRest` asks it, outside the room and the session's limit
+         * (`ignoreRoom`, `ignoreLimit`), its picker answered Sleep and Meal. Read: the answer, the actions, the Bursts and
+         * the Health marks after each. Not red first: it pins what a2b233d2 does.
+         */
+        const A = await import("./actions.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [student] = cast(1);
+        const clock = getClock() ?? {};
+        const R = "system.resources", ACTS = `${R}.actions.value`, HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        const putBack = sheetAsFound(student, [ACTS, HP, GRANTS]);
+        const hpMax = Number(foundry.utils.getProperty(student, HP_MAX)) || 0;
+        must(hpMax >= 1, `${student.name} has no Health maximum to mark full - this would measure nothing`);
+        const Dialog = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(Dialog, "wait");
+        const state = () => [A.actionsLeft(student), A.freeActionsLeft(student), Number(foundry.utils.getProperty(student, HP)) || 0];
+        const read = {};
+        try {
+            if (clock.phase !== "dailyLife" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            Dialog.wait = async () => ["sleep", "meal"];
+            await trustedWrite(student, { [HP]: hpMax, [ACTS]: 1, [GRANTS]: 0 }, { reason: "gmRuling" });
+            await settle();
+            read.wounded = [A.actionBudget(student).wounded, A.actionBudget(student).total];
+            const refused = await takeRest(student, "long", { ignoreRoom: true, ignoreLimit: true, quiet: true });
+            await settle();
+            read.noBurst = [refused === null, ...state()];
+            await trustedWrite(student, { [HP]: hpMax, [ACTS]: 1, [GRANTS]: 1 }, { reason: "gmRuling" });
+            await settle();
+            const taken = await takeRest(student, "long", { ignoreRoom: true, ignoreLimit: true, quiet: true });
+            await settle();
+            read.burst = [taken?.kind ?? null, ...state()];
+        } finally {
+            if (ownWait) Object.defineProperty(Dialog, "wait", ownWait); else delete Dialog.wait;
+            await putBack();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ wounded: [true, 1], noBurst: [true, 1, 0, hpMax], burst: ["long", 1, 0, 0] }),
+            "a Wounded student's Long Rest ([wounded, the budget]; with no Burst [refused, actions, Bursts, Health marked]; with a Burst [the rest taken, actions, Bursts, Health marked])");
+    }],
+
     ["E74-T5 - Room setup's Broken column shows a forced lock and mends it (scripts/room-setup.mjs, movement.mjs `roomBroken`, `setRoomBroken`; E74 C5, Q-E74-4): a room broken open draws its Broken box ticked and a room not broken unticked; an Apply with the box unticked mends the lock (the flag off on every piece), and the room's GM lock is left as it was", async () => {
         /*
          * E74 C5, 12.11.2026. Room setup is answered as E46-T1 answers it: `DialogV2.wait` stood in for, the form drawn from
@@ -95546,6 +99859,651 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             reroll: [null, 1], rerollUsed: [[B, true], 1] }),
             "{open: [opened, the picker's room after, the pass, the picker's walk in, another's]; copy: [the room in the owner's copy, its scene, whether another player's copy holds it]; inside, left: [the pass, the picker's walk in] after the crossing in and out; unused, inUse: the pass after a new time of day; seal: [opened, the picker's walk, another's]; reroll, rerollUsed: [the pass, lines] after a Reroll of 10 before and after the entry} - the pick's pass");
     }],
+    ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
+         * message of the character's with the GMs' record of it (`recordFor`). The harness's scene draws no doors, so the
+         * rooms' doors are Room Setup's word (`ROOM_FLAGS.neighbours`): the character's room A, where a second student `near`
+         * stands; the door's room B, where a third, `other`, stands; C beyond B; one apart. Each step reads what each of the
+         * two was sent, by the card's text. The knock is asked as the walker's veto asks it (`door.knock`), at B's barricade,
+         * which `other` puts up with `near` beside them in B. Put back: the records, the messages, the flags, the barricades,
+         * the pass, the Remnants, the tokens.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const P = await import("./lockpick-gm.mjs");
+        const { esc } = await import("./utils.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        const { player, actor } = await playerInRoom();
+        const scene = canvas.scene;
+        // Who reads a card is read off its packet (`wordsSent`): each of the three students has a player of their own.
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a) && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        const near = others[0], other = others.find(a => near && !readers(a).some(id => readers(near).includes(id)));
+        must(near && other, "no two living students of two other players with a token on the scene on screen - this would measure nothing");
+        const tokens = [actor, near, other].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 4, `the scene on screen has ${rooms.length} rooms - too few for A, B, C and one apart`);
+        const [A, B, C, far] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B], [far]: [] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { requestId: `PVD1${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+        };
+        const rollOf = async (key, total, withHope = true) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, withHope });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const lock = async on => { for (const piece of roomRegions(scene, B)) { if (on) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true); else await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.locked); } };
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const fmt = (key, data = {}) => esc(game.i18n.format(key, { name: actor.name, ...data }));
+        const TEXTS = {
+            shut: () => fmt("DRPG.Infiltrate.shut.seenBy", { room: A }),
+            tried: () => fmt("DRPG.Infiltrate.force.triedBy", { room: B }),
+            forced: () => fmt("DRPG.Infiltrate.force.forcedBy", { room: B }),
+            picking: () => fmt("DRPG.Infiltrate.pick.seenBy", { room: B }),
+            knock: () => esc(game.i18n.localize("DRPG.Infiltrate.shut.knock"))
+        };
+        // What `who`'s player was sent since the last read, each card named by its text; "?" a card none of them is.
+        let packets = [];
+        const marks = new Map();
+        const sent = who => {
+            const all = packets.filter(w => w.to.some(id => readers(who).includes(id)));
+            const fresh = all.slice(marks.get(who.id) ?? 0);
+            marks.set(who.id, all.length);
+            return fresh.map(w => Object.entries(TEXTS).find(([, text]) => w.html.includes(text()))?.[0] ?? "?");
+        };
+        const step = async run => { sent(near); sent(other); sent(actor); const answer = await run(); return [answer, sent(near), sent(other)]; };
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) keep(piece, M.ROOM_FLAGS.locked);
+            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
+            await tokens[1].update(M.positionIn(A, tokens[1]), PLACE);
+            await tokens[2].update(M.positionIn(B, tokens[2]), PLACE);
+            await settle();
+            read.shut = await step(async () => ask({ action: "door.shut", rollId: await rollOf("shut", 14) }));
+            await D.endBarricade(D.barricadeKey(scene.id, A));
+            await lock(true);
+            read.forceHope = await step(async () => ask({ action: "door.force", room: B, rollId: await rollOf("force", 17, true) }));
+            read.forceDespair = await step(async () => ask({ action: "door.force", room: B, rollId: await rollOf("force", 17, false) }));
+            read.pickHidden = await step(async () => ask({ action: "door.pick", room: B, rollId: await rollOf("pick", 15), coverRollId: await rollOf("pickCover", 16) }));
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            read.pickSeen = await step(async () => ask({ action: "door.pick", room: B, rollId: await rollOf("pick", 14), coverRollId: await rollOf("pickCover", 10) }));
+            await lock(false);
+            // The knock: `near` joins `other` in B, `other` barricades it, the character in A tries B's door.
+            await tokens[1].update(M.positionIn(B, tokens[1]), PLACE);
+            await settle();
+            read.barricaded = Boolean((await D.shutDoor({ actor: other, total: 14 }))?.room);
+            const knock = await step(async () => {
+                const at = told.length;
+                await G.judge(BRIDGE_ACTIONS, { action: "door.knock", requestId: `PVD1${foundry.utils.randomID(8)}`, actorId: actor.id, room: B },
+                    game.user.id, { send: (to, reply) => told.push(reply) });
+                await settle();
+                return told.length - at;
+            });
+            read.knock = [...knock, sent(actor)];
+          });
+        } finally {
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            for (const room of [A, B]) await D.endBarricade(D.barricadeKey(scene.id, room));
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            await M.setRoomBroken(scene, B, false);
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, near.id, other.id].includes(m.speaker?.actor))) await m.delete();
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ shut: ["done", ["shut"], []], forceHope: ["done", ["tried"], []], forceDespair: ["done", ["tried"], ["tried"]],
+            pickHidden: ["done", ["picking"], []], pickSeen: ["done", ["picking"], ["picking"]], barricaded: true,
+            knock: [0, ["knock"], ["knock"], []] }),
+            "{step: [answer, the cards of the student beside the character, of the student in the room beyond]; barricaded: B's put up; knock: [packets answered, near's, the author's, the walker's]} - who sees a door worked, and who hears a knock");
+    }],
+    ["PV-DOORS-T2 - a Support's card names the student who spent the Hope, on the GM's road and on a player's, and Monokuma's and a Monocub's stay unnamed (scripts/call-effects.mjs `armCall`, bridge-runs-records.mjs `handleArm`, `tellBeneficiary`; the owner's rule #9, 13.11.2026): a Support a GM arms from a student and one a player buys through `call.arm` each send the beneficiary armedForYouBy with the buyer's name; an Obstacle from Monokuma sends armedByMonokuma and a Meddle armedByNobody, neither with the buyer's name", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026. Two players' characters: the beneficiary and the buyer, whose player asks
+         * `call.arm` as their browser does (`G.judge`), with 3 Hope written by a GM and put back. The armed Calls are put
+         * back by the beneficiary's flag as it was, and every card to the beneficiary is deleted.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const E = await import("./call-effects.mjs");
+        const { esc } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const pairs = game.users.filter(u => !u.isGM && u.active).flatMap(u => game.actors
+            .filter(a => a.type === "character" && a.testUserPermission(u, "OWNER") && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a))
+            .map(a => ({ user: u, actor: a })));
+        const buyerOf = pairs.find(p => pairs.some(q => q.user.id !== p.user.id && !p.actor.testUserPermission(q.user, "OWNER")));
+        must(buyerOf, "no two connected players each with a living student - this would measure nothing");
+        const targetOf = pairs.find(q => q.user.id !== buyerOf.user.id && !buyerOf.actor.testUserPermission(q.user, "OWNER"));
+        const target = targetOf.actor;
+        const buyer = buyerOf.actor;
+        const flagWas = foundry.utils.deepClone(target.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
+        const hopeWas = buyer.system.resources.hope.value;
+        const seenIds = new Set(game.messages.map(m => m.id));
+        // Who reads a card is read off its packet (`wordsSent`): the beneficiary's player.
+        const reader = targetOf.user.id;
+        let packets = [], seen = 0;
+        const cards = () => {
+            const all = packets.filter(w => w.to.includes(reader));
+            const fresh = all.slice(seen);
+            seen = all.length;
+            return fresh.map(w => w.html);
+        };
+        const grant = key => E.grantWords ? E.grantWords(key, "acc") : game.i18n.localize(`DRPG.Calls.grants.${key}`);
+        const reset = async () => {
+            if (flagWas === null) await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            else await target.setFlag(MODULE_ID, FLAGS.pendingCall, flagWas);
+            await settle();
+        };
+        const named = list => list.map(text => [text.includes(esc(buyer.name)),
+            ["armedForYouBy", "armedForYou", "armedByMonokuma", "armedByNobody"].find(key => {
+                const keyText = game.i18n.format(`DRPG.Calls.${key}`, { name: esc(buyer.name), what: "\u0000" }).split("\u0000")[0];
+                return keyText && text.includes(keyText);
+            }) ?? "?"]);
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            await reset();
+            cards();
+            await E.armCall(target, { key: "support", kind: "hope", grants: "advantage", from: buyer.id });
+            await settle();
+            read.gm = named(cards());
+            await reset();
+            await trustedWrite(buyer, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            const nonce = `PVD2${foundry.utils.randomID(6)}`, replies = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `PVD2${nonce}`, actorId: target.id,
+                call: { key: "support", kind: "hope", grants: "advantage", from: buyer.id, nonce } }, buyerOf.user.id, { send: (to, reply) => replies.push(reply) });
+            await settle();
+            await wait(50);
+            read.player = [replies.find(r => r?.action === "bridge.done" || r?.action === "bridge.refused")?.action ?? null, ...named(cards())];
+            await reset();
+            await E.armCall(target, { key: "obstacle", kind: "despair", grants: "disadvantage", from: "monokuma" });
+            await settle();
+            read.monokuma = named(cards());
+            await reset();
+            await E.armCall(target, { key: "meddle", grants: "advantage", from: buyer.id });
+            await settle();
+            read.meddle = named(cards());
+          });
+        } finally {
+            await reset();
+            await trustedWrite(buyer, { "system.resources.hope.value": hopeWas }, { reason: "gmRuling" });
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && m.speaker?.actor === target.id)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gm: [[true, "armedForYouBy"]], player: ["bridge.done", [true, "armedForYouBy"]],
+            monokuma: [[false, "armedByMonokuma"]], meddle: [[false, "armedByNobody"]] }),
+            "{road: [[the buyer's name on the card, the sentence]]} - who a Call's card names");
+    }],
+    ["PV-DOORS-T3 - a bedroom's owner hears of their door forced, its lock picked carelessly, a wall breached into it or its lock repaired when they next walk into that bedroom, once, in one card; never at once from elsewhere, and never twice where they saw it done (scripts/doors-gm.mjs `noteBedroom`, `tellBedroomNotes`, `forceDoor`, `pickLock`, `repairLockDone`; passages-gm.mjs `tellBreach`; gm-stores.mjs `bedroomNoteStore`; traps.mjs `onCrossed`; the owner's rule #1, 13.11.2026): with the owner in a room apart, a careless pick, a forced door, a breach and a repair send the owner nothing; their crossing into the bedroom sends one card with the four sentences in that order, a second crossing none; with the owner beside the picker they get the named card and nothing on entering; with the owner inside the bedroom, a careless pick under cover is told at once, unnamed, and a forced door only by its named card", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026, built on the stash notice's mechanism (1.2.112: a GMs' pending mark, delivered
+         * on the owner's crossing into the room on the primary). Judged as the primary judges the player's packets
+         * (`G.judge`), each roll a message of the character's with the GMs' record of it (`recordFor`); the breach's card
+         * asked as its completion asks it (`tellBreach`), the repair's as its completion (`repairLockDone`), the owner's
+         * crossing as the relay hands it to the primary (`drpgRoomCrossed`). Rooms: the character's A, the owner's bedroom
+         * B next to it (Room Setup's neighbours and owner, written and put back), C beyond B, and one apart where the owner
+         * first stands. What the owner's player was sent is read off the packets (`wordsSent`), each card by its sentences.
+         * Put back: the records, the messages, the flags, the pass, the broken lock, the notes, the Remnants, the tokens.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const P = await import("./lockpick-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { tellBreach } = await import("./passages-gm.mjs");
+        const { esc, isPrimaryGm } = await import("./utils.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const { player, actor } = await playerInRoom();
+        const scene = canvas.scene;
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owner = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a) && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        must(owner, "no living student of another player with a token on the scene on screen - this would measure nothing");
+        const tokens = [actor, owner].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 4, `the scene on screen has ${rooms.length} rooms - too few for A, B, C and one apart`);
+        const [A, B, C, far] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B], [far]: [] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { requestId: `PVD3${foundry.utils.randomID(8)}`, actorId: actor.id, room: B, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+        };
+        const rollOf = async (key, total, withHope = true) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, withHope });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const pick = async (hand, cover) => {
+            const out = await ask({ action: "door.pick", rollId: await rollOf("pick", hand), coverRollId: await rollOf("pickCover", cover) });
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            return out;
+        };
+        const force = async total => ask({ action: "door.force", rollId: await rollOf("force", total) });
+        const stand = async (i, room) => { await tokens[i].update(M.positionIn(room, tokens[i]), PLACE); await settle(); };
+        const cross = async () => {
+            Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: B, tokenDoc: tokens[1] });
+            await settle();
+            await until(() => false, 400);
+            await settle();
+        };
+        const TEXTS = {
+            warned: () => esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room: B })),
+            yourDoor: () => esc(game.i18n.format("DRPG.Infiltrate.force.yourDoor", { room: B })),
+            breached: () => game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(B) }),
+            mended: () => esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room: B })),
+            picking: () => esc(game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room: B })),
+            forcedBy: () => esc(game.i18n.format("DRPG.Infiltrate.force.forcedBy", { name: actor.name, room: B }))
+        };
+        // Each card the owner's player was sent since the last read: the sentences it holds, in the order they stand in it.
+        let packets = [], seen = 0;
+        const cards = () => {
+            const all = packets.filter(w => w.to.some(id => readers(owner).includes(id)));
+            const fresh = all.slice(seen);
+            seen = all.length;
+            return fresh.map(w => Object.entries(TEXTS).map(([k, text]) => [k, w.html.indexOf(text())]).filter(([, at]) => at >= 0)
+                .sort((a, b) => a[1] - b[1]).map(([k]) => k));
+        };
+        const noteKeys = () => Object.keys(S.bedroomNoteStore?.entries?.() ?? {}).filter(k => k.startsWith(`${owner.id}:`));
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) {
+                keep(piece, M.ROOM_FLAGS.locked); keep(piece, ROOM_OWNER_FLAG);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+                await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+            }
+            await stand(0, A);
+            await stand(1, far);
+            cards();
+            // Away: a careless pick (an open below 18, covered), a forced door, a breach into it, the lock repaired.
+            const away = [await pick(15, 16), cards()];
+            away.push(await force(18), cards());
+            away.push(await tellBreach({ id: "PVD3breach", sceneId: scene.id, builderId: actor.id, forced: { room: B, from: A } }) >= 0, cards());
+            away.push(Boolean((await D.repairLockDone("PVD3project", { sceneId: scene.id, lockRoom: B }))?.mended), cards());
+            read.away = away;
+            await cross();
+            read.entered = cards();
+            await cross();
+            read.again = [cards(), noteKeys().length];
+            // Beside the picker: the named card (rule #8), and nothing waits.
+            await stand(1, A);
+            read.beside = [await pick(15, 16), cards()];
+            await stand(1, far);
+            await cross();
+            read.besideEntered = cards();
+            // Inside the bedroom: a covered careless pick told at once, unnamed; a forced door by its named card alone.
+            await stand(1, B);
+            read.inside = [await pick(15, 16), cards()];
+            read.inside.push(await force(18), cards());
+            await M.setRoomBroken(scene, B, false);
+            await cross();
+            read.insideEntered = [cards(), noteKeys().length];
+          });
+        } finally {
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            await M.setRoomBroken(scene, B, false);
+            for (const key of noteKeys()) await S.bedroomNoteStore.drop(key);
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            // Every card this test made: the doors', the breach's to the rooms and the GMs, the notes.
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ away: ["done", [], "done", [], true, [], true, []], entered: [["warned", "yourDoor", "breached", "mended"]],
+            again: [[], 0], beside: ["done", [["picking"]]], besideEntered: [], inside: ["done", [["warned"]], "done", [["forcedBy"]]], insideEntered: [[], 0] }),
+            "{away: [answer, the owner's cards] for a careless pick, a forced door, a breach, a repair, the owner in a room apart; entered: the cards on walking into the bedroom, each by its sentences in order; again: [a second crossing's, notes left]; beside: a pick with the owner in the picker's room; besideEntered; inside: a covered careless pick and a forced door with the owner in the bedroom; insideEntered: [cards, notes left]} - a bedroom's owner told on walking in");
+    }],
+    ["A113-C5-1b - a bedroom's note is told on every road that stands its owner back in the bedroom: with crossing rooms free, a settled crossing tells it once, and the paid crossing's hook after it tells nothing more; a GM's placement tells it too (doors-gm.mjs `noteBedroom`, `tellBedroomNotes`; arrival-notices.mjs; traps.mjs `onCrossed`; the E74 plan's DA30 \"also in an Eclipse, from crossingSettled\", the owner's rule #1 of 13.11.2026)", async () => {
+        /*
+         * b70b3b23 (pv-doors) holds a bedroom's note in the GMs' store and tells it from traps.mjs `onCrossed` alone - the
+         * paid crossing's hook, which never fires with crossing rooms free, in an Eclipse or for a GM's placement. The
+         * coordinator's follow-up of 14.11.2026 joins it to the stash notice's arrival roads (A113-C4-3). With "Crossing
+         * rooms costs a Move" off and the owner in a room apart: a note held (a repair, `noteBedroom`); the owner's settled
+         * crossing into the bedroom, raised as crossing-settle.mjs raises it; the paid crossing's hook for the same entry;
+         * a second note and a GM's placement of the owner into the bedroom; out and in again. Read: the cards the owner's
+         * player was sent after each, and the notes left. Red at 42aa321b: the settled crossing and the placement told nothing.
+         */
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { esc, isPrimaryGm } = await import("./utils.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
+        needs(world.atLeast("namedRooms", 2), "a bedroom and a room apart");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const scene = canvas.scene;
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owner = game.actors.find(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a)
+            && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        must(owner, "no living student of a player with a token on the scene on screen - this would measure nothing");
+        const token = scene.tokens.find(t => t.actorId === owner.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 2, `the scene on screen has ${rooms.length} rooms - too few for a bedroom and a room apart`);
+        const [B, far] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y };
+        const feesWere = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const flagsWere = roomRegions(scene, B).map(piece => [piece, piece.getFlag(MODULE_ID, ROOM_OWNER_FLAG) ?? null]);
+        const text = esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room: B }));
+        const noteKeys = () => Object.keys(S.bedroomNoteStore?.entries?.() ?? {}).filter(k => k.startsWith(`${owner.id}:`));
+        const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
+        const read = [];
+        try {
+            await wordsSent(async packets => {
+                const cards = () => packets.filter(w => w.to.some(id => readers(owner).includes(id)) && w.html.includes(text)).length;
+                await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+                for (const [piece] of flagsWere) await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+                await token.update(M.positionIn(far, token), PLACE);
+                await wait();
+                read.push(["held", await D.noteBedroom({ scene, room: B, kind: "mended" }), cards()]);
+                Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: far, to: B, via: null, eclipse: null, sceneId: scene.id });
+                await wait();
+                read.push(["settled", cards(), noteKeys().length]);
+                Hooks.callAll("drpgRoomCrossed", { actor: owner, from: far, to: B, tokenDoc: token });
+                await wait();
+                read.push(["paid after", cards()]);
+                await D.noteBedroom({ scene, room: B, kind: "mended" });
+                await token.update(M.positionIn(B, token), PLACE);
+                await wait();
+                read.push(["placed", cards(), noteKeys().length]);
+                await token.update(M.positionIn(far, token), PLACE);
+                await wait();
+                await token.update(M.positionIn(B, token), PLACE);
+                await wait();
+                read.push(["placed again", cards()]);
+            });
+        } finally {
+            for (const key of noteKeys()) await S.bedroomNoteStore.drop(key);
+            for (const [piece, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, ROOM_OWNER_FLAG);
+                else await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, value);
+            }
+            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, feesWere);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["held", "held", 0], ["settled", 1, 0], ["paid after", 1], ["placed", 2, 0], ["placed again", 2]]),
+            "a bedroom's note was not told on a settled crossing or a GM's placement, told twice for one entry, or left in the store "
+            + "([the note: noteBedroom's answer, cards], [after the settled crossing: cards, notes left], [after the paid crossing's hook], "
+            + "[after a second note and a GM's placement: cards, notes left], [after out and in again])");
+    }],
+    ["A113-C4-3 - a stash's owner is told on every road that stands them in its room: a settled crossing (crossing rooms free, an Eclipse) and a GM's placement tell them as a paid crossing does, and once (traps.mjs `onCrossed`, arrival-notices.mjs, stash-reach.mjs `tellStashDisturbed`; 1.2.112's notice, the owner's decision of 13.11.2026)", async () => {
+        /*
+         * The audit of 1.2.113 (A113-C4-3): the notice fired only from `drpgRoomCrossed`, raised at the end of a paid
+         * crossing - never with crossing fees off, never in an Eclipse (both return before it), never on a GM's placement.
+         * The settled crossing (crossing-settle.mjs `CROSSING_SETTLED`, raised on the primary for every lawful crossing of a
+         * player the GMs record, an Eclipse's and a free one's too) and a GM's own move of the token (movement.mjs
+         * `noteGmPosition`) now tell it as well, and a notice told on one road is not told again on another. Two students
+         * alone together reach into a third's open stash while its owner is elsewhere; read the owner's notices after the
+         * settled crossing into the room (raised as crossing-settle.mjs raises it), after the paid crossing's hook that
+         * follows it, after a reach and a GM's placement of the owner into the room, and after a second placement. Red at
+         * ceb9e9c8: no notice from the settled crossing nor from the placement.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two thieves and the owner stand by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the thieves");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { positionIn, roomOfToken, allRooms } = await import("./movement.mjs");
+        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const [owner, first, second] = cast(4).filter(onScreen);
+        must(owner && first && second, "three students on the scene on screen - this would measure nothing");
+        const together = await aloneTogether(first, second);
+        const room = together.room;
+        const region = V.regionsByName(canvas.scene).get(room);
+        const ownerToken = canvas.scene.tokens.find(t => t.actorId === owner.id);
+        const ownerWas = { x: ownerToken.x, y: ownerToken.y };
+        const elsewhere = allRooms(canvas.scene).find(r => r !== room);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const NAME = "SUITE A113-C4-3";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const notices = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+        const backs = [];
+        const read = [];
+        const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
+        try {
+            must(region && elsewhere, `${room} has no region to hold a stash, or the scene no other room`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            const things = [];
+            for (const n of [1, 2, 3]) {
+                things.push(await INV.grantItem(owner, { name: `${NAME} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } }));
+            }
+            await ownerToken.update(positionIn(elsewhere, ownerToken), PLACE);
+            await wait();
+            must(roomOfToken(canvas.scene.tokens.get(ownerToken.id)) !== room, "the owner could not be stood outside the room - this would measure nothing");
+            for (const thief of [first, second]) backs.push(await handFreeFor(thief, "usable"));
+            await forgetRifles(first);
+            await forgetRifles(second);
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[0].id });
+            await settle();
+            read.push(["away", notices()]);
+            Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: elsewhere, to: room, via: null, eclipse: null, sceneId: canvas.scene.id });
+            await wait();
+            read.push(["settled", notices()]);
+            Hooks.callAll("drpgRoomCrossed", { actor: owner, from: elsewhere, to: room, tokenDoc: ownerToken });
+            await wait();
+            read.push(["paid after", notices()]);
+            await V.stealFromVault({ thiefId: second.id, ownerId: owner.id, itemId: things[1].id });
+            await settle();
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await wait();
+            read.push(["placed", notices()]);
+            await ownerToken.update(positionIn(elsewhere, ownerToken), PLACE);
+            await wait();
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await wait();
+            read.push(["placed again", notices()]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            for (const back of backs.reverse()) await back();
+            await forgetRifles(first);
+            await forgetRifles(second);
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            await together.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["away", 0], ["settled", 1], ["paid after", 1], ["placed", 2], ["placed again", 2]]),
+            "the owner was not told on a settled crossing or a GM's placement into the room, or told twice for one reach "
+            + "([after the reach: notices], [after the settled crossing], [after the paid crossing's hook that follows it], "
+            + "[after a second reach and a GM's placement into the room], [after a second placement])");
+    }],
+    ["A113-C6-4 - the GMs read whether a stash's owner watched a reach or is still to be told, and which reaches a notice settles; the players read no more (stash-reach.mjs `stealFromVault`, `tellStashDisturbed`; the audit of 1.2.113, A113-C6-4)", async () => {
+        /*
+         * The audit of 1.2.113 (A113-C6-4): a reach that leaves a notice pending and one made before its owner's eyes wrote
+         * the GMs the same card, and the notice landed with nothing to say which reaches it settled. Now a GMs-only card
+         * (`data-drpg-stash-gm`) says, at the reach, "pending" (the owner will be told on walking in) or "watched", and at
+         * the landing "told" naming the reachers. A reach away, then the owner's crossing in, then a reach before the
+         * owner's eyes: each GMs-only card's kind, whether it went to the GMs alone, and whether it names the thief. Red at
+         * ceb9e9c8: no such card.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two thieves and the owner stand by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the thieves");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const [owner, first, second] = cast(4).filter(onScreen);
+        must(owner && first && second, "three students on the scene on screen - this would measure nothing");
+        const together = await aloneTogether(first, second);
+        const room = together.room;
+        const region = V.regionsByName(canvas.scene).get(room);
+        const ownerToken = canvas.scene.tokens.find(t => t.actorId === owner.id);
+        const ownerWas = { x: ownerToken.x, y: ownerToken.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const NAME = "SUITE A113-C6-4";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const gmIds = new Set(game.users.filter(u => u.isGM).map(u => u.id));
+        const { contentOf } = await import("./secret.mjs");
+        const gmCards = () => made.map(id => game.messages.get(id)).filter(Boolean).map(m => {
+            const words = contentOf(m);
+            const kind = /data-drpg-stash-gm="([a-z]+)"/.exec(words)?.[1] ?? null;
+            return kind ? [kind, (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => gmIds.has(id)), words.includes(foundry.utils.escapeHTML(first.name))] : null;
+        }).filter(Boolean);
+        const backs = [];
+        const read = {};
+        try {
+            must(region, `${room} has no region to hold a stash`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            const things = [];
+            for (const n of [1, 2]) {
+                things.push(await INV.grantItem(owner, { name: `${NAME} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } }));
+            }
+            await settle();
+            backs.push(await handFreeFor(first, "usable"));
+            await forgetRifles(first);
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[0].id });
+            await settle();
+            read.away = gmCards();
+            Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: room, tokenDoc: ownerToken });
+            await settle();
+            await until(() => false, 400);
+            await settle();
+            read.told = gmCards().slice(read.away.length);
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await settle();
+            await until(() => false, 400);
+            await forgetRifles(first);
+            const was = gmCards().length;
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[1].id });
+            await settle();
+            read.watched = gmCards().slice(was);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            for (const back of backs.reverse()) await back();
+            await forgetRifles(first);
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            await together.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ away: [["pending", true, true]], told: [["told", true, true]], watched: [["watched", true, true]] }),
+            "{away, told, watched: the GMs-only cards [kind, to the GMs alone, names the thief] after a reach while the owner was away, "
+            + "after the owner's crossing in, after a reach before the owner's eyes} - the GMs cannot tell a pending notice from a watched reach");
+    }],
+    ["A113-C5-4 - the school's mood counts a Monocub's purse as its Hope: Hope in the purse moves the Monocubs' side as the same Hope on the sheet does (sequence.mjs `moodInputs`, monocub.mjs `cubHopeTotal`; the owner's rule of 12.11.2026; the audit of 1.2.113, A113-C5-4)", async () => {
+        /*
+         * The owner, 12.11.2026 (docs/dev/e94/STATUS.md): the mood from "cale hope uczniow vs hope monocubow + despair
+         * monokumow + despair overflow"; E72 made a Monocub's Hope its sheet's and its purse's (`cubHopeTotal`). A student
+         * made a Monocub with 0 Hope on the sheet and an empty purse, then 3 in the purse, then 3 on the sheet and none in
+         * the purse: the Monocubs' Hope `moodInputs` reads in each, less the first. Red at ceb9e9c8: the purse not counted.
+         */
+        const [cub] = cast(1);
+        const S = await import("./sequence.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = [];
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await cubStore.patch(cub.id, { purse: 0 });
+            await settle();
+            const base = (await S.moodInputs()).monocubHope;
+            await cubStore.patch(cub.id, { purse: 3 });
+            await settle();
+            read.push((await S.moodInputs()).monocubHope - base);
+            await cubStore.patch(cub.id, { purse: 0 });
+            await trustedWrite(cub, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            await settle();
+            read.push((await S.moodInputs()).monocubHope - base);
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": was }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            if (rowWas) await cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([3, 3]), "[the Monocubs' Hope the mood reads with 3 in the purse, with 3 on the sheet, each less the empty Monocub's] - the purse is left out of the mood");
+    }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*
          * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the
@@ -95613,6 +100571,228 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             self: "cannotNow", theirs: "notYours", noRoll: "rollUnknown", card: [1, 1, true], lost: [0, 2, null],
             dashBelow: [0, true], dashAbove: [1, null], critTail: [0, 1, null] }),
             "{unseen, seen: [answer, the tail kept, cards to the target so far]; self; theirs; noRoll; card: [cards, cards to the tailer so far, the tail kept]; lost: [cards, cards to the tailer so far (the move, the end), the tail]; dashBelow, dashAbove: [tails lost, kept]; critTail: [an ordinary Dash, a critical Dash, kept]} - a tail on the GMs' record of its rolls");
+    }],
+    ["E69-T5 - Listen's eavesdrop begins on the GMs' record of a good Listen roll, blocks the listener's microphone by the trial's own write, is free to repeat on the same room for the rest of the time of day, and ends on Stop listening (scripts/eavesdrop-gm.mjs, bridge-runs-acts.mjs `handleEavesdrop`, `handleEavesdropStop`, bridge-table.mjs `listen.eavesdrop`, `listen.stop`, voice.mjs `settleTrialVoices`; E69 C6, the owner's 10.11 (a), (c)): a roll at 15 on a neighbouring room is answered and moves the voice only where voice can move; at 5 it is refused; a room not next to the character's is refused; another player's character notYours; the same roll twice rollUsed; with voice that can move the row is kept, the account blocked and given back after the grace; a packet naming no roll is a free repeat on that room and refused on another; Stop listening ends a row that stands and is refused on none", async () => {
+        /*
+         * E69 C6, 13.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the character's
+         * with the GMs' record of it (`recordFor`). The row with voice that moves is begun on the GM itself with the suite's
+         * `voice` (the harness's avclient-livekit is a shim no setting turns on for this world). Put back: the records, the
+         * messages, the row, the block (`settleTrialVoices` after the grace), the GMs' whispers. Red at ceb9e9c8: no
+         * `listen.eavesdrop` in the table, no eavesdrop-gm.mjs.
+         */
+        needs(env.primaryGm(), "the eavesdrop is judged and its block written on the primary GM");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const V = await import("./voice.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const E = await import("./eavesdrop-gm.mjs");
+        const { avclientActive } = await import("./voice-client.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const line = await roomsInLine(where.scene);
+        const next = M.neighbouringRooms(where.scene, where.room);
+        if (!next.length) await line.putBack();
+        must(next.length, `${where.room} has no neighbouring room - this would measure nothing`);
+        const far = M.allRooms(where.scene).find(r => r !== where.room && !next.includes(r)) ?? "R6020 No Such Room";
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER"));
+        must(other, "no character the player does not own - this would measure nothing");
+        const moves = Boolean(avclientActive() && game.settings.get(MODULE_ID, "voiceEnabled") === true);
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const permsWere = player._source?.permissions ? { ...player._source.permissions } : {};
+        const made = [], told = [];
+        const ask = async (action, packet) => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `E69T5${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? "done";
+        };
+        const rollOf = async (total, key = "listen") => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const blocked = () => (game.users.get(player.id)?._source?.permissions ?? {}).BROADCAST_AUDIO === false;
+        const read = {};
+        await S.eavesdropStore.whenHydrated();
+        const rowWas = S.eavesdropStore.get(actor.id) ?? null;
+        try {
+            if (rowWas) await S.eavesdropStore.drop(actor.id);
+            const good = await rollOf(15);
+            const first = await ask("listen.eavesdrop", { room: next[0], rollId: good });
+            read.good = [first?.moved === moves, Boolean(S.eavesdropStore.get(actor.id)?.active) === moves];
+            read.again = await ask("listen.eavesdrop", { room: next[0], rollId: good });
+            read.miss = await ask("listen.eavesdrop", { room: next[0], rollId: await rollOf(5) });
+            read.far = await ask("listen.eavesdrop", { room: far, rollId: await rollOf(15) });
+            read.theirs = await ask("listen.eavesdrop", { actorId: other.id, room: next[0], rollId: await rollOf(15) });
+            if (S.eavesdropStore.get(actor.id)) await S.eavesdropStore.drop(actor.id);
+            read.freeNone = await ask("listen.eavesdrop", { room: next[0] });
+            // Voice that moves, on the GM itself.
+            const begun = await E.startEavesdrop({ actor, into: next[0], userId: player.id, rolled: true, voice: async () => true });
+            await settle();
+            const row = S.eavesdropStore.get(actor.id);
+            read.begun = [begun, Boolean(row?.active), row?.from === where.room, row?.into === next[0], E.eavesdropMutedIds().has(player.id), blocked()];
+            read.stop = await ask("listen.stop", {});
+            read.stopped = [S.eavesdropStore.get(actor.id)?.active ?? null, E.eavesdropMutedIds().has(player.id)];
+            await S.eavesdropStore.patch(actor.id, { endedAt: Date.now() - E.EAVESDROP_GRACE_MS - 1 });
+            await V.settleTrialVoices();
+            await settle();
+            read.givenBack = [E.eavesdropMutedIds().has(player.id), blocked()];
+            read.stopNone = await ask("listen.stop", {});
+            const free = await ask("listen.eavesdrop", { room: next[0] });
+            read.free = [free?.free ?? free, free?.moved === moves];
+            read.freeOther = next[1] ? await ask("listen.eavesdrop", { room: next[1] }) : "refused";
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (S.eavesdropStore.get(actor.id)) await S.eavesdropStore.drop(actor.id);
+            if (rowWas) await S.eavesdropStore.patch(actor.id, rowWas);
+            await V.settleTrialVoices();
+            if (blocked() && permsWere.BROADCAST_AUDIO !== false) {
+                const gone = (await import("./utils.mjs")).forcedDeletion();
+                await game.users.get(player.id).update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : gone });
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length)) await m.delete();
+            await line.putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ good: [true, true], again: "rollUsed", miss: "refused", far: "refused", theirs: "notYours", freeNone: "refused",
+            begun: [{ moved: true, free: false }, true, true, true, true, true], stop: "done", stopped: [false, true], givenBack: [false, false],
+            stopNone: "refused", free: [true, true], freeOther: "refused" }),
+            "{good: [moved as voice can, row as voice can]; again; miss; far; theirs; freeNone; begun: [answer, active, from, into, muted, blocked]; stop; stopped: [active, muted in the grace]; givenBack: [muted, blocked]; stopNone; free: [free, moved as voice can]; freeOther} - the eavesdrop on the GMs' record");
+    }],
+    ["E69-T6 - Echoes names the nearest room by crossings holding a living student of another player, read on the GM (scripts/echoes-gm.mjs `echoesFor`, bridge-runs-acts.mjs `handleEchoes`, bridge-table.mjs `listen.echoes`; E69 C7, the owner's 10.11 (b)): a player's Echoes is answered with a room no other room that holds one is nearer than, which holds one, and never the asker's own; with every other student's token hidden it answers none; another player's character notYours", async () => {
+        /*
+         * E69 C7, 13.11.2026. Judged as the primary judges the player's packet; the distances read here from the harness scene's
+         * doors (`neighbouringRooms`; it draws no stairs and no tunnel). Hidden tokens are put back. Red at ceb9e9c8: no
+         * `listen.echoes` in the table.
+         */
+        needs(env.primaryGm(), "Echoes is read on the primary GM");
+        needs(world.atLeast("namedRooms", 2), "a room to stand in and a room to find");
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER"));
+        must(other, "no character the player does not own - this would measure nothing");
+        const told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "listen.echoes", requestId: `E69T6${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null;
+        };
+        const scene = where.scene;
+        const line = await roomsInLine(scene);
+        const owners = a => game.users.filter(u => !u.isGM && a.testUserPermission(u, "OWNER")).map(u => u.id);
+        const mine = owners(actor);
+        const counted = scene.tokens.filter(t => t.actor && t.actor.id !== actor.id && t.actor.type === "character" && !t.hidden && !isDeadForGm(t.actor)
+            && !t.actor.getFlag(MODULE_ID, FLAGS.monokuma) && !t.actor.getFlag(MODULE_ID, FLAGS.monocub) && !t.actor.getFlag(MODULE_ID, FLAGS.spectator)
+            && owners(t.actor).some(id => !mine.includes(id)));
+        const occupied = new Set(counted.map(t => M.roomOfToken(t)).filter(r => r && r !== where.room));
+        if (!occupied.size) await line.putBack();
+        must(occupied.size, "no other player's living student stands in another room - this would measure nothing");
+        const dist = new Map([[where.room, 0]]);
+        for (let ring = [where.room], d = 1; ring.length; d++) {
+            const nextRing = [];
+            for (const r of ring) for (const n of M.neighbouringRooms(scene, r)) if (!dist.has(n)) { dist.set(n, d); nextRing.push(n); }
+            ring = nextRing;
+        }
+        const nearest = Math.min(...[...occupied].map(r => dist.get(r) ?? Infinity));
+        const hiddenWere = [];
+        const read = {};
+        try {
+            const found = await ask({});
+            read.found = [occupied.has(found?.room), found?.room !== where.room, dist.get(found?.room) === nearest, found?.steps === nearest];
+            read.theirs = await ask({ actorId: other.id });
+            for (const t of scene.tokens.filter(t => t.actor && t.actor.id !== actor.id && !t.hidden)) {
+                hiddenWere.push(t);
+                await t.update({ hidden: true });
+            }
+            await settle();
+            read.none = await ask({});
+        } finally {
+            for (const t of hiddenWere) await t.update({ hidden: false });
+            await line.putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ found: [true, true, true, true], theirs: "notYours", none: { room: null, steps: 0 } }),
+            "{found: [a room that holds one, not the asker's, none nearer, its crossings]; theirs; none: every other token hidden} - Echoes on the GM");
+    }],
+    ["E69-T7 - a killer behind a \"?\" on the GMs' record: the tokens masked and given back exactly, the victim's copy of the cast holds no killer, the killer's microphone blocked and given back, the reveal the killer's own road, the time of day its end (scripts/mask-gm.mjs, incident-store.mjs `castFor`, voice.mjs `settleTrialVoices`, bridge-table.mjs `mask.reveal`; E69 C8, the owner's 10.11 (c)): `maskKiller` writes \"?\" on the killer's tokens with the flag and keeps their look in the GMs' store; the victim's copy holds `killerId` null and the killer's its own; the killer's player is blocked; another player's reveal is notYours, the killer's ends it - every token's look as it was, no flag, the block lifted - and a second is refused; a new time of day ends a mask", async () => {
+        /*
+         * E69 C8, 13.11.2026. The incident's state handed in as a fixture (`castFor`'s `state`), nothing of a real incident
+         * opened. Put back: the store, the tokens' looks, the block. Red at f7e1721d: no mask-gm.mjs, no `mask.reveal`.
+         */
+        needs(env.primaryGm(), "the mask is written on the primary GM");
+        needs(world.atLeast("playerAccounts", 2), "the killer's player and the victim's are two players");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const K = await import("./mask-gm.mjs");
+        const I = await import("./incident-store.mjs");
+        const V = await import("./voice.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const owners = a => game.users.filter(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const killer = game.actors.find(a => a.type === "character" && owners(a).length && game.scenes.some(s => s.tokens.some(t => t.actorId === a.id)));
+        must(killer, "no player's character with a token - this would measure nothing");
+        const kp = owners(killer)[0];
+        const victim = game.actors.find(a => a.type === "character" && a.id !== killer.id && owners(a).length && !owners(a).some(u => u.id === kp.id));
+        must(victim, "no character of another player - this would measure nothing");
+        const vp = owners(victim)[0];
+        const tokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.actorId === killer.id));
+        const looks = () => tokens().map(t => [K.lookOf(t), K.isMaskedToken(t)]);
+        const before = looks();
+        const permsWere = kp._source?.permissions ? { ...kp._source.permissions } : {};
+        const blocked = () => (game.users.get(kp.id)?._source?.permissions ?? {}).BROADCAST_AUDIO === false;
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const told = [];
+        const ask = async (sender, packet) => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "mask.reveal", requestId: `E69T7${foundry.utils.randomID(8)}`, ...packet },
+                sender.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : "done";
+        };
+        const state = { active: true, stage: "incident", killerId: killer.id, victimId: victim.id, indirect: false };
+        const cast = { killerId: killer.id, victimId: victim.id, killerTurnId: killer.id, indirect: false };
+        const read = {};
+        await S.maskStore.whenHydrated();
+        try {
+            read.masked = await K.maskKiller(state);
+            await settle();
+            read.tokens = tokens().map(t => [t.name, t.texture.src, K.isMaskedToken(t)]);
+            read.kept = JSON.stringify((S.maskStore.get(killer.id)?.tokens ?? []).map(r => r.look)) === JSON.stringify(before.map(([look]) => look));
+            read.copies = [I.castFor(vp.id, cast, state)?.killerId ?? null, I.castFor(kp.id, cast, state)?.killerId ?? null];
+            read.block = [K.maskMutedIds().has(kp.id), blocked()];
+            read.theirs = await ask(vp, { actorId: killer.id });
+            read.reveal = await ask(kp, { actorId: killer.id });
+            read.back = [JSON.stringify(looks()) === JSON.stringify(before), S.maskStore.get(killer.id) ?? null, K.maskMutedIds().has(kp.id), blocked(),
+                I.castFor(vp.id, cast, state)?.killerId === killer.id];
+            read.again = await ask(kp, { actorId: killer.id });
+            await K.maskKiller(state);
+            await settle();
+            read.timeOfDay = [await K.masksAtNewTimeOfDay(), JSON.stringify(looks()) === JSON.stringify(before), S.maskStore.get(killer.id) ?? null];
+        } finally {
+            if (S.maskStore.get(killer.id)) await K.endMask(killer.id, "suite");
+            await V.settleTrialVoices();
+            if (blocked() && permsWere.BROADCAST_AUDIO !== false) {
+                const gone = (await import("./utils.mjs")).forcedDeletion();
+                await game.users.get(kp.id).update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : gone });
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ masked: true, tokens: tokens().map(() => ["?", "icons/svg/mystery-man.svg", true]), kept: true,
+            copies: [null, killer.id], block: [true, true], theirs: "notYours", reveal: "done", back: [true, null, false, false, true],
+            again: "refused", timeOfDay: [1, true, null] }),
+            "{masked; tokens [name, picture, flag]; kept: the looks in the GMs' store; copies [victim's killerId, killer's]; block [muted, blocked]; theirs; reveal; back [looks as before, row, muted, blocked, victim's copy names the killer]; again; timeOfDay [ended, looks, row]} - the mask");
     }],
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*

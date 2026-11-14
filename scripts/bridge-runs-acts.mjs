@@ -6,7 +6,7 @@
  * the Level Up and its offers (`sendOffersTo`), a Truth Bullet or an item
  * handed over, the passages, the stashes, Plant, Steal, Frisk and Palm with
  * the rolls they are scored on (`friskRolls`, `palmRolls`, `friskForceRoll`,
- * `findPassageRoll`, `searchTheftOf` ...), the opening roll's result, the
+ * `findPassageRoll` ...), the opening roll's result, the
  * crisis, the park, the betrayal, the clean-up, a Monocub's ability, and the
  * rulings asked by card (a Call, a Dynamic action's difficulty and answer, a
  * trait ruling, a ruling received or expired).
@@ -275,6 +275,54 @@ export async function handleTailStart(payload, sender) {
     if (out.refused) return { refused: out.refused };
     await factsForReroll(payload.rollId, sender, tailer.id, "tail", { tailTargetId: target.id });
     return { reply: { seen: out.seen } };
+}
+
+/**
+ * LISTEN'S EAVESDROP (E69 C6, 13.11.2026; eavesdrop-gm.mjs). With a roll: the GMs' record of the sender's Listen roll
+ * (the runner's `onRecord`) must reach Listen's lowest band or be a critical. Without one: a free repeat, which
+ * `startEavesdrop` grants only on a row of this time of day on that room. Answers `{ reply: { moved, free } }`.
+ */
+export async function handleEavesdrop(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const rolled = typeof payload.rollId === "string" && payload.rollId.length > 0;
+    if (rolled) {
+        const { ACTIONS } = await import("./config.mjs");
+        const lowest = Math.min(...(ACTIONS.listen.thresholds ?? []).map(t => t.min));
+        if (!payload.isCritical && !((Number(payload.total) || 0) >= lowest)) return { refused: "nothing was carried out: that Listen roll heard nothing" };
+    }
+    const { startEavesdrop } = await import("./eavesdrop-gm.mjs");
+    const out = await startEavesdrop({ actor, into: payload.room, userId: sender?.id ?? null, rolled });
+    if (out.refused) return { refused: out.refused };
+    return { reply: { moved: out.moved, free: out.free } };
+}
+
+/** Stop listening (E69 C6): the sender's character's eavesdrop ended, if one stands. */
+export async function handleEavesdropStop(payload) {
+    const { endEavesdrop } = await import("./eavesdrop-gm.mjs");
+    if (!(await endEavesdrop(payload.actorId ?? "", "stop"))) return { refused: "nothing was carried out: no eavesdrop stands" };
+    return {};
+}
+
+/** A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
+export async function handleMaskReveal(payload) {
+    const { revealMask } = await import("./mask-gm.mjs");
+    const out = await revealMask(payload.actorId ?? "");
+    if (out.refused) return { refused: out.refused };
+    return {};
+}
+
+/**
+ * ECHOES (E69 C7, 13.11.2026; echoes-gm.mjs). The nearest room by crossings with a living student of another player, read
+ * on this GM. Answers `{ reply: { room, steps } }`, `room` null when there is none.
+ */
+export async function handleEchoes(payload) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { echoesFor } = await import("./echoes-gm.mjs");
+    const out = await echoesFor(actor);
+    if (out.refused) return { refused: out.refused };
+    return { reply: { room: out.room, steps: out.steps } };
 }
 
     // Analyze is scored here for the same reason as Observe: the difficulty is
@@ -572,13 +620,14 @@ export function notFindPassageRoll(record) {
  * one against whether anybody watched (`stealFromPerson`, `plantOnPerson`). The packet names both
  * rolls now: the hand's (`rollId`, thrown as "steal" for a Steal and a Plant alike, as it always
  * was) and the unseen one (`unseenRollId`, thrown as "palm" since C15, palm.mjs
- * `performPalm`), whose result goes in `unseenTotal` and `unseenCritical`.
+ * `performPalm`), whose result goes in `unseenTotal` and `unseenCritical`, and since privacy line 2 (#7) its Hope in
+ * `unseenWithHope`: a missed Shadow roll with Despair names the item to the room (palm.mjs `stealFromPerson`).
  * One hand's roll settles one Steal or one Plant.
  */
 export function palmRolls(actor) {
     return [
         { field: "rollId", actor, kind: "steal" },
-        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical", withHope: "unseenWithHope" } }
     ];
 }
 
@@ -600,7 +649,8 @@ export async function handlePlant(payload, sender, ctx) {
         total: payload.total,
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
-        unseenCritical: payload.unseenCritical
+        unseenCritical: payload.unseenCritical,
+        unseenWithHope: payload.unseenWithHope
     }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }
@@ -642,7 +692,8 @@ export async function handleSteal(payload, sender, ctx) {
         total: payload.total,
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
-        unseenCritical: payload.unseenCritical
+        unseenCritical: payload.unseenCritical,
+        unseenWithHope: payload.unseenWithHope
     }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }
@@ -711,46 +762,10 @@ export async function friskForceRoll(record, payload) {
     // which the thief has no business writing to.
 export async function handleVaultSteal(payload, sender, ctx) {
     const { stealFromVault } = await import("./vault.mjs");
-    const out = await stealFromVault({
-        thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
-        // Set only by the Search action, which pays for the concealment it is
-        // beating. See the note in `stealFromVault`. Since E08+E28 C15 a packet
-        // that says so names the Search's roll, and this is the GMs' record of it
-        // (`searchTheftOf`).
-        viaSearch: payload.viaSearch,
-        // Whether the Search fumbled it, read off the same record: the sender's
-        // word until C15, which a client could only ever bend one way - a steady
-        // hand, and the victim not told. On a GM whose Daggerheart is not the build
-        // the draw was written for nobody keeps a record, and it is the sender's
-        // word again (bridge-guards.mjs, "TWO PACKETS PASS WITH NO RECORD").
-        clumsy: payload.clumsy
-    });
+    const out = await stealFromVault({ thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId });
     if (out?.refused) return { refused: out.refused };
-    // Whether the thing moved (E16 fix e1-G2): a Search leaves its trace only on `taken` (action-search.mjs `searchStash`).
+    // Whether the thing moved (E16 fix e1-G2).
     return { reply: { taken: Boolean(out) } };
-}
-
-/*
- * WHAT A SEARCH EARNED AT A STASH, ON THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06).
- * `viaSearch` and `clumsy` were the sender's word: that a Search had paid for a concealed stash,
- * and that its hand was steady. A packet that says `viaSearch` now names the Search's roll, and
- * both are read off the GMs' record of it: the Search found the stash when its total, with the
- * hidden stash's step the GM drew with the dice (`used.stash`, roll-draw.mjs `drawOnGm`), reaches
- * a tier of the Search's table, or the roll is a critical - action-search.mjs `searchTier`, as
- * `performSearch` reads it before it opens the stash (`searchStash`); it fumbled on Despair with no
- * critical, as `searchStash` says. A packet that does not say `viaSearch` asks no roll: it is the
- * drawer's free route, which `stealFromVault` holds to a stash that is not concealed or was found,
- * and its `clumsy` can only tell the stash's owner on the sender.
- */
-export async function searchTheftOf(record) {
-    const { searchTier } = await import("./action-rolls.mjs");
-    const { sheetMarkStore } = await import("./gm-stores.mjs");
-    const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
-    if (!hit && !record.isCritical) return { why: "that roll did not find the stash" };
-    // A Search ends in a find or in a stash's loot, never both (`performSearch`): a record a find
-    // already stood on (sheet-audit.mjs `searchFind`, the mark's `finds`) takes no theft (E29 fix r1-G8).
-    if (sheetMarkStore.get(record.actorId)?.finds?.[record.rollId]) return { why: "that roll has already settled that action" };
-    return { fields: { viaSearch: true, clumsy: Boolean(record.withFear) && !record.isCritical } };
 }
 
     // Stage 4 thrown on the participant's own client. Same guard as a crisis

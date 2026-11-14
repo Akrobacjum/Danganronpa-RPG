@@ -86,7 +86,7 @@ export function speakerRecord({ clock = Date, trial = inTrial, source = null } =
 const live = speakerRecord({ source: liveKitClient });
 
 /** Empty the record: nobody now, nobody last. */
-export function resetSpeakers(record = live) {
+function resetSpeakers(record = live) {
     record.heard = [];
     record.since.clear();
     record.done = [];
@@ -110,7 +110,7 @@ export function followPhase(record = live) {
  * Follow the record's own client's Room (`source`) when it is not the one followed: a new client, or a new Room
  * on the same client, that came with no hook. Answers whether it attached.
  */
-export function followClient(record = live) {
+function followClient(record = live) {
     if (typeof record.source !== "function") return false;
     const client = record.source() ?? null;
     if (record.client === client && record.room === (client?.liveKitRoom ?? null)) return false;

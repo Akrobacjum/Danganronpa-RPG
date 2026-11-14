@@ -136,7 +136,7 @@ export function stableJson(value) {
 }
 
 /** FNV-1a over a text, 32 bits as hex: a digest two GMs compare before sending a whole section. */
-export function fnv1a(text) {
+function fnv1a(text) {
     let h = 0x811c9dc5;
     for (let i = 0; i < text.length; i++) {
         h ^= text.charCodeAt(i);
@@ -549,7 +549,7 @@ export function fileSection(section, { now = Infinity, skew = 0, otherWorld = fa
 }
 
 /** How many rows an old store holds: a spec may say (a record is one row); else an array's length or an object's keys. */
-export function legacyRows(spec, legacy) {
+function legacyRows(spec, legacy) {
     if (spec?.legacyCount) return spec.legacyCount(legacy);
     if (Array.isArray(legacy)) return legacy.length;
     return isPlain(legacy) ? Object.keys(legacy).length : 0;
@@ -608,7 +608,7 @@ export function copyStamps(s) {
 }
 
 /** The newest of a copy's stamps, 0 for none. */
-export const newestStamp = stamps => Math.max(0, ...Object.values(stamps ?? {}));
+const newestStamp = stamps => Math.max(0, ...Object.values(stamps ?? {}));
 
 /**
  * Whether `next` is newer than `held`, part by part: at least as new in every part

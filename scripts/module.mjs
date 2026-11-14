@@ -24,11 +24,14 @@ import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerBodyMarks, registerBodyFollow } from "./body-tile.mjs";
-import { registerBodyAnnounced } from "./chapter.mjs";
+import { registerBodyAnnounced, registerPendingBodies } from "./chapter.mjs";
 import { registerTails } from "./tail-gm.mjs";
 import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
+import { registerEavesdrops } from "./eavesdrop-gm.mjs";
+import { registerMasks } from "./mask-gm.mjs";
+import { registerArrivalNotices } from "./arrival-notices.mjs";
 import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerCaseAsk } from "./case-realize.mjs";
 import { registerActionResource } from "./resources.mjs";
@@ -43,6 +46,8 @@ import { registerMovement } from "./movement.mjs";
 import { registerRoomPieces } from "./vault.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
+import { registerSeen } from "./projects-seen.mjs";
+import { registerRemnantGhosts } from "./remnant-ghosts.mjs";
 import { registerProjectChanges } from "./projects.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
@@ -225,6 +230,9 @@ Hooks.once("init", () => {
     safely("a piece renamed out of a room", registerRoomPieces);
     safely("the projects tray", registerProjectsUi);
     safely("projects on the map", registerProjectsMap);
+    // What each player last saw of a project and of an erased trace (PV, 13.11.2026; the owner's rules #2-#4).
+    safely("what a player saw last", registerSeen);
+    safely("the erased traces' ghosts", registerRemnantGhosts);
     // A completion a row keeps for a Reroll is let go when the GMs' bookmark of that roll changes (E36 C1).
     safely("the kept projects", registerProjectChanges);
     safely("inventory limits", registerInventoryLimits);
@@ -242,6 +250,7 @@ Hooks.once("init", () => {
     safely("the body with its corpse", registerBodyFollow);
     // The body's announcement, `drpgBodyAnnounced`, on every browser the stamp reaches (E95 C4; chapter.mjs).
     safely("the body's announcement", registerBodyAnnounced);
+    safely("the discoveries waiting for the GM's word", registerPendingBodies);
     // Tail Someone's cards and ends (E69 C4), on the primary GM: a settled crossing, a body announced, a new day.
     safely("the tails", registerTails);
     // Shut the Door's barricades come down (E74 C2), on the primary GM: the author leaving, a new time of day, an Eclipse.
@@ -249,6 +258,13 @@ Hooks.once("init", () => {
     // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
     safely("the watches", registerWatches);
     safely("the pick's passes", registerLockpicks);
+    // Listen's eavesdrop (E69 C6): the owner's copy, and on the primary GM every end of one.
+    safely("the eavesdrops", registerEavesdrops);
+    // The murder's privacy (E69 C8): the killer behind a "?", its end at a new time of day, the killer's question.
+    safely("the masks", registerMasks);
+    // The owner's notices on walking in - a stash gone through, a bedroom's note - on the primary GM, from a settled crossing
+    // (and from a GM's move of the token, movement.mjs `noteGmPosition`; the audit of 1.2.113, A113-C4-3).
+    safely("the notices on walking in", registerArrivalNotices);
     safely("the timed effects", registerTimedEffects);
     // E97 C11: the case's question at a body, on the primary GM, once a chapter
     safely("the case's question at a body", registerCaseAsk);
@@ -385,6 +401,9 @@ Hooks.once("ready", () => {
     // wraps again at ready) among them, so the rows read the load as it stands. Writes nothing to the world. The road
     // also hands rooms.mjs the call for a Levels throw met later in the load (E52 fix round, G-2).
     if (isPrimaryGm()) import("./patches.mjs").then(m => m.announceAtReady()).catch(err => error("Could not run the contract with Foundry and Daggerheart", err));
+    // The state's invariants (E40 C3; plan E40 item 2): read once at the primary GM's start, each problem a warning on
+    // this GM's console and nothing else - it writes nothing, tells nobody and stops nothing (state-check.mjs).
+    if (isPrimaryGm()) import("./state-check.mjs").then(m => m.checkState()).catch(err => error("Could not read the state's invariants", err));
     // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.
     announceRollDraw().catch(err =>
         error("Could not say that rolls are not drawn by the GM", err));
