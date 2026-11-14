@@ -401,8 +401,6 @@
        the end of this file raises the second one on a screen wider than 2:1. */
     --drpg-overlay-max: 1280px;
     --drpg-window-max: 1400px;
-
-    --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
     --drpg-panel-radius: 6px;
     /* `none` since the ground went opaque at the end of this file: a
        backdrop-filter behind something nothing shows through is a compositing
@@ -696,11 +694,6 @@ body {
     margin-bottom: 0 !important;
 }
 
-/* Match the label above each trait to the frame. */
-.character-header-sheet .character-traits .trait {
-    --dh-trait-color-border: var(--drpg-eye);
-}
-
 .character-header-sheet .character-traits .trait .trait-name {
     border-radius: 2px;
 }
@@ -755,7 +748,6 @@ body {
     max-width: none !important;
     margin-inline: auto;
     padding: 0.1rem 0.8rem;
-    overflow: visible !important;
 }
 
 /* "Sanity" is the longest caption on the sheet and kept losing its tail.
@@ -813,11 +805,6 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     display: none !important;
 }
 
-/* The Ultimate placeholder stays dimmed so it still reads as "not filled in". */
-.character-header-sheet .drpg-ultimate-value:empty::before {
-    color: var(--drpg-bone);
-    opacity: 0.45;
-}
 
 /* Keep the active tab distinguishable now that every tab is the same colour. */
 .character-header-sheet .tab-navigation nav.sheet-tabs a.active,
@@ -936,20 +923,17 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     width: max-content;
     max-width: min(46ch, 90vw);
     text-align: center;
-    border-radius: 6px;
     border: 1px solid light-dark(rgba(var(--drpg-shadow-rgb), 0.25), rgba(var(--drpg-bone-rgb), 0.18));
-    background: light-dark(rgba(var(--drpg-bone-rgb), 0.82), rgba(var(--drpg-deep-rgb), 0.72));
-    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
-       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns`
-       - has the same weight and comes later, and it reads
-       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
-       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
-    backdrop-filter: blur(3px);
-    box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35);
     color: var(--color-text-primary, inherit);
     text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.35);
-    font-family: var(--font-header, var(--font-primary));
     line-height: 1.25;
+    /* The Eclipse's own slow drain of the map keeps its long time; the phase edge
+       moves on the clock's own token. Both of these now actually run: `renderHud`
+       keeps the element instead of replacing it, which is what a transition needs.
+       (A rule of its own in the motion section until E55 S3.) */
+    transition: filter var(--drpg-t-eclipse) ease-in-out,
+                border-color var(--drpg-t-turn) var(--drpg-ease-arrive),
+                box-shadow var(--drpg-t-turn) var(--drpg-ease-arrive);
 }
 
 /* At the top of the left rail, at the size it has always been.
@@ -1177,16 +1161,7 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
     max-width: min(96vw, var(--drpg-overlay-max));
     margin: 2px auto 0;
     padding: 4px 12px;
-    border-radius: 6px;
     border: 1px solid var(--drpg-blood-deep);
-    background: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
-    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
-       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns`
-       - has the same weight and comes later, and it reads
-       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
-       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
-    backdrop-filter: blur(3px);
-    box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
 }
 
 #drpg-despair .drpg-despair-row {
@@ -1208,10 +1183,6 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
 }
 
 #drpg-despair .drpg-despair-name {
-    /* Always the Despair colour - never that account's own Foundry player
-       colour, which used to make two Monokumas read as two different UI
-       themes. */
-    color: var(--drpg-blood);
     font-size: var(--font-size-12, 0.75rem);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1364,10 +1335,7 @@ body.drpg-hide-system-fear #resource-fear {
 
 .character-header-sheet .drpg-actions-section {
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 2px;
     flex: 0 0 auto;
 }
 
@@ -1556,6 +1524,8 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
    turned off rolling, not editing, and left only the little label clickable.
    Editing is blocked where it belongs, in resource-guard.mjs. */
 .character-header-sheet .character-traits .trait {
+    /* the label above each trait matched to the frame (its own rule until E55 S3) */
+    --dh-trait-color-border: var(--drpg-eye);
     cursor: pointer;
 }
 
@@ -1599,7 +1569,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
     padding: 0.5rem;
     border: 1px solid var(--drpg-line);
     border-radius: 4px;
-    background: light-dark(rgba(var(--drpg-bone-rgb), 0.06), rgba(var(--drpg-bone-rgb), 0.09));
 }
 
 .drpg-action-panel h3 {
@@ -1687,7 +1656,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
 
 .drpg-action-button:hover:not(:disabled):not(.drpg-action-still) {
     background: none;
-    border-color: var(--drpg-eye);
     box-shadow: 0 0 6px var(--drpg-eye-glow);
 }
 
@@ -1701,11 +1669,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
 .drpg-action-button .drpg-action-name {
     color: var(--drpg-bone);
     font-size: calc(var(--drpg-text-sm) * var(--drpg-tile-text, 1));
-    /* `break-word`, not `anywhere`: a word breaks only when it has to, and the
-       soft hyphens `softWrap()` puts in the long ones decide where. `anywhere`
-       broke every label at whatever character the edge landed on - "Observ /
-       e", "Sabota / ge" - with no hyphen to say a break had happened. */
-    overflow-wrap: break-word;
 }
 
 .drpg-action-button .drpg-action-cost {
@@ -1714,7 +1677,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
        that shrank look like a different kind of tile rather than the same one
        set a little smaller. */
     font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1));
-    opacity: 0.6;
     white-space: nowrap;
 }
 
@@ -1793,14 +1755,8 @@ body.drpg-eclipse:not(.drpg-fog-active) #board {
    own it beat the phase rule on specificity and snapped - which is the second
    half of "the animation does not work during an Eclipse". */
 
-/* The Eclipse's own slow drain of the map keeps its long time; the phase edge
-   moves on the clock's own token. Both of these now actually run: `renderHud`
-   keeps the element instead of replacing it, which is what a transition needs. */
-#drpg-hud {
-    transition: filter var(--drpg-t-eclipse) ease-in-out,
-                border-color var(--drpg-t-turn) var(--drpg-ease-arrive),
-                box-shadow var(--drpg-t-turn) var(--drpg-ease-arrive);
-}
+/* The Eclipse's slow drain and the phase edge's turn are the clock's own rule's `transition`, further up (a rule of its
+   own here until E55 S3). */
 
 /* The Eclipse badge that used to be appended here is gone: the time row now
    renders the Eclipse's own name ("Night Eclipse") while one is running, so this
@@ -1907,7 +1863,6 @@ section[data-application-part="biography"] .experiences .value {
 }
 
 .drpg-inventory-group .drpg-group-count.full {
-    color: var(--drpg-crimson);
     opacity: 1;
 }
 
@@ -2493,8 +2448,6 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
    "Search" - so the label alone is scaled down and allowed to break mid-word.
    Everything else about the tile is the action template untouched. */
 body.drpg-theme-monokuma-legacy .drpg-call-button .drpg-action-name {
-    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
-    line-height: 1.05;
     letter-spacing: 0;
     overflow-wrap: break-word;
 }
@@ -2966,9 +2919,6 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-name {
     letter-spacing: 0;
 }
 
-body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
-    font-size: calc(var(--font-size-9, 0.56rem) * var(--drpg-tile-text, 1));
-}
 
 /* A wide face needs room to breathe rather than clipping mid-word. */
 body.drpg-pixel-font #drpg-hud {
@@ -3028,9 +2978,7 @@ body.drpg-theme-monokuma-legacy.drpg-pixel-font :where(.drpg-panel, .drpg-ui, .a
     flex: 0 0 auto;
     align-self: start;
     margin-top: 6px;
-    min-height: unset;
     height: min-content;
-    padding: 4px 8px;
     line-height: 1;
     background: none;
     border: 1px solid var(--color-border, currentColor);
@@ -3631,10 +3579,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    for anything wearing it. */
 .drpg-row-button {
     flex: 0 0 auto;
-    width: 22px;
-    height: 22px;
     padding: 0;
-    margin-left: 4px;
     line-height: 1;
     border-radius: 3px;
     cursor: pointer;
@@ -3675,11 +3620,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     color: var(--drpg-bone);
 }
 
-/* Crimson at full strength is 2.94:1 on Ink - a border colour, not a glyph.
-   The light variant is what the legibility block reaches for everywhere else. */
-.drpg-row-present i {
-    color: var(--drpg-crimson-light);
-}
 
 /* Bookkeeping, and it should look like it. */
 .drpg-row-stash i,
@@ -4353,10 +4293,13 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    emitter is not harmless, it is a description of a layout that no longer
    exists, and the next person to read it will believe it.
 
-   `data-drpg-crisis` further down this file is in the same position - the
-   fourteen pixel icons are dormant, not deleted, because they are drawn art
-   rather than layout and bringing the tiles back would want them. R2 does not
-   flag them: it reads classes.  */
+   `data-drpg-crisis`'s fourteen pixel icons stood further down this file in
+   the same position, kept as drawn art for tiles that might come back; R2
+   reads classes and did not flag them. E55 D1 (14.11.2026) took the 28 rules
+   out once the CSS lint's `deadAttributes` (E55 C2) read the attribute as
+   written by no script. Their glyphs stay where pixel-icons.css generates
+   them (`--drpg-pix-*`, tools/glyphs.json): a token is also read by name at
+   run time.  */
 
 /* Monocub - same panel look as a living student's action grid, quieter accent
    since there are only ever two tiles in it. */
@@ -6134,12 +6077,10 @@ body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
        how wide a notice is. Widened with the tile on 15.09 - the old 22rem
        card wrapped a two-clause sentence onto four lines. */
     width: min(27rem, 92vw);
-    border-radius: 6px;
     /* The window edge, not the divider hairline - a popup lands over the map
        and has to state its own boundary. The accent classes below override the
        colour and must stay after this shorthand. */
     border: 1px solid var(--drpg-window-edge);
-    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
     box-shadow: 0 4px 18px rgba(var(--drpg-shadow-rgb), 0.45);
     cursor: pointer;
     opacity: 0;
@@ -6212,12 +6153,9 @@ body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    padding: 0.4rem 0.5rem 0.4rem 0.75rem;
     border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
-    font-size: var(--font-size-13, 0.82rem);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
 }
 
 /* A NOTICE THAT WAITS (22.09). Past what a stack shows, the older cards are parked
@@ -6281,10 +6219,6 @@ body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
     background: rgba(var(--drpg-eye-rgb), 0.14);
 }
 
-.drpg-popup-body {
-    padding: 0.5rem 0.75rem 0.7rem;
-    font-size: var(--font-size-13, 0.82rem);
-}
 
 .drpg-popup-body p:first-child {
     margin-top: 0;
@@ -6893,10 +6827,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
 /* How long this time of day has run, under the time row. Amber at the
    handbook's first-action mark, red at the second. */
 .drpg-hud-elapsed {
-    font-size: var(--font-size-11, 0.7rem);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.6;
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
 }
@@ -6943,9 +6873,51 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
     margin: 0;
     padding: 6px 8px;
     border: 1px solid var(--drpg-line-strong);
-    border-radius: 4px;
-    background: rgba(var(--drpg-veil-rgb), 0.82);
     pointer-events: auto;
+    /* The strip cannot drag the column it lives in.
+       --------------------------------------------------------------------------
+       MEASURED, and it is the module's own doing: this panel is `width: 300px`
+       with `max-width: none`, and it shares `#ui-right-column-1` with the Projects
+       tray. One piece of content that will not break - a long room name, a long
+       label - blew it out to 1131px and pulled the whole right column 831px
+       ACROSS THE SCREEN. The tray keeps its own rigid width and so appears to
+       slide left, at moments that look random because this strip redraws on every
+       action, every Hope change and every crossing (Dawid, 28.08: "Projects keeps
+       moving left at random moments").
+
+       `min-width: 0` is the half that actually does the work: a flex item defaults
+       to `min-width: auto`, which refuses to shrink below its content, and that
+       refusal is what the column was obeying. The cap is the other half, and long
+       words wrap rather than reaching for room that is not there.
+
+       Same shape as the table fix in R12: `width` without `max-width` is a request,
+       not a limit. (A rule of its own further down, by the free Move's glyph, until E55 S3.) */
+    /* A DEFINITE NUMBER, because `100%` had nothing to resolve against: the
+       column is sized BY its children, so a percentage cap asks the parent a
+       question whose answer is this element. Measured, in this order -
+       `max-width: 100%` still let the column travel 831px, `min-width: 0` on
+       the column changed nothing, `overflow: hidden` changed nothing, and a
+       definite cap held it at once.
+
+       300px is Foundry's own right column. If a layout module makes that column
+       wider this panel simply stops short of it, which is a cosmetic loss
+       against a panel that can drag the interface across the screen. */
+    max-width: 300px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    /* AND THE ONE THAT ACTUALLY HOLDS. The cap above resolves against a parent
+       that is itself sized by its children, so it had nothing to measure
+       against - verified: the column still travelled 831px. What the column
+       was obeying is its OWN `min-width: auto`, which is the min-content of
+       everything inside it, and `overflow: hidden` is what takes this panel
+       out of that sum: a clipped box contributes nothing to it.
+
+       Clipping is safe here because everything this panel draws is inside it -
+       the pips, their spent-flare, the labels. The alternative was
+       `min-width: 0` on `#ui-right-column-1`, which is Foundry's own column
+       and shared with whatever else a table has installed; fixing our own
+       element is the smaller blast radius. */
+    overflow: hidden;
 }
 
 /* Each field is as wide as it needs to be, not a third of the strip.
@@ -6978,7 +6950,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
 #drpg-player-status .drpg-status-value {
     font-size: var(--font-size-14, 0.9rem);
     font-variant-numeric: tabular-nums;
-    color: var(--drpg-eye);
     line-height: 1.1;
 }
 
@@ -6988,9 +6959,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
     opacity: 0.75;
 }
 
-#drpg-player-status .is-hope .drpg-status-value {
-    color: var(--drpg-gold);
-}
 
 body.drpg-pixel-font #drpg-player-status .drpg-status-label,
 body.drpg-pixel-font #drpg-player-status .drpg-status-value,
@@ -7046,7 +7014,6 @@ body.drpg-pixel-font .drpg-hud-elapsed {
     width: 0.72rem;
     height: 0.72rem;
     line-height: 1;
-    color: var(--drpg-dim);
     opacity: 0.7;
 }
 
@@ -7066,7 +7033,6 @@ body.drpg-pixel-font .drpg-hud-elapsed {
 }
 
 #drpg-player-status .drpg-status-pip.filled {
-    color: var(--drpg-eye);
     opacity: 1;
 }
 
@@ -7102,7 +7068,6 @@ body.drpg-pixel-font .drpg-hud-elapsed {
 /* One footprint, not a track - there is only ever one free Move. */
 #drpg-player-status .drpg-free-move {
     font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
-    color: var(--drpg-eye);
 }
 
 #drpg-player-status .drpg-free-move.available {
@@ -7357,8 +7322,6 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
 
 .drpg-safeword-button {
     position: sticky;
-    left: 8px;
-    bottom: 8px;
     align-self: flex-start;
     /* AS WIDE AS ITS WORD, NEVER AS ITS RAIL (E24 C5, 09.11.2026; the owner's report on 1.2.100, R1490). Sticky keeps
        the Stop in the flow of the sheet's `.window-content`, which Daggerheart 2.10.5 lays out as a grid (sheet.less):
@@ -7377,12 +7340,7 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 9px;
-    min-height: 26px;
-    border: 1px solid var(--drpg-red);
     border-radius: 3px;
-    background: rgba(var(--drpg-red-rgb), 0.14);
-    color: var(--drpg-red);
     font-size: var(--font-size-11, 0.7rem);
     letter-spacing: 0.06em;
     line-height: 1;
@@ -7400,8 +7358,8 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
 
 body.drpg-pixel-font .drpg-safeword-button {
     font-family: var(--drpg-font-pixel);
-    font-size: var(--drpg-text-xs);
     letter-spacing: 0;
+    font-size: var(--drpg-text-xs);
 }
 
 /* THE RAIL REACHES THE STOP'S ROW (E24-C5 fix, 09.11.2026; the orchestrator, on C5's crops: under Legacy the Stop's
@@ -7559,11 +7517,6 @@ body.drpg-pixel-font .drpg-safeword-button {
 .drpg-gm-panel .drpg-gmp-section > summary {
     cursor: pointer;
     list-style: none;
-    padding: 4px 2px;
-    font-size: var(--font-size-11, 0.7rem);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--drpg-dim);
     border-bottom: 1px solid var(--drpg-rule);
 }
 
@@ -7627,9 +7580,6 @@ body.drpg-pixel-font .drpg-safeword-button {
     padding: 6px 12px;
 }
 
-body.drpg-pixel-font .drpg-safeword-button {
-    font-size: var(--drpg-text-xs);
-}
 
 /* ==========================================================================
    STATE ICONS BELOW THE PLAYER STRIP, NOT ABOVE IT
@@ -7807,6 +7757,8 @@ body.drpg-player #scene-controls {
     background-color: transparent !important;
     background-image: none !important;
     border-color: var(--drpg-line) !important;
+    /* the tile's own text colour, Bone: why, below ("The tile's own text colour") */
+    color: var(--drpg-bone) !important;
 }
 
 /* With the fill gone the border IS the tile, so the hover state has to carry
@@ -7845,25 +7797,13 @@ html body {
    The label already restated it; the cost line did not, and inherited black on
    black. Set on the tile so anything added to it later inherits something
    readable, and the cost line uses Dim, which is the token for exactly this:
-   present, secondary, still legible at 4.84:1. */
-.drpg-action-button,
-.drpg-call-button {
-    color: var(--drpg-bone) !important;
-}
-
+   present, secondary, still legible at 4.84:1. The tile's Bone is written in the
+   tile's rule above since E55 S3 (14.11.2026); until then it was a rule of its own here. */
 .drpg-action-button .drpg-action-cost {
     color: var(--drpg-dim);
     opacity: 1;
 }
 
-/* Daggerheart's own Hope heading takes the interface accent directly rather
-   than through a token, so the redirect above cannot reach it. The system's
-   own rule is more specific than this one and carries the colour anyway, which
-   is what the !important is for - the selector matches either way. */
-.character-header-sheet .hope-section h4,
-.character-header-sheet .resource-section h4 {
-    color: var(--drpg-eye-light) !important;
-}
 
 /* ==========================================================================
    THE SHEET SITS ON INK
@@ -7928,9 +7868,6 @@ html body {
     color: var(--drpg-bone) !important;
 }
 
-.drpg-safeword-button:hover {
-    background: var(--drpg-eye) !important;
-}
 
 /* Counts and placeholders are structure, not accent. */
 .drpg-inventory-group .drpg-group-count {
@@ -8021,6 +7958,7 @@ html body {
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
     --drpg-stat-mark-size: 22px;
     padding-inline-start: calc(var(--drpg-stat-mark-size) - 4px);
+    box-sizing: border-box;
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark {
     display: flex;
@@ -8077,9 +8015,6 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     flex: 1 1 auto;
     word-break: normal;
     overflow-wrap: anywhere;
-}
-body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
-    box-sizing: border-box;
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
     --drpg-trait-gap: 0.5rem;
@@ -8423,7 +8358,11 @@ body.drpg-pixel-font [id*="drpg-"] * {
 }
 
 /* Except the icon fonts, which are fonts only in the technical sense - take
-   their family away and every glyph becomes a wrong letter. */
+   their family away and every glyph becomes a wrong letter. Font Awesome's own
+   `--fa-style-family`, else Foundry v14's Font Awesome 7: the FA6, FA5 and
+   `FontAwesome` names after it went in E55 (14.11.2026; the audit's S12-72):
+   module.json's minimum is Foundry 14.364, and the face a v14 table resolves
+   is LIVE-E55-03 (not read here: the harnesses load no Font Awesome). */
 body.drpg-pixel-font i[class*="fa-"],
 body.drpg-pixel-font .fa-solid,
 body.drpg-pixel-font .fa-regular,
@@ -8433,8 +8372,7 @@ body.drpg-pixel-font .fa-duotone,
 body.drpg-pixel-font .fa-brands,
 body.drpg-pixel-font [class*="fa-"]::before,
 body.drpg-pixel-font [class*="fa-"]::after {
-    font-family: var(--fa-style-family, "Font Awesome 7 Pro"), "Font Awesome 6 Pro",
-                 "Font Awesome 5 Pro", FontAwesome !important;
+    font-family: var(--fa-style-family, "Font Awesome 7 Pro") !important;
 }
 
 /* And the kit checklist's marks (ui-kit.mjs CHECK_MARKS: a check, a cross, "!", "-"): the pixel face draws no check
@@ -8806,12 +8744,6 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor h3 .drpg-group-count.fu
     color: var(--drpg-bone) !important;
 }
 
-/* The track, in both engines. */
-.application.sheet.actor .character-sidebar-sheet progress.progress-bar {
-    background-color: rgba(var(--drpg-deep-rgb), 0.9) !important;
-    border: 1px solid var(--drpg-line) !important;
-    border-radius: 2px;
-}
 
 .application.sheet.actor .character-sidebar-sheet progress.progress-bar::-webkit-progress-bar {
     background-color: rgba(var(--drpg-deep-rgb), 0.9);
@@ -8889,6 +8821,9 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor h3 .drpg-group-count.fu
     height: auto;
     justify-content: center;
     row-gap: 3px;
+    /* no gap between the value and the max, so they keep to one line (VALUE AND MAX ON ONE LINE, below; a rule of its
+       own there until E55 S3) */
+    column-gap: 0;
 }
 
 .application.sheet.actor .character-sidebar-sheet .drpg-resource-bar {
@@ -9159,9 +9094,6 @@ body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg
    a full line beneath them; what changes is that the numerals themselves fit.
    Smaller, per Dawid - they are a caption under a bar that already carries the
    proportion, not the headline they were sized as. */
-.application.sheet.actor .character-sidebar-sheet .status-value:has(.drpg-resource-bar) {
-    column-gap: 0;
-}
 
 .application.sheet.actor .character-sidebar-sheet
     .status-value:has(.drpg-resource-bar) > :where(:not(.drpg-reserve-row)) {
@@ -9217,8 +9149,7 @@ body.drpg-pixel-font #interface *:not(i):not([class*="fa-"]):not(.editor-content
 body.drpg-pixel-font #interface i[class*="fa-"],
 body.drpg-pixel-font #interface [class*="fa-"]::before,
 body.drpg-pixel-font #interface [class*="fa-"]::after {
-    font-family: var(--fa-style-family, "Font Awesome 7 Pro"), "Font Awesome 6 Pro",
-                 "Font Awesome 5 Pro", FontAwesome !important;
+    font-family: var(--fa-style-family, "Font Awesome 7 Pro") !important;
 }
 
 /* …BUT NOT INSIDE A WINDOW THIS MODULE DID NOT BUILD.
@@ -9495,7 +9426,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     -webkit-appearance: none !important;
     appearance: none !important;
     border: 1px solid var(--drpg-line) !important;
-    border-radius: 2px;
     height: 14px;
     background-color: rgba(var(--drpg-deep-rgb), 0.9) !important;
     background-image: none !important;
@@ -10336,276 +10266,6 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 .drpg-event[data-kind="betHope"] { --acc: var(--drpg-gold); }
 
 /* ==========================================================================
-   STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS
-   --------------------------------------------------------------------------
-   Keyed off `data-drpg-crisis`, written by injectCrisisPanel in sheet.mjs.
-   Not off `def.icon`: two crisis actions already share `fa-hand-fist` with a
-   Hope Call, and tying the drawn set to a fallback nobody thinks of as load-
-   bearing is how it breaks later.
-
-   Two were redrawn. Strike was the fourth fist in this set and the fourth
-   potato - 24px has no room for knuckles - so it became the impact rather
-   than the hand, four spikes off a core, which reads nothing like Dynamic
-   action's symmetric burst. Partners in Crime stopped being a handshake, which
-   is too much geometry at this size, and became two figures standing together.
-
-   That completes the set: 35 glyphs, and Font Awesome no longer draws anything
-   this module puts on screen.
-   ========================================================================== */
-
-.drpg-action-button[data-drpg-crisis="leaveClue"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-leave-clue);
-    mask-image: var(--drpg-pix-leave-clue);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="leaveClue"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="secureTrace"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-secure-trace);
-    mask-image: var(--drpg-pix-secure-trace);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="secureTrace"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="selfDefence"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-self-defence);
-    mask-image: var(--drpg-pix-self-defence);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="selfDefence"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="survive"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-survive);
-    mask-image: var(--drpg-pix-survive);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="survive"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="roleReversal"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-role-reversal);
-    mask-image: var(--drpg-pix-role-reversal);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="roleReversal"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="strike"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-strike);
-    mask-image: var(--drpg-pix-strike);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="strike"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="pin"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-pin);
-    mask-image: var(--drpg-pix-pin);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="pin"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="keepDistance"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-keep-distance);
-    mask-image: var(--drpg-pix-keep-distance);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="keepDistance"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="weaponAttack"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-weapon-attack);
-    mask-image: var(--drpg-pix-weapon-attack);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="weaponAttack"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="finishingBlow"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-finishing-blow);
-    mask-image: var(--drpg-pix-finishing-blow);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="finishingBlow"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="sharedEscape"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-shared-escape);
-    mask-image: var(--drpg-pix-shared-escape);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="sharedEscape"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="doubleRoleReversal"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-double-role-reversal);
-    mask-image: var(--drpg-pix-double-role-reversal);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="doubleRoleReversal"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="crimePartners"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-crime-partners);
-    mask-image: var(--drpg-pix-crime-partners);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="crimePartners"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="avertedEyes"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-averted-eyes);
-    mask-image: var(--drpg-pix-averted-eyes);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="avertedEyes"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-/* ==========================================================================
    THE FILL IS THE BOX
    --------------------------------------------------------------------------
    The bar was a 14px strip floating in the middle of a 40px box, which read as
@@ -10962,6 +10622,8 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    number, not the one who wants to know it. */
 .drpg-duality .drpg-duality-formula {
     display: flex;
+    /* a long roll's chips take a second line inside the card (E55, 14.11.2026; the audit's S12-89; R6102) */
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 4px;
@@ -11349,10 +11011,12 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    portrait at 275px tall is 275px wide, the name got about a character's width and
    printed one letter per line. Measured on 21.09 on a Remnant and on a project
    token, the two things in this module that open an NPC sheet. The rule was only
-   ever about the rail above, which is `.character-sidebar-sheet`. */
-.application.sheet.actor.character .window-content {
-    grid-template-columns: minmax(0, 275px) minmax(0, 1fr) !important;
-}
+   ever about the rail above, which is `.character-sidebar-sheet`. The track
+   itself is written once, further down, by `body .application.sheet.actor.character
+   .window-content` (275 px times the slider's scale): the rule that stood here,
+   `minmax(0, 275px) minmax(0, 1fr) !important`, lost to it in both themes (one
+   more element in the selector, both `!important`) and went in E55 D3
+   (14.11.2026). */
 
 /* The rail keeps its size while there is room and gives way when there is not.
    12rem still fits the portrait, both resource chips and the safeword. */
@@ -11754,52 +11418,8 @@ body.drpg-stacked .application.sheet.actor.character {
    honest fix is our own glyph, which is centred by construction - and that
    waits on a pixel footprint with an OUTLINED form, because solid against
    outline is what says whether the free Move has been spent. */
-/* The strip cannot drag the column it lives in.
-   --------------------------------------------------------------------------
-   MEASURED, and it is the module's own doing: this panel is `width: 300px`
-   with `max-width: none`, and it shares `#ui-right-column-1` with the Projects
-   tray. One piece of content that will not break - a long room name, a long
-   label - blew it out to 1131px and pulled the whole right column 831px
-   ACROSS THE SCREEN. The tray keeps its own rigid width and so appears to
-   slide left, at moments that look random because this strip redraws on every
-   action, every Hope change and every crossing (Dawid, 28.08: "Projects keeps
-   moving left at random moments").
-
-   `min-width: 0` is the half that actually does the work: a flex item defaults
-   to `min-width: auto`, which refuses to shrink below its content, and that
-   refusal is what the column was obeying. The cap is the other half, and long
-   words wrap rather than reaching for room that is not there.
-
-   Same shape as the table fix in R12: `width` without `max-width` is a request,
-   not a limit. */
-#drpg-player-status {
-    /* A DEFINITE NUMBER, because `100%` had nothing to resolve against: the
-       column is sized BY its children, so a percentage cap asks the parent a
-       question whose answer is this element. Measured, in this order -
-       `max-width: 100%` still let the column travel 831px, `min-width: 0` on
-       the column changed nothing, `overflow: hidden` changed nothing, and a
-       definite cap held it at once.
-
-       300px is Foundry's own right column. If a layout module makes that column
-       wider this panel simply stops short of it, which is a cosmetic loss
-       against a panel that can drag the interface across the screen. */
-    max-width: 300px;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    /* AND THE ONE THAT ACTUALLY HOLDS. The cap above resolves against a parent
-       that is itself sized by its children, so it had nothing to measure
-       against - verified: the column still travelled 831px. What the column
-       was obeying is its OWN `min-width: auto`, which is the min-content of
-       everything inside it, and `overflow: hidden` is what takes this panel
-       out of that sum: a clipped box contributes nothing to it.
-
-       Clipping is safe here because everything this panel draws is inside it -
-       the pips, their spent-flare, the labels. The alternative was
-       `min-width: 0` on `#ui-right-column-1`, which is Foundry's own column
-       and shared with whatever else a table has installed; fixing our own
-       element is the smaller blast radius. */
-    overflow: hidden;
-}
+/* The strip's width caps ("The strip cannot drag the column it lives in") are its first rule's, further up, since
+   E55 S3 (14.11.2026). */
 
 #drpg-player-status .drpg-free-move i {
     position: relative;
@@ -12441,11 +12061,6 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     box-shadow: var(--drpg-panel-shadow);
 }
 
-/* The one that carries no accent of its own (the player list was the second, until E23 fix L). */
-#countdowns {
-    border-color: var(--drpg-line-strong);
-}
-
 /* ==========================================================================
    THE PROJECTS TRAY
    --------------------------------------------------------------------------
@@ -12456,6 +12071,9 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
    ========================================================================== */
 
 #countdowns {
+    /* the one block that carries no accent of its own (the player list was the second, until E23 fix L); its rule stood
+       apart above this section until E55 S3 */
+    border-color: var(--drpg-line-strong);
     --drpg-project-row: 34px;
     --drpg-project-gap: 6px;
     padding-bottom: 2px;
@@ -12498,23 +12116,14 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     min-height: unset;
     padding: 0;
     line-height: 1;
-    border: none;
-    background: none;
-    color: var(--drpg-bone);
     opacity: 0.75;
 }
 
-#countdowns .drpg-projects-gear i,
-#countdowns .drpg-projects-fold i {
-    font-size: var(--font-size-15, 0.9375rem);
-    color: inherit;
-}
 
 #countdowns .drpg-projects-gear:hover,
 #countdowns .drpg-projects-fold:hover {
     opacity: 1;
     background: none;
-    color: var(--drpg-attention);
 }
 
 /* Folded away: the title bar stays, everything under it goes - the "no projects yet" line too, which stands
@@ -12697,7 +12306,6 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 }
 
 .drpg-item-sheet .window-content {
-    background: var(--drpg-panel-ground);
     gap: 0.6rem;
 }
 
@@ -12705,17 +12313,15 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 .drpg-item-sheet .item-sheet-header {
     align-items: center;
     gap: 0.75rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--drpg-line-strong);
 }
 
 .drpg-item-sheet .item-sheet-header img.profile {
     width: 4.5rem;
     height: 4.5rem;
     flex: 0 0 auto;
-    border-radius: var(--drpg-panel-radius);
-    border: 1px solid var(--drpg-line-strong);
     object-fit: cover;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 2px;
 }
 
 .drpg-item-sheet .item-sheet-header .item-info {
@@ -12949,12 +12555,6 @@ body.drpg-high-contrast .drpg-trace-context {
     opacity: 1;
 }
 
-/* A refused name stays in its field, outlined, with the sentence under it - where the GM is looking, not only in a toast
-   over the window's tabs (`nameFieldHtml` in tables.mjs). */
-:is(.drpg-window-tables, .drpg-rename-table) input[aria-invalid="true"] {
-    border-color: var(--drpg-crimson-light);
-    box-shadow: 0 0 0 1px var(--drpg-crimson-light);
-}
 
 :is(.drpg-window-tables, .drpg-rename-table) .drpg-field-error {
     margin: 2px 0 0;
@@ -13809,14 +13409,19 @@ body.drpg-theme-monokuma-legacy #drpg-book-launcher {
 
 /* The mask carries the colour from `currentColor`, so the icon follows the
    button rather than being painted twice. Half the circle, like the chat
-   glyph beneath it - and derived for the same reason the sizes above are. */
+   glyph beneath it - and derived for the same reason the sizes above are.
+   The glyph is the gear in both themes: the button opens the Look window for
+   everyone. Until E55 D4 (14.11.2026) this rule drew the speaker and an
+   unscoped stained-glass.css rule put the gear over it with `!important` in
+   both themes, so the speaker was never seen (the look freeze read it changed
+   as no difference); the gear is written here once, and that rule is gone. */
 #drpg-sound-launcher i {
     display: block;
     width: calc(var(--drpg-launcher-small) / 2);
     height: calc(var(--drpg-launcher-small) / 2);
     background: currentColor;
-    -webkit-mask-image: var(--drpg-pix-speaker);
-    mask-image: var(--drpg-pix-speaker);
+    -webkit-mask-image: var(--drpg-pix-gear);
+    mask-image: var(--drpg-pix-gear);
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -14289,10 +13894,6 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     margin-bottom: 6px;
 }
 
-.drpg-item-sheet .item-sheet-header img.profile {
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: 2px;
-}
 
 /* Prose keeps the reading face even when the interface is pixels - the same
    exception the rest of the module makes for anything longer than a label. */
@@ -14498,6 +14099,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
        fixed size right on a 27" monitor runs off a laptop. */
     font-size: clamp(2rem, 7vw, 4.5rem);
     padding: 0.35em 0.9em;
+    position: relative;
 }
 
 /* THE DOUBLE FRAME IS MONOKUMA LEGACY'S, AND ONLY ITS.
@@ -14549,12 +14151,6 @@ body.drpg-pixel-font #pause.paused figcaption {
     animation: drpg-pause-breathe 4s ease-in-out infinite;
 }
 
-#pause.paused figcaption {
-    position: relative;
-}
-
-#pause.paused figcaption::before { top: -1.4em; }
-#pause.paused figcaption::after { bottom: -1.4em; }
 
 @keyframes drpg-pause-breathe {
     0%, 100% { opacity: 0.25; }
@@ -14642,8 +14238,6 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
 .application.sheet.actor .drpg-row-button,
 .application.sheet.actor .drpg-inventory-group button,
 .application.sheet.actor .drpg-inventory-list button {
-    width: 22px;
-    height: 22px;
     padding: 0 !important;
     min-height: 0 !important;
     line-height: 1;
@@ -14662,11 +14256,6 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
     border-color: var(--drpg-eye) !important;
 }
 
-.application.sheet.actor .drpg-row-button i,
-.application.sheet.actor .drpg-inventory-group button i {
-    color: var(--drpg-bone) !important;
-    font-size: var(--drpg-text-xs);
-}
 
 /* The one exception, and it is a state rather than an action: the tool this
    character is holding ready. Gold on the row, gold on the button. */
@@ -14686,6 +14275,10 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
     background: rgba(var(--drpg-bone-rgb), 0.04);
     border: 1px solid var(--drpg-line);
     border-radius: 2px;
+    /* the row grows with its buttons, or the taller buttons push its own padding out of shape and the list starts to
+       look loose (a rule of its own after the buttons' until E55 S3) */
+    min-height: 32px;
+    padding: 2px 4px;
 }
 
 .application.sheet.actor .drpg-inventory-list > li:hover {
@@ -14736,6 +14329,7 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
 
 #countdowns .drpg-projects-gear i,
 #countdowns .drpg-projects-fold i {
+    font-size: var(--font-size-15, 0.9375rem);
     color: var(--drpg-bone) !important;
 }
 
@@ -15040,6 +14634,8 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 
 .application.sheet.actor .drpg-row-button i,
 .application.sheet.actor .drpg-inventory-group button i {
+    /* Bone (a rule of its own further up until E55 S3) */
+    color: var(--drpg-bone) !important;
     font-size: var(--drpg-text-sm);
 }
 
@@ -15070,13 +14666,6 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
     /* the glass's own button: a dark plate, and the label the brush's ink when it is on */
     background: rgba(7, 7, 10, 0.55) !important;
     color: var(--brush-ink, var(--drpg-sg-bone)) !important;
-}
-
-/* The row grows with them, or the taller buttons push its own padding out of
-   shape and the list starts to look loose. */
-.application.sheet.actor .drpg-inventory-list > li {
-    min-height: 32px;
-    padding: 2px 4px;
 }
 
 /* ==========================================================================
@@ -15346,9 +14935,11 @@ body.drpg-theme-monokuma-legacy #pause.paused {
    hidden outright now, which is the honest version of the same decision.
    ========================================================================== */
 
+/* By its own names (E55, 14.11.2026; the audit's S12-92): Daggerheart's class, and whatever stands in the right column
+   under a name holding the words, where Daggerheart puts it. `[class*="effects-display"]` anywhere also hid another
+   module's element that happened to carry the words in a longer class name; `#effects-display` is the chrome rule's
+   ("hidden for everybody, as the hotbar"). R6103. */
 .dh-effects-display,
-[class*="effects-display"],
-#ui-right-column-1 .dh-effects-display,
 #ui-right-column-1 [class*="effects-display"] {
     display: none !important;
 }
@@ -15375,6 +14966,11 @@ body.drpg-theme-monokuma-legacy #pause.paused {
 
 .application.sheet:not([class*="drpg-"]):not(.actor) .window-content {
     overflow: auto !important;
+}
+/* The ceiling only where the cut-off rows were reported (E55, 14.11.2026; the audit's S12-87): Foundry's token, scene and
+   tile config. A journal or another module's sheet keeps the height Foundry gives it, and scrolls by the rule above.
+   The three class names are v13's as the module knows them, not read off v14 (LIVE-E55-02); R6101. */
+.application.sheet:is(.token-config, .scene-config, .tile-config):not([class*="drpg-"]):not(.actor) .window-content {
     max-height: 88vh;
 }
 
@@ -15499,8 +15095,8 @@ body.drpg-theme-monokuma-legacy #pause.paused {
    checkbox is recalled to read, not read in this repository: whether it is v14's is the owner's live check. */
 .application.dialog:is(.drpg-window-take, .drpg-window-autopsy, .drpg-give-key,
     .drpg-window-items, .drpg-window-tables) input[type="checkbox"] {
-    accent-color: var(--drpg-bone);
-    --checkbox-checked-color: var(--drpg-bone);
+    accent-color: var(--drpg-kit-check-accent);
+    --checkbox-checked-color: var(--drpg-kit-check-accent);
 }
 
 /* THE HUB's footer grid (three tiles of one width, Close under them) left with the window's frame in E21 C2b (the
@@ -18803,7 +18399,7 @@ body.drpg-theme-monokuma-legacy #settings-config :is(input, select, textarea, bu
     outline-offset: 1px;
 }
 body.drpg-theme-monokuma-legacy #settings-config :is(input[type="checkbox"], input[type="range"], range-picker, toggle-switch) {
-    accent-color: var(--drpg-bone);
+    accent-color: var(--drpg-kit-check-accent);
 }
 body.drpg-theme-stained-glass #settings-config :is(input[type="range"], range-picker, toggle-switch) {
     accent-color: var(--drpg-sg-bone);

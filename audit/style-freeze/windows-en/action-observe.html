@@ -1,0 +1,57 @@
+<dialog id="app-T0Aidg0C" class="application dialog drpg-panel drpg-action-window drpg-ui drpg-prompt drpg-kit-width" open="" style="z-index: 106; left: 8px; top: 384px;" data-drpg-width="1120" data-drpg-scaled="1@768" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><div class="drpg-variant-columns"><div class="drpg-wide-col drpg-variant-brief"><div class="drpg-briefing-block">
+        <p>First you choose how you look. On a hit, you copy a Remnant in this room into your inventory as a Neutral Truth Bullet; a critical also shows its type. Looking past the obvious can also find a secret project.</p>
+        
+        
+    </div><div class="drpg-action-details">
+        <button type="button" class="drpg-action-details-toggle" id="drpg-details-1-toggle" aria-expanded="false" aria-controls="drpg-details-1" data-drpg-wired="1" data-drpg-named="own"><span class="drpg-action-details-mark" aria-hidden="true"></span><span>Details</span></button>
+        <div class="drpg-action-details-box" id="drpg-details-1" role="region" aria-labelledby="drpg-details-1-toggle" inert=""><ul class="drpg-briefing-facts"><li>Action cost 1. You have 2.</li><li>Rolls: Eye</li><li>You are in: Dorm A</li><li>A failed roll costs 1 Sanity.</li></ul><p class="drpg-action-details-sub">Thresholds</p><ul class="drpg-briefing-facts"><li>Spotting a trace of the crime, by how visible it is: Obvious 9 · Evident 12 · Subtle 15 · Hidden 18.</li><li>A Key Remnant: Obvious 6 · Evident 9 · Subtle 12 · Hidden 15.</li><li>A faint Remnant: Obvious 12 · Evident 15 · Subtle 18 · Hidden 21.</li><li>Something with no trace behind it: Obvious 8 · Evident 12 · Subtle 18 · Hidden 21.</li></ul><!--drpg-details-rows--></div>
+    </div></div><div class="drpg-wide-col drpg-variant-ask">
+            <p>How are you looking?</p>
+            <div class="drpg-choice-list">
+        <label class="drpg-choice">
+            <input type="radio" name="variant" value="general" checked="" data-drpg-named="own">
+            <i class="fa-solid fa-eye" inert=""></i>
+            <span class="drpg-choice-text">
+                <strong>Sweep the room</strong>
+                <small>The easiest Remnant to spot, those tied to the crime first. Your total decides; in an empty room a GM rules.</small>
+            </span>
+        </label>
+        <label class="drpg-choice">
+            <input type="radio" name="variant" value="nonObvious" data-drpg-named="own">
+            <i class="fa-solid fa-eye-low-vision" inert=""></i>
+            <span class="drpg-choice-text">
+                <strong>Look past the obvious</strong>
+                <small>As a sweep, but the hardest Remnant to spot; only this way finds a hidden secret project.</small>
+            </span>
+        </label>
+        <label class="drpg-choice">
+            <input type="radio" name="variant" value="followTraces" data-drpg-named="own">
+            <i class="fa-solid fa-shoe-prints" inert=""></i>
+            <span class="drpg-choice-text">
+                <strong>Follow My Traces</strong>
+                <small>Find what you left behind.</small>
+            </span>
+        </label>
+        <label class="drpg-choice drpg-gm-route">
+            <input type="radio" name="variant" value="specific" data-drpg-named="own">
+            <i class="fa-solid fa-crosshairs" inert=""></i>
+            <span class="drpg-choice-text">
+                <strong>Focus your gaze</strong>
+                <small>Say what you seek; a GM, blind to your total, picks the Remnant. Blank is a sweep.</small>
+            </span>
+        </label>
+        <label class="drpg-choice drpg-gm-route">
+            <input type="radio" name="variant" value="anything" data-drpg-named="own">
+            <i class="fa-solid fa-magnifying-glass-location" inert=""></i>
+            <span class="drpg-choice-text">
+                <strong>Examine point of interest</strong>
+                <small>Anything but a trace. A GM rules on it.</small>
+            </span>
+        </label></div>
+            <div class="drpg-held-stack"><label class="drpg-specific-note drpg-unpicked" data-drpg-when="specific anything">
+        <span>What were you looking for? The GM matches it to the room without seeing your roll, so this makes nothing easier or harder.</span>
+        <textarea name="request" rows="2" placeholder="e.g. something to do with the body" data-drpg-named="own"></textarea>
+        <small class="notes">Optional - leave it empty and the GM rules on the roll alone.</small>
+    </label></div>
+            <div class="drpg-action-trait"></div>
+        </div></div></div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"><button type="submit" data-action="ok" class="default drpg-role-primary" data-drpg-role="primary" autofocus="" data-drpg-named="own">Roll</button></div><div class="drpg-kit-left"><button type="submit" data-action="cancel" data-drpg-role="cancel" class="drpg-role-cancel" data-drpg-named="own">Cancel</button></div></footer></form></dialog>
