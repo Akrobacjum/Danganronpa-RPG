@@ -1040,6 +1040,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("gm: the season is reset with every group ticked, and no group failed",
         reset.cleared === reset.groups && Array.isArray(reset.failed) && reset.failed.length === 0, JSON.stringify(reset));
     await settle(800);
+    /* The world's invariants read at once after the reset (E40 item 2's checkState, the plan's "season-wipe on a copy" as
+       far as the harness's world goes): the cluster reads them after the whole scenario too, this pins them to the reset. */
+    const stateAfterReset = await gm.eval(`const r = game.drpg.checkState({ quiet: true }); return r ? { ok: r.ok, problems: r.problems.map(p => p.code + ": " + p.text) } : null;`);
+    check("gm: right after the season's reset the world's invariants hold (game.drpg.checkState)", stateAfterReset?.ok === true, JSON.stringify(stateAfterReset));
     await canary.scan({ phase: "season end", gone: SEASON_GONE });
     await canary.worldScan({ phase: "season end", ids: [IDS.chie] });
     /* No chat scan here: the reset deletes the chat log (season-wipe.mjs, the chat group) and leaves p1 and p2 no message
