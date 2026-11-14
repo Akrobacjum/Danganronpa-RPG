@@ -616,7 +616,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         if (!hand) return { ok: false, rolled: false };
         let cover = null;
         if (othersInRoom(taker).some(other => other?.id !== "${bodyId}")) {
-            const shadow = await rollTrait(taker, LOOT.cover.trait, { remember: false, actionKey: "lootCover", context: { bodyId: "${bodyId}" }, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold });
+            const shadow = await rollTrait(taker, LOOT.cover.trait, { remember: false, actionKey: "lootCover", context: { bodyId: "${bodyId}" }, title: game.i18n.format("DRPG.Loot.coverTitle", { n: LOOT.cover.threshold }), dc: LOOT.cover.threshold });
             if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
         }
         return await B.requestBodyLoot({ takerId: "${takerId}", bodyId: "${bodyId}", itemId: "${itemId ?? "none"}",

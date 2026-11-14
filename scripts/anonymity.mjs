@@ -543,7 +543,7 @@ async function takeFromBody(body, items) {
     const { othersInRoom } = await import("./movement.mjs");
     if (othersInRoom(taker).some(other => other?.id !== body.id)) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
-            remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
+            remember: false, actionKey: "lootCover", context, title: game.i18n.format("DRPG.Loot.coverTitle", { n: LOOT.cover.threshold }), dc: LOOT.cover.threshold
         });
         if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
     }
@@ -558,7 +558,7 @@ async function takeFromBody(body, items) {
     // `lootBody`): the Shadow is rolled now and the Take asked again on the Hand already bound. Closed, nothing is taken.
     if (res.ok && res.value?.coverNeeded && !game.user.isGM) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
-            remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
+            remember: false, actionKey: "lootCover", context, title: game.i18n.format("DRPG.Loot.coverTitle", { n: LOOT.cover.threshold }), dc: LOOT.cover.threshold
         });
         if (!shadow) return false;
         res = await ask(null, { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope });

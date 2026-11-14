@@ -1070,9 +1070,11 @@ export async function grantItemEffect(actor, item, amounts = {}, { consumeItem =
     if (item && consumeItem) await consume(item, { reason: "gmRuling", held: await heldNow() });
 
     const summary = describe(restored);
+    // Two paragraphs, as `useItem` writes them (the needsCode line, R6908): " - " joined a sentence to its summary.
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.used", {
         item: foundry.utils.escapeHTML(item?.name ?? "?")
-    })} - ${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
+    })}</p>
+        <p>${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
 
     return restored;
 }

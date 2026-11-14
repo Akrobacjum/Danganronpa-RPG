@@ -5410,7 +5410,7 @@
       "toStash": "{category}. Masz pełne ręce, więc ta rzecz trafi do twojej skrytki w pokoju {room}.",
       "rowHandsFull": "Nosisz już najwięcej rzeczy z kategorii {category}, ile możesz ({limit}), i nie masz skrytki.",
       "rollTitle": "Take from the Body - Hand",
-      "coverTitle": "Take from the Body - Shadow",
+      "coverTitle": "Take from the Body - Shadow, przebij {n}",
       "coverHeld": "Nikt w pomieszczeniu nie widzi, co bierzesz.",
       "coverMissed": "Ktoś w pomieszczeniu widzi, jak przeszukujesz ciało.",
       "seenAtBody": "{actor} przeszukuje kieszenie ciała postaci {body}.",

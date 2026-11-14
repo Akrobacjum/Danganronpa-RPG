@@ -98,5 +98,8 @@ export async function showCaseSummary() {
         speaker: { alias: L("DRPG.CaseSummary.speaker") },
         flags: { [MODULE_ID]: { caseSummary: true, sfx: "caseSummary" } }
     });
-    return L("DRPG.CaseSummary.sent");
+    // Said to the GM who sent it (the needsCode line, R6908): the console awaited this and dropped the line, so no GM read it.
+    const sent = L("DRPG.CaseSummary.sent");
+    ui.notifications.info(sent);
+    return sent;
 }

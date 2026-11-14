@@ -5012,7 +5012,7 @@
       "toStash": "{category}. Your hands are full: it goes to your stash in {room}.",
       "rowHandsFull": "You already carry the most {category} you can ({limit}), and you have no stash.",
       "rollTitle": "Take from the Body - Hand",
-      "coverTitle": "Take from the Body - Shadow",
+      "coverTitle": "Take from the Body - Shadow, beat {n}",
       "coverHeld": "Nobody in the room sees what you take.",
       "coverMissed": "Somebody in the room sees you going through the body.",
       "seenAtBody": "{actor} goes through {body}'s pockets.",

@@ -37864,6 +37864,28 @@ const INVARIANTS = [
             "[the callers use plural; the English forms; the Polish forms; PL one pool „niepusta”, many experiences „doświadczeń”]");
     }],
 
+    ["R6908 - three lines say what happened as it happened (needsCode, 14.11.2026): use-items.mjs `grantItemEffect` puts `Items.used` and its summary in two paragraphs, as `useItem` does, never \"Used “X”. - ...\"; the Take's cover roll is titled with its threshold, `Loot.coverTitle` {n} as every other roll title (`Action.palmTitle`), in English and Polish; case-summary.mjs `showCaseSummary` tells the GM `CaseSummary.sent`, which no caller read", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #37, #41, #128. Red at a5030c9c: the GM's
+         * ruling on an item joined a full sentence and its summary with \" - \"; the Take's Shadow roll was the only roll
+         * title without the number it must beat; trial-floor-ui.mjs `manageClassTrial` awaited showCaseSummary and dropped
+         * the line it answered, so no GM ever read it.
+         */
+        const sources = new Map(await otherSources());
+        const grant = fnSource(stripComments(sources.get("use-items.mjs") ?? ""), "grantItemEffect") ?? "";
+        const anon = stripComments(sources.get("anonymity.mjs") ?? "");
+        const show = fnSource(stripComments(sources.get("case-summary.mjs") ?? ""), "showCaseSummary") ?? "";
+        must(grant.includes("DRPG.Items.usedNothing") && anon.includes("DRPG.Loot.coverTitle") && show.includes("DRPG.CaseSummary.sent"), "a site is gone - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        equal(stableJson({ dashJoin: /\}\)\} - \$\{summary/.test(grant),
+            coverTitle: [/localize\("DRPG\.Loot\.coverTitle"\)/.test(anon), (anon.match(/format\("DRPG\.Loot\.coverTitle", \{ n: LOOT\.cover\.threshold \}\)/g) ?? []).length,
+                String(en?.DRPG?.Loot?.coverTitle).includes("{n}"), String(pl?.DRPG?.Loot?.coverTitle).includes("{n}")],
+            sent: /const (\w+) = L\("DRPG\.CaseSummary\.sent"\);\s*ui\.notifications\.info\(\1\)/.test(show) }),
+            stableJson({ dashJoin: false, coverTitle: [false, 2, true, true], sent: true }),
+            "[grantItemEffect joins with \" - \"; coverTitle: localized bare, formatted with the threshold, {n} in en, in pl; showCaseSummary tells the GM]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
