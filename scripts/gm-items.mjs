@@ -39,11 +39,10 @@ function recipientOptions(students, selectedId) {
         .join("");
 }
 import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
-import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /* ==========================================================================

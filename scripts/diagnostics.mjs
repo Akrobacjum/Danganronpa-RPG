@@ -23,12 +23,11 @@ import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.

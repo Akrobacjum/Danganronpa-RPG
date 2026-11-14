@@ -84,9 +84,8 @@ import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural, listOf } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact } from "./cleanup-reshape.mjs";
 export { askTransform, plainText, reshapeCardParts, applyReshapeRuling, declineReshapeRuling, ruleReshape, askTransformChange, attemptOf } from "./cleanup-reshape.mjs";
 

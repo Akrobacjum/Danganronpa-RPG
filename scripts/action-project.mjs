@@ -50,9 +50,8 @@ import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
-import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
+import { drpgWindow, formGrid, helpText, box, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * PROJECTS
