@@ -13,7 +13,8 @@
  * not in DRAWN is noted (add it). Since the 1.2.112 tree (CI 43479554811 on af9792c5): DRPG.Tips.Gm.studentsTooltip is out,
  * as the merge of E102 (472e1ea0) dropped it with the Students left line's button that E101 took away (R4054; R4753 counts
  * the family's 38 Gm keys), and the six keys that run noted drawn and not held are in - chapter.mjs's two and
- * level-up.mjs's three on windows of the 1.2.111 tree E102's run did not draw, and rest.mjs's doItTooltip. The keys these windows never draw (a window probe 08 does not open, a state it does not
+ * level-up.mjs's three on windows of the 1.2.111 tree E102's run did not draw, and rest.mjs's doItTooltip. Since E102 C6 (claude/e102-c6, 14.11.2026) the Case family's seven keys its run of 9c1a4104
+ * noted drawn and not held are in. The keys these windows never draw (a window probe 08 does not open, a state it does not
  * build, a card, a sheet) are counted and listed in the evidence as not drawn here: what holds them is their family test
  * and `node tools/check.mjs tooltips`. A key with a placeholder or a plural is not looked for (its words vary).
  */
@@ -35,6 +36,11 @@ export const DRAWN = {
         "DRPG.Tips.Actions.frameStudentTooltip", "DRPG.Tips.Actions.indirectMurderWindowTooltip", "DRPG.Tips.Actions.notTheOneWhoTooltip",
         "DRPG.Tips.Actions.onlyAfterDarkTooltip", "DRPG.Tips.Actions.onPerRuleTooltip", "DRPG.Tips.Actions.requiredWork2Tooltip",
         "DRPG.Tips.Actions.room2Tooltip", "DRPG.Tips.Actions.secretAProjectSTooltip"
+    ],
+    Case: [
+        "DRPG.Tips.Case.addDeductionCounterSolutionTooltip", "DRPG.Tips.Case.checkConsistencyTooltip", "DRPG.Tips.Case.moveUpMoveDownTooltip",
+        "DRPG.Tips.Case.nodeOnTheMapTooltip", "DRPG.Tips.Case.notTiedToTheTooltip", "DRPG.Tips.Case.onANodeTooltip",
+        "DRPG.Tips.Case.showPreviewTooltip"
     ],
     Gm: [
         "DRPG.Tips.Gm.aCharacterDiesTooltip", "DRPG.Tips.Gm.campaignNameTooltip", "DRPG.Tips.Gm.categoryTooltip",
