@@ -13476,7 +13476,7 @@ const REGRESSIONS = [
             pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
                 tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
                 daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden Remnant nie jest tego rodzaju\. To drabina, którą briefing Observe/,
-                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
+                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden Remnant nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
         };
         // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
         const rolls = stripComments(actionText(await otherSources()));
@@ -13688,7 +13688,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
-                    lateBallot: [/If you connect while a vote is open, your ballot comes as your browser loads/],
+                    lateBallot: [/If you connect while a vote is open, your ballot comes as the game loads/],
                     majority: [/\*\*more than half\*\* of the ballots issued - for each name/],
                     verdictCard: [/Everyone then sees one card, \*\*THE VERDICT\*\*/, /If it is your character, you are also told privately/],
                     deadObjector: [/A dead student neither presents evidence nor objects\./]
@@ -13698,7 +13698,7 @@ const REGRESSIONS = [
             pl: {
                 gm: {
                     onePerPerson: [/jedną na osobę: gracz z dwoma uczniami dostaje jedną kartę, a uczeń, którego gra tylko GM, nie dostaje żadnej \(zmarli nie głosują, `deadCastBallots: false`\)/],
-                    inWorld: [/jest w świecie, więc przeładowanie GMa go zachowuje/],
+                    inWorld: [/jest w świecie, więc przeładowanie GM-a go zachowuje/],
                     lateBallot: [/Gracz, który połączy się w trakcie głosowania, dostaje kartę, gdy wczytuje się jego przeglądarka, i ta karta liczy się do rozesłanych, więc podnosi poprzeczkę/],
                     majority: [/\*\*więcej niż połowy rozesłanych kart\*\* \(połowa zaokrąglona w dół plus jeden\)/],
                     nobodyFirst: [/na swojej pierwszej opcji, \*\*Nikt nie zostaje stracony\*\*/],
@@ -13709,8 +13709,8 @@ const REGRESSIONS = [
                     secondTrial: [/\(\*\*Otwórz nowy Class Trial\*\*\), zanim otworzy drugą rozprawę, z Anuluj jako pierwszym i domyślnym przyciskiem/],
                     finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera \*\*Werdykt Final Trial\*\* \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
-                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/],
-                    finishRunner: [/Wykonuje się w przeglądarce GMa, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GMa - w przeglądarce innego GMa konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
+                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GM-a/],
+                    finishRunner: [/Wykonuje się w przeglądarce GM-a, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GM-a - w przeglądarce innego GM-a konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
                     noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, nie zostawia już tego wiersza do przyznania jeszcze raz/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
@@ -13718,15 +13718,15 @@ const REGRESSIONS = [
                     unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej, gdy rozprawa się kończy/],
                     eclipseDoors: [/żadne inne drzwi nie otwierają rozprawy po ciemku: Edytuj kampanię zostawia fazę, stosuje resztę swojego okna i mówi o tym, a `game\.drpg\.setPhase` i `game\.drpg\.setClock` odmawiają całej zmiany/],
                     editAsksChapter: [/Edytuj kampanię zadaje to samo pytanie, gdy przestawia fazę na Class Trial, i to o rozdział, do którego okno przechodzi/],
-                    nowOnPrimary: [/\*\*Pomiń\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym/],
+                    nowOnPrimary: [/\*\*Pomiń\*\* wykonuje się w przeglądarce głównego GM-a, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GM-a, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym/],
                     runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
-                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GMa i w przeglądarce GMa, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GMa jako zajęte\./],
+                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GM-a i w przeglądarce GM-a, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GM-a jako zajęte\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/],
                     finalFinish: [/Zatrzymuje się i jest dokańczany tak jak zwykły werdykt \(od 1\.2\.97\)/, /\*\*Dokończ werdykt\*\* wykonuje pozostałe kroki i przyznaje to, co czekało, raz/]
                 },
                 player: {
                     onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],
-                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka/],
+                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się gra/],
                     majority: [/\*\*więcej niż połowy\*\* wydanych kart - dla każdego nazwiska/],
                     verdictCard: [/Potem wszyscy widzą jedną kartę, \*\*WERDYKT\*\*/, /Jeśli to twoja postać, dowiadujesz się o tym także prywatnie/],
                     deadObjector: [/Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection\./]
@@ -14407,19 +14407,19 @@ const REGRESSIONS = [
                     playerStairs: [/Schody narysowane przez gracza niczego nie łączą\./],
                     renameLast: [/przenosi na nową nazwę to, co wskazywało na starą, kiedy ostatni kawałek pokoju o starej nazwie na tej scenie dostanie nową - do tego czasu pokój o starej nazwie wciąż stoi i wszystko zatrzymuje\./],
                     renameLimits: [/klucze, gdy pokój jest sypialnią, a żadna inna scena nie ma sypialni o starej nazwie, przedmioty postaci, gdy żadna inna scena nie ma jej skrytki w pokoju o starej nazwie\./],
-                    keysCarried: [/^> Klucze nazywają swój pokój we fladze: zmiana nazwy pokoju przez GMa je przenosi \(kiedy - mówi sekcja 9\.1\)/],
+                    keysCarried: [/^> Klucze nazywają swój pokój we fladze: zmiana nazwy pokoju przez GM-a je przenosi \(kiedy - mówi sekcja 9\.1\)/],
                     renameWorld: [/pokój projektu, podłożonego przedmiotu i zwołanego zebrania, które tam były, pokój Masterminda, gdy żadna scena nie ma już pokoju o starej nazwie, listy Sąsiadów innych pokoi, które go wymieniają, pieczęć Despair Calla na nim i pokój ciał tam znalezionych/],
-                    renameRecord: [/Nazwa, którą przemianowany kawałek porzucił, jest zapisana na samym kawałku, więc GM, który połączy się między zmianami nazw kawałków pokoju albo zostanie między nimi głównym GMem, odczytuje je tak samo jak GM, który widział pierwszą; główny GM zdejmuje ten zapis z kawałków, gdy pokój zostanie przeniesiony\./],
+                    renameRecord: [/Nazwa, którą przemianowany kawałek porzucił, jest zapisana na samym kawałku, więc GM, który połączy się między zmianami nazw kawałków pokoju albo zostanie między nimi głównym GM-em, odczytuje je tak samo jak GM, który widział pierwszą; główny GM zdejmuje ten zapis z kawałków, gdy pokój zostanie przeniesiony\./],
                     renameSeal: [/Pieczęć też nie wymienia sceny i zamyka każdy pokój o swojej nazwie: nowa nazwa zostaje zapieczętowana, a stara pozostaje zapieczętowana, dopóki inna scena ma pokój o starej nazwie\./],
-                    renameBodies: [/Zapis znalezionego ciała wymienia swoją scenę i idzie, gdy to ta scena; zapis bez sceny - takie jest ciało, na które GMowie jeszcze nie odpowiedzieli - idzie, gdy żadna scena przed tą, licząc od szkoły, nie ma pokoju o starej nazwie\./],
+                    renameBodies: [/Zapis znalezionego ciała wymienia swoją scenę i idzie, gdy to ta scena; zapis bez sceny - takie jest ciało, na które GM-owie jeszcze nie odpowiedzieli - idzie, gdy żadna scena przed tą, licząc od szkoły, nie ma pokoju o starej nazwie\./],
                     trapScene: [/nazywa wyzwalacz, osobę, pokój i scenę, na której jest \(dla pułapki na przedmiot - pokój i scenę, w których stoi ten, kto go trzyma\), i porę dnia/],
                     joins: [/Zmiana nazwy na nazwę pokoju, który już jest na scenie, to nie zmiana nazwy, tylko kawałek dołączający do tamtego pokoju: nic się nie przenosi, ani pieczęć, ani znalezione ciała, z kawałka znikają jego własne wartości z Ustawień pokoi \(właściciel, skrytki, zamknięcia, pieczęć, Sąsiedzi i reszta\)/,
                         /Zmiana nazwy jednego z kilku kawałków pokoju tak samo zdejmuje z niego wartości pokoju; pozostałe kawałki je zachowują\./],
                     oneScene: [/projekt widać, rozwija się go i sabotuje w jego pokoju na scenie jego tokenu na mapie/, /a pułapka zbudowana jako projekt zadziała tylko tam/,
                         /Move the Body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
                         /`placeRemnant` i `applySceneVisionMode` bez sceny nic nie robią i to mówią, a `createProject` odrzuca pokój, którego nie ma żadna scena, i mówi dlaczego\./],
-                    putBack: [/Zmianę oznaczenia przez gracza cofa się do tego, co zostawił GM, a GMowie dostają o tym szept; gdy przeglądarka GMa nie ma zapisu oznaczenia sprzed zmiany, nic się nie cofa/],
-                    witness: [/Jeden uczeń to jeden świadek, ile by jego tokenów nie stało w pokoju\. Token, który gracz upuści na mapę, ocenia się od miejsca, w którym ten uczeń ostatnio stał na tej scenie; uczeń, który jeszcze nigdzie tam nie stał, liczy się tam, gdzie token wylądował, a GMowie dostają o tym szept\./]
+                    putBack: [/Zmianę oznaczenia przez gracza cofa się do tego, co zostawił GM, a GM-owie dostają o tym szept; gdy przeglądarka GM-a nie ma zapisu oznaczenia sprzed zmiany, nic się nie cofa/],
+                    witness: [/Jeden uczeń to jeden świadek, ile by jego tokenów nie stało w pokoju\. Token, który gracz upuści na mapę, ocenia się od miejsca, w którym ten uczeń ostatnio stał na tej scenie; uczeń, który jeszcze nigdzie tam nie stał, liczy się tam, gdzie token wylądował, a GM-owie dostają o tym szept\./]
                 },
                 player: {
                     stairsGate: [/^GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse\.$/]
@@ -17893,7 +17893,7 @@ const REGRESSIONS = [
                 player: {
                     overrule: [/The GM can also \*\*Overrule\*\* the newest Objection/, /what you paid stays paid, and the trial goes back to where it was, with the time it had then/],
                     noKill: [/The verdict kills nobody: the sentence is carried out when the trial ends/],
-                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends - a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
+                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends\. It does so for a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
                 },
                 stale: [/mutes nobody/, /does not mute anyone/, /\*\*End this mode now\*\*/, /the table learns it with the verdict/, /Silence is kept by the table, not by the software/, /the trial counts you among the living: you are sent a ballot/]
             },
@@ -19621,9 +19621,7 @@ const REGRESSIONS = [
                 // E71 B01b and B03: the Overflow's explainer and the Mastermind's purse, a count before Despair or Hope.
                 "Overflow.explainBody", "Mastermind.hopeReadout",
                 // E71 B10b and B12 (line C, 14.11.2026): Confusion's least to give, a count before Despair; a Reroll's Work, a count before progress.
-                "Monocub.giveAtLeast", "Reroll.progressAdjusted",
-                // E71 line B (merged into the needsCode line, 14.11.2026): a room action's Overflow line, a count before Despair.
-                "Facility.applied.overflowDown"
+                "Monocub.giveAtLeast", "Reroll.progressAdjusted"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -19679,7 +19677,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 79, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 78, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");

@@ -3640,7 +3640,7 @@
         "text": "{name}: the GM's words were sent",
         "searchToken": "{room}: Search Tokens +{n}",
         "searchTokenFull": "{room}: no Search Token came back, as the room already holds as many as it can",
-        "overflowDown": "Overflow: -{n} Despair",
+        "overflowDown": "Overflow: Despair -{n}",
         "durability": {"one": "{name}: “{item}”, +{n} durability", "other": "{name}: “{item}”, +{n} durability"},
         "durabilityNone": "{name}: nothing worn to mend",
         "stateEnded": "{name}: no longer {state}",
