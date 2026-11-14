@@ -620,7 +620,8 @@ const REGRESSIONS = [
          * E56 part 2, 14.11.2026 (the plan's guard "an identifier in a comment must exist in the source"). Read as R7150
          * reads the budget. Red first, on the budget at 512f74d5 (the sweep's comments in, the budget not yet lowered):
          * "citations allowed in 77 file(s): scripts/a11y.mjs 1, ..."; green on the budget written after it. The sweep: 141
-         * citations in 77 files on 9e7e3d78, 0 after; `known` from 28 names to 93, each with its reason.
+         * citations in 77 files on 9e7e3d78, 0 after; `known` from 28 names to 93, each with its reason, and to 119 once the
+         * lint read the suite's own files as well (49 citations and 8 doubled blocks there, the same day).
          */
         needs(env.tools(), "tools/comment-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
         let budget = null;

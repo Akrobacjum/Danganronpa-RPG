@@ -10,8 +10,8 @@
  * parts `names`, `moves` and `text` do: a comment is only a comment to a tokenizer - a `//` inside a string, a regex
  * or a template is not one, and a hand-made scan reads those as comments.
  *
- * WHAT IT COUNTS, per module file of scripts/ (the suite's own files, scripts/tests*.mjs, are not read: their
- * comments describe tests, and E56's census rows are their own commit):
+ * WHAT IT COUNTS, per file of scripts/ (the suite's own files, scripts/tests*.mjs, as well since E56 part 2; until
+ * then they were left out, their census rows to be E56's own commit):
  *   citations    a backticked name in a comment - `name` or `name()`, four characters or more - that nothing in the
  *                repository holds as code: no identifier, property, string or template word of scripts/, tools/,
  *                audit/ or macros/, no key segment of lang/en.json or lang/pl.json, no word of styles/, of audit's
@@ -193,7 +193,9 @@ export async function commentsLint(repo = DEFAULT_REPO, { write = false } = {}) 
     catch { return { problems: ["espree is not installed - run `npm ci` in audit/harness first"], summary: "comments: nothing read", counts: {}, findings: {} }; }
     const problems = selfCheck(espree).map(p => `self-check: ${p}`);
     const read = rel => lf(fs.readFileSync(path.join(repo, rel), "utf8"));
-    const modules = walk(repo, "scripts", n => n.endsWith(".mjs") && !/^tests(-[\w-]+)?\.mjs$/.test(n));
+    // Since E56 part 2 (14.11.2026) the suite's own files are read too: their comments name the module's functions as
+    // often as the module does, and 49 citations and 8 doubled blocks stood in them on that line before its sweep.
+    const modules = walk(repo, "scripts", n => n.endsWith(".mjs"));
     const sources = [...walk(repo, "scripts", n => n.endsWith(".mjs")), ...walk(repo, "tools", n => n.endsWith(".mjs")),
         ...walk(repo, "audit", n => /\.(mjs|js)$/.test(n)), ...walk(repo, "macros", n => n.endsWith(".js"))].map(f => [f, read(f)]);
     const texts = [...walk(repo, "styles", n => n.endsWith(".css")), ...walk(repo, "audit", n => n.endsWith(".html")),
