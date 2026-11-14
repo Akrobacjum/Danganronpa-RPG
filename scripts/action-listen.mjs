@@ -93,16 +93,6 @@ export function echoesShutWhy({ eclipse = isEclipse() } = {}) {
 }
 
 /**
- * WHO LISTEN NAMES BEHIND A DOOR (owner-115 item 1, 14.11.2026; the owner: "Tozsamosc mordercy przy odpowiednim rzucie
- * powinna byc tajna tez dla osob postronnych, tak samo jak dla ofiary"). A character behind a "?" (mask-gm.mjs, E69 C8) is
- * "?" to the listener, read off the tokens this browser holds (`isMaskedActor`, its one flag); anyone else by name, as
- * before. Its Reroll's lines on the GM (reroll.mjs `listenLines`) name the same way, for the same listener.
- */
-export function listenName(other) {
-    return isMaskedActor(other) ? MASK_NAME : other?.name ?? "";
-}
-
-/**
  * Why Shut the Door's row is shut now, or null (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-R5; R7173). The action
  * is paid and rolled before the GM judges it (doors-gm.mjs `shutRefusal`), and a refusal gives nothing back: a refund
  * after the roll would hand out its Hope for free (action-pipeline.mjs `spentAfterRoll`). So what this browser knows of
@@ -119,6 +109,16 @@ export function shutShutWhy(actor, { eclipse = isEclipse() } = {}) {
     const max = INFILTRATE.shut.maxExits;
     if (neighbouringRooms(place.scene, room).filter(other => !isLocked(place.scene, other)).length > max) return plural("DRPG.Infiltrate.shut.whyDoors", { n: max });
     return null;
+}
+
+/**
+ * WHO LISTEN NAMES BEHIND A DOOR (owner-115 item 1, 14.11.2026; the owner: "Tozsamosc mordercy przy odpowiednim rzucie
+ * powinna byc tajna tez dla osob postronnych, tak samo jak dla ofiary"). A character behind a "?" (mask-gm.mjs, E69 C8) is
+ * "?" to the listener, read off the tokens this browser holds (`isMaskedActor`, its one flag); anyone else by name, as
+ * before. Its Reroll's lines on the GM (reroll.mjs `listenLines`) name the same way, for the same listener.
+ */
+export function listenName(other) {
+    return isMaskedActor(other) ? MASK_NAME : other?.name ?? "";
 }
 
 /**

@@ -25698,6 +25698,17 @@ const REGRESSIONS = [
         const end = fnSource(stripComments(sources.get("eclipse.mjs") ?? ""), "endEclipse");
         ok(/murderState\(\)/.test(end) && /DRPG\.Eclipse\.ended/.test(bodyOf(end, "if (advance)", { until: "} else {" })), "endEclipse tells the bystanders nothing of the lights coming back while an incident runs");
     }],
+    ["R7182 - the third of an incident was there, for the discovery as for its sound (E59 C-115, CHAINS.md B-M4; Q-115-9, the coordinator's word: GM 13.4's rule, \"that body's own killers or the third of its incident (they were there)\"): body.mjs `inThatDeath` read the running incident's third alone, gone at the close, and the discovery's witnesses (`checkBodyFound`'s `involved`) never left the third out; the close (murder-rules.mjs `closeIncident`) keeps the third and whoever walked out of the incident on the victim's death row (its `keepThoseThere`, the row's `there`), `inThatDeath` reads the row and the running incident's `departed` too, and `involved` asks `inThatDeath` of the body lying here", async () => {
+        const sources = new Map(await otherSources());
+        const body = stripComments(sources.get("body.mjs") ?? "");
+        const there = fnSource(body, "inThatDeath");
+        ok(/\.there\b/.test(there) && /departed/.test(there), "inThatDeath does not read the death row's there or the incident's departed");
+        ok(/\binThatDeath\(/.test(bodyOf(fnSource(body, "checkBodyFound"), "const involved", { length: 300 })), "the discovery's witnesses do not leave out who was there (inThatDeath)");
+        const close = fnSource(stripComments(sources.get("murder-rules.mjs") ?? ""), "closeIncident");
+        ok(/\bkeepThoseThere\(/.test(close), "endMurder keeps nobody's presence on the victim's death row");
+        const keep = fnSource(stripComments(sources.get("murder-rules.mjs") ?? ""), "keepThoseThere");
+        ok(/deathStore\.patch\(/.test(keep) && /there/.test(keep), "keepThoseThere does not write the death row's there");
+    }],
     ["R7181 - the Eclipse wins over the Spectator talk switch (E59 C-115, CHAINS.md B-S5; Q-115-8's default): during an Eclipse no player is in voice (GM 9.5), and voice.mjs `placeVoices` moved an account whose talk switch is on to the Spectators' room after the Eclipse's claim, with no Eclipse asked; the Spectators' room rule passes over every account while `eclipse` holds", async () => {
         const place = stripComments(fnSource(stripComments(new Map(await otherSources()).get("voice.mjs") ?? ""), "placeVoices"));
         const rule = bodyOf(place, "for (const [userId, row] of byUser) {\n        if (", { length: 160 });
