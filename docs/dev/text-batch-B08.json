@@ -10785,14 +10785,14 @@
    ],
    "en": {
     "before": "Despair overflow: -{n}",
-    "after": "Overflow: -{n} Despair"
+    "after": "Overflow: Despair -{n}"
    },
    "pl": {
     "before": "Despair overflow: -{n}",
-    "after": "Overflow: -{n} Despair"
+    "after": "Overflow: Despair -{n}"
    },
    "removed": [
-    "\"overflow\" -> \"Overflow\": the glossary's name, capitalized (line A's reading, the coordinator's round of 14.11); the unit after the number, as the Overflow holds Despair"
+    "the count after its noun, as the sibling searchToken writes it (\"Search Tokens +{n}\"): a count before a word is a plural family or an allow row in R1157's census, and Despair takes no family"
    ],
    "needsCode": [],
    "disagreements": [],

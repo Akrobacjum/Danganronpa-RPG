@@ -3658,7 +3658,7 @@
         "freeMove": "{name}: +{n} Free Move",
         "text": "{name}: the GM's words were sent",
         "searchToken": "{room}: Search Tokens +{n}",
-        "overflowDown": "Overflow: -{n} Despair",
+        "overflowDown": "Overflow: Despair -{n}",
         "durability": {"one": "{name}: “{item}”, +{n} durability", "other": "{name}: “{item}”, +{n} durability"},
         "durabilityNone": "{name}: nothing worn to mend",
         "stateEnded": "{name}: no longer {state}",

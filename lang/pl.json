@@ -3927,7 +3927,7 @@
         "freeMove": "{name}: +{n} Free Move",
         "text": "{name}: słowa GM-a wysłane",
         "searchToken": "{room}: Search Tokeny +{n}",
-        "overflowDown": "Overflow: -{n} Despair",
+        "overflowDown": "Overflow: Despair -{n}",
         "durability": {"one": "{name}: „{item}”, +{n} wytrzymałości", "few": "{name}: „{item}”, +{n} wytrzymałości", "many": "{name}: „{item}”, +{n} wytrzymałości", "other": "{name}: „{item}”, +{n} wytrzymałości"},
         "durabilityNone": "{name}: nie ma nic zużytego do naprawy",
         "stateEnded": "{name}: koniec stanu {state}",
