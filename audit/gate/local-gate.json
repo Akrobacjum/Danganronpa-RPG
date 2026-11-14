@@ -3,28 +3,28 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.112"
+    "version": "1.2.113"
   },
-  "commit": "325b55004446165d5559f902d60a4921086435bd",
+  "commit": "65e7b9bc56e42c6879012e7dc0231d9b16e32a09",
   "bound": {
-    "scripts": "e21b7a36d756ddabdce5b9d8653630bd4e105765",
-    "styles": "2b360d4d71f08dfef35c0b074d8f5840b34b1c30",
-    "lang": "f64283b930cf5366024754495c95e6ea63668d58",
-    "fonts": "5250eed77d36e450eee937cf01d159f78e36b47b",
+    "scripts": "bc658c513338952aed34e9ef967d6cfe00a4470a",
+    "styles": "50883b75cf5d018144b1bdf2d7ac21417c5eb1c9",
+    "lang": "8a58241b001bc5ee80618ed1382a67dd1084a3c4",
+    "fonts": "67a9597cecb677fad7cc6fa7a0fad2608f59299f",
     "icons": "809722363d795147d045b9ab79b8e96e848632c6",
-    "module.json": "9f0aa492cea4d0886b8c6fe38aaf3ec8412d895c",
+    "module.json": "e9d74edc2a2a62cb32f29e70e3669c22099e4258",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "4c31bef421cc6337a06a6cd8304dc799aae1b7d9",
     "audit/live": "0f1efdcbd589f52a69c14c13e91963e632b83146",
     "audit/harness/lib/seed.mjs": "631648825551c068a82d83f080f6bc78877717e5",
-    "audit/harness/scenarios/14-quiet.mjs": "80d0c37db5208cace79fecbb7fc3b34b0d005d56",
+    "audit/harness/scenarios/14-quiet.mjs": "ab210846f646d88f51951f6c65288a16bfb39144",
     "audit/harness/scenarios/60-ledger.mjs": "62ae55bdb85a1708f04045dffa44971cdb1af282",
     "audit/harness/scenarios/81-render-budget.mjs": "4f0c592c86e2f988c7f49aad46f838e9966b37dc",
-    "audit/harness/scenarios/83-roll-integrity.mjs": "d6deca0eaeab2803ed202824725fdde3d6e22151",
+    "audit/harness/scenarios/83-roll-integrity.mjs": "b32c1e2b16e578e7fe82189ae4e63be13a3435e6",
     "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-13T19:56:58.717Z",
-  "finishedAt": "2026-11-13T19:56:58.839Z",
+  "startedAt": "2026-11-14T14:04:58.410Z",
+  "finishedAt": "2026-11-14T14:04:58.516Z",
   "host": {
     "node": "v22.22.0",
     "platform": "linux-x64",
@@ -125,6 +125,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:935adef0d89762d018be46d3c34fea1aa58b878c60f782f0ef7576561210e4ab",
+  "digest": "sha256:2f8bd550c414fd85dfb36828cfc00f3cd709d1b98a4d7234b110c39bd6e0dd19",
   "hmac": null
 }
