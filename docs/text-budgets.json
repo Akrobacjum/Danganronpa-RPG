@@ -128,7 +128,8 @@
         },
         {
             "surface": "tab",
-            "keys": "\\.tab[A-Z][A-Za-z]*$"
+            "keys": "\\.tab(?!Line$)[A-Z][A-Za-z]*$",
+            "note": "A ...Line is a pane's one-line note, not a tab's label (DRPG.Facility.editor.tabLine; the needsCode line, 14.11.2026, NEEDSCODE.md #49)."
         },
         {
             "surface": "window-title",

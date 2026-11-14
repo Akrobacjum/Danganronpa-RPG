@@ -76,7 +76,9 @@ export const PLACEHOLDERS = Object.freeze({
         "session", "shown", "slider", "auto", "notices", "turn", "bodies", "actions", "traces", "placed", "living", "all", "s", "add", "refresh", "remove", "bar",
         "overflow", "rows", "set", "claimed", "expected", "legal", "projects", "plants", "x", "pools",
         // E66 C4 (01.11.2026): the numbers config.mjs `PROSE_NUMBERS` and the builders put where a digit stood.
-        "drain", "mult", "worth", "fewest"], values: both(RENDER_NS) },
+        "drain", "mult", "worth", "fewest",
+        // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): the sequences' living count (`Sequence.daySub`).
+        "alive"], values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },
     trait: { names: ["trait"], from: "trait" },
     traits: { names: ["traits", "sources"], list: true, from: "traits" },
@@ -90,7 +92,10 @@ export const PLACEHOLDERS = Object.freeze({
         // E66 C4: a number with its unit, written by a `DRPG.Unit.*` family or the Eclipse's reach.
         "reach", "short", "long", "wounded",
         // E66 fix r1 F7: the vote's noun, `Events.voteMetaGmBallots` counted on the total (events.mjs `voteMetaLine`).
-        "ballots"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
+        "ballots",
+        // The needsCode line (14.11.2026; NEEDSCODE.md #56, #57, S7): a timed effect's end and a trace's life, phrases the
+        // code builds; and rooms.mjs `roomPhrase`'s phrases, a room with its preposition (R6912).
+        "until", "life", "at", "into", "leaving", "returning"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },
