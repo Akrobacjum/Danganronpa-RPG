@@ -94,7 +94,8 @@ landed on claude/fervent-sagan-gme4vt (merged in first; its sites are then in E5
 | Part | Sites | Census (needing help / baseline rows still "E102 C6") | Test |
 | --- | --- | --- | --- |
 | base 1463f22b | - | 335 / 52 | R4755 red: "lang/en.json has not the family's 11 keys" |
-| C6a: case-map, case-realize, case-summary, remnant-ring | 8 tipped, 3 rows re-reasoned | 327 / 41 (all investigation.mjs) | R4755 green, 10 keys |
+| C6a: case-map, case-realize, case-summary, remnant-ring | 8 tipped, 2 rows "conditional" | 327 / 41 (all investigation.mjs) | R4755 green, 10 keys |
+| C6a follow-up: the closing word's own label (ui-kit.mjs) | Not now tipped | 326 / 41 | R6350 red at c1a01382, green after; R4755 11 keys |
 | C6b: investigation.mjs (E54's files) | waits for E54 | - | - |
 
 What C6a found, against KEYS.json's proposals:
@@ -109,11 +110,32 @@ What C6a found, against KEYS.json's proposals:
   `aria-label` keeps the name.
 - **The difficulty select** sets the Observe, Analyze and Tamper numbers (config.mjs `OBSERVE_DC`, `ANALYZE_DC`,
   cleanup.mjs `cleanupDc`); the words name all three.
-- **"Not now" is never drawn.** ui-kit.mjs `footerButtons` builds a closing word from `BUTTON_ROLES` alone, so the
-  `label` (and any tooltip) of `askAtBody`'s close is dropped and the button reads Close (the same at
-  investigation.mjs `offerFinalOnClose`). No tooltip there; its row says why. The dead label is a finding for E71 or
-  the kit, not changed here.
+- **"Not now" was never drawn** (fixed in C6a's follow-up, R6350). ui-kit.mjs `footerButtons` built a closing word
+  from `BUTTON_ROLES` alone (E21 C2a's rule, "Not now" goes), so a caller's `label` was dropped and the button read
+  Close. The coordinator's word (14.11): a defect - the owner chose "Not yet" as the discovery prompt's default
+  (body-113), and that window's note names its "Not yet". A caller's own word and tooltip now win; a bare closing
+  word is still the role's word with no tooltip. The three callers that name a word, each drawing it now:
+  case-realize.mjs `askAtBody` ("Not now", tooltip `notNowTooltip`), investigation.mjs `offerFinalOnClose` ("Not
+  now"; its tooltip with C6b), chapter.mjs `promptPendingBodies` ("Not yet"; E54's file, after E54). None relied on
+  the drop. R1358 (E21 C2a's windows: none of them names a word) and R1602, R2008 stay green.
 - KEYS.json's case-map `incidentAsksHtml` sites (Place on the map, Show) are gone from the code; nothing to tip.
+
+**C7 was not built.** Its row in the table above reads as planned work, and at 1463f22b `DRPG.Tips.Case.finderTextTooltip`
+is in neither lang file nor any script: C7's earlier entry ("C1-C5 and C7 in the base") was wrong. Built in C6b with
+the investigation.mjs sites (the coordinator, 14.11).
+
+**The second read's Case findings (1, 2, 16-21)** were written to a line's scratch notes that are gone; nobody holds
+their text (the coordinator, 14.11). C6 does its own second read of the Case keys against the code instead (this
+section), and the report names those findings as not seen.
+
+**The registry's stamps.** R4750-R4754 and R4760-R4764 read "E54" (E54 was the first open stage when they were
+written). `tools/registry.mjs` stamps a row with the first release tag whose suite carries it, else the stage being
+worked on (`sinceOf`); all ten are in v1.2.112's suite, so the tool's answer is 1.2.112, not E102. Their stamp was
+cleared to "-" (which `renderRBlock` reads as new) and `node tools/registry.mjs --write --stage E102` wrote them:
+1.2.112 for the ten, E102 for R4755 and R6350 (no release carries them).
+
+**The C12 rows are this line's too** (the coordinator, 14.11): the 43 in C6's files with C6b, the other 30 as C12, one
+commit per family, keys under `DRPG.Tips.<family>`; sheet.mjs (an E54 file) after E54.
 
 ## Tier 2
 
