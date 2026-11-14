@@ -81,7 +81,7 @@ Największy przycisk w prawym dolnym rogu otwiera **Czat z GM-em**, jeden wątek
 Przycisk w lewym dolnym rogu arkusza pokazuje słowo twojego stołu: **Safe Word**, chyba że twój stół wybrał własne. GM może je zmienić.
 
 > [!CAUTION]
-> Wciśnij go i odpowiedz na *Zatrzymać scenę?* przyciskiem **Zatrzymaj** (naciska go też Enter): scena staje, GM-owie się dowiadują, a wszyscy widzą kartę. **Anuluj** niczego nie wysyła. Nie potrzebujesz powodu, ani teraz, ani później.
+> Wciśnij go i odpowiedz na *Zatrzymać scenę?* przyciskiem **Zatrzymaj scenę** (naciska go też Enter): scena staje, GM-owie się dowiadują, a wszyscy widzą kartę. **Anuluj** niczego nie wysyła. Nie potrzebujesz powodu, ani teraz, ani później.
 
 ## Gdy idzie źle
 

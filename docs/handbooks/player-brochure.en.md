@@ -81,7 +81,7 @@ The largest button in the bottom-right corner opens **GM Chat**: one thread betw
 The button at the bottom-left of your sheet shows your table's word: **Safe Word**, unless your table chose its own. The GM can change it.
 
 > [!CAUTION]
-> Press it and answer *Stop the scene?* with **Stop it** (Enter presses it): the scene stops, the GMs are told, and everybody sees the card. **Cancel** sends nothing. You need no reason, now or later.
+> Press it and answer *Stop the scene?* with **Stop the scene** (Enter presses it): the scene stops, the GMs are told, and everybody sees the card. **Cancel** sends nothing. You need no reason, now or later.
 
 ## When it goes wrong
 

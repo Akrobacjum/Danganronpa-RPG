@@ -3523,20 +3523,20 @@ export const MONOCUB = {
             // where it was 94 (65.3%).
                 thresholds: [
                 { min: 11, grants: "bonus",
-                  help: "You grant the player +1 on their next roll.",
-                  hinder: "You inflict −1 on the player's next roll.",
+                  help: "They get +1 on their next roll.",
+                  hinder: "They get -1 on their next roll.",
                   helpTarget: "Something steadies your hand: +1 on your next roll.",
-                  hinderTarget: "Something rattles you: −1 on your next roll." },
+                  hinderTarget: "Something rattles you: -1 on your next roll." },
                 { min: 16, grants: "advantage",
-                  help: "You grant the player advantage on their next roll.",
-                  hinder: "You inflict disadvantage on the player's next roll.",
+                  help: "They get advantage on their next roll.",
+                  hinder: "They get disadvantage on their next roll.",
                   helpTarget: "Something steadies your hand: advantage on your next roll.",
                   hinderTarget: "Something rattles you: disadvantage on your next roll." }
             ],
             critical: {
-                help: "The player gets the action back.", hinder: "The player wastes the action.",
-                helpTarget: "A moment's luck: you get the action back.",
-                hinderTarget: "A moment's confusion: the action is wasted."
+                help: "They get one spent action back.", hinder: "They lose one of their actions.",
+                helpTarget: "A moment's luck: you get an action back.",
+                hinderTarget: "A moment's confusion: you lose an action."
             },
             failure: "The attempt fails."
         },
