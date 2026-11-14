@@ -101,7 +101,8 @@ landed on claude/fervent-sagan-gme4vt (merged in first; its sites are then in E5
 | C12, Setup | 8 sites tipped (12 keys), 4 rows | 313 | R6353; R4754 counts 28 + 12 |
 | C12, More and Trial | 2 rows | 313 | - |
 | C12, Case: a map node's Close (cc4088ff) | 1 tipped | 312 | R4755, 12 keys |
-| C6b: investigation.mjs (E54's files), with its C12 rows; sheet.mjs's and chapter.mjs's C12 rows | waits for E54 | - | - |
+| merge of 123f8242 (E54) | - | 312 | the census rebuilt by identity: E54's rows, this line's 15 files' rows |
+| C6b: investigation.mjs and key-remnants.mjs (E54's), with their C12 rows; sheet-actions, sheet-sidebar and chapter.mjs's C12 rows | 70 sites tipped (30 new Case keys, 2 Setup; Gm.whatItReallyIs, whatThePlayerIs, howHardTheOriginal, refuseBribe and Trial.setTooltip reused), 16 rows with reasons | 242 / 0 rows "E102 C6" or "E102 C12" | R4755 (42 Case keys) and R6353, red with the part's code stashed at 05a97e0c, green after; R4754 counts 28 + 14 |
 
 What C6a found, against KEYS.json's proposals:
 
@@ -125,9 +126,20 @@ What C6a found, against KEYS.json's proposals:
   the drop. R1358 (E21 C2a's windows: none of them names a word) and R1602, R2008 stay green.
 - KEYS.json's case-map `incidentAsksHtml` sites (Place on the map, Show) are gone from the code; nothing to tip.
 
+**C6b, what the code said against KEYS.json.** The planned nodes (E104's Final Truth, Remnant, Truth Bullet and Autopsy) copy
+real windows field for field, so each copied field takes that window's decision: the planned Truth Bullet's real type,
+shown as and visibility reuse the Give window's three Gm keys, its other fields the Give window's "none needed"
+reasons; the zones' set reuses Trial.setTooltip. A Key slot's Place opens a window to confirm room and difficulty (not
+"at once"), and is drawn disabled past the limit, so it carries a `title`. Delete refuses a Reinforced Remnant
+(remnants.mjs `removeRemnant`); clearing the Faint Remnants takes only those neither Reinforced nor tied (`clearable`);
+the chapter's sweep spares Faint copies (`sparedBySweep`). Two KEYS.json keys are not built: undoRealizationTooltip
+(E64-inv moved Undo realization into the preview window) and finderTextTooltip (below).
+
 **C7 was not built.** Its row in the table above reads as planned work, and at 1463f22b `DRPG.Tips.Case.finderTextTooltip`
-is in neither lang file nor any script: C7's earlier entry ("C1-C5 and C7 in the base") was wrong. Built in C6b with
-the investigation.mjs sites (the coordinator, 14.11).
+is in neither lang file nor any script: C7's earlier entry ("C1-C5 and C7 in the base") was wrong. Not built in C6b either,
+measured: E104 gave the planned Incident Remnant node New Remnant's own fields, and its words are now that node's
+traceText field, which draws playerDescriptionTooltip ("What a student reads the moment they find it"); a second key
+would say the same.
 
 **The second read's Case findings (1, 2, 16-21)** were written to a line's scratch notes that are gone; nobody holds
 their text (the coordinator, 14.11). C6 does its own second read of the Case keys against the code instead (this

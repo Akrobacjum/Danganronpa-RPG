@@ -435,7 +435,7 @@
    "en": "The Logic Dive set to play. The number is how many questions it holds.",
    "pl": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
    "sites": [
-    "trial-zones-ui:254"
+    "investigation:zoneRows"
    ]
   },
   "editTooltip": {
@@ -554,11 +554,12 @@
   },
   "kindWhatItReallyTooltip": {
    "key": "DRPG.Tips.Case.kindWhatItReallyTooltip",
-   "en": "Its true kind. Key shows on a find; the others show after an Analyze, a critical find or the chapter's end",
-   "pl": "Jego prawdziwy rodzaj. Key widać od razu po znalezieniu; inne po Analyze, krytycznym znalezieniu albo na koniec rozdziału",
+   "en": "Its true kind. A Key shows it at once; others usually only after an Analyze, a critical find or the chapter's end",
+   "pl": "Jego prawdziwy rodzaj. Key widać od razu; inne zwykle dopiero po Analyze, krytycznym znalezieniu albo na koniec rozdziału",
    "sites": [
-    "investigation:1055",
-    "investigation:1889"
+    "investigation:caseTraceCells",
+    "investigation:openNewTrace",
+    "investigation:schemaEditor"
    ]
   },
   "leftByTooltip": {
@@ -566,9 +567,10 @@
    "en": "Counts as this student's own Remnant for Observe and Tamper",
    "pl": "Liczy się jako własny Remnant tego ucznia przy Observe i Tamper",
    "sites": [
-    "investigation:1057",
-    "investigation:1332",
-    "investigation:2207",
+    "investigation:caseFinalPanel",
+    "investigation:openNewTrace",
+    "investigation:schemaEditor",
+    "key-remnants:openKeyRemnantHere",
     "remnant-ring:gmRemnantCard"
    ]
   },
@@ -577,11 +579,12 @@
    "en": "How hard it is to spot with Observe, to analyze and to clean up with Tamper",
    "pl": "Jak trudno go zauważyć przy Observe, przeanalizować i usunąć przez Tamper",
    "sites": [
-    "investigation:1059",
-    "investigation:1330",
-    "investigation:1451",
-    "investigation:1896",
-    "investigation:2205",
+    "investigation:caseFinalPanel",
+    "investigation:caseTraceCells",
+    "investigation:openNewTrace",
+    "investigation:schemaEditor",
+    "key-remnants:openKeyRemnantHere",
+    "key-remnants:placeKeyRow",
     "remnant-ring:gmRemnantCard"
    ]
   },
@@ -590,10 +593,11 @@
    "en": "The name a student sees once they find it",
    "pl": "Nazwa, którą uczeń zobaczy, gdy go znajdzie",
    "sites": [
-    "investigation:1334",
-    "investigation:1861",
-    "investigation:2070",
-    "investigation:2209"
+    "investigation:caseFinalPanel",
+    "investigation:caseKeyCells",
+    "investigation:caseTraceCells",
+    "investigation:schemaEditor",
+    "key-remnants:openKeyRemnantHere"
    ]
   },
   "playerDescriptionTooltip": {
@@ -601,10 +605,11 @@
    "en": "What a student reads the moment they find it",
    "pl": "Co uczeń przeczyta, gdy tylko go znajdzie",
    "sites": [
-    "investigation:1337",
-    "investigation:1863",
-    "investigation:2072",
-    "investigation:2212"
+    "investigation:caseFinalPanel",
+    "investigation:caseKeyCells",
+    "investigation:caseTraceCells",
+    "investigation:schemaEditor",
+    "key-remnants:openKeyRemnantHere"
    ]
   },
   "whatAnalysisRevealsTooltip": {
@@ -612,10 +617,11 @@
    "en": "What a student reads only after a successful Analyze",
    "pl": "Co uczeń przeczyta dopiero po udanym Analyze",
    "sites": [
-    "investigation:1341",
-    "investigation:1870",
-    "investigation:2079",
-    "investigation:2216"
+    "investigation:caseFinalPanel",
+    "investigation:caseKeyCells",
+    "investigation:caseTraceCells",
+    "investigation:schemaEditor",
+    "key-remnants:openKeyRemnantHere"
    ]
   },
   "plannedClueTooltip": {
@@ -623,47 +629,49 @@
    "en": "The planned clue it fills, so the plan counts it",
    "pl": "Zaplanowany trop, który wypełnia, żeby plan go liczył",
    "sites": [
-    "investigation:1349"
+    "key-remnants:openKeyRemnantHere"
    ]
   },
   "faintTooltip": {
    "key": "DRPG.Tips.Case.faintTooltip",
-   "en": "A doubtful lead. Clear Faint Remnants can remove it, and a sweep keeps its Truth Bullets.",
-   "pl": "Wątpliwy trop. „Wyczyść Faint Remnants” może go usunąć, a zbieranie Truth Bullets oszczędza jego kopie.",
+   "en": "A doubtful lead: clearing the Faint Remnants takes it unless it is Reinforced or tied, and the chapter's sweep spares its Truth Bullets",
+   "pl": "Wątpliwy trop: czyszczenie Faint Remnantów go usuwa, chyba że jest Reinforced albo powiązany, a zbieranie na koniec rozdziału oszczędza jego Truth Bullety",
    "sites": [
-    "investigation:1898"
+    "investigation:caseTraceCells"
    ]
   },
   "tiedToCrimeTooltip": {
    "key": "DRPG.Tips.Case.tiedToCrimeTooltip",
-   "en": "Whether it belongs to the murder. A tied Remnant survives Clear Faint Remnants.",
-   "pl": "Czy należy do morderstwa. Powiązany Remnant przetrwa „Wyczyść Faint Remnants”.",
+   "en": "Whether it belongs to the murder. A tied Remnant stays when the Faint Remnants are cleared",
+   "pl": "Czy należy do morderstwa. Powiązany Remnant zostaje, gdy czyści się Faint Remnanty",
    "sites": [
-    "investigation:1899"
+    "investigation:caseTraceCells"
    ]
   },
   "reinforcedTooltip": {
    "key": "DRPG.Tips.Case.reinforcedTooltip",
-   "en": "Nobody can clean it up with Tamper, and Clear Faint Remnants leaves it",
-   "pl": "Nikt nie usunie go przez Tamper, a „Wyczyść Faint Remnants” go pomija",
+   "en": "Tamper cannot clean it up, Delete refuses it, and clearing the Faint Remnants leaves it",
+   "pl": "Tamper go nie usunie, Usuń go nie skasuje, a czyszczenie Faint Remnantów go pomija",
    "sites": [
-    "investigation:1901"
+    "investigation:caseTraceCells",
+    "investigation:openNewTrace",
+    "investigation:schemaEditor"
    ]
   },
   "deleteTooltip": {
    "key": "DRPG.Tips.Case.deleteTooltip",
-   "en": "Deletes this Remnant from the map and the case for good, after asking. A Reinforced one stays",
-   "pl": "Po pytaniu usuwa na dobre ten Remnant z mapy i ze sprawy. Reinforced zostaje",
+   "en": "Asks first, then removes this Remnant from the map and the case for good. A Reinforced one is refused",
+   "pl": "Najpierw pyta, potem na dobre usuwa ten Remnant z mapy i ze sprawy. Reinforced zostaje",
    "sites": [
-    "investigation:1905"
+    "investigation:caseTraceCells"
    ]
   },
   "chapterFilterTooltip": {
    "key": "DRPG.Tips.Case.chapterFilterTooltip",
-   "en": "Also picks the chapter the Map view draws",
-   "pl": "Wybiera też rozdział, który rysuje widok Mapa",
+   "en": "Shows this chapter's Remnants, and picks the chapter the Map draws",
+   "pl": "Pokazuje Remnanty tego rozdziału i wybiera rozdział, który rysuje Mapa",
    "sites": [
-    "investigation:1953"
+    "investigation:caseTraceFilters"
    ]
   },
   "whichRemnantTooltip": {
@@ -671,15 +679,15 @@
    "en": "Links this planned clue to a Key Remnant already on the map",
    "pl": "Łączy ten zaplanowany trop z Key Remnantem, który już jest na mapie",
    "sites": [
-    "investigation:2086"
+    "investigation:caseKeyCells"
    ]
   },
   "placeTooltip": {
    "key": "DRPG.Tips.Case.placeTooltip",
-   "en": "Puts this clue's Key Remnant on the map at once, in a room you pick",
-   "pl": "Od razu stawia Key Remnant tego tropu na mapie, w wybranym pokoju",
+   "en": "Puts this clue's Key Remnant on the map, in the room and at the difficulty you confirm",
+   "pl": "Stawia Key Remnant tego tropu na mapie, w pokoju i z trudnością, które potwierdzisz",
    "sites": [
-    "investigation:2090"
+    "investigation:caseKeyCells"
    ]
   },
   "mapTableTooltip": {
@@ -687,105 +695,103 @@
    "en": "Shows the case as a map of evidence and deductions, or as tables",
    "pl": "Pokazuje sprawę jako mapę dowodów i wniosków albo jako tabele",
    "sites": [
-    "investigation:2296"
+    "investigation:viewSwitchHtml"
    ]
   },
   "nameNodeTooltip": {
    "key": "DRPG.Tips.Case.nameNodeTooltip",
-   "en": "Its name on the map, and in the case summary the players get",
-   "pl": "Jego nazwa na mapie i w podsumowaniu sprawy dla graczy",
+   "en": "Its name on the map, and in the players' case summary when it goes in",
+   "pl": "Jego nazwa na mapie i w podsumowaniu sprawy dla graczy, jeśli tam trafi",
    "sites": [
-    "investigation:2453"
+    "investigation:schemaEditor"
    ]
   },
   "noteForTheGmsTooltip": {
    "key": "DRPG.Tips.Case.noteForTheGmsTooltip",
-   "en": "Your words on this node. A solution's words reach the players in the case summary.",
-   "pl": "Twoje słowa o tym węźle. Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy.",
+   "en": "Your words on this node. A solution's words reach the players in the case summary",
+   "pl": "Twoje słowa o tym węźle. Słowa rozwiązania trafiają do graczy w podsumowaniu sprawy",
    "sites": [
-    "investigation:2454"
+    "investigation:schemaEditor"
    ]
   },
   "trialModeTooltip": {
    "key": "DRPG.Tips.Case.trialModeTooltip",
-   "en": "In the Class Trial, this node's tile gets a button that starts this mode",
-   "pl": "W Class Trial kafel tego węzła dostaje przycisk, który uruchamia ten tryb",
+   "en": "At the Class Trial its tile gets a button that starts this mode, for the modes that have one",
+   "pl": "Podczas Class Trial jego kafel dostaje przycisk, który uruchamia ten tryb, jeśli tryb go ma",
    "sites": [
-    "investigation:2455"
+    "investigation:schemaEditor"
    ]
   },
   "roomPlannedIncidentRemnantTooltip": {
    "key": "DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip",
-   "en": "The room the Incident Remnant goes in when you place it",
-   "pl": "Pokój, w którym stanie Incident Remnant, gdy go postawisz",
+   "en": "The room this Remnant goes in when you place it; left empty, you pick one then",
+   "pl": "Pokój, w którym stanie ten Remnant, gdy go postawisz; puste - wybierzesz go wtedy",
    "sites": [
-    "investigation:2460"
+    "investigation:schemaEditor"
    ]
   },
   "placeOnTheMapTooltip": {
    "key": "DRPG.Tips.Case.placeOnTheMapTooltip",
-   "en": "Opens New Remnant filled in from this node and tied to the murder",
-   "pl": "Otwiera Nowy Remnant wypełniony z tego węzła i powiązany z morderstwem",
+   "en": "Opens New Remnant with every field of this plan filled in; cancelled, nothing is placed",
+   "pl": "Otwiera Nowy Remnant z wypełnionym każdym polem tego planu; anulowane - nic nie staje na mapie",
    "sites": [
-    "investigation:2462"
+    "investigation:schemaEditor"
    ]
   },
   "removeFromTheCaseTooltip": {
    "key": "DRPG.Tips.Case.removeFromTheCaseTooltip",
-   "en": "Deletes this node from the case. Asks first.",
-   "pl": "Usuwa ten węzeł ze sprawy. Najpierw pyta.",
+   "en": "Asks first, then removes this node from the case; Check consistency then names what rested on it",
+   "pl": "Najpierw pyta, potem usuwa ten węzeł ze sprawy; Sprawdź spójność wskaże, co się na nim opierało",
    "sites": [
-    "investigation:2463",
-    "investigation:2475"
+    "investigation:schemaEditor"
    ]
   },
   "saveTooltip": {
    "key": "DRPG.Tips.Case.saveTooltip",
-   "en": "Saves every field you changed, and places a Final Truth Remnant if you picked its room",
-   "pl": "Zapisuje każde zmienione pole i stawia Final Truth Remnant, jeśli wybrano dla niego pokój",
+   "en": "Saves every field you changed, and places the Final Truth Remnant if you picked its room",
+   "pl": "Zapisuje każde zmienione pole i stawia Final Truth Remnant, jeśli wybrano mu pokój",
    "sites": [
-    "investigation:3018"
+    "investigation:openInvestigationDashboard"
    ]
   },
   "newRemnantTooltip": {
    "key": "DRPG.Tips.Case.newRemnantTooltip",
-   "en": "Places a Remnant of your own in a room you pick",
-   "pl": "Stawia własny Remnant w wybranym pokoju",
+   "en": "Opens New Remnant, to place a Remnant of your own in a room you pick",
+   "pl": "Otwiera Nowy Remnant, żeby postawić własny Remnant w wybranym pokoju",
    "sites": [
-    "investigation:3026"
+    "investigation:openInvestigationDashboard"
    ]
   },
   "issueAutopsyTruthBulletTooltip": {
    "key": "DRPG.Tips.Case.issueAutopsyTruthBulletTooltip",
-   "en": "Hands the Autopsy Truth Bullet to the students you pick",
-   "pl": "Wydaje Autopsy Truth Bullet wybranym uczniom",
+   "en": "Opens the Autopsy window, where you pick who gets the Autopsy Truth Bullet",
+   "pl": "Otwiera okno Autopsy, w którym wybierasz, kto dostanie Autopsy Truth Bullet",
    "sites": [
-    "investigation:3035"
+    "investigation:openInvestigationDashboard"
    ]
   },
   "bodyFoundTooltip": {
    "key": "DRPG.Tips.Case.bodyFoundTooltip",
-   "en": "Announces to the whole table that a body was found, in a room you pick",
-   "pl": "Ogłasza całemu stołowi znalezienie ciała w wybranym pokoju",
+   "en": "Opens the discovery window; announcing brings everyone to the room you pick and plays the discovery sound",
+   "pl": "Otwiera okno odkrycia; ogłoszenie ściąga wszystkich do wybranego pokoju i odtwarza dźwięk odkrycia",
    "sites": [
-    "investigation:3040"
+    "investigation:openInvestigationDashboard"
    ]
   },
   "realizationPreviewTooltip": {
    "key": "DRPG.Tips.Case.realizationPreviewTooltip",
-   "en": "Shows where the planned Key Remnants would go",
-   "pl": "Pokazuje, gdzie trafią zaplanowane Key Remnanty",
+   "en": "Shows where the planned Key Remnants would go; nothing is placed until you run it there",
+   "pl": "Pokazuje, gdzie stanęłyby zaplanowane Key Remnanty; nic nie staje, dopóki nie uruchomisz tam realizacji",
    "sites": [
-    "investigation:3043"
+    "investigation:openInvestigationDashboard"
    ]
   },
   "undoRealizationTooltip": {
    "key": "DRPG.Tips.Case.undoRealizationTooltip",
    "en": "Removes what the realization placed, except what a student found or Monokuma revealed. Asks first.",
    "pl": "Usuwa to, co postawiła realizacja, poza tym, co ktoś znalazł albo co ujawnił Monokuma. Najpierw pyta.",
-   "sites": [
-    "investigation:3049"
-   ]
+   "sites": [],
+   "note": "Not built (C6b, 14.11.2026): E64-inv moved Undo realization off the dashboard's footer into the realization's preview (case-realize.mjs realizationFooter), behind its own question; the census holds no row for it there."
   },
   "nodeOnTheMapTooltip": {
    "key": "DRPG.Tips.Case.nodeOnTheMapTooltip",
@@ -839,10 +845,9 @@
    "key": "DRPG.Tips.Case.finderTextTooltip",
    "en": "What a student reads when they find this Remnant; New Remnant opens with it",
    "pl": "To, co przeczyta uczeń, który znajdzie ten Remnant; z tym tekstem otworzy się Nowy Remnant",
-   "sites": [
-    "investigation:2454"
-   ],
-   "c7": true
+   "sites": [],
+   "c7": true,
+   "note": "Not built (C6b, 14.11.2026): E104 gave the planned Incident Remnant node New Remnant's own fields, so its words are the node's traceText field, which draws playerDescriptionTooltip (\"What a student reads the moment they find it\"); a second key would say the same."
   },
   "showPreviewTooltip": {
    "key": "DRPG.Tips.Case.showPreviewTooltip",
@@ -866,6 +871,54 @@
    "pl": "Zapisuje zmiany w tym węźle i zamyka jego pola",
    "sites": [
     "case-map:nodeEditHtml"
+   ]
+  },
+  "autopsyAtTooltip": {
+   "key": "DRPG.Tips.Case.autopsyAtTooltip",
+   "en": "Which body, in the order found, sends this Autopsy to every living student",
+   "pl": "Które ciało, w kolejności znalezienia, wysyła tę Autopsy do każdego żywego ucznia",
+   "sites": [
+    "investigation:schemaEditor"
+   ]
+  },
+  "roomPlannedFinalTooltip": {
+   "key": "DRPG.Tips.Case.roomPlannedFinalTooltip",
+   "en": "The room the Final Truth Remnant goes in when you place it; left empty, you pick one then",
+   "pl": "Pokój, w którym stanie Final Truth Remnant, gdy go postawisz; puste - wybierzesz go wtedy",
+   "sites": [
+    "investigation:schemaEditor"
+   ]
+  },
+  "placeFinalPlanTooltip": {
+   "key": "DRPG.Tips.Case.placeFinalPlanTooltip",
+   "en": "Puts this Final Truth Remnant on the map in its planned room, or asks for a room first",
+   "pl": "Stawia ten Final Truth Remnant na mapie w zaplanowanym pokoju albo najpierw pyta o pokój",
+   "sites": [
+    "investigation:schemaEditor"
+   ]
+  },
+  "giveFromPlanTooltip": {
+   "key": "DRPG.Tips.Case.giveFromPlanTooltip",
+   "en": "Opens the window that gives a Truth Bullet, filled in from this plan and its recipient",
+   "pl": "Otwiera okno wydania Truth Bulleta, wypełnione z tego planu i z jego odbiorcą",
+   "sites": [
+    "investigation:schemaEditor"
+   ]
+  },
+  "placeFinalNowTooltip": {
+   "key": "DRPG.Tips.Case.placeFinalNowTooltip",
+   "en": "Places the Final Truth Remnant in the room you picked, as Save would",
+   "pl": "Stawia Final Truth Remnant w wybranym pokoju, tak jak zrobiłby to Zapisz",
+   "sites": [
+    "investigation:offerFinalOnClose"
+   ]
+  },
+  "keepForLaterTooltip": {
+   "key": "DRPG.Tips.Case.keepForLaterTooltip",
+   "en": "Your words are kept and nothing goes on the map; Save places it later",
+   "pl": "Twoje słowa zostają, a na mapie nic nie staje; Zapisz postawi go później",
+   "sites": [
+    "investigation:offerFinalOnClose"
    ]
   }
  },
@@ -923,7 +976,7 @@
    "en": "Whether the holder sees its real type or has to analyze it first",
    "pl": "Czy posiadacz widzi prawdziwy typ, czy musi go najpierw przeanalizować",
    "sites": [
-    "gm-items:987"
+    "investigation:schemaEditor"
    ]
   },
   "whichRemnantTooltip": {
@@ -939,7 +992,7 @@
    "en": "Its true type, which a passed Analyze or the chapter's end reveals",
    "pl": "Jego prawdziwy typ, który ujawnia udane Analyze albo koniec rozdziału",
    "sites": [
-    "gm-items:1022"
+    "investigation:schemaEditor"
    ]
   },
   "howHardTheOriginalTooltip": {
@@ -947,7 +1000,7 @@
    "en": "Sets how hard this Truth Bullet is to analyze",
    "pl": "Ustala, jak trudno przeanalizować ten Truth Bullet",
    "sites": [
-    "gm-items:1024"
+    "investigation:schemaEditor"
    ]
   },
   "tellThePlayerTooltip": {
@@ -1207,7 +1260,8 @@
    "en": "Turns the offer down. They keep their Hope and are told you refused",
    "pl": "Odrzuca ofertę. Oferujący zachowuje swój Hope i dostaje wiadomość o odmowie",
    "sites": [
-    "monocub:openBribeOffer"
+    "monocub:openBribeOffer",
+    "sheet-actions:injectMonocubPanel"
    ],
    "c12": true
   }
@@ -1544,6 +1598,24 @@
    "pl": "Pokazuje, jak wyglądają kości w tej przeglądarce i czemu gdzie indziej mogą wyglądać inaczej",
    "sites": [
     "season-setup:diceLookSection"
+   ],
+   "c12": true
+  },
+  "acceptBribeTooltip": {
+   "key": "DRPG.Tips.Setup.acceptBribeTooltip",
+   "en": "Takes their Hope into your purse, if they still have it and your Hope has room",
+   "pl": "Przyjmuje ich Hope do sakiewki, jeśli nadal go mają, a twój Hope ma miejsce",
+   "sites": [
+    "sheet-actions:injectMonocubPanel"
+   ],
+   "c12": true
+  },
+  "lairLockTooltip": {
+   "key": "DRPG.Tips.Setup.lairLockTooltip",
+   "en": "Locks or opens your room as any door is locked; you still walk in either way",
+   "pl": "Zamyka albo otwiera twój pokój jak każde zamknięte drzwi; ty i tak zawsze wejdziesz",
+   "sites": [
+    "sheet-sidebar:lairBlock"
    ],
    "c12": true
   }

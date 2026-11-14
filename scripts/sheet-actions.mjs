@@ -25,6 +25,7 @@ import { moveLine } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
 import { plural, proseOf, GM_ROUTE_CLASS, error, debug } from "./utils.mjs";
+import { setTip } from "./ui-kit.mjs";
 import { overflowBlocksFreeMove, overflowBlocksCalls } from "./overflow.mjs";
 import { modeOf, sheetMode, sheetsFor } from "./sheet-mode.mjs";
 import { softWrap } from "./sheet-fit.mjs";
@@ -370,6 +371,9 @@ function injectMonocubPanel(tab, actor) {
                 button.type = "button";
                 button.className = "drpg-mini-button";
                 button.textContent = game.i18n.localize(accept ? "DRPG.Monocub.bribeAccept" : "DRPG.Monocub.bribeRefuse");
+                // the same answer as the Bribe's window, whose Refuse says what it does (monocub.mjs `openBribeOffer`)
+                if (accept) setTip(button, "DRPG.Tips.Setup.acceptBribeTooltip");
+                else setTip(button, "DRPG.Tips.Gm.refuseBribeTooltip");
                 button.addEventListener("click", async () => {
                     button.disabled = true;
                     const { requestBribeAnswer } = await import("./gm-bridge.mjs");

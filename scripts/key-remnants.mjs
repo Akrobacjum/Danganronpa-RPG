@@ -14,7 +14,7 @@ import { BULLET_CATEGORY, bulletsOf, secretOf, isTruthBullet } from "./truth-bul
 import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm } from "./chapter.mjs";
 import { log, isPrimaryGm, error, plural, whisperToGms, workingScene, esc } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr } from "./ui-kit.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
@@ -1120,18 +1120,18 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
-                <select name="vis">${visOptions}</select></label>
+                <select name="vis"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
-                <select name="author">${authorOptions(null, studentActors())}</select></label>
+                <select name="author"${tipAttr("DRPG.Tips.Case.leftByTooltip")}>${authorOptions(null, studentActors())}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
-                <input type="text" name="keyname" value=""
+                <input type="text" name="keyname" value=""${tipAttr("DRPG.Tips.Case.nameTooltip")}
                        placeholder="${esc(traceLabel(null))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceText")}
-                <input type="text" name="keytext" value="${esc(note)}"
+                <input type="text" name="keytext" value="${esc(note)}"${tipAttr("DRPG.Tips.Case.playerDescriptionTooltip")}
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.notePlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}
-                <input type="text" name="keyanalysis" value=""
+                <input type="text" name="keyanalysis" value=""${tipAttr("DRPG.Tips.Case.whatAnalysisRevealsTooltip")}
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.TruthBullet.analyzedTextPlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
@@ -1139,7 +1139,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.keyNotePlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.whichSlot")}
-                <select name="slot">
+                <select name="slot"${tipAttr("DRPG.Tips.Case.plannedClueTooltip")}>
                     ${slotOptions}
                     <option value="">${game.i18n.format(
                         "DRPG.Investigation.noSlot", { n: KEY_REMNANTS.prepared })}</option>
@@ -1253,7 +1253,7 @@ export async function placeKeyRow(root, slot) {
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${rooms.map(r => `<option value="${esc(r)}"${r === planned ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
-                <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === plannedVis ? " selected" : ""}>${
+                <select name="vis"${tipAttr("DRPG.Tips.Case.difficultyTooltip")}>${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === plannedVis ? " selected" : ""}>${
                     esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("")}</select></label>
         </form>`,
         footer: {

@@ -275,7 +275,7 @@
    "kind": "checkbox",
    "key": "DRPG.Chapter.optNextSession",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the next-morning box (the census reads its neighbour's key); its label names the morning of the next day it starts the chapter on"
   },
   {
    "file": "scripts/cleanup-reshape.mjs",
@@ -628,22 +628,6 @@
   {
    "file": "scripts/investigation.mjs",
    "unit": "openNewTrace",
-   "kind": "select",
-   "key": "DRPG.Investigation.traceType",
-   "count": 1,
-   "why": "E102 C6: Its true kind, which a student learns with Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
    "kind": "input",
    "key": "DRPG.Investigation.traceName",
    "count": 1,
@@ -676,138 +660,10 @@
   {
    "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "input",
-   "key": "DRPG.Investigation.notePlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "input",
-   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.keyNotePlaceholder",
    "count": 1,
    "why": "none needed: Its label and placeholder (Only you read this) say everything."
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "openKeyRemnantHere",
-   "kind": "select",
-   "key": "DRPG.Investigation.whichSlot",
-   "count": 1,
-   "why": "E102 C6: The planned clue it fills, so the plan counts it"
-  },
-  {
-   "file": "scripts/key-remnants.mjs",
-   "unit": "placeKeyRow",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceText",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceAnalysis",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "select",
-   "key": "DRPG.Investigation.traceType",
-   "count": 1,
-   "why": "E102 C6: Its true kind, which a student learns with Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "checkbox",
-   "key": "DRPG.Remnant.faintColumn",
-   "count": 1,
-   "why": "E102 C6: A doubtful lead. Clear Faint Remnants can remove it, and a sweep keeps its Truth Bullets."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "select",
-   "key": "DRPG.Remnant.crimeColumn",
-   "count": 1,
-   "why": "E102 C6: Whether it belongs to the murder. A tied Remnant survives Clear Faint Remnants."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "checkbox",
-   "key": "DRPG.Remnant.reinforcedColumn",
-   "count": 1,
-   "why": "E102 C6: Nobody can clean it up with Tamper, and Clear Faint Remnants leaves it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseTraceCells",
-   "kind": "button",
-   "key": "DRPG.Investigation.deleteTrace",
-   "count": 1,
-   "why": "E102 C6: Removes this Remnant from the map and from the case. Asks first."
   },
   {
    "file": "scripts/investigation.mjs",
@@ -835,38 +691,6 @@
   },
   {
    "file": "scripts/investigation.mjs",
-   "unit": "caseTraceFilters",
-   "kind": "select",
-   "key": "DRPG.Investigation.filterChapter",
-   "count": 1,
-   "why": "E102 C6: Also picks the chapter the Map view draws"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceText",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.traceAnalysis",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
    "unit": "caseKeyCells",
    "kind": "input",
    "key": "DRPG.Investigation.keyNoteLabel",
@@ -875,123 +699,11 @@
   },
   {
    "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "select",
-   "key": "DRPG.Investigation.onMap",
-   "count": 1,
-   "why": "E102 C6: Links this planned clue to a Key Remnant already on the map"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "button",
-   "key": "DRPG.Investigation.place",
-   "count": 1,
-   "why": "E102 C6: Puts this clue's Key Remnant on the map at once, in a room you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C6: How hard it is to spot with Observe"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 1,
-   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "input",
-   "key": "DRPG.Remnant.finalSubject",
-   "count": 1,
-   "why": "E102 C6: The name a student sees once they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "input",
-   "key": "DRPG.Investigation.notePlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads the moment they find it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "caseFinalPanel",
-   "kind": "input",
-   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
-   "count": 1,
-   "why": "E102 C6: What a student reads only after a successful Analyze"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "viewSwitchHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Shows the case as a map of evidence and deductions, or as tables"
-  },
-  {
-   "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "checkbox",
    "key": "DRPG.CaseMap.noName",
    "count": 1,
    "why": "none needed: A checklist under its heading (Rests on or Refutes), each box named by the node it links."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "input",
-   "key": "DRPG.CaseMap.field.label",
-   "count": 1,
-   "why": "E102 C6: Its name on the map, and in the case summary the players get"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "textarea",
-   "key": "DRPG.CaseMap.field.text",
-   "count": 1,
-   "why": "E102 C6: Your words on this node. A solution's words reach the players in the case summary."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.CaseMap.field.mode",
-   "count": 1,
-   "why": "E102 C6: The Class Trial mode this node is played out in"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.room",
-   "count": 1,
-   "why": "E102 C6: The room the Incident Remnant goes in when you place it"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.CaseMap.placeOnMap",
-   "count": 1,
-   "why": "E102 C6: Deletes this node from the case. Asks first."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Deletes this node from the case. Asks first."
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1027,75 +739,11 @@
   },
   {
    "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.Assign.save",
-   "count": 1,
-   "why": "E102 C6: Saves every field you changed, and places a Final Truth Remnant if you picked its room"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.Investigation.newTraceTitle",
-   "count": 1,
-   "why": "E102 C6: Places a Remnant of your own in a room you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.TruthBullet.autopsyTitle",
-   "count": 1,
-   "why": "E102 C6: Hands the Autopsy Truth Bullet to the students you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.Chapter.bodyTitle",
-   "count": 1,
-   "why": "E102 C6: Announces to the whole table that a body was found, in a room you pick"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openInvestigationDashboard",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.preview",
-   "count": 1,
-   "why": "E102 C6: Shows where the planned Key Remnants would go. Nothing changes until you run it."
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "openNewTrace",
-   "kind": "checkbox",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.CaseMap.autopsyAt",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "input",
    "key": "DRPG.TruthBullet.autopsyNamePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Autopsy's name, labelled and with the placeholder of the GM panel's Autopsy window it copies (gm-items.mjs issueAutopsyDialog)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1103,7 +751,7 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.autopsyTextPlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Autopsy's words, labelled for the player and with the Autopsy window's placeholder (gm-items.mjs issueAutopsyDialog), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1111,15 +759,7 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.gmNote",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.traceType",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Autopsy's GM note, labelled as the Autopsy window's (gm-items.mjs issueAutopsyDialog), whose row says the player never sees it"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1127,15 +767,7 @@
    "kind": "input",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "zoneRows",
-   "kind": "select",
-   "key": "DRPG.Zones.picker.set",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned minigame's question, answers and thesis, labelled as the zones window's own (trial-zones-ui.mjs pickerHtml, questionRows), whose rows say the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1143,23 +775,7 @@
    "kind": "button",
    "key": "DRPG.CaseMap.noDiveSet",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "offerFinalOnClose",
-   "kind": "footer",
-   "key": "DRPG.Investigation.finalAskPlace",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "offerFinalOnClose",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.notNow",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: Edit sets, beside the Logic Dive's set; its label says it opens the sets' editor, as the zones window's (trial-zones-ui.mjs openDiveSets)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1167,7 +783,7 @@
    "kind": "checkbox",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's Faint, tied and Tell the player ticks, each labelled as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1175,31 +791,7 @@
    "kind": "input",
    "key": "DRPG.TruthBullet.namePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.realType",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.shown",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.visibility",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's name, its label saying the player sees it and a placeholder example, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1207,15 +799,15 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.playerTextPlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's words for the player, labelled and with a placeholder, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "textarea",
    "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
-   "count": 3,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "count": 1,
+   "why": "none needed: the planned Truth Bullet's analysis, labelled and with a placeholder that says it waits for an Analyze, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1223,7 +815,7 @@
    "kind": "textarea",
    "key": "DRPG.TruthBullet.gmNotePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's GM note, its label saying the player never sees it, as in the Give Truth Bullet window it copies (gm-items.mjs bulletCreatePane), whose row says the same"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1231,63 +823,7 @@
    "kind": "select",
    "key": "DRPG.Items.recipient",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.Items.tellPlayer",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.TruthBullet.give",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.room",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Investigation.visibility",
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "select",
-   "key": "DRPG.Remnant.authorLabel",
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "input",
-   "key": "DRPG.Remnant.finalSubject",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "textarea",
-   "key": "DRPG.Investigation.notePlaceholder",
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Truth Bullet's recipient, labelled, the students and Everyone listed, as the Give window's (gm-items.mjs recipientRows)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1295,23 +831,7 @@
    "kind": "textarea",
    "key": "DRPG.Investigation.finalNotePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": null,
-   "count": 2,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
-   "key": "DRPG.CaseMap.placeOnMap",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Final Truth's GM note, labelled and with the placeholder of the Final Truth form it copies (caseFinalPanel)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1319,23 +839,7 @@
    "kind": "select",
    "key": "DRPG.Investigation.newTraceTied",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "checkbox",
-   "key": "DRPG.Investigation.newTraceReinforced",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "input",
-   "key": "DRPG.Investigation.traceName",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Remnant's tie, labelled as New Remnant's (openNewTrace), whose row says its label already says what tying it does"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1343,7 +847,7 @@
    "kind": "textarea",
    "key": "DRPG.Investigation.keyNotePlaceholder",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the planned Remnant's GM note, its placeholder saying only you read it, as New Remnant's (openNewTrace)"
   },
   {
    "file": "scripts/investigation.mjs",
@@ -1351,7 +855,7 @@
    "kind": "select",
    "key": "DRPG.Investigation.room",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the one field of the window that asks where a planned Final Truth goes; its title asks it, and - pick a room - places nothing"
   },
   {
    "file": "scripts/level-up.mjs",
@@ -2028,22 +1532,6 @@
     "fn": "actionButton",
     "pattern": "button\\.dataset\\.tooltip\\s*=\\s*`\\$\\{button\\.dataset\\.drpgTipHead\\}"
    }
-  },
-  {
-   "file": "scripts/sheet-sidebar.mjs",
-   "unit": "lairBlock",
-   "kind": "button",
-   "key": "DRPG.Mastermind.lair.open",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/sheet-actions.mjs",
-   "unit": "injectMonocubPanel",
-   "kind": "dom:button",
-   "key": "DRPG.Monocub.bribeAccept",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
    "file": "scripts/tables-editor.mjs",

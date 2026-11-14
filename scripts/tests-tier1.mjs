@@ -27113,8 +27113,8 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        // 28 of C5 and its reviews, and 12 of E102 C12 that R6353 holds (14.11.2026)
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12, "lang/en.json has not the family's 28 keys and C12's 12 under DRPG.Tips.Setup");
+        // 28 of C5 and its reviews, and 14 of E102 C12 that R6353 holds (14.11.2026; the sheet's Bribe Accept and the lair's lock after E54)
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2, "lang/en.json has not the family's 28 keys and C12's 14 under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27125,8 +27125,9 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's keys under DRPG.Tips.Case (12 at C12's node Close) has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
-        /* Red at 1463f22b with this test in place and the family's scripts as they were: lang/*.json had no DRPG.Tips.Case block and no function read one of its keys. */
+    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's keys under DRPG.Tips.Case (12 at C12's node Close, 42 since C6b: the Investigation window, its Map's planned nodes and the Key Remnant windows) has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
+        /* Red at 1463f22b with this test in place and the family's scripts as they were: lang/*.json had no DRPG.Tips.Case block and no function read one of its keys.
+           C6b's part red at 05a97e0c (E54 merged): 30 keys missing and no investigation.mjs or key-remnants.mjs function drawing one. */
         const TIPS = [
             ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
             ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
@@ -27139,7 +27140,67 @@ const INVARIANTS = [
             ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
             ["DRPG.Tips.Case.difficultyTooltip","remnant-ring.mjs","gmRemnantCard"],
-            ["DRPG.Tips.Case.leftByTooltip","remnant-ring.mjs","gmRemnantCard"]
+            ["DRPG.Tips.Case.leftByTooltip","remnant-ring.mjs","gmRemnantCard"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.faintTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.tiedToCrimeTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.deleteTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.chapterFilterTooltip","investigation.mjs","caseTraceFilters"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.whichRemnantTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.placeTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.mapTableTooltip","investigation.mjs","viewSwitchHtml"],
+            ["DRPG.Tips.Case.nameNodeTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.noteForTheGmsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.trialModeTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.autopsyAtTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.whatItReallyIsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.whatThePlayerIsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.howHardTheOriginalTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.giveFromPlanTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.removeFromTheCaseTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.roomPlannedFinalTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.placeFinalPlanTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.placeOnTheMapTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Trial.setTooltip","investigation.mjs","zoneRows"],
+            ["DRPG.Tips.Case.placeFinalNowTooltip","investigation.mjs","offerFinalOnClose"],
+            ["DRPG.Tips.Case.keepForLaterTooltip","investigation.mjs","offerFinalOnClose"],
+            ["DRPG.Tips.Case.saveTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.newRemnantTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.issueAutopsyTruthBulletTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.bodyFoundTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.realizationPreviewTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.difficultyTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.leftByTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.nameTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.plannedClueTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.difficultyTooltip","key-remnants.mjs","placeKeyRow"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -27147,8 +27208,11 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Case") ?? {}).length === TIPS.length, `lang/en.json has not the family's ${TIPS.length} keys under DRPG.Tips.Case`);
-        must(Object.keys(words(pl, "DRPG.Tips.Case") ?? {}).length === TIPS.length, `lang/pl.json has not the family's ${TIPS.length} keys under DRPG.Tips.Case`);
+        // every key of the family drawn somewhere this lists, and no other: the Case keys TIPS names (C6b reuses three Gm keys and
+        // one Trial key for the planned nodes' copies of those windows' fields)
+        const caseKeys = [...new Set(TIPS.map(t => t[0]).filter(k => k.startsWith("DRPG.Tips.Case.")))].sort();
+        equal(Object.keys(words(en, "DRPG.Tips.Case") ?? {}).map(k => `DRPG.Tips.Case.${k}`).sort().join(" "), caseKeys.join(" "), "{lang/en.json's DRPG.Tips.Case keys against the ones this test finds drawn}");
+        must(Object.keys(words(pl, "DRPG.Tips.Case") ?? {}).length === caseKeys.length, `lang/pl.json has not the family's ${caseKeys.length} keys under DRPG.Tips.Case`);
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27222,7 +27286,10 @@ const INVARIANTS = [
             ["DRPG.Tips.Setup.facilityTextTooltip","facility-editor.mjs","effectFields"],
             ["DRPG.Tips.Setup.facilityLifetimeTooltip","facility-editor.mjs","projectFacilityBody"],
             ["DRPG.Tips.Setup.facilityRemoveTooltip","facility-editor.mjs","editProjectFacility"],
-            ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"]
+            ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"],
+            ["DRPG.Tips.Setup.acceptBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
+            ["DRPG.Tips.Gm.refuseBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
+            ["DRPG.Tips.Setup.lairLockTooltip","sheet-sidebar.mjs","lairBlock"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
