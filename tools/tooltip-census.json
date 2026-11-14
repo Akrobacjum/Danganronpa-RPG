@@ -1583,7 +1583,7 @@
    "kind": "dom:select",
    "key": "DRPG.Notices.filter.moreLabel",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: a menu in the chips' row whose first line reads More filters; each option is a filter's name with its count, and picking one filters the list as a chip does"
   },
   {
    "file": "scripts/observe.mjs",
@@ -2223,7 +2223,7 @@
    "kind": "kit:toggle",
    "key": "DRPG.TrialScene.prepareOnSave",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: each switch's label says in full what Save does with it (Foundry's fog, vision and light; the hall's playlist; Proximity Voice Chat in the hall)"
   },
   {
    "file": "scripts/trial-zones-ui.mjs",
