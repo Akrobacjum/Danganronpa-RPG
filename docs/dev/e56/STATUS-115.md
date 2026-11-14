@@ -79,3 +79,10 @@ goes, so a restart loses nothing.
 On 05ababdc (14.11.2026, this machine, 4 cores): `node run-all.mjs lint check gate` green (lint 405 files 0 problems,
 check 24 parts green, gate 37/37); `node run-tests.mjs --tier 1`: **1674 passed, 0 failed, 16 skipped, 0 red**, 1689
 tests, 558 s wall. This commit adds only this section.
+
+## The coordinator's answers (14.11.2026)
+
+- Q-E56-4: keep the 119 `known` rows with their reasons.
+- Q-E56-115-2: yes, the comments lint reads the suite's files.
+- Q-E56-115-1: not 1.2.116 - everything that needs no Foundry closes in 1.2.115. The duplicate ui-kit.mjs imports and
+  the 11 local `esc` copies go in once the tooltip line is merged; the coordinator says when.
