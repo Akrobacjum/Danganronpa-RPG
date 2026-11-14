@@ -294,3 +294,13 @@ by the row's name on the page, not by its asking line's file.
 
 Needs a local Foundry (round 2): the held Key fee card's button at a table (the card drawn on a GM's browser, the press
 reaching the primary, a second card while a key is still missing); the GM's floor tooltip on a multi-floor scene.
+
+## Checked, round 3 (14.11.2026, this machine)
+
+| What | Tree | Result |
+| --- | --- | --- |
+| tier 1, whole | f3f8e5a0 | 1700 passed, 0 failed, 16 skipped, 0 red, 522 s |
+| radio sweep, both languages, Polish captures of 94733c59 with the rule | f3f8e5a0's tree | 42 windows, 1488 radio readings, green |
+| scenarios, one at a time | f3f8e5a0 | 65-season 58/60, 2 expected red (Foundry limits); 50-lang 45/45; 51-lang-mixed 38/38; 62-investigation 52/52; 63-class-trial 79/79; 0 failed in each |
+
+Needs a local Foundry (round 3): the Polish checkbox with Foundry's core sheet loaded (the harness has none).
