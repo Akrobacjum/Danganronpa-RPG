@@ -8,10 +8,10 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 | Step | What | State |
 | --- | --- | --- |
 | 0 | Read: plans E25 and E57 (plan-130), e57-prep, e71's CHANGES and FROZEN, the audit's issue texts (lines-board `issues.json`, `plan.json`) | done |
-| 1 | E25's handbook part: contradictions, D13, D14, D5, D33c-D33f, the Polish glossary, features since the plan | done (d8fbb34f D33c; 68f80f8c player and brochure; the GM pair and the tests' D33c forms next) |
-| 2 | E57 C6-C8: the English handbooks by the guide | rewritten (1c1d818e); seven reviews (English, cold, mechanics) applied by ten fix agents (GM b2362972, player and brochure next) |
-| 3 | E57 C9-C11: the Polish handbooks from the facts and the old Polish | in progress: 21 writers from the facts of the final English (docs/handbook-facts.<book>.en.json, 10246 facts) and the old Polish, never the new English sentences (DB26) |
-| 4 | Reviews (English, cold, Polish in three steps, mechanics), labels brought up to date, tier 1 | not started |
+| 1 | E25's handbook part: contradictions, D13, D14, D5, D33c-D33f, the Polish glossary, features since the plan | done (d8fbb34f D33c; 68f80f8c player and brochure; ce38e5ab the GM pair and the tests' D33c forms) |
+| 2 | E57 C6-C8: the English handbooks by the guide | done: rewritten (1c1d818e); seven reviews (English, cold, mechanics) applied by ten fix agents (b2362972 GM, 2cdd9a25 player and brochure); the facts of the final English in `docs/handbook-facts.<book>.en.json` (7222 / 2744 / 280 facts, `handbook-facts.mjs check` 0 problems on all three at 5d5c50a6) |
+| 3 | E57 C9-C11: the Polish handbooks from the facts and the old Polish | done: 21 writers from the facts and the old Polish, never the new English sentences (DB26); the Polish read in three steps (grammar and the glossary, naturalness by text-style.md section 12, the facts against the code) and fixed (4ba36475 player and brochure, 5d5c50a6 GM); pairs "ids, kinds and lines as in English: yes" for all three |
+| 4 | Reviews, labels brought up to date, tier 1 | reviews done; LABELS.md regenerated at 5d5c50a6; the text lines' merges: e71-c merged (dfb0fe29); groups B and D waiting for the coordinator's sha |
 
 ## Readings taken at the base (1463f22b, 14.11.2026)
 
@@ -21,6 +21,23 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
   dh-212b and project-token-icon lines have shipped (tools/stages.json, 1.2.110-1.2.112); the branch heads that
   still show commits past the base (e61-62, e93, e72, e64, gaps-a, e101, e101b, e64-inv) are the tails of shipped
   work. The plan (E57 C6-C8) rewrites every section, so this line treats the freeze as lifted.
+
+## Size, measured (`wc -w`, 14.11.2026)
+
+| Handbook | At the base (1463f22b) | After E25 (ce38e5ab) | Now (5d5c50a6) | Of it, the appendix |
+| --- | --- | --- | --- | --- |
+| GM, English | 67816 | 68448 | 78260 | 14892 (rules part 63374) |
+| GM, Polish | 59018 | 59561 | 70408 | |
+| Player, English | 22845 | 23227 | 27376 | 3006 (rules part 24370) |
+| Player, Polish | 19819 | 20157 | 24591 | |
+| Brochure, English | 1606 | 1661 | 2055 | none |
+| Brochure, Polish | 1480 | 1542 | 1975 | |
+
+The books grew; they did not shorten by the 20-30 % B4 names as a report. The rules part of the GM handbook is 7 %
+shorter than the whole book after E25; the player handbook's rules part is 5 % longer and the brochure 24 % longer.
+What grew them is the fix pass: the cold and mechanics reads found rules a reader could not apply and terms used
+before they were explained, and each fix states the missing part (M4: no rule dropped to get shorter). Lines grew
+more than words (GM 1411 -> 2459) because long paragraphs were split and prose became tables and lists.
 
 ## Tests whose handbook sentences changed (the coordinator's yes of 14.11.2026: test data only, each fact still held)
 
@@ -32,6 +49,8 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 | R1036 (tests-tier0.mjs :17892, player `mutedDead` first pattern) | "... gives it back when it ends - a death nobody has found too" | "... gives it back when it ends\\. It does so for a death nobody has found too" | the dead's microphones off for the trial, an unfound death included (the dash aside split, X4) | the same (`--only R1036`) |
 | R310 (tests-tier0.mjs :13475, the Polish GM Daily Life sentence) | "... żaden ślad nie jest tego rodzaju ..." | "... żaden Remnant nie jest tego rodzaju ..." | no roll is scored on the Daily Life row (the glossary's `remnant`, PL-r) | red on the new line with the old regex, green after (`--only R310`, 14.11) |
 | R321 (tests-tier0.mjs :13725, the Polish player `lateBallot`) | "... gdy wczytuje się przeglądarka" | "... gdy wczytuje się gra" | a late joiner gets a ballot (O19; the browser wording stays in 17.12) | green both ways: the appendix's copy still held the old words; the new line is the one it now reads |
+
+R620's Polish GM Palm row ("Body 12 po odmowie") was dropped by the Polish fix pass and put back in 5d5c50a6: red on the fix pass's row, green on the committed one (`--only R620`, 14.11). No test changed for it.
 
 ## Where this line follows the UI, not the decision, until the text lines land
 
@@ -72,9 +91,18 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 - murder-ui.mjs indirectCostText 'roughly 4 to 5 actions' assumes every Work alone; with others present up to 10. ITEM_CATEGORIES.usable.hint 'clear Sanity'. DRPG.Clock.takenBack names less than End without advancing puts back. The sheet's wrench window is in no handbook.
 - Dice So Nice is required (module.json, requirements.mjs) but season-setup.mjs:640-650 keeps an 'optional' First session row that can only be ticked. Code or text.
 
+- lang hint 'No Mastermind set. Pick one from the GM panel first.': the Mastermind is picked in Season setup > The Mastermind.
+- Escape Together on a critical leaves no Remnant: CRISIS_ACTIONS.sharedEscape.remnant has no critical key (murder-rules.mjs:1822); the others decide it explicitly. Possibly unintended.
+- config.mjs:1610 hintCritical 'They ask you one question' (the player asks). config.mjs:1920 'hidden-difficulty repair' is a plain Desperate (8) project. R1374 pins 'a red row' while GM rows wear the chip (danganronpa.css:11566-11576): the test's sentence is stale.
+- lang/pl.json (from the Polish review): DRPG.Monocub.hopeFull "Masz pełne Hope." (Hope masculine: "pełny"); DRPG.Frisk.rowLabel "Zobacz, co nosi" (glossary "Zobacz, co ktoś nosi", with R620); DRPG.Hud.rewindEclipse, rewindDuringEclipse, Panel.nextEclipse treat Eclipse as masculine (PL-b neuter); DRPG.Settings.enforceAnonymity.name "Anonimowe karty postaci", the lockPlayerResources name "na karcie", Trial.presentCopy "na twojej karcie", Audit away title (PL-d: arkusz); Settings.voiceTile.name "Kafel głosu" (glossary kafelek); Season resetCastTitle and the contract rows' "żeton" (glossary token); DRPG.Panel.studentsLeft lacks .few/.many and its .other reads "{n} ucznia"; X12 shapes "przechodzi do: {room}", "Łomot z: {room}"; X13 "Confusion ich nie dosięga"; X4 "Nadal jest w polu - ..."; the safeword card "karta poszła z twojego ekranu"; "Rezygnuję (nic nie schodzi)"; DRPG.Vault.descriptionNote PL "w skrytkach i śladach" (R518 pins the copy).
+- Placeholders in quoted messages: both languages write a placeholder as its key's word (*Only name can present right now.*, *Teraz dowody może przedstawiać tylko name.*), with a few Polish ones translated (*imiona*). A convention to settle with the text lines; left as it is.
+- DB26 in practice: the Polish writers' skeletons carried the English unit's facts, and for 72 lines of notes the facts were close to the English sentences. The writers wrote from them and the old Polish, never opened the new English; the method still lets the English wording through the facts. For the next line: facts written as claims, not as sentences.
+
 ## Needs a local Foundry
 
-(filled as found)
+- The handbook window's rendering of the new shapes: the appendix (GM 22, player 17) with its `### 22.N` and `#### ... (section 15.N)` headings, the longer tables and the `> [!NOTE]` callouts, in both themes and at narrow widths. Headless has no layout (R111 skipped, `env.layout`).
+- Each "?" link lands on its section: every `## N.` and `### N.M` id that stood at the base still stands (no heading number renamed or removed); the new ones are the appendices and their parts. The landing itself is a click at the table.
+- A Polish reader at the table: the naturalness read was done by subagents against text-style.md section 12, not by a Polish player.
 
 ## Questions, each with the default taken
 
