@@ -506,14 +506,25 @@ export function createCanary(ctx) {
         return selftest;
     }
 
-    async function scan({ phase = ctx.phase() } = {}) {
+    /* `gone` (E43, 14.11.2026; 72's season end): the seeds whose markers the scenario expects the step before this scan to
+       have taken off the GM too - a season's reset clears the GMs' stores. Then the GM's check reads both ways: every other
+       marker on the GM, and none of those. Every marker is still looked for on every player, gone from the GM or not. */
+    async function scan({ phase = ctx.phase(), gone = null } = {}) {
         const live = [...planted].filter(([, p]) => !p.seed.startsWith("selftest."));
         if (!live.length) return null;
         const set = new Set(live.map(([m]) => m));
         const onGm = new Set(scanDump(await ctx.dump("gm"), set).map(h => h.marker));
-        const missing = live.filter(([m]) => !onGm.has(m)).map(([m, p]) => `${p.seed} (${m})`);
-        ctx.check(`canary [${phase}]: every planted secret is on the GM`, missing.length === 0,
-            missing.length ? `never written where the scenario thinks: ${missing.join(", ")}` : `${live.length} markers on the GM`);
+        const expectGone = ([, p]) => Array.isArray(gone) && gone.some(seed => matchRule({ seed: p.seed }, { seed }));
+        const missing = live.filter(e => !expectGone(e) && !onGm.has(e[0])).map(([m, p]) => `${p.seed} (${m})`);
+        if (Array.isArray(gone)) {
+            const kept = live.filter(e => expectGone(e) && onGm.has(e[0])).map(([m, p]) => `${p.seed} (${m})`);
+            ctx.check(`canary [${phase}]: the GM holds every planted secret but those the step took away (${gone.join(", ")}), and none of those`,
+                missing.length === 0 && kept.length === 0 && live.some(expectGone),
+                `on the GM though expected gone: ${kept.join(", ") || "none"}; missing though expected kept: ${missing.join(", ") || "none"}; ${live.filter(expectGone).length} expected gone of ${live.length}`);
+        } else {
+            ctx.check(`canary [${phase}]: every planted secret is on the GM`, missing.length === 0,
+                missing.length ? `never written where the scenario thinks: ${missing.join(", ")}` : `${live.length} markers on the GM`);
+        }
         const hits = [], scanned = [];
         for (const p of ctx.players) {
             const d = await ctx.dump(p.who);

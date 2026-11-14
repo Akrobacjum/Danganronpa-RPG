@@ -144,7 +144,9 @@ export async function maskKiller(state) {
     await placeVoicesNow();
     for (const { scene, token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => error(`Could not mask a token of ${killer.name}`, err));
     await retell();
-    await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.card"))}</p>` });
+    // Veiled (E43's season canary, 14.11.2026): its document names no speaker and no reader, so it does not say whose mask
+    // it is. In an incident postSecret veils it anyway (secret.mjs `incidentVeils`); the end's card below needs it always.
+    await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.card"))}</p>` }, { veiled: true });
     log(`${killer.name} hides behind a "?" until they reveal themselves or the time of day ends.`);
     return true;
 }
@@ -165,7 +167,11 @@ export async function endMask(killerId, why = "end") {
     await placeVoicesNow();
     await retell();
     const killer = game.actors.get(killerId);
-    if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` });
+    /* VEILED (E43's season canary, 14.11.2026; FINDINGS E43-F10). A mask ends at a new time of day, often after its
+       incident closed, when postSecret no longer veils by itself (secret.mjs `incidentVeils`): this card went out spoken
+       by the killer and addressed to the killer's player, and every browser holds every chat document - 72's "chapter
+       end" read Chie's actor id, name and p3's user id on p1 and p2, the Blackened of a verdict that missed her. */
+    if (why === "timeOfDay" && killer) await whisperToOwnerOnly(killer, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Mask.ended"))}</p>` }, { veiled: true });
     log(`${killer?.name ?? killerId} is no longer behind a "?" (${why}).`);
     return true;
 }

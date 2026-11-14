@@ -55,6 +55,12 @@
 export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
+/* The seeds whose markers the season's reset takes off the GM as well (the "season end" scan's `gone`), as read on the
+   first run of 14.11.2026 with `gone` empty (its check listed every marker the GM no longer held): the Key plans, the
+   traces' notes and public name, the bullets' GM notes and reading, the projects' condition and description, the case
+   schema. The rest stays somewhere in the GM's dump - remnant.subject, project.name, note.player, park.note, token.hidden,
+   item.name - where was not read. */
+const SEASON_GONE = ["keyplan.*", "remnant.note", "remnant.publicName", "bullet.*", "project.condition", "project.description", "case.*"];
 
 export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, repoUrl, IDS }) {
     phase("selftest");
@@ -977,4 +983,70 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("p3: the player in on the secret project still reads its description after the GM clears the chat log (Open 103, E43-F9)",
         Boolean(made) && sightBefore.described && cleared === 0 && sightAfter.described,
         JSON.stringify({ sightBefore, cleared, sightAfter }), { flow: "projects" });
+
+
+    /* ------------------------------------------------------------------------------------------------------------
+     * THE SEASON ON (E43's whole-season canary, 14.11.2026 on the line claude/e39-43-113; the plan's "72-canary ... walks a
+     * whole season"). After the trial the table goes on: the chapter is ended as a GM ends it (`openChapterEndDialog`,
+     * its window answered next chapter, nothing revealed), a second chapter is played with secrets of its own - its Key
+     * Remnant plan, a hidden trace's note and subject, a Truth Bullet's GM note, a secret project nobody is in on with
+     * its description, p1's pre-session note - and the season is reset (season-setup.mjs `resetSeason`, every group
+     * ticked, as 65 D runs it). After each, every player's browser is scanned for every marker planted since the start
+     * of the run, chapter one's as well, and p1's and p2's world data for Chie's id (chapter one's Blackened, never
+     * revealed by the wrong verdict). After the reset the GMs' stores no longer hold most of the markers either; the
+     * scan is told which seeds the reset takes (`gone`) and holds the GM to that both ways, and still looks for every
+     * marker on every player. What this does not walk: a second incident and trial in chapter two (10-murder's, 63's and
+     * 65's), and a second GM across the reset (61's).
+     * ------------------------------------------------------------------------------------------------------------ */
+    phase("chapter end");
+    const endedChapter = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const from = getClock().chapter;
+        globalThis.__dialogAnswers.push(() => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: true, nextSession: true, nextMorning: true }));
+        const ended = Boolean(await C.openChapterEndDialog());
+        await new Promise(r => setTimeout(r, 1500));
+        return { from, to: getClock().chapter, ended, phase: getClock().phase };`, { timeout: 120000 });
+    check("gm: the chapter is ended as a GM ends it, nothing revealed, and the clock reads the next chapter",
+        endedChapter.ended === true && endedChapter.to === endedChapter.from + 1, JSON.stringify(endedChapter));
+    await scanned("chapter end", KILLER_CHAT);
+
+    phase("second chapter");
+    const ch2 = endedChapter.to;
+    const kp2 = { name: canary.marker("keyplan.name"), text: canary.marker("keyplan.text"),
+        analysis: canary.marker("keyplan.analysis"), note: canary.marker("keyplan.note") };
+    const trace2 = { note: canary.marker("remnant.note"), subject: canary.marker("remnant.subject") };
+    const bulletNote2 = canary.marker("bullet.note");
+    const project2 = { name: canary.marker("project.name"), description: canary.marker("project.description") };
+    const note2 = canary.marker("note.player", { allowed: ["gm", "p1"] });
+    const planted2 = await gm.eval(`await game.drpg.setKeyPlan({ chapter: ${Number(ch2)}, entries: [{ name: "${kp2.name}", text: "${kp2.text}", analysis: "${kp2.analysis}", note: "${kp2.note}" }] });
+        const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: "Gym", type: "prep", visibility: "obvious", note: "${trace2.note}", subject: "${trace2.subject}" });
+        const b = await game.drpg.createTruthBullet(game.actors.get("${IDS.aiko}"), { name: "A second ticket", playerText: "The other half.", gmNote: "${bulletNote2}" });
+        const p = await game.drpg.createProject({ name: "${project2.name}", secret: true, description: "${project2.description}" });
+        return { trace: t?.id ?? null, bullet: b?.uuid ?? null, project: p?.id ?? null };`, { timeout: 90000 });
+    const note2Saved = await p1.eval(`const { saveNote } = await import("${repoUrl}/scripts/pre-session-note.mjs"); return await saveNote(game.user.id, "${note2}");`, { timeout: 30000 });
+    check("gm: chapter two's secrets are planted - its Key plan, a trace, a Truth Bullet's GM note, a secret project nobody is in on, p1's note",
+        Boolean(planted2.trace && planted2.bullet && planted2.project) && Boolean(note2Saved), JSON.stringify({ planted2, note2Saved }));
+    await scanned("second chapter", KILLER_CHAT);
+
+    phase("season end");
+    const reset = await gm.eval(`const R = await import("${repoUrl}/scripts/season-setup.mjs"), X = await import("${repoUrl}/scripts/season-exceptions.mjs");
+        const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        globalThis.__dialogAnswers.push(config => { const c = config?.content;
+            return { word, ticked: X.RESET_GROUPS.map(g => g.key), cast: ({ to: c?.querySelector?.('[name="castTo"]:checked')?.value ?? null }) }; });
+        const result = await R.resetSeason();
+        await gmStoresIdle();
+        await new Promise(r => setTimeout(r, 1500));
+        return { groups: X.RESET_GROUPS.length, cleared: result?.cleared?.length ?? null, failed: result?.failed ?? null };`, { timeout: 180000 });
+    check("gm: the season is reset with every group ticked, and no group failed",
+        reset.cleared === reset.groups && Array.isArray(reset.failed) && reset.failed.length === 0, JSON.stringify(reset));
+    await settle(800);
+    await canary.scan({ phase: "season end", gone: SEASON_GONE });
+    await canary.worldScan({ phase: "season end", ids: [IDS.chie] });
+    /* No chat scan here: the reset deletes the chat log (season-wipe.mjs, the chat group) and leaves p1 and p2 no message
+       to read (measured 14.11.2026: held 0 on both), so
+       what is read instead is that, as a fact. */
+    const chatLeft = [];
+    for (const c of [p1, p2]) chatLeft.push(await c.eval(`return game.messages.size;`));
+    check("p1 and p2: after the season's reset neither holds a chat message, so no card of the season is left to read",
+        chatLeft.every(n => n === 0), JSON.stringify(chatLeft));
 }
