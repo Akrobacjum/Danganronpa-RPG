@@ -19077,7 +19077,7 @@ const REGRESSIONS = [
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
-                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 7, 7]],
+                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 8, 8]],
             baselines: [["dashesIn", 3], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],

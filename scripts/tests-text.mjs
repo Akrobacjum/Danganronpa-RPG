@@ -2073,7 +2073,8 @@ const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*(?::|=(?![=>]))[^,;{}]*$/;
    (docs/dev/e57/REST-t13c.md). An Error subclass the file declares (`class NothingToDo extends Error`) is an Error's
    message, a Symbol's description is no text, and so are a run of markup attributes cut by a placeholder
    (` disabled data-tooltip="`), a selector cut by one (`footer button[data-action="`), a border's CSS value
-   (`1px solid `) and a font list. */
+   (`1px solid `) and a font list. The same group added passages-gm.mjs's closed list (`reasonTableOf`) beside
+   bridge-guards.mjs's, and reads a same-file why-function's call after a spread (`{ ...refuseAs(...) }`). */
 const REFUSAL_NAME = /^(?:[\w$]*Refusal|refuses)$/;
 const ATTRIBUTE_RUN = /^\s*(?:[a-z][\w:-]*(?:\s*=\s*(?:"[^"]*"?|'[^']*'?))?\s*)+$/i;
 const CSS_VALUE = /^\s*(?:\d+(?:\.\d+)?(?:px|r?em|%)?\s+)+(?:solid|dashed|dotted|double)\s*$/;
@@ -2155,6 +2156,31 @@ function reasonPatternsOf(lx, text) {
     });
 }
 
+/* passages-gm.mjs's `whyTable`, as a set of texts: the closed list a passage's and a repair's judges answer from, each
+   English reason a code that `DRPG.Passage.why.<code>` says in the reader's language (R983 holds every literal of those
+   judges to it), so the English is the GM's record as the bridge's is. Its literals, and those of the constants it names
+   (`WHOLE_WALL`, `MAP_REFUSALS.noWall`), read off that file when the bag holds it. */
+function reasonTableOf(lx, text) {
+    if (text === undefined) return new Set();
+    const code = lx.blankComments(String(text)), blank = lx.blankLiterals(code), spans = literalSpans(code, blank);
+    const statement = at => {
+        const open = blank.slice(at).search(/[([{]/) + at;
+        return [at, open >= at ? lx.callArgs(blank, open).close : at];
+    };
+    const textsIn = ([a, b]) => spans.filter(t => t.kind === "string" && t.start > a && t.end <= b).map(t => literalText(code, t));
+    const head = blank.search(/\bwhyTable\s*=/), at = head < 0 ? -1 : blank.slice(head).search(/\bnew\s+Map\s*\(/) + head;
+    if (head < 0 || at < head) return new Set();
+    const range = statement(at), out = new Set(textsIn(range));
+    for (const name of new Set(blank.slice(...range).match(/\b[A-Z][A-Z0-9_]+\b/g) ?? [])) {
+        const def = blank.search(new RegExp(`\\bconst\\s+${name}\\s*=`));
+        if (def < 0) continue;
+        const end = blank.indexOf(";", def), first = spans.find(t => t.start > def);
+        if (first && first.kind === "string" && (end < 0 || first.start < end) && !/[([{]/.test(blank.slice(def, first.start))) out.add(literalText(code, first));
+        else for (const t of textsIn(statement(def))) out.add(t);
+    }
+    return out;
+}
+
 /* Each call's argument span, `[open, close]`, for a pattern whose match ends at the call's "(". */
 function callSpans(lx, blank, re) {
     return [...blank.matchAll(re)].map(m => { const open = m.index + m[0].length - 1; return [open, lx.callArgs(blank, open).close]; });
@@ -2182,7 +2208,7 @@ export function uiLiterals(bag = {}) {
     const guardFile = S.get("scripts/bridge-guards.mjs");
     const guards = guardFile === undefined ? [] : [...lx.blankComments(String(guardFile)).matchAll(/^export function (\w+)\s*\(([^)]*)\)/gm)]
         .filter(m => /(?<![\w$])why(?![\w$])/.test(m[2])).map(m => m[1]);
-    const closedList = reasonPatternsOf(lx, guardFile);
+    const closedList = reasonPatternsOf(lx, guardFile), passageReasons = reasonTableOf(lx, S.get("scripts/passages-gm.mjs"));
     const REASON_CALL = new RegExp(`(?<![\\w$.])(?:${["refuse", ...guards].join("|")})\\s*\\(`, "g");
     for (const [file, text] of S) {
         const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
@@ -2193,7 +2219,7 @@ export function uiLiterals(bag = {}) {
         const ownWhy = fns.filter(f => /(?<![\w$])why(?![\w$])/.test(f.params)).map(f => f.name);
         const logs = [...callSpans(lx, blank, LOG_CALL), ...(errors.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$.])new\\s+(?:${errors.join("|")})\\s*\\(`, "g")) : [])];
         const reasons = [...callSpans(lx, blank, REASON_CALL),
-            ...(ownWhy.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$.])(?:${[...new Set(ownWhy)].join("|")})\\s*\\(`, "g")) : [])];
+            ...(ownWhy.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$])(?<![^.]\\.)(?:${[...new Set(ownWhy)].join("|")})\\s*\\(`, "g")) : [])];
         const judges = fns.filter(f => REFUSAL_NAME.test(f.name));
         const inside = (spans, s) => spans.some(([a, b]) => s.start > a && s.end <= b);
         /* A judge's answer: in an arrow's expression, or after a `return` in its block, inside no function of its own. */
@@ -2215,7 +2241,7 @@ export function uiLiterals(bag = {}) {
             const head = heads.get(s.start) ?? s.start;
             const before = blank.slice(Math.max(0, s.start - 40), s.start), after = blank.slice(s.end, s.end + 6);
             const opening = blank.slice(Math.max(0, head - 160), head);
-            if (REASON_PROPERTY.test(opening) || inside(reasons, s) || answered(s) || closedList.some(p => p.test(raw))) { counts.reasons++; continue; }
+            if (REASON_PROPERTY.test(opening) || inside(reasons, s) || answered(s) || closedList.some(p => p.test(raw)) || passageReasons.has(raw)) { counts.reasons++; continue; }
             if (/(?:[!=]==?|\bcase)\s*$/.test(before) || /^\s*[!=]==?/.test(after)) { counts.compared++; continue; }
             if (/\bSymbol\s*\(\s*$/.test(before) || fragmentOf(shown)) { counts.notText++; continue; }
             if ((SELECTOR.test(shown) && /[-_.#[]/.test(shown)) || CSS_DECLARATIONS.test(shown) || !twoWords(shown.replace(NOT_WORDS, " "))) { counts.notText++; continue; }
@@ -3391,7 +3417,7 @@ export const FIXTURES = Object.freeze({
     },
     uiLiterals: {
         flags: ["scripts/fx-text.mjs:1 string", "scripts/fx-ui.mjs:1 string", "scripts/fx-ui.mjs:2 template", "scripts/fx-ui.mjs:15 template",
-            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string", "scripts/fx-ui.mjs:37 string"],
+            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string", "scripts/fx-ui.mjs:37 string", "scripts/fx-ui.mjs:40 string"],
         input: {
             scripts: {
                 "scripts/fx-ui.mjs": [
@@ -3433,7 +3459,14 @@ export const FIXTURES = Object.freeze({
                     "const CUB = { full: { refuses: a => (a ? \"the cub is full now\" : null), say: \"DRPG.Fx.full\" } };",  // a refuses arrow: passes
                     "const refuseAs = (sub, why) => ({ sub, why });",
                     "const r = refuseAs(\"fx\", \"a change nobody asked for\");",                                   // a why-parameter's call: passes
-                    "function doorLabel(d) { return d.open ? \"the door is open now\" : null; }"                      // a label, no refusal: flagged
+                    "function doorLabel(d) { return d.open ? \"the door is open now\" : null; }",                     // a label, no refusal: flagged
+                    "const spread = { ...refuseAs(\"fx\", \"a transfer nobody asked for\"), once: true };",          // a why-parameter's call, spread: passes
+                    "const said2 = \"that wall is a door.\";",                                                       // the passages' table takes it: passes
+                    "const near2 = \"that wall is a door, and shut.\";"                                              // the table takes it not: flagged
+                ].join("\n"),
+                "scripts/passages-gm.mjs": [
+                    "const WALL_GONE = \"the wall it was cut from is gone.\";",
+                    "const whyTable = () => new Map([[\"that wall is a door.\", \"door\"], [WALL_GONE, \"wallGone\"]]);"
                 ].join("\n"),
                 "scripts/fx-text.mjs": "el.textContent = \"Nobody is here yet\";",                                     // textContent makes a UI file: flagged
                 "scripts/fx-data.mjs": "export const LINE = \"An English line no screen of this file draws\";",        // no UI in the file: not read
