@@ -232,6 +232,13 @@ export async function setProjectMeta(countdownId, data) {
     if (!game.user.isGM) return null;
     const given = data ?? {}, secret = {}, open = {}, taken = [];
     for (const [field, value] of Object.entries(given)) (PROJECT_SECRET_FIELDS.includes(field) ? secret : open)[field] = value;
+    /* A COUNTDOWN OF DAGGERHEART'S KEEPS ITS DIRECTION (1.2.115; the Facilities report of 14.11.2026, road 5). One made in
+       Daggerheart's own window has no row here, and `countsUp` reads it as Daggerheart runs it, full and down to 0. The
+       module's first write to it (a room or an action from the project manager) left a row without `countsUp`, which
+       `countsUp` reads as one of ours from before the stamp: the direction flipped, the fresh countdown read complete
+       and the run-out one not. The first row of such a countdown says which way it runs (the tier-2 "a countdown made in
+       Daggerheart's own window keeps its direction ..."). */
+    if (!Object.hasOwn(given, "countsUp") && !Object.keys(metaFor(countdownId)).length && rawCountdown(countdownId)) open.countsUp = false;
     /* PROJECT_SECRET_WHILE_SECRET (E44 fix FG6): to the GMs' half while the project is secret - as this write says it
        (`secret`), else as it stands - and to projectMeta while it is public; a write that changes the secrecy takes the
        one held across, and the half it leaves loses it (projectMeta's key gone, the GMs' row's set to null). */

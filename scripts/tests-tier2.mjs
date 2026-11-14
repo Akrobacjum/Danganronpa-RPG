@@ -66443,6 +66443,44 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{where the student stands: the roomless project's action, and not the action of a project in another room}");
     }],
 
+    ["a countdown made in Daggerheart's own window keeps its direction when the module first writes to it, so it is complete exactly when Daggerheart's tray shows it run out (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 5): Daggerheart's countdown starts full and ticks down to 0, and with no projectMeta the module reads it so (`countsUp` false); the module's first write to it - a room or an action from the project manager - left a row without `countsUp`, which `countsUp` reads as \"ours, from before the stamp\", and the direction flipped: the fresh countdown read complete and gave its action at once, and the one Daggerheart showed run out read not complete and gave none; since, a first write to a countdown with no row stamps `countsUp: false` (projects-secrecy.mjs `setProjectMeta`)", async () => {
+        /* Red at d77329e4: { roomGiven: true, actionGiven: true, runOut: false } - complete as soon as it had a room, and
+           not once it ran out. The countdown is written to Daggerheart's setting as its own window writes one. */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const F = await import("./facilities.mjs");
+        const { where } = await playerInRoom();
+        const id = foundry.utils.randomID(16);
+        const complete = () => P.allProjects().find(p => p.id === id)?.complete ?? null;
+        const writeCountdown = async current => {
+            const data = foundry.utils.deepClone(game.settings.get(S.DH, S.COUNTDOWNS) ?? {});
+            data.countdowns = { ...(data.countdowns ?? {}) };
+            data.countdowns[id] = { ...(data.countdowns[id] ?? { name: "SUITE a countdown of Daggerheart's", img: "icons/magic/time/hourglass-yellow-green.webp", ownership: { default: S.OBSERVER } }),
+                progress: { start: 4, current } };
+            await game.settings.set(S.DH, S.COUNTDOWNS, data);
+            await settle();
+        };
+        const read = {};
+        try {
+            await writeCountdown(4);
+            read.fresh = complete();
+            await S.setProjectMeta(id, { room: where.room });
+            await settle();
+            read.roomGiven = complete();
+            await F.setProjectFacility(id, { label: "SUITE Daggerheart's soup", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await settle();
+            read.actionGiven = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+            await writeCountdown(0);
+            read.runOut = complete();
+            read.actionAtRunOut = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+        } finally {
+            await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ actionAtRunOut: true, actionGiven: false, fresh: false, roomGiven: false, runOut: true }),
+            "{Daggerheart's countdown: not complete fresh, nor once given a room, no action while it runs, complete and its action given once it ran out}");
+    }],
+
     ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
         /*
          * E12 C5, 11.10.2026; plan-E12 section 4's C5, audit S16-07. The gather's room was looked up
