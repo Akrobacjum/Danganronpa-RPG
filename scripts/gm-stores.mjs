@@ -2445,12 +2445,6 @@ function allBullets() {
     return out;
 }
 
-/** Bullets in the world whose answer key this browser lacks or holds with no real type (S05-01's damage included). */
-export function bulletsWithoutAnswer() {
-    if (!game.user?.isGM) return 0;
-    return allBullets().filter(item => !bulletStore.get(item.uuid)?.realType).length;
-}
-
 /**
  * What a bullet with no real type here can take from its trace: the bullet's row names
  * the trace it was copied from (`sceneId` and `remnantId`), and the trace's row says what

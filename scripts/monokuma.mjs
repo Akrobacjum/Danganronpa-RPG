@@ -129,7 +129,8 @@ export function actingStudents({ dead = isDeadForGm, held = null } = {}) {
  */
 export function ownStudent() {
     const assigned = game.user.character;
-    // A Spectator's account has no student view either (E92 C1): its own view is a watcher's (`ownSpectator`).
+    // A Spectator's account has no student view either (E92 C1): its own view is a watcher's (E92 C1 wrote
+    // `ownSpectator` to name it; nothing called it, and it went in E56 part 2, 14.11.2026).
     if (assigned && !isMonokuma(assigned) && !isSpectator(assigned)) return assigned;
     if (assigned) return null;
     const owned = game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a) && !isSpectator(a));
@@ -139,19 +140,6 @@ export function ownStudent() {
 /** The students this account owns: characters, no Monokuma and no Spectator (a GM owns every one of them). */
 export function ownedStudents() {
     return game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a) && !isSpectator(a));
-}
-
-/**
- * The Spectator this account plays, or null (E92 C1): its assigned character when that is one, else the one Spectator
- * it owns while it owns no student. A GM, who owns every actor, plays none.
- */
-export function ownSpectator(user = game.user, actors = game.actors) {
-    if (!user || user.isGM) return null;
-    const assigned = user.character ?? null;
-    if (assigned) return isSpectator(assigned) ? assigned : null;
-    const mine = [...(actors ?? [])].filter(a => a?.type === "character" && a.testUserPermission?.(user, "OWNER"));
-    const watching = mine.filter(isSpectator);
-    return watching.length === 1 && watching.length === mine.filter(a => !isMonokuma(a)).length ? watching[0] : null;
 }
 
 /**

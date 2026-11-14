@@ -93,7 +93,9 @@
     "fract": "fog.mjs: the GLSL built-in, in a shader's text",
     "notePaneLean": "glass-geometry.mjs: history - the measurement's name for fitNoteTile's lean, never code, said so (stained-glass.css held the word until E56 part 2 reworded it)",
     "effectsOn": "glass.mjs: history - gone by 1.2.70, said so",
-    "lastCrossing": "gm-stores.mjs: a field never built, named to say so"
+    "lastCrossing": "gm-stores.mjs: a field never built, named to say so",
+    "deadRoomFor": "voice-client.mjs, voice.mjs: history - the dead's own room's name, built from E72 C8 until E62 C3b sent the dead to the Spectators' room; removed in E56 part 2 (14.11.2026), said so",
+    "bulletsWithoutAnswer": "key-remnants.mjs: history - gm-stores.mjs's count of bullets with no answer key, which nothing called; removed in E56 part 2 (14.11.2026), named for its rule"
   },
   "files": {}
 }

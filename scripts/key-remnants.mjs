@@ -596,7 +596,8 @@ export function missingKeyRows() {
  *          after a reset that wipes the Remnants and keeps the Truth Bullets a copy is still
  *          read by its chapter alone (read in the code, not closed here).
  *   held   copies the GMs hold whose answer key this browser lacks: the count would come out
- *          short, so the charge holds (E04, `bulletsWithoutAnswer`'s rule on the GMs' items).
+ *          short, so the charge holds (E04: an answer key with no real type is no answer key, the rule
+ *          gm-stores.mjs `bulletsWithoutAnswer` counted by until E56 part 2 removed that unread count).
  *
  * THE ITEMS AS THE GMS HOLD THEM: one wait for every student's queued writes to be judged
  * (sheet-audit.mjs `judgedFor`), then each student's items read in one synchronous pass

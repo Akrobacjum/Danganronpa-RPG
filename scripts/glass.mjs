@@ -3235,8 +3235,6 @@ export function holdPulse(on, { max = 10000 } = {}) {
   return pulseHeldSince !== null;
 }
 let curtainHold = null;
-/** Whether a sequence holds the live curtain at 0 under its copies now. */
-export function curtainHeld() { return curtainHold !== null; }
 /* The hold of one curtain, as a sequence drives it: `hold(ms)` takes the curtain and its glow to 0 over `ms`,
    `handBack(ms)` brings them back over `ms`, `release()` ends the hold - the curtain shown, the pulse's clock running. */
 function holdCurtain(j) {

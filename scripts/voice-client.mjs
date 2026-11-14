@@ -466,14 +466,11 @@ export const ROOM_PREFIX = "drpg-";
  * the prefix, and an Eclipse room `eclipse-`, so none is named the same. `micHold` reads it off `desiredRoom()` for
  * the tile's "deadAlone".
  *
- * @param {string} userId
- * @returns {string}
+ * Since E62 C3b (13.11.2026, the owner's Q-C3b-5) the dead talk in the Spectators' room (`SPECTATOR_ROOM`) and
+ * nothing names a room of this shape any more; `deadRoomFor`, which built it, had no caller from then on and went in
+ * E56 part 2 (14.11.2026). What stays is the reader below: whether `room` is a dead account's own room, whoever's, as
+ * a row written before C3b may still name one.
  */
-export function deadRoomFor(userId) {
-    return `${ROOM_PREFIX}dead-${userId}`;
-}
-
-/** Whether `room` is a dead account's own room (`deadRoomFor`), whoever's. */
 export function isDeadRoom(room) {
     return typeof room === "string" && room.startsWith(`${ROOM_PREFIX}dead-`);
 }
@@ -492,11 +489,6 @@ export const SPECTATOR_ROOM = `${ROOM_PREFIX}spectators`;
  * One pair for the world: one Scrum runs at a time, in the one trial.
  */
 export const SCRUM_ROOMS = Object.freeze({ a: `${ROOM_PREFIX}scrum-a`, b: `${ROOM_PREFIX}scrum-b` });
-
-/** Which camp's room `room` is: "a", "b", or null for any other room. */
-export function scrumCampOfRoom(room) {
-    return room === SCRUM_ROOMS.a ? "a" : room === SCRUM_ROOMS.b ? "b" : null;
-}
 
 /**
  * Where a player's voice goes in an Eclipse: nowhere (E19 C4, 19.10.2026; the owner's answer of 25.09, audit S11-11).
