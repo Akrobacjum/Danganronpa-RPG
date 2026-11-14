@@ -910,10 +910,16 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::befor
        `feDisplacementMap scale="16"`. That is what tears the edge into bristle marks instead
        of smoothing it. The filter is already in the module, injected by `chrome.mjs` as
        `#drpg-brush` and byte-identical to the audit's; it was simply never used here.
-       `inset: 1px -5px` is the audit's too: the stroke overhangs the ends of its box. */
+       `inset: 1px -5px` is the audit's too: the stroke overhangs the ends of its box.
+       ONE DEFINITION, ITS INSET A TOKEN PER ROLE (E55 B1, 14.11.2026). Until E55 the panel's, the GM panel's, the mini
+       buttons' and the messenger's brush were stated twice more further down - `inset: 1px -3px` with this clip and
+       filter again ("C-B3"), then `inset: -4px -5px` for the panel, the GM panel and the messenger ("7b") - and the
+       last won (measured 12.11.2026, PLAN.md section 8; the look freeze's brush rows). The two restatements are gone;
+       each role says its inset as `--brush-inset` on the button (below), which the pseudo-element inherits, and this
+       rule reads it: the sheet's brush and anything else here keep the audit's 1px -5px. */
     content: "";
     position: absolute;
-    inset: 1px -5px;
+    inset: var(--brush-inset, 1px -5px);
     z-index: -1;
     background: var(--brush);
     opacity: var(--brush-on, 0);
@@ -2865,15 +2871,9 @@ body[data-drpg-measuring] #drpg-foundry-tools { transition: none !important; }
    The audit page's rule for everything you click: a rectangle of the state colour behind the
    label, its edge torn by a displacement map, so no two brushes are the same and none is a
    box. The polygon clip stays underneath as the shape the filter tears from, and is what a
-   browser without SVG filters, or a player with the effects off, still gets. */
-body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.header-control)::before,
-body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button::before,
-body.drpg-theme-stained-glass .drpg-mini-button::before,
-body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::before {
-    inset: 1px -3px;
-    clip-path: none;
-    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
-}
+   browser without SVG filters, or a player with the effects off, still gets. The filter and the clip are the
+   brush's one definition ("the brush", above); the mini buttons' 1px -3px is their `--brush-inset` (E55 B1). */
+body.drpg-theme-stained-glass .drpg-mini-button { --brush-inset: 1px -3px; }
 
 /* ---- C-E2. A stamp is a blot of ink ------------------------------------------------------
    The typed plates on a Truth Bullet's card are the audit page's
@@ -3255,10 +3255,12 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.drpg-mini-button):not(
     padding: 3px 14px 2px;
     white-space: nowrap;
 }
-body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.header-control)::before,
-body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button::before,
-body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::before {
-    inset: -4px -5px;
+/* the brush's inset for the panel's, the GM panel's and the messenger's buttons (E55 B1: was the pseudo-element's own
+   third statement; the brush's definition reads `--brush-inset`) */
+body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.header-control),
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
+body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control) {
+    --brush-inset: -4px -5px;
 }
 
 /* ---- 8. The campaign name is the clock's title ------------------------------------------
