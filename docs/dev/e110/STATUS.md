@@ -144,3 +144,13 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
   first run 301/304 with one failure - "a secret project's description ... p2's open card follows the GM's change"
   read the old words - and on a second run 302/304 (2 expected reds), 0 failed. The check is a project card's, which
   E110 does not touch; one red in two runs, not investigated further here.
+
+## Scenario 30's project-card red (14.11.2026, the coordinator's job)
+
+- Cause: a module race, not the check's timing (it waits 5 s for the words). projects.mjs `descriptionOf` reads the
+  player's copy of the GMs' sight (`projectSightCopy`) before the private card's words since Open 103; the open card's
+  live region (projects-map.mjs `showProjectCard`) watched the words and not the copy, so a card whose words landed
+  first redrew the old words and stayed so. Fixed in 4a8d9c0c: the region watches `projectSightCopy`. R7110 red before.
+- Before, at 52f19e2a: 1 red in 5 runs of scenario 30 (this check). After, at 4a8d9c0c: 0 red in 5 runs (302/304 each,
+  the 2 expected reds); scenario 72 162/165 (3 expected reds), 0 failed. Five runs bound no rate below about one in
+  five with confidence; written as measured.
