@@ -133,9 +133,9 @@ const tableRow = row => ({
     kind: "call", ...row,
     probe: () => ({ present: null, ours: null, note: `a probe cannot read it: checked at a table (${row.table})` })
 });
-/* Whether `key` is in one of Foundry's registries (a Map), null where the registry is not there to read. */
+/* Whether `key` is in one of Foundry's registries (a Map), null where the registry is not there to read (`unreadable`, its note). */
 const registryProbe = (map, key, unreadable) => (map instanceof Map
-    ? { present: map.has(key), ours: null } : { present: null, ours: null, note: unreadable });
+    ? { present: map.has(key), ours: null } : { present: null, ours: null, note: unreadable.note });
 /*
  * Whether Foundry's AV defaults (`AVSettings.DEFAULT_CLIENT_SETTINGS`, `DEFAULT_USER_SETTINGS`: v13's names, read
  * from memory, not on v14 here) hold each of `keys`; null where they cannot be read (the harness has none).
@@ -163,6 +163,7 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
         };
         if (row.kind === "userFlag") {
             return { ...base, insteadKey: "held-flag", kind: "flag", target: `${row.scope}.${row.flag} on each account`, owner: row.system, symbol: "holdUserFlag",
+                targetKey: "held-flag", targetData: { key: `${row.scope}.${row.flag}` },
                 when: `on a world of ${row.system}, while its switch is on`,
                 fallback: "not held: the system reads the account's flag as it stands",
                 inUse: () => game.system?.id === row.system,
@@ -186,6 +187,7 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
         if (row.kind === "rtc") {
             const fields = Object.keys(row.fields ?? {}), users = Object.keys(row.userFields ?? {});
             return { ...base, insteadKey: "held-rtc", kind: "setting-entry", target: `${full}: ${fields.join(", ")} and each user's ${users.join(", ")}`, owner: "foundry",
+                targetKey: "held-rtc", targetData: { key: full, fields: fields.join(", "), parts: users.join(", ") },
                 symbol: "holdRtcDock", when: "while its switch is on",
                 fallback: "the dock is not held: each browser keeps its own dock and popouts",
                 probe: () => {
@@ -272,9 +274,11 @@ const sheetRead = { done: null };
 /** The sheet row's answer from a reading (`readSheetAnchors`): unknown before one, failed naming each missing place. */
 export function sheetAnchorsAnswer(read) {
     if (!read) return { present: null, ours: null, note: "no character sheet drawn on this browser yet in this load" };
-    const optional = read.optional?.length ? `; not on it, and drawn without: ${read.optional.join(" | ")}` : "";
-    if (read.missing.length) return { present: false, ours: null, note: `not on the sheet: ${read.missing.join(" | ")}${optional}` };
-    if (optional) return { present: true, ours: null, note: `${read.of - read.optional.length} of ${read.of} places found on the first sheet${optional}` };
+    const optional = read.optional?.length ? read.optional.join(" | ") : "";
+    if (read.missing.length) {
+        return { present: false, ours: null, note: `not on the sheet: ${read.missing.join(" | ")}${optional ? `; not on it, and drawn without: ${optional}` : ""}` };
+    }
+    if (optional) return { present: true, ours: null, note: `${read.of - read.optional.length} of ${read.of} places found on the first sheet; not on it, and drawn without: ${optional}` };
     return { present: true, ours: null, note: `all ${read.of} places found on the first sheet` };
 }
 /* Whether a character sheet class named CharacterSheet is registered (its render and close hooks carry the name);
@@ -458,7 +462,7 @@ export const PATCHES = [
             // E52 C2: with no Foundry Token class under the token class there is no chain to read (the harness
             // models no placeable Token: its objectClass is Object, measured 30.10), so the probe cannot tell.
             if (!floor || !proto || !(proto === floor || Object.prototype.isPrototypeOf.call(floor, proto))) {
-                return { present: null, ours: null, note: "the token class here is not Foundry's Token" };
+                return { present: null, ours: null, unreadKey: "token-class", note: "the token class here is not Foundry's Token" };
             }
             let present = false;
             while (proto && proto !== Object.prototype && proto !== floor) {
@@ -878,7 +882,7 @@ export const PATCHES = [
         why: "The microphone's push-to-talk line names the key Foundry's controls bind (amend 11.10 A9).",
         when: "while Foundry's voice mode is push-to-talk",
         fallback: "the push-to-talk line names no key",
-        probe: () => registryProbe(game.keybindings?.actions, "core.pushToTalk", "Foundry's keybinding list is not readable here")
+        probe: () => registryProbe(game.keybindings?.actions, "core.pushToTalk", { note: "Foundry's keybinding list is not readable here" })
     },
     {
         id: "av-config-menu",
@@ -890,7 +894,7 @@ export const PATCHES = [
         why: "The fields the table holds (the dock folded, no camera popped out) are greyed in that window when it draws (amend 11.10 A9).",
         when: "while the camera dock is held",
         fallback: "the held fields are not greyed in the window; their values are held all the same",
-        probe: () => registryProbe(game.settings?.menus, "core.webrtc", "Foundry's settings menus are not readable here")
+        probe: () => registryProbe(game.settings?.menus, "core.webrtc", { note: "Foundry's settings menus are not readable here" })
     },
 
     /* ---- Calls (E52 C3, E52-11): a presence probe where Foundry or a module exposes the name; a behaviour no
@@ -1183,7 +1187,7 @@ export const PATCHES = [
             const proto = CONFIG.Token?.objectClass?.prototype ?? null;
             // As iso-refresh-state's: the harness models no placeable Token (its objectClass is Object), so it cannot tell.
             if (!floor || !proto || !(proto === floor || Object.prototype.isPrototypeOf.call(floor, proto))) {
-                return { present: null, ours: null, note: "the token class here is not Foundry's Token" };
+                return { present: null, ours: null, unreadKey: "token-class", note: "the token class here is not Foundry's Token" };
             }
             const fn = proto._drawEffect;
             return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgBreakdownIcon")]) };
@@ -1283,7 +1287,7 @@ export function relayGuardRow(status = relayGuardStatus(), listeners = relayList
     const present = state !== "notFound" && state !== "noApi";
     if (state === "ok") {
         if (at === 0 && any.length) {
-            return { present, ours: true, state: "unknown",
+            return { present, ours: true, state: "unknown", unreadKey: "relay-guard-catch-all",
                 note: `${any.length} catch-all listener(s) run before every listener of Daggerheart's channel, the guard's included` };
         }
         if (at === 0) return { present, ours: true, state: "ok" };
@@ -1374,6 +1378,35 @@ function insteadOf(entry) {
     return game.i18n?.has?.(key) ? game.i18n.localize(key) : entry.fallback;
 }
 
+/**
+ * What a screen names a row's target by, in the table's language (E57 rest, 14.11.2026): lang's
+ * DRPG.Contract.target.<key>, the key being the row's `targetKey` (a held row's template, filled from its `targetData`)
+ * or its id. The row's own `target` is the code's name of it, for the console, `diagnosePatches()` and the author; it is
+ * what a screen shows only for a row whose target is names alone and has no sentence in lang (UI_LITERAL_ALLOW's row).
+ */
+export function targetOf(entry) {
+    const key = `DRPG.Contract.target.${entry.targetKey ?? entry.id}`;
+    return game.i18n?.has?.(key) ? game.i18n.format(key, entry.targetData ?? {}) : entry.target;
+}
+
+/**
+ * Why a row could not be read, in the table's language, for Pre-season's fold of the unread rows (E57 rest): a hook
+ * not seen firing, with what fires it (DRPG.Contract.road.<id>); a behaviour only a table check reads; the row's own
+ * reason (DRPG.Contract.unread.<key>, the probe's `unreadKey`, else the row's `insteadKey` or id); else the contract's
+ * two general ones. The probe's English `note` stays the console's and the report's, and stands in only where lang has
+ * no sentence at all.
+ */
+function unreadOf(entry, judgedRow) {
+    const say = (key, data = {}) => (game.i18n?.has?.(`DRPG.Contract.unread.${key}`) ? game.i18n.format(`DRPG.Contract.unread.${key}`, data) : null);
+    if (entry.kind === "hook") {
+        const roadKey = `DRPG.Contract.road.${entry.id}`;
+        return say("hook", { line: game.i18n?.has?.(roadKey) ? game.i18n.localize(roadKey) : entry.road }) ?? judgedRow.note;
+    }
+    if (entry.table) return say("table") ?? judgedRow.note;
+    return say(judgedRow.unreadKey ?? entry.insteadKey ?? entry.id)
+        ?? say(judgedRow.present === true && judgedRow.ours === null ? "noMark" : "cannotTell") ?? judgedRow.note;
+}
+
 /* One row's answer: `{ state, present, ours, note }`. A probe, or an `inUse`, that throws is failed with its message. */
 function judged(entry) {
     let result;
@@ -1386,15 +1419,16 @@ function judged(entry) {
         return { state: "failed", present: false, ours: null, note: String(err?.message ?? err) };
     }
     const present = result.present ?? null, ours = result.ours ?? null, note = result.note ?? "";
-    const answer = (state, why = "") => ({ state, present, ours, note: note || why });
+    // `said.note` is the contract's own reason where the probe gave none: the console's and the report's, as a probe's is.
+    const answer = (state, said = {}) => ({ state, present, ours, note: note || said.note || "", ...(result.unreadKey ? { unreadKey: result.unreadKey } : {}) });
     if (CONTRACT_STATES.includes(result.state)) return answer(result.state);
-    if (present === false) return answer("failed", "not found where the module expects it");
-    if (present !== true) return answer("unknown", "the probe cannot tell");
-    if (entry.kind === "hook") return answer("unknown", "not seen firing in this load");
+    if (present === false) return answer("failed", { note: "not found where the module expects it" });
+    if (present !== true) return answer("unknown", { note: "the probe cannot tell" });
+    if (entry.kind === "hook") return answer("unknown", { note: "not seen firing in this load" });
     if (entry.kind !== "override" || entry.marked === false) return answer("ok");
     if (ours === true) return answer("ok");
-    if (ours === false) return answer("failed", "another function stands where the module's was");
-    return answer("unknown", "the module's wrapper leaves no mark to read");
+    if (ours === false) return answer("failed", { note: "another function stands where the module's was" });
+    return answer("unknown", { note: "the module's wrapper leaves no mark to read" });
 }
 
 /* This load's run over the whole register, for `contractState`. */
@@ -1409,10 +1443,14 @@ let lastContract = null;
  * @returns {{at: number, rows: object[], ok: object[], failed: object[], unknown: object[]}}
  */
 export function runContract({ rows = PATCHES } = {}) {
-    const out = rows.map(entry => ({
-        id: entry.id, kind: entry.kind, target: entry.target, owner: entry.owner, file: entry.file, symbol: entry.symbol ?? "",
-        where: whereOf(entry), when: entry.when, fallback: entry.fallback, instead: insteadOf(entry), ...judged(entry)
-    }));
+    const out = rows.map(entry => {
+        const answer = judged(entry);
+        return {
+            id: entry.id, kind: entry.kind, target: entry.target, shownTarget: targetOf(entry), owner: entry.owner, file: entry.file,
+            symbol: entry.symbol ?? "", where: whereOf(entry), when: entry.when, fallback: entry.fallback, instead: insteadOf(entry), ...answer,
+            ...(answer.state === "unknown" ? { shownUnread: unreadOf(entry, answer) } : {})
+        };
+    });
     const contract = {
         at: Date.now(), rows: out,
         ok: out.filter(r => r.state === "ok"), failed: out.filter(r => r.state === "failed"), unknown: out.filter(r => r.state === "unknown")
@@ -1436,7 +1474,8 @@ const toldThisLoad = new Set();
 /**
  * At ready, on the primary GM (module.mjs, after `requirementsMet`, through `announceAtReady`): run the contract,
  * count the unknown rows no table check owns in one console info line (E91 C1), and tell a GM of the failed rows
- * in one permanent notice - each row's target, file:symbol and what the table gets instead. Run again when a row can fail later in the load (the
+ * in one permanent notice - each row's target, file:symbol and what the table gets instead, the target and what it gets in
+ * the table's language (`targetOf`, `insteadOf`). Run again when a row can fail later in the load (the
  * first character sheet, `watchSheetRenders`; the first Levels throw, `announceLevelThrow`), it tells only the
  * rows no notice of this load named. `told` (a Set of row ids) and `notify` can be handed in (R1540, R1541, R1056).
  */
@@ -1460,7 +1499,7 @@ export function announceContract({ rows = PATCHES, told = toldThisLoad,
         if (fresh.length && game.user?.isGM) {
             for (const r of fresh) told.add(r.id);
             notify(plural("DRPG.Contract.notice", { n: fresh.length,
-                rows: fresh.map(r => `${r.target} (${r.where}): ${r.instead}`).join("; ") }), { permanent: true });
+                rows: fresh.map(r => `${r.shownTarget} (${r.where}): ${r.instead}`).join("; ") }), { permanent: true });
         }
     }
     return contract;
@@ -1578,6 +1617,7 @@ export function diagnosePatches() {
             id: entry.id,
             kind: entry.kind,
             target: entry.target,
+            shownTarget: targetOf(entry),
             owner: entry.owner,
             file: entry.file,
             why: entry.why,

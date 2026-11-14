@@ -2104,9 +2104,10 @@ export function bareLeft(bag = {}) {
 const UI_FILE = /\bDialogV2\b|\bApplicationV2\b|\bHandlebarsApplicationMixin\b|(?<![\w$])ui\s*\??\.\s*notifications\b|\bChatMessage\s*\??\.\s*create\b|\.\s*(?:innerHTML|textContent)\s*=(?![=>])/;
 
 /* Text for the console, not for a screen: utils.mjs's log, debug, warn and error (bare, not a method), console.*, a
-   logger's method (`env.log.error(`, `log.warn(`) and an Error's message. ui.notifications.warn( is a screen's and is not
+   logger's method (`env.log.error(`, `log.warn(`), one chosen or imported at the call (`(ctx.warn ?? warn)(`,
+   `(await import("./utils.mjs")).error(`; E57 rest, 14.11.2026) and an Error's message. ui.notifications.warn( is a screen's and is not
    one of these: a method named warn is read only on a logger. */
-const LOG_CALL = /(?:(?<![\w$.])(?:log|debug|warn|error)|(?<![\w$.])console\s*\??\.\s*\w+|(?<![\w$])(?:[\w$]+\s*\??\.\s*)*log\s*\??\.\s*\w+|(?<![\w$.])(?:new\s+)?(?:Type|Range|Reference|Syntax)?Error)\s*\(/g;
+const LOG_CALL = /(?:(?<![\w$.])(?:log|debug|warn|error)|\(\s*[\w$.?]+\s*\?\?\s*(?:log|debug|warn|error)\s*\)|\)\s*\??\.\s*(?:log|debug|warn|error)|(?<![\w$.])console\s*\??\.\s*\w+|(?<![\w$])(?:[\w$]+\s*\??\.\s*)*log\s*\??\.\s*\w+|(?<![\w$.])(?:new\s+)?(?:Type|Range|Reference|Syntax)?Error)\s*\(/g;
 
 /* A refusal's reason: the bridge keeps the English line as the GM's record and tells the asker a code (bridge-guards.mjs
    `refuse`: "The English line is the GM's record ... The asker is told the code `reasonOf` reads off `why`", E31). Read as
@@ -2114,16 +2115,99 @@ const LOG_CALL = /(?:(?<![\w$.])(?:log|debug|warn|error)|(?<![\w$.])console\s*\?
    `why` parameter (gmOnly, playersOnly, owns, ...), and as a literal one of that file's REASON_PATTERNS takes whole (the
    closed list every reason maps to, R164; 202 patterns, every one anchored, on 31.10) - the last two read off that file
    when the bag holds it. */
-const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*:\s*$/;
+const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*(?::|=(?![=>]))[^,;{}]*$/;
+
+/* E57 T13 GROUP 3 (14.11.2026): THE SHAPES C8'S RULES MISREAD, each read on the scripts of that slice and planted in the
+   fixture, red first (all twelve flagged before this). REASON_PROPERTY's value since then is the whole expression after
+   `why:`, `refused:` or `why =` up to a comma, a semicolon or a brace (a ternary's two arms, a `??`'s right side), and a
+   template's later pieces are judged from the template's start, so `{ refused: \`the item ${name} is not here\` }` is a
+   reason in each piece, not only in its first. A refusal's answer is also what a function named `...Refusal` or `refuses`
+   returns (the module's name for a judge that answers an English reason or null: frisk.mjs `friskPacketRefusal`,
+   monocub.mjs `CUB_TARGETS`, relay-guard.mjs `actorRefusal`, ...), and what is handed to a function of the same file with a
+   `why` parameter (relay-guard.mjs `refuseAs` and `dropAs`), as the bridge's guards' arguments already were. Those reasons
+   are the GM's record, as the bridge's are; one road shows them on a GM's screen in English - relay-guard.mjs
+   `reportRefusal` puts the reason in `DRPG.Relay.refused`'s {what} - which is the owner's question, not this detector's
+   (docs/dev/e57/REST-t13c.md). An Error subclass the file declares (`class NothingToDo extends Error`) is an Error's
+   message, a Symbol's description is no text, and so are a run of markup attributes cut by a placeholder
+   (` disabled data-tooltip="`), a selector cut by one (`footer button[data-action="`), a border's CSS value
+   (`1px solid `) and a font list. The same group added passages-gm.mjs's closed list (`reasonTableOf`) beside
+   bridge-guards.mjs's, and reads a same-file why-function's call after a spread (`{ ...refuseAs(...) }`); then a judge's
+   GM half (`cubAbilityRefusalOnGm`), bridge-guards.mjs's own `guard...` functions, a logger's alias (`report = (text, err)
+   => error(text, err)`, bridge-guards.mjs `request`) and a reason's chain longer than the 160 characters read before it
+   (monocub.mjs `offerBribeOnGm`: 400 now, still cut at a comma, a semicolon or a brace), and a bridge row's `claims`
+   (private-rolls.mjs `ROLL_ACTIONS`). */
+const REFUSAL_NAME = /^(?:[\w$]*Refusal(?:OnGm)?|refuses)$/;
+/* bridge-guards.mjs's guards, which `judge` asks in order and which answer an English reason or null (`firstRefusal`). */
+const GUARD_NAME = /^guard[A-Z][\w$]*$/;
+/* A bridge table row's `claims` (CLAUDE.md's trust model, "How to add a bridge action" step 2): for an id no guard names,
+   who judges it, in a sentence R1b reads and no screen shows. */
+const CLAIMS_OPEN = /(?<![\w$.])claims\s*:\s*\{/g;
+const ATTRIBUTE_RUN = /^\s*(?:[a-z][\w:-]*(?:\s*=\s*(?:"[^"]*"?|'[^']*'?))?\s*)+$/i;
+const CSS_VALUE = /^\s*(?:\d+(?:\.\d+)?(?:px|r?em|%)?\s+)+(?:solid|dashed|dotted|double)\s*$/;
+const FONT_LIST = /^\s*(?:(?:\\?"[^"\\]+\\?"|'[^']+'|[\w-]+)\s*,\s*)+(?:serif|sans-serif|monospace|cursive|fantasy|system-ui)\s*$/;
+const fragmentOf = shown => ((/=/.test(shown) && ATTRIBUTE_RUN.test(shown)) || CSS_VALUE.test(shown) || FONT_LIST.test(shown)
+    || (/^\s*["']?\]|\[[\w-]+\s*=\s*["']?$/.test(shown)
+        && SELECTOR.test(shown.replace(/^\s*["']?\]\s*/, " ").replace(/\[[\w-]+\s*=\s*["']?$/, "[x]"))));
+
+/* The functions of blanked code, `{ name, params, body: [open, close], expression }`: a declaration, a method's shorthand
+   and an arrow bound to a name or a property (`refuses: actor => (...)`), its body a block or, for an arrow, the expression
+   up to a comma, a semicolon or the bracket that closes around it. */
+function functionsOf(lx, blank) {
+    const out = [];
+    const KEYWORD = /^(?:if|for|while|switch|catch|function|return|with)$/;
+    for (const m of blank.matchAll(/(?<![\w$.])([\w$]+)\s*\(/g)) {
+        if (KEYWORD.test(m[1])) continue;
+        const open = m.index + m[0].length - 1, close = lx.callArgs(blank, open).close;
+        if (!(close > open)) continue;
+        const brace = blank.slice(close + 1).search(/\S/) + close + 1;
+        if (blank[brace] !== "{" || !/(?:^|[\s;{}(,]|\bfunction\s*\*?\s*|\basync\s+|\bstatic\s+)$/.test(blank.slice(Math.max(0, m.index - 12), m.index))) continue;
+        out.push({ name: m[1], params: blank.slice(open + 1, close), body: [brace, lx.callArgs(blank, brace).close], expression: false });
+    }
+    for (const m of blank.matchAll(/(?<![\w$.])([\w$]+)\s*(?::|=(?![=>]))\s*(?:async\s+)?(\([^()]*\)|[\w$]+)\s*=>\s*/g)) {
+        const at = m.index + m[0].length, params = m[2].replace(/^\(|\)$/g, "");
+        if (blank[at] === "{") { out.push({ name: m[1], params, body: [at, lx.callArgs(blank, at).close], expression: false }); continue; }
+        let k = at, depth = 0;
+        for (; k < blank.length; k++) {
+            const c = blank[k];
+            if ("([{".includes(c)) depth++;
+            else if (")]}".includes(c)) { if (--depth < 0) break; }
+            else if ((c === "," || c === ";") && depth === 0) break;
+        }
+        out.push({ name: m[1], params, body: [at, k], expression: true });
+    }
+    return out;
+}
+
+/* Each template piece's head: the start of the template a piece after `${...}` belongs to, by the piece's start. */
+function templateHeads(code, spans) {
+    const heads = new Map(), open = [];
+    for (const s of spans) {
+        if (s.kind !== "template") continue;
+        const first = code[s.start] === "`", last = code.slice(s.end - 2, s.end) === "${";
+        if (first) { heads.set(s.start, s.start); if (last) open.push(s.start); continue; }
+        heads.set(s.start, open.at(-1) ?? s.start);
+        if (!last) open.pop();
+    }
+    return heads;
+}
 
 /* What is not text, by its shape: a class list or a CSS selector (tokens of [a-z0-9_-] with . # : [..] (..) > + ~ , *,
    one of them at least with a "-", "_", ".", "#" or "[", so "the floor is closed" is text and "drpg-card is-open" is not),
    and CSS declarations (a property with a "-" or of a short list, a colon, a value). A URL, a path, a file name and an
    icon (fa-*) are taken out of the text before its words are counted. */
-const SELECTOR_TOKEN = "(?:[.#]?[a-z0-9_-]+(?:[.#:][\\w-]+|\\[[^\\]]*\\]|\\([^)]*\\))*|[>+~,*])";
-const SELECTOR = new RegExp(`^\\s*${SELECTOR_TOKEN}(?:\\s+${SELECTOR_TOKEN})*\\s*$`);
+const SELECTOR_TOKEN = "(?:[.#]?[a-z0-9_-]+(?:[.#:][\\w-]+|\\[[^\\]]*\\]|\\([^)]*\\))*,?|[>+~,*])";
+const SELECTOR_LIST = `${SELECTOR_TOKEN}(?:\\s+${SELECTOR_TOKEN})*`;
+const SELECTOR = new RegExp(`^\\s*${SELECTOR_LIST}\\s*$`);
+/* A selector's mark (E57 rest): "-", "_", ".", "#", "[", or a pseudo-class's ":" before a letter ("select option:hover,"). */
+const SELECTOR_MARK = /[-_.#[]|:[a-z]/;
 const CSS_PROPERTY = "(?:[a-z]+-[a-z-]+|--[\\w-]+|color|display|position|top|left|right|bottom|width|height|margin|padding|border|background|opacity|transform|transition|font|gap|inset|cursor|overflow|visibility|filter|content)";
 const CSS_DECLARATIONS = new RegExp(`^\\s*(?:${CSS_PROPERTY}\\s*:\\s*[^;:]+;?\\s*)+$`);
+/* CSS rules (E57 rest): selectors, then declarations in braces, as a stylesheet a script writes into a <style> holds them -
+   a template piece from one `${...}` to the next, so it may start at the braces and end on a selector. */
+const CSS_RULES = new RegExp(`^\\s*(?:(?:${SELECTOR_LIST})?\\s*\\{\\s*(?:${CSS_PROPERTY}\\s*:\\s*[^;:{}]+;?\\s*)*\\}\\s*)+(?:${SELECTOR_LIST})?\\s*$`);
+/* A tag's attributes written in a piece of a template, outside its "<" (E57 rest): ` disabled title="`, `" data-x data-y="` -
+   names, each with a quoted value or none, one of them at least with `="`. Text never writes `name="`. */
+const ATTRIBUTES = /^\s*"?\s*[a-z][\w-]*(?:="[^"<>]*"?)?(?:\s+[a-z][\w-]*(?:="[^"<>]*"?)?)*\s*$/;
 const NOT_WORDS = /\S*:\/\/\S*|\S*\/\S*|\S+\.(?:webp|png|svg|jpe?g|ogg|mp3|wav|json|mjs|js|css|html|hbs)\b|(?<![\w-])fa-[\w-]+/g;
 
 /* What a screen shows of a literal: markup's tags and their attributes, entities and Handlebars' {{...}} out. */
@@ -2147,9 +2231,190 @@ function reasonPatternsOf(lx, text) {
     });
 }
 
+/* passages-gm.mjs's `whyTable`, as a set of texts: the closed list a passage's and a repair's judges answer from, each
+   English reason a code that `DRPG.Passage.why.<code>` says in the reader's language (R983 holds every literal of those
+   judges to it), so the English is the GM's record as the bridge's is. Its literals, and those of the constants it names
+   (`WHOLE_WALL`, `MAP_REFUSALS.noWall`), read off that file when the bag holds it. */
+function reasonTableOf(lx, text) {
+    if (text === undefined) return new Set();
+    const code = lx.blankComments(String(text)), blank = lx.blankLiterals(code), spans = literalSpans(code, blank);
+    const statement = at => {
+        const open = blank.slice(at).search(/[([{]/) + at;
+        return [at, open >= at ? lx.callArgs(blank, open).close : at];
+    };
+    const textsIn = ([a, b]) => spans.filter(t => t.kind === "string" && t.start > a && t.end <= b).map(t => literalText(code, t));
+    const head = blank.search(/\bwhyTable\s*=/), at = head < 0 ? -1 : blank.slice(head).search(/\bnew\s+Map\s*\(/) + head;
+    if (head < 0 || at < head) return new Set();
+    const range = statement(at), out = new Set(textsIn(range));
+    for (const name of new Set(blank.slice(...range).match(/\b[A-Z][A-Z0-9_]+\b/g) ?? [])) {
+        const def = blank.search(new RegExp(`\\bconst\\s+${name}\\s*=`));
+        if (def < 0) continue;
+        const end = blank.indexOf(";", def), first = spans.find(t => t.start > def);
+        if (first && first.kind === "string" && (end < 0 || first.start < end) && !/[([{]/.test(blank.slice(def, first.start))) out.add(literalText(code, first));
+        else for (const t of textsIn(statement(def))) out.add(t);
+    }
+    return out;
+}
+
+/* The name of the top-level declaration (a function, class, const, let or var at the line's start) that holds `at`, or
+   "(top)" before the first; T13's allow rows are keyed by it, so a row follows its code when lines move. */
+const DECLARATION = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s+|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/gm;
+function declarationAt(decls, at) {
+    let name = "(top)";
+    for (const [start, n] of decls) { if (start >= at) break; name = n; }
+    return name;
+}
+
+/* A call whose first argument is a CSS selector (E57 rest): `querySelector(`, `querySelectorAll(`, `closest(`, `matches(`. */
+const SELECTOR_CALL = /\.\s*(?:querySelector(?:All)?|closest|matches)\s*(?:\?\.\s*)?\(/g;
+
+/* Whether the literal at `at` stands after `??` whose left side is a text call - `env.text?.(key, data) ?? "..."`,
+   `game.i18n.localize(key) ?? "..."`, `.format(...)` (E57 rest): English that stands in only where no text function
+   answers, read as the `game.i18n.has(` fallback is (`fallback`). Read on blanked code, brackets matched backwards. */
+function textFallback(blank, at) {
+    const before = blank.slice(0, at), m = /\)\s*\?\?\s*$/.exec(before);
+    if (!m) return false;
+    let depth = 0, k = m.index;
+    for (; k >= 0; k--) {
+        if (blank[k] === ")" || blank[k] === "]" || blank[k] === "}") depth++;
+        else if ((blank[k] === "(" || blank[k] === "[" || blank[k] === "{") && --depth === 0) break;
+    }
+    return k > 0 && /(?:(?<![\w$])text|\.\s*localize|\.\s*format)\s*(?:\?\.)?\s*$/.test(blank.slice(Math.max(0, k - 40), k));
+}
+
+/* The argument spans, `[open, close]`, of the calls a file makes to its own functions in a place only the console reads
+   (E57 rest, 14.11.2026): a parameter of a `function` declared in the file, a plain name, read in the body and every
+   time inside one of `logs` (the LOG_CALL spans) - module.mjs's `safely(label, fn)`, whose label reaches only
+   `error(...)`, gave 124 of T13's findings. A parameter read once anywhere else (handed on, shown, returned) keeps its
+   arguments text. Read on blanked code, so a template's `${label}` is read as the code it is. */
+function consoleOnlyArgs(lx, blank, logs) {
+    const inLog = at => logs.some(([a, b]) => at > a && at < b);
+    const spans = [];
+    for (const m of blank.matchAll(/(?<![\w$.])function\s+([\w$]+)\s*\(/g)) {
+        const name = m[1], body = bodyOf(lx, blank, name);
+        if (!body || blank.search(new RegExp(`(?<![\\w$.])function\\s+${name.replace(/\$/g, "\\$")}\\s*\\(`)) !== m.index) continue;
+        const { args } = lx.callArgs(blank, m.index + m[0].length - 1);
+        const quiet = args.map(a => blank.slice(a.start, a.end).trim()).map(p => {
+            if (!/^[A-Za-z_$][\w$]*$/.test(p)) return false;
+            const reads = [...blank.slice(body[0], body[1]).matchAll(new RegExp(`(?<![\\w$.])${p.replace(/\$/g, "\\$")}(?![\\w$])`, "g"))];
+            return reads.length > 0 && reads.every(r => inLog(body[0] + r.index));
+        });
+        if (!quiet.some(Boolean)) continue;
+        for (const c of blank.matchAll(new RegExp(`(?<![\\w$.])${name.replace(/\$/g, "\\$")}\\s*\\(`, "g"))) {
+            if (/\bfunction\s+$/.test(blank.slice(Math.max(0, c.index - 12), c.index))) continue;
+            const { args: given } = lx.callArgs(blank, c.index + c[0].length - 1);
+            given.forEach((a, i) => { if (quiet[i]) spans.push([a.start - 1, a.end]); });
+        }
+    }
+    /* A `const` or `let` whose every read in the file is inside a LOG_CALL or a bare `if (name)` / `if (!name)`, which
+       shows nothing (roll-dialog.mjs's `wrong`, a reason only its `warn(...)` says): its initializer, to the statement's
+       ";" at its own depth, is console text. A read of
+       another binding of the same name counts as a read, so a name shown anywhere keeps every initializer text. */
+    for (const m of blank.matchAll(/(?<![\w$.])(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=(?!=)/g)) {
+        const esc = m[1].replace(/\$/g, "\\$"), from = m.index + m[0].length;
+        let depth = 0, end = from;
+        for (; end < blank.length; end++) {
+            const c = blank[end];
+            if (c === "(" || c === "[" || c === "{") depth++;
+            else if (c === ")" || c === "]" || c === "}") { if (--depth < 0) break; }
+            else if (c === ";" && depth === 0) break;
+        }
+        const reads = [...blank.matchAll(new RegExp(`(?<![\\w$.])${esc}(?![\\w$])`, "g"))]
+            .filter(r => !/(?:const|let|var)\s+$/.test(blank.slice(Math.max(0, r.index - 8), r.index)));
+        const tested = r => /\bif\s*\(\s*!?\s*$/.test(blank.slice(Math.max(0, r.index - 8), r.index)) && /^\s*\)/.test(blank.slice(r.index + m[1].length));
+        if (reads.length && reads.some(r => inLog(r.index)) && reads.every(r => inLog(r.index) || tested(r))) spans.push([from - 1, end]);
+    }
+    return spans;
+}
+
 /* Each call's argument span, `[open, close]`, for a pattern whose match ends at the call's "(". */
 function callSpans(lx, blank, re) {
     return [...blank.matchAll(re)].map(m => { const open = m.index + m[0].length - 1; return [open, lx.callArgs(blank, open).close]; });
+}
+
+/* T13's allow rows (E57 rest, 14.11.2026): English in a UI file that no screen shows, where the detector cannot follow
+   it - a reason or a note handed back by a function and read by the console, a test or another file. Keyed
+   `"<file> <top-level declaration>"`, with `n`, the literals the row lets stand there (a row that holds another number is
+   a finding, so a literal added to the declaration is read), and `why`, one line. A row is a reason read at the code,
+   never a bucket: what a screen shows moves into lang/. */
+export const UI_LITERAL_ALLOW = Object.freeze({
+    "scripts/gm-store.mjs sectionProblem": { n: 9, why: "why a packet's or a backup's section is refused, written to a GM's console (gmsRefusal's warn) and the case file's refusal; no window shows it (C12-FINDINGS.md)" },
+    "scripts/gm-store.mjs createGmStoreEngine": { n: 1, why: "the second piece of the claim's `env.text?.(key) ?? \"...\"` fallback, for an engine built with no text function; the module's stores are built with one (C12-FINDINGS.md)" },
+    "scripts/movement-audit.mjs auditMove": { n: 6, why: "an exempt move's `why` and a ledger row's `verdict`: the rows game.drpg.passages.audit() answers in the console (auditRows); the player is told by DRPG.Bridge.why, the GMs by DRPG.Movement" },
+    "scripts/trial-floor.mjs modeCensus": { n: 3, why: "the faults of the modes' start table, read by tier 1 alone" },
+    "scripts/trial-progress.mjs TRIAL_RECORD": { n: 8, why: "each record field's writer (`by`), a note in the table that R1257 reads; no screen" },
+    "scripts/trial-progress.mjs trialRecordProblems": { n: 5, why: "the faults of TRIAL_RECORD, read by tier 0 R1257 alone" },
+    "scripts/glass.mjs hitStack": { n: 2, why: "the pointer's stack, for drpgGlassDebug() and glassReport(), both console" },
+    "scripts/glass.mjs glassReport": { n: 7, why: "the curtain's one-line account, read only by the watchdog's log() (no other caller in scripts/)" },
+    "scripts/gm-panel.mjs openGmPanel": { n: 1, why: "the module's name before its version on the panel's foot, a proper noun the same in every language" },
+    "scripts/gm-panel.mjs openFailureLog": { n: 1, why: "the header line of the error log a GM copies to paste to whoever debugs it, English as the console it copies" },
+    "scripts/enforced.mjs FOUNDRY_WRITES": { n: 2, why: "a reach's fallback, English for the console and the author's report (patches.mjs header); the table reads DRPG.Contract.instead.<id>" },
+    "scripts/season-wipe.mjs wipeSeason": { n: 1, why: "runSteps' label, written only into steps.mjs's error() lines" },
+    "scripts/projects-map.mjs PROJECT_ACTOR": { n: 1, why: "the name the module gives its own actor and finds it again by (line 128 compares it); a translated name would not be found in a world opened in another language" },
+    /* E57 T13 group 3 (14.11.2026), its slice's rows; the reconcile of the three T13 lines took out gmsRefusal, sentBackRefusal,
+       passageRowsRefusal, ballotRefusal and drawCorpseCaption and three of auditMove's, which the reason and font-list rules now read. */
+    "scripts/call-effects.mjs feedOverflowEffect": { n: 1, why: "console only: overflow.mjs addOverflow's `reason`, logged with the count (and asked of the primary, which logs it)" },
+    "scripts/despair.mjs adjustDespair": { n: 1, why: "console only: overflow.mjs addOverflow's `reason`, logged with the count (and asked of the primary, which logs it)" },
+    "scripts/chapter.mjs runChapterEnd": { n: 1, why: "console only: steps.mjs runSteps names its procedure by `label` in its error() lines alone" },
+    "scripts/verdict.mjs runVerdict": { n: 1, why: "console only: steps.mjs runSteps names its procedure by `label` in its error() lines alone" },
+    "scripts/incident-store.mjs PUBLIC_INCIDENT": { n: 2, why: "each world-half field's reason, data the suite and world-secrets.mjs read; no screen draws it" },
+    "scripts/inventory.mjs OLD_TIER_THREE": { n: 2, why: "an old item's description in each language, compared to find items to migrate; never shown" },
+    "scripts/monocub.mjs answerBribeOnGm": { n: 4, why: "console only: why a Bribe is closed unpaid, written by warn() (\"was closed unpaid: ...\"); the players are told by key (bribeUnpaid)" },
+    "scripts/passages-gm.mjs MAP_REFUSALS": { n: 1, why: "MAP_REFUSALS.short, a template the closed list whyTable names (code short, DRPG.Passage.why.short); a template is not matched whole" },
+    "scripts/passages-gm.mjs TUNNEL_REFUSALS": { n: 5, why: "console only: the console's words for a tunnel's codes (createPassage, a GM's game.drpg call); the pick says the code" },
+    "scripts/projects-ui.mjs openProjectDialog": { n: 1, why: "a data-drpg-when-trigger value, compared with the select's option value; an id, not words" },
+    "scripts/relay-guard.mjs judgeFear": { n: 3, why: "console only: an own verdict's `noted`, logged by warn() in judge (\"accepted in part; left out ...\")" },
+    "scripts/remnants.mjs migrateRemnants": { n: 2, why: "console only: a migration's per-token list, joined into its warn() lines; the GM's toast counts them (DRPG.Remnant.migratedCheck)" },
+    "scripts/remnants.mjs migrateRemnantsOnce": { n: 3, why: "console only: the per-token list joined into its warn() line; the GM's toast counts them (DRPG.Remnant.keptOnTokens)" },
+    "scripts/remnants.mjs migrateRemnantToken": { n: 1, why: "console only: a field name in a token's `unwritten` list, which migrateRemnants joins into its warn() lines" },
+    "scripts/remnants.mjs leftOnToken": { n: 1, why: "console only: a field name in a token's `left` list, which the migrations join into their warn() lines" },
+    "scripts/settings.mjs DEFAULT_SAFEWORD": { n: 1, why: "a world setting's stored default: the one word the whole table says, which a per-browser translation would split at a table of two languages; migrate.mjs compares it" },
+    "scripts/tables-editor.mjs installTables": { n: 1, why: "the module's own name (module.json title) on the RollTable folder it creates, a proper noun the Polish keeps" },
+});
+
+/**
+ * T13's allowed fields (E57 rest, 14.11.2026): a property of a script's data table whose value only the console and
+ * the author's report read, by file and property name, each with its reason. A literal is the property's when it
+ * stands in the property's own value - after `name:` with no call's "(", no "[" and no "{" left open between them, so a call's
+ * argument there (`title: format("...")`) is not - every piece of a string sum, a ternary or a template included.
+ * Not a bucket: the screen that shows such a table reads lang/ for what it shows (patches.mjs `targetOf`, `insteadOf`, `unreadOf`), and a field that reaches a screen as it is written has no row here. Read by `uiLiterals`; a fixture
+ * passes its own through `uiFields` (UI_LITERAL_FIELDS since the T13 reconcile; T13b's UI_LITERAL_ALLOW keys by declaration).
+ */
+export const UI_LITERAL_FIELDS = Object.freeze({
+    "scripts/patches.mjs": Object.freeze({
+        target: "a row's target as the code names it, for the console, diagnosePatches() and the author; the notice, Pre-season and the newer-system window show DRPG.Contract.target.<key> (targetOf), and fall back to this only for a row whose target is names alone",
+        road: "what fires a hook, in English for the console's note; Pre-season shows DRPG.Contract.road.<id> (unreadOf)",
+        note: "a probe's note, read in the console and diagnostics.mjs's report; Pre-season shows an unread row's reason from DRPG.Contract.unread.* (unreadOf)",
+        why: "a row's reason, read only in diagnosePatches()'s console table and the source",
+        when: "when a row is installed, read only in diagnosePatches()'s console table and in a note of a row not in use, which no screen shows (an ok row)",
+        fallback: "what the table gets, in English for the console's warning and the report; a screen shows DRPG.Contract.instead.<key> (insteadOf, R1562)",
+        what: "SHEET_ANCHORS: what a selector finds, read by nobody but the source",
+        optional: "SHEET_ANCHORS: the road sheet.mjs takes without a place, written into a note of an ok row, which no screen shows",
+        changed: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        unnamed: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        backstop: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        notFound: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)",
+        noApi: "RELAY_FAILED: a failed relay row's note, console and report only (a screen shows the row's instead)"
+    })
+});
+
+/* The property whose own value holds the literal at `at` in blanked code, or null: read back to the "," ";" or the
+   opening bracket that starts the value at depth 0 (a grouping parenthesis read through), then `name:` (not `::`) at its
+   head. */
+function fieldOf(blank, at) {
+    let depth = 0, k = at - 1;
+    for (; k >= 0; k--) {
+        const c = blank[k];
+        if (c === ")" || c === "]" || c === "}") depth++;
+        else if (c === "(" || c === "[" || c === "{") {
+            if (depth > 0) { depth--; continue; }
+            // A grouping "(" (after an operator, a ":" or nothing) is part of the value; a call's, an array's or an object's is not.
+            if (c === "(" && !/[\w$)\]]\s*$/.test(blank.slice(Math.max(0, k - 40), k))) continue;
+            break;
+        }
+        else if ((c === "," || c === ";") && depth === 0) break;
+    }
+    return /^\s*([A-Za-z_$][\w$]*)\s*:(?!:)/.exec(blank.slice(k + 1, at))?.[1] ?? null;
 }
 
 /**
@@ -2157,12 +2422,18 @@ function callSpans(lx, blank, re) {
  * script that draws UI (UI_FILE) - a string or a template piece whose shown text
  * (shownOf) holds two or more English words (so never a key, which has no
  * space) - that is not a class list, a selector or CSS, nor only a URL, path or icon, and not console
- * text: an argument of a LOG_CALL, or anything in diagnostics.mjs (DB12: its console
- * report, counted apart). Counted apart, not findings: a refusal's reason
+ * text: an argument of a LOG_CALL, an argument in a place a function of the file reads
+ * only inside one (consoleOnlyArgs, `consoleArg`: module.mjs's `safely` labels, E57 rest),
+ * or anything in diagnostics.mjs (DB12: its console report, counted apart). Counted apart, not findings: a refusal's reason
  * (REASON_PROPERTY and the guards; the GM's record, the asker told a code), a
  * literal compared with `===`/`!==` or a `case` (a data value, an id), and a
  * literal after `game.i18n.has(` in the same expression (`fallback`: English that
- * stands in only when the key is missing). A template is read a piece at a time,
+ * stands in only when the key is missing; since E57 rest also after `??` behind a text call,
+ * `env.text?.(key) ?? "..."`). Since E57 rest, also not findings: a selector handed to
+ * querySelector, closest or matches, a tag's attributes in a template piece, CSS rules, a
+ * bridge table's `claims` note, and a declaration UI_LITERAL_ALLOW names, each row with its
+ * count and reason (a stale row is a finding, red in check.mjs `text` while T13 reports).
+ * A template is read a piece at a time,
  * the code of each `${...}` as code. A script that draws no UI is not read
  * (`quiet`): a literal there reaches a screen only through another file, which the
  * screen map (C10) follows and this does not.
@@ -2170,35 +2441,77 @@ function callSpans(lx, blank, re) {
 export function uiLiterals(bag = {}) {
     const lx = lexerOf(bag, "uiLiterals");
     const S = asMap(bag.scripts);
-    const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0 };
+    const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0, consoleArg: 0, claims: 0, allowed: 0 };
+    const allow = bag.uiAllow ?? UI_LITERAL_ALLOW, tally = new Map();
+    const fields = bag.uiFields ?? UI_LITERAL_FIELDS;
     const guardFile = S.get("scripts/bridge-guards.mjs");
     const guards = guardFile === undefined ? [] : [...lx.blankComments(String(guardFile)).matchAll(/^export function (\w+)\s*\(([^)]*)\)/gm)]
         .filter(m => /(?<![\w$])why(?![\w$])/.test(m[2])).map(m => m[1]);
-    const closedList = reasonPatternsOf(lx, guardFile);
+    const closedList = reasonPatternsOf(lx, guardFile), passageReasons = reasonTableOf(lx, S.get("scripts/passages-gm.mjs"));
     const REASON_CALL = new RegExp(`(?<![\\w$.])(?:${["refuse", ...guards].join("|")})\\s*\\(`, "g");
     for (const [file, text] of S) {
         const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
         if (!UI_FILE.test(blank)) { counts.quiet++; continue; }
         counts.files++;
-        const logs = callSpans(lx, blank, LOG_CALL), reasons = callSpans(lx, blank, REASON_CALL);
+        const errors = [...blank.matchAll(/\bclass\s+([\w$]+)\s+extends\s+[\w$.]*Error\b/g)].map(m => m[1]);
+        const fns = functionsOf(lx, blank);
+        const ownWhy = fns.filter(f => /(?<![\w$])why(?![\w$])/.test(f.params)).map(f => f.name);
+        const logs = [...callSpans(lx, blank, LOG_CALL), ...(errors.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$.])new\\s+(?:${errors.join("|")})\\s*\\(`, "g")) : [])];
+        const reasons = [...callSpans(lx, blank, REASON_CALL),
+            ...(ownWhy.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$])(?<![^.]\\.)(?:${[...new Set(ownWhy)].join("|")})\\s*\\(`, "g")) : [])];
+        const claims = callSpans(lx, blank, CLAIMS_OPEN);
+        const judges = fns.filter(f => REFUSAL_NAME.test(f.name) || (file === "scripts/bridge-guards.mjs" && GUARD_NAME.test(f.name)));
+        const aliases = fns.filter(f => f.expression && new RegExp(`^\\s*${LOG_CALL.source}`).test(blank.slice(...f.body))).map(f => f.name);
+        if (aliases.length) logs.push(...callSpans(lx, blank, new RegExp(`(?<![\\w$.])(?:${[...new Set(aliases)].join("|")})\\s*\\(`, "g")));
+        const quietArgs = consoleOnlyArgs(lx, blank, logs);
+        const decls = [...blank.matchAll(DECLARATION)].map(m => [m.index, m[1]]);
+        const selectorArgs = callSpans(lx, blank, SELECTOR_CALL).map(([a, b]) => [a, lx.callArgs(blank, a).args[0]?.end ?? b]);
         const inside = (spans, s) => spans.some(([a, b]) => s.start > a && s.end <= b);
+        /* A judge's answer: in an arrow's expression, or after a `return` in its block, inside no function of its own. */
+        const answered = s => judges.some(f => {
+            const [a, b] = f.body;
+            if (!(s.start > a && s.end <= b)) return false;
+            if (fns.some(g => g !== f && g.body[0] > a && g.body[1] <= b && s.start > g.body[0] && s.end <= g.body[1] && !judges.includes(g))) return false;
+            return f.expression || /\breturn\b[^;{}]*$/.test(blank.slice(a, s.start));
+        });
         const has = [...blank.matchAll(/\bgame\s*\??\.\s*i18n\s*\??\.\s*has\s*(?:\?\.\s*)?\(/g)].map(m => m.index);
-        for (const s of literalSpans(code, blank)) {
+        const spans = literalSpans(code, blank), heads = templateHeads(code, spans);
+        for (const s of spans) {
             if (s.kind === "regex") continue;
             const raw = literalText(code, s), shown = shownOf(raw);
             if (!twoWords(shown)) continue;
             counts.literals++;
             if (file === "scripts/diagnostics.mjs") { counts.diagnostics++; continue; }
             if (inside(logs, s)) { counts.log++; continue; }
+            if (inside(quietArgs, s)) { counts.consoleArg++; continue; }
+            const head = heads.get(s.start) ?? s.start;
             const before = blank.slice(Math.max(0, s.start - 40), s.start), after = blank.slice(s.end, s.end + 6);
-            if (REASON_PROPERTY.test(before) || inside(reasons, s) || closedList.some(p => p.test(raw))) { counts.reasons++; continue; }
+            const opening = blank.slice(Math.max(0, head - 400), head);
+            if (inside(claims, s)) { counts.claims++; continue; }
+            if (REASON_PROPERTY.test(opening) || inside(reasons, s) || answered(s) || closedList.some(p => p.test(raw)) || passageReasons.has(raw)) { counts.reasons++; continue; }
             if (/(?:[!=]==?|\bcase)\s*$/.test(before) || /^\s*[!=]==?/.test(after)) { counts.compared++; continue; }
-            if ((SELECTOR.test(shown) && /[-_.#[]/.test(shown)) || CSS_DECLARATIONS.test(shown) || !twoWords(shown.replace(NOT_WORDS, " "))) { counts.notText++; continue; }
-            if (has.some(h => h < s.start && s.start - h < 200 && !/[;{}]/.test(blank.slice(h, s.start)))) { counts.fallback++; continue; }
+            if (/\bSymbol\s*\(\s*$/.test(before) || fragmentOf(shown)) { counts.notText++; continue; }
+            if ((SELECTOR.test(shown) && SELECTOR_MARK.test(shown)) || CSS_DECLARATIONS.test(shown) || CSS_RULES.test(shown)
+                || (ATTRIBUTES.test(shown) && /[a-z]="/.test(shown)) || !twoWords(shown.replace(NOT_WORDS, " "))
+                || inside(selectorArgs, s)) { counts.notText++; continue; }
+            if (/(?<![\w$.])claims\s*:\s*\{[^{}]*$/.test(blank.slice(Math.max(0, s.start - 300), s.start))) { counts.claims++; continue; }
+            if (has.some(h => h < s.start && s.start - h < 200 && !/[;{}]/.test(blank.slice(h, s.start))) || textFallback(blank, s.start)) { counts.fallback++; continue; }
+            const field = Object.hasOwn(fields, file) ? fieldOf(blank, s.start) : null;
+            if (field && Object.hasOwn(fields[file], field)) { counts.allowed++; continue; }
+            const row = `${file} ${declarationAt(decls, s.start)}`;
+            if (Object.hasOwn(allow, row)) { counts.allowed++; tally.set(row, (tally.get(row) ?? 0) + 1); continue; }
             const line = lineOf(code, s.start), words = shown.replace(/\s+/g, " ").trim();
             found.push({ key: `${file}:${line}`, kind: s.kind, file, line,
                 what: `${file}:${line}: "${words.length > 60 ? `${words.slice(0, 57)}...` : words}" - English written into a screen's code, not read from lang/ (S18-46; T13)` });
         }
+    }
+    /* A row that no longer names what its declaration holds is a finding of its own: a literal added there, or one moved
+       out, is read again rather than let through (`n`). A row of a file not read (not a UI file, not in the bag) is not one. */
+    for (const [row, { n }] of Object.entries(allow)) {
+        const file = row.slice(0, row.indexOf(" "));
+        if (!S.has(file) || (tally.get(row) ?? 0) === n) continue;
+        found.push({ key: row, kind: "allow", file, line: 0,
+            what: `${row}: its allow row names ${n} literal(s), the declaration holds ${tally.get(row) ?? 0} - read them again (UI_LITERAL_ALLOW; T13)` });
     }
     return { found, read: counts.literals, sources: ["script"], counts };
 }
@@ -3392,8 +3705,16 @@ export const FIXTURES = Object.freeze({
     },
     uiLiterals: {
         flags: ["scripts/fx-text.mjs:1 string", "scripts/fx-ui.mjs:1 string", "scripts/fx-ui.mjs:2 template", "scripts/fx-ui.mjs:15 template",
-            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string"],
+            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string", "scripts/fx-ui.mjs:27 string",
+            "scripts/fx-ui.mjs:37 string", "scripts/fx-ui.mjs:51 string", "scripts/fx-ui.mjs:54 string",
+            "scripts/fx-register.mjs:1 string", "scripts/fx-register.mjs:3 string", "scripts/fx-allow.mjs fxTwo allow"],
+        counts: { allowed: 5 },
         input: {
+            uiAllow: {
+                "scripts/fx-allow.mjs fxReason": { n: 1, why: "the fixture's reason, read by no screen" },
+                "scripts/fx-allow.mjs fxTwo": { n: 2, why: "a row that names more literals than its declaration holds" }
+            },
+            uiFields: { "scripts/fx-register.mjs": { quiet: "a register's reason, read in the console alone" } },
             scripts: {
                 "scripts/fx-ui.mjs": [
                     "const d = new foundry.applications.api.DialogV2({ window: { title: \"Pick a student\" } });",     // flagged
@@ -3415,16 +3736,69 @@ export const FIXTURES = Object.freeze({
                     "const css = \"border: 1px solid var(--drpg-ink); font-weight: bold\";",                       // CSS: passes
                     "const msg = \"the floor is closed\";",                                                           // lower case, no hyphen - text: flagged
                     "const re = /two words here/;",                                                                   // a regex: passes
-                    "const why = \"that roll is too old to settle anything\";",                                       // the closed list takes it whole: passes
+                    "const said = \"that roll is too old to settle anything\";",                                      // the closed list takes it whole: passes
                     "const near = \"that roll is too old to settle anything else\";",                                  // the list takes it not whole: flagged
                     "warn(\"A warning only the console reads\");",                                                    // console text: passes
-                    "el.innerHTML = `<p>{{#if open}}{{name}} {{else}}{{who}}</p>`;"                                      // Handlebars only: passes
+                    "el.innerHTML = `<p>{{#if open}}{{name}} {{else}}{{who}}</p>`;",                                     // Handlebars only: passes
+                    "function safely(label, fn) { try { fn(); } catch (err) { error(`Could not register ${label}; the rest goes on.`, err); } }", // console text: passes
+                    "safely(\"the trial floor watch\", registerFloor);",                                                // a console-only parameter's argument: passes
+                    "function shout(label) { log(label); ui.notifications.info(label); }",                            // the parameter reaches a screen too
+                    "shout(\"the vote is open now\");",                                                               // so its argument is text: flagged
+                    "(ctx.warn ?? warn)(\"A wrapped logger says this\", x);",                                         // a logger chosen at the call: passes
+                    "(await import(\"./utils.mjs\")).error(\"The body could not follow its token\", err);",         // a logger imported at the call: passes
+                    "function f(a) { const wrong = a ? \"no roll window class\" : null; if (wrong) warn(`not wrapped (${wrong})`); }", // a name only the console reads: passes
+                    "root.querySelectorAll(\"input, textarea, select, footer button\");",                              // a selector by its call: passes
+                    "const GM = ['#a-b button[data-tab=\"x\"], #c .tabs button[data-tab=\"x\"]', \"y\"];",          // a selector list, commas glued: passes
+                    "el.innerHTML = `<button${off ? ` disabled title=\"${tip}\"` : \"\"}>`;",                         // a tag's attributes in a piece: passes
+                    "style.textContent = `${G} select option { background: var(--x); color: red; } ${G} select option:hover,`;", // CSS rules: passes
+                    "const t = env.text?.(\"DRPG.Fx.k\", {}) ?? \"The store could not open here\";",                // a fallback to a text call: counted apart
+                    "const rows = { a: { claims: { rollId: \"written on only by the sender's own row\" } } };",      // a bridge table's claim: passes
+                    "const v = shown ? \"Pick a student now\" : null; el.textContent = v;",                            // the name reaches a screen: flagged
+                    /* E57 T13 group 3 (14.11.2026): the shapes the detector misread on the scripts, each a plant that passes, and one
+                       control beside them that is still flagged. */
+                    "class NothingHere extends Error {}",
+                    "throw new NothingHere(`${who} holds it already`);",                                              // an Error subclass's message: passes
+                    "el.innerHTML = `<button ${act} disabled data-tooltip=\"${why}\">`;",                              // an attribute run: passes
+                    "el.style.setProperty(\"border\", `1px solid ${colour}`);",                                      // a CSS value: passes
+                    "const font = \"\\\"Special Elite\\\", \\\"Courier New\\\", monospace\";",                           // a font list: passes
+                    "const HELD = Symbol(\"held by the primary GM\");",                                              // a symbol's description: passes
+                    "const gone = { refused: `the item ${name} is not here` };",                                     // a reason's later piece: passes
+                    "const shut = { refused: open ? \"the door is shut\" : \"the door is gone\" };",                 // a reason's ternary: passes
+                    "let why = `a change to a ${kind}`;",                                                            // a reason assigned: passes
+                    "function doorRefusal(d) { if (!d) return \"there is no door here\"; return d.open ? \"the door is open now\" : null; }", // a refusal's answer: passes
+                    "const CUB = { full: { refuses: a => (a ? \"the cub is full now\" : null), say: \"DRPG.Fx.full\" } };",  // a refuses arrow: passes
+                    "const refuseAs = (sub, why) => ({ sub, why });",
+                    "const r = refuseAs(\"fx\", \"a change nobody asked for\");",                                   // a why-parameter's call: passes
+                    "function doorLabel(d) { return d.open ? \"the door is open now\" : null; }",                     // a label, no refusal: flagged
+                    "const spread = { ...refuseAs(\"fx\", \"a transfer nobody asked for\"), once: true };",          // a why-parameter's call, spread: passes
+                    "const said2 = \"that wall is a door.\";",                                                       // the passages' table takes it: passes
+                    "const near2 = \"that wall is a door, and shut.\";",                                             // the table takes it not: flagged
+                    "async function abilityRefusalOnGm(x) { return x ? \"the cub has no action left\" : null; }",      // a refusal's GM half: passes
+                    "function sendFx({ report = (text, err) => error(text, err) } = {}) { report(\"Could not send the fx packet\"); }", // a logger's alias: passes
+                    "why = !payer || payer.dead || payer.away || payer.gone || payer.elsewhere || payer.asleep || payer.hidden || payer.frozen || payer.lost || payer.missing ? \"the payer is gone now\" : payer.hope < cost || payer.spent || payer.locked ? \"the payer has not the Hope for it\" : null;", // a long chain: passes
+                    "const ROWS = { fx: { guards: [], claims: { roll: guardFx, ids: \"the run reads only the ids that are strings\" } } };" // a bridge row's claim: passes
+                ].join("\n"),
+                "scripts/passages-gm.mjs": [
+                    "const WALL_GONE = \"the wall it was cut from is gone.\";",
+                    "const whyTable = () => new Map([[\"that wall is a door.\", \"door\"], [WALL_GONE, \"wallGone\"]]);"
+                ].join("\n"),
+                "scripts/fx-allow.mjs": [
+                    "export function fxReason(a) { if (!a) return \"the sender is not here\"; return null; }",          // an allow row's one literal: allowed
+                    "export function fxTwo(a) { return a ? \"the packet is another world's\" : null; }",                // its row names 2, it holds 1: the row is flagged
+                    "el.textContent = name;"
+                ].join("\n"),
+                "scripts/fx-register.mjs": [
+                    "export const ROWS = [{ id: \"a-row\", target: \"the chat log's notify\",",                       // a field a screen reads: flagged
+                    "    quiet: \"Quiets the chat tab\" + (veiled ? \" for a veiled card\" : \" on every card\"),",  // the allowed field (uiFields), every piece: passes
+                    "    note: \"read in the console\" }];",                                                         // a field not allowed: flagged
+                    "ui.notifications.warn(game.i18n.localize(\"DRPG.Fx.notice\"));"
                 ].join("\n"),
                 "scripts/fx-text.mjs": "el.textContent = \"Nobody is here yet\";",                                     // textContent makes a UI file: flagged
                 "scripts/fx-data.mjs": "export const LINE = \"An English line no screen of this file draws\";",        // no UI in the file: not read
                 "scripts/diagnostics.mjs": "ui.notifications.info(\"The console report says so\");",                  // DB12's console: counted apart
                 "scripts/bridge-guards.mjs": [
                     "export function gmOnly(why) { return why; }",
+                    "export function guardFx(sender) { if (!sender) ui.notifications.warn(\"DRPG.Fx.k\"); return sender?.isGM ? null : \"the sender is nobody here\"; }", // a guard's answer: passes
                     "export const REASON_PATTERNS = Object.freeze([[\"tooOld\", /^that roll is too old to settle anything$/]]);"
                 ].join("\n")
             }

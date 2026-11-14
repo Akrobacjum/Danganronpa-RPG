@@ -77,6 +77,8 @@ export const PLACEHOLDERS = Object.freeze({
         "low", "objections", "objection", "rebuttal", "first", "second", "found", "back", "of", "a", "b", "hand", "force", "plant", "plantUnseen", "take", "picks",
         "session", "shown", "slider", "auto", "notices", "turn", "bodies", "actions", "traces", "placed", "living", "all", "s", "add", "refresh", "remove", "bar",
         "overflow", "rows", "set", "claimed", "expected", "legal", "projects", "plants", "x", "pools",
+        // E57 T13 group 3 (14.11.2026): the Remnants migration's toast, DRPG.Remnant.migrated - a count of tokens each.
+        "moved", "filled", "already",
         // E66 C4 (01.11.2026): the numbers config.mjs `PROSE_NUMBERS` and the builders put where a digit stood.
         "drain", "mult", "worth", "fewest",
         // E57 C12: "Alive: {alive}/{total}", the fog's diagnosis in pixels, a reserve's maximum, a lock's bands, a Bounty's Hope, a count.
