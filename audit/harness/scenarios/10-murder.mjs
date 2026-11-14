@@ -398,6 +398,114 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
         return { calls: heard.map(p => [p.writer, p.waitUntil]), same: heard.map(same), keys: [...new Set(heard.flatMap(p => Object.keys(p)))].sort() };`;
     const hearers = [gm, gm2, p1, p2, p3];
     for (const c of hearers) await c.eval(LISTEN);
+    /* THE FINDERS FIRST, THE GM'S WORD AFTER (1.2.113; the owner's decisions A and B of 13.11.2026). Daichi's body,
+       a death the GMs keep, lies in his room; Aiko (p1), Botan (p2) and Chie (p3) are stood in another room first. The
+       discovery sound is mapped and every player's Sound slider is 0.8; p1's and p2's module sockets are handed back
+       for this part, and every module packet each player receives is recorded, with `sfx.played` and the toasts.
+         F1 Aiko walks in alone: p1 hears the discovery sound once and is told privately; p2 and p3, elsewhere,
+            receive no packet, hear nothing and are told nothing; no discovery is pending or announced.
+         F2 Aiko walks out and back in: no second sound.
+         F3 Botan walks in, the second witness: p2 hears the sound and is told, p1 hears nothing again, p3 (Chie,
+            elsewhere) receives no packet; the discovery is pending on the GMs (gm and gm2 hold its row, gm's in its stored setting),
+            nobody is gathered and no card is posted; the primary GM was asked (the window answered "Not yet" by the
+            harness's default, Enter), gm2 was not asked; the sound's memory is in the GMs' stored setting.
+       Then the walk below ends on the GM's "Announce" (the prompt asked again, the answer queued), which runs the
+       announcement as before; the pending row is gone after it. Red at a43e865e: Botan's walk announced at once,
+       and no sound reached p1 or p2 on their own. */
+    const FIND_SETUP = `const ST = await import("${repoUrl}/scripts/settings.mjs"); const SFX = await import("${repoUrl}/scripts/sfx.mjs");
+        globalThis.__findVolumes = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxVolumes) ?? {});
+        await SFX.setSfxVolume("sound", 0.8);
+        globalThis.__findRec = []; globalThis.__findFn = p => globalThis.__findRec.push(p?.action ?? "?");`;
+    const findWasSfx = await gm.eval(`const ST = await import("${repoUrl}/scripts/settings.mjs"); const SFX = await import("${repoUrl}/scripts/sfx.mjs");
+        const was = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxMap) ?? {});
+        await SFX.setSoundFor("bodyFound", "sounds/s10-body-found.ogg"); return was;`, { timeout: 60000 });
+    for (const c of [p1, p2]) await c.eval(`${FIND_SETUP}
+        const list = game.socket._handlers.get("module.${MOD}") ?? []; list.push(...(globalThis.__mutedSocket ?? [])); globalThis.__mutedSocket = [];
+        game.socket.on("module.${MOD}", globalThis.__findFn); return true;`);
+    await p3.eval(`${FIND_SETUP} game.socket.on("module.${MOD}", globalThis.__findFn); return true;`);
+    await settle(600);
+    const FIND_READ = `const PC = await import("${repoUrl}/scripts/perf-counters.mjs");
+        return { played: PC.snapshot()["sfx.played"] ?? 0, packets: [...(globalThis.__findRec ?? [])], notes: globalThis.__notifications.map(n => n.msg) };`;
+    const findRead = async () => ({ p1: await p1.eval(FIND_READ), p2: await p2.eval(FIND_READ), p3: await p3.eval(FIND_READ) });
+    /* "fog.rows" is the fog's own send on every move: each player's cells of their own characters (fog.mjs `FOG_ROWS`),
+       received at a43e865e as here. Every other packet a player receives is counted. */
+    const findDelta = (after, before) => Object.fromEntries(["p1", "p2", "p3"].map(k => [k, {
+        played: after[k].played - before[k].played, packets: after[k].packets.slice(before[k].packets.length).filter(a => a !== "fog.rows"),
+        notes: after[k].notes.slice(before[k].notes.length) }]));
+    const FIND_GM = `const C = await import("${repoUrl}/scripts/chapter.mjs"); const M = await import("${repoUrl}/scripts/movement.mjs");
+        const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const floor = game.scenes.get("${tieSet.scene}"), PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const tok = id => floor.tokens.find(t => t.actorId === id);
+        const bodyRoom = M.roomOfActor(game.actors.get("${ids.daichi}")), away = R.roomNames(floor).find(r => r !== bodyRoom);
+        const walk = async (id, room) => { await tok(id).update(M.positionIn(room, tok(id)), PLACE); await new Promise(r => setTimeout(r, 700)); };
+        const state = () => ({ pending: (C.pendingBodyDiscoveries?.() ?? []).map(r => [r.room, r.victimId]), held: game.drpg.bodyDiscovery?.()?.room ?? null,
+            dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")) });`;
+    await gm.eval(`${FIND_GM} await floor.updateEmbeddedDocuments("Token", ["${ids.aiko}", "${ids.chie}"].map(id => ({ _id: tok(id).id, ...M.positionIn(away, tok(id)) })).concat([{ _id: tok("${ids.botan}").id, ...M.positionIn(away, tok("${ids.botan}")) }]), PLACE);
+        await new Promise(r => setTimeout(r, 900)); return true;`, { timeout: 60000 });
+    await settle(500);
+    const f1Before = await findRead();
+    const f1 = await gm.eval(`${FIND_GM} await walk("${ids.aiko}", bodyRoom); return { bodyRoom, away, ...state() };`, { timeout: 60000 });
+    await settle(900);
+    const f1After = await findRead();
+    const f1d = findDelta(f1After, f1Before);
+    const toldAlone = notes => notes.filter(n => n.includes("Daichi") && n.includes(f1.bodyRoom)).length;
+    check("F1: Aiko alone in the room of a body nobody found - p1 hears the discovery sound once and is told; p2 and p3 receive no packet, hear and are told nothing; nothing is pending",
+        Boolean(f1.away) && f1d.p1.played === 1 && toldAlone(f1d.p1.notes) === 1
+            && f1d.p2.packets.length === 0 && f1d.p2.played === 0 && f1d.p2.notes.length === 0
+            && f1d.p3.packets.length === 0 && f1d.p3.played === 0 && f1d.p3.notes.length === 0
+            && J10(f1.pending) === "[]" && f1.held === null && f1.dead === false,
+        J10({ f1, f1d }), { flow: "body-discovery" });
+    const f2Before = await findRead();
+    const f2 = await gm.eval(`${FIND_GM} await walk("${ids.aiko}", away); await walk("${ids.aiko}", bodyRoom); return state();`, { timeout: 60000 });
+    await settle(900);
+    const f2d = findDelta(await findRead(), f2Before);
+    check("F2: Aiko out and back in hears no second sound, and nothing is pending",
+        f2d.p1.played === 0 && f2d.p2.packets.length === 0 && J10(f2.pending) === "[]" && f2.held === null,
+        J10({ f2, f2d }), { flow: "body-discovery" });
+    const promptTitle = await gm.eval(`return game.i18n.localize("DRPG.Chapter.pendingTitle");`);
+    const dialogMarks = { gm: await gm.eval(`return globalThis.__dialogLog.length;`), gm2: await gm2.eval(`return globalThis.__dialogLog.length;`) };
+    const cardsBefore = await gm.eval(`return game.messages.size;`);
+    const f3Before = await findRead();
+    const f3 = await gm.eval(`${FIND_GM} await walk("${ids.botan}", bodyRoom); await new Promise(r => setTimeout(r, 600));
+        const raw = key => { try { return JSON.stringify(game.settings.get("${MOD}", key) ?? {}); } catch { return "{}"; } };
+        const stored = raw("gmPendingBodies"), heard = raw("gmBodiesHeard");
+        return { ...state(), aikoAt: M.roomOfActor(game.actors.get("${ids.aiko}")), stored: stored.includes(floor.id + ":" + bodyRoom),
+            heard: ["${ids.aiko}", "${ids.botan}", "${ids.chie}"].filter(id => heard.includes(id + ":${ids.daichi}")), cards: game.messages.size,
+            asked: globalThis.__dialogLog.slice(${dialogMarks.gm}).map(d => d.title) };`, { timeout: 60000 });
+    await settle(900);
+    const f3d = findDelta(await findRead(), f3Before);
+    const f3gm2 = await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        return { pending: (C.pendingBodyDiscoveries?.() ?? []).map(r => [r.room, r.victimId]), asked: globalThis.__dialogLog.slice(${dialogMarks.gm2}).map(d => d.title) };`);
+    check("F3: Botan, the second witness - p2 hears the sound and is told, p1 hears nothing again, p3 elsewhere receives no packet; the discovery is pending on both GMs and stored, nobody gathered and no card; the primary was asked once, gm2 not",
+        f3d.p2.played === 1 && toldAlone(f3d.p2.notes) === 1 && f3d.p1.played === 0
+            && f3d.p3.packets.length === 0 && f3d.p3.played === 0 && f3d.p3.notes.length === 0
+            && J10(f3.pending) === J10([[f1.bodyRoom, ids.daichi]]) && J10(f3gm2.pending) === J10(f3.pending) && f3.stored === true
+            && f3.held === null && f3.dead === false && f3.cards === cardsBefore && f3.aikoAt === f1.bodyRoom
+            && f3.asked.filter(t => t === promptTitle).length === 1 && !f3gm2.asked.includes(promptTitle),
+        J10({ f3, f3d, f3gm2, promptTitle, cardsBefore }), { flow: "body-discovery" });
+    check("F3: the sound's memory - Aiko's and Botan's of Daichi - is in the GMs' stored setting, so a reload keeps it",
+        J10(f3.heard) === J10([ids.aiko, ids.botan]),
+        J10(f3.heard), { flow: "body-discovery" });
+    /* F4: Chie, Daichi's killer, walks back in: she was there, so p3 hears no discovery sound and is told nothing, and the
+       waiting discovery is not asked again. Red with `inThatDeath`'s filter taken out of chapter.mjs `checkBodySound` (a
+       mutant, 13.11.2026: 43/44, F4 alone); at a43e865e it holds with nothing to measure, as no walk-in played any sound. */
+    const f4Before = await findRead();
+    const f4 = await gm.eval(`${FIND_GM} await walk("${ids.chie}", bodyRoom); await new Promise(r => setTimeout(r, 600));
+        return { ...state(), chieAt: M.roomOfActor(game.actors.get("${ids.chie}")), asked: globalThis.__dialogLog.slice(${dialogMarks.gm}).map(d => d.title) };`, { timeout: 60000 });
+    await settle(900);
+    const f4d = findDelta(await findRead(), f4Before);
+    check("F4: Chie, the body's killer, walks in - p3 hears no discovery sound and is told nothing; the discovery still waits, asked once",
+        f4.chieAt === f1.bodyRoom && f4d.p3.played === 0 && f4d.p3.notes.length === 0 && f4d.p1.played === 0 && f4d.p2.played === 0
+            && J10(f4.pending) === J10([[f1.bodyRoom, ids.daichi]]) && f4.asked.filter(t => t === promptTitle).length === 1,
+        J10({ f4, f4d }), { flow: "body-discovery" });
+    // Put back: the recorders off, p1's and p2's sockets aside again (the vote hands them back), the map and the volumes.
+    for (const c of [p1, p2, p3]) await c.eval(`const ST = await import("${repoUrl}/scripts/settings.mjs");
+        const list = game.socket._handlers.get("module.${MOD}") ?? []; const at = list.indexOf(globalThis.__findFn); if (at >= 0) list.splice(at, 1);
+        await ST.setSetting(ST.SETTINGS.sfxVolumes, globalThis.__findVolumes); delete globalThis.__findVolumes; delete globalThis.__findRec; delete globalThis.__findFn;
+        return true;`);
+    for (const c of [p1, p2]) await c.eval(`globalThis.__mutedSocket = (game.socket._handlers.get("module.${MOD}") ?? []).splice(0); return true;`);
+    await gm.eval(`const ST = await import("${repoUrl}/scripts/settings.mjs"); await ST.setSetting(ST.SETTINGS.sfxMap, ${J10(findWasSfx)}); return true;`, { timeout: 60000 });
+    await settle(400);
     const found = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const C = await import("${repoUrl}/scripts/chapter.mjs");
         const daichi = game.actors.get("${ids.daichi}"), botan = game.actors.get("${ids.botan}");
@@ -405,6 +513,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
         const PLACE = { teleport: true, movementAction: "displace", animate: false };
         const tok = a => floor.tokens.find(t => t.actorId === a.id);
         canvas.scene = game.scenes.get("SCENEANNEX000000");
+        const out0 = {};
         try {
             await C.killCharacter(botan, { secret: true, keepBullets: true });
             await tok(botan).update(M.positionIn(room, tok(botan)), PLACE);
@@ -412,19 +521,28 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
                 const t = floor.tokens.find(x => x.actorId === id);
                 return { _id: t.id, ...M.positionIn(room, t) };
             }), PLACE);
+            // The GM's word (1.2.113): the walk-ins leave the discovery pending, and "Announce" in the prompt runs it.
+            await new Promise(r => setTimeout(r, 900));
+            out0.pendingBefore = (C.pendingBodyDiscoveries?.() ?? []).map(r => [r.room, r.victimId]);
+            globalThis.__dialogAnswers.push("announce");
+            await C.askPendingBodies?.();
             const end = Date.now() + 8000;
             while (!game.drpg.bodyDiscovery?.() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
             await new Promise(r => setTimeout(r, 500));
         } finally {
             canvas.scene = floor;
         }
-        const out = { room, viewed: "annex", found: game.drpg.bodyDiscovery?.()?.room ?? null, flag: game.drpg.isDeceased(daichi), botan: game.drpg.isDeceased(botan) };
+        const out = { room, viewed: "annex", found: game.drpg.bodyDiscovery?.()?.room ?? null, flag: game.drpg.isDeceased(daichi), botan: game.drpg.isDeceased(botan),
+            ...out0, pendingAfter: (C.pendingBodyDiscoveries?.() ?? []).map(r => [r.room, r.victimId]) };
         await C.reviveCharacter(botan, { quiet: true });
         return out;`, { timeout: 60000 });
     await settle(500);
     const deadOnP1After = await p1.eval(`return game.drpg.isDeceased(game.actors.get("${ids.daichi}"));`);
     check("p1: the body's discovery makes the death the table's, on p1's client too - both bodies in the room, on the body's scene while the GM looks at another",
         found.found === found.room && found.flag === true && found.botan === true && deadOnP1After === true, JSON.stringify({ found, deadOnP1After }));
+    check("gm: the discovery waited on the GM's word - pending until \"Announce\" in the primary's prompt, which announced it and took the pending row",
+        J10(found.pendingBefore) === J10([[found.room, ids.daichi]]) && J10(found.pendingAfter) === "[]" && found.found === found.room,
+        J10(found), { flow: "body-discovery" });
     const heardOn = {};
     for (const c of hearers) heardOn[c.who] = await c.eval(HEARD);
     const PAYLOAD = ["at", "by", "chapter", "epoch", "room", "sceneId", "victimIds", "waitUntil", "writer"];

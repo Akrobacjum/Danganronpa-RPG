@@ -479,6 +479,29 @@ function drawnAdvanceButton(student, { lit = false } = {}) {
 }
 
 /**
+ * THE DISCOVERY'S PROMPT, ANSWERED (1.2.113; the owner's decision A of 13.11.2026). Two witnesses leave a discovery waiting
+ * for the GM's word (chapter.mjs `askPendingBodies`): a walk-in test's stand-in `wait` answers its window "announce", as the
+ * GM's press would, and every other window nothing (`announceTheBody`). `bodyRowsNow` and `bodyRowsBack` drop again the rows
+ * a walk wrote in the GMs' discoveries waiting and bodies heard (gm-stores.mjs `pendingBodyStore`, `bodyHeardStore`).
+ */
+function announceTheBody(cfg) {
+    return cfg?.window?.title === game.i18n.localize("DRPG.Chapter.pendingTitle") ? "announce" : null;
+}
+
+async function bodyRowsNow() {
+    const S = await import("./gm-stores.mjs");
+    return [S.pendingBodyStore, S.bodyHeardStore].map(store => new Set(Object.keys(store.entries() ?? {})));
+}
+
+async function bodyRowsBack(before) {
+    const S = await import("./gm-stores.mjs");
+    for (const [i, store] of [S.pendingBodyStore, S.bodyHeardStore].entries()) {
+        const added = Object.keys(store.entries() ?? {}).filter(key => !before[i].has(key));
+        if (added.length) await store.dropMany(added);
+    }
+}
+
+/**
  * Every window `run` opens through DialogV2.wait answered by `answer(seen)` (E10 C6): `seen` is
  * `{ kind, choices }` - "advance" for a Level Up picker, "menu" for `chooseVariant`'s (action-rolls.mjs)
  * with the values of its rows. Answers the windows seen, in order; Foundry's own `wait` is put back.
@@ -54881,6 +54904,24 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, id) => !projects.secretsOf(id).condition,
                 back: id => stableJson([projects.secretsOf(id).killerId, projects.secretsOf(id).condition]) === stableJson([holder.id, "SUITE backed-up condition"])
             },
+            // A discovery waiting for the GM's word and a body heard (1.2.113): rows of another season, so no prompt and no walk reads them.
+            pendingBodies: {
+                seed: async () => {
+                    await S.pendingBodyStore.patch("SUITE113:SUITE room", { room: "SUITE room", sceneId: "SUITE113", victimId: victim.id,
+                        deathId: null, witnessIds: [holder.id], chapter: 99, epoch: -1, at: 1 });
+                    return "SUITE113:SUITE room";
+                },
+                gone: (report, id) => !S.pendingBodyStore.has(id),
+                back: id => S.pendingBodyStore.get(id)?.room === "SUITE room" && S.pendingBodyStore.get(id)?.chapter === 99
+            },
+            bodiesHeard: {
+                seed: async () => {
+                    await S.bodyHeardStore.patch(`${holder.id}:SUITE113BODY0000`, { deathId: "SUITE113DEATH000", at: 1 });
+                    return `${holder.id}:SUITE113BODY0000`;
+                },
+                gone: (report, id) => !S.bodyHeardStore.has(id),
+                back: id => S.bodyHeardStore.get(id)?.deathId === "SUITE113DEATH000"
+            },
             // A room action's timed effect, through its store (Q-E93-3, 12.11.2026): a crossing for a day no clock here is on.
             timedEffects: {
                 seed: async () => {
@@ -63104,9 +63145,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const D = foundry.applications.api.DialogV2;
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
         const read = [];
+        const bodyRows = await bodyRowsNow();
         try {
             D.confirm = async () => false;
-            D.wait = async () => null;
+            // Two witnesses wait for the GM's word since 1.2.113: the prompt is answered "announce".
+            D.wait = async cfg => announceTheBody(cfg);
             await setClock({ phase: "dailyLife" });
             await tokens[0].update(positionIn(room, tokens[0]), PLACE);
             await settle();
@@ -63152,6 +63195,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await settle();
+            await bodyRowsBack(bodyRows);
         }
     }],
 
@@ -63431,9 +63475,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const D = foundry.applications.api.DialogV2;
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
         let read = null;
+        const bodyRows = await bodyRowsNow();
         try {
             D.confirm = async () => false;
-            D.wait = async () => null;
+            // Two witnesses wait for the GM's word since 1.2.113: the prompt is answered "announce".
+            D.wait = async cfg => announceTheBody(cfg);
             await setClock({ phase: "dailyLife" });
             for (const t of tokens.slice(0, 2)) {
                 await t.update(positionIn(room, t), PLACE);
@@ -63481,6 +63527,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await settle();
+            await bodyRowsBack(bodyRows);
         }
         equal(stableJson(read), stableJson([[0, 1], [body.id], [room, room], 0]),
             `an earlier chapter's dead counted as a witness or was found again, or the walk did not stand the two in ${room}, or a walk back in `

@@ -50,7 +50,9 @@ import { columnsHtml } from "./ui-columns.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState, everyPart } from "./season-reset.mjs";
-import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
+import { caseMark, deathStore, deferredOfferStore, lootTraceStore, pendingBodyStore, bodyHeardStore } from "./gm-stores.mjs";
+// The engine (config.mjs alone): the moment this browser's GM stores open, for the prompt of a discovery waiting (1.2.113).
+import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
 import { leaveBody, removeBodyTiles, bodyPlaceOf } from "./body-tile.mjs";
@@ -1135,6 +1137,12 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
         .then(m => m.destroyCleaningTools(found))
         .catch(err => error("Could not destroy the cleaning tools at body discovery", err));
 
+    /* THE WAIT IS OVER FOR THIS ROOM (1.2.113): its pending row goes, whichever road announced it, and every student the
+       gather moves has heard these bodies in the announcement's own sound (`heardByEveryone`). */
+    const waiting = pendingKeyOf(where, room);
+    if (pendingBodyStore.has(waiting)) await pendingBodyStore.drop(waiting);
+    await heardByEveryone(found).catch(err => error("Could not note the bodies the announcement's sound covers", err));
+
     const { gatherEveryone } = await import("./call-effects.mjs");
     const moved = await gatherEveryone(room, where);
 
@@ -1550,7 +1558,11 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
 // Queued with the GM's own announcement - see `enqueueBodyWork`.
 export function maybeBodyFound(tokenDoc) {
     if (!game.user.isGM) return Promise.resolve(null);
-    return enqueueBodyWork(() => checkBodyFound(tokenDoc));
+    return enqueueBodyWork(async () => {
+        // The walker's own sound first (1.2.113, the owner's decision B), whatever the discovery below decides.
+        await checkBodySound(tokenDoc).catch(err => error("Could not play the discovery sound for a walk", err));
+        return checkBodyFound(tokenDoc);
+    });
 }
 
 async function checkBodyFound(tokenDoc) {
@@ -1623,6 +1635,14 @@ async function checkBodyFound(tokenDoc) {
     // Storage by her player's console, as the second witness until 1.2.74.
     const witnesses = witnessesOf({ tokens: scene.tokens, room, bodies, students, held: flagsHeldNow, roomOf: lawfulRoomOf });
 
+    /* EVERY FINDER IS TOLD AT ONCE (1.2.113; the owner's decision B of 13.11.2026). The lone finder's notice below went to
+       one witness alone; at the count of two the discovery was announced instead, so nobody needed it. The announcement
+       waits on the GM's word now, so every witness standing here is told privately, as a lone one is, before the GM is
+       asked - each player once a body (`tellLoneFinder`), in a sentence that says they are not alone when they are not. */
+    if (witnesses.length > 1) {
+        for (const w of witnesses) await tellLoneFinder(w.actor, scene, room, { company: true });
+    }
+
     /* ONE, ALONE, AND NOT IN IT (E05 C10; the owner's Q1, 26.09.2026). A student who walks in
        on a body nobody has found with nobody else there sees it - told privately by the GMs,
        their copy naming it, the dead marker drawn on their screen alone - and nothing is
@@ -1643,10 +1663,229 @@ async function checkBodyFound(tokenDoc) {
     if (witnesses.length < 2) return null;
     if (!witnesses.some(w => !involved.has(w.actor.id))) return null;
 
-    log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
-    // Already inside the queue: straight to the work, not back through `discoverBody`,
-    // which would wait behind this very call.
-    return await runDiscovery({ room, victim: bodyHere, scene, by: "witnesses" });
+    log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in; the GM is asked before it is announced.`);
+    /* THE GM'S WORD BEFORE THE ANNOUNCEMENT (1.2.113; the owner's decision A of 13.11.2026: "When the body has been seen
+       by the required number of students, the module should ask the GM before it moves the players to the body, plays
+       the sound, etc."). Until then this ran the announcement here, inside the queue. The count is reached: the room's
+       discovery is written as waiting (`pendingBodyStore`, a row per room, kept over a reload) and the primary GM asked,
+       not awaited, so the queue lets the next walk through while the window is open; "Announce" runs the announcement as
+       before (`discoverBody`), "Not yet" leaves the row for the GM's discovery window. A room already waiting is not
+       asked again by a walk. */
+    /* A row of this room still waiting is not written again; one left from another chapter or season, or whose body is no
+       body to find any more (revived, announced elsewhere), is written over. */
+    const key = pendingKeyOf(scene, room), standing = pendingBodyStore.get(key);
+    if (standing && bodies.has(standing.victimId) && (standing.chapter ?? clock.chapter) === clock.chapter
+        && (standing.epoch ?? epoch) === epoch) return null;
+    await pendingBodyStore.patch(key, { room, sceneId: scene?.id ?? null, victimId: bodyHere.id,
+        deathId: deathRecordFor(flagsHeldNow(bodyHere))?.deathId ?? null, witnessIds: witnesses.map(w => w.actor.id),
+        chapter: clock.chapter ?? null, epoch, at: serverNow() });
+    void askPendingBodies();
+    return null;
+}
+
+/* ==========================================================================
+ * THE DISCOVERY WAITING FOR THE GM'S WORD, AND THE FINDER'S OWN SOUND (1.2.113)
+ * ========================================================================== */
+
+/** A waiting discovery's key in `pendingBodyStore`: the room's scene and name. */
+function pendingKeyOf(scene, room) {
+    return `${scene?.id ?? "?"}:${room}`;
+}
+
+/**
+ * THE DISCOVERIES WAITING FOR THE GM'S WORD, GM side: the rows of `pendingBodyStore` of this chapter and season whose body
+ * is still one to discover (`bodiesToDiscover`), oldest first, each `{ key, room, sceneId, victimId, witnessIds, at }`. A
+ * row whose body was announced meanwhile, revived, or another chapter's is not one; the primary drops those when it asks
+ * (`askPendingBodies`). Read by the prompt and by the GM's discovery window.
+ */
+export function pendingBodyDiscoveries({ clock = getClock(), epoch = seasonEpoch(), held = actor => actor } = {}) {
+    if (!game.user?.isGM) return [];
+    const rows = Object.entries(pendingBodyStore.entries() ?? {});
+    const bodies = new Set(bodiesToDiscover({ actors: studentActors(), clock, epoch, announced: announcedIn(clock.chapter, epoch), held }));
+    return rows.filter(([, row]) => row && (row.chapter ?? clock.chapter) === clock.chapter && (row.epoch ?? epoch) === epoch
+        && bodies.has(row.victimId))
+        .map(([key, row]) => ({ key, room: row.room, sceneId: row.sceneId ?? null, victimId: row.victimId,
+            witnessIds: Array.isArray(row.witnessIds) ? row.witnessIds : [], at: Number(row.at) || 0 }))
+        .sort((a, b) => a.at - b.at);
+}
+
+/**
+ * WHO MAY ANSWER THE PROMPT (1.2.113; the coordinator's brief: "Any full Gamemaster may answer ... An Assistant GM cannot
+ * answer"). A full Gamemaster, and the primary - the one browser that announces a body (`discoveryHere`, E11 fix r1-G2),
+ * which is a full Gamemaster whenever one is connected (utils.mjs `primaryGmId`). So the prompt waits while only an
+ * Assistant GM is here, and opens on the full Gamemaster who becomes the primary. Pure but for the user list it is handed.
+ */
+export function answersBodyPrompt(user, { primaryId = primaryGmId() } = {}) {
+    return Boolean(user?.isGM) && user.role === CONST.USER_ROLES.GAMEMASTER && user.id === primaryId;
+}
+
+let askingPending = null;
+
+/**
+ * THE PROMPT (1.2.113; the owner's decision A). On the primary GM, when it is a full Gamemaster (`answersBodyPrompt`): each
+ * discovery waiting (`pendingBodyDiscoveries`) asked in turn - "Announce" runs the announcement (`discoverBody`: the gather,
+ * the card, the sound, the stamp), "Not yet" (the window's default, so Enter does not announce: a body announced is not
+ * taken back, E22 rule 4) leaves it waiting, for the GM's discovery window or the next time this is asked. Asked when a
+ * walk reaches the count, when this browser's GM stores open (a reload, a GM connecting) and when a GM leaves and this
+ * browser becomes the primary. One prompt at a time on a browser: a call while one is open answers that one's promise.
+ * Rows that are no discovery any more are dropped first. Answers how many were announced.
+ */
+export function askPendingBodies({ leaving = null } = {}) {
+    if (!game.user?.isGM || !answersBodyPrompt(game.user, { primaryId: primaryGmId({ leaving }) })) return Promise.resolve(0);
+    askingPending ??= promptPendingBodies().catch(err => {
+        error("Could not ask the GM about a body found", err);
+        return 0;
+    }).finally(() => { askingPending = null; });
+    return askingPending;
+}
+
+async function promptPendingBodies() {
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const rows = pendingBodyDiscoveries({ held: flagsHeldNow });
+    const live = new Set(rows.map(r => r.key));
+    const stale = Object.keys(pendingBodyStore.entries() ?? {}).filter(key => !live.has(key));
+    if (stale.length) await pendingBodyStore.dropMany(stale);
+    let announced = 0;
+    for (const row of rows) {
+        if (!pendingBodyStore.has(row.key) || !isPrimaryGm()) continue;
+        const body = game.actors.get(row.victimId);
+        const names = listOf(row.witnessIds.map(id => game.actors.get(id)?.name).filter(Boolean));
+        const answer = await drpgWindow({
+            title: game.i18n.localize("DRPG.Chapter.pendingTitle"),
+            classes: ["drpg-panel"],
+            body: `<p>${game.i18n.format("DRPG.Chapter.pendingBody", { names: esc(names), name: esc(body?.name ?? "?"), room: esc(row.room) })}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Chapter.pendingNote")}</p>`,
+            footer: {
+                destructive: [{ action: "announce", label: game.i18n.localize("DRPG.Chapter.pendingAnnounce") }],
+                close: { action: "close", label: game.i18n.localize("DRPG.Chapter.pendingNotYet") },
+                default: "close"
+            },
+            rejectClose: false
+        });
+        if (answer !== "announce" || !pendingBodyStore.has(row.key)) continue;
+        const scene = game.scenes.get(row.sceneId ?? "") ?? null;
+        const done = await discoverBody({ room: row.room, victim: body ?? null, scene, by: "witnesses" });
+        if (done) announced++;
+    }
+    return announced;
+}
+
+/**
+ * At init (module.mjs): the prompt asked when this browser's GM stores open - a reload, a GM connecting, who asks on their
+ * own browser when they are the primary - and when a GM leaves, so a full Gamemaster who becomes the primary asks
+ * (`askPendingBodies`). Not while the suite holds the stores: a hydration then is the suite's.
+ */
+export function registerPendingBodies() {
+    onGmStoresHydrated(() => {
+        if (!gmStoresQuiet()) void askPendingBodies();
+    });
+    Hooks.on("userConnected", (user, connected) => {
+        if (!connected && user?.isGM && game.user?.isGM && user.id !== game.user.id) void askPendingBodies({ leaving: user.id });
+    });
+}
+
+/**
+ * THE BODIES LYING IN A ROOM, GM side (1.2.113): of `cast` but `except`, the students dead for the GMs and not Monocubs
+ * whose body lies on `scene` in `room`, not hidden (body-tile.mjs `bodyPlaceOf`: its tile, else its token), each
+ * `{ actor, deathId }`. Every death, public or kept, of any chapter: a body on the map is a body. `held` is the caller's
+ * `flagsHeldNow`.
+ */
+export function bodiesLyingIn({ cast = studentActors(), except = null, scene = null, room = null, held = actor => actor,
+    pending = id => pendingDeath({ id }) } = {}) {
+    if (!scene || !room) return [];
+    return cast.filter(actor => {
+        if (!actor?.id || actor.id === except) return false;
+        const view = held(actor);
+        if (!view || !deadIn(view, pending) || view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
+        const place = bodyPlaceOf(actor, { held });
+        return Boolean(place) && !place.hidden && place.scene?.id === scene.id && place.room === room;
+    }).map(actor => ({ actor, deathId: deathRecordFor(held(actor))?.deathId ?? null }));
+}
+
+/**
+ * Who was in `bodyId`'s death, GM side (1.2.113): the running incident's killers and its third when that body is its
+ * victim, and every Blackened whose register row names it. They were there; walking back to it is no finding.
+ */
+function inThatDeath(bodyId, { state, register }) {
+    const ids = new Set();
+    if (state?.victimId === bodyId) for (const id of [state.killerId, state.thirdId]) if (id) ids.add(id);
+    for (const [killerId, row] of Object.entries(register ?? {})) {
+        if (Array.isArray(row?.victims) && row.victims.includes(bodyId)) ids.add(killerId);
+    }
+    return ids;
+}
+
+/* The room each token was last read in by the sound's check, on this browser (1.2.113): a step inside a room enters none.
+   Lost at a reload, when the first move a token makes counts as an entry - the memory of the bodies heard keeps that from
+   playing anything twice. */
+const lastRoomOf = new Map();
+
+/** Whether `actorId` heard the discovery sound for this death of `bodyId` (`bodyHeardStore`). */
+function heardBody(actorId, bodyId, deathId) {
+    const row = bodyHeardStore.get(`${actorId}:${bodyId}`);
+    return Boolean(row) && (row.deathId ?? null) === (deathId ?? null);
+}
+
+/**
+ * THE FINDER'S OWN SOUND (1.2.113; the owner's decision B of 13.11.2026: "The finders get the discovery sound right away,
+ * before the GM's confirmation. In general they get the sound even when they are alone in the room, i.e. independently of
+ * the body discovery announcement. It is enough that they enter a room with a body."). On the primary, for the token that
+ * moved: a student's character, alive for the GMs, not hidden, entering - a step inside the room it stood in is none
+ * (`lastRoomOf`) - a room it stands in lawfully (movement.mjs `lawfulRoomOf`, as a witness is counted) where a body lies
+ * (`bodiesLyingIn`) it has not heard and was not in the death of (`inThatDeath`: its killers and third) - its players hear the discovery
+ * sound on their own browsers alone (sfx-play.mjs `playSfxForUsers`, an addressed packet that names the sound and nothing
+ * else), once per body and death (`bodyHeardStore`, kept over a reload). Not in an Eclipse, as no body is found in one.
+ * Nothing is sent, and nothing is kept, while none of its players is connected: they hear it at their next walk in.
+ * Answers how many bodies were heard.
+ */
+async function checkBodySound(tokenDoc) {
+    if (!isPrimaryGm()) return 0;
+    const actor = tokenDoc?.actor, scene = tokenDoc?.parent;
+    if (!actor?.id || actor.type !== "character" || tokenDoc.hidden || !scene) return 0;
+    const { isEclipse } = await import("./eclipse.mjs");
+    const { lawfulRoomOf } = await import("./movement.mjs");
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    if (isEclipse()) return 0;
+    const cast = studentActors();
+    if (!cast.some(a => a.id === actor.id)) return 0;
+    const view = flagsHeldNow(actor);
+    if (!view || deadIn(view, id => pendingDeath({ id }))) return 0;
+    const room = lawfulRoomOf(tokenDoc), was = lastRoomOf.get(tokenDoc.id);
+    lastRoomOf.set(tokenDoc.id, room ?? null);
+    if (!room || was === room) return 0;
+    const { murderState } = await import("./murder.mjs");
+    const { blackenedStore } = await import("./gm-stores.mjs");
+    const known = { state: murderState(), register: blackenedStore.entries() };
+    const fresh = bodiesLyingIn({ cast, except: actor.id, scene, room, held: flagsHeldNow })
+        .filter(({ actor: body, deathId }) => !heardBody(actor.id, body.id, deathId) && !inThatDeath(body.id, known).has(actor.id));
+    if (!fresh.length) return 0;
+    const users = ownerIdsOf(actor).filter(id => game.users.get(id)?.active);
+    if (!users.length) return 0;
+    const at = serverNow();
+    for (const { actor: body, deathId } of fresh) await bodyHeardStore.patch(`${actor.id}:${body.id}`, { deathId, at });
+    const { playSfxForUsers } = await import("./sfx.mjs");
+    playSfxForUsers(users, "bodyFound");
+    return fresh.length;
+}
+
+/**
+ * THE ANNOUNCEMENT'S SOUND STANDS FOR EVERY STUDENT IT GATHERS (1.2.113). The discovery moves the cast into the room and
+ * plays its own sound on every screen; each move of the gather is a walk in, and without this every gathered player would
+ * hear the discovery sound a second time, from `checkBodySound`. Written before the gather, for every student and every
+ * body the discovery found.
+ */
+async function heardByEveryone(bodyIds) {
+    if (!bodyIds.length) return;
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const at = serverNow();
+    for (const bodyId of bodyIds) {
+        const body = game.actors.get(bodyId);
+        const deathId = body ? deathRecordFor(flagsHeldNow(body))?.deathId ?? null : null;
+        for (const student of studentActors()) {
+            if (student.id === bodyId || heardBody(student.id, bodyId, deathId)) continue;
+            await bodyHeardStore.patch(`${student.id}:${bodyId}`, { deathId, at });
+        }
+    }
 }
 
 /**
@@ -1655,7 +1894,7 @@ async function checkBodyFound(tokenDoc) {
  * addressed packet - no chat message, which every console would receive. Once per body: a
  * player who already knows is told nothing again. Answers how many bodies they learnt of.
  */
-async function tellLoneFinder(finder, scene, room) {
+async function tellLoneFinder(finder, scene, room, { company = false } = {}) {
     // Every player who owns the finder (E91 C6, D078): a co-owner shares its sheet and its screen's marks.
     const users = ownerIdsOf(finder).map(id => game.users.get(id)).filter(Boolean);
     if (!users.length) return 0;
@@ -1673,7 +1912,7 @@ async function tellLoneFinder(finder, scene, room) {
     }
     if (!found.length) return 0;
     tellDeaths([...new Set(found.flatMap(([, fresh]) => fresh.map(u => u.id)))]);
-    for (const [t, fresh] of found) for (const user of fresh) tellFinder(user.id, t, room);
+    for (const [t, fresh] of found) for (const user of fresh) tellFinder(user.id, t, room, { company });
     log(`${finder.name} found ${found.map(([t]) => t.name).join(", ")} alone in ${room}; their player(s) were told privately.`);
     return found.length;
 }
@@ -1726,7 +1965,14 @@ export async function openBodyDiscoveryDialog() {
     const incident = murderState();
     const { locateActor } = await import("./movement.mjs");
     const atIncident = incident?.active ? locateActor(game.actors.get(incident.victimId ?? "")) : null;
-    const known = atIncident?.room ? { room: atIncident.room, sceneId: atIncident.scene?.id ?? null } : null;
+    /* A DISCOVERY WAITING FOR THE GM'S WORD (1.2.113; `pendingBodyDiscoveries`) is named in the note and, with no incident
+       standing, chosen: its room and its body, so "Not yet" in the prompt leads here with one press to announce it. */
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const waiting = pendingBodyDiscoveries({ held: flagsHeldNow });
+    const first = !atIncident?.room ? waiting[0] ?? null : null;
+    const known = atIncident?.room ? { room: atIncident.room, sceneId: atIncident.scene?.id ?? null }
+        : first ? { room: first.room, sceneId: first.sceneId } : null;
+    const chosenVictim = incident?.active ? incident.victimId : first?.victimId ?? null;
     const roomOption = (scene, r) => `<option value="${foundry.utils.escapeHTML(r)}" data-scene="${scene.id}"${
         known && known.room === r && (!known.sceneId || known.sceneId === scene.id) ? " selected" : ""}>${
         foundry.utils.escapeHTML(r)}</option>`;
@@ -1739,11 +1985,10 @@ export async function openBodyDiscoveryDialog() {
     // by the time anybody trips over them. One this chapter has announced says so (E11 fix
     // r1-G2): `runDiscovery` refuses it a second time.
     const dead = studentActors().filter(isDeadForGm);
-    const { flagsHeldNow } = await import("./sheet-audit.mjs");
     const victims = dead.map(a => {
         const name = foundry.utils.escapeHTML(a.name);
         const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format("DRPG.Chapter.victimAnnounced", { name }) : name;
-        return `<option value="${a.id}"${incident?.active && a.id === incident.victimId ? " selected" : ""}>${label}</option>`;
+        return `<option value="${a.id}"${chosenVictim && a.id === chosenVictim ? " selected" : ""}>${label}</option>`;
     }).join("");
     /* THE NOTE SAYS WHAT THIS PRESS DOES NOW (E11 C4, 1.2.73; audit S13-27). One note said "the
        phase stays Daily Life ... until you start the Investigation" in every phase - from the
@@ -1752,6 +1997,9 @@ export async function openBodyDiscoveryDialog() {
        (`runDiscovery` writes no phase). The traces' sentence only when this chapter has some. */
     const notes = [game.i18n.localize(getClock().phase === "dailyLife" ? "DRPG.Chapter.bodyNote" : "DRPG.Chapter.bodyNoteLater")];
     if (faintPrepCandidates().length) notes.push(game.i18n.localize("DRPG.Chapter.bodyNoteTraces"));
+    if (waiting.length) notes.push(game.i18n.format("DRPG.Chapter.pendingWaiting", { list: esc(listOf(waiting.map(row =>
+        game.i18n.format("DRPG.Chapter.pendingRow", { name: game.actors.get(row.victimId)?.name ?? "?", room: row.room,
+            names: listOf(row.witnessIds.map(id => game.actors.get(id)?.name).filter(Boolean)) })))) }));
 
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Chapter.bodyTitle"),

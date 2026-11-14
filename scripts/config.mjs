@@ -5293,7 +5293,7 @@ export const SFX_EVENTS = {
     },
     bodyFound: {
         label: "A body is found",
-        hint: "Heard by the whole table. The moment the chapter changes genre.",
+        hint: "Heard by the whole table when the GM announces the discovery: the moment the chapter changes genre. Also heard by a student's player alone, once a body, when their character walks into a room where a body lies.",
         category: "incident"
     },
     cleanupFailed: {

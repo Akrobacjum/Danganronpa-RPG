@@ -509,6 +509,18 @@ export const SETTINGS = {
     /** THE WATCHES KEPT (E74 C6, 12.11.2026): a GM store (gm-stores.mjs `watchStore`), a row per watcher. Synced, not backed up. */
     gmWatches: "gmWatches",
     /**
+     * THE DISCOVERIES WAITING FOR THE GM'S WORD (1.2.113; the owner's decision A of 13.11.2026): a GM store (gm-stores.mjs
+     * `pendingBodyStore`), a row per room where the witnesses reached the count `{ room, sceneId, victimId, deathId,
+     * witnessIds, chapter, epoch, at }`. Synced and backed up; no player copy.
+     */
+    gmPendingBodies: "gmPendingBodies",
+    /**
+     * THE BODIES EACH CHARACTER HAS HEARD (1.2.113; the owner's decision B of 13.11.2026): a GM store (gm-stores.mjs
+     * `bodyHeardStore`), a row per character and body `<actorId>:<bodyId>` `{ deathId, at }`, so the discovery sound plays
+     * once per body and death. Synced and backed up; no player copy.
+     */
+    gmBodiesHeard: "gmBodiesHeard",
+    /**
      * THE PICK'S PASSES (E74, 12.11.2026; DA9 as the plan has it): a GM store (gm-stores.mjs `lockpickStore`), a row per
      * picker `{ actorId, sceneId, room, mark, entered, at }`, and each owner's copy of their own characters' passes
      * (`mineLockpicks`, gm-stores.mjs `lockpickCopy`), which their move veto reads. Synced and backed up.
@@ -2277,6 +2289,20 @@ export function registerSettings() {
     });
     // The watches kept (E74 C6): no `onChange` - read by the primary at an Eclipse and a crossing (watch-gm.mjs).
     game.settings.register(MODULE_ID, SETTINGS.gmWatches, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The discoveries waiting for the GM's word and the bodies each character has heard (1.2.113): no `onChange` - read by
+    // the primary at a walk, at its stores' opening and when a GM leaves (chapter.mjs `askPendingBodies`, `checkBodySound`).
+    game.settings.register(MODULE_ID, SETTINGS.gmPendingBodies, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmBodiesHeard, {
         scope: "client",
         config: false,
         type: Object,

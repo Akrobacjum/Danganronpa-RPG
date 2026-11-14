@@ -24,7 +24,7 @@ import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerBodyMarks, registerBodyFollow } from "./body-tile.mjs";
-import { registerBodyAnnounced } from "./chapter.mjs";
+import { registerBodyAnnounced, registerPendingBodies } from "./chapter.mjs";
 import { registerTails } from "./tail-gm.mjs";
 import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
@@ -249,6 +249,7 @@ Hooks.once("init", () => {
     safely("the body with its corpse", registerBodyFollow);
     // The body's announcement, `drpgBodyAnnounced`, on every browser the stamp reaches (E95 C4; chapter.mjs).
     safely("the body's announcement", registerBodyAnnounced);
+    safely("the discoveries waiting for the GM's word", registerPendingBodies);
     // Tail Someone's cards and ends (E69 C4), on the primary GM: a settled crossing, a body announced, a new day.
     safely("the tails", registerTails);
     // Shut the Door's barricades come down (E74 C2), on the primary GM: the author leaving, a new time of day, an Eclipse.
