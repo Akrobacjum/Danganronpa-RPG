@@ -22,7 +22,8 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText,
+    blankComments, blankLiterals, callArgs, TEXT_DETECTORS
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -59128,6 +59129,28 @@ const INVARIANTS = [
         ]), stableJson([true, true, false, true, true, true, true, true, true, true]),
             "[the walk writes the pending row, asks, runs no announcement; the sound first; to the walker's players; kept; "
             + "the announcement drops the row and notes the bodies heard before its gather; asked at the stores' opening and a GM's leaving; registered]");
+    }],
+
+    ["R6550 - the fog files and voice.mjs hold no English literal a screen shows: T13 (uiLiterals) finds nothing in scripts/fog*.mjs or scripts/voice.mjs (E71 C20, DB12, S18-46)", async () => {
+        /*
+         * E71 C20, 14.11.2026; the owner's DB12 and audit S18-46: the literals move with the stage that rewrites a file.
+         * T13 (scripts/tests-text.mjs `uiLiterals`) read on the module's own sources, as served, with the kit's lexer
+         * (tests-lint.mjs's, as R1058 hands it): the fog family's files and voice.mjs, each of them read (a file the
+         * crawl does not reach would make the count say nothing). Red at C20's parent: 53 findings in fog.mjs and 49 in
+         * voice.mjs - the registration steps' labels, the reasons the fog stands down, the fog diagnosis's lines and
+         * the voice plan's report. diagnostics.mjs's console is not read here: it stays English (DB12).
+         */
+        const files = ["fog.mjs", "fog-reveal.mjs", "fog-diagnostics.mjs", "fog-doorways.mjs", "fog-geometry.mjs", "voice.mjs"];
+        const all = await moduleSources();
+        // bridge-guards.mjs beside them, as tools/check.mjs reads every script: T13 takes the bridge's closed list of
+        // reasons from it ("unknown sender", fog.mjs `fogShareRefusal`), and its own findings are not this test's.
+        const read = files.filter(file => all.has(file));
+        const scripts = new Map([...read, "bridge-guards.mjs"].filter(file => all.has(file)).map(file => [`scripts/${file}`, all.get(file)]));
+        const r = TEXT_DETECTORS.uiLiterals({ scripts, lexer: { blankComments, blankLiterals, callArgs } });
+        const mine = r.found.filter(f => read.some(file => f.file === `scripts/${file}`));
+        equal(stableJson([read.length, scripts.has("scripts/bridge-guards.mjs"), r.counts.files > 0, mine.map(f => f.what)]),
+            stableJson([files.length, true, true, []]),
+            "[the six files read; bridge-guards.mjs beside them; at least one of them draws UI, so T13 reads it; T13's findings in the six]");
     }],
 ];
 

@@ -5574,7 +5574,70 @@
         "pttKey": "Push-to-talk key: {key}",
         "pttChange": "Change the key"
       },
-      "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
+      "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser.",
+      "plan": {
+        "why": {
+          "noPoolHolder": "no GM holds this Monokuma's Despair pool",
+          "noOwner": "no owner is connected",
+          "notConnected": "{name} is not connected",
+          "eclipseGm": "Eclipse: the GMs' own channel",
+          "eclipsePlayer": "Eclipse: in no voice channel",
+          "deadSecret": "dead, the death not public: the Spectators' room",
+          "deadPublic": "dead, and not back as a Monocub: the Spectators' room",
+          "kept": "(outside every room: the room it came from)",
+          "noRoom": "no room: the token is outside every region, or there is no token",
+          "scrumCamp": "Scrum Debate: Zone {zone} confers in its own room",
+          "spectatorTalks": "a Spectator, talking with the Spectators",
+          "noCharacterMain": "no character: the main room",
+          "listening": "listening at the door of {into}, from {from}",
+          "masked": "behind a \"?\" after a murder's opening: a silent room of its own"
+        },
+        "setting": "Regional voice setting: {state}",
+        "on": "on",
+        "settingOff": "off, so nothing is applied",
+        "avMode": "A/V mode: {mode}",
+        "avDisabled": "disabled, so nothing can connect",
+        "loop": "This client runs the assignment loop: {answer}",
+        "yes": "yes",
+        "no": "no",
+        "eclipse": {
+          "running": "An Eclipse is running. Nobody is placed by their token, and the rooms are not even read.",
+          "noPlayer": "No player is in any voice channel; the GMs share one.",
+          "ends": "It goes back to normal the moment it ends."
+        },
+        "eclipseGroup": "(Eclipse: no player in voice)",
+        "spectatorGroup": "(Spectators' room)",
+        "mainGroup": "(main room)",
+        "deadGroup": "(dead channel)",
+        "nowhere": "(sent nowhere)",
+        "ignored": "← ignored, {name} is sent with {actor}",
+        "itsAccount": "its account",
+        "anotherRow": "another row",
+        "seeConflicts": "(see CONFLICTS)",
+        "waiting": "← sent nothing until the cast arrives",
+        "nobody": "nobody",
+        "alone": "ACCOUNTS WITH NO CHARACTER",
+        "noCharacter": "no character",
+        "conflicts": "CONFLICTS: these accounts own characters in more than one place.",
+        "deadChannel": "the dead channel",
+        "applied": "(this one is applied)",
+        "oneRoom": "A voice client can only be in one room. Give the spare characters to another account, or leave their tokens off the map.",
+        "decision": "This is the decision only; it does not test the audio.",
+        "decisionHow": "Whether two of these rooms hear each other needs a second connected client: run game.drpg.diagnoseVoice() there and compare the room it reports with the one named above."
+      },
+      "warn": {
+        "proximity": "Proximity Voice Chat is also active.",
+        "proximityVolume": "It sets each participant's volume from token distance, on top of the room this module puts them in. Unconfigured, that volume is zero for everyone.",
+        "proximityGlobal": "Its \"global listen\" setting is on, so it is not muting anybody right now.",
+        "proximitySceneOff": "It is switched off on \"{scene}\", so it is not muting anybody there.",
+        "proximityFix": "Turn it off, or set \"global listen\", unless you use both on purpose.",
+        "others": "Other active modules that mention voice: {modules}.",
+        "othersHint": "Worth ruling out first if the rooms below are right and the audio is not.",
+        "noRooms": "\"{scene}\" has characters on it and no rooms, so everybody standing there shares the main room.",
+        "noRoomsFix": "Name the regions to split them up.",
+        "dupes": "\"{scene}\" has more than one region named {names}, and together they are one voice room.",
+        "dupesHint": "Intended for a corridor drawn in two pieces; a mistake otherwise."
+      }
     },
     "States": {
       "drpgBreakdown": {
@@ -6227,6 +6290,61 @@
           "fact": {"one": "{n} corner up to {px} px off.", "other": "{n} corners up to {px} px off."},
           "why": "The rest of the map is drawn to a half-square lattice. Draw with snapping on: a corner a fraction of a square out cannot be seen by eye and is enough to make two rooms overlap or miss."
         }
+      },
+      "step": {
+        "ledgerRoad": "the ledger's road",
+        "doorControls": "door controls by the rooms",
+        "tokenRuler": "the token ruler in the hour's color",
+        "sceneVision": "scene vision mode",
+        "discoveryMirror": "local discovery mirror",
+        "firstPaint": "first paint",
+        "floorSwitcher": "floor switcher",
+        "revealOnArrival": "reveal on arrival",
+        "rememberStart": "remember where we started",
+        "seedDiscovery": "seed discovery",
+        "repaint": "repaint",
+        "placedArrival": "arrival of a placed token",
+        "outlineDoor": "the outline by a door",
+        "outlineWallMade": "the outline by a wall made",
+        "outlineWallDeleted": "the outline by a wall deleted",
+        "outlineVeto": "the outline by a seal or a chain",
+        "whereIStand": "where this viewer stands",
+        "prepareScenes": "prepare scenes",
+        "heldRooms": "remember which scenes hold rooms",
+        "regionNames": "remember the regions' names",
+        "roomRenamed": "a room renamed",
+        "outlineRoomFlag": "the outline by a room's flag",
+        "outlineReshaped": "the outline of a room reshaped",
+        "oldFogRows": "take in this browser's old fog rows",
+        "shareLedger": "share or rebuild the ledger",
+        "seedDeferred": "seed discovery (deferred to ready)"
+      },
+      "stepFailed": "Fog: \"{step}\" failed; the remaining steps still run",
+      "stepFailedLater": "Fog: \"{step}\" failed after returning",
+      "stand": {
+        "notRunYet": "not run yet",
+        "canvasNotReady": "the canvas is not ready yet",
+        "settingOff": "the \"Rooms decide what players can see\" setting is off",
+        "noScene": "there is no scene on the canvas",
+        "noRoom": "this scene has no room (a named Region a GM marked one), so there is nothing to fog",
+        "noDimensions": "this scene reports no measurable dimensions to draw into",
+        "noPolygons": "regions exist but none exposed usable polygons",
+        "notRendered": "the fog texture could not be rendered",
+        "notCleared": "you are standing in \"{room}\", but the fog could not clear it, so it stood down rather than black the map out",
+        "notMounted": "the fog layer could not be mounted on the canvas"
+      },
+      "share": {
+        "nobodyAsked": "nobody asked",
+        "alreadyAnswered": "already answered"
+      },
+      "diagnosis": {
+        "head": "{module} | fog diagnosis: {scene}, grid {grid}",
+        "glow": "glow: openings {openings}, core {core}px, full depth {span}px, reach {reach}px, amplitude {amplitude}px",
+        "opening": "#{n} {length}px long, {squares} in grid squares, glow {span}px deep, starts at {x},{y}",
+        "shortened": "<- shortened to fit its own doorway",
+        "rooms": "rooms I am in: {rooms}",
+        "none": "none",
+        "elsewhere": "somewhere else"
       }
     },
     "Rooms": {

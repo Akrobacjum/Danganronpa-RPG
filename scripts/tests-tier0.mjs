@@ -19365,7 +19365,7 @@ const REGRESSIONS = [
             kept: /if\s*\(\s*lead\s*\)\s*lastLeadSignature\s*=\s*now\.lead/.test(arrival),
             pool: /poolUserFor\(\s*token\.actor\s*\)\?\.id\s*===\s*me/.test(leads) && /if\s*\(\s*!isMine\(\s*token\s*,\s*gm\s*\)\s*\)\s*return\s+false/.test(leads),
             both: /lastMineSignature\s*=\s*now\.mine/.test(stand) && /lastLeadSignature\s*=\s*now\.lead/.test(stand),
-            canvas: /"remember where we started"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
+            canvas: /"rememberStart"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
             deleted: deleting.length,
             region: /standWhereWeStand\(\s*\{\s*redraw:\s*true\s*\}\s*\)/.test(changed),
             starting: /leadsHere\(\s*token\s*\)/.test(reveal)

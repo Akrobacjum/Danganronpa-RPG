@@ -6006,7 +6006,70 @@
         "pttKey": "Klawisz mówienia: {key}",
         "pttChange": "Zmień klawisz"
       },
-      "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
+      "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek.",
+      "plan": {
+        "why": {
+          "noPoolHolder": "żaden GM nie trzyma puli Despair tego Monokumy",
+          "noOwner": "żaden właściciel nie jest połączony",
+          "notConnected": "{name} nie ma połączenia",
+          "eclipseGm": "Eclipse: własny kanał GM-ów",
+          "eclipsePlayer": "Eclipse: poza kanałami głosowymi",
+          "deadSecret": "nie żyje, śmierć nie jest jawna: pokój Widzów",
+          "deadPublic": "nie żyje i nie gra jako Monocub: pokój Widzów",
+          "kept": "(poza wszystkimi pokojami: pokój, z którego wyszedł token)",
+          "noRoom": "brak pokoju: token jest poza wszystkimi regionami albo go nie ma",
+          "scrumCamp": "Scrum Debate: Strefa {zone} naradza się we własnym pokoju",
+          "spectatorTalks": "Widz rozmawia z Widzami",
+          "noCharacterMain": "brak postaci: główny pokój",
+          "listening": "podsłuchuje z pokoju {from} pod drzwiami pokoju {into}",
+          "masked": "za „?” po otwarciu morderstwa: własny cichy pokój"
+        },
+        "setting": "Ustawienie głosu według pokoi: {state}",
+        "on": "włączone",
+        "settingOff": "wyłączone, więc nic nie jest stosowane",
+        "avMode": "Tryb A/V: {mode}",
+        "avDisabled": "wyłączony, więc nikt się nie połączy",
+        "loop": "Ten klient prowadzi pętlę przydziału: {answer}",
+        "yes": "tak",
+        "no": "nie",
+        "eclipse": {
+          "running": "Trwa Eclipse. Nikt nie jest przydzielany według tokenu, a pokoje nie są nawet odczytywane.",
+          "noPlayer": "Żaden gracz nie jest na kanale głosowym; GM-owie mają jeden wspólny.",
+          "ends": "Wszystko wraca do normy, gdy tylko Eclipse się skończy."
+        },
+        "eclipseGroup": "(Eclipse: żaden gracz nie jest na głosie)",
+        "spectatorGroup": "(pokój Widzów)",
+        "mainGroup": "(główny pokój)",
+        "deadGroup": "(kanał zmarłych)",
+        "nowhere": "(nigdzie nie wysłano)",
+        "ignored": "← pominięte, {name} trafia tam, gdzie {actor}",
+        "itsAccount": "jego konto",
+        "anotherRow": "inny wiersz",
+        "seeConflicts": "(zobacz KONFLIKTY)",
+        "waiting": "← nic nie wysłano, dopóki nie dotrze obsada",
+        "nobody": "nikt",
+        "alone": "KONTA BEZ POSTACI",
+        "noCharacter": "brak postaci",
+        "conflicts": "KONFLIKTY: te konta mają postacie w więcej niż jednym miejscu.",
+        "deadChannel": "kanał zmarłych",
+        "applied": "(ta jest stosowana)",
+        "oneRoom": "Klient głosu może być tylko w jednym pokoju. Daj zapasowe postacie innemu kontu albo nie stawiaj ich tokenów na mapie.",
+        "decision": "To tylko decyzja; dźwięku nie sprawdza.",
+        "decisionHow": "Czy dwa z tych pokoi naprawdę się słyszą, sprawdzi tylko drugi połączony klient: uruchom tam game.drpg.diagnoseVoice() i porównaj pokój, który poda, z pokojem wymienionym wyżej."
+      },
+      "warn": {
+        "proximity": "Proximity Voice Chat też jest aktywny.",
+        "proximityVolume": "Ustawia głośność każdego uczestnika według odległości tokenów, niezależnie od pokoju, do którego wstawia go ten moduł. Nieskonfigurowany daje wszystkim głośność zero.",
+        "proximityGlobal": "Jego ustawienie „global listen” jest włączone, więc teraz nikogo nie wycisza.",
+        "proximitySceneOff": "Jest wyłączony na scenie „{scene}”, więc nikogo tam nie wycisza.",
+        "proximityFix": "Wyłącz go albo włącz „global listen”, chyba że używasz obu naraz.",
+        "others": "Inne aktywne moduły, które wspominają o głosie: {modules}.",
+        "othersHint": "Warto je wykluczyć najpierw, jeśli pokoje niżej są dobre, a dźwięk nie.",
+        "noRooms": "„{scene}” ma na sobie postacie, ale nie ma pokoi, więc wszyscy, którzy tam stoją, dzielą główny pokój.",
+        "noRoomsFix": "Nazwij regiony, żeby ich rozdzielić.",
+        "dupes": "„{scene}” ma kilka regionów o nazwie {names}, które razem tworzą jeden pokój głosowy.",
+        "dupesHint": "Przewidziane dla korytarza narysowanego w dwóch częściach; w innym razie to pomyłka."
+      }
     },
     "States": {
       "drpgBreakdown": {
@@ -6763,6 +6826,61 @@
           "fact": {"one": "{n} narożnik przesunięty do {px} px.", "few": "{n} narożniki przesunięte do {px} px.", "many": "{n} narożników przesuniętych do {px} px.", "other": "{n} narożnika przesuniętego do {px} px."},
           "why": "Reszta mapy jest narysowana na siatce co pół kratki. Rysuj z przyciąganiem: narożnik przesunięty o ułamek kratki jest niewidoczny gołym okiem, a wystarczy, żeby dwa pokoje na siebie nachodziły albo się mijały."
         }
+      },
+      "step": {
+        "ledgerRoad": "kanał rejestru odkryć",
+        "doorControls": "przyciski drzwi według pokoi",
+        "tokenRuler": "linijka tokenu w kolorze pory dnia",
+        "sceneVision": "tryb widzenia sceny",
+        "discoveryMirror": "lokalna kopia odkryć",
+        "firstPaint": "pierwsze rysowanie",
+        "floorSwitcher": "przełącznik pięter",
+        "revealOnArrival": "odsłonięcie po przybyciu",
+        "rememberStart": "zapamiętanie, gdzie zaczynamy",
+        "seedDiscovery": "pierwszy zapis odkryć",
+        "repaint": "ponowne rysowanie",
+        "placedArrival": "przybycie postawionego tokenu",
+        "outlineDoor": "obrys przy drzwiach",
+        "outlineWallMade": "obrys przy nowej ścianie",
+        "outlineWallDeleted": "obrys przy usuniętej ścianie",
+        "outlineVeto": "obrys po pieczęci albo łańcuchu",
+        "whereIStand": "gdzie stoją tokeny tej przeglądarki",
+        "prepareScenes": "przygotowanie scen",
+        "heldRooms": "zapamiętanie, które sceny mają pokoje",
+        "regionNames": "zapamiętanie nazw regionów",
+        "roomRenamed": "zmiana nazwy pokoju",
+        "outlineRoomFlag": "obrys po zmianie flagi pokoju",
+        "outlineReshaped": "obrys pokoju po zmianie kształtu",
+        "oldFogRows": "przejęcie starych wierszy mgły z tej przeglądarki",
+        "shareLedger": "udostępnienie albo odbudowa rejestru",
+        "seedDeferred": "pierwszy zapis odkryć (odłożony do załadowania świata)"
+      },
+      "stepFailed": "Mgła: krok „{step}” się nie powiódł; pozostałe kroki działają dalej",
+      "stepFailedLater": "Mgła: krok „{step}” nie powiódł się już po powrocie",
+      "stand": {
+        "notRunYet": "jeszcze nie uruchomiona",
+        "canvasNotReady": "mapa nie jest jeszcze gotowa",
+        "settingOff": "ustawienie „Pokoje decydują, co widzą gracze” jest wyłączone",
+        "noScene": "na mapie nie ma żadnej sceny",
+        "noRoom": "ta scena nie ma pokoju (nazwanego regionu, który GM oznaczył jako pokój), więc nie ma czego zakryć mgłą",
+        "noDimensions": "ta scena nie podaje wymiarów, w których dałoby się rysować",
+        "noPolygons": "regiony są, ale żaden nie ma kształtu, który da się odczytać",
+        "notRendered": "nie udało się wyrenderować tekstury mgły",
+        "notCleared": "stoisz w pokoju „{room}”, ale mgła nie zdołała go odsłonić, więc ustąpiła, zamiast zaczernić mapę",
+        "notMounted": "nie udało się umieścić warstwy mgły na mapie"
+      },
+      "share": {
+        "nobodyAsked": "nikt o to nie prosił",
+        "alreadyAnswered": "ten gracz już odpowiedział"
+      },
+      "diagnosis": {
+        "head": "{module} | diagnoza mgły: {scene}, siatka {grid}",
+        "glow": "poświata: otwory {openings}, rdzeń {core}px, pełna głębokość {span}px, zasięg {reach}px, amplituda {amplitude}px",
+        "opening": "#{n} długość {length}px, w polach siatki {squares}, poświata w głąb {span}px, początek w {x},{y}",
+        "shortened": "<- skrócona, by zmieścić się we własnym przejściu",
+        "rooms": "pokoje, w których stoję: {rooms}",
+        "none": "żaden",
+        "elsewhere": "gdzie indziej"
       }
     },
     "Rooms": {
