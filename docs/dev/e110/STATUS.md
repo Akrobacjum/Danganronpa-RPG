@@ -131,3 +131,16 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
   fervent's 08dd8d34 fixes in the test. This line copies no voice row. Recheck after the merge.
 - scenarios: 67 52/53 (1 expected red), 68 34/34, 30 302/304 (2 expected reds), 33 89/90 (1 expected red), 72 135/138
   (3 expected reds), 87 36/36; 0 failed in each.
+
+## After the merge of main 8a66fb8b (1.2.113 released), at 7d9e39ea (14.11.2026, headless, 4 cores)
+
+- quick gate (lint, check 24 parts, gate 37/37): green.
+- tier 1 full: 1671 passed, 0 failed, 16 skipped, 0 red.
+- tier 2 by name (E110, Re-point, E70-T8, Testimony, Closing Argument, Scrum, Straw Poll, Objection, music, stash,
+  bedroom, E69-T7, "a close breaks the knife"): 206 passed, 0 failed, 1 skipped - the knife / E69-T7 pair green with
+  main's t2-rest fixes.
+- `DRPG_SUITE_SHARD=1/8 node run-all.mjs suite`: green, 01-runtests 22/22, suite 1674 passed, 0 failed, 16 skipped.
+- scenarios: 67 52/53 (1 expected red), 68 42/42, 33 89/90 (1 expected red), 72 162/165 (3 expected reds); 30 on its
+  first run 301/304 with one failure - "a secret project's description ... p2's open card follows the GM's change"
+  read the old words - and on a second run 302/304 (2 expected reds), 0 failed. The check is a project card's, which
+  E110 does not touch; one red in two runs, not investigated further here.
