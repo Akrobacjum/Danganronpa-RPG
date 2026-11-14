@@ -21,7 +21,7 @@
 
 import { MODULE_ID, TRIAL, MONOCUB } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { error, plural, tickerRuns, trialModeLabel } from "./utils.mjs";
+import { error, plural, tickerRuns, trialModeLabel, listOf } from "./utils.mjs";
 import { isZoneMode, zoneOf, conferLineOf } from "./zone-machine.mjs";
 import { pairOf, reserveLine } from "./murder-ui.mjs";
 import { motive, shownMotive, incidentKey } from "./rules.mjs";
@@ -382,7 +382,7 @@ function afterVerdictCard(clock) {
         const executed = (verdict.sentenced ?? verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
         // The sentence waits for the trial's end (E70 C4): executed once the execution is stamped, until then the
         // card's own line (verdict.mjs `postVerdictCard`).
-        const names = executed.map(actor => actor.name).join(", ");
+        const names = listOf(executed.map(actor => actor.name));
         return {
             kind: "trial",
             title: game.i18n.localize("DRPG.Events.afterVerdict"),

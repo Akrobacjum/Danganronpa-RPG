@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat } from "./utils.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
@@ -34,6 +34,8 @@ import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
 import { tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -2243,7 +2245,7 @@ export async function backupCase({ ask = false } = {}) {
             title: game.i18n.localize("DRPG.Case.backupTitle"),
             // The early copy's warning a kit box since E47-C3 (E21's carried warning site, homed in E47).
             body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
-                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>`) : ""}`,
+                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: listOf(waiting) }))}</p>`) : ""}`,
             rejectClose: false
         });
         if (!yes) return null;
@@ -2546,10 +2548,18 @@ export async function gmStoreHealth() {
        `trapProjects` skips a trap with no trigger, so it never arms or fires. And a note a user's flag
        says is written that this browser does not hold (pre-session-note.mjs `notesMissing`). Both went
        unreported on a browser that lost its storage with no other GM to hand the rows back. */
+    /* SINCE LEAK-PM (14.11.2026) the secret projects, not the murders: a secret murder's `indirectMurder` mark is the GMs'
+       row's now (projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET`), so world data no longer says which countdown is a
+       murder, and a GM browser that lost its rows cannot count murders from it. What it still reads is which projects are
+       secret (projectMeta's `secret`, else the countdown's map: projects-secrecy.mjs `isSecret`): each secret project with
+       no row here is counted - its name, who is in on it, its room and, for a murder, its killer, condition and trigger.
+       The coordinator's default of 14.11.2026 (Q-PM-2). */
     const meta = getSetting(SETTINGS.projectMeta) ?? {};
-    const murders = Object.keys(meta).filter(id => meta[id]?.indirectMurder === true);
-    const noSecrets = murders.filter(id => !projectSecretStore.has(id));
-    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: murders.length });
+    const countdowns = game.settings.get("daggerheart", "Countdowns")?.countdowns ?? {};
+    const { isSecret } = await import("./projects.mjs");
+    const secrets = [...new Set([...Object.keys(meta), ...Object.keys(countdowns)])].filter(id => isSecret(id));
+    const noSecrets = secrets.filter(id => !projectSecretStore.has(id));
+    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: secrets.length });
     const { notesMissing } = await import("./pre-session-note.mjs");
     const lostNotes = notesMissing();
     if (lostNotes.length) add("notes", "missing", "DRPG.Case.row.notes", { n: lostNotes.length });
@@ -2601,7 +2611,7 @@ export async function gmStoreHealth() {
     const clamped = gmStoreHandles().reduce((n, h) => n + (h.census()?.clamped ?? 0), 0);
     if (clamped) add("clamped", "info", "DRPG.Case.row.clamped", { n: clamped });
     const skew = Object.entries(gmStoreSkew());
-    if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`).join(", ") });
+    if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: listOf(skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`)) });
     const status = gmStoreStatus();
     add("bytes", status.total > 3 * 1024 * 1024 ? "conflict" : "info", "DRPG.Case.row.bytes",
         { stores: Math.round(status.stores / 1024), total: Math.round(status.total / 1024) });
@@ -2613,7 +2623,7 @@ export async function gmStoreHealth() {
     const counts = {
         traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },
         bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length },
-        projectSecrets: { of: murders.length, missing: noSecrets.length },
+        projectSecrets: { of: secrets.length, missing: noSecrets.length },
         notes: { missing: lostNotes.length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };
@@ -2793,6 +2803,7 @@ export async function openCaseWindow() {
         ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
         : game.i18n.localize("DRPG.Case.row.neverBackedUp");
     const choice = await drpgWindow({
+        help: WINDOW_HELP.theCase,
         title: game.i18n.localize("DRPG.Case.tile"),
         classes: ["drpg-panel", "drpg-window-case-copy"],
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.

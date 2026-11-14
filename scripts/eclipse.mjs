@@ -912,10 +912,14 @@ async function judgePendingMurders(id, taken = new Map()) {
                 ? game.i18n.localize("DRPG.Action.murderNobody")
                 : plural("DRPG.Action.murderWitness", { n: present.length - 1 });
             await say(reason, true);
+            // The GMs' card says why in the GMs' words: the killer's line speaks to the killer (E71, P2).
+            const gmReason = present.length === 0
+                ? game.i18n.localize("DRPG.Action.murderNobodyGm")
+                : plural("DRPG.Action.murderWitnessGm", { n: present.length - 1 });
             await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderCancelled", {
                 killer: foundry.utils.escapeHTML(killer.name),
                 room: foundry.utils.escapeHTML(room ?? "-"),
-                reason: foundry.utils.escapeHTML(reason)
+                reason: foundry.utils.escapeHTML(gmReason)
             })}</p>`);
             continue;
         }

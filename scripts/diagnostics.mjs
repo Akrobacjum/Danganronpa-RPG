@@ -953,8 +953,6 @@ export function diagnoseWindows({ toChat = true } = {}) {
  */
 export function traceClicks({ seconds = 20, toChat = true, onReport = null } = {}) {
     const lines = [];
-    const t0 = performance.now();
-    const at = () => `${String(Math.round(performance.now() - t0)).padStart(5)}ms`;
 
     const name = el => {
         if (!el) return "(nothing)";
@@ -1509,7 +1507,8 @@ export function diagnoseCharacters({ toChat = true, roster = studentActors(), as
     };
 
     roll(t("ultimate"), missingUltimate, t("ultimateFix"));
-    roll(t("experiences", { n: STARTING.experiences }), missingExperiences, t("experiencesFix"));
+    // A family on {n} (the needsCode line, R6907): „{n} doświadczenia” was right for 2-4 alone.
+    roll(plural("DRPG.Diagnostics.cast.experiences", { n: STARTING.experiences }), missingExperiences, t("experiencesFix"));
     roll(t("item"), missingItem, t("itemFix", { tier: STARTING.startingItemTier }));
     roll(t("pool"), unwatched, t("poolFix"));
 

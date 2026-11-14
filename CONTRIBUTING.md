@@ -120,6 +120,8 @@ What the lint counts, per sheet (`scripts/tests-css.mjs`, read by the suite too)
 | `strayCommentEnds` | a comment end with no start - 0, always, with no budget |
 | `duplicateRules` | a rule written again with the same selector list and declarations, under the same at-rules |
 | `deadClasses` | a `.drpg-*` the sheets style that no script writes (the suite's R2, the same function) |
+| `overriddenDeclarations` | a declaration that, on every complex selector of its rule, a twin on the identical selector under the identical at-rules always beats - `!important` first, then later in module.json's order; the sheets read as one cascade, a fallback pair inside one rule kept (E55 C1, budget row `overridden`, R6100) |
+| `deadAttributes` | a `[data-drpg-*]` the sheets select on that no script writes, in markup, through `dataset`, as a family or from a named prefix and a template's tail (E55 C2, budget row `deadAttributes`, R6100) |
 
 The commands:
 
@@ -131,6 +133,36 @@ node audit/style-sweep.mjs       # the computed style of the kit's surfaces in C
 
 The sweep needs Chromium (Playwright from `audit/harness`), which CI does not install: whoever changes what a
 surface looks like runs it, accepts only the surfaces that change (`--accept <id>`) and reads the screenshots.
+Since E55 (14.11.2026) its baseline names the Chromium build that wrote it (`chromium`), and a run in another build
+is red before it reads a page: the baseline written at e258b135 read 1176 differences on its own tree in another
+build, drift no row could tell from a change. Beside it, E55's two freezes, each bound to its build the same way:
+`node audit/look-freeze.mjs` (the sheet's parts and the glass pages, the `::before`/`::after` and the masks: the
+brush, the glyphs, the Hope marks; about 15 s) and `node audit/style-freeze.mjs` (every captured window in both
+languages, both themes, four sizes; about 13 minutes).
+
+### What the sheets hold against Foundry and Daggerheart (E55 X1)
+
+About 700 rules style markup the module does not write: Foundry's chrome and windows, Daggerheart's sheet, chat cards,
+countdowns and Fear (read at 4dfac3a9, `docs/dev/e55/INVENTORY.md` section 6: 704 rules, pixel-icons.css out). No
+grep in this repository can prove one of them live or dead, so none is removed by a reading of this repository; each
+is named here by the section that holds it, with what it defends against and the markup it was written for. A rule
+added against foreign markup goes into one of these groups and says which version of the markup it read.
+
+| Group | What it defends against | Where (section headings; danganronpa.css unless named) | Written against |
+| --- | --- | --- | --- |
+| The system's colour | Daggerheart's own palette showing through - its gold furniture, purple glows and footers, red where the module means Hope or the GM | "THE LAST OF DAGGERHEART'S COLOUR", "Hope is gold, not red", "NOTHING IN THIS MODULE IS PURPLE", "THE PURPLE WAS IN THE FOOTER ALL ALONG", "THE RED WINS THE ARGUMENT", the chat cards' "no purple glow, no Daggerheart gold" | Daggerheart 2.10.x as the comments name it; mostly `!important` because the system's rules are as specific |
+| Surfaces this game does not use | the system's effects readout, damage and healing buttons, the combat tracker, the guide's spare parts | "surfaces this game does not use" (`#combat-popout`, `#effects-panel`, `#effects-display`), "NO DAMAGE, NO HEALING, NO RELOAD", "DAGGERHEART'S STATUS ICONS ARE NOT PART OF THIS INTERFACE" (since E55 by Daggerheart's own names only, R6103), "TRIMMING WHAT THE GUIDE DOES NOT USE" | Daggerheart 2.10.11's ui list (countdowns, effects-display, resources, the darkness slider), as the chrome rule's comment reads it |
+| Fonts and icon fonts | Signika, Montserrat, Cinzel and Modesto Condensed inside the module's interface; Font Awesome glyphs turned into wrong letters by the pixel face | "THE FONT REALLY MEANS EVERYWHERE", "THE FIVE THAT WERE STILL WEARING FONT AWESOME", the GENERATED chrome icon block (tools/chrome-icons.mjs; edited only through it); stained-glass.css's VT323 weights and the Hope track's `fa-diamond` | Font Awesome 7 by `--fa-style-family` only since E55 (R6104, LIVE-E55-03) |
+| The system's sheet layout | Daggerheart's grid, banners and tabs on the character sheet: the 275 px rail, `1fr` tracks that refuse to shrink, the pointed status labels | "THE SHEET IS THIS GAME'S SHEET", "THE SPLIT", "HEADERS AND TABS, AGAINST THE REAL MARKUP", "TWO COLLISIONS FROM THE INVERSION, BOTH MEASURED", "THE SHEET SURVIVES A NARROW WINDOW"; the "Stays here (E44 C6)" `!important` lines | Daggerheart's sheet; its left column as Daggerheart 2.12.8 draws it is `audit/sheet-column/`'s (13.11.2026) |
+| Foundry's chrome | the rails, the player list, the pause screen, the context menu, performance stats, scene navigation, the loading bar, the settings window and the file picker in the module's dress | "TAKING OVER THE BASE INTERFACE", "the icon rails", "THE PLAYER LIST, BOTTOM LEFT", "THE PAUSE SCREEN", "THE DROPDOWN, AND THE HALF OF IT THE PAGE DOES NOT OWN", "E105 FT, BATCH 3 - FOUNDRY'S AND DAGGERHEART'S CHROME IN THE MODULE'S DRESS" | Foundry v13's markup and v14's notes (LIVE-E30 ids) |
+| Foundry's windows | another sheet's or a config window's controls cut off by the module's type and widths | "FOUNDRY'S OWN CONFIG WINDOWS STAY USABLE" (since E55 the 88vh ceiling for the token, scene and tile config only, R6101, LIVE-E55-02) | v13's class names `token-config`, `scene-config`, `tile-config` |
+| Chat and roll cards | Daggerheart's duality colours and roll cards in the chat log | the duality colours under `#chat-log .chat-message.duality`, the chat cards' section | Daggerheart's roll cards as 2.10.x drew them |
+| Another module | Carolingian UI | one `.crlngn-ui` rule | that module as it was when it was dropped |
+
+**Twelve Foundry ids no script writes**, which one `document.querySelector` each at a v14 table would settle:
+`#chat-log`, `#context-menu`, `#performance-stats`, `#players-active`, `#players-inactive`, `#resource-fear`,
+`#combat-popout`, `#effects-display`, `#effects-panel`, `#scene-navigation`, `#chat-popout`, `#loading-bar`
+(LIVE-E55-04). Until it is read, a rule naming one is kept.
 
 ## What to expect from a review
 

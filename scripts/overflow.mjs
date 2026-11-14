@@ -125,7 +125,7 @@ export async function setOverflowRules({ threshold, effects } = {}) {
         next.effects[key] = {
             ...base,
             on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),
-            // Some of the eight have no size at all - Despair, Silence and Fog
+            // Some of the thirteen have no size at all - Despair, Silence and Fog
             // are on or off - so an edit that carries no number leaves `by`
             // exactly as the catalogue had it rather than writing NaN.
             by: base.by === undefined ? undefined : Number.isFinite(by) ? heldBy(by) : current.effects[key].by
@@ -388,7 +388,7 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
      * the sandbox on 30.08 before this line existed.
      *
      * ARMED FOR THE TIME OF DAY THAT HAS NOT STARTED, not for the one running.
-     * That is not caution, it is the only correct target: three of the eight
+     * That is not caution, it is the only correct target: three of the thirteen
      * debuffs are CONSUMED at a boundary - `shift` by `SearchTokens.reset`,
      * `panic` by `resetAllActions`, `darkness` by the Eclipse's own crossing
      * allowance - and all three have already run for the hour in progress. Fired

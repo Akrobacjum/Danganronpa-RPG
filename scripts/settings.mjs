@@ -1715,8 +1715,9 @@ export function registerSettings() {
        and a document written in the language of whichever client made it (S02-74) reads in two languages at one
        table. Empty until the primary GM's first start writes that page's language (i18n.mjs `seedDocumentLanguage`),
        and only while empty, so a second GM joining never makes its own the world's. Read by utils.mjs
-       `worldLocalize`. Not in the settings window: in E66 no document is written through it (S02-74's documents are
-       E57's), and a setting that changes nothing on screen says something the code does not do (M2). */
+       `worldLocalize`. Kept out of the settings in E66, when no document was written through it (a setting that changes
+       nothing on screen says something the code does not do, M2); since E57 C3 an item's tier line is (inventory.mjs
+       `tierDescription`), so it is a row of the game's settings window (settings-window.mjs GAME_SECTIONS, "gm"). */
     game.settings.register(MODULE_ID, SETTINGS.documentLanguage, {
         name: "DRPG.Settings.documentLanguage.name",
         hint: "DRPG.Settings.documentLanguage.hint",
@@ -1724,9 +1725,9 @@ export function registerSettings() {
         config: false,
         type: String,
         /* "" is "not written yet", the default: a choice of its own, so the default is among the choices whatever a
-           Foundry holds a setting's default to (E66 fix r1 F12; STATUS Open 2; R1164). Its label is a dash: no window
-           shows this setting in E66. */
-        choices: { "": "-", ...LANGUAGES },
+           Foundry holds a setting's default to (E66 fix r1 F12; STATUS Open 2; R1164). Named since E57 C3, when the
+           setting is drawn (it was a dash while no window showed it; text-style.md 13, Open 53). */
+        choices: { "": "DRPG.Help.documentLanguageUnset", ...LANGUAGES },
         default: ""
     });
 

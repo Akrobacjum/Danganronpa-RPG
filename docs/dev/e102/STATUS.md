@@ -85,6 +85,84 @@ difference is E102's. R-REGISTRY.md is generated and conflicts wherever two line
 
 R numbers: R4750-R4754 (C1-C5), R4760 on (review fixes, C6-C8); scenario 95 (tooltips-drawn; 94 is claude/e72's).
 
+## C6 (claude/e102-c6, from claude/fervent-sagan-gme4vt 1463f22b; 14.11.2026)
+
+The coordinator's line for the last family. Two parts: the case files first, the investigation.mjs sites after E54 has
+landed on claude/fervent-sagan-gme4vt (merged in first; its sites are then in E54's new files). Keys only in a new
+`DRPG.Tips.Case` block after `DRPG.Tips.More`, EN and PL; no existing key edited. R4755.
+
+| Part | Sites | Census (needing help / baseline rows still "E102 C6") | Test |
+| --- | --- | --- | --- |
+| base 1463f22b | - | 335 / 52 | R4755 red: "lang/en.json has not the family's 11 keys" |
+| C6a: case-map, case-realize, case-summary, remnant-ring | 8 tipped, 2 rows "conditional" | 327 / 41 (all investigation.mjs) | R4755 green, 10 keys |
+| C6a follow-up: the closing word's own label (ui-kit.mjs) | Not now tipped | 326 / 41 | R6350 red at c1a01382, green after; R4755 11 keys |
+| C12, Actions (c15061e2) | pickChoice's Next (the existing nextTooltip); 5 rows with reasons | 325 | R6351 |
+| C12, Gm (the next) | 4 tipped, 3 rows | 321 | R6352; R4753 counts 38 + 4 |
+| C12, Setup | 8 sites tipped (12 keys), 4 rows | 313 | R6353; R4754 counts 28 + 12 |
+| C12, More and Trial | 2 rows | 313 | - |
+| C12, Case: a map node's Close (cc4088ff) | 1 tipped | 312 | R4755, 12 keys |
+| merge of 123f8242 (E54) | - | 312 | the census rebuilt by identity: E54's rows, this line's 15 files' rows |
+| C6b: investigation.mjs and key-remnants.mjs (E54's), with their C12 rows; sheet-actions, sheet-sidebar and chapter.mjs's C12 rows | 70 sites tipped (30 new Case keys, 2 Setup; Gm.whatItReallyIs, whatThePlayerIs, howHardTheOriginal, refuseBribe and Trial.setTooltip reused), 16 rows with reasons | 242 / 0 rows "E102 C6" or "E102 C12" | R4755 (42 Case keys) and R6353, red with the part's code stashed at 05a97e0c, green after; R4754 counts 28 + 14 |
+
+What C6a found, against KEYS.json's proposals:
+
+- **The Map's face and fold are the Map's alone.** The Class Trial console draws the same graph (case-trial.mjs
+  `trialSchemaHtml`) and wires it with no callbacks: a press on a node opens nothing and the fold folds nothing there
+  (`liveSchema`). Both tooltips are drawn only where `caseGraphHtml` has the Map's `editors`; their rows say
+  "conditional: ..." (the census counts such a site as still needing a row, so these two stay in the baseline).
+- **The tick's tooltip.** KEYS.json said "a ticked one goes into the players' case summary"; case-summary.mjs
+  `composeCaseSummary` takes a ticked deduction or counter, and the solution only on a right vote, tick or not. The
+  words say so. The tick's old `title` ("Ticked: {name}", the same ticked or not) gives way to the tooltip; its
+  `aria-label` keeps the name.
+- **The difficulty select** sets the Observe, Analyze and Tamper numbers (config.mjs `OBSERVE_DC`, `ANALYZE_DC`,
+  cleanup.mjs `cleanupDc`); the words name all three.
+- **"Not now" was never drawn** (fixed in C6a's follow-up, R6350). ui-kit.mjs `footerButtons` built a closing word
+  from `BUTTON_ROLES` alone (E21 C2a's rule, "Not now" goes), so a caller's `label` was dropped and the button read
+  Close. The coordinator's word (14.11): a defect - the owner chose "Not yet" as the discovery prompt's default
+  (body-113), and that window's note names its "Not yet". A caller's own word and tooltip now win; a bare closing
+  word is still the role's word with no tooltip. The three callers that name a word, each drawing it now:
+  case-realize.mjs `askAtBody` ("Not now", tooltip `notNowTooltip`), investigation.mjs `offerFinalOnClose` ("Not
+  now"; its tooltip with C6b), chapter.mjs `promptPendingBodies` ("Not yet"; E54's file, after E54). None relied on
+  the drop. R1358 (E21 C2a's windows: none of them names a word) and R1602, R2008 stay green.
+- KEYS.json's case-map `incidentAsksHtml` sites (Place on the map, Show) are gone from the code; nothing to tip.
+
+**C6b, what the code said against KEYS.json.** The planned nodes (E104's Final Truth, Remnant, Truth Bullet and Autopsy) copy
+real windows field for field, so each copied field takes that window's decision: the planned Truth Bullet's real type,
+shown as and visibility reuse the Give window's three Gm keys, its other fields the Give window's "none needed"
+reasons; the zones' set reuses Trial.setTooltip. A Key slot's Place opens a window to confirm room and difficulty (not
+"at once"), and is drawn disabled past the limit, so it carries a `title`. Delete refuses a Reinforced Remnant
+(remnants.mjs `removeRemnant`); clearing the Faint Remnants takes only those neither Reinforced nor tied (`clearable`);
+the chapter's sweep spares Faint copies (`sparedBySweep`). Two KEYS.json keys are not built: undoRealizationTooltip
+(E64-inv moved Undo realization into the preview window) and finderTextTooltip (below).
+
+**C7 was not built.** Its row in the table above reads as planned work, and at 1463f22b `DRPG.Tips.Case.finderTextTooltip`
+is in neither lang file nor any script: C7's earlier entry ("C1-C5 and C7 in the base") was wrong. Not built in C6b either,
+measured: E104 gave the planned Incident Remnant node New Remnant's own fields, and its words are now that node's
+traceText field, which draws playerDescriptionTooltip ("What a student reads the moment they find it"); a second key
+would say the same.
+
+**The second read's Case findings (1, 2, 16-21)** were written to a line's scratch notes that are gone; nobody holds
+their text (the coordinator, 14.11). C6 does its own second read of the Case keys against the code instead (this
+section), and the report names those findings as not seen.
+
+**The registry's stamps.** R4750-R4754 and R4760-R4764 read "E54" (E54 was the first open stage when they were
+written). `tools/registry.mjs` stamps a row with the first release tag whose suite carries it, else the stage being
+worked on (`sinceOf`); all ten are in v1.2.112's suite, so the tool's answer is 1.2.112, not E102. Their stamp was
+cleared to "-" (which `renderRBlock` reads as new) and `node tools/registry.mjs --write --stage E102` wrote them:
+1.2.112 for the ten, E102 for R4755 and R6350 (no release carries them).
+
+**At the line's tip (68144d00, 14.11.2026).** Census 335 -> 242 sites needing help, every one a row with a reason; no row
+"E102 C6" or "E102 C12" left. Full tier 1: 1618 ran, 1602 passed, 1 failed, 16 skipped - the failure R2001, red at
+1463f22b and at 123f8242 (the ledger's 14.11 change; the fix comes on the base, the coordinator). Scenario 95 4/4 (37
+Case keys held drawn), 62 52/52, 61 113/114: Z2 matches "2 traces on the map" where E71's early pass (2dbf3c88, in the
+base) wrote "2 Remnants on the map" - the base's, not touched here. R1320 held E21 C2a's dropped closing label and was
+turned over in 68144d00 (the full tier 1 at 767c8e34 found it; the targeted runs of 7386194a had not included it).
+
+Scenario 95 holds every C6 and C12 key its windows draw (11 Case, Gm tellOnGive, Setup diceLook since cc4088ff).
+
+**The C12 rows are this line's too** (the coordinator, 14.11): the 43 in C6's files with C6b, the other 30 as C12, one
+commit per family, keys under `DRPG.Tips.<family>`; sheet.mjs (an E54 file) after E54.
+
 ## Tier 2
 
 Whole, on C2 (70613472), 13.11 01:17-02:32 UTC: tiers 0-2, 2676 tests, 2652 passed, 1 failed, 27 skipped. The one: "every

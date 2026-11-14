@@ -48,7 +48,7 @@ import { ballotStore, verdictStore } from "./gm-stores.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import {
-    announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow
+    announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow, listOf
 } from "./utils.mjs";
 import { trialProgress, setTrialProgress, retrySentence, findingsHtml } from "./trial-progress.mjs";
 import { drpgWindow, box } from "./ui-kit.mjs";
@@ -1079,7 +1079,7 @@ async function closeRound(progress) {
     const share = n => Math.round(100 * n / Math.max(1, issued));
     const esc = foundry.utils.escapeHTML;
     // The two that count ballots are plural families on {total} (E66 C3, the census); the one-name line is a ratio.
-    const accusing = { names: accused.map(r => esc(named(r.id))).join(", "), n: Math.min(...accused.map(r => r.n)), total: issued };
+    const accusing = { names: listOf(accused.map(r => esc(named(r.id)))), n: Math.min(...accused.map(r => r.n)), total: issued };
     const sentence = noMajority
         ? plural("DRPG.Vote.noMajority", { majority, total: issued }, "total")
         : tied

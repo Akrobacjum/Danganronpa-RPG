@@ -122,8 +122,6 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             bubbles: log ? [...log.querySelectorAll(".drpg-messenger-bubble")].map(b => ({ id: b.dataset.messageId, text: b.textContent.trim().slice(-60) })) : null,
             empty: Boolean(log?.querySelector(".drpg-messenger-empty")) };`;
     const OPEN = `${M} ${UNTIL} const app = A.openMessenger("${P1}"); await until(() => app?.rendered); return Boolean(app?.rendered);`;
-    const kept = text => `const NH = await import("${repoUrl}/scripts/notice-history.mjs");
-        return NH.noticeEntries().filter(e => String(e.text ?? "").includes(${J(text)})).map(e => ({ source: e.source, messageId: e.messageId ?? null, link: e.link?.messenger ?? null }));`;
 
     /* ------------------------------ A0. the harness's models ------------------------------ */
     phase("A0: what the harness models of the window in front and of a hidden page");
@@ -834,7 +832,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             ui.notifications[kind] = function (text, ...rest) { globalThis.__s87Toasts.push([kind, String(text)]); return realFn.call(this, text, ...rest); };
         }
         return { look: await (async () => { ${LOOK} })(), open: game.i18n.localize("DRPG.Loot.takeTooltip") };`, { timeout: 60000 });
-    const WORDS_E = await p1.eval(`return { took: game.i18n.format("DRPG.Loot.took", { item: ${J(LOOT_NAME)} }), notThere: game.i18n.localize("DRPG.Bridge.why.notThere"),
+    const WORDS_E = await p1.eval(`return { took: game.i18n.format("DRPG.Loot.took", { item: game.i18n.format("DRPG.Loot.itemQuoted", { item: ${J(LOOT_NAME)} }) }), notThere: game.i18n.localize("DRPG.Bridge.why.notThere"),
         noGm: game.i18n.localize("DRPG.Bridge.why.noGm"), open: game.i18n.localize("DRPG.Loot.takeTooltip"), bullet: game.i18n.format("DRPG.Loot.bulletName", { item: ${J(LOOT_NAME)} }) };`);
     const tookToasts = toasts => toasts.filter(([kind, text]) => kind === "info" && text === WORDS_E.took).length;
     const OPEN_LOOK = { take: [false, WORDS_E.open], row: true };

@@ -31,7 +31,7 @@ import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
-import { error, plural, esc } from "./utils.mjs";
+import { error, plural, esc, listOf } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
 import { detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
@@ -301,7 +301,9 @@ function thresholdFacts(actor, actionKey, def) {
             try {
                 const place = locateActor(actor);
                 const here = place?.room ? projectsAvailableIn(place) : [];
-                if (here.some(p => isIndirectMurder(p))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
+                /* By the project's id (the leak-pm line, 14.11.2026): asked with the row, `isIndirectMurder` read projectMeta
+                   under "[object Object]" and the line never showed (72-canary, red at 19ae74fb on the killer's browser). */
+                if (here.some(p => isIndirectMurder(p.id))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
             } catch { /* no projects here */ }
             break;
         }
@@ -343,7 +345,7 @@ export function tamperThresholdFacts(actor, cleanup) {
         // row. The watchers are said once, by `briefingFacts`, with the cover's number (`DRPG.Tamper.watched`).
         return [{ text: game.i18n.format("DRPG.Action.dcTamper", {
             rows: ladderRows(column),
-            relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: reliefs.join(", ") }) : ""
+            relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: listOf(reliefs) }) : ""
         }), when: "cover" },
         { text: game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }), when: "frame" }];
     } catch (err) {

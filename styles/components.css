@@ -185,6 +185,11 @@ body {
     --drpg-kit-header-ring: currentColor;
     --drpg-kit-focus-ring: var(--drpg-attention);
     --drpg-kit-field-bg: rgba(var(--drpg-ink-rgb), 0.55);
+    /* a checkbox's tick under Legacy, and the one token every rule that sets one reads (E55 K1, 14.11.2026): the kit's
+       rule below (FT-09), the Give, Truth Bullet and item tables windows', the item windows' (danganronpa.css, "The tick
+       in the module's ink") and the settings window's (danganronpa.css, E105 FT batch 3). Their selectors stay as they
+       were: two of them apply under the glass as well and one rule over all four would weigh more than each did, so the
+       order with the glass's drawn checkbox would change; Bone in both themes, as each wrote it. */
     --drpg-kit-check-accent: var(--drpg-bone);
     --drpg-kit-placeholder-ink: var(--drpg-kit-help-ink);
     --drpg-kit-selection-bg: var(--drpg-kit-ink);
@@ -767,8 +772,6 @@ body:not(.drpg-theme-stained-glass) .drpg-kit-empty { font-size: var(--drpg-kit-
 .drpg-notices-more { height: 26px; font: inherit; max-width: 100%; }
 .drpg-notices-search { display: flex; }
 .drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; }
-/* the ink under the glass is its field rule's */
-body:not(.drpg-theme-stained-glass) .drpg-notices-search input { font-size: var(--drpg-kit-notice-sm-size); color: inherit; }
 .drpg-notices-banner {
     display: flex;
     align-items: center;
@@ -987,8 +990,11 @@ body:not(.drpg-theme-stained-glass) .application:is(.drpg-ui.drpg-panel:not(.dia
 
 /* FT-04: the notice history's search under Legacy - the panels' field (danganronpa.css "THE PROJECT WINDOWS": that
    rule names no search field, and the window's parts are styled here alone, R1330), the edge's colour and style only;
-   its ink is the window's (above, `color: inherit`), its ring the focus rule's below. */
+   its ink is the window's (`color: inherit`), its ring the focus rule's below; the ink under the glass is its field
+   rule's. Its size and ink were a rule of their own beside the history's other parts until E55 S3 (14.11.2026). */
 body:not(.drpg-theme-stained-glass) .drpg-notices-search input {
+    font-size: var(--drpg-kit-notice-sm-size);
+    color: inherit;
     background-color: var(--drpg-kit-field-bg);
     border-style: solid;
     border-color: var(--drpg-kit-btn-edge);
@@ -1089,8 +1095,6 @@ body {
     --drpg-a8-text-fallback: #efe6d8;
     /* the opaque stop of the state word's fade */
     --drpg-a8-mask-ink: #000;
-    /* a frame's rim where the glass's accent is not set */
-    --drpg-a8-accent-fallback: #8a7fa0;
     /* the Foundry tools frames' ink */
     --drpg-a8-frame-ink: #ece6f0;
     /* the Foundry tools frames' ground */
@@ -1661,7 +1665,11 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
     box-sizing: border-box;
     max-width: calc(100vw - 16px);
     background: var(--drpg-a8-frame-ground);
-    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent, var(--drpg-a8-accent-fallback)) 45%, transparent);
+    /* the glass's accent in both themes: `@property` registers it document-wide (stained-glass.css, "The state colour
+       fades"), so under Legacy it is its initial value, #ffd38f, and a `var()` fallback here never applied. The
+       fallback (`--drpg-a8-accent-fallback`, #8a7fa0) went in E55 (14.11.2026; the audit's S12-71): the value drawn
+       is unchanged, and now it is the one written. */
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
     border-radius: 4px;
     box-shadow: 0 6px 24px var(--drpg-a8-frame-shadow);
     color: var(--drpg-a8-frame-ink);
@@ -2889,8 +2897,8 @@ body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-window-items:not(
 .application.drpg-ui.drpg-window-items .drpg-give-choice[hidden] { display: none; }
 .application.drpg-ui.drpg-window-items .drpg-give-pane { margin: 0 0 6px; }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-tables) input[type="checkbox"] {
-    accent-color: var(--drpg-bone);
-    --checkbox-checked-color: var(--drpg-bone);
+    accent-color: var(--drpg-kit-check-accent);
+    --checkbox-checked-color: var(--drpg-kit-check-accent);
 }
 body.drpg-theme-monokuma-legacy .application.drpg-ui:is(.drpg-window-give, .drpg-window-items) .drpg-role-label {
     font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1)));
@@ -3185,7 +3193,6 @@ body .application.dialog:is(.drpg-window-season-checklist, .drpg-window-foundry-
    phone's 390 px (R1322). */
 .application.drpg-window-case .drpg-data-table-box > table.drpg-data-table {
     width: 100%;
-    min-width: min(calc(var(--drpg-window-max) - 3rem), calc(94vw - 3rem));
 }
 .application.drpg-window-case table.drpg-data-table td { vertical-align: middle; }
 .application.drpg-window-case table.drpg-data-table :is(input[type="text"], textarea, select) {
@@ -3226,9 +3233,6 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-p
 }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-check { width: 7%; text-align: center; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-found { width: 8%; }
-/* Visibility, the one select whose head is one long word, a share of its own (under Legacy "Visibility" broke in two at
-   10 %, 1366x768) */
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 11%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-act { width: 11%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-scale { width: 11%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-key-name { width: 17%; }
@@ -3653,7 +3657,6 @@ body .application.dialog.drpg-ui.drpg-panel.drpg-window-projects .dialog-content
 /* the forms: the portrait beside the name, as before (a line across the grid) */
 body .application.drpg-project-form .drpg-project-image-row { display: flex; align-items: flex-end; gap: 0.6rem; }
 body .application.drpg-project-form .drpg-project-image-row .drpg-project-portrait { width: 2.6rem; height: 2.6rem; flex: 0 0 auto; }
-body .application.drpg-project-form .drpg-project-image-row > label { flex: 1 1 auto; }
 /* the description's textarea and the refusal under it the field cell's width */
 body .application.drpg-ui.drpg-project-form .drpg-form-grid > .drpg-form-field > textarea { flex: 1 1 100%; width: 100%; }
 body .application.drpg-project-form .drpg-form-field > .drpg-box { flex: 1 0 100%; margin: 0; }
@@ -3971,8 +3974,9 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-k
 .drpg-window-alive .drpg-data-table :is(th, td) { padding-inline: 4px; }
 
 /* CREATE A PROJECT'S NAME takes its row (ac078): the label is a row of its word and its field, the field the rest -
-   it stood at its own 20 characters' width (about 120 px under the glass), its placeholder cut. */
-body .application.drpg-project-form .drpg-project-image-row > label { display: flex; align-items: center; gap: 0.5rem; }
+   it stood at its own 20 characters' width (about 120 px under the glass), its placeholder cut. Its share of the row
+   (`flex: 1 1 auto`) was a line of its own beside the portrait's until E55 S3. */
+body .application.drpg-project-form .drpg-project-image-row > label { flex: 1 1 auto; display: flex; align-items: center; gap: 0.5rem; }
 body .application.drpg-project-form .drpg-project-image-row > label > input[name="name"] { flex: 1 1 auto; min-width: 0; width: auto; }
 
 /* ---- E47-FC (09.11.2026; the owner on comparison 2: cards bc019 and bc025, question q-create-icon) ----
@@ -4722,9 +4726,6 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
     flex: 1 0 100%;
 }
 
-.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > .drpg-trial-picker {
-    margin-top: 4px;
-}
 
 .drpg-trial-frame .drpg-trial-read {
     grid-area: read;

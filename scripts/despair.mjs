@@ -524,7 +524,8 @@ function tallySeasonDespair() {
     } catch {
         held = 0;
     }
-    return [game.i18n.format("DRPG.Season.resetPools", { n: held, hope: STARTING.hope })];
+    // A family on {n} (the needsCode line, R6907): the Polish read „(1 niepustych)”.
+    return [plural("DRPG.Season.resetPools", { n: held, hope: STARTING.hope })];
 }
 
 registerSeasonState({ group: "despair", clear: clearSeasonDespair, tally: tallySeasonDespair, settings: [SETTINGS.despairPools] });
@@ -1298,9 +1299,9 @@ export function despairRowOf(user, { gm = game.user.isGM, held = null, owed = nu
     const ghost = !isGM;
     row.append(
         stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0, ghost,
-            game.i18n.localize("DRPG.Look.stepDown"), tipText("DRPG.Tips.Gm.minusTooltip")),
+            game.i18n.localize("DRPG.Look.stepDown"), tipText("DRPG.Tips.Gm.minusTooltip", { n: 1 })),
         stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max, ghost,
-            game.i18n.localize("DRPG.Look.stepUp"), tipText("DRPG.Tips.Gm.plusTooltip"))
+            game.i18n.localize("DRPG.Look.stepUp"), tipText("DRPG.Tips.Gm.plusTooltip", { n: 1 }))
     );
     if (isGM && isOwnPool) row.classList.add("own");
 

@@ -258,7 +258,8 @@ export async function dropRemnant(actor, {
         const { whisperToGms } = await import("./utils.mjs");
         await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Remnant.noTokenGm", {
             actor: foundry.utils.escapeHTML(actor?.name ?? "?"),
-            action: foundry.utils.escapeHTML(action)
+            // The action's name, as the Remnant card's Action row says it; the id stood here until the needsCode line (R6915).
+            action: foundry.utils.escapeHTML(actionLabelOf(action) ?? action)
         })}</p>` });
         return null;
     }
@@ -401,15 +402,9 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
 
     const {
         x, y, scene = null, sceneId = null, type = "prep", visibility = "evident",
-        faint = false, reinforced = false, note = "", action = "manual",
-        subject = "", pointsAt = null, tiedToCrime = null,
-        sourceActor = null, sourceName = "",
-        room = null, chapter = null, day = null, timeOfDay = null,
-        // The opaque identity of the object this trace handed over, when it
-        // handed one over. GM-side only, like everything else in the ledger:
-        // it is how `tieTraceForItem` finds this trace again if that object
-        // turns out to be the murder weapon.
-        itemIdentity = null
+        faint = false, action = "manual",
+        subject = "", tiedToCrime = null,
+        sourceActor = null, sourceName = ""
     } = data;
 
     const target = scene ?? (sceneId ? game.scenes.get(sceneId) : null);
@@ -2705,13 +2700,12 @@ export async function migrateRemnants() {
         }
     }
 
-    const line = `Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
+    log(`Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
         + `${counts.already} already done, ${counts.noRow} left alone (no ledger row on this browser), `
         + `${carried.length} Faint Prep promotion(s) carried${carried.length ? ` (${carried.join("; ")})` : ""}, `
         + `${notCarried.length} not carried over a later correction${notCarried.length ? ` (${notCarried.join("; ")})` : ""}, `
         + `${stripped} tokens stripped, ${publicSeeded} \`public\` record(s) backfilled, `
-        + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`;
-    log(line);
+        + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`);
     if (carried.length) {
         warn(`Faint Prep promotions carried from their tokens into the ledger (a GM who had set one back on purpose `
             + `sets it again in the Investigation dashboard): ${carried.join("; ")}`);
@@ -2726,8 +2720,12 @@ export async function migrateRemnants() {
         warn(`Traces left as they were - answer-key flags, no type, and no ledger row on this browser to carry them into: ${leftAlone.join("; ")}`);
     }
     if (failed.length) warn(`Remnants still carrying their answer key after the migration: ${failed.join("; ")}`);
-    if (carried.length || notCarried.length || leftAlone.length || failed.length) ui.notifications.warn(line);
-    else ui.notifications.info(line);
+    /* The GM's toast in the GM's language (E57 T13, 14.11.2026): the four counts, and how many of the tokens the console's
+       lines above name; the English line, with every token's details, stays the console's. */
+    const toast = game.i18n.format("DRPG.Remnant.migrated", { moved: counts.moved, filled: counts.filled, kept: counts.kept, already: counts.already });
+    const look = carried.length + notCarried.length + leftAlone.length + failed.length;
+    if (look) ui.notifications.warn(`${toast} ${plural("DRPG.Remnant.migratedCheck", { n: look })}`);
+    else ui.notifications.info(toast);
     return { ...counts, stripped, failed, carried, notCarried, leftAlone, publicSeeded, deltaCleaned };
 }
 

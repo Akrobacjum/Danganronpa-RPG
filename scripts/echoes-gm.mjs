@@ -78,7 +78,7 @@ async function crossingsOf(scene, actor, token) {
     for (const room of M.allRooms(scene)) for (const other of M.neighbouringRooms(scene, room)) link(room, other);
     for (const [a, b] of M.stairLinks(scene) ?? []) link(a, b);
     try {
-        const { passagesKnownBy, endsOf } = await import("./passages.mjs");
+        const { passagesKnownBy } = await import("./passages.mjs");
         const { isMastermindActor } = await import("./passages-gm.mjs");
         for (const row of passagesKnownBy(actor, { mastermind: isMastermindActor(actor) })) {
             if (row.sceneId !== scene.id || !Array.isArray(row.ends) || !token) continue;

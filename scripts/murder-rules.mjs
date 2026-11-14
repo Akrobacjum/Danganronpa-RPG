@@ -347,7 +347,12 @@ export function availableCrisisActions(actor, state = murderState()) {
  */
 function nightNoteKey(indirect) {
     if (!atNight()) return "DRPG.Murder.dayNote";
-    return indirect ? "DRPG.Murder.nightNoteIndirect" : "DRPG.Murder.nightNoteDirect";
+    // The roll's own night rule, as the throw reads it (`MURDER_OPENING`'s flags; E64 took the victim's away): a note
+    // that names a modifier the roll does not get misleads the GM (E71 line A).
+    const def = MURDER_OPENING[indirect ? "victim" : "killer"] ?? {};
+    if (indirect && def.nightDisadvantage) return "DRPG.Murder.nightNoteIndirect";
+    if (!indirect && def.nightAdvantage) return "DRPG.Murder.nightNoteDirect";
+    return "DRPG.Murder.nightNoteNone";
 }
 
 /** Is it night? Whichever side rolls Stage 4 is modified by the answer - and the GM's draw expects it (roll-draw.mjs `expectedFor`). */
@@ -2588,7 +2593,8 @@ function landedNote(actor, changes) {
  * Guide, the Samoobrona row: Hope unlocks "obie akcje kryzysowe rozwiązania
  * ofiary", Despair only "odwrócenie ról", and a critical unlocks both AND stops
  * the drain - "Ofiara przestaje tracić hp i stress". Either success also
- * "blokuje akcję kryzysową: Samoobrona", so there is exactly one attempt at it.
+ * "blokuje akcję kryzysową: Samoobrona": a success ends it, and a miss leaves it usable (the handbooks line's
+ * reading, 14.11.2026; this comment said "exactly one attempt").
  *
  * Written as config rather than as a special case here, so a second gated
  * action later is a table entry and not another branch - see `unlocks` and
@@ -2618,7 +2624,7 @@ async function applyUnlocks(state, def, key, band, done) {
         for (const id of opened) unlocked.add(id);
         patch.unlocked = Array.from(unlocked);
         done.push(game.i18n.format("DRPG.Murder.unlockedActions", {
-            names: opened.map(id => CRISIS_ACTIONS[id]?.label ?? id).join(", ")
+            names: listOf(opened.map(id => CRISIS_ACTIONS[id]?.label ?? id))
         }));
     }
 

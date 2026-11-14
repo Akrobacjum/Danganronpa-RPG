@@ -172,7 +172,7 @@ export async function pickChoice(call, kind) {
             { prompt: game.i18n.localize(call.ask ?? "DRPG.Calls.choiceAsk") })}</form>`,
         once: callWindowClass(call, kind, "pick"),
         footer: { primary: {
-            action: "ok", label: game.i18n.localize("DRPG.Calls.next"),
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), tooltip: tipText("DRPG.Tips.Actions.nextTooltip"),
             callback: (e, b, d) => pickedRow(d.element)
         } }
     });
@@ -548,7 +548,7 @@ async function pickItem(ask) {
                 value: item.uuid,
                 label: isDeadForGm(actor)
                     ? game.i18n.format("DRPG.Calls.onTheBody", { name: actor.name, item: item.name })
-                    : `${actor.name} - ${item.name}`
+                    : game.i18n.format("DRPG.Calls.carriedBy", { name: actor.name, item: item.name })
             });
         }
     }

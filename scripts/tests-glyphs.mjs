@@ -731,7 +731,7 @@ export function glassRules() {
         const sel = glassSelectorOf(id);
         if (sel) out.push([id, sel, glyph, "box"]);
     }
-    for (const [what, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
+    for (const [, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
     for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
     for (const [, sel, glyph] of STATE_RULES) out.push([`state.${glyph}`, sel, glyph, "image"]);
     for (const [, sel, glyph] of PXI_RULES) out.push([`pxi.${glyph}`, sel, glyph, "image"]);

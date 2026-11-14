@@ -32,6 +32,16 @@
  * `--shots <dir>` keeps each window as drawn (its first radio checked), per language and theme, at device scale 1.
  * A radio not on screen where it stands (another element at its centre: a picker's grid clipped by its window, say) is
  * not read and is listed by window. Exit 1 on any radio or checkbox that does not hold, and on a run that read none.
+ *
+ * A RADIO WHOSE LABEL IS ITS FACE (E55, 14.11.2026; the coordinator's reading of this sweep's red 16 on 1.2.112 and
+ * 1.2.113). E101's "THE MICROPHONE'S MODE AS TWO BUTTONS" (components.css, R4062, the owner's table note) hides
+ * voice-panel.mjs's `voice:mode` radios on purpose - `opacity: 0`, 1 px - and draws their labels as two buttons, the
+ * checked one pressed. This sweep was written before that merge and read them as "checked, no dot drawn". The window
+ * stays in the sweep: a radio hidden by design (opacity 0) whose label is one of FACE_LABELS is read through that label
+ * instead - checked, the label wears the kit's pressed colours (`--drpg-kit-btn-on-ink`, `-bg`, `-edge`, resolved on
+ * the label), and unchecked it looks otherwise - in both themes. On every window reading with such a label, its first
+ * one is read again with FACE_PLANT (the pressed rule's colours put back to the resting ones), which must read as a
+ * fault, or the run is red. A radio hidden while its label is not a face is read as any other, and stays a problem.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -56,6 +66,37 @@ const freePort = () => new Promise(resolve => { const s = net.createServer(); s.
 
 const PROBE = `input[type="radio"]::before { background-color: #00ff00 !important; background-image: none !important; }`;
 const CORE = `input:is([type="radio"], [type="checkbox"])::before { position: absolute; }`;
+/* The labels that are their radio's face (see the header), and the plant that takes the pressed look away from them. */
+const FACE_LABELS = ["label.drpg-voice-panel-radio"];
+const FACE_PLANT = "body .drpg-voice-panel label.drpg-voice-panel-radio:has(> input:checked) { color: var(--drpg-kit-btn-ink) !important;"
+    + " background: var(--drpg-kit-btn-bg) !important; border-color: var(--drpg-kit-btn-edge) !important; }";
+const plants = { read: 0, seen: 0 };
+
+/* A face label's look with its radio checked and unchecked, against the kit's pressed tokens resolved on the label:
+   the list of what does not hold. The group's checked states are put back after. */
+function readFace(handle) {
+    return handle.evaluate(el => {
+        const label = el.parentElement;
+        const look = () => { const s = globalThis.getComputedStyle(label); return { ink: s.color, bg: s.backgroundColor, edge: s.borderTopColor }; };
+        const probe = globalThis.document.createElement("span");
+        probe.style.cssText = "position: absolute; color: var(--drpg-kit-btn-on-ink); background-color: var(--drpg-kit-btn-on-bg);"
+            + " border-top: 1px solid var(--drpg-kit-btn-on-edge);";
+        label.append(probe);
+        const ps = globalThis.getComputedStyle(probe), want = { ink: ps.color, bg: ps.backgroundColor, edge: ps.borderTopColor };
+        probe.remove();
+        const group = [...globalThis.document.querySelectorAll("input[type=\"radio\"]")].filter(r => r.name === el.name);
+        const was = group.map(r => r.checked);
+        group.forEach(r => { r.checked = false; });
+        const off = look();
+        el.checked = true;
+        const on = look();
+        group.forEach((r, i) => { r.checked = was[i]; });
+        const bad = [];
+        for (const k of ["ink", "bg", "edge"]) if (on[k] !== want[k]) bad.push(`checked, its label's ${k} ${on[k]}, not the pressed ${want[k]}`);
+        if (JSON.stringify(on) === JSON.stringify(off)) bad.push(`its label looks the same checked and unchecked (${JSON.stringify(on)})`);
+        return bad;
+    });
+}
 
 /* THE WINDOWS WHOSE RADIOS MAY GO UNREAD (REVIEW-111's L1, 13.11.2026). A window outside this set with a radio covered
    where it stands, or none read at all, is a problem, not only a line: a rule that hid or covered every radio of one
@@ -101,9 +142,29 @@ async function readWindow(browser, { dir, w, theme, dsf, core, shot }) {
     const problems = [];
     const boxes = { drawn: 0, core: 0 };
     const radios = await page.$$('input[type="radio"]');
-    let read = 0;
+    let read = 0, faces = 0;
     const unseen = [];
     for (const handle of radios) {
+        /* a radio hidden by design behind a label that is its face (the header): read through the label */
+        const face = await handle.evaluate((el, sel) => {
+            const label = el.parentElement;
+            if (!label || !sel.some(s => label.matches(s)) || !label.getClientRects().length || label.closest("[hidden]")) return null;
+            return Number.parseFloat(globalThis.getComputedStyle(el).opacity) === 0 ? `${el.name}=${el.value}` : null;
+        }, FACE_LABELS);
+        if (face) {
+            read++;
+            const tag = `${w.id} ${theme} dsf${dsf}${core ? " +core" : ""} radio ${face} (read through its label)`;
+            problems.push(...(await readFace(handle)).map(b => `${tag}: ${b}`));
+            if (++faces === 1) {
+                const plant = await page.addStyleTag({ content: FACE_PLANT });
+                const seen = await readFace(handle);
+                await plant.evaluate(el => el.remove());
+                plants.read++;
+                if (seen.length) plants.seen++;
+                else problems.push(`${tag}: control - the planted fault (the pressed label in its resting colours) read as no fault`);
+            }
+            continue;
+        }
         const st = await handle.evaluate(el => {
             if (!el.getClientRects().length || el.closest("[hidden]")) return null;
             el.scrollIntoView({ block: "center" });
@@ -207,6 +268,7 @@ async function main() {
     for (const p of problems) { if (!seen.has(p)) console.log(`radio-sweep: ${p}`); seen.add(p); }
     for (const u of unseenAll) console.log(`radio-sweep: not read, not on screen at its box: ${u}`);
     console.log(`radio-sweep: ${boxes.drawn} checkbox reading(s) of the module's own box; ${boxes.core} of Foundry's, not read`);
+    console.log(`radio-sweep: radios read through their label (FACE_LABELS): the planted fault seen in ${plants.seen} of ${plants.read} window reading(s)`);
     console.log(`radio-sweep: ${windows} window(s), ${radios} radio reading(s); ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
     process.exitCode = problems.length || !radios ? 1 : 0;
 }

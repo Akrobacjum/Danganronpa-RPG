@@ -34,10 +34,12 @@ import { SEARCH_FLAGS, SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, plural, workingScene,
-    forcedDeletion, wirePortraitPickers
+    dialogContent, plural, workingScene, localeFormat,
+    forcedDeletion, wirePortraitPickers, listOf
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import { roomActions } from "./facilities.mjs";
 import {
@@ -761,7 +763,7 @@ export function pictureWarning(facts) {
     if (facts.gone) return game.i18n.localize("DRPG.Vault.imageBroken");
     const sizes = [];
     if (facts.pixels) sizes.push(game.i18n.format("DRPG.Panel.checksImagesPixels", { width: facts.width, height: facts.height }));
-    if (facts.heavy) sizes.push(game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: (facts.bytes / 1048576).toFixed(1) }));
+    if (facts.heavy) sizes.push(game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: localeFormat("number", facts.bytes / 1048576, { maximumFractionDigits: 1 }) }));
     return sizes.length ? game.i18n.format("DRPG.Vault.imageLarge", { size: sizes.join(", ") }) : "";
 }
 
@@ -1092,7 +1094,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             const unknown = (row.neighbours ?? "").split(", ").filter(name => name && !roomsAfter.has(name));
             if (unknown.length) {
                 ui.notifications.warn(game.i18n.format("DRPG.Vault.neighboursUnknown",
-                    { room: row.room, names: unknown.join(", ") }));
+                    { room: row.room, names: listOf(unknown) }));
             }
         }
 
@@ -1277,6 +1279,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const initial = roomSetupTab(tab);
 
     const result = await drpgWindow({
+        help: WINDOW_HELP.roomSetup,
         title: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: scene?.name ?? "" }),
         // `drpg-projects` as well as `drpg-panel`: that is the class the
         // stylesheet hangs the table treatment on - full width, a scrolling

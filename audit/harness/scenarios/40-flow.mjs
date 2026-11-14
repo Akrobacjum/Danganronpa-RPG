@@ -18,7 +18,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
 
     const clearLogs = async () => { for (const c of [gm, ...players]) await c.eval(`globalThis.__notifications.length = 0; globalThis.__dialogLog.length = 0; return true;`); };
     const notifs = c => c.eval(`return globalThis.__notifications.map(n => n.level + ": " + n.msg);`);
-    const dialogs = c => c.eval(`return globalThis.__dialogLog.map(d => (d.title ?? "?") + " [" + (d.buttons ?? []).join("/") + "]");`);
     /*
      * EVERY CARD SINCE A MARK, AND WHAT THIS CLIENT MAKES OF IT.
      *
@@ -315,7 +314,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     check("p1: the Search's card a Reroll replaced is drawn with its total struck and a line of both totals in the new roll's colour - p2, without its words, draws neither and holds no mark",
         Boolean(searchCard) && searchArm.row?.reportMessageId === searchCard.id
             && replacedP1?.mark?.from === 14 && replacedP1.mark.to === 4 && replacedP1.mark.tone === "hope"
-            && replacedP1.struck === "line-through" && / 14 -> 4 /.test(replacedP1.line ?? "") && replacedP1.tone === "hope"
+            && replacedP1.struck === "line-through" && / 14 -> 4(?!\d)/.test(replacedP1.line ?? "") && replacedP1.tone === "hope"
             && replacedP1.onDoc === null && replacedP2 && replacedP2.mark === null && replacedP2.onDoc === null
             && replacedP2.struck === null && replacedP2.line === null,
         JSON.stringify({ named: searchArm.row?.reportMessageId ?? null, card: searchCard?.id ?? null, replacedP1, replacedP2 }), { flow: "reroll" });
@@ -476,7 +475,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const stuck = `const banner = game.i18n.localize("DRPG.Safeword.banner");
         return [...document.querySelectorAll(".drpg-popup-sticky .drpg-popup-title")].filter(t => t.firstChild?.textContent.trim() === banner).length;`;
     const p3Stuck0 = await p3.eval(stuck);
-    const sw = await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs"); await S.callSafeword({}); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 }).catch(e => String(e));
+    await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs"); await S.callSafeword({}); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 }).catch(e => String(e));
     await settle(800);
     for (const c of [gm, p1, p2]) {
         const cards = (await cardsSince(c, sw0[c.who])).filter(x => x.visible).map(x => x.says.slice(0, 100));

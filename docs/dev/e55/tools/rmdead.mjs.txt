@@ -1,0 +1,66 @@
+// E55 D2 (14.11.2026): the remover D2 ran, by position, checked against tests-css.mjs overriddenDeclarations before it writes.
+// Remove the declarations tests-css.mjs overriddenDeclarations reads as dead, by position. Usage: node rmdead.mjs <repo> [--dry] [--skip <substr>]...
+import fs from "node:fs"; import path from "node:path";
+const repo = process.argv[2]; const DRY = process.argv.includes("--dry");
+const skips = process.argv.flatMap((a,i)=>a==="--skip"?[process.argv[i+1]]:[]);
+const T = await import(path.join(repo,"scripts/tests-css.mjs"));
+const files = JSON.parse(fs.readFileSync(path.join(repo,"module.json"),"utf8")).styles;
+const texts = Object.fromEntries(files.map(f=>[f,fs.readFileSync(path.join(repo,f),"utf8")]));
+const blank = t => t.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g," "));
+function walk(file, text) {
+  const out=[];
+  const rec=(start,end,context)=>{
+    let i=start, seg=start; const decls=[]; let nested=false;
+    while(i<end){ const ch=text[i];
+      if(ch==='"'||ch==="'"){const c=text.indexOf(ch,i+1); i=c<0||c>=end?end:c+1; continue;}
+      if(ch==="{"){ let d=0,j=i,q=null; for(;j<end;j++){const c=text[j]; if(q){if(c===q)q=null;continue;} if(c==='"'||c==="'")q=c; else if(c==="{")d++; else if(c==="}"&&--d===0)break;}
+        const prelude=text.slice(seg,i).replace(/\s+/g," ").trim(); const b={file,prelude,context,open:i,close:j,preludeStart:seg};
+        out.push(b); b.decls=rec(i+1,Math.min(j,end),[...context,prelude]).decls; b.nested=b.nestedFlag; nested=true; i=j+1; seg=i; continue; }
+      if(ch===";"){ decls.push([seg,i+1]); seg=i+1; }
+      i++; }
+    if(text.slice(seg,end).trim()) decls.push([seg,end]);
+    return {decls};
+  };
+  rec(0,text.length,[]);
+  return out;
+}
+function split(prelude){ const out=[]; let d=0,p="",q=null; for(const ch of prelude){ if(q){if(ch===q)q=null;p+=ch;continue;} if(ch==='"'||ch==="'")q=ch; if(ch==="("||ch==="[")d++; if(ch===")"||ch==="]")d--; if(ch===","&&!d){out.push(p);p="";} else p+=ch;} out.push(p); return out.map(s=>s.replace(/\s+/g," ").replace(/\s*([>+~])\s*/g," $1 ").trim()).filter(Boolean); }
+const all=[]; const byKey=new Map(); let order=0; const blocksBy={};
+for(const f of files){ const bt=blank(texts[f]); const blocks=walk(f,bt); blocksBy[f]=blocks;
+  for(const b of blocks){ if(!b.prelude||b.prelude.startsWith("@")) continue; if(b.context.some(c=>/^@(?:-[\w]+-)?(?:keyframes|font-face)\b/i.test(c))) continue;
+    const rule=order++; const sels=split(b.prelude);
+    for(const [s,e] of b.decls){ const raw=bt.slice(s,e).replace(/;$/,""); const c=raw.indexOf(":"); if(c<=0) continue; const prop=raw.slice(0,c).trim(); if(!/^-{0,2}[a-zA-Z][\w-]*$/.test(prop)) continue;
+      const value=raw.slice(c+1).trim().replace(/\s+/g," "); const d={file:f,block:b,s,e,prop,value,important:/!\s*important\s*$/i.test(value),rule,keys:[]}; all.push(d);
+      for(const sel of sels){ const k=`${b.context.join(" | ")} || ${sel} || ${prop}`; d.keys.push(k); if(!byKey.has(k)) byKey.set(k,[]); byKey.get(k).push(d);} } } }
+const beaten=new Map();
+for(const [k,l] of byKey){ if(l.length<2) continue; const imp=l.filter(d=>d.important); const w=(imp.length?imp:l).at(-1);
+  for(const d of l){ if(d===w) continue; if(d.rule===w.rule&&!d.prop.startsWith("--")&&d.value!==w.value) continue; if(!beaten.has(d)) beaten.set(d,new Set()); beaten.get(d).add(k);} }
+let dead=all.filter(d=>beaten.get(d)?.size===d.keys.length);
+const ref=T.overriddenDeclarations(files.map(f=>[f,texts[f]]));
+if(dead.length!==ref.count){ console.log("MISMATCH",dead.length,ref.count); process.exit(2); }
+const skipped=dead.filter(d=>skips.some(x=>d.block.prelude.includes(x)));
+dead=dead.filter(d=>!skipped.includes(d));
+console.log(`dead ${ref.count}, removing ${dead.length}, skipped ${skipped.length}`);
+const emptied=[];
+for(const f of files){ let t=texts[f]; const mine=dead.filter(d=>d.file===f).sort((a,b)=>b.s-a.s); if(!mine.length) continue;
+  // find blocks whose every decl is removed and that have no nested block
+  const blocks=new Set(mine.map(d=>d.block));
+  const cuts=[];
+  for(const b of blocks){ const gone=mine.filter(d=>d.block===b).length; const total=b.decls.filter(([s,e])=>blank(texts[f]).slice(s,e).trim()).length;
+    const hasNested=blocksBy[f].some(x=>x!==b&&x.open>b.open&&x.close<b.close);
+    if(gone===total&&!hasNested){ // cut whole rule: from line start of prelude's first non-space to end of '}' line
+      let ps=b.preludeStart; while(/\s/.test(t[ps])) ps++; let ls=t.lastIndexOf("\n",ps-1)+1; let le=t.indexOf("\n",b.close); le=le<0?t.length:le+1;
+      if(t.slice(ls,ps).trim()||t.slice(b.close+1,le).trim()) { emptied.push(`${f}: ${b.prelude} (shares its lines; left)`); continue; }
+      cuts.push([ls,le,`rule ${b.prelude}`]); emptied.push(`${f}: ${b.prelude}`); b.cut=true; } }
+  for(const d of mine){ if(d.block.cut) continue; let s=d.s,e=d.e; let ls=t.lastIndexOf("\n",s-1)+1; // s is after previous ; or {
+    let realS=s; while(/\s/.test(t[realS])) realS++; let le=t.indexOf("\n",e-1); le=le<0?t.length:le;
+    const before=t.slice(ls,realS), after=t.slice(e,le);
+    if(!before.trim()&&!after.trim()) cuts.push([ls,le+1,`${d.prop}`]); else cuts.push([s,e,`${d.prop}`]); }
+  cuts.sort((a,b)=>b[0]-a[0]);
+  for(let i=1;i<cuts.length;i++) if(cuts[i][1]>cuts[i-1][0]) { console.log("OVERLAP",f,cuts[i],cuts[i-1]); process.exit(3); }
+  for(const [s,e] of cuts) t=t.slice(0,s)+t.slice(e);
+  if(!DRY) fs.writeFileSync(path.join(repo,f),t);
+  console.log(f, mine.length, "declarations,", cuts.filter(c=>c[2].startsWith("rule ")).length, "whole rules");
+}
+for(const e of emptied) console.log("  emptied:",e);
+for(const d of skipped) console.log("  skipped:",d.file,d.block.prelude.slice(0,80),d.prop);

@@ -1,0 +1,3191 @@
+{
+  "$comment": [
+    "B05, a batch of stage E71 (line A, claude/e71-a), with E25's content part: each text written from the facts of the functions that run its rule (O6, M1), the English by one agent, the Polish by another from the facts, the code and the old Polish without the new English (DB26), then read by the EN, cold EN, PL and (rules batches) mechanics reviewers and revised once; `reviews` holds what each reviewer still holds open after that revision, `owner` is null (no owner's page yet). Written on claude/e71-a 14.11.2026; the afters are the text of lang/ and config.mjs from the commit that adds this file."
+  ],
+  "batch": "B05",
+  "stage": "E71",
+  "texts": [
+    {
+      "key": "DRPG.Cleanup.intro",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The killer's own clean-up (an active incident at stage resolution, the actor one of its killers) skips the action step of Tamper's price: each attempt costs the Sanity step, RESOLUTION_STRESS_COST.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperPriceSkip",
+          "note": null
+        },
+        {
+          "fact": "The window opens only for the killer in their own clean-up; {n} is RESOLUTION_STRESS_COST.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "openCleanupDialog",
+          "note": null
+        },
+        {
+          "fact": "A critical Finishing Blow names its striker in the incident state, and that striker's first clean-up attempt that reaches its price, hit or miss, costs no Sanity (consumeFreeCleanup).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "finishIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Wiping a Remnant costs {n} Sanity.",
+        "after": "Each attempt costs {n} Sanity, hit or miss; the first after a critical Finishing Blow costs none."
+      },
+      "pl": {
+        "before": "Wytarcie Remnantu kosztuje {n} Sanity.",
+        "after": "Sprzątasz po sobie: każda próba kosztuje {n} Sanity, poza pierwszą po krytycznym Finishing Blow."
+      },
+      "removed": [
+        "\"Wiping\" becomes \"Erasing\", the verb of Erase a Trace (O14).",
+        "The free first attempt after a critical Finishing Blow (D13) is now in the text, in both languages.",
+        "Tier 1 R307 (scripts/tests-tier1.mjs, the Tamper words) holds that the clean-up's opening line names no action: \"instead of an action\" taken out of both afters after the first tier 1 run."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "D13/O13: the striker of a critical Finishing Blow reads this line before a first attempt that costs no Sanity; the text cannot say so without a code change, so it belongs in needsCode. - executor: Taken in part: the exception goes into the text itself, as the mechanics reviewer proposes, so no code change is needed and needsCode stays empty."
+          ]
+        },
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.priceGone",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "After the concealment roll the price is charged; when the concealment's Sanity took the last of it, the charge fails, the attempt is refused and the concealment's Sanity stays spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "attemptCleanup",
+          "note": null
+        },
+        {
+          "fact": "With anybody but the killer's partners in the room, a Shadow concealment roll against CLEANUP.conceal.threshold comes first (not for Move the Body): a hit with Despair costs 1 Sanity, a miss 1 with Hope and 2 with Despair, a critical gives 1 back; a miss tells the others in the room and the GMs.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Covering yourself took what this attempt was going to cost. Nothing else was spent.",
+        "after": "Hiding what you were doing took your last Sanity, so this attempt stops here; that Sanity stays spent."
+      },
+      "pl": {
+        "before": "Maskowanie pochłonęło to, co miała kosztować ta próba. Nic więcej nie wydano.",
+        "after": "Maskowanie zabrało ci ostatnie Sanity, więc na tę próbę już nie starcza. Sanity wydane na maskowanie nie wraca."
+      },
+      "removed": [
+        "\"Nothing else was spent.\" goes: a denied loss (X1); the sentence now says the attempt stops."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.actionBack",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a critical the step that paid comes back; when it was an action, this line says how many came back.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "backLine",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": {
+          "one": "{n} action back.",
+          "other": "{n} actions back."
+        },
+        "after": {
+          "one": "You get {n} action back.",
+          "other": "You get {n} actions back."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Odzyskujesz {n} akcję.",
+          "few": "Odzyskujesz {n} akcje.",
+          "many": "Odzyskujesz {n} akcji.",
+          "other": "Odzyskujesz {n} akcji."
+        },
+        "after": {
+          "one": "Odzyskujesz {n} akcję.",
+          "few": "Odzyskujesz {n} akcje.",
+          "many": "Odzyskujesz {n} akcji.",
+          "other": "Odzyskujesz {n} akcji."
+        }
+      },
+      "removed": [
+        "Telegraph style (X6): the sentence gains its subject and verb."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.keptSanity",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Closing the main roll window after a concealment roll landed keeps the price; a Sanity price is said with this line.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "releaseTamper",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The attempt keeps its price: the cover story was already told.",
+        "after": "The Sanity stays spent: you already rolled to hide what you were doing."
+      },
+      "pl": {
+        "before": "Cena próby nie wraca: przykrywka już została opowiedziana.",
+        "after": "Rzut na maskowanie już padł, więc Sanity za tę próbę nie wraca."
+      },
+      "removed": [
+        "\"the cover story was already told\" becomes the roll the player made (O4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.confirm",
+      "group": "window",
+      "surface": "button",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The button sends the chosen Remnant to attemptCleanup, which opens the roll.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "openCleanupDialog",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Scrub at it",
+        "after": "Roll"
+      },
+      "pl": {
+        "before": "Szoruj",
+        "after": "Rzuć"
+      },
+      "removed": [
+        "\"Scrub at it\" becomes \"Roll\", E100's word for an action window's button that rolls (docs/dev/e100/STATUS.md item 6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.withTool",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A readied (equipped) Cleaning Tool gives advantage on an erase, reshape or Misleading Trail roll and takes its tier off the erase number.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "attemptCleanup",
+          "note": null
+        },
+        {
+          "fact": "The number to beat an erase is CLEANUP.dc by visibility (Hidden, Subtle, Evident, Obvious), less the readied Cleaning Tool's tier and the fresh-scene bonus, never below CLEANUP.minDc.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupDc",
+          "note": null
+        },
+        {
+          "fact": "The transform road takes its relief off the same threshold, after the tool's tier, so a reshape's number is lowered by the tier too.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupVerdict",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "“{item}” (Tier {tier}) in hand - advantage, and that much off the threshold.",
+        "after": "With “{item}” (Tier {tier}) in hand, you roll with advantage, and the number to beat to erase or reshape drops by {tier}."
+      },
+      "pl": {
+        "before": "„{item}” (Tier {tier}) w ręku - przewaga i tyle samo mniej na progu.",
+        "after": "Trzymasz w ręku „{item}” (Tier {tier}): rzucasz z przewagą, a próg wymazania i przekształcenia jest niższy o {tier}."
+      },
+      "removed": [
+        "The dash aside (X4) becomes one sentence; \"that much off the threshold\" names the tier."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.noneReadied",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Tamper menu's note when no Cleaning Tool is equipped.",
+          "file": "scripts/action-tamper.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        },
+        {
+          "fact": "A readied (equipped) Cleaning Tool gives advantage on an erase, reshape or Misleading Trail roll and takes its tier off the erase number.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "attemptCleanup",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "No Cleaning Tool readied. Hold one ready on the Inventory tab first.",
+        "after": "No Cleaning Tool readied. One gives advantage and lowers the number to erase; hold one ready on the Inventory tab."
+      },
+      "pl": {
+        "before": "Brak narzędzia do sprzątania w ręku. Najpierw weź jedno do ręki w zakładce Ekwipunek.",
+        "after": "Nie trzymasz w ręku narzędzia do sprzątania. Daje ono przewagę i obniża próg wymazania; weź je do ręki w zakładce Ekwipunek."
+      },
+      "removed": [
+        "\"first\" goes: a tool is optional, the attempt goes ahead without one."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.blocked.noIncident",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "cleanupBlocker answers noIncident when no incident is active.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupBlocker",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No incident is running, so there is nothing to clean up. Stage 6 opens when one ends.",
+        "after": "No incident is running, so there is nothing to clean up."
+      },
+      "pl": {
+        "before": "Żaden incydent nie trwa, więc nie ma czego sprzątać. Stage 6 otwiera się, gdy któryś się kończy.",
+        "after": "Nie trwa żaden incydent, więc nie masz po czym sprzątać."
+      },
+      "removed": [
+        "\"Stage 6 opens when one ends.\" goes: Stage jargon in a player text (E25 C3), and it repeats notYet."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.blocked.notYet",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "cleanupBlocker answers notYet while the incident's stage is not resolution.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupBlocker",
+          "note": null
+        },
+        {
+          "fact": "The incident moves to clean-up on a Finishing Blow, a Survive or Escape together that ends it (finishIncident), the victim running out (ranOut), or the GM's own death of the victim (beginResolution).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "beginResolution",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The incident is still going on. Clean-up opens the moment it is over - as a Finishing Blow, or by the GM ending it.",
+        "after": "The incident is still going on. You can clean up once it is over."
+      },
+      "pl": {
+        "before": "Incydent wciąż trwa. Sprzątanie otwiera się w chwili, gdy się skończy - Finishing Blow albo zamknięciem przez GM-a.",
+        "after": "Incydent jeszcze trwa. Sprzątać możesz dopiero, gdy się skończy."
+      },
+      "removed": [
+        "The dash aside and the two named ways in go: they were not all the ways (fact 1), and the player only needs to know it opens when the incident ends."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text named only a Finishing Blow and the GM ending it; the code also moves to clean-up on Survive, Escape together and a victim who runs out (fact 1)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.blocked.notYours",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "cleanupBlocker answers notYours when the actor is not one of the incident's killers (killerIds, an accomplice included).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupBlocker",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "You are not the one cleaning up this scene.",
+        "after": "Only the killer can clean up this crime scene."
+      },
+      "pl": {
+        "before": "To nie ty sprzątasz tę scenę.",
+        "after": "Sprzątać po tym incydencie mogą tylko zabójcy."
+      },
+      "removed": [
+        "The negation \"You are not the one\" becomes who can (O4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.blocked.monokuma",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "cleanupBlocker answers monokuma for a Monokuma killer.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupBlocker",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Monokuma does not clean up after himself. A killing made as a point is meant to be found.",
+        "after": "A Monokuma does not clean up after a killing."
+      },
+      "pl": {
+        "before": "Monokuma po sobie nie sprząta. Zabójstwo na pokaz ma zostać znalezione.",
+        "after": "Monokuma nie sprząta po swoich zabójstwach."
+      },
+      "removed": [
+        "\"himself\" becomes \"they\" (EN4, DB5).",
+        "\": theirs is meant to be found\" goes: a reason no fact holds (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.moveHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Move the Body rolls Body against CLEANUP.actions.moveBody.threshold, less the Cleaning Tool's tier; no concealment roll; on a miss the body stays and no Remnant is left; when the body moves an Evident Tamper Remnant (type resolution) is left in the room it left.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMoveBody",
+          "note": null
+        },
+        {
+          "fact": "The destinations are the rooms connected to the body's room, never a bedroom; rooms two away are offered too, reached only on a critical, any other hit stopping at the room between.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "bodyReach",
+          "note": null
+        },
+        {
+          "fact": "The killer's own clean-up (an active incident at stage resolution, the actor one of its killers) skips the action step of Tamper's price: each attempt costs the Sanity step, RESOLUTION_STRESS_COST.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperPriceSkip",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Spend {n} Sanity to carry the body out of this room; it always leaves an Evident Remnant.",
+        "after": "Spend {n} Sanity and roll Body to drag the body to a connected room. If it moves, you leave an Evident Remnant."
+      },
+      "pl": {
+        "before": "Wydaj {n} Sanity, by wynieść ciało z tego pokoju; zawsze zostawia Evident Remnant.",
+        "after": "Za {n} Sanity rzucasz Body, żeby przenieść ciało do sąsiedniego pokoju. Jeśli się uda, zostaje Evident Remnant."
+      },
+      "removed": [
+        "\"always leaves\" now holds only when the body moves: a miss leaves the body and no Remnant (fact 0).",
+        "The bedrooms, the two rooms away on a critical, the Cleaning Tool and the miss stay out of this caption (R3201 holds it to 116 characters and the Polish under 114): they are in the Move the Body window, DRPG.Cleanup.moveAlwaysTrace and DRPG.Cleanup.moveFar (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said every attempt leaves an Evident Remnant; applyMoveBody leaves none on a miss."
+      ],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "EN style: \"If it moves, you always leave\" doubles the condition; \"always\" adds nothing after \"if\" (proposed: Spend {n} Sanity and roll Body to drag the body to a connected room. If it moves, you leave an Evident Remnant behind.). - executor: Taken in part: \"always\" goes; \"behind\" stays out, since the proposal is 117 characters and R3201 holds the caption to 116."
+          ]
+        },
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "M4 wording: the tool lowers the number only when it is in hand, as every other text of the batch says (proposed: ... Rzucasz Body, a narzędzie do sprzątania w ręku obniża próg. ...). - executor: Taken in part: the tool leaves the caption altogether, as R3201 holds the Polish under 114 characters; DRPG.Cleanup.moveAlwaysTrace says it with „w ręku”.",
+            "Parity (M4, F0-F2): the Polish carries the Body roll, the tool, the miss, the bedroom and the two-rooms-away critical, the English after only the Evident Remnant; the Polish stays, the English is the side that drops kept facts. - executor: Taken in part: the English now names the Body roll; the Polish is cut to R3201's length (under 114 characters, it was about 240), and the bedroom, the miss and the two-rooms-away critical are in DRPG.Cleanup.moveAlwaysTrace and DRPG.Cleanup.moveFar in both languages (O3)."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.bodyNotHere",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Move the Body is refused before it is paid for when the body is not in the actor's room on the same scene.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "bodyIsHere",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The body is not in this room. You have to be standing over it to carry it anywhere.",
+        "after": "The body is not in this room. You have to be with it to move it."
+      },
+      "pl": {
+        "before": "Ciała nie ma w tym pokoju. Musisz nad nim stać, by je gdziekolwiek zanieść.",
+        "after": "Ciała nie ma w tym pokoju. Żeby je przenieść, musisz być tam, gdzie leży."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.nothingHere",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The clean-up window is refused when the room holds no Remnant.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "openCleanupDialog",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Nothing to clean up in this room.",
+        "after": "There is no Remnant to erase in this room."
+      },
+      "pl": {
+        "before": "W tym pokoju nie ma czego sprzątać.",
+        "after": "W tym pokoju nie ma czego sprzątać."
+      },
+      "removed": [
+        "Telegraph style (X6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.allReinforced",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Reinforced Remnant cannot be erased or reshaped; an attempt on one is refused before anything is scored and what was paid comes back as far as the GMs saw it paid.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupRefusal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Every Remnant here is reinforced. None of it comes off.",
+        "after": "Every Remnant here is Reinforced and cannot be erased or reshaped."
+      },
+      "pl": {
+        "before": "Każdy Remnant tutaj jest Reinforced. Nic z tego nie schodzi.",
+        "after": "Każdy Remnant w tym pokoju jest Reinforced, więc żadnego nie wymażesz ani nie przekształcisz."
+      },
+      "removed": [
+        "\"None of it comes off\" folds into one sentence; Reinforced capitalized as the quality's name (EN18)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.rerollLost",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Reroll of a clean-up with no kept receipt, or one on another Remnant, is not replayed and the GMs are told.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "undoLastCleanup",
+          "note": null
+        },
+        {
+          "fact": "A Reroll whose replay is refused gives back its Hope and keeps the first roll.",
+          "file": "scripts/reroll.mjs",
+          "fn": "makeReroll",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A Reroll of a clean-up was not replayed: there was no record here of the attempt it takes back. Its first roll goes back on the card and the Hope is returned.",
+        "after": "A clean-up Reroll could not run: the attempt it would redo was not found, or was on another Remnant. The first roll stands, and the Hope spent on it comes back."
+      },
+      "pl": {
+        "before": "Rerolla sprzątania nie odtworzono: nie było tu zapisu próby, którą cofa. Pierwszy rzut wraca na kartę, a Hope wraca do gracza.",
+        "after": "Rerolla sprzątania nie rozegrano: nie ma zapisu próby, którą miał powtórzyć, albo dotyczyła innego Remnantu. Pierwszy rzut zostaje, a Hope wraca."
+      },
+      "removed": [
+        "\"here\" (this browser) goes (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reinforcedFlag",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Added to a Reinforced Remnant's row in the list, after a middle dot.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanableTracesForPlayer",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "reinforced - cannot be removed",
+        "after": "Reinforced, cannot be erased"
+      },
+      "pl": {
+        "before": "Reinforced - nie da się usunąć",
+        "after": "Reinforced, nie do usunięcia"
+      },
+      "removed": [
+        "The dash becomes a comma (X4); Reinforced capitalized (EN18)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reinforced",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Reinforced Remnant cannot be erased or reshaped; an attempt on one is refused before anything is scored and what was paid comes back as far as the GMs saw it paid.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupRefusal",
+          "note": null
+        },
+        {
+          "fact": "The same line is a GM's notice when a reshape is approved on a Remnant made Reinforced since the roll.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyReshapeRuling",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The {what} will not come off. Whatever left it, left it for good.",
+        "after": "The {what} is Reinforced and cannot be erased or reshaped."
+      },
+      "pl": {
+        "before": "{what} nie schodzi. Cokolwiek to zostawiło, zostawiło na dobre.",
+        "after": "{what} jest Reinforced: nie da się go wymazać ani przekształcić."
+      },
+      "removed": [
+        "\"Whatever left it, left it for good.\" goes: flavor that explains (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.freeTonight",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The killer's own clean-up (an active incident at stage resolution, the actor one of its killers) skips the action step of Tamper's price: each attempt costs the Sanity step, RESOLUTION_STRESS_COST.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperPriceSkip",
+          "note": null
+        },
+        {
+          "fact": "Shown on the Tamper tile while the actor is cleaning their own crime scene.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "freeTonightText",
+          "note": null
+        },
+        {
+          "fact": "A critical Finishing Blow names its striker in the incident state, and that striker's first clean-up attempt that reaches its price, hit or miss, costs no Sanity (consumeFreeCleanup).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "finishIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Your own scene, tonight: no action, {n} Sanity each.",
+        "after": "Cleaning up your own crime scene costs no action, only {n} Sanity per attempt; the first after a critical Finishing Blow costs none."
+      },
+      "pl": {
+        "before": "Twoja własna scena, tej nocy: bez akcji, {n} Sanity za każdy.",
+        "after": "Sprzątasz własne miejsce zbrodni: każda próba kosztuje {n} Sanity zamiast akcji, poza pierwszą po krytycznym Finishing Blow."
+      },
+      "removed": [
+        "\"tonight\" goes: the clean-up lasts while the incident is at its clean-up stage, not by the time of day."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.leftTrace",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Said after a failed or Despair clean-up only when traceFeedback allows (Hope or a critical), and after every body moved.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "leaveTamperTrace",
+          "note": null
+        },
+        {
+          "fact": "Move the Body rolls Body against CLEANUP.actions.moveBody.threshold, less the Cleaning Tool's tier; no concealment roll; on a miss the body stays and no Remnant is left; when the body moves an Evident Tamper Remnant (type resolution) is left in the room it left.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMoveBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Your cleaning left a Remnant of its own.",
+        "after": "You left a new Remnant."
+      },
+      "pl": {
+        "before": "Twoje sprzątanie zostawiło własny Remnant.",
+        "after": "Zostawiasz nowy Remnant."
+      },
+      "removed": [
+        "\"Your cleaning\" goes: the line also follows Move the Body."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 3 (calque): „własny Remnant” mirrors 'its own Remnant' and no Polish player says it so; the English after says 'a new Remnant' (proposed: Sprzątając, zostawiasz nowy Remnant.). - executor: Taken in part: „własny” goes and the line says „nowy Remnant”; „Sprzątając” stays out, as the line also follows Move the Body."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.stressSpent",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Printed on the player's card when no paid step is recorded, which includes the free attempt.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "report",
+          "note": null
+        },
+        {
+          "fact": "A critical Finishing Blow names its striker in the incident state, and that striker's first clean-up attempt that reaches its price, hit or miss, costs no Sanity; it is not a free action.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "finishIncident",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{n} Sanity spent.",
+        "after": "Each clean-up attempt costs {n} Sanity, except the first after a critical Finishing Blow."
+      },
+      "pl": {
+        "before": "Wydano {n} Sanity.",
+        "after": "Każda próba sprzątania kosztuje {n} Sanity, poza pierwszą po krytycznym Finishing Blow."
+      },
+      "removed": [
+        "Telegraph style (X6)."
+      ],
+      "needsCode": [
+        "report should leave this line out when the attempt was the free one (receipt.free). Done in the E71 code-fault commit after E54 (R6405): report takes `free` and prints no price line on the free attempt."
+      ],
+      "disagreements": [
+        "For the owner: report prints this line when `charged` is null, which is the free attempt (resolveCleanup sets it null when `free`) or a packet with nothing charged; a line saying what was spent would be false on the free attempt's card beside DRPG.Cleanup.freeAttempt, so the text states the rule with its exception, true in both cases."
+      ],
+      "reviews": {
+        "en": {
+          "verdict": "wrong",
+          "points": [
+            "D13/M2: report prints this line whenever no paid step is recorded, which includes the free attempt after a critical Finishing Blow (kept fact 0), so on that attempt \"You spent {n} Sanity.\" states a cost that was not taken; no wording of this key can be true in both cases: it needs a code change (a line of its own for the free attempt) in needsCode and a disagreement for the owner. - executor: Taken in part: the mechanics reviewer's wording, the rule with its exception, is true on the free attempt's card and on a paid one, so both languages now say it; the code point stays in needsCode and the disagreement stays for the owner."
+          ]
+        },
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.band.despair",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Outcomes (CLEANUP.outcome): a critical or a hit with Hope erases and leaves nothing; a hit with Despair erases and leaves an Evident Faint Tamper Remnant; a miss leaves the Remnant and a Faint Tamper Remnant, Subtle with Hope, Evident with Despair; a critical gives back 1 of the step paid.",
+          "file": "scripts/config.mjs",
+          "fn": "CLEANUP",
+          "note": null
+        },
+        {
+          "fact": "resolveTransformRoad reports with the same band, so a reshape that hits with Despair shows this line, though nothing is erased and no Tamper Remnant is left on that road.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveTransformRoad",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Gone - but you were not careful about it.",
+        "after": "It works, but not cleanly."
+      },
+      "pl": {
+        "before": "Zniknął - ale nie po cichu.",
+        "after": "Udaje się, ale nie czysto."
+      },
+      "removed": [
+        "The dash aside becomes a comma (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said \"Gone\" on every hit with Despair; on the reshape road nothing is erased (resolveTransformRoad shares the band line). For the owner: one band line serves both roads."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "Understood only that the Remnant is gone with a cost hidden in 'not careful'; the card does not say what the carelessness left behind or changes, so a player cannot tell the consequence of the Despair (O1, O7) (proposed: name the consequence, e.g. 'Gone, but with Despair: <what it costs or leaves>.'). - executor: Kept in part: the line now says only that it worked, not cleanly, which is true on both roads; what the carelessness leaves on the erase road (a Faint Tamper Remnant) the player is told only with Hope or on a critical (leaveTamperTrace, traceFeedback), so naming it here would tell a player what they may not know (M9)."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.hit",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The verdict word in gmLine for a hit, on the erase and reshape roads alike.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "report",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "cleaned",
+        "after": "a hit"
+      },
+      "pl": {
+        "before": "usunięto",
+        "after": "trafienie"
+      },
+      "removed": [
+        "\"cleaned\" becomes the outcome word (EN8): a reshape's hit cleans nothing."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.miss",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The verdict word in gmLine for a miss.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "report",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "failed",
+        "after": "a miss"
+      },
+      "pl": {
+        "before": "nieudane",
+        "after": "pudło"
+      },
+      "removed": [
+        "\"failed\" becomes the outcome word (EN8)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.gmLine",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The GMs' copy of a clean-up: who, the total, the scored DC, the Remnant's labels and the verdict.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "report",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{actor} rolled {total} against DC {dc} on the {what} - {verdict}.",
+        "after": "{actor} rolled {total} against DC {dc} on the {what}: {verdict}."
+      },
+      "pl": {
+        "before": "{actor} rzuca {total} przeciw DC {dc} ({what}): {verdict}.",
+        "after": "{actor} rzuca {total} przeciw DC {dc} ({what}): {verdict}."
+      },
+      "removed": [
+        "The dash before the verdict becomes a colon (X4), as approved pair N21 does in Polish."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.gmTool",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A readied (equipped) Cleaning Tool gives advantage on an erase, reshape or Misleading Trail roll and takes its tier off the erase number.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "attemptCleanup",
+          "note": null
+        },
+        {
+          "fact": "The DC column of the tracker is cleanupDc, the tool's tier already taken off.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "killerCleanup",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Readied: “{item}” (Tier {tier}) - advantage, and {tier} off every threshold below.",
+        "after": "“{item}” (Tier {tier}) is readied, so the killer rolls with advantage, and each DC below is already {tier} lower."
+      },
+      "pl": {
+        "before": "W ręku: „{item}” (Tier {tier}) - przewaga i {tier} mniej na każdym progu poniżej.",
+        "after": "Zabójca trzyma w ręku „{item}” (Tier {tier}): ma przewagę, a progi w tabeli poniżej są już niższe o {tier}."
+      },
+      "removed": [
+        "The dash aside (X4) goes; \"every threshold below\" now says the DCs shown already include it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.gmNoTool",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A readied (equipped) Cleaning Tool gives advantage on an erase, reshape or Misleading Trail roll and takes its tier off the erase number.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "attemptCleanup",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No Cleaning Tool readied - bare hands, no advantage.",
+        "after": "The killer has no Cleaning Tool readied, so rolls without advantage."
+      },
+      "pl": {
+        "before": "Brak narzędzia do sprzątania w ręku - gołe ręce, bez przewagi.",
+        "after": "Zabójca nie trzyma w ręku narzędzia do sprzątania, więc sprząta gołymi rękami, bez przewagi."
+      },
+      "removed": [
+        "The dash and \"bare hands\" telegraph (X4, X6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.gmTitleFor",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Heads each killer's part of the tracker when there are two.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "killerCleanup",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Cleaning up - {name}",
+        "after": "{name}'s clean-up"
+      },
+      "pl": {
+        "before": "Sprzątanie - {name}",
+        "after": "Sprzątanie postaci {name}"
+      },
+      "removed": [
+        "The dash in a title (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.gmAttemptsLeft",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "incident-tracker",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "{n} is the killer's Sanity left divided by RESOLUTION_STRESS_COST.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "killerCleanup",
+          "note": null
+        },
+        {
+          "fact": "Closing the incident breaks the swung Murder Weapon (CLEANUP.destroysTools); the item stays in the inventory, marked Broken.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "endResolution",
+          "note": null
+        },
+        {
+          "fact": "The Cleaning Tools a killer's attempt used break when the body is found (CLEANUP.destroysToolsOnDiscovery).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "destroyCleaningTools",
+          "note": null
+        },
+        {
+          "fact": "Nothing ends the clean-up stage when the Sanity runs out: the price is simply refused.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperQuote",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": {
+          "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you end the murder - ending it destroys the Murder Weapon that was used; the cleaning tool goes when the body is found.",
+          "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you end the murder - ending it destroys the Murder Weapon that was used; the cleaning tool goes when the body is found."
+        },
+        "after": {
+          "one": "The killer has Sanity left for {n} more attempt and can keep cleaning until it runs out or you end the murder. Ending it breaks the Murder Weapon the killer used, which stays in the inventory as Broken; the Cleaning Tool they used breaks when the body is found.",
+          "other": "The killer has Sanity left for {n} more attempts and can keep cleaning until it runs out or you end the murder. Ending it breaks the Murder Weapon the killer used, which stays in the inventory as Broken; the Cleaning Tool they used breaks when the body is found."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Sanity starcza na {n} próbę. Stage 6 kończy się, gdy się wyczerpie albo gdy zakończysz morderstwo - zakończenie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
+          "few": "Sanity starcza na {n} próby. Stage 6 kończy się, gdy się wyczerpie albo gdy zakończysz morderstwo - zakończenie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
+          "many": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zakończysz morderstwo - zakończenie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
+          "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zakończysz morderstwo - zakończenie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała."
+        },
+        "after": {
+          "one": "Sanity zabójcy starcza na {n} próbę. Gdy się skończy, Stage 6 trwa dalej, ale kolejne próby są odrzucane. Zakończenie incydentu psuje użyte Narzędzie zbrodni, które zostaje w ekwipunku jako zepsute; narzędzia do sprzątania psują się, gdy ktoś znajdzie ciało.",
+          "few": "Sanity zabójcy starcza na {n} próby. Gdy się skończy, Stage 6 trwa dalej, ale kolejne próby są odrzucane. Zakończenie incydentu psuje użyte Narzędzie zbrodni, które zostaje w ekwipunku jako zepsute; narzędzia do sprzątania psują się, gdy ktoś znajdzie ciało.",
+          "many": "Sanity zabójcy starcza na {n} prób. Gdy się skończy, Stage 6 trwa dalej, ale kolejne próby są odrzucane. Zakończenie incydentu psuje użyte Narzędzie zbrodni, które zostaje w ekwipunku jako zepsute; narzędzia do sprzątania psują się, gdy ktoś znajdzie ciało.",
+          "other": "Sanity zabójcy starcza na {n} prób. Gdy się skończy, Stage 6 trwa dalej, ale kolejne próby są odrzucane. Zakończenie incydentu psuje użyte Narzędzie zbrodni, które zostaje w ekwipunku jako zepsute; narzędzia do sprzątania psują się, gdy ktoś znajdzie ciało."
+        }
+      },
+      "removed": [
+        "\"Stage 6 ends when that runs out\" becomes what the killer can do: the stage does not end by itself (fact 3).",
+        "\"destroys\" becomes \"breaks\": the items stay, marked Broken."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said the stage ends when the Sanity runs out; the code ends it only when the GM ends the murder (fact 3)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.refundUnheld",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When this GM holds no mark of the student, a player's claimed step is not given back and the GMs are told.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "paidBack",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name}'s clean-up asked for {what} back, and the GMs' audit held no record here to check it was paid: nothing was given back. If it was paid, give it back by hand.",
+        "after": "{name}'s clean-up asked for {what} back, but no record shows it was paid, so nothing came back. If {name} did pay, give it back by hand."
+      },
+      "pl": {
+        "before": "Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt GM-a nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie.",
+        "after": "{name} prosi o zwrot za sprzątanie: {what}. Twój zapis nie pokazuje tej opłaty, więc nic nie wraca. Jeśli opłata była, oddaj ją ręcznie."
+      },
+      "removed": [
+        "\"the GMs' audit held no record here\" becomes \"no record shows it was paid\" (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.trailPlanted",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A hit plants a Prep Remnant pointing at the target, Evident with Hope, Subtle with Despair, Obvious on a critical; a miss with Hope a Faint Hidden one.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMisleadingTrail",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Planted a Prep Remnant ({visibility}) pointing at {name}.",
+        "after": "You planted a Prep Remnant ({visibility}) pointing at {name}."
+      },
+      "pl": {
+        "before": "Podłożono Prep Remnant ({visibility}) wskazujący na postać {name}.",
+        "after": "Podkładasz Prep Remnant ({visibility}), który wskazuje na postać {name}."
+      },
+      "removed": [
+        "Telegraph style (X6): the sentence gains its subject."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.trailNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The planted Remnant's note, read by the GMs in the Remnant lists.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMisleadingTrail",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Planted by {by} to implicate {name}. {visibility}.",
+        "after": "Planted by {by} to point at {name} ({visibility})."
+      },
+      "pl": {
+        "before": "Podłożony przez {by}, by obciążyć: {name}. {visibility}.",
+        "after": "Remnant podłożony przez postać {by}, żeby obciążyć postać {name} ({visibility})."
+      },
+      "removed": [
+        "The lone \"{visibility}.\" goes into brackets, as EN18's label shape."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.trailFailed",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A miss with Despair plants nothing.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMisleadingTrail",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Nothing usable was left behind.",
+        "after": "You planted nothing."
+      },
+      "pl": {
+        "before": "Nie zostało nic użytecznego.",
+        "after": "Nie udaje ci się niczego podłożyć."
+      },
+      "removed": [
+        "\"Nothing usable was left behind\" was vague about what was meant (O1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.bodyMoved",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Move the Body rolls Body against CLEANUP.actions.moveBody.threshold, less the Cleaning Tool's tier; no concealment roll; on a miss the body stays and no Remnant is left; when the body moves an Evident Tamper Remnant (type resolution) is left in the room it left.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMoveBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The body has been moved to {room}.",
+        "after": "The body now lies in {room}."
+      },
+      "pl": {
+        "before": "Ciało leży teraz w pokoju {room}.",
+        "after": "Ciało leży teraz w pokoju {room}."
+      },
+      "removed": [
+        "The passive \"has been moved\" becomes where it lies, as approved pair N16 in Polish."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.bodyStuck",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When the teleport fails or the room or body token is missing, nothing moves and no Remnant is dropped.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMoveBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The body would not move. It still lies where it fell, and no trail of dragging was left.",
+        "after": "The body would not move. It still lies where it fell, and you left no Remnant."
+      },
+      "pl": {
+        "before": "Ciała nie udało się ruszyć. Leży tam, gdzie upadło, i nie został żaden Remnant wleczenia.",
+        "after": "Nie da się ruszyć ciała. Zostaje na miejscu i nie powstaje żaden Remnant."
+      },
+      "removed": [
+        "\"no trail of dragging\" becomes \"no Remnant\" (EN15)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.bodyNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Move the Body rolls Body against CLEANUP.actions.moveBody.threshold, less the Cleaning Tool's tier; no concealment roll; on a miss the body stays and no Remnant is left; when the body moves an Evident Tamper Remnant (type resolution) is left in the room it left.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMoveBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name}'s body was dragged out of here towards {room}.",
+        "after": "{name}'s body was dragged from here to {room}."
+      },
+      "pl": {
+        "before": "Ciało ({name}) wywleczono stąd w stronę: {room}.",
+        "after": "Stąd wywleczono ciało postaci {name} do pokoju {room}."
+      },
+      "removed": [
+        "\"out of here towards\" shortened; US \"to\"."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.moveIntro",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "move-body",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Move the Body rolls Body against CLEANUP.actions.moveBody.threshold, less the Cleaning Tool's tier; no concealment roll; on a miss the body stays and no Remnant is left; when the body moves an Evident Tamper Remnant (type resolution) is left in the room it left.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMoveBody",
+          "note": null
+        },
+        {
+          "fact": "The killer's own clean-up (an active incident at stage resolution, the actor one of its killers) skips the action step of Tamper's price: each attempt costs the Sanity step, RESOLUTION_STRESS_COST.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperPriceSkip",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The body is in {room}. Choose where you are dragging it. Costs {n} Sanity.",
+        "after": "The body lies in {room}. Choose where to drag it; it costs {n} Sanity."
+      },
+      "pl": {
+        "before": "Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje {n} Sanity.",
+        "after": "Ciało leży w pokoju {room}. Wybierz, dokąd je zawleczesz; wydasz na to {n} Sanity."
+      },
+      "removed": [
+        "Telegraph \"Costs {n} Sanity.\" joins the sentence (X6, M3), as approved pair N17 in Polish."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.moveAlwaysTrace",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "move-body",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Move the Body rolls Body against CLEANUP.actions.moveBody.threshold, less the Cleaning Tool's tier; no concealment roll; on a miss the body stays and no Remnant is left; when the body moves an Evident Tamper Remnant (type resolution) is left in the room it left.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyMoveBody",
+          "note": null
+        },
+        {
+          "fact": "The destinations are the rooms connected to the body's room, never a bedroom; rooms two away are offered too, reached only on a critical, any other hit stopping at the room between.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "bodyReach",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "This always leaves an Evident trace behind, whatever the dice say. You cannot drag a corpse quietly. Bedrooms are not on the list: a body behind somebody's locked door names a suspect for you.",
+        "after": "You roll Body, and a Cleaning Tool in hand lowers the number. On a miss the body stays and you leave no Remnant; once it moves, it always leaves an Evident Remnant where it lay. Bedrooms are not on the list."
+      },
+      "pl": {
+        "before": "To zawsze zostawia Evident ślad, cokolwiek powiedzą kości. Zwłok nie da się wywlec po cichu. Sypialni nie ma na liście: ciało za czyimiś zamkniętymi drzwiami samo wskazuje podejrzanego.",
+        "after": "Rzucasz Body, a narzędzie do sprzątania w ręku obniża próg. Przy pudle ciało zostaje i nie ma Remnantu; przeniesione zawsze zostawia Evident Remnant tam, skąd zniknęło. Sypialni nie ma na liście."
+      },
+      "removed": [
+        "\"trace\" becomes \"Remnant\" (EN15, DB15).",
+        "\"whatever the dice say\" goes: a miss leaves no Remnant (fact 0).",
+        "\"You cannot drag a corpse quietly\" and why bedrooms are left out go: rationale (O9).",
+        "The two rooms away on a critical goes from the Polish: DRPG.Cleanup.moveFar, the same window's tooltip, says it (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said a Remnant is left whatever the dice say; applyMoveBody leaves none on a miss."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.moveFar",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "move-body",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The destinations are the rooms connected to the body's room, never a bedroom; rooms two away are offered too, reached only on a critical, any other hit stopping at the room between.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "bodyReach",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Two rooms away - a critical only",
+        "after": "Two rooms away, on a critical only; any other hit stops the body in the room between."
+      },
+      "pl": {
+        "before": "Dwa pokoje dalej - tylko krytyk",
+        "after": "Dwa pokoje dalej: tylko przy krytyku. Przy innym trafieniu ciało zostaje w pokoju pomiędzy."
+      },
+      "removed": [
+        "The dash becomes a comma (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.moveConfirm",
+      "group": "window",
+      "surface": "button",
+      "screen": "move-body",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The button sends the chosen room to attemptStageSix, which rolls.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "openMoveBodyDialog",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Carry it there",
+        "after": "Roll"
+      },
+      "pl": {
+        "before": "Zanieś tam",
+        "after": "Rzuć"
+      },
+      "removed": [
+        "\"Carry it there\" becomes \"Roll\", E100's word for an action window's button that rolls."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.bodyNowhere",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The destinations are the rooms connected to the body's room, never a bedroom; rooms two away are offered too, reached only on a critical, any other hit stopping at the room between.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "bodyReach",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "There is nowhere to take it - no room connects to this one, or the only ones that do are bedrooms.",
+        "after": "There is nowhere to take the body: no room connects to this one, or only bedrooms do."
+      },
+      "pl": {
+        "before": "Nie ma gdzie go zanieść - żaden pokój nie łączy się z tym albo łączą się tylko sypialnie.",
+        "after": "Nie ma dokąd przenieść ciała: z tym pokojem nie łączy się żaden pokój albo łączą się tylko sypialnie."
+      },
+      "removed": [
+        "The dash aside becomes a colon (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.toolsBroken",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The used tools are marked Broken and stay in the inventory; {items} is their names joined by commas.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "destroyTools",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{items} is ruined. It is still in your inventory, and it is still evidence.",
+        "after": "What you used is broken and stays in your inventory: {items}."
+      },
+      "pl": {
+        "before": "{items} jest zniszczony. Wciąż leży w twoim ekwipunku i wciąż jest dowodem.",
+        "after": "Zepsuty sprzęt zostaje w twoim ekwipunku: {items}."
+      },
+      "removed": [
+        "\"is ruined\" with a list of several became \"is\" for many; the list now ends the sentence.",
+        "\"still evidence\" goes from the English: no function makes a broken item evidence (M2), and the Polish says the same."
+      ],
+      "needsCode": [
+        "destroyTools joins {items} with \", \" and no quotes; it could quote each name (EN17, PL-g) and join them through utils.mjs listOf for the Oxford comma (EN2). listOf done after E54 (R6405); the names' quotes still need a key, since English and Polish quote differently."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "X6: the sentence opens on the bare adjective \"Broken,\" and holds back its subject to the end; say what broke first (O1) (proposed: Broken: {items}. Each stays in your inventory and is still evidence.). - executor: Taken in part: the sentence now opens on what broke, not on the bare adjective; \"still evidence\" goes, as no fact of the key holds it (M2)."
+          ]
+        },
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.transformActionIntro",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "transform",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A reshape's words go to the GMs as a card; nothing is written on the Remnant until a GM approves; a refusal keeps the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        },
+        {
+          "fact": "The window asks a name and a description before anything is paid.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "askTransformChange",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You are not removing this. You are making it read as something else. Write what the next person through the door will find.",
+        "after": "Write what the next person to find this Remnant will read in its place. You pay nothing yet."
+      },
+      "pl": {
+        "before": "Nie usuwasz tego. Sprawiasz, że czyta się jak coś innego. Napisz, co znajdzie następna osoba, która wejdzie przez drzwi.",
+        "after": "Wpisz nową nazwę i opis Remnantu: zobaczy je następna osoba, która go znajdzie. Na razie nic nie płacisz."
+      },
+      "removed": [
+        "\"You are not removing this. You are making it read as something else.\" goes: an antithesis (X3) that repeats the action's name.",
+        "The GM's approval and the refusal leave the Polish: DRPG.Cleanup.transformActionNote, the same window's note, says them (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeNeedsBoth",
+      "group": "window",
+      "surface": "toast",
+      "screen": "transform",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An unfinished form warns and opens again holding what was typed.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "askTransformChange",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Write both a name and a description - an empty lie is not a lie. The window is open again with what you wrote.",
+        "after": "Write both a name and a description. The window opens again with what you wrote."
+      },
+      "pl": {
+        "before": "Wpisz i nazwę, i opis. Okno otworzy się znowu z tym, co już jest wpisane.",
+        "after": "Wpisz i nazwę, i opis. Okno otworzy się znowu z tym, co już jest wpisane."
+      },
+      "removed": [
+        "\"an empty lie is not a lie\" goes (X4, O9), as approved pair N44 in Polish."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeNothingSaid",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A transform packet without both a name and a description proposes nothing; the roll stays spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveTransformRoad",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A reshape needs both a name and a description, and this one did not carry both, so the Remnant still reads exactly as it did.",
+        "after": "The reshape was missing a name or a description, so the Remnant reads as it did and the attempt is spent."
+      },
+      "pl": {
+        "before": "Przeróbka wymaga i nazwy, i opisu, a ta nie miała obu, więc Remnant czyta się dokładnie tak jak przedtem.",
+        "after": "Zabrakło nazwy albo opisu, więc Remnant się nie zmienia, a rzut przepada."
+      },
+      "removed": [
+        "The long clause chain shortened (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.alreadyRuled",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A second ruling on one proposal is refused with the name of the GM who ruled.",
+          "file": "scripts/cleanup-reshape.mjs",
+          "fn": "claimRuling",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "This reshape has already been ruled on - by {name}.",
+        "after": "{name} has already ruled on this reshape."
+      },
+      "pl": {
+        "before": "To przerobienie Remnantu jest już rozstrzygnięte ({name}).",
+        "after": "Ta zmiana Remnantu jest już rozstrzygnięta ({name})."
+      },
+      "removed": [
+        "The dash aside (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeDeclinedErased",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On the erase road a refused reshape still erases the Remnant the critical bought.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "declineReshapeRuling",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name} kept your story off the Remnant. The critical still took it: the Remnant is gone.",
+        "after": "{name} refused your story, but your critical still erased the Remnant."
+      },
+      "pl": {
+        "before": "{name} nie przyjmuje twojej wersji. Krytyczny sukces i tak zabiera Remnant - zniknął.",
+        "after": "{name} nie przyjmuje twojej wersji, ale dzięki krytykowi Remnant i tak znika."
+      },
+      "removed": [
+        "Two sentences become one (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeRulingQuieter",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Shown when the reshape writes exactly one band quieter (a critical on Reshape a Trace).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "reshapeCardParts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "It rolled well enough to be one band harder to spot as well.",
+        "after": "The roll also makes it one band harder to spot."
+      },
+      "pl": {
+        "before": "Rzut był na tyle dobry, że Remnant będzie też o jeden stopień trudniejszy do zauważenia.",
+        "after": "Krytyk: po zmianie Remnant będzie o stopień trudniejszy do zauważenia."
+      },
+      "removed": [
+        "\"rolled well enough ... as well\" shortened."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeRulingTies",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A killer's reshape ties an untied Remnant to the crime.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "reshapeTrace",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "They are the killer, so approving this also marks the Remnant as part of the murder.",
+        "after": "The student is the killer, so approving also ties the Remnant to the murder."
+      },
+      "pl": {
+        "before": "Ta osoba to zabójca, więc zgoda oznaczy też Remnant jako powiązany z morderstwem.",
+        "after": "Zmianę proponuje zabójca, więc zgoda powiąże też Remnant ze zbrodnią."
+      },
+      "removed": [
+        "\"They\" with no antecedent becomes \"The student\" (P1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeRulingCopies",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An approved reshape writes the ledger, not the copies already held (propagate false).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "reshapeTrace",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": {
+          "one": "Approving leaves the {n} Truth Bullet already copied from it reading as it was found; whoever finds it afterwards reads the new words.",
+          "other": "Approving leaves the {n} Truth Bullets already copied from it reading as they were found; whoever finds it afterwards reads the new words."
+        },
+        "after": {
+          "one": "If you approve, the {n} Truth Bullet already copied from it keeps the old words; whoever finds the Remnant next reads the new ones.",
+          "other": "If you approve, the {n} Truth Bullets already copied from it keep the old words; whoever finds the Remnant next reads the new ones."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Zgoda nie zmienia {n} Truth Bulleta skopiowanego już z tego Remnantu: czyta się tak, jak go znaleziono. Kto znajdzie Remnant później, przeczyta nowe słowa.",
+          "few": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego Remnantu: czytają się tak, jak je znaleziono. Kto znajdzie Remnant później, przeczyta nowe słowa.",
+          "many": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego Remnantu: czytają się tak, jak je znaleziono. Kto znajdzie Remnant później, przeczyta nowe słowa.",
+          "other": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego Remnantu: czytają się tak, jak je znaleziono. Kto znajdzie Remnant później, przeczyta nowe słowa."
+        },
+        "after": {
+          "one": "Zgoda nie zmienia {n} Truth Bulletu skopiowanego już z tego Remnantu. Nowe słowa przeczyta tylko ten, kto znajdzie Remnant później.",
+          "few": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego Remnantu. Nowe słowa przeczyta tylko ten, kto znajdzie Remnant później.",
+          "many": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego Remnantu. Nowe słowa przeczyta tylko ten, kto znajdzie Remnant później.",
+          "other": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego Remnantu. Nowe słowa przeczyta tylko ten, kto znajdzie Remnant później."
+        }
+      },
+      "removed": [
+        "\"Approving leaves ... reading as it was found\" shortened (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeApprove",
+      "group": "window",
+      "surface": "button",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A reshape's words go to the GMs as a card; nothing is written on the Remnant until a GM approves; a refusal keeps the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Let it read that way",
+        "after": "Approve"
+      },
+      "pl": {
+        "before": "Niech tak się czyta",
+        "after": "Zatwierdź"
+      },
+      "removed": [
+        "\"Let it read that way\" becomes M8's \"Approve\"."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeDecline",
+      "group": "window",
+      "surface": "button",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A reshape's words go to the GMs as a card; nothing is written on the Remnant until a GM approves; a refusal keeps the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "It stays as it is",
+        "after": "Refuse"
+      },
+      "pl": {
+        "before": "Zostaje, jak jest",
+        "after": "Odmów"
+      },
+      "removed": [
+        "\"It stays as it is\" becomes M8's \"Refuse\" (glossary refuse)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeWaiting",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A reshape's words go to the GMs as a card; nothing is written on the Remnant until a GM approves; a refusal keeps the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "You worked it over into “{name}”. Until the GM says otherwise it still reads as it did.",
+        "after": "You reworked the Remnant into “{name}”. It reads as before until a GM approves."
+      },
+      "pl": {
+        "before": "Remnant przerobiony na „{name}”. Dopóki GM nie zdecyduje inaczej, czyta się tak jak przedtem.",
+        "after": "Twoja wersja, „{name}”, czeka na decyzję GM-a. Do tego czasu Remnant wygląda tak jak przedtem."
+      },
+      "removed": [
+        "\"Until the GM says otherwise\" becomes the approval it waits for."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeDeclined",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A reshape's words go to the GMs as a card; nothing is written on the Remnant until a GM approves; a refusal keeps the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        },
+        {
+          "fact": "The killer's own clean-up (an active incident at stage resolution, the actor one of its killers) skips the action step of Tamper's price: each attempt costs the Sanity step, RESOLUTION_STRESS_COST.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperPriceSkip",
+          "note": null
+        },
+        {
+          "fact": "Anybody else's Tamper costs one action and no Sanity; with no action left there is no Tamper.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperPriceSkip",
+          "note": null
+        },
+        {
+          "fact": "On a critical reshape the step that paid is handed back (handBack) when the dice land, before any ruling; the refusal itself gives nothing back.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveTransformRoad",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "{name} ruled that the Remnant still says what it said. The turn and the Sanity are spent.",
+        "after": "{name} refused your story, so the Remnant reads as before. The refusal gives nothing back."
+      },
+      "pl": {
+        "before": "{name} decyduje, że Remnant mówi dalej to, co mówił. Tura i Sanity pozostają wydane.",
+        "after": "{name} nie zgadza się na twoją wersję, więc Remnant zostaje bez zmian. Odmowa niczego nie zwraca."
+      },
+      "removed": [
+        "\"The turn and the Sanity are spent\" becomes \"What you paid\": the price is an action or Sanity, never both."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said both the turn and the Sanity were spent; tamperPriceSkip takes one step only.",
+        "The writer's \"What you paid stays spent\" was false after a critical reshape, whose hand-back runs before the ruling; the text now says the refusal gives nothing back."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "M2: on a critical reshape resolveTransformRoad hands the paid step back through handBack before any ruling, and declineReshapeRuling takes nothing back, so \"What you paid stays spent\" / \"Koszt próby przepada\" is false after a critical; what holds on every road is that the refusal gives nothing back (proposed EN: \"{name} refused your story, so the Remnant reads as before. The refusal gives nothing back.\"; PL: \"{name} odrzuca twoją wersję, więc Remnant się nie zmienia. Odmowa niczego nie zwraca.\"). - executor: Taken in part: the facts and the English are the proposal's; the Polish says „nie zgadza się na twoją wersję” instead of „odrzuca”, as the glossary's refuse entry lists „Odrzuć” as a forbidden variant."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeDeclinedGm",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A reshape's words go to the GMs as a card; nothing is written on the Remnant until a GM approves; a refusal keeps the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        },
+        {
+          "fact": "The same toast follows a refusal on both roads; on the erase road (proposal.erases) the refusal removes the Remnant and the player is told DRPG.Cleanup.reshapeDeclinedErased.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "declineReshapeRuling",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Declined. {name} was told the Remnant is unchanged.",
+        "after": "You refused the reshape, and {name} has been told."
+      },
+      "pl": {
+        "before": "Odrzucono. {name} dostaje informację, że Remnant się nie zmienił.",
+        "after": "Odmawiasz zmiany. {name} dostaje o tym wiadomość."
+      },
+      "removed": [
+        "\"Declined\" becomes the button's word."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before and the writer's after said the player was told the Remnant is unchanged; on the erase road the refusal erases it (declineReshapeRuling)."
+      ],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "X6: a bare \"Refused.\" drops the subject; the toast is the GM's own result (O1) (proposed: You refused the reshape. {name} was told the Remnant is unchanged.). - executor: Taken in part: the toast opens on the GM's own act (\"You refused the reshape\"); \"was told the Remnant is unchanged\" goes, as it is false on the erase road (mechanics)."
+          ]
+        },
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Glossary `refuse` (O14) and repetition: the button is „Odmów”, so the toast should follow it, and „zmianę ... bez zmian” repeats the word (proposed: Odmawiasz zmiany. {name} dostaje wiadomość, że Remnant zostaje taki, jak był.). - executor: Taken in part: „Odmawiasz zmiany” is in; the end is the mechanics reviewer's „dostaje o tym wiadomość”, since the Remnant does not always stay as it was (on the erase road the refusal erases it)."
+          ]
+        },
+        "mechanics": {
+          "verdict": "wrong",
+          "points": [
+            "M2: declineReshapeRuling shows this toast on both roads, and on the erase road (proposal.erases) it removes the Remnant and tells the player DRPG.Cleanup.reshapeDeclinedErased, so \"was told the Remnant is unchanged\" / \"Remnant zostaje bez zmian\" is false there and the GM would believe the Remnant still stands (proposed EN: \"Refused. {name} has been told.\"; PL: \"Odrzucasz zmianę. {name} dostaje o tym wiadomość.\"). - executor: Taken in part: the facts and the Polish are the proposal's; the English opens on \"You refused the reshape\" rather than a bare \"Refused.\" (X6, the en reviewer)."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeRulingGone",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An approval on a Remnant no longer there is refused and the player is told.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "applyReshapeRuling",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "That Remnant is no longer there, so there is nothing to relabel.",
+        "after": "That Remnant is gone, so there is nothing to reshape. The player is told."
+      },
+      "pl": {
+        "before": "Tego Remnantu już nie ma, więc nie ma czego przemianować.",
+        "after": "Tego Remnantu już nie ma, więc nie ma czego zmieniać. Gracz dostaje o tym wiadomość."
+      },
+      "removed": [
+        "\"relabel\" becomes the action's verb."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeUnsent",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "cleanup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A card that did not go is no proposal; on the erase road the critical's erase happens anyway.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveEraseRoad",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A reshaped Remnant could not be delivered to a thread. Nothing of its story was written on the Remnant - rule on it in words, and relabel it by hand if you allow it. On the erase road the Remnant was erased, as the critical bought.",
+        "after": "A reshape card could not be sent, so nothing was written on the Remnant. If the roll was a critical Erase a Trace, the Remnant is already erased; otherwise rule on the reshape out loud, and relabel the Remnant by hand if you allow it."
+      },
+      "pl": {
+        "before": "Propozycji przerobienia Remnantu nie udało się dostarczyć do wątku. Na Remnancie nie zapisano nic z tej historii - rozstrzygnij to słowami i przemianuj go ręcznie, jeśli się zgadzasz. Przy zacieraniu Remnant i tak zniknął, bo kupił to krytyczny sukces.",
+        "after": "Karta ze zmianą Remnantu nie została wysłana, więc na Remnancie nic nie zapisano. Jeśli był to krytyk przy Erase a Trace, Remnant jest już wymazany; w przeciwnym razie rozstrzygnij zmianę na głos i, jeśli się zgadzasz, zmień Remnant ręcznie."
+      },
+      "removed": [
+        "\"delivered to a thread\" (T29) and the dash aside (X4) go."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "O15/clarity: \"After a critical Erase a Trace, the Remnant was erased\" states as done what holds only on the erase road, and \"Rule on it\" / \"relabel it\" point at different things (proposed: A reshape card could not be sent, so nothing was written on the Remnant. Rule on the reshape out loud, and relabel the Remnant by hand if you allow it. If it came from a critical Erase a Trace, the Remnant is erased anyway.). - executor: Taken in part: the erase case now comes first, as a condition, and the step follows for the other case, so the GM is not told to relabel a Remnant already erased."
+          ]
+        },
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "The last sentence reads as a past fact about every case, not a condition, so a GM cannot tell whether this Remnant was erased; understood: if the roll was a critical Erase a Trace, the Remnant is already gone (O1, O15) (proposed: 'A reshape card could not be sent, so nothing was written on the Remnant. Rule on it out loud, and relabel it by hand if you allow it. If the roll was a critical Erase a Trace, the Remnant is already erased.'). - executor: Taken in part: the condition is in (\"If the roll was a critical Erase a Trace\"), and it now comes before the step, which applies only otherwise."
+          ]
+        },
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "O7/parity (M4): the English after tells the GM what to do (rule out loud, relabel by hand if they allow it), the Polish drops it and says „nie ma czego rozstrzygać”, so the GM is left with no step (proposed: Karta ze zmianą Remnantu nie została wysłana, więc na Remnancie nic się nie zmienia. Rozstrzygnij to na głos i, jeśli się zgadzasz, zmień Remnant ręcznie. Przy wymazywaniu Remnant i tak znika dzięki krytykowi.). - executor: Taken in part: the step to the GM is in; the erase case comes first as a condition, as in the English."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshapeUnsentPlayer",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Said to the player when the reshape card did not go.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        },
+        {
+          "fact": "On the erase road a card that did not go still erases the Remnant (put !== true, then erase()).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveEraseRoad",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You worked it over, but your story did not reach the GM. Say it out loud; nothing has been written on the Remnant.",
+        "after": "Your story did not reach the GM, and nothing was written on the Remnant. Tell the GM out loud."
+      },
+      "pl": {
+        "before": "Robota zrobiona, ale twoja historia nie dotarła do GM-a. Opowiedz ją na głos; na Remnancie nic nie zapisano.",
+        "after": "Twoja wersja Remnantu nie dotarła do GM-a i nic na nim nie zapisano. Opowiedz ją przy stole."
+      },
+      "removed": [
+        "\"You worked it over\" goes (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The Polish after said „Remnant się nie zmienia”, false on the erase road, where the Remnant is erased anyway (resolveEraseRoad)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.reshaped",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "After an approval the player is told the Remnant's old labels, its new name and its band and type.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "reshapeTrace",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{from} now reads as “{name}”: {band} {kind}. Whoever finds it finds your story, not what was there.",
+        "after": "{from} now reads as “{name}” ({band} {kind}). Whoever finds it reads your story."
+      },
+      "pl": {
+        "before": "{from} czyta się teraz jako „{name}” - {band} {kind}. Kto to znajdzie, znajdzie twoją historię, nie to, co tu było.",
+        "after": "GM zatwierdza zmianę: {from} to teraz „{name}” ({band} {kind}). Kto go znajdzie, zobaczy twoją wersję."
+      },
+      "removed": [
+        "\"not what was there\" goes (X3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "For the owner: {from} is the ledger's band and type, which a player off Stage 6 is otherwise not shown (cleanableTracesForPlayer names it by the player's copy); the text keeps what the code sends."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.transformActionNote",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "transform",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A reshape's words go to the GMs as a card; nothing is written on the Remnant until a GM approves; a refusal keeps the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        },
+        {
+          "fact": "An approved reshape becomes a Tamper Remnant (CLEANUP.transformAction.becomes); a critical writes one band quieter and gives back 1 of the step paid.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveTransformRoad",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A GM approves your words first, and a refusal gives back nothing you paid. Approved, it becomes a Tamper Remnant, which admits that somebody handled it and lies about everything else. A critical also makes it one band quieter and hands back what you paid.",
+        "after": "A GM approves your words first, and a refusal gives nothing back. Once approved, it becomes a Tamper Remnant. A critical also makes it one band harder to spot and gives back what you paid."
+      },
+      "pl": {
+        "before": "Najpierw twoje słowa zatwierdza GM, a po odmowie nic, co zapłacono, nie wraca. Po zatwierdzeniu Remnant staje się Tamper Remnant, który przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. Krytyk dodatkowo wycisza go o jeden stopień i zwraca koszt.",
+        "after": "Twoją wersję najpierw zatwierdza GM, a po odmowie koszt nie wraca. Po zgodzie Remnant staje się Tamper Remnant; krytyk sprawia też, że o stopień trudniej go zauważyć, i zwraca ci koszt."
+      },
+      "removed": [
+        "\"which admits that somebody handled it and lies about everything else\" goes: rationale (O9).",
+        "Tier 1 R121 holds the Reshape's sentences to a refusal that gives nothing back (pl /odmow...nie wraca|przepada/): the Polish after says „po odmowie koszt nie wraca” after the first tier 1 run."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "EN grammar: \"if refused, what you paid stays spent\" is a dangling modifier (it is the words that are refused, not what you paid) (proposed: A GM approves your words first; if the GM refuses, what you paid stays spent. Once approved, it becomes a Tamper Remnant. A critical also makes it one band harder to spot and gives back what you paid.). - executor: Taken in part: the dangling \"if refused\" goes, but not for \"what you paid stays spent\": a critical's hand-back runs before the ruling (resolveTransformRoad), so the text says the refusal gives nothing back."
+          ]
+        },
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.transformGo",
+      "group": "window",
+      "surface": "button",
+      "screen": "transform",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The button returns the words and attemptCleanup rolls next.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "askTransformChange",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Reshape it",
+        "after": "Roll"
+      },
+      "pl": {
+        "before": "Przerób",
+        "after": "Rzuć"
+      },
+      "removed": [
+        "\"Reshape it\" becomes \"Roll\", E100's word for an action window's button that rolls; the window's title names the action."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.transformIntro",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "transform",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Asked after a critical on the erase road: erase, or propose a reshape with a band of the player's choice.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "askTransform",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "You have time to do more than wipe it. Erase the Remnant, or leave it saying something else entirely - and, this well rolled, choose how loudly it says it.",
+        "after": "Your critical lets you do more than erase this Remnant: erase it, or give it a new name and description and choose how easy it is to spot."
+      },
+      "pl": {
+        "before": "Masz czas na więcej niż wytarcie. Usuń Remnant albo zostaw go mówiącego coś zupełnie innego - a przy tak dobrym rzucie wybierz, jak głośno to mówi.",
+        "after": "Krytyk daje ci wybór: wymaż Remnant albo zaproponuj jego nową wersję i wybierz, jak łatwo będzie go zauważyć."
+      },
+      "removed": [
+        "The dash aside (X4) goes."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.transformNote",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "transform",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A refused reshape on the erase road still erases; the critical's give-back already happened when the dice landed.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "declineReshapeRuling",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Nobody sees you decide. Erasing happens now. Leaving something else waits for a GM's approval first: whoever finds it then finds your story, as a Tamper Remnant. If the GM refuses, the Remnant is erased all the same and nothing you paid comes back.",
+        "after": "Erasing happens now. A new story waits for a GM's approval, and then the Remnant becomes a Tamper Remnant with your words. If the GM refuses, the Remnant is erased anyway and nothing else you paid comes back."
+      },
+      "pl": {
+        "before": "Nikt nie widzi, jak decydujesz. Usunięcie działa od razu. Zostawienie czegoś innego najpierw zatwierdza GM: kto potem znajdzie ten Remnant, znajdzie twoją wersję jako Tamper Remnant. Po odmowie GM-a Remnant i tak znika, a to, co zapłacono, nie wraca.",
+        "after": "Wymazanie działa od razu. Nową wersję najpierw zatwierdza GM, a po zgodzie Remnant staje się Tamper Remnant; po odmowie Remnant i tak znika, a reszta kosztu nie wraca."
+      },
+      "removed": [
+        "\"Nobody sees you decide\" goes (O10).",
+        "\"nothing you paid comes back\" goes: the critical already gave back 1 of what was paid.",
+        "Tier 1 R121 holds the Reshape's sentences to a refusal that gives nothing back: both afters say what else was paid does not come back, the critical's refund aside, after the first tier 1 run."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said nothing paid comes back on a refusal; the critical's give-back (handBack) runs before the ruling, and the refusal takes nothing more."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Tamper.onlyReinforced",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Reinforced Remnant cannot be erased or reshaped; an attempt on one is refused before anything is scored and what was paid comes back as far as the GMs saw it paid.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupRefusal",
+          "note": null
+        },
+        {
+          "fact": "The line is the disabled reason of both the Erase a Trace row and the Reshape a Trace row.",
+          "file": "scripts/action-tamper.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Every Remnant you know of here is too deeply set to remove.",
+        "after": "Every Remnant you know of here is Reinforced and cannot be erased or reshaped."
+      },
+      "pl": {
+        "before": "Każdy Remnant, który tu znasz, siedzi za głęboko, by go usunąć.",
+        "after": "Każdy Remnant, który tu znasz, jest Reinforced, więc żadnego nie wymażesz ani nie przekształcisz."
+      },
+      "removed": [
+        "\"too deeply set\" becomes the quality's name (EN18, O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Tamper.watchedNoSanity",
+      "group": "window",
+      "surface": "toast",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A watched attempt is refused when the Sanity track is full.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "tamperWatchBlock",
+          "note": null
+        },
+        {
+          "fact": "With anybody but the killer's partners in the room, a Shadow concealment roll against CLEANUP.conceal.threshold comes first (not for Move the Body): a hit with Despair costs 1 Sanity, a miss 1 with Hope and 2 with Despair, a critical gives 1 back; a miss tells the others in the room and the GMs.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Somebody is watching, and covering what you are doing costs Sanity you no longer have.",
+        "after": "Somebody is watching, and you have no Sanity left to cover what you are doing."
+      },
+      "pl": {
+        "before": "Ktoś patrzy, a zamaskowanie tego, co robisz, kosztuje Sanity, którego już nie masz.",
+        "after": "Ktoś patrzy, a zamaskowanie tego, co robisz, kosztuje Sanity, którego już nie masz."
+      },
+      "removed": [
+        "\"Sanity you no longer have\" said as the reserve (D5)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Tamper.watched",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "With anybody but the killer's partners in the room, a Shadow concealment roll against CLEANUP.conceal.threshold comes first (not for Move the Body): a hit with Despair costs 1 Sanity, a miss 1 with Hope and 2 with Despair, a critical gives 1 back; a miss tells the others in the room and the GMs.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        },
+        {
+          "fact": "{n} counts the others through witnessesTo, the killer's partners left out; {dc} is CLEANUP.conceal.threshold.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "tamperThresholdFacts",
+          "note": null
+        },
+        {
+          "fact": "Move the Body, on the same Tamper menu in Stage 6, rolls no concealment (cover is \"alone\").",
+          "file": "scripts/cleanup.mjs",
+          "fn": "attemptStageSix",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": {
+          "one": "{n} other person is in this room. You cover what you are doing first ({dc}+), and being caught at it costs Sanity.",
+          "other": "{n} other people are in this room. You cover what you are doing first ({dc}+), and being caught at it costs Sanity."
+        },
+        "after": {
+          "one": "{n} other person in this room can see you. Unless you Move the Body, you first roll Shadow ({dc}+) to hide what you do; a miss, or a hit with Despair, costs extra Sanity, and a miss gives you away to them and the GMs.",
+          "other": "{n} other people in this room can see you. Unless you Move the Body, you first roll Shadow ({dc}+) to hide what you do; a miss, or a hit with Despair, costs extra Sanity, and a miss gives you away to them and the GMs."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "{n} inna osoba jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+          "few": "{n} inne osoby są w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+          "many": "{n} innych osób jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
+          "other": "{n} innych osób jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity."
+        },
+        "after": {
+          "one": "W tym pokoju jest {n} inna osoba. Poza przenoszeniem ciała najpierw rzucasz Shadow ({dc}+), żeby ukryć, co robisz. Trafienie z Despair i pudło kosztują dodatkowo Sanity, a pudło zdradza cię obecnym i GM-om.",
+          "few": "W tym pokoju są {n} inne osoby. Poza przenoszeniem ciała najpierw rzucasz Shadow ({dc}+), żeby ukryć, co robisz. Trafienie z Despair i pudło kosztują dodatkowo Sanity, a pudło zdradza cię obecnym i GM-om.",
+          "many": "W tym pokoju jest {n} innych osób. Poza przenoszeniem ciała najpierw rzucasz Shadow ({dc}+), żeby ukryć, co robisz. Trafienie z Despair i pudło kosztują dodatkowo Sanity, a pudło zdradza cię obecnym i GM-om.",
+          "other": "W tym pokoju jest {n} innych osób. Poza przenoszeniem ciała najpierw rzucasz Shadow ({dc}+), żeby ukryć, co robisz. Trafienie z Despair i pudło kosztują dodatkowo Sanity, a pudło zdradza cię obecnym i GM-om."
+        }
+      },
+      "removed": [
+        "\"being caught at it costs Sanity\" now names when: a miss, and a hit with Despair."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The owner's pilot pair 40 said only a miss with Despair costs Sanity and had no {dc}; the current text has {dc}, and concealFromWitnesses also charges a miss with Hope and a hit with Despair, so the pilot after is not used word for word."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    }
+  ]
+}

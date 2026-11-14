@@ -280,7 +280,7 @@ const rows = [];
 try {
     if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
     let controlled = false;
-    for (const [di, dir] of DIRS.entries()) {
+    for (const [, dir] of DIRS.entries()) {
         const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
         const lang = manifest.windows.find(w => w.lang)?.lang ?? "en";
         for (const w of manifest.windows.filter(x => x.captured && IDS.test(x.id))) {

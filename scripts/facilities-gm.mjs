@@ -103,8 +103,16 @@ export async function applyEffects(actor, effects, place, sender = null) {
         }
         if (effect.kind === "searchToken") {
             const { SearchTokens } = await import("./search-tokens.mjs");
-            for (let i = 0; i < effect.n; i++) await SearchTokens.giveBack(place.room, place.scene.id);
-            lines.push(t("searchToken", { n: effect.n, room: place.room }));
+            // What came back, as giveBack answers it: one at a time, never above the room's maximum, none on a GM that is
+            // not the primary (null). The GM's number stood in the line until the needsCode line (R6911), "+3" for a full room.
+            let held = SearchTokens.left(place.room, place.scene.id), back = 0;
+            for (let i = 0; i < effect.n; i++) {
+                const next = await SearchTokens.giveBack(place.room, place.scene.id);
+                if (!Number.isFinite(next)) continue;
+                if (next > held) back += next - held;
+                held = next;
+            }
+            lines.push(back > 0 ? t("searchToken", { n: back, room: place.room }) : t("searchTokenFull", { room: place.room }));
             continue;
         }
         if (effect.kind === "projectProgress") {

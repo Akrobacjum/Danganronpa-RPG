@@ -24,7 +24,6 @@ import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoverie
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
-import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
@@ -32,6 +31,8 @@ import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
@@ -570,6 +571,7 @@ export async function openGmPanel() {
     // On the kit's frame (E21 C2b): the screen's height, the body scrolling, the footer one Close - nothing is left to
     // answer in a window whose every tile does its own work.
     await drpgWindow({
+        help: WINDOW_HELP.gmPanel,
         title: game.i18n.localize("DRPG.Panel.title"),
         classes: ["drpg-panel", "drpg-gm-panel-window", "drpg-window-panel"],
         // The tile grid needs a definite width to resolve into columns (ui-kit.mjs WINDOW_WIDTHS `panel`; E21 W1).
@@ -735,7 +737,7 @@ async function openFailureLog() {
             secondary: [
                 ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy"),
                     tooltip: tipText("DRPG.Tips.Gm.copyToClipboardTooltip") }] : []),
-                { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport") }
+                { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport"), tooltip: tipText("DRPG.Tips.Gm.foundryAndModulesTooltip") }
             ],
             destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
                 tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }] : []

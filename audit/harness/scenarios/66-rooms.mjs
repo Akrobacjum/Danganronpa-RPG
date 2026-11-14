@@ -414,7 +414,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         const was = game.drpg.getDespair(game.user.id);
         await game.drpg.setDespair(game.user.id, 6);
         const told = game.i18n.format("DRPG.Calls.gatherNoRoom", { room: "Boiler", scene: academy.name });
-        const refunded = game.i18n.format("DRPG.Calls.refunded", { call: call.label, cost: call.cost });
+        const refunded = game.i18n.format("DRPG.Calls.refunded", { call: call.label, cost: game.i18n.format("DRPG.Calls.costsDespairShort", { cost: call.cost }) });
         const count = text => globalThis.__notifications.filter(n => n.msg === text).length, w0 = count(told), r0 = count(refunded);
         const refuse = room => CE.gatherRefusal ? CE.gatherRefusal(call, { room }, monokuma) : "no gatherRefusal";
         let out = null;
@@ -458,8 +458,8 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
             return { _id: t.id, x: 300 + 100 * i, y: 400 };
         }), { teleport: true, movementAction: "displace", animate: false });
         const rooms = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"].map(id => M.roomOfToken(academy.tokens.find(x => x.actorId === id)));
-        const nobody = game.i18n.localize("DRPG.Action.murderNobody"), seen = new Set(game.messages.contents.map(m => m.id));
-        const witnesses = foundry.utils.escapeHTML((await import("${repoUrl}/scripts/utils.mjs")).plural("DRPG.Action.murderWitness", { n: 1 }));
+        const nobody = game.i18n.localize("DRPG.Action.murderNobodyGm"), seen = new Set(game.messages.contents.map(m => m.id));
+        const witnesses = foundry.utils.escapeHTML((await import("${repoUrl}/scripts/utils.mjs")).plural("DRPG.Action.murderWitnessGm", { n: 1 }));
         const started = Boolean(await E.startEclipse());
         const parked = Boolean(await E.parkDirectMurder({ killerId: "${IDS.aiko}", room: "Dorm A", note: "E12 C0 66 F" }));
         canvas.scene = annex;

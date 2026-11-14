@@ -52,7 +52,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased, BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural, esc } from "./utils.mjs";
+import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural, esc, listOf } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
 import { isMaskedActor } from "./mask-gm.mjs";
 import { spectatorViewer } from "./spectator.mjs";
@@ -543,7 +543,7 @@ async function takeFromBody(body, items) {
     const { othersInRoom } = await import("./movement.mjs");
     if (othersInRoom(taker).some(other => other?.id !== body.id)) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
-            remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
+            remember: false, actionKey: "lootCover", context, title: game.i18n.format("DRPG.Loot.coverTitle", { n: LOOT.cover.threshold }), dc: LOOT.cover.threshold
         });
         if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
     }
@@ -558,7 +558,7 @@ async function takeFromBody(body, items) {
     // `lootBody`): the Shadow is rolled now and the Take asked again on the Hand already bound. Closed, nothing is taken.
     if (res.ok && res.value?.coverNeeded && !game.user.isGM) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
-            remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
+            remember: false, actionKey: "lootCover", context, title: game.i18n.format("DRPG.Loot.coverTitle", { n: LOOT.cover.threshold }), dc: LOOT.cover.threshold
         });
         if (!shadow) return false;
         res = await ask(null, { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope });
@@ -566,7 +566,8 @@ async function takeFromBody(body, items) {
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
     // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
     const took = Boolean(res.ok && !res.value?.refused && !res.value?.coverNeeded);
-    const names = list.map(item => item.name).join(", ");
+    // Each name in its own quotes, the list joined in the page's language (EN17, EN2; the needsCode line, R6900).
+    const names = listOf(list.map(item => game.i18n.format("DRPG.Loot.itemQuoted", { item: item.name })));
     if (took) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: names }));
     return took;
 }

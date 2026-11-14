@@ -83,7 +83,7 @@ import { copiedRemnants, bulletsOf, secretOf, dropSecret } from "./truth-bullets
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
-import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
+import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
@@ -858,7 +858,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
      * and left signs of the disturbing (D8).
      */
 async function resolveTransformRoad(actor, token, data, verdict, {
-    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null
+    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null, free = false
 }) {
     const { band, success, dc } = verdict;
     const byTheKiller = isCleaner(actor);
@@ -912,7 +912,7 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         if (line) done.push(line);
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction, charged });
+    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free });
     await keepAttempt(receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
@@ -1222,7 +1222,7 @@ export async function resolveCleanup({
 
     if (transforming && success) {
         const road = await resolveTransformRoad(actor, token, data, verdict,
-            { change, isCritical, total, viaAction, receipt, done, paidStep, charged, grant, by });
+            { change, isCritical, total, viaAction, receipt, done, paidStep, charged, grant, by, free });
         await keepAttemptFact(rolls, roll, actorId, receipt);
         return road;
     }
@@ -1243,7 +1243,7 @@ export async function resolveCleanup({
         if (line) done.push(line);
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction, charged });
+    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free });
     await keepAttempt(receipt);
     await keepAttemptFact(rolls, roll, actorId, receipt);
 
@@ -1911,7 +1911,7 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
  * Carry the body out of the room it died in.
  *
  * The destination comes from the killer, picked before the roll and carried
- * here as `chosenRoom`. It is checked against `bodyDestinations` on this side
+ * here as `chosenRoom`. It is checked against `bodyReach` on this side
  * rather than trusted: the packet is a claim, and a body must not be moved
  * somewhere a living character could not walk to.
  *
@@ -2558,7 +2558,9 @@ async function restoreStress(actor, amount = 1) {
 async function report(actor, data, {
     band, success, total, dc, done, viaAction = false,
     /** What the attempt paid, as a price receipt, or null when nothing said. */
-    charged = null
+    charged = null,
+    /** The free attempt after a critical Finishing Blow (D13): `done` already says it cost nothing, so no price line. */
+    free = false
 }) {
     const summary = done.map(line => `<li>${line}</li>`).join("");
 
@@ -2582,7 +2584,7 @@ async function report(actor, data, {
             // pays Sanity from the tile, and an investigator in Stage 6's window
             // pays an action).
             ? `<p><small>${paidLine(charged)}</small></p>`
-            : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
+            : free ? "" : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
                 n: RESOLUTION_STRESS_COST })}</small></p>`}`,
         success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });
 
@@ -2706,12 +2708,7 @@ export async function openCleanupDialog(actor) {
  *
  * Every neighbour being a bedroom returns an empty list, which the callers
  * already read as "there is nowhere to take it" - the honest answer.
- */
-async function bodyDestinations(scene, room) {
-    return (await bodyReach(scene, room)).near;
-}
-
-/**
+ *
  * HOW FAR A BODY CAN BE CARRIED (E64 C4, 12.11.2026; U06-config-rules-07, the amend of 26.09; default taken, owner to
  * confirm). `near`: the rooms connected to `room` (movement.mjs `neighbouringRooms`, the same road a step takes, so the
  * map's lists, its walls and its floors decide as they do for a Move); `far`: the rooms two away - connected to a near
@@ -2752,7 +2749,7 @@ export function bodyLanding({ near = [], far = [], via = {} } = {}, chosen, reac
  *
  * Asked before the roll, because it is a decision and not a result: the killer
  * is choosing which room to leave a corpse in, and that choice is most of what
- * Stage 6 is about. The list is `bodyDestinations`: the rooms connected to the
+ * Stage 6 is about. The list is `bodyReach`'s: the rooms connected to the
  * one the body is lying in, minus anybody's bedroom.
  */
 export async function openMoveBodyDialog(actor) {
@@ -2996,7 +2993,8 @@ async function destroyTools(actor, categories) {
 
     if (destroyed.length) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.toolsBroken", {
-            items: foundry.utils.escapeHTML(destroyed.join(", "))
+            // Each name in its quotes, the list in the page's language (EN17, EN2; the needsCode line, R6914).
+            items: foundry.utils.escapeHTML(listOf(destroyed.map(item => game.i18n.format("DRPG.Loot.itemQuoted", { item }))))
         })}</p>`);
         log(`Cleanup: ${destroyed.join(", ")} used by ${actor.name} is broken and still on them.`);
     }

@@ -5392,7 +5392,9 @@ const REGRESSIONS = [
         ok(/order:\s*15\s*;/.test(panel[0]),
             "the Event panel's place in #ui-top is stated only for one theme");
 
-        const bare = [...css.matchAll(/([^{}]+)\{[^}]*grid-template-columns:\s*minmax\(0,\s*275px\)/g)]
+        /* E55 D3 (14.11.2026) took out `minmax(0, 275px)`, which lost in both themes to the `body` rule's
+           `minmax(0, calc(275px * var(--drpg-slider-scale, 1)))`; both forms are read, so the rail that is left is held. */
+        const bare = [...css.matchAll(/([^{}]+)\{[^}]*grid-template-columns:\s*minmax\(0,\s*(?:calc\(\s*)?275px\b/g)]
             .map(m => m[1].trim());
         ok(bare.length > 0, "the character sheet's rail rule has gone");
         for (const selector of bare) {
@@ -7098,7 +7100,9 @@ const REGRESSIONS = [
             ["liftIncidentFight", "liftIncidentFight", "1.2.66"],
             // E72 C2: the crime witness's mark off its actor, into the GMs' Monocub record; since the version E72 ships in,
             // 1.2.110 (the coordinator's, 12.11.2026; the line planned 1.2.117).
-            ["liftCubWitness", "liftCubWitness", "1.2.110"]];
+            ["liftCubWitness", "liftCubWitness", "1.2.110"],
+            // The leak-pm line (1.2.113): a secret project's murder mark and room out of projectMeta, into the GMs' rows.
+            ["liftSecretProjectMarks", "liftSecretProjectMarks", "1.2.113"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -8629,7 +8633,6 @@ const REGRESSIONS = [
                 moved = false;
                 for (const k of roads.keys()) {
                     if (grounded.has(k)) continue;
-                    const file = roads.get(k)[0][0];
                     const places = table(k) ? named.get(k).filter(p => roads.get(k).some(r => r[2] === p.caller)) : named.get(k);
                     if (places.length && places.every(p => p.gated || [...roads.keys()].some(o => o !== k && grounded.has(o) && o.endsWith(`|${p.caller}`)))) {
                         grounded.add(k);
@@ -13113,7 +13116,7 @@ const REGRESSIONS = [
         ok(/^Nonstop Debate - /.test(floor.holdingDebate) && /^Nonstop Debate - /.test(floor.holdingDebateOver)
             && !/discussion/i.test(floor.holdingDebate + floor.holdingDebateOver), "the console's debate lines are not the debate's (S06-10)");
         equal(JSON.stringify([ev.trialDebateMeta, ev.trialDiscussionMeta, ev.trialObjectionFloor]),
-            JSON.stringify(["Present a Truth Bullet from your Inventory", "Talk it through - the GM opens the debate", "{who} has the floor"]),
+            JSON.stringify(["Present a Truth Bullet from your Inventory", "The students talk it through until the GM opens the debate", "{who} has the floor"]),
             "the Event card's metas are not the audit's (S06-24)");
         for (const code of ["en", "pl"]) {
             const l = lang[code];
@@ -13472,11 +13475,11 @@ const REGRESSIONS = [
             en: { three: { 2: "Two", 3: "Three", 4: "Four" }, bar: { 4: ["below four", "fewer than four"] },
                 tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
                 daily: { player: /No roll is scored on the Daily Life row either: no Remnant is of that kind\. It is the ladder your Observe briefing/,
-                    gm: /No roll is scored on the Daily Life column: no trace is of that kind\. It is the ladder Observe's briefing/ } },
+                    gm: /No roll is scored on the Daily Life column: no Remnant is of that kind\. It is the ladder Observe's briefing/ } },
             pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
                 tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
                 daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden Remnant nie jest tego rodzaju\. To drabina, którą briefing Observe/,
-                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
+                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden Remnant nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
         };
         // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
         const rolls = stripComments(actionText(await otherSources()));
@@ -13688,7 +13691,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
-                    lateBallot: [/If you connect while a vote is open, your ballot comes as your browser loads/],
+                    lateBallot: [/If you connect while a vote is open, your ballot comes as the game loads/],
                     majority: [/\*\*more than half\*\* of the ballots issued - for each name/],
                     verdictCard: [/Everyone then sees one card, \*\*THE VERDICT\*\*/, /If it is your character, you are also told privately/],
                     deadObjector: [/A dead student neither presents evidence nor objects\./]
@@ -13698,7 +13701,7 @@ const REGRESSIONS = [
             pl: {
                 gm: {
                     onePerPerson: [/jedną na osobę: gracz z dwoma uczniami dostaje jedną kartę, a uczeń, którego gra tylko GM, nie dostaje żadnej \(zmarli nie głosują, `deadCastBallots: false`\)/],
-                    inWorld: [/jest w świecie, więc przeładowanie GMa go zachowuje/],
+                    inWorld: [/jest w świecie, więc przeładowanie GM-a go zachowuje/],
                     lateBallot: [/Gracz, który połączy się w trakcie głosowania, dostaje kartę, gdy wczytuje się jego przeglądarka, i ta karta liczy się do rozesłanych, więc podnosi poprzeczkę/],
                     majority: [/\*\*więcej niż połowy rozesłanych kart\*\* \(połowa zaokrąglona w dół plus jeden\)/],
                     nobodyFirst: [/na swojej pierwszej opcji, \*\*Nikt nie zostaje stracony\*\*/],
@@ -13709,8 +13712,8 @@ const REGRESSIONS = [
                     secondTrial: [/\(\*\*Otwórz nowy Class Trial\*\*\), zanim otworzy drugą rozprawę, z Anuluj jako pierwszym i domyślnym przyciskiem/],
                     finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera \*\*Werdykt Final Trial\*\* \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
-                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/],
-                    finishRunner: [/Wykonuje się w przeglądarce GMa, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GMa - w przeglądarce innego GMa konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
+                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GM-a/],
+                    finishRunner: [/Wykonuje się w przeglądarce GM-a, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GM-a - w przeglądarce innego GM-a konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
                     noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, nie zostawia już tego wiersza do przyznania jeszcze raz/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
@@ -13718,15 +13721,15 @@ const REGRESSIONS = [
                     unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej, gdy rozprawa się kończy/],
                     eclipseDoors: [/żadne inne drzwi nie otwierają rozprawy po ciemku: Edytuj kampanię zostawia fazę, stosuje resztę swojego okna i mówi o tym, a `game\.drpg\.setPhase` i `game\.drpg\.setClock` odmawiają całej zmiany/],
                     editAsksChapter: [/Edytuj kampanię zadaje to samo pytanie, gdy przestawia fazę na Class Trial, i to o rozdział, do którego okno przechodzi/],
-                    nowOnPrimary: [/\*\*Pomiń\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym/],
+                    nowOnPrimary: [/\*\*Pomiń\*\* wykonuje się w przeglądarce głównego GM-a, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GM-a, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym/],
                     runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
-                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GMa i w przeglądarce GMa, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GMa jako zajęte\./],
+                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GM-a i w przeglądarce GM-a, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GM-a jako zajęte\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/],
                     finalFinish: [/Zatrzymuje się i jest dokańczany tak jak zwykły werdykt \(od 1\.2\.97\)/, /\*\*Dokończ werdykt\*\* wykonuje pozostałe kroki i przyznaje to, co czekało, raz/]
                 },
                 player: {
                     onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],
-                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka/],
+                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się gra/],
                     majority: [/\*\*więcej niż połowy\*\* wydanych kart - dla każdego nazwiska/],
                     verdictCard: [/Potem wszyscy widzą jedną kartę, \*\*WERDYKT\*\*/, /Jeśli to twoja postać, dowiadujesz się o tym także prywatnie/],
                     deadObjector: [/Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection\./]
@@ -14379,12 +14382,12 @@ const REGRESSIONS = [
                     renameLast: [/carries what pointed at the old name over to the new one once the room's last piece of the old name on that scene has the new one - until then a room of the old name still stands and keeps it all\./],
                     renameLimits: [/the keys when the room is a bedroom and no other scene has a bedroom of the old name, a character's stashed items when no other scene has a stash of theirs in a room of the old name\./],
                     keysCarried: [/^> Keys name their room in a flag: a GM's rename of the room carries them \(section 9\.1 says when\)/],
-                    renameWorld: [/the room of a project, of a planted item and of a called assembly that stood there, the Mastermind's room once no scene has a room of the old name, the other rooms' Neighbours lists naming it, a Despair Call's seal on it and the room of the bodies found there/],
+                    renameWorld: [/the room of a project, of a planted item and of a called assembly that stood there, the Mastermind's room once no scene has a room of the old name, the other rooms' Neighbors lists naming it, a Despair Call's seal on it and the room of the bodies found there/],
                     renameRecord: [/The name a renamed piece left is written on the piece itself, so a GM who connects between the renames of a room's pieces, or becomes the primary GM between them, reads them as the GM who saw the first one does; the primary GM takes it off the pieces once the room is carried\./],
                     renameSeal: [/A seal names no scene either and shuts every room of its name: the new name is sealed, and the old one stays sealed while another scene still has a room of the old name\./],
                     renameBodies: [/A found body's record names its scene and goes when that is this one; a record with none - the body the GMs have still to answer is one - goes when no scene before this one, the school first, has a room of the old name\./],
                     trapScene: [/it names the trigger, the person, the room and the scene it is on \(for a trap on an object, the room and the scene its holder stands in\) and the time of day/],
-                    joins: [/A rename onto the name of a room already on the scene is no rename but a piece joining that room: nothing is carried, the seal and the bodies found neither, the piece's own Room Setup values \(the owner, the stashes, the locks, the seal, the Neighbours and the rest\) come off it/,
+                    joins: [/A rename onto the name of a room already on the scene is no rename but a piece joining that room: nothing is carried, the seal and the bodies found neither, the piece's own Room setup values \(the owner, the stashes, the locks, the seal, the Neighbors and the rest\) come off it/,
                         /Renaming one piece of a room of several takes the room's values off that piece the same way; the other pieces keep them\./],
                     oneScene: [/a project is listed, worked and sabotaged in its room on the scene of its map token/, /a trap built as a project springs only there/,
                         /Move the Body needs the body in the killer's room on the same scene and floor, and is refused before it is paid for otherwise/,
@@ -14407,19 +14410,19 @@ const REGRESSIONS = [
                     playerStairs: [/Schody narysowane przez gracza niczego nie łączą\./],
                     renameLast: [/przenosi na nową nazwę to, co wskazywało na starą, kiedy ostatni kawałek pokoju o starej nazwie na tej scenie dostanie nową - do tego czasu pokój o starej nazwie wciąż stoi i wszystko zatrzymuje\./],
                     renameLimits: [/klucze, gdy pokój jest sypialnią, a żadna inna scena nie ma sypialni o starej nazwie, przedmioty postaci, gdy żadna inna scena nie ma jej skrytki w pokoju o starej nazwie\./],
-                    keysCarried: [/^> Klucze nazywają swój pokój we fladze: zmiana nazwy pokoju przez GMa je przenosi \(kiedy - mówi sekcja 9\.1\)/],
+                    keysCarried: [/^> Klucze nazywają swój pokój we fladze: zmiana nazwy pokoju przez GM-a je przenosi \(kiedy - mówi sekcja 9\.1\)/],
                     renameWorld: [/pokój projektu, podłożonego przedmiotu i zwołanego zebrania, które tam były, pokój Masterminda, gdy żadna scena nie ma już pokoju o starej nazwie, listy Sąsiadów innych pokoi, które go wymieniają, pieczęć Despair Calla na nim i pokój ciał tam znalezionych/],
-                    renameRecord: [/Nazwa, którą przemianowany kawałek porzucił, jest zapisana na samym kawałku, więc GM, który połączy się między zmianami nazw kawałków pokoju albo zostanie między nimi głównym GMem, odczytuje je tak samo jak GM, który widział pierwszą; główny GM zdejmuje ten zapis z kawałków, gdy pokój zostanie przeniesiony\./],
+                    renameRecord: [/Nazwa, którą przemianowany kawałek porzucił, jest zapisana na samym kawałku, więc GM, który połączy się między zmianami nazw kawałków pokoju albo zostanie między nimi głównym GM-em, odczytuje je tak samo jak GM, który widział pierwszą; główny GM zdejmuje ten zapis z kawałków, gdy pokój zostanie przeniesiony\./],
                     renameSeal: [/Pieczęć też nie wymienia sceny i zamyka każdy pokój o swojej nazwie: nowa nazwa zostaje zapieczętowana, a stara pozostaje zapieczętowana, dopóki inna scena ma pokój o starej nazwie\./],
-                    renameBodies: [/Zapis znalezionego ciała wymienia swoją scenę i idzie, gdy to ta scena; zapis bez sceny - takie jest ciało, na które GMowie jeszcze nie odpowiedzieli - idzie, gdy żadna scena przed tą, licząc od szkoły, nie ma pokoju o starej nazwie\./],
+                    renameBodies: [/Zapis znalezionego ciała wymienia swoją scenę i idzie, gdy to ta scena; zapis bez sceny - takie jest ciało, na które GM-owie jeszcze nie odpowiedzieli - idzie, gdy żadna scena przed tą, licząc od szkoły, nie ma pokoju o starej nazwie\./],
                     trapScene: [/nazywa wyzwalacz, osobę, pokój i scenę, na której jest \(dla pułapki na przedmiot - pokój i scenę, w których stoi ten, kto go trzyma\), i porę dnia/],
                     joins: [/Zmiana nazwy na nazwę pokoju, który już jest na scenie, to nie zmiana nazwy, tylko kawałek dołączający do tamtego pokoju: nic się nie przenosi, ani pieczęć, ani znalezione ciała, z kawałka znikają jego własne wartości z Ustawień pokoi \(właściciel, skrytki, zamknięcia, pieczęć, Sąsiedzi i reszta\)/,
                         /Zmiana nazwy jednego z kilku kawałków pokoju tak samo zdejmuje z niego wartości pokoju; pozostałe kawałki je zachowują\./],
                     oneScene: [/projekt widać, rozwija się go i sabotuje w jego pokoju na scenie jego tokenu na mapie/, /a pułapka zbudowana jako projekt zadziała tylko tam/,
                         /Move the Body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
                         /`placeRemnant` i `applySceneVisionMode` bez sceny nic nie robią i to mówią, a `createProject` odrzuca pokój, którego nie ma żadna scena, i mówi dlaczego\./],
-                    putBack: [/Zmianę oznaczenia przez gracza cofa się do tego, co zostawił GM, a GMowie dostają o tym szept; gdy przeglądarka GMa nie ma zapisu oznaczenia sprzed zmiany, nic się nie cofa/],
-                    witness: [/Jeden uczeń to jeden świadek, ile by jego tokenów nie stało w pokoju\. Token, który gracz upuści na mapę, ocenia się od miejsca, w którym ten uczeń ostatnio stał na tej scenie; uczeń, który jeszcze nigdzie tam nie stał, liczy się tam, gdzie token wylądował, a GMowie dostają o tym szept\./]
+                    putBack: [/Zmianę oznaczenia przez gracza cofa się do tego, co zostawił GM, a GM-owie dostają o tym szept; gdy przeglądarka GM-a nie ma zapisu oznaczenia sprzed zmiany, nic się nie cofa/],
+                    witness: [/Jeden uczeń to jeden świadek, ile by jego tokenów nie stało w pokoju\. Token, który gracz upuści na mapę, ocenia się od miejsca, w którym ten uczeń ostatnio stał na tej scenie; uczeń, który jeszcze nigdzie tam nie stał, liczy się tam, gdzie token wylądował, a GM-owie dostają o tym szept\./]
                 },
                 player: {
                     stairsGate: [/^GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse\.$/]
@@ -15628,7 +15631,7 @@ const REGRESSIONS = [
                 gm: {
                     tunnel: ["albo tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch", "**+ Tunel lub schody**, potem kliknięcie w każdym z dwóch pokoi",
                         "Koniec poza pokojem, oba końce w jednym pokoju albo koniec na polu, na którym kończy się już inny tunel, są odrzucane."],
-                    goThrough: ["przechodzi nim, gdy jego token zostanie przeciągnięty na jeden z jego końców", "naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
+                    goThrough: ["przechodzi nim, gdy jego token zostanie przeciągnięty na jeden z jego końców", "naciska **Przejdź** obok niego pod **Znane tajne przejścia** w arkuszu postaci",
                         "jeśli tokenu nie da się tam przesunąć, cena wraca"],
                     doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
                         "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],
@@ -15688,7 +15691,7 @@ const REGRESSIONS = [
         equal(JSON.stringify([texts(lang.en), texts(lang.pl), lang.pl?.Config?.SFX_EVENTS?.passageFound?.label,
             /znajduje tajne przejście/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "") && /pokazał/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "")]),
             JSON.stringify([["Go through", "Secret passage to {room}", "You find no hidden passage here.", "Find Passage", "+ Tunnel or stairs", "Make public", "Make secret", "Convert to passages", "Hide", "Show"],
-                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Find Passage", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
+                ["Przejdź", "Tajne przejście do pokoju {room}", "Nie znajdujesz tu tajnego przejścia.", "Find Passage", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
                 "Poznajesz tajne przejście", true]),
             "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
     }],
@@ -17893,7 +17896,7 @@ const REGRESSIONS = [
                 player: {
                     overrule: [/The GM can also \*\*Overrule\*\* the newest Objection/, /what you paid stays paid, and the trial goes back to where it was, with the time it had then/],
                     noKill: [/The verdict kills nobody: the sentence is carried out when the trial ends/],
-                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends - a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
+                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends\. It does so for a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
                 },
                 stale: [/mutes nobody/, /does not mute anyone/, /\*\*End this mode now\*\*/, /the table learns it with the verdict/, /Silence is kept by the table, not by the software/, /the trial counts you among the living: you are sent a ballot/]
             },
@@ -19060,25 +19063,26 @@ const REGRESSIONS = [
         }), JSON.stringify({
             names: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
-                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
             fixtures: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
-                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
             detectors: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
-                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
-            modes: [["bareLeft", "T25", "report"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
-                ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
-                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
+            modes: [["bareLeft", "T25", "fail"], ["colonChains", "T24", "fail"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
+                ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "fail"], ["itemQuotes", "T23", "report"],
+                ["lengthOver", "T4", "fail"], ["loanDeclension", "T12", "fail"], ["loanGender", "T11", "fail"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
-                ["monokumaVoice", "T21", "report"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
-                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
-                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
+                ["monokumaVoice", "T21", "fail"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "fail"],
+                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "fail"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "fail"], ["secondPersonToMany", "T16", "fail"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
+                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "fail"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
-                ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
+                ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 4, 4], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
-                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
-            baselines: [["dashesIn", 9], ["familyFormats", 0]],
+                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 10, 10], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 13, 13]],
+            // dashesIn: 2 rows since the needsCode line (R6902) wrote roll-dialog.mjs's minus sign "-".
+            baselines: [["dashesIn", 2], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -19090,7 +19094,37 @@ const REGRESSIONS = [
             + "screen map's marks makes]");
     }],
 
-    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11)", async () => {
+    ["R6600 - T9 (staleTranslations) is a FAIL detector: a Polish text whose English moved since tools/pl-reviewed.json stamped it, and whose Polish did not, is red; a key whose English and Polish both moved, a key with no stamp and a stamp no key holds are counted apart and never red; a Polish .few or .many is held to its family's English .other, a DRPG.Config key to config.mjs's English prose; a stamp marked as the baseline is counted as not read (E57 C1)", async () => {
+        /* E57 C1 (14.11.2026). T9 is stale-pl: the plan's guard (docs/dev/e57/PLAN.md section 4, C1), built in
+         * scripts/tests-text.mjs so the self-check and tools/check.mjs text run it and the command tools/stale-pl.mjs
+         * reads the same function. A stamp is two hashes, the English and the Polish as they stood when the stamp was
+         * written; "stale" is the English moved and the Polish not, the one reading that says a Polish text describes
+         * an English that is gone. The fixture's input is the detector's own; each case below changes one thing of it
+         * and reads what moves. Pure data: nothing is fetched or written. */
+        const run = TEXT_DETECTORS.staleTranslations, fx = TEXT_FIXTURES.staleTranslations;
+        must(typeof run === "function" && fx, "T9 (staleTranslations) is no detector of the text lint yet");
+        const base = run(fx.input);
+        const counted = r => JSON.stringify({ found: r.found.map(textItem).sort(), counts: r.counts });
+        const moved = (side, key, text) => ({ ...fx.input, [side]: { ...fx.input[side], [key]: text } });
+        /* The English of a plain key moves: red. Its Polish moves with it: rewritten, not red. */
+        const enMoved = run(moved("en", "DRPG.Fx.door", "Open the door now"));
+        const bothMoved = run({ ...moved("en", "DRPG.Fx.door", "Open the door now"), pl: { ...fx.input.pl, "DRPG.Fx.door": "Otwórz teraz drzwi" } });
+        /* A family's .other moves: its Polish .few and .many follow it. Config prose moves: its Polish follows. */
+        const otherMoved = run(moved("en", "DRPG.Fx.cards.other", "{n} playing cards"));
+        const proseMoved = run(moved("prose", "DRPG.Config.FX.hint", "Roll twice"));
+        equal(JSON.stringify({
+            mode: [TEXT_MODES.staleTranslations?.test, TEXT_MODES.staleTranslations?.mode],
+            base: counted(base),
+            enMoved: enMoved.found.map(textItem).sort(), bothMoved: [bothMoved.found.length, bothMoved.counts.rewritten],
+            otherMoved: otherMoved.found.map(textItem).sort(), proseMoved: proseMoved.found.map(textItem).sort()
+        }), JSON.stringify({
+            mode: ["T9", "fail"],
+            base: counted({ found: [{ key: "DRPG.Fx.stale", kind: "stale" }], counts: { ok: 7, stale: 1, rewritten: 1, unstamped: 1, gone: 1, baseline: 1 } }),
+            enMoved: ["DRPG.Fx.door stale", "DRPG.Fx.stale stale"], bothMoved: [1, 2],
+            otherMoved: ["DRPG.Fx.cards.few stale", "DRPG.Fx.cards.many stale", "DRPG.Fx.cards.other stale", "DRPG.Fx.stale stale"], proseMoved: ["DRPG.Config.FX.hint stale", "DRPG.Fx.stale stale"]
+        }));
+    }],
+    ["R1059 - the text lint's FAIL detectors over the filesthe module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance; no rule's number written as a word where a placeholder gives it (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11; E57, T7)", async () => {
         /*
          * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
          * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:
@@ -19100,7 +19134,8 @@ const REGRESSIONS = [
          * at a table - which is also why T6's four prose rows of its baseline are not judged here (`sources`), while
          * the same strings as config.mjs's literals are. The FAIL detectors that need nothing but what a table serves
          * are taken from MODES, and the list is held to the four of C1 and C2 and E66 C1's T20 (localeCalls, which
-         * reads only the scripts), so another one is a change to this test;
+         * reads only the scripts), so another one is a change to this test - E57 (14.11.2026) added T7
+         * (ruleNumberWords, FAIL at 0), while T5, FAIL the same day, reads the budgets' allow rows and stays Node's;
          * each baseline is held whole: a finding it does not hold is red, and so is a row nothing fills ("take it out
          * of the baseline"), with the number of sites judged. Read on 52eacb9c in Node: 168 families and 4774 pairs
          * found nothing; T3 3498 calls in 146 scripts, the baseline's two keys; T6 the eleven baseline sites, nothing
@@ -19135,7 +19170,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 7, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 2, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []], ["uiLiterals", true, 0, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -19369,7 +19404,7 @@ const REGRESSIONS = [
             kept: /if\s*\(\s*lead\s*\)\s*lastLeadSignature\s*=\s*now\.lead/.test(arrival),
             pool: /poolUserFor\(\s*token\.actor\s*\)\?\.id\s*===\s*me/.test(leads) && /if\s*\(\s*!isMine\(\s*token\s*,\s*gm\s*\)\s*\)\s*return\s+false/.test(leads),
             both: /lastMineSignature\s*=\s*now\.mine/.test(stand) && /lastLeadSignature\s*=\s*now\.lead/.test(stand),
-            canvas: /"remember where we started"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
+            canvas: /"rememberStart"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
             deleted: deleting.length,
             region: /standWhereWeStand\(\s*\{\s*redraw:\s*true\s*\}\s*\)/.test(changed),
             starting: /leadsHere\(\s*token\s*\)/.test(reveal)
@@ -19511,19 +19546,19 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 broken: [],
-                move: ["That cost an action - 1 action left.", "That cost an action - 2 actions left.", "That cost an action - 5 actions left."],
-                eclipse: ["1 crossing)", "2 crossings)"],
+                move: ["That cost an action. You have 1 action left.", "That cost an action. You have 2 actions left.", "That cost an action. You have 5 actions left."],
+                eclipse: ["End this session and open the T Eclipse: a new session begins, and everyone places their token with 1 crossing each", "End this session and open the T Eclipse: a new session begins, and everyone places their token with 2 crossings each"],
                 summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 Remnants left behind"],
-                thin: ["No Key Remnant has been found yet", "Only 2 Key Remnants have been found"],
+                thin: ["No Key Remnant has been found yet, and the trial needs more than 3 to have an honest answer", "Only 2 Key Remnants have been found, and the trial needs more than 3 to have an honest answer"],
                 overflow: ["2 fewer actions each, on top of anything Wounded already took", true],
                 approved: ["You spend 2 Hope; you have 5 Hope left.", "“I” loses durability to Despair"]
             },
             pl: {
                 broken: [],
-                move: ["To kosztowało akcję - została 1 akcja.", "To kosztowało akcję - zostały 2 akcje.", "To kosztowało akcję - zostało 5 akcji."],
+                move: ["To przejście kosztowało akcję. Została ci 1 akcja.", "To przejście kosztowało akcję. Zostały ci 2 akcje.", "To przejście kosztowało akcję. Zostało ci 5 akcji."],
                 eclipse: ["1 przejście)", "2 przejścia)"],
-                summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
-                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnanty"],
+                summary: ["P: co się u ciebie działo.", "P: co działo się przy stole.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
+                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu, a Class Trial potrzebuje więcej niż 3, żeby mieć uczciwe rozwiązanie", "Znaleziono dopiero 2 Key Remnanty, a Class Trial potrzebuje więcej niż 3, żeby mieć uczciwe rozwiązanie"],
                 overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
                 approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
             },
@@ -19562,7 +19597,9 @@ const REGRESSIONS = [
             `Key Remnant${W}`, `Remnant${W}`, "s", "min", "Hope", "Sanity", "Health", "Despair", `postęp${W}`].join("|");
         const AGREES_PL = `został${W}|zostaje|wróci${W}|znalazł${W}|rozlał${W}|wszystkie|wszystkich`;
         const NOT_COUNTS = new Set(["name", "names", "who", "target", "room", "rooms", "item", "what", "actor", "call", "project", "phase", "time", "tier",
-            "action", "mode", "kind", "field", "row", "third", "chapter", "to", "from", "version", "bonus", "value", "label", "next", "why", "duality", "stat"]);
+            "action", "mode", "kind", "field", "row", "third", "chapter", "to", "from", "version", "bonus", "value", "label", "next", "why", "duality", "stat",
+            // rooms.mjs `roomPhrase`'s places, a room with its preposition (the needsCode line, R6912): „{into} przejściem” is no count.
+            "at", "into", "leaving", "returning"]);
         const EN_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_EN})(?![\\w\\u00c0-\\u017f])`, "g");
         const PL_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_PL})(?![\\w\\u00c0-\\u017f])|(?:${AGREES_PL})\\s+(?:ci\\s+)?\\{(\\w+)\\}|\\{(\\w+)\\}\\s+z\\s+\\{\\w+\\}\\s+(?:${AGREES_PL})`, "g");
         const familyOf = key => key.replace(/\.(one|few|many|other)$/, "");
@@ -19612,7 +19649,16 @@ const REGRESSIONS = [
                 // E72 C18: a Ghost Bet's value, a count before Hope.
                 "Monocub.betPaid", "Monocub.betStands",
                 // E72 C19: the panel's lines, a count before Hope.
-                "Monocub.panelBet", "Monocub.panelBounty", "Monocub.panelOffer"
+                "Monocub.panelBet", "Monocub.panelBounty", "Monocub.panelOffer",
+                // E71 B04 (R6400): the Rest report's three lines, a count before Health, Sanity or Hope.
+                "Rest.applied.health", "Rest.applied.sanity", "Rest.applied.hope",
+                // E71 B01b and B03: the Overflow's explainer and the Mastermind's purse, a count before Despair or Hope.
+                "Overflow.explainBody", "Mastermind.hopeReadout",
+                // E71 B10b and B12 (line C, 14.11.2026): Confusion's least to give, a count before Despair; a Reroll's Work, a count before progress.
+                "Monocub.giveAtLeast", "Reroll.progressAdjusted",
+                // E57 T7 (14.11.2026): a rule's number from a placeholder where a word stood - the Bounty's reward before Hope,
+                // the Despair stepper's step before Despair.
+                "Config.DESPAIR_CALLS.bounty.effect", "Tips.Gm.minusTooltip", "Tips.Gm.plusTooltip"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -19638,19 +19684,23 @@ const REGRESSIONS = [
                 "Investigation.filterCount", "Investigation.keyLimitLine", "Investigation.keySummary",
                 "Overflow.clearAsk", "Overflow.current", "Overflow.currentDrawn", "Overflow.currentWaiting",
                 "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
-                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable",
+                "Passage.pick.step", "Sound.groupAssigned", "Vote.barLine", "Vote.namedByTable",
                 // E24 C1b: the incident card's reserves, "3 of 4 Health" / "3 z 4 Health" (the sheet's "Left: 3 / 4").
                 "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou",
                 // The owner's report of 13.11.2026 (R5900): a zone mode's line on the Event card, "Question 2 of 3" /
                 // "Pytanie 2 z 3", "Turn 1 of 4" / "Tura 1 z 4" - the seconds are the card's clock.
                 "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak"
+                // E71 B10a (line C, 14.11.2026): Vote.accusesLine left the table - "a majority of {n} out of {total}" puts no count before a noun.
             ].map(key => [key, "R"]),
             ...[
                 "Vault.roomRatio"
             ].map(key => [key, "D"]),
             ...[
                 "Items.woreOnDespair"
-            ].map(key => [key, "P"])
+            ].map(key => [key, "P"]),
+            /* T: a count before „razy”, which every count of 2 and more takes (2, 5, 12, 22 razy) - E71 B10b, line C,
+               14.11.2026: level-up.mjs reads Advance.introMany only when its picks are not 1 (introOne is the one). */
+            ...["Advance.introMany"].map(key => [key, "T"])
         ].map(([key, why]) => [`DRPG.${key}`, why]));
         const lang = {};
         for (const code of ["en", "pl"]) {
@@ -19664,7 +19714,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 71, S: 39, R: 29, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -19796,26 +19846,26 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 broken: [],
-                armed: ["Aiko may now use advantage on their next roll.", "Aiko may now use a flat bonus or penalty on their next roll."],
+                armed: ["Aiko's next roll gets advantage.", "Aiko's next roll gets a flat bonus or penalty."],
                 forYou: "Another student spent Hope on you: your next roll gets advantage. It is already switched on in your roll window.",
-                pending: "Waiting on your next roll: a flat bonus or penalty. Spent the moment you roll.",
-                waits: "Armed after this window opened: advantage and a flat bonus or penalty. It is not part of this roll - it waits for your next one.",
+                pending: "Waiting for your next roll: a flat bonus or penalty. That roll uses it up, but a Loaded Die waits for an action roll.",
+                waits: "Your next roll gets what was armed after this window opened: advantage and a flat bonus or penalty.",
                 price: ["You get 2 actions back.", true, true],
                 reserves: "You lose 1 Health and 2 Sanity.",
-                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). Press the button beside your name on your sheet and choose - you have 3 picks.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). You have 3 picks. Press Level Up beside your name on your sheet to make them.",
                     overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true,
                     eclipse: "The GM wants to start the Night Eclipse. Are you done with this time of day?" },
                 picks: ["Level Up (pick 4)", "Reinforced Level Up (pick 7)"], roller: true
             },
             pl: {
                 broken: [],
-                armed: ["Aiko może teraz użyć przewagi przy następnym rzucie.", "Aiko może teraz użyć stałej premii albo kary przy następnym rzucie."],
+                armed: ["Przy następnym rzucie postaci Aiko zadziała efekt przewagi.", "Przy następnym rzucie postaci Aiko zadziała efekt stałej premii albo kary."],
                 forYou: "Inny uczeń wydaje na ciebie Hope: twój następny rzut ma przewagę. Okno rzutu ma to już włączone.",
-                pending: "Czeka na twój następny rzut: stała premia albo kara. Zużyte w chwili rzutu.",
-                waits: "Nałożone po otwarciu tego okna: przewaga i stała premia albo kara. Nie wchodzi do tego rzutu - czeka na twój następny.",
+                pending: "Czeka na twój następny rzut: stała premia albo kara. Efekt znika po tym rzucie, ale Loaded Die czeka na rzut akcji.",
+                waits: "Na twój następny rzut czeka też to, co doszło po otwarciu tego okna: przewaga i stała premia albo kara.",
                 price: ["Odzyskujesz: 2 akcje.", true, true],
                 reserves: "Tracisz 1 Health i 2 Sanity.",
-                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - masz 3 wybory.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Masz 3 wybory. Naciśnij przycisk Level Up obok swojego imienia na arkuszu i wybierz.",
                     overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true,
                     eclipse: "GM chce zacząć Eclipse (Noc). Czy kończysz już tę porę dnia?" },
                 picks: ["Level Up (wybierz 4)", "Reinforced Level Up (wybierz 7)"], roller: true
@@ -19833,7 +19883,7 @@ const REGRESSIONS = [
             + "and the round's askStart at Night]");
     }],
 
-    ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
+    ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`, the Bounty's `{reward}` since E57) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
         /*
          * E66 C4, 01.11.2026; S18-37, E66-17. config.mjs `callEffect` filled six numbers for the Calls alone; every
          * other config sentence carried its number as a digit or a word typed in - "Costs 1 Health and 1 Sanity",
@@ -19983,7 +20033,7 @@ const REGRESSIONS = [
                     "Dodaj nowe doświadczenie warte +3"]
             },
             // 8 since E72 C15: Bribe's "{cost} Hope".
-            calls: [], callCount: 8,
+            calls: [], callCount: 9,
             planted: ["a {nope} b", "T", ""],
             digits: { read: true, flagged: [], stale: [] },
             words: { flagged: [], stale: [] },
@@ -20061,31 +20111,31 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 now: ["up to 1 connected room", "up to 5 connected rooms",
-                    "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
+                    "2 actions each time of day. Searching a room, working on a project, observing a Remnant, and analyzing a Truth Bullet each cost one. A Short Rest costs 1 action, a Long Rest 2 actions.",
                     "With no Health left you get 1 action instead of 2 actions in Daily Life and the Investigation, until somebody patches you up. In the Class Trial, Wounded takes no action.",
                     "You have 2 actions", "A trap is built as projects. Plan about 7-10 progress in total, roughly 4 to 5 actions.",
-                    "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
+                    "Cleaning up your own crime scene costs no action, only 1 Sanity per attempt; the first after a critical Finishing Blow costs none.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
-                    "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
+                    "3 actions each time of day. Searching a room, working on a project, observing a Remnant, and analyzing a Truth Bullet each cost one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
                     "With no Health left you get 2 actions instead of 3 actions in Daily Life and the Investigation, until somebody patches you up. In the Class Trial, Wounded takes no action.",
                     "You have 3 actions", "A trap is built as projects. Plan about 9-14 progress in total, roughly 5 to 7 actions.",
-                    "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
+                    "Cleaning up your own crime scene costs no action, only 2 Sanity per attempt; the first after a critical Finishing Blow costs none.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
                 left: 0
             },
             pl: {
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
-                    "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
+                    "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie kosztują po akcji. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
                     "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada. W Class Trial Wounded nie zabiera akcji.",
                     "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji.",
-                    "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
+                    "Sprzątasz własne miejsce zbrodni: każda próba kosztuje 1 Sanity zamiast akcji, poza pierwszą po krytycznym Finishing Blow.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
-                    "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
+                    "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie kosztują po akcji. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
                     "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada. W Class Trial Wounded nie zabiera akcji.",
                     "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji.",
-                    "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
+                    "Sprzątasz własne miejsce zbrodni: każda próba kosztuje 2 Sanity zamiast akcji, poza pierwszą po krytycznym Finishing Blow.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
                 left: 0
             },
@@ -21677,7 +21727,7 @@ const REGRESSIONS = [
                 if (file === "ui-kit.mjs") kit.push(`${file} ${what}`);
                 else outside.set(file, (outside.get(file) ?? 0) + 1);
             };
-            for (const m of blank.matchAll(SITE)) add("DialogV2");
+            for (const _ of blank.matchAll(SITE)) add("DialogV2");
             /* A window a caller opens through the kit is read too (E21 C2b): the floor below is what the reader reads,
                and each group of E21 moves windows from the census into these calls - 126 sites outside the kit at C2a,
                96 read once C2b's moved, under the floor, with nothing wrong with the reader. Not in the census. */
@@ -22895,8 +22945,9 @@ const REGRESSIONS = [
                 fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
                 footer: ["save", "cancel", "delete"]
             },
+            // The Scale options through plural("DRPG.Project.scaleOption") since the needsCode line (R6906): their family is read here.
             propose: {
-                keys: ["DRPG.Project.agreedWarning", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirectMine", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.proposalPrompt", "DRPG.Project.proposalPlaceholder", "DRPG.Project.startNote"],
+                keys: ["DRPG.Project.agreedWarning", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.scale", "DRPG.Project.scaleOption.other", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirectMine", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.proposalPrompt", "DRPG.Project.proposalPlaceholder", "DRPG.Project.startNote"],
                 fields: ["name", "description", "target", "room", "trait", "murder", "condition", "request"],
                 footer: ["create", "cancel"]
             }
@@ -23890,7 +23941,8 @@ const REGRESSIONS = [
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
         const first = typeof W?.firstSentence === "function" ? W.firstSentence : () => "";
-        const ADDED = ["sfxVary"];
+        // E57 C3 (D34): `documentLanguage`, shown in the game's settings once a document is written through it.
+        const ADDED = ["sfxVary", "documentLanguage"];
         const scopeOf = k => game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`)?.scope ?? null;
         const words = [...FROZEN, ...ADDED].filter(k => {
             const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`);
@@ -23919,9 +23971,10 @@ const REGRESSIONS = [
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
                 // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
-                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 2, true], ["foundry", "game", 7, true]],
+                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 3, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
-            once: [], others: ["sequences", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            // E57 C3 (D34): `documentLanguage` in gm, beside them.
+            once: [], others: ["sequences", "documentLanguage", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
@@ -25295,6 +25348,97 @@ const REGRESSIONS = [
         const stale = Object.keys(LISTED).filter(n => !found.has(n));
         equal(JSON.stringify({ reads, settleVoiceWithoutWall: fiveArgs, stale }), JSON.stringify({ reads: {}, settleVoiceWithoutWall: 0, stale: [] }),
             "{reads: a declaration of the cut's span and the page's or the module's state it names; settleVoiceWithoutWall: the calls that leave the wall to PIN; stale: a listed name that reads nothing any more}");
+    }],
+
+    /*
+     * EVERY WINDOW, AS TESTS (E59 C2, 14.11.2026; the plan's point (3)). tests-windows.mjs reads every window the module
+     * opens - 162 by name in 165 sites at 123f8242 (a `drpgWindow`, `drpgConfirm` or `drpgPrompt` call, a `DrpgApp()`
+     * class, and whatever opens a Foundry window outside the kit) - and each rule below judges every one of them, or every
+     * rule of the served sheets, and fails on the planted case its fixture holds (`windowsSelfCheck`). docs/dev/e59/WINDOWS.md
+     * is the census by name (tools/e59/windows.mjs --write). Not a drawn window: R299, 84-viewports and C3's screenshots
+     * are, and LIVE-E59-01 is the real browser's.
+     */
+    ["R6750 - no window without `.drpg-ui` (E59 C2): every window the module opens - each `drpgWindow`, `drpgConfirm` and `drpgPrompt` call and each `DrpgApp()` class, by file and the function it is opened in - is a kit window, and nothing outside ui-kit.mjs opens a DialogV2, builds an ApplicationV2 or opens another Foundry window, but the rows of ROOT_OUTSIDE, each with its reason (the room's picture in Foundry's ImagePopout); the reader finds a DialogV2 planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("root:"))), "[]", "the window census does not read its fixture as written");
+        const sites = W.windowSites(await otherSources());
+        const names = W.windowNames(sites);
+        must(names.length >= 150, `only ${names.length} window(s) read in scripts/ - this would measure too little`);
+        ok(names.includes("notice-history-app.mjs NoticeHistoryApp") && names.includes("trial-floor-ui.mjs confirmReveal"), `the census misses the notice history or the Reveal question (R1044): ${names.slice(0, 8).join(", ")} ...`);
+        const r = W.rootRule(sites);
+        equal(r.read.length, names.length, "the rule did not judge every window it read");
+        const stale = W.ROOT_OUTSIDE.filter(o => !sites.some(s => s.label === o.label && o.kind.test(s.kind))).map(o => o.label);
+        equal(JSON.stringify(stale), "[]", "a ROOT_OUTSIDE row names a window that is no longer opened outside the kit - take it off");
+        equal(JSON.stringify(r.found), "[]", `windows outside the kit, of the ${names.length} read`);
+    }],
+    ["R6751 - `drpg-destructive` is never the default, never autofocus, never under Enter (E59 C2; R1044 held one window, this holds them all): no footer object of scripts/ that holds a `destructive` list names one of its actions as the `default`, no tag written with a destructive class carries `autofocus` or the `default` class, no `roleButton({ role: \"destructive\" })` takes `autofocus`, and no field's `data-drpg-enter` presses a destructive selector; the kit's `footerButtons` throws on a destructive default and `drpgConfirm`'s destructive yes leaves the closing word the default; the reader finds the two faults planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        const K = await import("./ui-kit.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("destructive:"))), "[]", "the destructive reader does not read its fixture as written");
+        const sources = await otherSources();
+        const r = W.destructiveRule(sources);
+        must(r.read.length >= 20 && r.holders.length >= 20, `only ${r.read.length} window(s) and ${r.holders.length} footer builder(s) with a destructive button read - this would measure too little`);
+        ok(r.footers >= 5, `${r.footers} footer(s) with a destructive list and a default read - the reader found none of the windows that name a default beside a destructive button`);
+        equal(JSON.stringify(r.found), "[]", `destructive buttons that Enter or focus would press, of ${r.read.length} window(s) with one`);
+        let threw = null;
+        try { K.footerButtons({ destructive: [{ action: "wipe", label: "Wipe" }], close: "cancel", default: "wipe" }); } catch (err) { threw = err; }
+        ok(/may never be a window's default/.test(threw?.message ?? ""), `footerButtons did not refuse a destructive default: ${threw?.message ?? "no throw"}`);
+        const list = K.footerButtons({ destructive: [{ action: "wipe", label: "Wipe" }], close: "cancel" });
+        equal(JSON.stringify(list.filter(b => b.default).map(b => b.role)), JSON.stringify(["cancel"]), "a footer with a destructive button and a closing word: [the default's role]");
+    }],
+    ["R6752 - one tab system (E59 C2; R1324 holds the old names): outside ui-kit.mjs no module file writes tab markup (a tab role, a `data-tab` attribute on a tag it writes, a `nav` of class `tabs`) or Foundry's own tabs (`static TABS`, `new Tabs`), and every window with tabs takes them from the kit (`drpgWindow({ tabs })`, `kitTabs`, `kitTabBar`, `wireKitTabs`); the reader finds the tab markup planted in its fixture and passes a selector that only reads Daggerheart's sheet tabs", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("tab:"))), "[]", "the tab reader does not read its fixture as written");
+        const r = W.tabRule(await otherSources());
+        must(r.users.length >= 8, `only ${r.users.length} place(s) take the kit's tabs - this would measure too little`);
+        ok(["handbooks.mjs HandbookApp", "room-setup.mjs openRoomSetupDialog"].every(n => r.users.includes(n)), `the handbooks or Room Setup are not read as taking the kit's tabs: ${r.users.join(", ")}`);
+        equal(JSON.stringify(r.found), "[]", `tab markup outside the kit (${r.read.length} window(s) with the kit's tabs read)`);
+    }],
+    ["R6753 - the footer contract, every window (E59 C2; ui-kit.mjs's header): no kit window is handed DialogV2's `buttons`, a literal footer names only the kit's slots, and a `DrpgApp()` class draws a footer only through `footerMarkup` or `liveFooter` (a closing word may carry its own word since E102 C6, 7386194a); each window is read with its footer's shape (slots, built, question, kit footer, no footer, outside the kit); the reader finds the two faults planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("footer:"))), "[]", "the footer reader does not read its fixture as written");
+        const r = W.footerRule(await otherSources());
+        must(r.read.length >= 150, `only ${r.read.length} window(s) read - this would measure too little`);
+        const shapes = {};
+        for (const v of r.shapes.values()) shapes[v] = (shapes[v] ?? 0) + 1;
+        ok((shapes.slots ?? 0) >= 80 && (shapes.question ?? 0) >= 15, `the footers' shapes read ${JSON.stringify(shapes)} - the reader did not find the literal footers`);
+        equal(r.shapes.size, r.read.length, "a window was read without its footer's shape");
+        equal(JSON.stringify(r.found), "[]", `footers off the contract, of ${r.read.length} window(s) (${JSON.stringify(shapes)})`);
+    }],
+    ["R6754 - the 11 px floor (E59 C2): no `font-size` of a served sheet comes under 11 px at the slider's least (0.8 under Monokuma Legacy, `--drpg-legacy-scale`; the rem at 16 px, Foundry's `--font-size-N` at N px), but on the surfaces FLOOR_OUTSIDE names - the sheet, the clock, the status bar, the Event panel, the Despair meter, the voice tile - each a line of docs/dev/e59/GAPS.md; a size of 0 hides a glyph's letter and is no text; the reader finds the size planted in its fixture under a window and reads `max(min(10px, ...), ...)` as 10 px", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("floor:"))), "[]", "the floor reader does not read its fixture as written");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this would read too little`);
+        const r = W.floorRule(sheets);
+        must(r.read.length >= 100, `only ${r.read.length} font size(s) read in the served sheets - this would measure too little`);
+        const stale = r.stale.map(o => o.surface);
+        equal(JSON.stringify(stale), "[]", "a FLOOR_OUTSIDE row names no size under 11 px any longer - take it off (and its line of GAPS.md)");
+        equal(JSON.stringify(r.found), "[]", `sizes under 11 px in a window, of ${r.read.length} read (${r.unread} in em, % or a token Node cannot read)`);
+    }],
+    ["R6755 - gold only for Hope, every window and script (E59 C2; R3410 holds the four meanings): no rule of a served sheet reads a gold token (`--drpg-gold...`, `--drpg-sg-hope`) unless its selector names Hope, and no literal of scripts/ names a gold token on a line with no Hope word, but GOLD_READERS' lists, which paint nothing; the reader finds the focus ring and the script planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("gold:"))), "[]", "the gold reader does not read its fixture as written");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        const r = W.goldRule(sheets, await otherSources());
+        must(r.reads >= 30 && r.read.length >= 20, `only ${r.reads} read(s) of gold in ${r.read.length} rule(s) - this would measure too little`);
+        equal(JSON.stringify(r.found), "[]", `gold outside Hope, of ${r.reads} read(s) in the sheets and ${r.scripts} in scripts/`);
+    }],
+    ["R6756 - red only on the road through the GM, every window (E59 C2; D11, R121's census of the road, R1580's faces): a rule that names a plain role (primary, close, cancel, secondary) reads no red token, the GM's road's own token is red in both themes, and every rule in a window's scope that styles a button and reads a red token (the eye, the crimsons, `--drpg-sg-gm`, the role tokens; followed through the sheets' global custom properties) names the GM's road, a destructive answer or a warning, or a row of RED_KEPT with its reason and a line of GAPS.md; the reader finds the red primary and the red plain button planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("red:"))), "[]", "the red reader does not read its fixture as written");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        const r = W.redRule(sheets);
+        must(r.read.length >= 60, `only ${r.read.length} window button rule(s) read - this would measure too little`);
+        const stale = r.stale.map(k => String(k.match));
+        equal(JSON.stringify(stale), "[]", "a RED_KEPT row names no red read any longer - take it off (and its line of GAPS.md)");
+        equal(JSON.stringify(r.found), "[]", `red on a window's button off the GM's road, of ${r.read.length} rule(s) read`);
     }],
 ];
 

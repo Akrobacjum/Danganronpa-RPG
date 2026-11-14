@@ -126,7 +126,7 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
     // not the record - `FLAGS.deceased` is what the rules read.
     try {
         await actor.toggleStatusEffect("dead", { active: true, overlay: true });
-    } catch (err) {
+    } catch {
         log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
     }
 

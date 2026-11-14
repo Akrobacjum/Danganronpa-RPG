@@ -22,7 +22,8 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy, glassText, glassFetch, glassBy
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssOverriddenDeclarations, cssDeadAttributes, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy, glassText, glassFetch, glassBy,
+    blankComments, blankLiterals, callArgs, TEXT_DETECTORS
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -846,7 +847,7 @@ const INVARIANTS = [
             await cleanupFetch());
 
         // E64 C4 (12.11.2026): the list is `bodyReach`'s - the connected rooms and, for a critical, those two away
-        // through them (R3957) - and `bodyDestinations` answers its near half.
+        // through them (R3957).
         const body = bodyOf(src, "export async function bodyReach", { length: 1200 });
         ok(/neighbouringRooms\(scene, room\)/.test(body) && /neighbouringRooms\(scene, step\)/.test(body),
             "a body can be dragged to a room that does not connect to this one, or to one it reaches through");
@@ -1700,7 +1701,7 @@ const INVARIANTS = [
          * of them is false, so they are rewritten rather than kept. The grid's own
          * numbers are R474's (headless) and R299 (a)'s.
          */
-        const { booksFor, handbookHtml, openHandbooks } = await import("./handbooks.mjs");
+        const { booksFor, handbookHtml } = await import("./handbooks.mjs");
         equal(booksFor({ isGM: false }).map(b => b.id).join(), "player-brochure,player-handbook",
             "a player is offered the wrong handbooks");
         equal(booksFor({ isGM: true }).length, 3, "a GM is missing a handbook");
@@ -1766,10 +1767,51 @@ const INVARIANTS = [
             }
             equal(opens.length, 0, `a contents entry opened a browser tab: ${opens.join(", ")}`);
             ok(text.scrollTop > 0, "the contents list does not move the text");
+            /* A SECTION ASKED BY NAME (E57 C4a, 13.11.2026): every book has a section 2 (the brochure's by its place),
+               and asked of the open window its heading stands 8 px under the text's top, as R4721 reckons it. */
+            const { openHandbooks } = await import("./handbooks.mjs");
+            await openHandbooks(null, { section: "2" });
+            await app.shown;
+            equal(app.landed, "2", `${app.book} did not open on its section 2`);
+            const second = text.querySelector('[data-drpg-section="2"]');
+            ok(second && Math.abs(second.getBoundingClientRect().top - text.getBoundingClientRect().top - 8) <= 2,
+                `${app.book}'s section 2 is not at the top of the text`);
             ok(app.element.getBoundingClientRect().bottom <= window.innerHeight + 1,
                 "the handbook window runs off the bottom of the screen");
         } finally {
             await app?.close();
+        }
+
+        /* A WINDOW'S "?" ON FOUNDRY'S OWN FRAME (E57 C4, D35; R6601 reads the kit's dressing on a stood-in header, as the
+           harness draws none): the GM panel's header has its "?" before the close, and its press opens the GM handbook
+           with section 3's heading 8 px under the text's top, as above. A GM's part: a player has no GM window. */
+        if (game.user.isGM) {
+            const { openGmPanel } = await import("./gm-panel.mjs");
+            openGmPanel();
+            let panel = null, help = null, book = null;
+            try {
+                for (let i = 0; i < 40 && !help; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    panel = [...foundry.applications.instances.values()].find(a => a.element?.classList.contains("drpg-gm-panel-window")) ?? null;
+                    help = panel?.element.querySelector(":scope > .window-header > .drpg-help-button") ?? null;
+                }
+                ok(help, "the GM panel's header has no \"?\"");
+                ok(help?.offsetWidth > 0, "the GM panel's \"?\" is in its header and has no width - it is not drawn");
+                help?.click();
+                for (let i = 0; i < 40 && !book?.rendered; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    book = foundry.applications.instances.get("drpg-handbooks") ?? null;
+                }
+                await book?.shown;
+                equal(`${book?.book} ${book?.landed}`, "gm-handbook 3", "the GM panel's \"?\" did not land on the GM handbook's section 3");
+                const text = book?.element.querySelector(".drpg-handbook-text");
+                const third = text?.querySelector('[data-drpg-section="3"]');
+                ok(third && Math.abs(third.getBoundingClientRect().top - text.getBoundingClientRect().top - 8) <= 2,
+                    "the GM handbook's section 3 is not at the top of the text after the \"?\"");
+            } finally {
+                await book?.close();
+                await panel?.close();
+            }
         }
 
         /* The boxes are GitHub's alert syntax, so one file reads right in both places: a
@@ -1860,6 +1902,294 @@ const INVARIANTS = [
             toc.remove();
             text.remove();
         }
+    }],
+
+    ["R4720 - every section of a handbook carries an anchor that is no id: a \"## \" heading its number, or its place among them where it has none, a numbered sub-heading its \"N.M\", one per section, and the same list in English and in Polish", async () => {
+        /*
+         * E57 C4a, 13.11.2026 (D35: a "?" opens the handbook on its section, by a section number shared by EN and PL).
+         * The headings take no `id` on purpose (toHtml's NO IDS AT ALL: a section called "Chat" would shadow Foundry's
+         * `#chat`), so the anchor is an attribute, `data-drpg-section`, by tools/handbook-facts.mjs's rule for a
+         * section: the number a "## " heading starts with ("## 8. Traces" is 8), or that heading's place among the
+         * "## " headings where it has none (the brochure). A "### " heading is anchored only when it is numbered
+         * ("### 9.1 Rooms"). Read on a planted text, then on the six files as served: showdown is not in the headless
+         * harness, so the headings are cut from the Markdown and the same function marks them.
+         */
+        const { markSections, handbookPath } = await import("./handbooks.mjs");
+        const marks = root => [...root.querySelectorAll("[data-drpg-section]")].map(h => `${h.tagName}:${h.dataset.drpgSection}`);
+        const probe = document.createElement("div");
+        probe.innerHTML = "<h1>Book</h1><h2>1. One</h2><h3>1.1 Sub</h3><h3>Plain</h3><h2>Two</h2><h2>3. Three</h2><h2>3. Again</h2>";
+        markSections(probe);
+        equal(marks(probe).join(), "H2:1,H3:1.1,H2:2,H2:3",
+            "the planted headings are not anchored by the rule (a number, else the place; a sub-heading only when numbered; a repeat once)");
+        ok(!probe.querySelector("[id]"), "an anchor was written as an id");
+
+        const headingsOf = markdown => {
+            const root = document.createElement("div");
+            let fence = false;
+            for (const line of String(markdown).split(/\r?\n/)) {
+                if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue; }
+                const m = fence ? null : /^(#{2,3}) (.+)$/.exec(line);
+                if (!m) continue;
+                const heading = document.createElement(m[1].length === 2 ? "h2" : "h3");
+                heading.textContent = m[2].trim();
+                root.append(heading);
+            }
+            return root;
+        };
+        for (const id of ["player-brochure", "player-handbook", "gm-handbook"]) {
+            const lists = {};
+            for (const lang of ["en", "pl"]) {
+                const response = await fetch(handbookPath(id, lang));
+                ok(response.ok, `${id}.${lang} is not served`);
+                const root = headingsOf(await lfText(response));
+                markSections(root);
+                const sections = root.querySelectorAll("h2").length;
+                ok(sections > 0, `${id}.${lang}: no "## " heading was read`);
+                equal(root.querySelectorAll("h2[data-drpg-section]").length, sections, `${id}.${lang}: a section has no anchor, or two share one`);
+                lists[lang] = [...root.querySelectorAll("[data-drpg-section]")].map(h => h.dataset.drpgSection);
+            }
+            equal(lists.pl.join(), lists.en.join(), `${id}: the Polish book's sections are not the English book's`);
+        }
+    }],
+
+    ["R4721 - a section asked of the handbook's text is where the text goes, by the contents list's own reckoning, and a section the text lacks moves nothing", async () => {
+        /*
+         * E57 C4a, 13.11.2026. One reckoning for both: the contents entry and a section asked by name put the heading
+         * 8 px under the text's top, from the two boxes (fillContents' comment says why not `scrollIntoView`). The
+         * boxes are a browser's; here they are stood in for, so the arithmetic is read without a layout. Where a real
+         * window lands is R111's, which has a layout.
+         */
+        const { markSections, goToSection, fillContents } = await import("./handbooks.mjs");
+        const text = document.createElement("article");
+        text.innerHTML = "<h2>1. One</h2><p>a</p><h2>2. Two</h2><h3>2.1 Sub</h3><p>b</p>";
+        document.body.append(text);
+        try {
+            markSections(text);
+            const sub = text.querySelector("h3");
+            text.getBoundingClientRect = () => ({ top: 100 });
+            sub.getBoundingClientRect = () => ({ top: 400 });
+            text.scrollTop = 20;
+            equal(goToSection(text, "2.1"), sub, "the section asked for is not the heading the text went to");
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "the text did not put the section 8 px under its top");
+            text.scrollTop = 20;
+            equal(goToSection(text, "7"), null, "a section the text lacks was found");
+            equal(text.scrollTop, 20, "a section the text lacks moved the text");
+            equal(goToSection(text, null), null, "no section asked found one");
+            const toc = document.createElement("nav");
+            fillContents(toc, text);
+            text.scrollTop = 20;
+            toc.children[2]?.click();
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "the contents entry and the section asked for land in different places");
+        } finally {
+            text.remove();
+        }
+    }],
+
+    ["R4722 - openHandbooks hands the section asked for to the window, opening it or open, and a section no book has leaves the text at its top; asked with no book, it remembers none", async () => {
+        /*
+         * E57 C4a, 13.11.2026: `openHandbooks(book, { section })`. The window keeps what it was last asked
+         * (`sectionAsked`) and where it landed (`landed`). Section "999" is in no book, so the text stays at its top
+         * whatever the page renders (headless, showdown is absent and the text is the Markdown). No book is named, so
+         * nothing is written: the book last read (`handbookBook`) is as it was.
+         */
+        const { openHandbooks } = await import("./handbooks.mjs");
+        const remembered = getSetting(SETTINGS.handbookBook);
+        const wasOpen = Boolean(foundry.applications.instances.get("drpg-handbooks")?.rendered);
+        let app = null;
+        try {
+            app = await openHandbooks(null, { section: "999" });
+            await app?.shown;
+            ok(app?.rendered, "openHandbooks with a section opened no window");
+            equal(app.sectionAsked, "999", "the window was not handed the section asked for");
+            equal(app.landed, null, "a section no book has was landed on");
+            equal(app.element.querySelector(".drpg-handbook-text")?.scrollTop, 0, "a section no book has moved the text");
+            const again = await openHandbooks(null, { section: "998" });
+            await again?.shown;
+            equal(again, app, "asked again, openHandbooks opened a second window");
+            equal(app.sectionAsked, "998", "the open window was not handed the new section");
+            equal(getSetting(SETTINGS.handbookBook), remembered, "asked with no book, openHandbooks remembered one");
+        } finally {
+            if (!wasOpen) await app?.close();
+        }
+    }],
+
+    ["R6601 - the \"?\" of D35 (E57 C4): each GM window the kit's WINDOW_HELP names passes its own row as `help` where it opens, and each row names a section the GM handbook has in English and in Polish; the kit draws one \"?\" in a window's header, named in the page's language with its section, a second dressing draws no second, a window with no `help` gets none, and the press opens the GM handbook on that section without changing the book the corner's book opens next", async () => {
+        /*
+         * E57 C4 (14.11.2026; D35: "?" in seven GM windows and the dashboard tabs, each opening the handbook on a section
+         * id shared by EN and PL). The rows are data in ui-kit.mjs (WINDOW_HELP) and each window hands its own row to
+         * drpgWindow (`help: WINDOW_HELP.<row>`), read here in the opener's source. The section is held to the GM
+         * handbook's headings as R4720 cuts them from the Markdown (no showdown headless) and markSections anchors them.
+         * The header itself is Foundry's frame, which the harness's ApplicationV2 does not draw: the kit's `dressHelp` is
+         * run on a stood-in root with a `.window-header`, as Foundry v14 puts it under the window's root; that a real
+         * window's header takes it and the handbook lands there is R111's (a layout) and LIVE-E57-01.
+         */
+        const kit = await import("./ui-kit.mjs");
+        const { markSections, sectionHeading, handbookPath } = await import("./handbooks.mjs");
+        must(kit.WINDOW_HELP && typeof kit.dressHelp === "function", "the kit has no \"?\" yet (WINDOW_HELP, dressHelp)");
+        const OPENERS = {
+            gmPanel: ["gm-panel.mjs", "openGmPanel"], seasonSetup: ["season-setup.mjs", "openSeasonSetup"],
+            roomSetup: ["room-setup.mjs", "openRoomSetupDialog"], theCase: ["gm-stores.mjs", "openCaseWindow"],
+            trialConsole: ["trial-floor-ui.mjs", "manageClassTrial"], editCampaign: ["gm-campaign.mjs", "openClockDialog"],
+            investigation: ["investigation.mjs", "openInvestigationDashboard"]
+        };
+        equal(Object.keys(kit.WINDOW_HELP).sort().join(), Object.keys(OPENERS).sort().join(), "WINDOW_HELP names other windows than the seven this test reads");
+        for (const [row, [file, fn]] of Object.entries(OPENERS)) {
+            const source = fnSource(await lfText(await fetch(`/modules/${MODULE_ID}/scripts/${file}`)), fn);
+            ok(source && new RegExp(`\\bhelp: WINDOW_HELP\\.${row}\\b`).test(source), `${file} ${fn} does not hand drpgWindow its "?" (help: WINDOW_HELP.${row})`);
+        }
+        /* And the kit's two frames dress what they are handed: drpgWindow on its first render and on every later one, the
+           ApplicationV2 class on each (read in the source: the harness draws no header for either to be seen in). */
+        const kitSource = await lfText(await fetch(`/modules/${MODULE_ID}/scripts/ui-kit.mjs`));
+        equal((fnSource(kitSource, "drpgWindow").match(/dressHelp\((root|dialog\.element), help\)/g) ?? []).length, 2,
+            "drpgWindow does not dress its \"?\" on the first render and on a later one");
+        ok(/dressHelp\(root, this\.options\?\.help \?\? null\)/.test(fnSource(kitSource, "DrpgApp")), "DrpgApp does not dress its \"?\" from options.help");
+        const headingsOf = markdown => {
+            const root = document.createElement("div");
+            let fence = false;
+            for (const line of String(markdown).split(/\r?\n/)) {
+                if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue; }
+                const m = fence ? null : /^(#{2,3}) (.+)$/.exec(line);
+                if (!m) continue;
+                const heading = document.createElement(m[1].length === 2 ? "h2" : "h3");
+                heading.textContent = m[2].trim();
+                root.append(heading);
+            }
+            return root;
+        };
+        for (const lang of ["en", "pl"]) {
+            const root = headingsOf(await lfText(await fetch(handbookPath("gm-handbook", lang))));
+            markSections(root);
+            for (const [row, help] of Object.entries(kit.WINDOW_HELP)) {
+                equal(help.book, "gm-handbook", `${row}'s "?" opens another book than the GM handbook`);
+                ok(sectionHeading(root, help.section), `gm-handbook.${lang} has no section ${help.section}, which ${row}'s "?" opens`);
+            }
+        }
+        /* The kit's dressing, on a stood-in frame, and its press: the handbooks' window opens on the row's section. */
+        const frame = () => {
+            const root = document.createElement("div");
+            root.className = "application drpg-ui";
+            root.innerHTML = '<header class="window-header"><h1 class="window-title">T</h1><button type="button" class="header-control" data-action="close"></button></header><div class="window-content"></div>';
+            document.body.append(root);
+            return root;
+        };
+        const root = frame(), bare = frame();
+        let app = null;
+        try {
+            const help = kit.WINDOW_HELP.roomSetup;
+            kit.dressHelp(root, help);
+            kit.dressHelp(root, help);
+            kit.dressHelp(bare, null);
+            const buttons = root.querySelectorAll(":scope > .window-header .drpg-help-button");
+            equal(buttons.length, 1, "a window dressed twice has not exactly one \"?\" in its header");
+            equal(bare.querySelectorAll(".drpg-help-button").length, 0, "a window with no help got a \"?\"");
+            const words = game.i18n.format("DRPG.Help.gm", { section: help.section });
+            ok(words && !words.startsWith("DRPG."), "DRPG.Help.gm has no words in the page's language");
+            equal(buttons[0]?.getAttribute("aria-label"), words, "the \"?\" is not named in the page's language with its section");
+            equal(buttons[0]?.dataset.tooltip, words, "the \"?\" has no tooltip of the same words");
+            ok(buttons[0]?.nextElementSibling?.dataset.action === "close", "the \"?\" does not stand before the header's close");
+            const remembered = game.settings.get(MODULE_ID, "handbookBook");
+            buttons[0]?.click();
+            for (let i = 0; i < 40 && !app; i++) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                app = foundry.applications.instances.get("drpg-handbooks") ?? null;
+            }
+            ok(app, "the \"?\" opened no handbook");
+            equal(`${app?.book} ${app?.sectionAsked}`, `gm-handbook ${help.section}`, "the \"?\" opened the handbook on another book or section");
+            equal(game.settings.get(MODULE_ID, "handbookBook"), remembered, "the \"?\" changed the book the corner's book opens next");
+        } finally {
+            root.remove();
+            bare.remove();
+            await app?.close();
+        }
+    }],
+
+    ["R6602 - a handbook's \"section N\" references are jumps (E57 C4, D35 of 26.09): \"section\", \"sections\" and the Polish \"sekcj*\" before a section number of the book become an entry with no href that puts that section 8 px under the text's top, as the contents list does, on a press and on Enter; one in code or a heading stays text; a number the book has no section for stays text and is listed; and in the six books as served every reference names a section of its own book", async () => {
+        /*
+         * E57 C4 (14.11.2026). The owner's 26.09 note to D35: "section N" references become clickable jumps by the same
+         * mechanism as the "?". The entries take no href for E27's reason (fillContents' header: Foundry opens any
+         * a[href] in a new tab). Measured on this tree (14.11.2026): GM handbook 136 references in English, 122 in
+         * Polish, the player handbook 1 and 1, the brochure none; none names a section its book lacks, and none points
+         * into another book (the one "player ... section 5" is the GM handbook's own section 5).
+         */
+        const { markSections, linkSections, sectionReferences, handbookPath } = await import("./handbooks.mjs");
+        must(typeof linkSections === "function" && typeof sectionReferences === "function", "handbooks.mjs has no section jumps yet (linkSections, sectionReferences)");
+        const text = document.createElement("article");
+        text.innerHTML = "<h2>1. One</h2><p>See section 2 and sekcji 2.1, not section 9.</p><p><code>section 2</code></p><h2>2. Two</h2><h3>2.1 Sub</h3><p>b</p>";
+        document.body.append(text);
+        try {
+            markSections(text);
+            const r = linkSections(text);
+            const links = [...text.querySelectorAll(".drpg-section-link")];
+            equal(links.map(a => `${a.textContent}>${a.dataset.drpgGoto}`).join(), "section 2>2,sekcji 2.1>2.1", "the references were not made jumps to their sections");
+            ok(links.every(a => !a.hasAttribute("href") && a.getAttribute("role") === "link" && a.tabIndex === 0), "a jump has an href, or is no link a keyboard reaches");
+            equal(r.unknown.join(), "9", "a reference to a section the book lacks is not listed");
+            equal(text.querySelector("code").textContent, "section 2", "a reference in code was touched");
+            equal(linkSections(text).linked, 0, "a second pass made jumps of jumps");
+            const sub = text.querySelector("h3");
+            text.getBoundingClientRect = () => ({ top: 100 });
+            sub.getBoundingClientRect = () => ({ top: 400 });
+            text.scrollTop = 20;
+            links[1].click();
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "the jump does not put its section 8 px under the text's top");
+            text.scrollTop = 20;
+            links[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "Enter on a jump does not go to its section");
+        } finally {
+            text.remove();
+        }
+        /* The six books as served, their headings and references cut from the Markdown (no showdown headless). */
+        for (const id of ["player-brochure", "player-handbook", "gm-handbook"]) {
+            for (const lang of ["en", "pl"]) {
+                const markdown = await lfText(await fetch(handbookPath(id, lang)));
+                const refs = sectionReferences(markdown);
+                const missing = refs.filter(n => !refs.sections.has(n));
+                equal(missing.join(), "", `${id}.${lang}: a "section N" reference names no section of the book`);
+                if (id === "gm-handbook") ok(refs.length > 100, `${id}.${lang}: only ${refs.length} "section N" reference(s) read - the pattern reads less than the book holds`);
+            }
+        }
+    }],
+
+    ["R6603 - D34 (E57 C3): config.mjs's prose written into a world document is in the world's document language, not the page's - worldLocalize gives a DRPG.Config key in English from config.mjs (the English a Polish page swapped out kept by i18n-config.mjs, the table itself on an English page), in Polish from lang/pl.json, never the raw key; an item's tier line (inventory.mjs tierDescription, which grantItem and the tier 3 rewrite write) follows it; and the setting is in the game's settings window with its empty choice named", async () => {
+        /*
+         * E57 C3 (14.11.2026; D34, S02-74; text-style.md 13, "What E66 handed to E57"). Until C3 no site wrote through
+         * worldLocalize, and it formatted a DRPG.Config key in the page's language whatever the setting held - and on an
+         * English page that is the raw key, since lang/en.json holds no config prose. The harness's page is English;
+         * the Polish page's half (the English kept when the tables are swapped) is held on a planted key here and on
+         * real clients by 51-lang-mixed. `lang` is worldLocalize's third argument, so nothing writes the world setting.
+         */
+        const U = await import("./utils.mjs");
+        const C = await import("./config.mjs");
+        const IC = await import("./i18n-config.mjs");
+        const inv = await import("./inventory.mjs");
+        must(typeof IC.keepEnglish === "function" && typeof IC.configEnglish === "function" && typeof inv.tierDescription === "function",
+            "the English of config prose is kept nowhere yet (i18n-config.mjs keepEnglish, configEnglish; inventory.mjs tierDescription)");
+        const key = "DRPG.Config.TIER_EFFECTS.usable.1";
+        const pl = foundry.utils.expandObject(JSON.parse(await lfText(await fetch(`/modules/${MODULE_ID}/lang/pl.json`))));
+        const polish = foundry.utils.getProperty(pl, key);
+        ok(typeof polish === "string" && polish !== C.TIER_EFFECTS.usable[1], "pl.json has no Polish of the tier sentence this test reads");
+        equal(await U.worldLocalize(key, {}, { lang: "pl" }), polish, "a Polish world's document does not get the Polish of config prose");
+        equal(await U.worldLocalize(key, {}, { lang: "en" }), C.TIER_EFFECTS.usable[1], "an English world's document does not get config.mjs's English");
+        equal(await U.worldLocalize(key, {}, { lang: "" }), C.TIER_EFFECTS.usable[1], "a world with no document language yet does not get the page's words for config prose");
+        /* The English a Polish page swaps out is kept, once: the first value is the table's English. */
+        IC.keepEnglish("DRPG.Config.R6603.probe", "English words");
+        IC.keepEnglish("DRPG.Config.R6603.probe", "Polskie słowa");
+        equal(IC.configEnglish("DRPG.Config.R6603.probe"), "English words", "the English kept for a key is not the first value it had");
+        ok(/keepEnglish\(key, value\)/.test(fnSource(await lfText(await fetch(`/modules/${MODULE_ID}/scripts/i18n.mjs`)), "localizeConfig")),
+            "localizeConfig swaps config prose without keeping its English");
+        /* The two sites: one helper, and both call it. */
+        const tierLine = (lang, n) => inv.tierDescription({ category: "usable", kind: null, tier: n, lang });
+        equal(await tierLine("pl", 1), `<p>${foundry.utils.getProperty(pl, "DRPG.Items.tierN").replace("{n}", "1")}. ${polish}</p>`, "a Polish world's item has no Polish tier line");
+        equal(await tierLine("en", 1), `<p>${game.i18n.format("DRPG.Items.tierN", { n: 1 })}. ${C.TIER_EFFECTS.usable[1]}</p>`, "an English world's item has no English tier line");
+        const invSource = await lfText(await fetch(`/modules/${MODULE_ID}/scripts/inventory.mjs`));
+        ok(/tierDescription\(/.test(fnSource(invSource, "grantItem")) && /tierDescription\(/.test(fnSource(invSource, "refreshTierThreeWording")),
+            "grantItem or the tier 3 rewrite does not write its tier line through tierDescription");
+        /* The setting shown, its empty choice named. */
+        const W = await import("./settings-window.mjs");
+        ok(W.GAME_SECTIONS.some(s => s.keys.includes("documentLanguage")), "the document language is not in the game's settings window");
+        const choice = game.settings.settings.get(`${MODULE_ID}.documentLanguage`)?.choices?.[""];
+        equal(choice, "DRPG.Help.documentLanguageUnset", "the setting's empty choice is not named");
+        const words = game.i18n.localize(choice ?? "");
+        ok(words && !words.startsWith("DRPG."), "the empty choice's name has no words in the page's language");
     }],
 
     ["R131 - a held setting of a module that is not here writes nothing", async () => {
@@ -4361,7 +4691,13 @@ const INVARIANTS = [
 
         for (const [userId, chosen] of byUser) {
             const theirs = rows.filter(r => r.user?.id === userId);
-            ok(theirs.includes(chosen),
+            /* A killer behind a "?" (E69 C8, voice.mjs `maskedRow`) and a character listening at a door (E69 C6,
+               `listeningRow`) are placed by a copy of their own row with another target, not the row itself, so the
+               identity check missed them: red in CI run 542 (14.11.2026) in 01-runtests A1-A3, where A1's opening on
+               Hope masks Chie and the mask stands until the next time of day. Such a copy counts when its character is
+               one of theirs. */
+            const copyOfTheirs = (chosen?.masked || chosen?.listening) && theirs.some(r => r.actor?.id === chosen.actor?.id);
+            ok(theirs.includes(chosen) || Boolean(copyOfTheirs),
                 `${game.users.get(userId)?.name}'s room comes from no character of theirs`);
         }
 
@@ -4761,6 +5097,89 @@ const INVARIANTS = [
         equal(judge("DhGMUpdate", { action: "DhGMUpdateFear", data: 12 }).ops?.[0]?.step, 1, "a Fear packet asking for +8 moves Fear by more than one");
         const tick = passed["a countdown the rules tick"].ops?.[0]?.deltas ?? [];
         equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
+    }],
+
+    ["R7050 - every relay refusal a GM is told of is said in the GM's language", async () => {
+        /*
+         * E57 T13 group 3, 14.11.2026. A relay judge answers its reason in English, the GM's record, and until this the
+         * toast (DRPG.Relay.refused) and the GMs' whisper (DRPG.Relay.forged) put that English into a Polish GM's
+         * sentence. They say it through relay-guard.mjs `RELAY_WHAT` now, a closed list as the bridge's REASONS are. Held
+         * here: each refusal road of the judges, asked with made-up packets and a made-up world, is taken by a pattern
+         * (never `unnamed`), every pattern's code has its key, and a reason no judge writes is `unnamed`. The judges
+         * whose reason only a world of the GMs' can raise (an item a sender holds less of, a gain no roll covers) are
+         * asked with that world's answer made up.
+         */
+        const { judgeRelay, relayWhat, RELAY_WHAT } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00002", name: "Suite player", isGM: false };
+        const owns = doc => ({ testUserPermission: user => user?.id === player.id, ...doc });
+        const not = doc => ({ testUserPermission: () => false, ...doc });
+        const res = { hope: { value: 2, max: 6 }, hitPoints: { value: 3, max: 6 } };
+        const docs = {
+            mine: owns({ documentName: "Actor", type: "character", name: "Mine", system: { resources: res } }),
+            theirs: not({ documentName: "Actor", type: "character", name: "Theirs", system: { resources: res } }),
+            knife: owns({ documentName: "Item", name: "Knife", parent: { documentName: "Actor" }, system: { quantity: 1 }, _source: { flags: { "danganronpa-rpg": { category: "tool" } } } }),
+            spoon: not({ documentName: "Item", name: "Spoon", parent: { documentName: "Actor" } }),
+            party: not({ documentName: "Actor", type: "party", name: "Party", system: { partyMembers: ["theirs"] } }),
+            scene: { documentName: "Scene", name: "Floor", flags: { daggerheart: { sceneEnvironments: ["a", "b"] } } },
+            journal: { documentName: "JournalEntry", name: "Notes" }
+        };
+        const countdowns = { countdowns: { P1: { name: "Project", progress: { current: 2, start: 6, type: "custom", looping: "noLooping" } } } };
+        const world = {
+            doc: uuid => docs[uuid] ?? null,
+            countdowns: () => foundry.utils.deepClone(countdowns),
+            isProject: id => id === "P1", levelOf: () => 2, automationOn: () => true,
+            fear: () => 4, fearSteps: () => 1, fearChangedAt: () => 0, changedAt: () => 0,
+            message: id => (id === "M1" ? { id: "M1" } : null),
+            tokenFor: (message, tokenId) => (tokenId === "TOKTHEIRS" ? { actor: docs.theirs } : null),
+            itemHeld: () => null,
+            gainRefusal: () => "hope raised on Mine with no roll of theirs to give it",
+            now: () => 1e12
+        };
+        const judge = (action, data) => judgeRelay({ action, data }, player, world);
+        const doc = (uuid, data) => judge("DhGMUpdate", { action: "DhGMUpdateDocument", uuid, data });
+        const roads = {
+            transfer: judgeRelay({ action: "DhTransferItem", data: {} }, player, world),
+            region: judge("DhGMCreate", { documentType: "Region", data: {} }),
+            newDocument: judge("DhGMCreate", { documentType: "Actor", data: {} }),
+            gmEffect: judge("DhGMUpdate", { action: "DhGMUpdateEffect", uuid: "mine", data: {} }),
+            setting: judge("DhGMUpdate", { action: "DhGMUpdateSetting", uuid: "Automation", data: {} }),
+            unreviewed: judge("DhGMUpdate", { action: "DhGMUpdateSomethingNew", data: {} }),
+            field: doc("mine", { name: "Other" }),
+            noResource: doc("mine", { "system.resources.armor.value": 1 }),
+            badValue: doc("mine", { "system.resources.hope.value": -1 }),
+            overMax: doc("mine", { "system.resources.hope.value": 9 }),
+            otherStudent: doc("theirs", { "system.resources.hitPoints.value": 0 }),
+            raisedNoRoll: doc("mine", { "system.resources.hope.value": 1 }),
+            notHeld: doc("spoon", { "system.quantity": 0 }),
+            charges: doc("knife", { "system.resource.value": -1 }),
+            quantity: doc("knife", { "system.quantity": -1 }),
+            moreOf: doc("knife", { "system.quantity": 2 }),
+            sceneField: doc("scene", { name: "Other floor" }),
+            environments: doc("scene", { "flags.daggerheart.sceneEnvironments": ["a", "z"] }),
+            partyField: doc("party", { name: "Other party" }),
+            // Its road whispers to the GMs (partyRefusal's shapeWarning, a write tier 1 may not make), so its English is asked.
+            partyUnlisted: { verdict: "refuse", why: "the party Bare party, whose members this Daggerheart does not list" },
+            partyNotOwn: doc("party", { "system.groupRoll.aidedBy": "x" }),
+            otherDocument: doc("journal", { name: "x" }),
+            fear: judge("DhGMUpdate", { action: "DhGMUpdateFear", data: "lots" }),
+            countdownsWhole: judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: {} }),
+            newCountdowns: judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: { countdowns: { ...countdowns.countdowns,
+                N1: { name: "New", progress: { current: 1, start: 1, type: "custom" } } } } }),
+            countdownsOdd: judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: { countdowns: {
+                P1: { ...countdowns.countdowns.P1, progress: { ...countdowns.countdowns.P1.progress, current: 6 } } } } }),
+            saveNotOwn: judge("DhGMUpdate", { action: "DhGMUpdateSaveMessage", data: { message: "M1", token: "TOKTHEIRS", result: { roll: { total: 12 } } } })
+        };
+        const wrong = Object.entries(roads).map(([want, v]) => {
+            if (v?.verdict !== "refuse") return `${want}: not refused (${v?.verdict}: ${v?.why})`;
+            const got = relayWhat(v.why).code;
+            return got === want ? null : `${want}: said as ${got} (${v.why})`;
+        }).filter(Boolean);
+        equal(JSON.stringify(wrong), "[]", "a relay refusal not said by the pattern of its road");
+        const codes = RELAY_WHAT.map(([code]) => code);
+        equal(JSON.stringify(codes.filter(c => !Object.hasOwn(roads, c))), "[]", "a pattern of RELAY_WHAT that no road of this test reaches");
+        equal(JSON.stringify([...codes, "unnamed"].filter(c => !game.i18n.has(`DRPG.Relay.what.${c}`, false))), "[]", "a code with no DRPG.Relay.what key");
+        equal(relayWhat("a reason no judge writes").code, "unnamed", "a reason no pattern takes is said as something else than unnamed");
+        ok(!/\{\w+\}/.test(relayWhat(roads.badValue.why).text), `the said reason left a placeholder: ${relayWhat(roads.badValue.why).text}`);
     }],
 
     ["R3600 - a player's save is judged in Daggerheart's shape up to 2.12.4 and in 2.12.5's, and forwarded in both", async () => {
@@ -7042,7 +7461,8 @@ const INVARIANTS = [
         const KILLER = "R190KILLERACTOR1";
         const clean = () => ({
             settings: {
-                projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
+                // A secret project's row since the leak-pm line (1.2.113): its room and murder mark are the GMs' (whileSecret).
+                projectMeta: { R190PROJECT00001: { secret: true, trait: null, countsUp: true } },
                 clock: { chapter: 2, day: 3 },
                 murderState: { active: true, stage: "incident" },
                 overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
@@ -7074,8 +7494,9 @@ const INVARIANTS = [
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
             // E93 C1: a secret project's room action (its label and effects) as well.
-            ...["description", "facility"].map(f => [`projectMeta while secret: ${f}`,
-                s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
+            // The leak-pm line (1.2.113): whether it is an indirect murder, and its room.
+            ...["description", "facility", "indirectMurder", "room"].map(f => [`projectMeta while secret: ${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" ? true : f === "room" ? "Gym" : "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
             // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).
@@ -9958,10 +10379,12 @@ const INVARIANTS = [
          * E68 fix round, 10.11.2026: the setting's hint told a GM "Resolve always asks a GM", but an armed Resolve asks
          * nobody (C7; the GM handbook's who-picks table). Read in both languages: the hint does not put Resolve among
          * what asks a GM, and says Resolve asks nobody. Red at a5ebfeaa: both hints listed Resolve with the fights.
+         * E71 group D (14.11.2026, text batch B14): the hints say it as "A Resolve never asks for one" (the approval
+         * the sentence before names) and "Resolve i tak nikogo nie pyta"; the same fact, read in those words.
          */
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
         const hints = [game.i18n.localize("DRPG.Settings.autoApproveTraits.hint"), pl?.DRPG?.Settings?.autoApproveTraits?.hint ?? ""];
-        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve nie pyta nikogo/ : /Resolve asks nobody/).test(h)])),
+        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve i tak nikogo nie pyta/ : /A Resolve never asks for one\./).test(h)])),
             JSON.stringify([[false, true], [false, true]]),
             "the valve's hint says Resolve asks a GM, or does not say it asks nobody (EN, PL: [asks a GM, asks nobody])");
     }],
@@ -17598,7 +18021,7 @@ const INVARIANTS = [
         const roleRetell = () => { calls.push("retell"); return P.retellPassages({ ...cCtx(coUsers2.map(u => (u.id === "R555U4" ? { ...u, isGM: true } : u))), primary: () => true }); };
         cOut.length = 0;
         const named = await P.onUserUpdated(U7, { name: "R555 renamed" }, {}, "R555GM", { retell: roleRetell });
-        const roled = await P.onUserUpdated(U4, { role: 4 }, {}, "R555GM", { retell: roleRetell });
+        await P.onUserUpdated(U4, { role: 4 }, {}, "R555GM", { retell: roleRetell });
         equal(J([named ?? null, calls, cOut.map(o => o.packet.userId).sort()]), J([null, ["retell"], ["R555U6"]]),
             "[a rename's retell, the retells asked, sent after U4 was made a GM: U6, the door now] - a change of role tells nobody, or a rename retells (O18)");
 
@@ -19980,18 +20403,18 @@ const INVARIANTS = [
             neighbours: (fold => [fold?.querySelector(":scope > summary")?.textContent.trim() === L("DRPG.Vault.neighboursLine"),
                 (fold?.textContent ?? "").replace(/\s+/g, " ").includes(L("DRPG.Vault.neighboursNote").replace(/\s+/g, " ")),
                 Boolean(pane("doors")?.querySelector(`[data-tooltip="${CSS.escape(L("DRPG.Vault.neighboursNote"))}"]`))])(pane("doors")?.querySelector("details[data-drpg-neighbours]")),
-            lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")), !text("passages").includes(L("DRPG.Passage.tab.intro")),
+            // The old notes these lines replaced (Passage.tab.intro, SearchTokens.roomSetupNote, Facility.editor.tabNote,
+            // Vault.fogNote) are gone from both files since the needsCode line (R6904), so their absence is no longer read here.
+            lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")),
                 text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupLine", { max: SearchTokensMax() })),
-                !text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupNote", { max: SearchTokensMax() })),
-                text("rest").includes(L("DRPG.Facility.editor.tabLine")), !text("rest").includes(L("DRPG.Facility.editor.tabNote")),
-                !text("fog").includes(L("DRPG.Vault.fogNote"))]
+                text("rest").includes(L("DRPG.Facility.editor.tabLine"))]
         };
         equal(stableJson(read), stableJson({
             over: true, first: ["bedrooms", L("DRPG.Vault.tabRooms")],
             rooms: [L("DRPG.Vault.room"), L("DRPG.Vault.isRoomColumn"), L("DRPG.Vault.owner"), L("DRPG.Vault.notSharedColumn")], ratio: true,
             doors: [L("DRPG.Vault.room"), L("DRPG.Vault.lockedColumn"), L("DRPG.Vault.lockedAtStartColumn"), L("DRPG.Vault.brokenColumn"), L("DRPG.Vault.neighboursColumn")],
             neighbours: [true, true, false],
-            lines: [true, true, true, true, true, true, true]
+            lines: [true, true, true]
         }), "{the Apply line over the tabs; the first tab; Rooms' heads and its count; Doors' heads; the neighbours' fold [its summary the line, the note inside, a tooltip of the note]; the tabs' own lines: passages' intro new and old, "
             + "Search's tokens line new and old (arrows), room actions' line new and old, no line under Fog}");
     }],
@@ -23119,7 +23542,7 @@ const INVARIANTS = [
         equal(stableJson(names.filter(name => first.html.includes(foundry.utils.escapeHTML(name)) || first.html.includes(name))), "[]",
             `a name of something ${target.name} carries is in the Palm window's HTML`);
     }],
-    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; one form of the row's words in each language, in the window, the Palm hint, the brochure and the GM handbook's Palm row; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'; the row says what to do as the Palm's other two rows do, 'See what they carry' / 'Zobacz, co nosi', and a Frisk's notice is titled by a key of its own, 'Frisk' (H81-11)", async () => {
+    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; one form of the row's words in each language, in the window, the Palm hint, the brochure and the GM handbook's Palm row; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'; the row says what to do as the Palm's other two rows do, 'See what they carry' / 'Zobacz, co ktoś nosi', and a Frisk's notice is titled by a key of its own, 'Frisk' (H81-11)", async () => {
         /*
          * E80 part 2 C5, 19.10.2026; the A11 design's steps 14 and 15 and its A11-17. The harm: a Frisk text with no
          * Polish twin shows a Polish table its key; a number typed into a text, or a handbook that says Body 12 while the
@@ -23200,7 +23623,7 @@ const INVARIANTS = [
             "player-handbook.en Palm": [`| It works (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Unseen (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
                 "**See what they carry**", `**Body ${n.force}+**`, `Shadow first, ${n.cover}+`, `then Hand, ${n.hand}+`],
             "player-handbook.pl Palm": [`| Udaje się (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Niezauważony (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
-                "**Zobacz, co nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
+                "**Zobacz, co ktoś nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
             "player-handbook.en Body": ["making somebody turn out their pockets"],
             "player-handbook.pl Body": ["zmuszanie kogoś do pokazania kieszeni"],
             "gm-handbook.en Palm row": ["| Shadow, then Hand", `Take: ${n.take} to succeed, ${n.takeUnseen} on Shadow`, `Plant: ${n.plant}, unseen ${n.plantUnseen}`,
@@ -23211,7 +23634,7 @@ const INVARIANTS = [
             "gm-handbook.pl Palm": ["**Frisk**", `Body ${n.force} na oczach pokoju`, "klient GM-a"],
             "player-brochure.en Palm": [`Take (${n.take}+, unseen ${n.takeUnseen}+)`, `plant (${n.plant}+, unseen ${n.plantUnseen}+)`, "see what they carry",
                 `Body ${n.force}+ after a refusal`, `unseen Shadow ${n.cover}+ then Hand ${n.hand}+`],
-            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co nosi",
+            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co ktoś nosi",
                 `Body ${n.force}+ po odmowie`, `ukradkiem Shadow ${n.cover}+, potem Hand ${n.hand}+`]
         });
         const missing = n => Object.entries(expected(n)).flatMap(([where, said]) => said.filter(s => !passages[where].includes(s)).map(s => `${where}: "${s}"`));
@@ -23228,6 +23651,7 @@ const INVARIANTS = [
         // form, docs/glossary.json `see-what-they-carry` "zobacz, co ktoś nosi" (stage E71), ahead of the row, the brochure
         // and the GM handbook, which E71 moves; so the Polish hint is read for that form, and for none of the row's words.
         // The English hint says the row's words, as before. Red on C7's landed tree with the row's words asked of it.
+        // E71 (1.2.113) moved the row, the brochure and the handbooks to the same form, so the hint and the row agree again.
         const HINT_WORDS = { pl: "zobacz, co ktoś nosi" };
         const oneForm = lang => {
             const words = lowered(flats[lang]["DRPG.Frisk.rowLabel"]);
@@ -23236,7 +23660,7 @@ const INVARIANTS = [
                 ...[passages[`player-brochure.${lang} Palm`], passages[`gm-handbook.${lang} Palm row`]].map(text => Boolean(words) && text.includes(words))];
         };
         equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, oneForm("en"), oneForm("pl"), /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
-            J(["Zobacz, co nosi", ["see what they carry", true, true, true], ["zobacz, co nosi", true, true, true], false]),
+            J(["Zobacz, co ktoś nosi", ["see what they carry", true, true, true], ["zobacz, co ktoś nosi", true, true, true], false]),
             "[the Polish row; in English and in Polish the row's words and whether the Palm hint (in Polish the glossary's 'zobacz, co ktoś nosi', since B01a), the brochure's Palm row and the GM handbook's Palm row say them; the Polish GM handbook's Palm says 'GMa']");
         const toast = stripComments(fnSource((await moduleSources()).get("frisk.mjs") ?? "", "toast"));
         equal(J([flats.en["DRPG.Frisk.rowLabel"] ?? null, flats.en["DRPG.Frisk.noticeTitle"] ?? null, flats.pl["DRPG.Frisk.noticeTitle"] ?? null,
@@ -23725,8 +24149,8 @@ const INVARIANTS = [
             game.i18n.translations = own;
             tab.draw();
         }
-        const START = ["Known after a season reset, not now.",
-            "Znają je po resecie sezonu, nie teraz."];
+        const START = ["Known only after a season reset.",
+            "Znają je dopiero po resecie sezonu."];
         const WAY = ["A tunnel or stairs can go one way only: pick it under its Shape. A passage in a wall always goes both ways.",
             "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Tajne przejście w ścianie zawsze prowadzi w obie strony."];
         const ends = (text, i) => typeof text === "string" && text.endsWith(`${START[i]} ${WAY[i]}`);
@@ -23756,7 +24180,7 @@ const INVARIANTS = [
         const size = [Math.max(20, Math.round(grid * 0.36)), Math.max(4, Math.round(grid * 0.07)), Math.round(grid * 0.38)];
         const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
         equal(J([drew, texts, [en?.DRPG?.Passage?.mark?.from, pl?.DRPG?.Passage?.mark?.from]]),
-            J([2, [[words("DRPG.Passage.mark.to", "R903 Lab"), ...size], [words("DRPG.Passage.mark.from", "R903 Dorm"), ...size]], ["Secret passage from {room}", "Tajne przejście z: {room}"]]),
+            J([2, [[words("DRPG.Passage.mark.to", "R903 Lab"), ...size], [words("DRPG.Passage.mark.from", "R903 Dorm"), ...size]], ["Secret passage from {room}", "Tajne przejście z pokoju {room}"]]),
             `[the marks drawn, each mark's words as [text, size, keyline, below its centre] at grid ${grid}, the way out's words in English and in Polish]`);
     }],
     ["R904 - 'Known passages' says what to do with each passage (H81-03, H81-04, H81-02): a passage in a wall is to be walked through its gap and has no button, a tunnel keeps 'Go through' enabled wherever the token stands, a one-way tunnel says which way in the rooms as the row names them, and a refusal away from an end says where to stand, in English and in Polish", async () => {
@@ -23793,7 +24217,7 @@ const INVARIANTS = [
             J([[["R904 Dorm - R904 Lab", null, null, false], ["R904 Gym - R904 Pool", "oneWay", "One way only: from R904 Pool to R904 Gym.", false],
                 ["R904 Hall - R904 Kitchen", "walk", "Walk through the secret passage.", null]],
                 "Stand on the passage's mark, or a square next to it, first.",
-                "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez tajne przejście.", "Tylko w jedną stronę, z: {from}, do: {to}."]),
+                "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez tajne przejście.", "Tylko w jedną stronę: z pokoju {from} do pokoju {to}."]),
             "[each row as [its rooms, its line's kind, its line, 'Go through' disabled (null: no button)], the refusal away from an end in English, in Polish, the walk line and the way line in Polish]");
     }],
     ["R908 - a token moved onto a tunnel's end goes through it as 'Go through' does (H81-13, H81-14, H81-16): a knower's own move - a player's of their student or a GM's - that ends with the token's centre square on an end, on one floor or onto stairs to another, having started off it, names that tunnel, a one-way tunnel's way out included (its refusal is the button's); the crossing's own landing on the far end, a put-back, a teleport or a displace, a move that ends beside the end or runs across it, one that only climbs, turns or changes floor, another user's move and a character that knows no tunnel name none; the primary GM's landing write carries the crossing's mark", async () => {
@@ -26438,7 +26862,8 @@ const INVARIANTS = [
          * for a mapped Investigation resumed the afternoon (a fade in) and then stopped it; and the silent state, having
          * no playlist, was "nothing to take over with", so a GM's track played on through the announcement. Who gives
          * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs's family with comments blanked; the Sound
-         * window's note says it in both languages.
+         * window's note says it in both languages. E71 group D (14.11.2026, text batch B18): the English note says "a
+         * track you put on yourself stops too" where it said "your own track"; the same fact, read in those words.
          */
         const M = await import("./music.mjs");
         ok(typeof M.cueGivesWay === "function", "music.mjs exports no `cueGivesWay`, so who a GM's track gives way to cannot be driven");
@@ -26457,7 +26882,7 @@ const INVARIANTS = [
         const silenceOut = /if \(silenced\) \{[\s\S]{0,900}?if \(next\)[\s\S]{0,200}?clearHeld\([\s\S]{0,200}?else await resumeHeld\(held\)/.test(apply);
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
-        const note = [/body is found[^.]*your own track/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
+        const note = [/body is found[^.]*a track you put on yourself stops/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
         equal(stableJson([gives, ["apply asks it", asks], ["the takeover lets go", takeover], ["the crossfade lets go of its own", ownLetGo],
             ["out of the silence", silenceOut], ["the Sound window says so (en, pl)", note]]), stableJson([
             [["the same state", false], ["a mapped state", true], ["an unmapped state", false], ["the body's silence", true]],
@@ -27071,7 +27496,8 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         // 38 since the 1.2.112 tree: studentsTooltip went with the Students left line's button (E101, R4054) and give2Tooltip with
         // the Monocubs window (E72 C6), as docs/dev/e102/STATUS.md "Open" planned.
-        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 38, "lang/en.json has not the family's 38 keys under DRPG.Tips.Gm");
+        // 38 of C4 and its reviews, and 4 of E102 C12 that R6352 holds (14.11.2026)
+        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 38 + 4, "lang/en.json has not the family's 38 keys and C12's 4 under DRPG.Tips.Gm");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27120,7 +27546,8 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28, "lang/en.json has not the family's 28 keys under DRPG.Tips.Setup");
+        // 28 of C5 and its reviews, and 14 of E102 C12 that R6353 holds (14.11.2026; the sheet's Bribe Accept and the lair's lock after E54)
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28 + 12 + 2, "lang/en.json has not the family's 28 keys and C12's 14 under DRPG.Tips.Setup");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27130,6 +27557,235 @@ const INVARIANTS = [
             return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's keys under DRPG.Tips.Case (12 at C12's node Close, 42 since C6b: the Investigation window, its Map's planned nodes and the Key Remnant windows) has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
+        /* Red at 1463f22b with this test in place and the family's scripts as they were: lang/*.json had no DRPG.Tips.Case block and no function read one of its keys.
+           C6b's part red at 05a97e0c (E54 merged): 30 keys missing and no investigation.mjs or key-remnants.mjs function drawing one. */
+        const TIPS = [
+            ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
+            ["DRPG.Tips.Case.onANodeTooltip","case-map.mjs","caseGraphHtml"],
+            ["DRPG.Tips.Case.notTiedToTheTooltip","case-map.mjs","caseGraphHtml"],
+            ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.closeNodeTooltip","case-map.mjs","nodeEditHtml"],
+            ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
+            ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
+            ["DRPG.Tips.Case.notNowTooltip","case-realize.mjs","askAtBody"],
+            ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
+            ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
+            ["DRPG.Tips.Case.difficultyTooltip","remnant-ring.mjs","gmRemnantCard"],
+            ["DRPG.Tips.Case.leftByTooltip","remnant-ring.mjs","gmRemnantCard"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","openNewTrace"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.faintTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.tiedToCrimeTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.deleteTooltip","investigation.mjs","caseTraceCells"],
+            ["DRPG.Tips.Case.chapterFilterTooltip","investigation.mjs","caseTraceFilters"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.whichRemnantTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.placeTooltip","investigation.mjs","caseKeyCells"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","caseFinalPanel"],
+            ["DRPG.Tips.Case.mapTableTooltip","investigation.mjs","viewSwitchHtml"],
+            ["DRPG.Tips.Case.nameNodeTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.noteForTheGmsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.trialModeTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.autopsyAtTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.whatItReallyIsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.whatThePlayerIsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Gm.howHardTheOriginalTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.giveFromPlanTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.removeFromTheCaseTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.roomPlannedFinalTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.difficultyTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.leftByTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.nameTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.placeFinalPlanTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.placeOnTheMapTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.kindWhatItReallyTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Case.reinforcedTooltip","investigation.mjs","schemaEditor"],
+            ["DRPG.Tips.Trial.setTooltip","investigation.mjs","zoneRows"],
+            ["DRPG.Tips.Case.placeFinalNowTooltip","investigation.mjs","offerFinalOnClose"],
+            ["DRPG.Tips.Case.keepForLaterTooltip","investigation.mjs","offerFinalOnClose"],
+            ["DRPG.Tips.Case.saveTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.newRemnantTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.issueAutopsyTruthBulletTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.bodyFoundTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.realizationPreviewTooltip","investigation.mjs","openInvestigationDashboard"],
+            ["DRPG.Tips.Case.difficultyTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.leftByTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.nameTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.playerDescriptionTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.whatAnalysisRevealsTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.plannedClueTooltip","key-remnants.mjs","openKeyRemnantHere"],
+            ["DRPG.Tips.Case.difficultyTooltip","key-remnants.mjs","placeKeyRow"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        // every key of the family drawn somewhere this lists, and no other: the Case keys TIPS names (C6b reuses three Gm keys and
+        // one Trial key for the planned nodes' copies of those windows' fields)
+        const caseKeys = [...new Set(TIPS.map(t => t[0]).filter(k => k.startsWith("DRPG.Tips.Case.")))].sort();
+        equal(Object.keys(words(en, "DRPG.Tips.Case") ?? {}).map(k => `DRPG.Tips.Case.${k}`).sort().join(" "), caseKeys.join(" "), "{lang/en.json's DRPG.Tips.Case keys against the ones this test finds drawn}");
+        must(Object.keys(words(pl, "DRPG.Tips.Case") ?? {}).length === caseKeys.length, `lang/pl.json has not the family's ${caseKeys.length} keys under DRPG.Tips.Case`);
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+        // the Map's own: drawn only where caseGraphHtml was handed the Map's editors (the trial console's graph has none)
+        const map = src.get("case-map.mjs");
+        const mapOnly = [["nodeButton", "nodeOnTheMapTooltip", /\beditable\s*\?\s*tipAttr\(\s*"DRPG\.Tips\.Case\.nodeOnTheMapTooltip"/],
+            ["caseGraphHtml", "notTiedToTheTooltip", /\beditors\s*\?\s*tipAttr\(\s*"DRPG\.Tips\.Case\.notTiedToTheTooltip"/],
+            ["caseGraphHtml", "editable", /nodeButton\([^;]*\beditable:\s*Boolean\(editors\)/]]
+            .filter(([unit, , re]) => !re.test(fnSource(map, unit))).map(([unit, what]) => `${what} not held to the Map in ${unit}()`);
+        equal(bad.concat(mapOnly).join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6351 - the Actions family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): call-pickers.mjs `pickChoice`'s Next carries DRPG.Tips.Actions.nextTooltip, as the two pickers before it do (nothing is paid there; the Call's own confirmation follows), with words in English and in Polish within the guide's 23; the doors' and Tail's picks and Roll are rows with their reasons, as Listen's", async () => {
+        /* Red at 3aae7c72: pickChoice's Next drew no tooltip. */
+        const TIPS = [
+            ["DRPG.Tips.Actions.nextTooltip","call-pickers.mjs","pickChoice"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6352 - the Gm family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): the GM panel's give tab's Tell the player (gm-items.mjs `hubGivePane`), the Debug log's Foundry and modules (gm-panel.mjs `openFailureLog`), a Monocub invitation's Not now and a Bribe's Refuse (monocub.mjs `openInvitation`, `openBribeOffer`), each key under DRPG.Tips.Gm with words in English and in Polish within the guide's 23, written where its control draws it; R4753 counts these four with its 38", async () => {
+        /* Red at c15061e2: none of the four keys was in lang/*.json or drawn. */
+        const TIPS = [
+            ["DRPG.Tips.Gm.tellOnGiveTooltip","gm-items.mjs","hubGivePane"],
+            ["DRPG.Tips.Gm.foundryAndModulesTooltip","gm-panel.mjs","openFailureLog"],
+            ["DRPG.Tips.Gm.notNowInviteTooltip","monocub.mjs","openInvitation"],
+            ["DRPG.Tips.Gm.refuseBribeTooltip","monocub.mjs","openBribeOffer"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6353 - the Setup family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): the room and project action editors (facility-editor.mjs: each field of a line, which has no visible label, its own tooltip - name, statistic, difficulty, effect, amount, who, the effect's statistic, how long, text, lifetime - and the project's Remove) and the Season checklist's Open the dice look (season-setup.mjs `diceLookSection`), each key under DRPG.Tips.Setup with words in English and in Polish within the guide's 23, written where its control draws it - a select of the editor through its local `select()`, which writes the key it is handed into its own tag; R4754 counts these 12 with its 28", async () => {
+        /* Red at the Gm commit: none of the twelve keys was in lang/*.json or drawn. */
+        const TIPS = [
+            ["DRPG.Tips.Setup.facilityNameTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityNameTooltip","facility-editor.mjs","projectFacilityBody"],
+            ["DRPG.Tips.Setup.facilityRollTraitTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityDcTooltip","facility-editor.mjs","roomActionsBody"],
+            ["DRPG.Tips.Setup.facilityEffectTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityAmountTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityScopeTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityEffectTraitTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityUntilTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityTextTooltip","facility-editor.mjs","effectFields"],
+            ["DRPG.Tips.Setup.facilityLifetimeTooltip","facility-editor.mjs","projectFacilityBody"],
+            ["DRPG.Tips.Setup.facilityRemoveTooltip","facility-editor.mjs","editProjectFacility"],
+            ["DRPG.Tips.Setup.diceLookTooltip","season-setup.mjs","diceLookSection"],
+            ["DRPG.Tips.Setup.acceptBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
+            ["DRPG.Tips.Gm.refuseBribeTooltip","sheet-actions.mjs","injectMonocubPanel"],
+            ["DRPG.Tips.Setup.lairLockTooltip","sheet-sidebar.mjs","lairBlock"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        // the editor's local select(): its tag writes tipAttr of the key it is handed, and the unit hands it the key
+        const selectTag = /<select\b[^>]*?\$\{tipAttr\(tip\b/.test(fnSource(src.get("facility-editor.mjs"), "select"));
+        const viaSelect = (body, k, f) => f === "facility-editor.mjs" && selectTag && new RegExp(`\\bselect\\([^;]*?"${k.replace(/\./g, "\\.")}"`).test(body);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f) || viaSelect(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6354 - two Setup tooltips name the window's words as its controls say them (the text lines' read of DRPG.Tips, 14.11.2026, through the coordinator): the Sound window's Play names the button beside it by that button's own label (DRPG.Music.reset, \"Stop the track\" / \"Wyłącz utwór\", not \"Reset music\"), and the new item's Category names its picture by the item form's word (DRPG.Tables.picture, \"Picture\" / \"Obrazek\", not \"icon\" / \"Ikona\"), in English and in Polish; and no tooltip of DRPG.Tips writes the glossary's Overflow (docs/glossary.json, n) in lower case (the coordinator's note on Actions.onPerRuleTooltip, 14.11.2026)", async () => {
+        /* Red at 7025ac5c: Play's tooltip said "Reset music" / "Resetuj muzykę" and Category's "icon" / "Ikona". The Overflow
+           half red at acbaa909: Actions.onPerRuleTooltip said "the overflow fires" / "gdy overflow odpala". */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const read = (lang, ...path) => path.reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), lang.DRPG);
+        const out = {};
+        for (const [name, lang] of [["en", en], ["pl", pl]]) {
+            const stop = read(lang, "Music", "reset"), picture = read(lang, "Tables", "picture");
+            const play = read(lang, "Tips", "Setup", "playTooltip") ?? "", category = read(lang, "Tips", "Setup", "categoryTooltip") ?? "";
+            must(stop && picture && play && category, `lang/${name}.json lacks a word this reads - this would measure nothing`);
+            out[name] = { playNamesStop: play.toLowerCase().includes(stop.toLowerCase()), playSaysReset: /reset/i.test(play),
+                categoryNamesPicture: category.toLowerCase().includes(picture.toLowerCase()), categorySaysIcon: /\b(icon|ikona)\b/i.test(category) };
+        }
+        const flat = o => (o && typeof o === "object" ? Object.values(o).flatMap(flat) : [String(o ?? "")]);
+        for (const [name, lang] of [["en", en], ["pl", pl]]) {
+            const all = flat(read(lang, "Tips"));
+            must(all.length > 100, `lang/${name}.json's DRPG.Tips read as nothing - this would measure nothing`);
+            out[name].lowerOverflow = all.filter(s => /\boverflow\b/.test(s)).length;
+        }
+        const want = { playNamesStop: true, playSaysReset: false, categoryNamesPicture: true, categorySaysIcon: false, lowerOverflow: 0 };
+        equal(stableJson(out), stableJson({ en: want, pl: want }), "{per language: Play's tooltip names Stop the track and not Reset; Category's names Picture and not icon; DRPG.Tips's tooltips with a lower-case overflow}");
+    }],
+    ["R6355 - two tooltips say what the code does (group B's review of DRPG.Tips, 14.11.2026, through the coordinator): Observe's \"Nothing matches - refuse\" does not give the action back - the action is paid before the dice and a refused pick hands the roll already thrown to the GMs as a card (action-observe.mjs `observeSpecific`: `!target.ok` goes to `ruleObserve`, not to `abort`), so its tooltip says the action stays spent and the roll goes to the GMs; and the Passages tab's Who knows gives the passage with no message to the player (passages-gm.mjs `grantPassage` writes the access row and pushes the copies, and whispers nothing), so its tooltip says it appears in their Known passages with no message; in English and in Polish", async () => {
+        /* Red at aa774bd3: "The player keeps their action and finds nothing" / "Gracz zachowuje akcję", and "their player is told" / "jego gracz się o tym dowie". */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const tip = (lang, fam, k) => lang.DRPG?.Tips?.[fam]?.[k] ?? "";
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const [observe, passagesGm] = await Promise.all([read("action-observe.mjs"), read("passages-gm.mjs")]);
+        must(observe.length > 500 && passagesGm.length > 500, "a script read as nothing - this would measure nothing");
+        const specific = fnSource(observe, "observeSpecific"), grant = fnSource(passagesGm, "grantPassage");
+        const refuseEn = tip(en, "Actions", "nothingMatchesRefuseTooltip"), refusePl = tip(pl, "Actions", "nothingMatchesRefuseTooltip");
+        const grantEn = tip(en, "Setup", "aStudentSNameTooltip"), grantPl = tip(pl, "Setup", "aStudentSNameTooltip");
+        must(refuseEn && refusePl && grantEn && grantPl, "a tooltip this reads has no words - this would measure nothing");
+        equal(stableJson({
+            code: { refusedGoesToRuling: /if\s*\(\s*!target\.ok\s*\)\s*return\s+ruleObserve\(/.test(specific), grantTellsNobody: !/whisper|ChatMessage|notifications|callGm/.test(grant) },
+            refuse: { en: [/\bspent\b/i.test(refuseEn), /\bkeeps?\b/i.test(refuseEn), /\bGMs?\b/.test(refuseEn)], pl: [/wydana/i.test(refusePl), /zachowuje/i.test(refusePl), /GM-/.test(refusePl)] },
+            grant: { en: [/no message/i.test(grantEn), /\btold\b/i.test(grantEn)], pl: [/bez wiadomości/i.test(grantPl), /dowie/i.test(grantPl)] }
+        }), stableJson({
+            code: { refusedGoesToRuling: true, grantTellsNobody: true },
+            refuse: { en: [true, false, true], pl: [true, false, true] },
+            grant: { en: [true, false], pl: [true, false] }
+        }), "{the code: a refused pick goes to the GMs' ruling, a grant tells nobody; Refuse's tooltip: spent, not kept, the GMs; Who knows': no message, not told}");
     }],
     ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
         /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
@@ -29733,7 +30389,7 @@ const INVARIANTS = [
          */
         const WORDS = {
             en: { once: "once each time of day", gone: ["not hidden", "'s stash", "concealed stash needs", "Anyone standing here"], found: "not found" },
-            pl: { once: "raz na porę dnia", gone: ["nie jest ukryta", "To skrytka", "Ukryta skrytka wymaga", "Nieukryta", "Każdy, kto tu stoi"], found: "nie znalazłeś" }
+            pl: { once: "raz na porę dnia", gone: ["nie jest ukryta", "To skrytka", "Ukryta skrytka wymaga", "Nieukryta", "Każdy, kto tu stoi"], found: "nie znajdziesz" }
         };
         const read = {};
         for (const [lang, W] of Object.entries(WORDS)) {
@@ -29749,7 +30405,8 @@ const INVARIANTS = [
         // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
         const dialog = fnSource(stripComments(vaultText(await otherSources())), "rifleStashDialog");
         must(dialog, "the stash's family has no rifleStashDialog - this reads nothing");
-        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(stocked\.map\(entry => entry\.owner\.name\)\.join\(", "\)\),\s*room: esc\(room\)/.test(dialog);
+        // The owners' list through utils.mjs `listOf` since the needsCode line (R6900, EN2), not joined with ", ".
+        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(listOf\(stocked\.map\(entry => entry\.owner\.name\)\)\),\s*room: esc\(room\)/.test(dialog);
         equal(stableJson(read), stableJson({ en: [true, true, [], true], pl: [true, true, [], true], enSheet: [true, []], plSheet: [true, []], dialog: true }),
             "the rifle's window or the sheet's note does not say what a reach takes (per language: [both placeholders, once each time of day, the old "
             + "words still there, a hidden stash not found]; per language, the sheet's note: [once each time of day, the old words still there]; and "
@@ -30009,14 +30666,12 @@ const INVARIANTS = [
             "the create button or the rename does not ask the name's check, or the window does not come back on the field's tab "
             + "[createPoolFrom, wirePaneHeading, openItemTables]");
 
-        const lang = async code => (await (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" })).json());
-        const [en, pl] = [await lang("en"), await lang("pl")];
-        const placeholder = words => foundry.utils.getProperty(words, "DRPG.Tables.newTierPoolPlaceholder") ?? "";
+        // The tier pool's own name field and its placeholder (`Tables.newTierPoolPlaceholder`) went with E101's Tier pools tab;
+        // the key with the needsCode line (R6904). What stays is the window's placeholders dimmed.
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
         const dim = [...css.matchAll(/([^{}]*::placeholder[^{}]*)\{([^}]*)\}/g)]
             .some(([, sel, body]) => /drpg-window-tables/.test(sel) && /color:\s*var\(--drpg-dim\)/.test(body));
-        equal(stableJson([placeholder(en).startsWith("e.g. "), placeholder(pl).startsWith("np. "), dim]), stableJson([true, true, true]),
-            `the tier pool's placeholder reads like a typed value [en "${placeholder(en)}", pl "${placeholder(pl)}", dimmed ${dim}]`);
+        equal(stableJson([dim]), stableJson([true]), `the tables window's placeholders read like typed values [dimmed ${dim}]`);
     }],
     ["R974 - the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row with its buttons in columns of their own, the list in whole rows, each group's caption above its boxes, the help to the left, every labelled field in one grid (E14-48, S08-24, S08-25, S08-27)", async () => {
         /*
@@ -30141,14 +30796,15 @@ const INVARIANTS = [
         const points = words => {
             const install = get(words, `${T}installAction`), tiers = get(words, `${T}tabTierPools`), rooms = get(words, `${T}tabRoomPools`);
             must(install && tiers && rooms, "the window's button or tab names are missing - this would measure nothing");
-            return [["noTierPools", install], ["newTierPoolNote", install], ["installTabNote", install], ["tierTargetNone", tiers],
+            // newTierPoolNote went with the needsCode line (R6904): nothing drew it since E101.
+            return [["noTierPools", install], ["installTabNote", install], ["tierTargetNone", tiers],
                 ["noRoomTables", rooms]].map(([key, name]) => get(words, T + key).includes(name));
         };
-        const lastTab = words => ["noTierPools", "newTierPoolNote", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
+        const lastTab = words => ["noTierPools", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
         equal(stableJson([points(en), points(pl), lastTab(en), lastTab(pl)]),
-            stableJson([[true, true, true, true, true], [true, true, true, true, true], [], []]),
+            stableJson([[true, true, true, true], [true, true, true, true], [], []]),
             "a line of the tables window does not name the button or the tab it sends the GM to, or still sends them to the last tab "
-            + "[EN noTierPools, newTierPoolNote, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
+            + "[EN noTierPools, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
             + "Room pools; PL the same; the keys that say last tab, EN, PL]");
 
         const { CONFIG_TABLES } = await import("./i18n-config.mjs");
@@ -30221,7 +30877,7 @@ const INVARIANTS = [
         equal(stableJson([roads, warned]), stableJson([
             [[GOOD, 2, [REFUSED, "true", "R976 refused it"]], [null, 2, [REFUSED, "true", "R976 refused it"]], ["R976 Old name", 1, null]],
             [say("DRPG.Vault.notHere", { room: "R976 Library" }),
-                rooms.length ? say("DRPG.Vault.notHere", { room: rooms.join(", ") }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
+                rooms.length ? say("DRPG.Vault.notHere", { room: (await import("./utils.mjs")).listOf(rooms, { type: "disjunction" }) }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
         ]), "a rename handed back a refused name, asked again without the typed name and its refusal, or asked when nothing changed; or a stash "
             + "out of reach was not named [the rename: refused then good, refused then closed, unchanged - each its answer, the prompts asked, "
             + "the second prompt's field: value, aria-invalid, the sentence; the warnings: a stash in R976 Library, the student's own as found]");
@@ -32500,7 +33156,7 @@ const INVARIANTS = [
         const text = Dg.diagnoseCharacters({ toChat: false, roster, assigned });
         const lines = text.split("\n");
         const marks = roster.map(a => lines.find(l => l.includes(` ${a.name} - `))?.trim().slice(0, 1) ?? null);
-        const poolLine = lines.find(l => l.includes("Everybody is assigned to a Despair pool")) ?? "";
+        const poolLine = lines.find(l => l.includes("Everybody is assigned in Despair Flow")) ?? ""; // the row's words since E71 group D (B18, 14.11.2026)
         const listed = /^\s*✗ .* - \d+: (.*)$/.exec(poolLine)?.[1]?.split(", ") ?? [];
         const row = SS.steps({ roster, scenes: [], roomScene: null, assigned, lastChecks: new Map() }).find(r => r.key === "assignments");
         const sources = await K.moduleSources();
@@ -33762,7 +34418,9 @@ const INVARIANTS = [
             text: [text.textContent, text.querySelectorAll(".drpg-check-ok").length, text.querySelectorAll(".drpg-check-bad").length],
             attr: [attr.querySelector("button")?.getAttribute("title"), attr.querySelectorAll(".drpg-check-bad").length],
             looks: ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(look),
-            ready: game.i18n.localize("DRPG.Season.introReady").includes(game.i18n.localize("DRPG.Panel.seasonChecks")),
+            // E71 group D (B15, 14.11.2026): the further checks are in this window since E101, and the ready line names them
+            // "the further checks below" / "dalsze sprawdzenia poniżej" where it named the window "Pre-season checks".
+            ready: [game.i18n.localize("DRPG.Season.introReady")].map(t => /further checks below|dalsze sprawdzenia poniżej/.test(t) && !/green|zielon/i.test(t))[0],
             report: (fnSource(src, "preSessionReport").match(/checkMarks\(/g) ?? []).length
         }), stableJson({
             text: ["✓ R1530 <a>\n   ✗ R1530 b - ✓", 2, 1],
@@ -35955,6 +36613,90 @@ const INVARIANTS = [
         equal(mod.runContract({ rows: [failing] }).failed[0]?.fallback, real.fallback, "the run lost the register's own fallback");
     }],
 
+    ["R7030 - a contract row's target and an unread row's reason reach a screen in the table's words: each row whose target is English words has DRPG.Contract.target.<key>, each hook row DRPG.Contract.road.<id>, each unread reason its DRPG.Contract.unread.* in both languages, and the notice, Pre-season's line and its fold carry them, not the register's English (E57 rest, T13, S18-46)", async () => {
+        /*
+         * E57 rest, 14.11.2026 (T13 in patches.mjs). R1562 put a failed row's `instead` in the table's language; the
+         * row's `target` beside it, and in Pre-season's fold of the unread rows the probe's `note`, were still the
+         * register's English - "the chat log's notify", "no camera popped out now" - inside a Polish line. A screen now
+         * reads patches.mjs `targetOf` (DRPG.Contract.target.<targetKey or id>, falling back to the code's name for a
+         * row whose target is names alone) and `unreadOf` (a hook's DRPG.Contract.road.<id> in unread.hook, a table
+         * check's unread.table, the row's own unread.<unreadKey, insteadKey or id>, else unread.noMark or
+         * unread.cannotTell); the console and the report keep the English. Held here to the register both ways, then
+         * to stand-in rows whose English is a marker no language file holds. Red before: no such keys, the notice
+         * and the fold carrying `target` and `note`.
+         */
+        const mod = await import("./patches.mjs");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json()))?.DRPG?.Contract ?? {};
+        const source = await fetch(`/modules/${MODULE_ID}/scripts/patches.mjs`, { cache: "no-cache" }).then(lfText);
+        // T13's reading of "English words" (tests-text.mjs `twoWords`): a target that is names alone needs no sentence.
+        const words = t => /[A-Za-z][^\S\n]+[A-Za-z]/.test(t) && (String(t).match(/[A-Za-z]{2,}/g) ?? []).length >= 2 && /[a-z]{3,}/.test(t);
+        const rows = mod.PATCHES;
+        const worded = rows.filter(r => words(r.target));
+        must(worded.length >= 25, `${worded.length} row(s) with a worded target - this test would read nothing`);
+        const targetKeys = new Set(worded.map(r => r.targetKey ?? r.id));
+        const hookIds = new Set(rows.filter(r => r.kind === "hook").map(r => r.id));
+        must(hookIds.size >= 10, `${hookIds.size} hook row(s) - this test would read nothing`);
+        const unreadKeys = new Set(["hook", "table", "noMark", "cannotTell", ...rows.map(r => r.insteadKey ?? r.id),
+            ...[...source.matchAll(/\bunreadKey: "([\w-]+)"/g)].map(m => m[1])]);
+        const wrong = [];
+        const hold = (group, wanted, mayHold) => {
+            for (const key of wanted) {
+                for (const code of ["en", "pl"]) if (typeof lang[code][group]?.[key] !== "string" || !lang[code][group][key].trim()) wrong.push(`${code} has no ${group}.${key}`);
+                if (lang.en[group]?.[key] && lang.en[group][key] === lang.pl[group]?.[key]) wrong.push(`${group}.${key}: the Polish is the English`);
+            }
+            for (const code of ["en", "pl"]) for (const key of Object.keys(lang[code][group] ?? {})) if (!mayHold.has(key)) wrong.push(`${code} has ${group}.${key}, which nothing reads`);
+        };
+        hold("target", targetKeys, targetKeys);
+        hold("road", hookIds, hookIds);
+        hold("unread", Object.keys(lang.en.unread ?? {}), unreadKeys);
+        for (const key of source.matchAll(/\bunreadKey: "([\w-]+)"/g)) if (!lang.en.unread?.[key[1]]) wrong.push(`unreadKey ${key[1]} has no sentence`);
+        equal(stableJson(wrong), "[]", "a worded target, a hook's road or an unread reason has no sentence in a language, the Polish is the English, or a sentence has no row");
+
+        // The notice and Pre-season's line: a held template filled, the register's English nowhere.
+        const MARK = "zz register english zz";
+        const real = rows.find(r => r.id === "door-controls");
+        must(real, "the register has no door-controls row");
+        const failing = { ...real, id: "door-controls", target: MARK, targetKey: "held-flag", targetData: { key: "drpg.probeFlag" }, probe: () => ({ present: false, ours: null }) };
+        const shown = game.i18n.format("DRPG.Contract.target.held-flag", { key: "drpg.probeFlag" });
+        must(!shown.startsWith("DRPG.") && shown.includes("drpg.probeFlag") && !shown.includes("{"), `the held flag's target does not fill: ${shown}`);
+        const notices = [];
+        mod.announceContract({ rows: [failing], told: new Set(), notify: text => notices.push(String(text)) });
+        equal(stableJson([notices.length, notices[0]?.includes(shown), notices[0]?.includes(MARK)]), stableJson([1, true, false]),
+            "the notice does not name the row by its lang target, or still names it by the register's [notices | lang's | the register's]");
+        const SS = await import("./season-setup.mjs");
+        const el = document.createElement("div");
+        el.innerHTML = await SS.foundryReport({ contract: mod.runContract({ rows: [failing] }) });
+        equal(stableJson([el.textContent.includes(shown), el.textContent.includes(MARK)]), stableJson([true, false]),
+            "Pre-season's line does not name the row by its lang target, or still by the register's [lang's | the register's]");
+
+        // The fold of the unread rows: a hook's road, a row's own reason, a probe's key, a table check - lang's each, no probe note.
+        // `inUse` off: a row not in use on this world is ok, never unread, and these stand in whatever the world runs.
+        const byId = id => ({ ...(rows.find(r => r.id === id) ?? must(false, `the register has no ${id} row`)), inUse: undefined });
+        const unread = note => ({ present: null, ours: null, note });
+        const standIns = [
+            { ...byId("hook-countdowns-render"), probe: () => ({ present: true, ours: null, note: `${MARK} 1` }) },
+            { ...byId("token-ruler"), probe: () => unread(`${MARK} 2`) },
+            { ...byId("iso-refresh-state"), probe: () => ({ ...unread(`${MARK} 3`), unreadKey: "token-class" }) },
+            { ...byId("voice-modes") }
+        ];
+        const run = mod.runContract({ rows: standIns });
+        equal(stableJson(run.unknown.map(r => r.id)), stableJson(standIns.map(r => r.id)), "a stand-in row is not unread");
+        const expected = [
+            game.i18n.format("DRPG.Contract.unread.hook", { line: game.i18n.localize("DRPG.Contract.road.hook-countdowns-render") }),
+            game.i18n.localize("DRPG.Contract.unread.token-ruler"),
+            game.i18n.localize("DRPG.Contract.unread.token-class"),
+            game.i18n.localize("DRPG.Contract.unread.table")
+        ];
+        equal(stableJson(run.unknown.map(r => r.shownUnread)), stableJson(expected), "an unread row's reason is not lang's [hook | own | probe's key | table]");
+        el.innerHTML = await SS.foundryReport({ contract: run });
+        const fold = el.querySelector("details.drpg-check-unknown")?.textContent ?? "";
+        equal(stableJson([...expected.map(text => fold.includes(text)), fold.includes(MARK), fold.includes(standIns[3].note ?? "a probe cannot read it")]),
+            stableJson([true, true, true, true, false, false]), "Pre-season's fold does not give lang's reasons, or still gives a probe's English note [four reasons | the marker | the table row's note]");
+        // The console and the report keep the English the author reads: the run still carries `target` and `note`.
+        equal(stableJson([mod.runContract({ rows: [failing] }).failed[0]?.target, run.unknown[1]?.note]), stableJson([MARK, `${MARK} 2`]), "the run lost the register's English");
+    }],
+
     ["R1563 - the GM handbook, English and Polish, tells the table the contract, diagnose() with Copy report, migrate() and the macro API as the code has them (E52 C7, E52-23)", async () => {
         /*
          * E52 C7, 30.10.2026; E52-23. The books carry what C1-C6 built: the one report (game.drpg.diagnose(), the
@@ -37084,7 +37826,8 @@ const INVARIANTS = [
         }), stableJson({
             same: [true, true, true], frozen: true,
             // E66 fix r1 F12: the documents' setting offers its empty default, "not written yet", beside the languages (R1164).
-            choices: [stableJson(S.LANGUAGES), stableJson({ "": "-", ...S.LANGUAGES })],
+            // E57 C3: the documents' empty choice is named (DRPG.Help.documentLanguageUnset) since the setting is drawn.
+            choices: [stableJson(S.LANGUAGES), stableJson({ "": "DRPG.Help.documentLanguageUnset", ...S.LANGUAGES })],
             reload: true,
             written: ["settings.mjs"],
             told: other,
@@ -37298,7 +38041,7 @@ const INVARIANTS = [
             `[on a page built in "${page}": lang on the module's window (its content, or the element where it has no frame) and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"; the builders of the other roots that mark nothing; the Foundry window's frame marked whole; of the ${drawn.length} roots this page has drawn (${drawn.join(", ")}), those whose lang is not the page's; the Foundry windows' frames with a lang of their own or a header without the page's; a module window with Foundry's frame: the element's lang, the language its header inherits, the title's and the content's; of the ${dialogs} DialogV2 calls in the module's source, those that name no drpg- class, and the confirms that leave Foundry's Yes or No]`);
     }],
 
-    ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in the settings window, empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
+    ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in Foundry's settings window (in the game's settings window since E57 C3), empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
         /*
          * E66 C1, 01.11.2026; decision 38 = D34 option 1 ("Nowe ustawienie świata 'Język dokumentów', domyślnie język
          * primary GM-a przy pierwszym starcie; UI dalej w języku klienta"), E66-09. The setting's registration is read;
@@ -37351,7 +38094,9 @@ const INVARIANTS = [
             setting: def && { scope: def.scope, config: def.config === true, type: def.type?.name ?? null, choices: stableJson(def.choices), default: def.default },
             writes, ...read
         }), stableJson({
-            setting: { scope: "world", config: false, type: "String", choices: stableJson({ "": "-", ...S.LANGUAGES }), default: "" },
+            /* E57 C3: still `config: false` - Foundry's own list does not show it - and drawn by the game's settings window
+               (R3420, R6603), so its empty choice is named. */
+            setting: { scope: "world", config: false, type: "String", choices: stableJson({ "": "DRPG.Help.documentLanguageUnset", ...S.LANGUAGES }), default: "" },
             writes: primary ? [["documentLanguage", page]] : [],
             seeded: [primary, false],
             read: "pl",
@@ -37451,12 +38196,12 @@ const INVARIANTS = [
             en: {
                 broken: [],
                 cost: ["Costs 1 action.", "Costs 2 actions.", "Costs 5 actions.", "Costs 22 actions.", "Costs 25 actions."],
-                lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
+                lines: ["Costs 2 actions. You have 5 actions left.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
                 skipped: "No action is needed here. This costs 1 Sanity.",
-                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
+                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with."],
                 tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and Tamper takes nothing else."],
-                raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
-                    `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
+                raw: [`The victim rolls ${lc} and ${sv} at disadvantage for 2 turns of their own.`, `The victim cannot use ${st} or ${rr} for 2 turns of their own.`,
+                    `The victim cannot use ${sv} for 1 turn of their own.`, "You get 1 action back.", "You get 1 Sanity back."]
             },
             pl: {
                 broken: [],
@@ -37465,8 +38210,8 @@ const INVARIANTS = [
                 skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
                 analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
                 tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji, a Tamper nie przyjmuje niczego innego."],
-                raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
-                    `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
+                raw: [`Przez 2 tury ofiara rzuca z utrudnieniem przy ${lc} i ${sv}.`, `Przez 2 tury ofiara nie może użyć ${st} ani ${rr}.`,
+                    `Przez 1 turę ofiara nie może użyć ${sv}.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
             },
             quoted: [["action"], []]
         }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Price.will.action at 1, 2, 5, 22 and 25; "
@@ -37533,7 +38278,7 @@ const INVARIANTS = [
             pass: /"DRPG\.Trial\.turn\.closingPassEarly"[^]{0,160}seconds:\s*TRIAL\.modes\.closing\.passWindowSeconds/.test(fn("trial-prompt.mjs", "promptTurn")),
             note: /"DRPG\.Floor\.modeNote"[^]{0,200}step:\s*adjustStep\(floor\)/.test(stripComments(sources.get("trial-floor-ui.mjs") ?? "")),
             half: (rest.match(/full \? marks : Math\.ceil\(marks \/ 2\)/g) ?? []).length,
-            restProse: [/short: "Restores half Health"/.test(config), /short: "Restores half Sanity"/.test(config)]
+            restProse: [/short: "Restores half your lost Health, rounded up"/.test(config), /short: "Restores half your lost Sanity, rounded up"/.test(config)]
         };
         equal(stableJson(read), stableJson({
             en: {
@@ -37547,13 +38292,571 @@ const INVARIANTS = [
                 ballots: ["0 z 1 głosu wróciło", "1 z 1 głosu wrócił", "2 z 3 głosów wróciły", "5 z 7 głosów wróciło"],
                 pass: `Pasuję w pierwszych ${pass} s oddaje wybór GM-owi; potem kończy Closing Argument.`,
                 note: `To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje ${step} s albo wraca od razu do otwartej debaty.`,
-                half: ["Przywraca połowę Health", "Przywraca połowę Sanity"]
+                half: ["Wraca połowa straconego Health, zaokrąglona w górę.", "Wraca połowa straconego Sanity, zaokrąglona w górę."]
             },
             sources: { ratio: true, ballots: true, pass: true, note: true, half: 2, restProse: [true, true] }
         }), "[in English, then Polish: the room ratio of 3 rooms for 2 living students; the vote's meta at 0 and 1 of 1, 2 of 3, 5 of 7; "
             + "the Closing's early Pass and the console's footnote with TRIAL's seconds; the Polish Rest's short Sleep and Meal; then the readers: "
             + "roomRatioLine through localeFormat and no toFixed, the trial card through voteMetaLine, promptTurn and the console filling the "
             + "seconds from TRIAL, rest.mjs's two halves and config.mjs's English that says them]");
+    }],
+
+    ["R6400 - the Rest report's lines are read from lang/, in English and Polish, and say a resource as its reserve (scripts/rest.mjs `applyRest`; E71 B04, 14.11.2026): Sleep, Meal and Breath each name what they gave through `DRPG.Rest.applied.*`, never an English literal, and no line says Sanity is \"cleared\" (D5, M7)", async () => {
+        /*
+         * E71 line A, B04 (14.11.2026). Red at 1463f22b: `applyRest` pushed `${opt.label}: ${healed} Health recovered`,
+         * `... Sanity cleared` and `... +${gain} Hope` as English literals into the card every Rest posts, so a Polish
+         * player read English there, and "cleared" says Sanity the way D5 and the guide's M7 forbid (a reserve: what is
+         * given back). Read from source, as R1163 reads rest.mjs: the lines are drawn inside `meansWrite` on a sheet the
+         * GMs hold, which tier 1 does not write.
+         */
+        const sources = new Map(await otherSources());
+        const rest = stripComments(sources.get("rest.mjs") ?? "");
+        must(rest.length > 1000, "rest.mjs did not load - this reads nothing");
+        const apply = bodyOf(rest, "async function applyRest", { until: "function kindLabel" });
+        must(apply.length > 500, "applyRest is gone - this reads nothing");
+        const literals = ["Health recovered", "Sanity cleared", " Hope`"].filter(w => apply.includes(w));
+        equal(stableJson(literals), "[]", "[the English literals left in applyRest's report lines]");
+        const keys = ["health", "sanity", "hope"].map(k => `DRPG.Rest.applied.${k}`);
+        equal(stableJson(keys.filter(k => !apply.includes(`"${k}"`))), "[]", "[the report keys applyRest does not read]");
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const at = key => key.split(".").reduce((node, part) => node?.[part], file);
+            const bad = keys.filter(k => typeof at(k) !== "string" || !at(k).includes("{label}") || !at(k).includes("{n}"));
+            equal(stableJson(bad), "[]", `[${lang}: the report keys missing, or without {label} and {n}]`);
+            const cleared = keys.filter(k => /clear|oczyszcz|czyści/i.test(String(at(k))));
+            equal(stableJson(cleared), "[]", `[${lang}: a report line that says a resource is cleared, not given back (D5)]`);
+        }
+    }],
+
+    ["R6401 - the GMs' card of a Direct Murder that came to nothing gives the GMs' reason, not the killer's line (scripts/eclipse.mjs `judgePendingMurders`; E71 line A, 14.11.2026): `Action.murderCancelled`'s {reason} is `Action.murderNobodyGm` or the family `Action.murderWitnessGm`, in English and Polish, with no second person and no \"try again\"; the killer keeps `murderNobody` and `murderWitness`", async () => {
+        /*
+         * E71 line A, B04's code faults (the coordinator, 14.11.2026). Red at 876878f5: `judgePendingMurders` handed the
+         * killer's own sentence ("... The action stays spent; try again at another time of day.") to the GMs' whisper as
+         * `{reason}`, so the GMs' card spoke to the killer in the second person (P2). Read from source and the two files:
+         * the cancel is reached only by an Eclipse's end with a parked declaration, which tier 2 drives (E12 C0's tests).
+         */
+        const sources = new Map(await otherSources());
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        must(eclipse.length > 1000, "eclipse.mjs did not load - this reads nothing");
+        const judge = bodyOf(eclipse, "async function judgePendingMurders", { until: "async function askAtTheLights" });
+        must(judge.includes("DRPG.Action.murderCancelled"), "judgePendingMurders no longer posts the GMs' card - this reads nothing");
+        const read = { gmKeys: ["DRPG.Action.murderNobodyGm", "DRPG.Action.murderWitnessGm"].filter(k => !judge.includes(`"${k}"`)) };
+        const forms = { en: ["one", "other"], pl: ["one", "few", "many", "other"] };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const A = file?.DRPG?.Action ?? {};
+            const words = [A.murderNobodyGm, ...forms[lang].map(f => A.murderWitnessGm?.[f])];
+            read[lang] = words.filter(w => typeof w !== "string" || (lang === "en" ? /\b(you|your)\b|try again/i : /spróbuj|\btwo(j|ja|je|ją)\b|\bciebie\b/i).test(w)).length;
+            read[`${lang}Witness`] = forms[lang].filter(f => !String(A.murderWitnessGm?.[f] ?? "").includes("{n}")).length;
+        }
+        equal(stableJson(read), stableJson({ gmKeys: [], en: 0, enWitness: 0, pl: 0, plWitness: 0 }),
+            "[the GMs' reason keys judgePendingMurders does not read; per language, the GMs' reasons missing or speaking to the killer, and the witness forms without {n}]");
+    }],
+
+    ["R6402 - the GMs' night note on an opened murder follows the opening's own night rule (scripts/murder-rules.mjs `nightNoteKey`; config.mjs `MURDER_OPENING`; E71 line A, 14.11.2026): at Night the side that rolls gets `Murder.nightNoteDirect` or `nightNoteIndirect` only while its entry gives advantage or disadvantage, and `Murder.nightNoteNone` when it gives neither, as the victim's has since E64", async () => {
+        /*
+         * E71 line A, B03's code faults (the coordinator, 14.11.2026). Red at 876878f5: `nightNoteKey` answered
+         * `nightNoteIndirect` ("the victim's opening roll has disadvantage") for every trap at Night, while E64 set
+         * `MURDER_OPENING.victim.nightDisadvantage` false and the rolls (murder-rules.mjs, roll-draw.mjs) stopped giving it.
+         * Read from source and config: the note is posted when a murder opens, which tier 2 drives.
+         */
+        const sources = new Map(await otherSources());
+        const rules = stripComments(sources.get("murder-rules.mjs") ?? "");
+        must(rules.length > 1000, "murder-rules.mjs did not load - this reads nothing");
+        const body = bodyOf(rules, "function nightNoteKey", { until: "\n}" });
+        must(body.includes("atNight"), "nightNoteKey is gone - this reads nothing");
+        const { MURDER_OPENING } = await import("./config.mjs");
+        const read = {
+            flags: ["nightAdvantage", "nightDisadvantage", "MURDER_OPENING"].filter(w => !body.includes(w)),
+            none: body.includes('"DRPG.Murder.nightNoteNone"'),
+            victimNow: [MURDER_OPENING.victim.nightAdvantage ?? false, MURDER_OPENING.victim.nightDisadvantage ?? false]
+        };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const w = file?.DRPG?.Murder?.nightNoteNone;
+            read[lang] = typeof w === "string" && !(lang === "en" ? /advantage/i : /przewag|utrudnien/i).test(w);
+        }
+        equal(stableJson(read), stableJson({ flags: [], none: true, victimNow: [false, false], en: true, pl: true }),
+            "[what nightNoteKey does not read of the opening's night rule; whether it has the note for a night that changes nothing; the victim's flags now; the note in each language, naming no advantage]");
+    }],
+
+    ["R6403 - a list a sentence names is joined by utils.mjs `listOf`, so English takes its Oxford comma and Polish its „i” (E71 line A, 14.11.2026; EN2, DB35): murder-rules.mjs `applyUnlocks` (`Murder.unlockedActions` {names}), tail-gm.mjs `onTailCrossing` (`Infiltrate.tail.movedWith` {who}), watch-gm.mjs `startWatches` (`Infiltrate.watch.start` {who}) and action-briefing.mjs `tamperThresholdFacts` (`Action.dcTamperRelief` {what}) join with `listOf`, never `.join(\", \")`", async () => {
+        /*
+         * E71 line A's code faults (the coordinator, 14.11.2026). Red at 5ce68aec: each of the four joined its list with
+         * ", ", so "A, B, C" in English (no "and") and in Polish (no „i”). Read from source: the cards are posted by an
+         * incident's unlock, a tail's crossing, a watch's start and Tamper's briefing, which tier 2 drives. cleanup.mjs's
+         * `Cleanup.toolsBroken` is E54's file and waits for its landing.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [["murder-rules.mjs", "applyUnlocks", "DRPG.Murder.unlockedActions"], ["tail-gm.mjs", "onTailCrossing", "DRPG.Infiltrate.tail.movedWith"],
+            ["watch-gm.mjs", "startWatches", "DRPG.Infiltrate.watch.start"], ["action-briefing.mjs", "tamperThresholdFacts", "DRPG.Action.dcTamperRelief"]];
+        const read = SITES.map(([file, fn, key]) => {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "";
+            return [file, fn, body.includes(key), /\.join\(", "\)/.test(body), /\blistOf\(/.test(body)];
+        });
+        must(read.every(([, , has]) => has), `a site no longer names its key - this reads nothing: ${stableJson(read)}`);
+        equal(stableJson(read), stableJson(SITES.map(([file, fn]) => [file, fn, true, false, true])),
+            "[each site: names its key, joins with \", \", calls listOf]");
+    }],
+
+    ["R6404 - the incident's dead keys are gone from both files (E71 line A, 14.11.2026; audit/findings-1.2.42/text.md 352-356): `Murder.addThird`, `whoWalkedIn`, `nobodyElse` (the tracker's \"Somebody walks in\" control is gone), `noStressLeft` (superseded by `spentHealth`) and `betrayalConfirm` (the betrayal window says `betrayalButton`), and no script names them", async () => {
+        /* E71 line A's code faults (the coordinator, 14.11.2026). Red at 4acd3f5b: all five in en.json and pl.json, no reader. */
+        const DEAD = ["addThird", "whoWalkedIn", "nobodyElse", "noStressLeft", "betrayalConfirm"];
+        const sources = new Map(await otherSources());
+        must(sources.size > 100, "the module's sources did not load - this reads nothing");
+        const read = { scripts: DEAD.filter(k => [...sources.values()].some(src => new RegExp(`DRPG\\.Murder\\.${k}(?![\\w])`).test(src))) };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            must(file?.DRPG?.Murder?.opened, `lang/${lang}.json has no DRPG.Murder - this reads nothing`);
+            read[lang] = DEAD.filter(k => Object.hasOwn(file.DRPG.Murder, k));
+        }
+        equal(stableJson(read), stableJson({ scripts: [], en: [], pl: [] }), "[the dead keys a script names; the dead keys each file still holds]");
+    }],
+
+    ["R6900 - the lists group B's texts name are joined by utils.mjs `listOf`, and a taken item's name stands in its own quotes (needsCode, 14.11.2026; EN2, EN17, DB31, DB35): stash-reach.mjs `tellNotHere` (`Vault.notHere`, an \"or\" list), `rifleStashDialog` (`Vault.stashEmpty`, `rifleIntro`), `tellStashDisturbedNow` (`Vault.gmTold`), vault-store.mjs `keyCopiesAfterOwnerLeft` (`Vault.keyCopiesTakenGm`) and `clearSplitPiece` (`Rooms.renameJoined`, `pieceSplit`), room-setup.mjs `applyRoomRows` (`Vault.neighboursUnknown`), anonymity.mjs `takeFromBody` (`Loot.took`, `tookUnfound`), handover.mjs `lootCover` (`Loot.seenTaking`) and `markBodyDisturbed` (`Loot.traceNote`), through `quotedList`, passages-tab.mjs `rowHtml` (`Passage.tab.shared`, `pending`), movement.mjs `notConnectedText` (`Move.notConnected`); what is left joined by hand is the console's English log; the four Loot texts quote no placeholder, `Loot.itemQuoted` does, per language", async () => {
+        /*
+         * The needsCode line (claude/needscode-113), from group B's batches B08 and B09 (docs/dev/e71/NEEDSCODE.md #40-#48,
+         * #54, S3, S4). Red at a6aee63b: every site joined its names with ", " - \"A, B, C\" in English (no \"and\") and in
+         * Polish (no „i”) - and the Loot texts wrapped several names in one pair of quotes. Read from source: the cards come
+         * from a theft, a rifle, a Take and a rename, which tier 2 drives. `joins` is what stays joined by hand in the
+         * function: its `log(...)` lines, English for the console.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["stash-reach.mjs", "tellNotHere", ["DRPG.Vault.notHere"], 0],
+            ["stash-reach.mjs", "rifleStashDialog", ["DRPG.Vault.stashEmpty", "DRPG.Vault.rifleIntro"], 0],
+            ["stash-reach.mjs", "tellStashDisturbedNow", ["DRPG.Vault.gmTold"], 0],
+            ["vault-store.mjs", "keyCopiesAfterOwnerLeft", ["DRPG.Vault.keyCopiesTakenGm"], 1],
+            ["vault-store.mjs", "clearSplitPiece", ["DRPG.Rooms.renameJoined", "DRPG.Rooms.pieceSplit"], 1],
+            ["room-setup.mjs", "applyRoomRows", ["DRPG.Vault.neighboursUnknown"], 0],
+            ["anonymity.mjs", "takeFromBody", ["DRPG.Loot.took", "DRPG.Loot.tookUnfound", "DRPG.Loot.itemQuoted"], 0],
+            ["handover.mjs", "lootCover", ["DRPG.Loot.seenTaking"], 0],
+            ["handover.mjs", "markBodyDisturbed", ["DRPG.Loot.traceNote"], 0],
+            ["handover.mjs", "quotedList", ["DRPG.Loot.itemQuoted"], 0],
+            ["passages-tab.mjs", "rowHtml", ["DRPG.Passage.tab.shared", "DRPG.Passage.tab.pending"], 0],
+            ["movement.mjs", "notConnectedText", ["DRPG.Move.notConnected"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(`"${key}"`)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\b(?:listOf|quotedList)\(/.test(bodies[i])]);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const quoted = [en, pl].map(file => ["took", "tookUnfound", "traceNote", "seenTaking"].filter(k => /[“„”]\{/.test(String(file?.DRPG?.Loot?.[k] ?? ""))));
+        equal(stableJson({ read, quoted, itemQuoted: [en?.DRPG?.Loot?.itemQuoted, pl?.DRPG?.Loot?.itemQuoted] }),
+            stableJson({ read: SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true]), quoted: [[], []], itemQuoted: ["“{item}”", "„{item}”"] }),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf; the Loot texts that quote a placeholder, EN and PL; Loot.itemQuoted EN and PL]");
+    }],
+
+    ["R6901 - the lists the trial's texts name are joined by utils.mjs `listOf` (needsCode, 14.11.2026; EN2, DB35): trial-floor-ui.mjs `endClassTrial` (`Floor.endTrialExecutes`), `trialConsoleHtml` and `openVoteDialog` (`Vote.stillOut`, `recipients`), vote.mjs `closeRound` (`Vote.accusesLineMany`), verdict.mjs `openVerdictDialog` (`Vote.namedByTable`, `accusedDead`, `unfoundDead`), `askBlackenedRule` (`Vote.blackenedRuleUnfound`), `postVerdictCard` (`Vote.executionPending`, `executionNow`) and `verdictDespair` (`Vote.despairFilled`), events.mjs `afterVerdictCard` (`Vote.executionPending`) and trial-modes.mjs `startRound` (`Floor.round.startedLine`); what stays joined by hand is a label's list (the known Blackened) and English for the console", async () => {
+        /*
+         * The needsCode line (claude/needscode-113), from line C's batch B10a (docs/dev/e71/NEEDSCODE.md #60-#68, #70,
+         * #71; askBlackenedRule's line is the same fault, found beside them). Red at 747c91eb: each joined its names with
+         * ", ", so \"A, B, C\" in English and in Polish. Read from source; the cards and windows are tier 2's and 63's.
+         * `joins`: what stays by hand in the function - in openVerdictDialog the known Blackened after their label.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["trial-floor-ui.mjs", "endClassTrial", ["DRPG.Floor.endTrialExecutes"], 0],
+            ["trial-floor-ui.mjs", "trialConsoleHtml", ["DRPG.Vote.stillOut"], 0],
+            ["trial-floor-ui.mjs", "openVoteDialog", ["DRPG.Vote.recipients", "DRPG.Vote.stillOut"], 0],
+            ["vote.mjs", "closeRound", ["DRPG.Vote.accusesLineMany"], 1],
+            ["verdict.mjs", "openVerdictDialog", ["DRPG.Vote.namedByTable", "DRPG.Vote.accusedDead", "DRPG.Vote.unfoundDead"], 1],
+            ["verdict.mjs", "askBlackenedRule", ["DRPG.Vote.blackenedRuleUnfound"], 0],
+            ["verdict.mjs", "postVerdictCard", ["DRPG.Vote.executionPending", "DRPG.Vote.executionNow"], 0],
+            ["verdict.mjs", "verdictDespair", ["DRPG.Vote.despairFilled"], 0],
+            ["events.mjs", "afterVerdictCard", ["DRPG.Vote.executionPending"], 0],
+            ["trial-modes.mjs", "startRound", ["DRPG.Floor.round.startedLine"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(`"${key}"`)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\blistOf\(/.test(bodies[i])]);
+        equal(stableJson(read), stableJson(SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true])),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf]");
+    }],
+
+    ["R6902 - the rest of the lists group C and D's texts name are joined by utils.mjs `listOf`, and a roll's sources write a negative with \"-\" (needsCode, 14.11.2026; EN2, DB35, the dash rule): roll-dialog.mjs `explainAdvantage` (`RollDialog.stackedAdvantage`, `stackedDisadvantage`), gm-team-dialog.mjs `wireMonokumaLive` (`Monokuma.sharedPool`), action-project.mjs `performSabotage` (`Project.allSabotaged`, `someSabotaged`), enforced.mjs `holdPermissions` (`Enforced.filesFirstHold`: each role's permissions; the roles stay \"; \"-separated), user-match.mjs `tellGms` (`Users.match.*`), season-wipe.mjs `wipeSeason` (`Season.reportCard.stayed`), gm-stores.mjs `backupCase` (`Case.backupEarly`) and `gmStoreHealth` (`Case.row.skew`)", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #33, #34, #79, #82, #86, #87, #106, #122,
+         * #124. Red at 1d2b2125: each joined its names with ", " (\"A, B, C\": no \"and\", no Polish „i”), and
+         * explainAdvantage wrote U+2212 before a negative value. `joins`: what stays joined by hand - in wipeSeason the
+         * console's English log and the report's label lists, in holdPermissions the roles' groups and in user-match the
+         * owners' list after a label.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["roll-dialog.mjs", "explainAdvantage", ["DRPG.RollDialog.source."], 0],
+            ["gm-team-dialog.mjs", "wireMonokumaLive", ["DRPG.Monokuma.sharedPool"], 0],
+            ["action-project.mjs", "performSabotage", ["DRPG.Project.allSabotaged", "DRPG.Project.someSabotaged"], 0],
+            ["enforced.mjs", "holdPermissions", ["DRPG.Enforced.filesFirstHold"], 1],
+            ["user-match.mjs", "tellGms", ["DRPG.Users.match.owned", "DRPG.Users.match.owns"], 0],
+            ["season-wipe.mjs", "wipeSeason", ["DRPG.Season.reportCard.stayed"], 7],
+            ["gm-stores.mjs", "backupCase", ["DRPG.Case.backupEarly"], 0],
+            ["gm-stores.mjs", "gmStoreHealth", ["DRPG.Case.row.skew"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(key)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\blistOf\(/.test(bodies[i])]);
+        const minus = /\\u2212|\u2212/.test(bodies[0]);
+        equal(stableJson({ read, minus }), stableJson({ read: SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true]), minus: false }),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf; explainAdvantage writes U+2212]");
+    }],
+
+    ["R6903 - a Call says what it did in the page's words and keeps no price for nothing (needsCode, 14.11.2026; the GM handbook 6.2 \"A Call that would change nothing is refused before it is paid\"; EN2, EN17): call-effects.mjs `projectRefusal` refuses a Call that takes progress from a project at 0, `progressEffect` throws `NothingToDo` (the refund) when the GM's write moved nothing and `Calls.progressRefused` is gone; `damageEffect` says each reserve through `DRPG.Reserve.*` joined by `listOf`; calls.mjs's two refunds give `Calls.refunded` the price with its unit; call-pickers.mjs `pickItem` names a living student's item through `Calls.carriedBy`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md S1 (Q-B-2), #30, #31, #32. Red at d2afa5f4:
+         * Game Integrity on a project at 0 was paid, moved nothing and was not refunded (projectRefusal let it through,
+         * progressEffect pushed `Calls.progressRefused`, so applyCall saw no failure); damageEffect wrote \"Health\" and
+         * \"Sanity\" as literals joined by \", \"; the refunds passed the bare number (\"koszt (2) wraca\"); pickItem's row
+         * for a living student was the literal \"Name - Item\". Read from source; tier 2 drives the Calls.
+         */
+        const sources = new Map(await otherSources());
+        const fx = stripComments(sources.get("call-effects.mjs") ?? ""), calls = stripComments(sources.get("calls.mjs") ?? "");
+        const pickers = stripComments(sources.get("call-pickers.mjs") ?? "");
+        const refusal = fnSource(fx, "projectRefusal") ?? "", progress = fnSource(fx, "progressEffect") ?? "", damage = fnSource(fx, "damageEffect") ?? "";
+        const pick = fnSource(pickers, "pickItem") ?? "";
+        const hope = fnSource(calls, "spendHopeCall") ?? "", despair = fnSource(calls, "spendDespairCallFor") ?? "";
+        must(refusal && progress && damage && pick && hope && despair, "a Call's function is gone - this reads nothing");
+        const refundOf = body => (body.match(/"DRPG\.Calls\.refunded", \{[^}]*\}/) ?? [""])[0];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const read = {
+            refusesEmpty: /call\.progress\s*<\s*0/.test(refusal) && /\.current\b/.test(refusal),
+            refundsUnmoved: /changed\s*===\s*false[\s\S]{0,240}throw new NothingToDo/.test(progress),
+            progressRefused: [progress.includes("DRPG.Calls.progressRefused"), Object.hasOwn(en?.DRPG?.Calls ?? {}, "progressRefused"), Object.hasOwn(pl?.DRPG?.Calls ?? {}, "progressRefused")],
+            damage: [/"Health"|"Sanity"/.test(damage), /DRPG\.Reserve\./.test(damage), /\blistOf\(/.test(damage), /\.join\(", "\)/.test(damage)],
+            refunds: [refundOf(hope).includes("DRPG.Calls.costsHopeShort"), refundOf(despair).includes("DRPG.Calls.costsDespairShort")],
+            pick: [/`\$\{actor\.name\} - \$\{item\.name\}`/.test(pick), pick.includes("\"DRPG.Calls.carriedBy\""), Boolean(en?.DRPG?.Calls?.carriedBy), Boolean(pl?.DRPG?.Calls?.carriedBy)]
+        };
+        equal(stableJson(read), stableJson({ refusesEmpty: true, refundsUnmoved: true, progressRefused: [false, false, false],
+            damage: [false, true, true, false], refunds: [true, true], pick: [false, true, true, true] }),
+            "[projectRefusal refuses a take from 0; progressEffect refunds an unmoved bar; progressRefused named, in en, in pl; damageEffect: English literals, "
+            + "Reserve keys, listOf, a hand join; the refunds' price with its unit (Hope, Despair); pickItem: the literal row, carriedBy, in en, in pl]");
+    }],
+
+    ["R6904 - the keys the text lines found dead are gone from both language files and no script names them (needsCode, 14.11.2026): `Vault.fogNote`, `Look.uiScaleAuto` and `uiScaleSlider` with look.mjs `scaleNote` that read them and nothing called, `TrialScene.noWayBack`, `hallDark` and `prepare`, `Season.note`, `Panel.checksSetup`, `SearchTokens.roomSetupNote`, `Tables.newTierPool`, `newTierPoolPlaceholder` and `newTierPoolNote`, `Zones.open`, `Facility.editor.tabNote`, `Passage.tab.intro` and `pick.cancel`, `Monocub.nobodyDead`, `manageTitle`, `dialogIntro`, `isOne`, `tickFirst` and `student`, `Floor.startPanic`, `startClosing` and `startTrialNoHall`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #50, #53, #58, #59, #73, #96, #113, #115,
+         * #129, #130, #133, S6, S8, S9, S11. Each was read against the code before it went: no literal names it and no
+         * template can make it (TrialScene's `${key}` reads zoneA, zoneB, preparePlaylist, prepareVoice; Panel's `${key}`
+         * the three A/V checks; Monocub's a row's choices and the critical's two keys; startPanic and startClosing are
+         * action names). TrialScene.scenesIntro, named with them in line C's notes, is read (trial-scene.mjs) and stays; so does
+         * Panel.seasonChecks, which docs/design/windows.md's M4 row (the owner's approval) names and R1334 holds.
+         * Red at 729987e4: every key in both files, and scaleNote in look.mjs.
+         */
+        const DEAD = ["Vault.fogNote", "Look.uiScaleAuto", "Look.uiScaleSlider", "TrialScene.noWayBack", "TrialScene.hallDark", "TrialScene.prepare",
+            "Season.note", "Panel.checksSetup", "SearchTokens.roomSetupNote", "Tables.newTierPool", "Tables.newTierPoolPlaceholder",
+            "Tables.newTierPoolNote", "Zones.open", "Facility.editor.tabNote", "Passage.tab.intro", "Passage.pick.cancel", "Monocub.nobodyDead",
+            "Monocub.manageTitle", "Monocub.dialogIntro", "Monocub.isOne", "Monocub.tickFirst", "Monocub.student", "Floor.startPanic",
+            "Floor.startClosing", "Floor.startTrialNoHall"];
+        const sources = new Map(await otherSources());
+        must(sources.size > 100 && sources.has("look.mjs"), "the module's sources did not load - this reads nothing");
+        const all = [...sources.values()].map(stripComments).join("\n");
+        const read = { scripts: DEAD.filter(k => new RegExp(`DRPG\\.${k.replace(/\./g, "\\.")}(?![\\w.])`).test(all)),
+            scaleNote: /\bfunction scaleNote\b/.test(sources.get("look.mjs")) };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            must(file?.DRPG?.Monocub && file?.DRPG?.Tables, `lang/${lang}.json has no DRPG.Monocub or Tables - this reads nothing`);
+            read[lang] = DEAD.filter(k => foundry.utils.getProperty(file.DRPG, k) !== undefined);
+        }
+        equal(stableJson(read), stableJson({ scripts: [], scaleNote: false, en: [], pl: [] }),
+            "[the dead keys a script names; look.mjs still has scaleNote; the dead keys each file still holds]");
+    }],
+
+    ["R6905 - a Monocub's browser asks what a move costs it now, as the GM charges it (needsCode, 14.11.2026; E72 C17, DC34: a move done to order costs its action and no Hope): monocub.mjs `performCubAbility` reads `priceOf(actor, row)` for the actions and the Hope it checks, never the row's bare `cost` or `hopeCost`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #76, #77. Red at 2883945f: the check read
+         * `row.cost` and `row.hopeCost`, so a Monocub with an open order and no Hope was told it lacked Hope and refused on
+         * its own browser, though the GM charges `priceOf` (no Hope for a move to order) and would carry it out. The sheet's
+         * button (sheet.mjs `abilityButton`) asks the same and is E54's file: it waits for that stage.
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "monocub.mjs")?.[1] ?? "");
+        const body = fnSource(src, "performCubAbility") ?? "";
+        must(body.includes("DRPG.Monocub.needHope"), "performCubAbility no longer says needHope - this reads nothing");
+        equal(stableJson([/priceOf\(actor, row\)/.test(body), /\brow\.hopeCost\b/.test(body), /\brow\.cost\b/.test(body)]),
+            stableJson([true, false, false]), "[performCubAbility: priceOf asked; row.hopeCost read; row.cost read]");
+    }],
+
+    ["R6906 - a project's scale and a picture's size are written in the page's language (needsCode, 14.11.2026; T20): action-project.mjs `startProject` builds its Scale options with `plural(\"DRPG.Project.scaleOption\")`, as projects-ui.mjs does, and its proposal's summary with the same, not \"<label> - <n> progress\" in English; room-setup.mjs `pictureWarning` fills `Panel.checksImagesBytes`'s {mb} through utils.mjs `localeFormat`, not `toFixed(1)`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #83, #114. Red at 173256af: the player's
+         * Start a project window and the proposal card the GM reads said \"progress\" in English on a Polish page, and
+         * Room setup's picture warning read \"2.5\" where Pre-season checks read \"2,5\" (season-setup.mjs's `mb`).
+         */
+        const sources = new Map(await otherSources());
+        const start = fnSource(stripComments(sources.get("action-project.mjs") ?? ""), "startProject") ?? "";
+        const warn = fnSource(stripComments(sources.get("room-setup.mjs") ?? ""), "pictureWarning") ?? "";
+        must(start && warn.includes("DRPG.Panel.checksImagesBytes"), "startProject or pictureWarning is gone - this reads nothing");
+        equal(stableJson({ english: /\d*\}? progress[`<]/.test(start) || /\$\{s\.progress\} progress/.test(start) || /\$\{result\.target\} progress/.test(start),
+            plural: (start.match(/plural\("DRPG\.Project\.scaleOption"/g) ?? []).length, toFixed: /toFixed\(/.test(warn), locale: /localeFormat\("number"/.test(warn) }),
+            stableJson({ english: false, plural: 2, toFixed: false, locale: true }),
+            "[startProject: \"progress\" typed in English; plural(scaleOption) calls; pictureWarning: toFixed, localeFormat]");
+    }],
+
+    ["R6907 - a count before a Polish noun is a plural family (needsCode, 14.11.2026; PL-b): `Season.resetPools` (despair.mjs `tallySeasonDespair`, the pools not empty) and `Diagnostics.cast.experiences` (diagnostics.mjs `diagnoseCharacters`, STARTING.experiences) are one/other in English and one/few/many/other in Polish, read through utils.mjs `plural`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #105, #144. Red at 4522d6f7: both were one
+         * string, so the Polish read „(1 niepustych)” for one pool, and „{n} doświadczenia” is right for 2-4 alone (5 wants
+         * „doświadczeń”) - right today only because STARTING.experiences is 2.
+         */
+        const sources = new Map(await otherSources());
+        const tally = fnSource(stripComments(sources.get("despair.mjs") ?? ""), "tallySeasonDespair") ?? "";
+        const diag = stripComments(sources.get("diagnostics.mjs") ?? "");
+        must(tally && diag.includes("experiencesFix"), "tallySeasonDespair or the cast's check is gone - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const forms = (file, key) => { const v = foundry.utils.getProperty(file, key); return v && typeof v === "object" ? Object.keys(v).sort() : typeof v; };
+        const KEYS = ["DRPG.Season.resetPools", "DRPG.Diagnostics.cast.experiences"];
+        equal(stableJson({ callers: [/plural\("DRPG\.Season\.resetPools"/.test(tally), /plural\("DRPG\.Diagnostics\.cast\.experiences"/.test(diag)],
+            en: KEYS.map(k => forms(en, k)), pl: KEYS.map(k => forms(pl, k)),
+            words: [foundry.utils.getProperty(pl, "DRPG.Season.resetPools.one"), foundry.utils.getProperty(pl, "DRPG.Diagnostics.cast.experiences.many")].map(v => /niepusta\)|doświadczeń/.test(String(v))) }),
+            stableJson({ callers: [true, true], en: [["one", "other"], ["one", "other"]], pl: [["few", "many", "one", "other"], ["few", "many", "one", "other"]], words: [true, true] }),
+            "[the callers use plural; the English forms; the Polish forms; PL one pool „niepusta”, many experiences „doświadczeń”]");
+    }],
+
+    ["R6908 - three lines say what happened as it happened (needsCode, 14.11.2026): use-items.mjs `grantItemEffect` puts `Items.used` and its summary in two paragraphs, as `useItem` does, never \"Used “X”. - ...\"; the Take's cover roll is titled with its threshold, `Loot.coverTitle` {n} as every other roll title (`Action.palmTitle`), in English and Polish; case-summary.mjs `showCaseSummary` tells the GM `CaseSummary.sent`, which no caller read", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #37, #41, #128. Red at a5030c9c: the GM's
+         * ruling on an item joined a full sentence and its summary with \" - \"; the Take's Shadow roll was the only roll
+         * title without the number it must beat; trial-floor-ui.mjs `manageClassTrial` awaited showCaseSummary and dropped
+         * the line it answered, so no GM ever read it.
+         */
+        const sources = new Map(await otherSources());
+        const grant = fnSource(stripComments(sources.get("use-items.mjs") ?? ""), "grantItemEffect") ?? "";
+        const anon = stripComments(sources.get("anonymity.mjs") ?? "");
+        const show = fnSource(stripComments(sources.get("case-summary.mjs") ?? ""), "showCaseSummary") ?? "";
+        must(grant.includes("DRPG.Items.usedNothing") && anon.includes("DRPG.Loot.coverTitle") && show.includes("DRPG.CaseSummary.sent"), "a site is gone - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        equal(stableJson({ dashJoin: /\}\)\} - \$\{summary/.test(grant),
+            coverTitle: [/localize\("DRPG\.Loot\.coverTitle"\)/.test(anon), (anon.match(/format\("DRPG\.Loot\.coverTitle", \{ n: LOOT\.cover\.threshold \}\)/g) ?? []).length,
+                String(en?.DRPG?.Loot?.coverTitle).includes("{n}"), String(pl?.DRPG?.Loot?.coverTitle).includes("{n}")],
+            sent: /const (\w+) = L\("DRPG\.CaseSummary\.sent"\);\s*ui\.notifications\.info\(\1\)/.test(show) }),
+            stableJson({ dashJoin: false, coverTitle: [false, 2, true, true], sent: true }),
+            "[grantItemEffect joins with \" - \"; coverTitle: localized bare, formatted with the threshold, {n} in en, in pl; showCaseSummary tells the GM]");
+    }],
+
+    ["R6909 - a zone mode that cannot start says why to the GM who pressed it (needsCode, 14.11.2026): trial-zones.mjs `zoneArgsRefusal` reads the start as zone-machine.mjs `zoneStart` will - a Straw Poll or a Scrum with an answer blank is `Zones.noAnswers`, a Logic Dive with no set `Zones.noSet`, a set's blank question `Zones.noQuestion` - and `startZone` warns that reason before it asks the primary; `Zones.notStarted` is left for what only the primary finds", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #134-#137. Red at 99d1541c: trial-floor.mjs
+         * `zoneStartInStep` answers null on the machine's refusal, so startZone could only say notStarted, which lists
+         * every reason; noAnswers, noQuestion and noSet never reached a GM. Asked here of the pure reading, nothing written.
+         */
+        let Z = null;
+        try { Z = await import("./trial-zones.mjs"); } catch { Z = null; }
+        must(Z, "trial-zones.mjs did not load - this reads nothing");
+        const ask = async (op, args) => (typeof Z.zoneArgsRefusal === "function" ? await Z.zoneArgsRefusal(op, args) : "no zoneArgsRefusal");
+        const read = [await ask("straw", { text: "Q?", a: "Yes", b: "" }), await ask("scrum", { text: "Q?", a: "", b: "No", thesis: "" }),
+            await ask("dive", { set: "", from: 0 }), await ask("straw", { text: "Q?", a: "Yes", b: "No" })];
+        const start = fnSource(stripComments((await otherSources()).find(([name]) => name === "trial-zones.mjs")?.[1] ?? ""), "startZone") ?? "";
+        must(start, "startZone is gone - this reads nothing");
+        equal(stableJson({ read, asksFirst: /zoneArgsRefusal\(op, args\)[\s\S]*floorStep\(op, args\)/.test(start) }),
+            stableJson({ read: ["DRPG.Zones.noAnswers", "DRPG.Zones.noAnswers", "DRPG.Zones.noSet", null], asksFirst: true }),
+            "[the reason for: a Straw Poll with no B, a Scrum with no A, a Logic Dive with no set, a whole Straw Poll; startZone asks it before the primary]");
+    }],
+
+    ["R6910 - a Logic Dive set started and never ended is not said to have ended (needsCode, 14.11.2026): trial-zones-ui.mjs `replayWarning` gives a set with `usedAt` and no `endedAt` nor a stopping place `Zones.dive.replayUnfinished` (\"started {when} and not finished\"), an ended set `Zones.dive.replay` with its outcome as before, a stopped one `replayStopped`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #139. Red at the R6909 commit: an unfinished
+         * set read \"it ended {when} (played)\" - `outcome` null put \"played\" in replay's \"it ended\". Pure: asked of
+         * three made-up sets, nothing written.
+         */
+        let U = null;
+        try { U = await import("./trial-zones-ui.mjs"); } catch { U = null; }
+        must(typeof U?.replayWarning === "function", "trial-zones-ui.mjs has no replayWarning - this reads nothing");
+        const { localeFormat } = await import("./utils.mjs");
+        const at = 1700000000000, when = localeFormat("dateTime", at);
+        const F = (key, data) => game.i18n.format(key, data);
+        equal(stableJson([U.replayWarning({ usedAt: at }), U.replayWarning({ usedAt: at - 5, endedAt: at, outcome: "solved" }),
+            U.replayWarning({ usedAt: at, stoppedAt: 1, outcome: "stopped" }), game.i18n.has("DRPG.Zones.dive.replayUnfinished")]),
+            stableJson([F("DRPG.Zones.dive.replayUnfinished", { when }), F("DRPG.Zones.dive.replay", { when, outcome: game.i18n.localize("DRPG.Zones.dive.outcome.solved") }),
+                F("DRPG.Zones.dive.replayStopped", { when, n: 2, outcome: game.i18n.localize("DRPG.Zones.dive.outcome.stopped") }), true]),
+            "[a set started, not ended; one ended solved; one stopped at question 2; the key exists]");
+    }],
+
+    ["R6911 - a room action's Search Tokens line says how many came back, not how many were asked (needsCode, 14.11.2026): facilities-gm.mjs `applyEffects` counts what search-tokens.mjs `giveBack` answered - each token capped at the room's maximum, none on a GM that is not the primary - and says `Facility.applied.searchToken` with that count, or `searchTokenFull` when none came back", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #51. Red at 1c89f07a: the line passed
+         * `effect.n`, the GM's number, so a full room read \"+3\" with nothing given back. Read from source; tier 2 runs the
+         * room actions.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "facilities-gm.mjs")?.[1] ?? ""), "applyEffects") ?? "";
+        must(body.includes("giveBack"), "applyEffects no longer gives Search Tokens back - this reads nothing");
+        equal(stableJson([/t\("searchToken", \{ n: effect\.n\b/.test(body), /const \w+ = await SearchTokens\.giveBack\(/.test(body), /"searchTokenFull"/.test(body),
+            game.i18n.has("DRPG.Facility.applied.searchTokenFull")]), stableJson([false, true, true, true]),
+            "[the line says effect.n; giveBack's answer read; searchTokenFull said; the key exists]");
+    }],
+
+    ["R6912 - where a token stands reaches a sentence as a phrase with its own preposition, so a spot outside the rooms reads right in Polish (needsCode, 14.11.2026; docs/text-style.md section 14, as `Explain.phase.eclipseReach`): rooms.mjs `roomPhrase(kind, room)` (a leaf movement.mjs and movement-audit.mjs both read) gives `DRPG.Movement.at`, `into` or `out` (`.room` with the room's name, `.none` outside the rooms); `Movement.ruleSentBack`, `dropRemoved`, `unlawfulArrival`, `droppedFromNowhere` and `Panel.refundCrossingNote` take it, and none of their Polish writes „pokoju {…}” or „do {…}” around a room's placeholder", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #117, S2 (Q-B-6). Red at 4b30a27a: the
+         * hosts wrote „do pokoju {room}”, „w pokoju {room}”, „z pokoju {from}” and „z powrotem do {from}”, and with no room
+         * the code put `Movement.outsideRooms` („poza pokojami”) there: „do pokoju poza pokojami”. English read
+         * \"moved into a spot outside the rooms\", which stands.
+         */
+        let M = null;
+        try { M = await import("./rooms.mjs"); } catch { M = null; }
+        must(M, "rooms.mjs did not load - this reads nothing");
+        const phrase = typeof M.roomPhrase === "function" ? M.roomPhrase : null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const HOSTS = ["Movement.ruleSentBack", "Movement.dropRemoved", "Movement.unlawfulArrival", "Movement.droppedFromNowhere", "Panel.refundCrossingNote"];
+        const bent = HOSTS.filter(k => /pokoju \{|do \{/.test(String(foundry.utils.getProperty(pl.DRPG, k) ?? "")));
+        const fragments = ["at", "into", "out"].flatMap(kind => ["room", "none"].map(form => [`Movement.${kind}.${form}`,
+            game.i18n.has(`DRPG.Movement.${kind}.${form}`), foundry.utils.getProperty(pl.DRPG, `Movement.${kind}.${form}`) !== undefined]));
+        const sources = new Map(await otherSources());
+        const sites = [["movement-audit.mjs", "auditMove"], ["movement.mjs", "removeDrop"], ["movement.mjs", "tellUnlawful"], ["movement.mjs", "tellDropped"],
+            ["gm-students.mjs", "refundButton"]].map(([file, fn]) => {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn) ?? stripComments(sources.get(file) ?? "");
+            return [file, fn, /roomPhrase\(/.test(body)];
+        });
+        equal(stableJson({ phrase: phrase ? [phrase("at", "Library"), phrase("into", null)] : null, bent, fragments, sites }),
+            stableJson({ phrase: [game.i18n.format("DRPG.Movement.at.room", { room: "Library" }), game.i18n.localize("DRPG.Movement.into.none")], bent: [],
+                fragments: ["at", "into", "out"].flatMap(kind => ["room", "none"].map(form => [`Movement.${kind}.${form}`, true, true])),
+                sites: sites.map(([file, fn]) => [file, fn, true]) }),
+            "[roomPhrase for a room and for none; the Polish hosts that bend a room's placeholder; each fragment in en and pl; each site asks roomPhrase]");
+    }],
+
+    ["R6913 - a Level Up the GM grants from its own window says the GM granted it, not that the class named the Blackened or a wrong vote freed them (needsCode, 14.11.2026): level-up.mjs `openAdvancementFor` (the sheet's menu, the Students window, `game.drpg.advanceFor`) opens the GM's picks with `reasons: [\"DRPG.Advance.reason.granted\"]`, in English and Polish", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #75. Red at 4bc27697: openAdvancement was
+         * called with no reasons, so the reason was the kind's (`DRPG.Advance.reason.${kind}`): a Reinforced Level Up the
+         * menu's hint offers \"for an exceptional chapter\" told the player a wrong vote let the Blackened go free. An offer
+         * the GM sends from the same window (`offerAdvancement`) still carries the kind alone: its record and its bridge row
+         * carry no reason, a change left open in NEEDSCODE.md.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "level-up.mjs")?.[1] ?? ""), "openAdvancementFor") ?? "";
+        must(body.includes("openAdvancement(actor"), "openAdvancementFor no longer opens the GM's picks - this reads nothing");
+        const calls = [...body.matchAll(/openAdvancement\(actor, [^)]*\)/g)].map(m => m[0]);
+        equal(stableJson({ granted: calls.length > 0 && calls.every(c => c.includes("GRANTED")) && /const GRANTED = \{ reasons: \["DRPG\.Advance\.reason\.granted"\] \}/.test(body),
+            key: game.i18n.has("DRPG.Advance.reason.granted") }), stableJson({ granted: true, key: true }),
+            "[every call of the GM's picks gives the granted reason; the key exists]");
+    }],
+
+    ["R6914 - a clean-up's report keeps to what was paid, and a broken tool's name stands in its quotes (needsCode, 14.11.2026, after E54; EN2, EN17): cleanup.mjs `report` takes `free` and says `Cleanup.stressSpent` only for an attempt that was not the free one, both its callers (`resolveCleanup`, `resolveTransformRoad`) passing it; `destroyTools` names each broken item through `Loot.itemQuoted`, the list joined by `listOf`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #28, #29, held for E54's split of
+         * cleanup.mjs. Red at 7a5be797: `report` printed \"Each clean-up attempt costs 1 Sanity\" under the free attempt
+         * (charged null, so the fallback line), beside `Cleanup.freeAttempt`; destroyTools wrote \"Knife, Rope\" with no
+         * quotes and no \"and\".
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "cleanup.mjs")?.[1] ?? "");
+        const rep = fnSource(src, "report") ?? "", tools = fnSource(src, "destroyTools") ?? "";
+        const roads = ["resolveCleanup", "resolveTransformRoad"].map(fn => fnSource(src, fn) ?? "");
+        must(rep.includes("DRPG.Cleanup.stressSpent") && tools.includes("DRPG.Cleanup.toolsBroken") && roads.every(Boolean), "a clean-up function is gone - this reads nothing");
+        equal(stableJson({ free: /\bfree = false\b/.test(rep) && /free \?/.test(rep),
+            callers: roads.map(body => /await report\([^)]*\bfree\b/.test(body)),
+            tools: [/destroyed\.join\(", "\)\s*\}\)/.test(tools) || /items: foundry\.utils\.escapeHTML\(destroyed\.join/.test(tools), /\blistOf\(/.test(tools), tools.includes("DRPG.Loot.itemQuoted")] }),
+            stableJson({ free: true, callers: [true, true], tools: [false, true, true] }),
+            "[report takes free and branches on it; each caller passes free; destroyTools: joined by hand, listOf, quoted]");
+    }],
+
+    ["R6915 - the GMs' card of a trace that found no token names the action as the Remnant card does (needsCode, 14.11.2026, after E54): remnants.mjs `dropRemnant` fills `Remnant.noTokenGm`'s {action} with `actionLabelOf(action)`, the action's name in the page's language, not its id", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #36, held for E54's split. Red at 9fb06bdb:
+         * the card read \"search\" or \"resolution\", the raw id, while the Remnant card's Action row says the name.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "remnants.mjs")?.[1] ?? ""), "dropRemnant") ?? "";
+        must(body.includes("DRPG.Remnant.noTokenGm"), "dropRemnant no longer tells the GMs of a missing token - this reads nothing");
+        equal(stableJson([/action: foundry\.utils\.escapeHTML\(action\)/.test(body), /action: foundry\.utils\.escapeHTML\(actionLabelOf\(action\)/.test(body)]),
+            stableJson([false, true]), "[the raw id passed; actionLabelOf passed]");
+    }],
+
+    ["R6916 - a Monocub's tile on the sheet prices a move as the GM charges it (needsCode, 14.11.2026, after E54; E72 C17, DC34): sheet-actions.mjs `abilityButton` reads monocub.mjs `priceOf(actor, def)` for what it checks, greys and says, never the row's bare `cost` or `hopeCost` - the sheet's half of R6905", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #76, the sheet's half, held for E54's split
+         * of sheet.mjs. Red at 527c5546: the tile tested `def.cost` and `def.hopeCost`, so a Monocub with an open order
+         * and no Hope saw the move greyed with `Monocub.cannotMeddle` though the GM would charge no Hope.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "sheet-actions.mjs")?.[1] ?? ""), "abilityButton") ?? "";
+        must(body.includes("DRPG.Monocub.cannotMeddle"), "abilityButton no longer says cannotMeddle - this reads nothing");
+        equal(stableJson([/priceOf\(actor, def\)/.test(body), /\bdef\.(?:cost|hopeCost)\b/.test(body)]), stableJson([true, false]),
+            "[abilityButton: priceOf asked; the row's own cost or hopeCost read]");
+    }],
+
+    ["R6917 - sharing a room key says what a key's copy is, not a Truth Bullet's analysis (needsCode, 14.11.2026; O13): handover.mjs `askRecipient` gives a key (its `BEDROOM_KEY_FLAG`) `Handover.shareKeyNote` and a Truth Bullet `Handover.shareNote`; the key's note names no Analyze, in English or Polish", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #38. The batch named sheet.mjs
+         * `addHandoverButton`, which sends a key down the share road (E54's file); the note itself is handover.mjs's.
+         * Red at d3d9dbe0: a key's share window read \"If your Analyze of it failed, they can still Analyze theirs\".
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "handover.mjs")?.[1] ?? ""), "askRecipient") ?? "";
+        must(body.includes("DRPG.Handover.shareNote"), "askRecipient no longer gives the share note - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const note = [en, pl].map(file => file?.DRPG?.Handover?.shareKeyNote ?? null);
+        equal(stableJson({ asks: /BEDROOM_KEY_FLAG/.test(body) && body.includes("DRPG.Handover.shareKeyNote"), note: note.map(n => typeof n === "string" && !/Analy[sz]e/.test(n)) }),
+            stableJson({ asks: true, note: [true, true] }), "[askRecipient tells a key by its flag and gives it shareKeyNote; the key's note in en, pl, with no Analyze]");
+    }],
+
+    ["R6918 - a planned room not picked yet reads as \"no room yet\", not \"leave it\" (needsCode, 14.11.2026, after E54): investigation.mjs `caseKeyCells` (the Key plan's planned room) and `schemaEditor` (a planned Remnant's room) open their room select on `Investigation.noRoomYet`; `CaseRealize.noRoom` (\"- leave it -\") stays case-realize.mjs's, where a row is left as it is", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #127, held for E54's split of
+         * investigation.mjs. Red at 16fbae2a: both selects reused CaseRealize.noRoom, whose \"- leave it -\" /
+         * „- zostaw -” reads oddly where it means that no room is planned yet.
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "investigation.mjs")?.[1] ?? "");
+        const cells = fnSource(src, "caseKeyCells") ?? "", editor = fnSource(src, "schemaEditor") ?? "";
+        must(cells.includes("<select") && editor.includes("<select"), "caseKeyCells or schemaEditor is gone - this reads nothing");
+        const realize = stripComments((await otherSources()).find(([name]) => name === "case-realize.mjs")?.[1] ?? "");
+        equal(stableJson([[cells, editor].map(b => b.includes("DRPG.CaseRealize.noRoom")), [cells, editor].map(b => b.includes("DRPG.Investigation.noRoomYet")),
+            realize.includes("DRPG.CaseRealize.noRoom"), game.i18n.has("DRPG.Investigation.noRoomYet")]),
+            stableJson([[false, false], [true, true], true, true]),
+            "[caseKeyCells, schemaEditor say leave it; they say no room yet; case-realize keeps leave it; the key exists]");
+    }],
+    ["R6405 - the clean-up card of the free attempt after a critical Finishing Blow names no Sanity spent (scripts/cleanup.mjs `report`, `resolveCleanup`, `resolveTransformRoad`; D13; E71 line A, 14.11.2026), and a list of broken tools is joined by `listOf` (`destroyTools`, `Cleanup.toolsBroken`; EN2)", async () => {
+        /*
+         * E71 line A, B05's code faults (the coordinator, 14.11.2026). Red at b86d37b3: `report` printed
+         * `Cleanup.stressSpent` whenever `charged` was null - the free attempt among them, beside `Cleanup.freeAttempt`
+         * ("costs no Sanity"), so one card said both; and `destroyTools` joined the broken tools with ", ". Read from
+         * source: the clean-up runs on a GM in an incident's Stage 6, which tier 2 drives.
+         */
+        const sources = new Map(await otherSources());
+        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        must(cleanup.length > 1000, "cleanup.mjs did not load - this reads nothing");
+        const rep = fnSource(cleanup, "report") ?? "";
+        const resolve = fnSource(cleanup, "resolveCleanup") ?? "";
+        const road = fnSource(cleanup, "resolveTransformRoad") ?? "";
+        const tools = fnSource(cleanup, "destroyTools") ?? "";
+        must(rep.includes("DRPG.Cleanup.stressSpent") && tools.includes("DRPG.Cleanup.toolsBroken"), "report or destroyTools no longer names its key - this reads nothing");
+        const calls = [...`${resolve}\n${road}`.matchAll(/await report\(actor, data, \{([^}]*)\}\)/g)].map(m => m[1]);
+        const read = {
+            freeParam: /\bfree\s*=\s*false\s*\}\)\s*\{/.test(rep),
+            guarded: /free\s*\?/.test(rep) || /!free/.test(rep),
+            calls: calls.length, callsPassFree: calls.filter(c => /\bfree\b/.test(c)).length,
+            roadTakesFree: /\bfree\s*=\s*false\s*\}\)\s*\{/.test(road),
+            toolsJoin: /destroyed\.join\(", "\)\s*\}\)\}/.test(tools) || /items: foundry\.utils\.escapeHTML\(destroyed\.join/.test(tools),
+            toolsListOf: /listOf\(/.test(tools)
+        };
+        equal(stableJson(read), stableJson({ freeParam: true, guarded: true, calls: 2, callsPassFree: 2, roadTakesFree: true, toolsJoin: false, toolsListOf: true }),
+            "[report takes free and guards the price line on it; its two calls pass free; the transform road takes it; destroyTools's card joins with \", \" or listOf]");
+    }],
+
+    ["R6919 - the texts the handbooks line found untrue say what the code does (needsCode, the handbooks line's list, 14.11.2026; docs/dev/e57/STATUS-HANDBOOKS.md): Analyze's critical hint is a question the player asks, a critical Sabotage needs a Desperate repair (action-project.mjs `sabotageRepairScale`), the Mastermind is picked in Season setup; and the words: Bribe's \"favor\" (EN1), „Przebij {n}”, „Twój Hope jest pełny.”, \"analyzed\" in Chapter.revealKeeps", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md H6, H7, H14, H31, H33, H34 (in part). Red at
+         * 81db3b2d: each text below as the handbooks line read it. H1, the Loaded Die's \"next roll\", is an owner-approved text (B01a): a question, not
+         * changed here. config.mjs's English prose is read off the module's
+         * tables (the harness runs in English), the Polish off lang/pl.json.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const P = key => String(foundry.utils.getProperty(pl.DRPG, key) ?? "");
+        const E = key => String(foundry.utils.getProperty(en.DRPG, key) ?? "");
+        must(C.HOPE_CALLS?.freeCrit && C.ACTIONS?.analyze && C.ACTIONS?.sabotage && pl.DRPG?.Config, "config.mjs's tables or pl.json did not load - this reads nothing");
+        const read = {
+            hint: [/^You ask the GM/.test(C.ACTIONS.analyze.hintCritical.result), /^Zadajesz GM-owi/.test(P("Config.ACTIONS.analyze.hintCritical.result"))],
+            sabotage: [/hidden/.test(C.ACTIONS.sabotage.critical.result), /ukrytej/.test(P("Config.ACTIONS.sabotage.critical.result")),
+                /Desperate/.test(C.ACTIONS.sabotage.critical.result), /Desperacki/.test(P("Config.ACTIONS.sabotage.critical.result"))],
+            favor: /favour/.test(C.HOPE_CALLS.bribe.effect),
+            mastermind: [/GM panel/.test(E("Mastermind.noneSet")), /panelu GM-a/.test(P("Mastermind.noneSet"))],
+            words: [P("Murder.thresholdShort"), P("Monocub.hopeFull"), /analysed/.test(E("Chapter.revealKeeps"))]
+        };
+        equal(stableJson(read), stableJson({ hint: [true, true], sabotage: [false, false, true, true], favor: false,
+            mastermind: [false, false], words: ["Przebij {n}", "Twój Hope jest pełny.", false] }),
+            "[the critical hint EN, PL; Sabotage's critical: hidden EN, PL, Desperate EN, PL; favour; noneSet's GM panel EN, PL; PL thresholdShort, hopeFull; analysed]");
     }],
 
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
@@ -39466,6 +40769,90 @@ const INVARIANTS = [
             "the fixtures no longer plant `! important` with a space, or a colour in a token's definition");
     }],
 
+    ["R6100 - the CSS lint's two E55 readings count their planted faults and nothing in a clean sheet: `overriddenDeclarations` a declaration a later or an `!important` twin on the identical selector under the identical at-rules always beats, read over two sheets as one cascade (each arm of a list restated, a custom property stated twice), and not a fallback pair, a twin under another `@media`, a list with one arm left or a keyframe step; `deadAttributes` a `[data-drpg-*]` no script writes, and not one written in markup, through `dataset`, as a family, built from a named prefix and a template's tail, or only negated; the self-check sees either detector stubbed blind (E55 C1, C2)", async () => {
+        /*
+         * E55 C1 and C2, 14.11.2026. Pure, on tests-css.mjs's FIXTURES, which `node tools/check.mjs css` shows the two
+         * detectors before it counts the files (tools/css-budget.json's `overridden` and `deadAttributes`: 123 and 2 at
+         * 9b7daf8b). Red before C1: no overriddenDeclarations (the kit's name undefined, the first call throws).
+         */
+        const od = CSS_FIXTURES.overriddenDeclarations, da = CSS_FIXTURES.deadAttributes;
+        equal(JSON.stringify([...cssOverriddenDeclarations(od.sheets).found].sort()), JSON.stringify(od.want), "overriddenDeclarations does not find exactly its planted declarations");
+        equal(cssOverriddenDeclarations(od.clean).count, 0, "overriddenDeclarations counts a fallback pair, a hover or a twin under another @media");
+        equal(JSON.stringify(cssDeadAttributes(da.css, da.sources).orphans), JSON.stringify(da.want), "deadAttributes does not find exactly its planted attributes");
+        equal(cssDeadAttributes(da.css, da.clean).orphans.length, 0, "deadAttributes calls a written attribute dead");
+        equal(JSON.stringify(cssSelfCheck()), "[]", "the self-check is not green on the detectors as written");
+        ok(cssSelfCheck(undefined, { overriddenFn: () => ({ count: 0, found: [], read: 1 }) }).length > 0, "the self-check does not see overriddenDeclarations stubbed blind");
+        ok(cssSelfCheck(undefined, { attributesFn: () => ({ inSheet: 6, orphans: [] }) }).length > 0, "the self-check does not see deadAttributes stubbed blind");
+    }],
+
+    ["R6101 - a window the module does not own is held to 88vh only where it is Foundry's token, scene or tile config: a journal, an item sheet of another module and a third-party sheet keep the height Foundry gives them, and every one of them still scrolls (E55; the audit's S12-87, LIVE-E55-02)", async () => {
+        /*
+         * E55, 14.11.2026. danganronpa.css "FOUNDRY'S OWN CONFIG WINDOWS STAY USABLE" held every foreign sheet's content to
+         * 88vh, written for the token and scene config's cut-off rows. Read: the sheets' cascade on a body of its own,
+         * `max-height` and `overflow` of each window's `.window-content`. Red before the change: the journal and the
+         * other sheet at 88vh as well. Foundry's class names (`token-config`, `scene-config`, `tile-config`) are v13's
+         * DEFAULT_OPTIONS as the module knows them, not read off v14 (LIVE-E55-02).
+         */
+        const C = await styleCascade();
+        const body = document.implementation.createHTMLDocument("R6101").body;
+        const kinds = { token: "token-config", scene: "scene-config", tile: "tile-config", journal: "journal-entry-page", other: "some-module-sheet" };
+        body.innerHTML = Object.entries(kinds).map(([k, cls]) => `<div class="application sheet ${cls}" data-k="${k}"><section class="window-content"></section></div>`).join("");
+        const read = {};
+        for (const k of Object.keys(kinds)) {
+            const content = body.querySelector(`[data-k="${k}"] > .window-content`);
+            read[k] = [C.winner(content, ["max-height"])?.value ?? null, C.winner(content, ["overflow"])?.value ?? null];
+        }
+        const want = { token: ["88vh", "auto !important"], scene: ["88vh", "auto !important"], tile: ["88vh", "auto !important"], journal: [null, "auto !important"], other: [null, "auto !important"] };
+        const norm = r => Object.fromEntries(Object.entries(r).map(([k, [h, o]]) => [k, [h, o === null ? null : `${o.replace(/\s*!\s*important\s*$/i, "")} !important`]]));
+        equal(stableJson(norm(read)), stableJson(want), "{each foreign window's content: [max-height, overflow]}");
+    }],
+
+    ["R6102 - a duality card's working wraps: `.drpg-duality-formula` is a flex row that wraps in both themes, so a long roll's chips go to a second line inside the card rather than past its edge (E55; the audit's S12-89)", async () => {
+        /*
+         * E55, 14.11.2026. Read: the sheets' cascade, `flex-wrap` of the formula under each theme. Red before the change:
+         * no `flex-wrap` winner (the initial `nowrap`). How a long formula lays out in a chat card is not read here:
+         * jsdom lays nothing out, and no harness page draws a roll card (the look freeze's list of what it cannot see).
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const body = document.implementation.createHTMLDocument("R6102").body;
+            body.className = theme;
+            body.innerHTML = `<div class="drpg-duality" data-side="hope"><div class="drpg-duality-formula"><span>2d12</span></div></div>`;
+            const f = body.querySelector(".drpg-duality-formula");
+            read[theme] = [C.winner(f, ["display"])?.value ?? null, C.winner(f, ["flex-wrap", "flex-flow"])?.value ?? null];
+        }
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": ["flex", "wrap"], "drpg-theme-stained-glass": ["flex", "wrap"] }), "{the formula's [display, flex-wrap] per theme}");
+    }],
+
+    ["R6103 - Daggerheart's effects display is hidden by its own names, not by any class holding the words: `.dh-effects-display` and `#effects-display` are `display: none`, the right column's `effects-display` child too, and an element elsewhere whose class merely contains `effects-display` (another module's) is not touched (E55; the audit's S12-92)", async () => {
+        /*
+         * E55, 14.11.2026. danganronpa.css "DAGGERHEART'S STATUS ICONS ARE NOT PART OF THIS INTERFACE" hid
+         * `[class*="effects-display"]` anywhere. Read: the sheets' cascade, `display`. Red before the change: the other
+         * module's `.my-effects-display-panel` in a window at `none !important`. Daggerheart 2.12.8's own markup for the
+         * display is not read here (no Daggerheart UI in the harness); the names are the ones the sheets and 8125's rule
+         * already carry.
+         */
+        const C = await styleCascade();
+        const body = document.implementation.createHTMLDocument("R6103").body;
+        body.innerHTML = `<aside class="dh-effects-display" data-k="dh"></aside><div id="effects-display" data-k="id"></div>`
+            + `<div id="ui-right-column-1"><div class="system-effects-display" data-k="column"></div></div>`
+            + `<div class="application"><section class="window-content"><div class="my-effects-display-panel" data-k="other"></div></section></div>`;
+        const read = Object.fromEntries([...body.querySelectorAll("[data-k]")].map(el => [el.dataset.k, /none/.test(C.winner(el, ["display"])?.value ?? "") ? "none" : "shown"]));
+        equal(stableJson(read), stableJson({ dh: "none", id: "none", column: "none", other: "shown" }), "{each element's display: none or shown}");
+    }],
+
+    ["R6104 - the sheets name no Font Awesome older than the one Foundry v14 ships: no `Font Awesome 6`, `Font Awesome 5` or bare `FontAwesome` in a declaration of any served sheet, and the pixel font's icon exceptions still name `--fa-style-family` (E55; the audit's S12-72, LIVE-E55-03)", async () => {
+        /*
+         * E55, 14.11.2026. Read: every sheet of module.json with its comments out (moduleStyles). Red before the change:
+         * two `font-family` lists in danganronpa.css, "Font Awesome 6 Pro", "Font Awesome 5 Pro", FontAwesome.
+         */
+        const css = await moduleStyles();
+        const old = [...css.matchAll(/font-family:[^;}]*(?:Font Awesome [56]|\bFontAwesome\b)[^;}]*/g)].map(m => m[0].replace(/\s+/g, " "));
+        equal(stableJson(old), "[]", "a font-family still names an older Font Awesome");
+        ok(/font-family: var\(--fa-style-family, "Font Awesome 7 Pro"\) !important/.test(css.replace(/\s+/g, " ")), "the icon exceptions no longer name --fa-style-family with Font Awesome 7");
+    }],
+
     ["R1312 - the themes' text meets AA where Node resolves it (E44 C1c; E44-03, D29 = 2): WCAG's ratio reads 21 for black on white and 1 for a colour on itself, the contrast tool's own fixture reads ok, low, known, stale and unmeasured as written, and every pair of tools/contrast-pairs.json, in its theme with the tokens the served sheets declare on :root and the theme's body class, is AA (4.5 small, 3 large) or written known at the ratio it reads - none low, none stale, at least one measured in each theme", async () => {
         /*
          * E44 C1c, 04.11.2026. The arithmetic is tests-css.mjs's, the same `node tools/check.mjs contrast` runs on the
@@ -39796,7 +41183,7 @@ const INVARIANTS = [
         equal(stableJson(reads), "{}", "a region held to its settings reads a module key it does not declare: [file region: the keys]");
         ok(readAny > 0, "no region read any key of the module - the spy measured nothing");
     }],
-    ["R1320 - the kit's markup (scripts/ui-kit.mjs; E44 C3a, E44-11, E44-12): drpgWindow hands DialogV2 its classes with `drpg-ui` and `drpg-panel`, its buttons in the kit's tree order with each role's classes, the closing word from the role table and one default, the tab bar above the body that scrolls and every pane in it; footerMarkup's groups (the right one first: the primary is the first submit button) and the throw for a default no role allows; kitTabs and its wiring (one pane shown by `hidden`, the footer following the tab, hidden and disabled both); formGrid; dataTable (colgroup, a head, the empty row across every column in the kit's words, the scroll signal and its line for a screen reader); stepper (its - and +, min, max and step, the message out of range, the label on the input) read through `wholeNumber`; toggle, chip, chips, the three boxes, emptyOption and modeBar; every word through a key both lang files hold; drpgConfirm and drpgPrompt (E21 C1b): their buttons in tree order with each role's classes, the default, what each answers, a destructive yes behind Cancel", async () => {
+    ["R1320 - the kit's markup (scripts/ui-kit.mjs; E44 C3a, E44-11, E44-12): drpgWindow hands DialogV2 its classes with `drpg-ui` and `drpg-panel`, its buttons in the kit's tree order with each role's classes, the closing word from the role table unless the caller names its own (E102 C6, R6350), and one default, the tab bar above the body that scrolls and every pane in it; footerMarkup's groups (the right one first: the primary is the first submit button) and the throw for a default no role allows; kitTabs and its wiring (one pane shown by `hidden`, the footer following the tab, hidden and disabled both); formGrid; dataTable (colgroup, a head, the empty row across every column in the kit's words, the scroll signal and its line for a screen reader); stepper (its - and +, min, max and step, the message out of range, the label on the input) read through `wholeNumber`; toggle, chip, chips, the three boxes, emptyOption and modeBar; every word through a key both lang files hold; drpgConfirm and drpgPrompt (E21 C1b): their buttons in tree order with each role's classes, the default, what each answers, a destructive yes behind Cancel", async () => {
         /*
          * E44 C3a, 04.11.2026; audit S17-34. The kit E21 and E22 build every window on: its builders are read here as
          * markup on a page of its own (no window is opened: DialogV2.wait is stood in for and handed back in a
@@ -39897,7 +41284,9 @@ const INVARIANTS = [
         }), stableJson({
             groups: [["drpg-kit-right", [["go", "primary", true], ["ask", "gmRoute", false]]], ["drpg-kit-left", [["cancel", "cancel", false], ["more", "secondary", false]]]],
             firstSubmit: "go", cancelWord: L("DRPG.Kit.cancel"),
-            closeWord: [["done", L("DRPG.Kit.close"), true]], namedLabel: L("DRPG.Kit.close"),
+            // a caller's own closing word is drawn since E102 C6 (7386194a, R6350; the coordinator's word, 14.11.2026): until
+            // then it read the role's word whatever the caller wrote, E21 C2a's rule this line held
+            closeWord: [["done", L("DRPG.Kit.close"), true]], namedLabel: "Got it",
             noPrimary: [["cancel", true], ["x", false]], throwsDestructive: true, throwsUnknown: true,
             closeRight: [["drpg-kit-right", [["close", "close", true]]], ["drpg-kit-left", [["wipe", "destructive", false]]]], throwsRightBesidePrimary: true
         }), "[footerMarkup's groups (class; action, role, autofocus); the first button in the tree; the cancel and close words; a caller's own closing label; a footer with no primary; a destructive default and an unknown one throw; "
@@ -40669,7 +42058,6 @@ const INVARIANTS = [
         const { PROPS } = await import("./style-snapshot.mjs");
         const RT = await import("./room-tile.mjs");
         const VT = await import("./voice-tile.mjs");
-        const HUD = await import("./hud.mjs");
         must(C.rules.length > 1000, `${C.rules.length} rule(s) read - the cascade did not load the sheets`);
         const A8 = /drpg-room-tile|drpg-room-art|drpg-voice-(?!panel)|drpg-launch-mini|drpg-foundry-tools|drpg-foundry-window|drpg-gm-launcher/;
         const split = text => { const out = []; let d = 0, part = ""; for (const ch of text) { if (ch === "(" || ch === "[") d++; if (ch === ")" || ch === "]") d--; if (ch === "," && !d) { out.push(part.trim()); part = ""; } else part += ch; } return [...out, part.trim()].filter(Boolean); };
@@ -40913,22 +42301,26 @@ const INVARIANTS = [
            there, read `:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk))` now, so a Spectator's switch takes
            the same room - the same rules, the same values, another selector - 2:ac4af798 -> 2:ce15ad40, re-measured
            headless; the pressed switch's rules match nothing this test draws. Every other print, `left` and the @media
-           rules as they were. */
+           rules as they were.
+           Foundry tools' window frame's three Stained Glass prints since E55 (14.11.2026): its rim's `border` reads
+           `var(--drpg-glass-accent)` without the fallback `@property` never let apply (components.css; the audit's S12-71),
+           the same rule and the same value, another text - curtain and desk 2:1900e75b -> 2:6fa9ceed, stacked 2:8b75b7bd ->
+           2:2fe7a47f, re-measured headless; Legacy's, every other print, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:6fa9ceed", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
-            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:19e941be",
+            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:6fa9ceed", "desk|stained-glass|gm-launcher": "1:19e941be",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
-            "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:2fe7a47f",
             "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
@@ -41576,6 +42968,44 @@ const INVARIANTS = [
             closeCallback: "close", cancelActionClose: "close", closeOtherAction: false, closeBare: false, cancelCallback: false,
             confirm: [[["close", "none"]], [["cancel", false]]]
         }), "[footerButtons on: a close with a callback, a cancel whose action is close with one, a close of another action with one, a bare close, a cancel of action no with one ('close': it threw for that reason; false: it did not); drpgConfirm's no as asked (action, what its callback answers)]");
+    }],
+    ["R6350 - a closing word given its own word draws that word (E102 C6, 14.11.2026; the coordinator's word: the owner chose \"Not yet\" as the default of the discovery's prompt, body-113): ui-kit.mjs `footerButtons` keeps a closing button's `label` and `tooltip` when the caller gives them, and the role's word (Close, Cancel) with no tooltip when it gives none; drawn, `footerMarkup`'s button reads that word and carries that title; and the three callers that name one - case-realize.mjs `askAtBody` and investigation.mjs `offerFinalOnClose` (\"Not now\"), body.mjs `promptPendingBodies` (\"Not yet\", which its window's note names) - still pass it", async () => {
+        /* Red at c1a01382: the closing word read "Close" whatever the caller wrote (E21 C2a's rule, "Not now" goes), so
+           the discovery's window told the GM "Not yet keeps it waiting" over a button that said Close. */
+        const K = await import("./ui-kit.mjs");
+        const L = k => game.i18n.localize(k);
+        const drawn = footer => {
+            const box = document.createElement("div");
+            box.innerHTML = K.footerMarkup(footer);
+            const b = box.querySelector(`[data-drpg-role="close"], [data-drpg-role="cancel"]`);
+            return b ? [b.textContent.trim(), b.getAttribute("title")] : null;
+        };
+        const close = L("DRPG.Kit.close");
+        must(close && close !== "DRPG.Kit.close", "no word for Close in this language - this would measure nothing");
+        const built = K.footerButtons({ close: { role: "close", action: "later", label: "Not now", tooltip: "Asked again later" } })[0];
+        const sources = new Map(await moduleSources());
+        const passes = [["case-realize.mjs", "askAtBody", "DRPG.CaseRealize.notNow"], ["investigation.mjs", "offerFinalOnClose", "DRPG.CaseRealize.notNow"],
+            ["body.mjs", "promptPendingBodies", "DRPG.Chapter.pendingNotYet"]]
+            .filter(([f, fn, key]) => !new RegExp(`close:\\s*\\{[^}]*label:\\s*(?:L|game\\.i18n\\.localize)\\(\\s*"${key.replace(/\./g, "\\.")}"`).test(fnSource(stripComments(sources.get(f) ?? ""), fn)))
+            .map(([f, fn]) => `${f} ${fn}`);
+        must([...sources.keys()].length > 100, "the module's sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            built: [built.role, built.label, built.tooltip ?? null],
+            labelled: drawn({ close: { role: "close", action: "later", label: "Not now", tooltip: "Asked again later" } }),
+            bare: drawn({ close: "close" }),
+            bareObject: drawn({ close: { role: "close", action: "later" } }),
+            cancel: drawn({ close: { role: "cancel", action: "no", label: "Keep it", callback: () => false } }),
+            emptyLabel: drawn({ close: { role: "close", action: "later", label: "" } }),
+            callersNotPassing: passes
+        }), stableJson({
+            built: ["close", "Not now", "Asked again later"],
+            labelled: ["Not now", "Asked again later"],
+            bare: [close, null],
+            bareObject: [close, null],
+            cancel: ["Keep it", null],
+            emptyLabel: [close, null],
+            callersNotPassing: []
+        }), "[footerButtons's closing word: role, label, tooltip; drawn (text, title): labelled, bare, bare object, a cancel with its own word, an empty label; the callers that no longer pass their word]");
     }],
     ["R1358 - the GM's tools on the kit (E21 C2; E21-01, E21-07, E21-16, E22-01, E22-04): each window C2 moves calls ui-kit.mjs `drpgWindow` with footer slots, never `buttons`; opened on this GM (DialogV2.wait stood in for), each has a `drpg-ui` root, every footer button a role of BUTTON_ROLES, the role this test names for its action, its closing word the role's own (Close where nothing is left to answer, Cancel where a question is withdrawn) and no `drpg-gm-route` on a GM's screen; a window as wide as its table carries the kit's `fit`; and C2b's: the GM's tools and their questions on the kit, on the destructive role what cannot be undone (Reset, Kill, Delete table, remove a pool, clear the overflow, Clear the Mastermind, Delete and rebuild, Install / reinstall, Revoke and Delete a passage), and the GM panel's Next named by its step", async () => {
         /*
@@ -48902,7 +50332,7 @@ const INVARIANTS = [
          * well as `change`, a click written twice) reads `writes` two a click here.
          */
         needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
-        const { root, pane } = await roomSetupDrawn();
+        const { pane } = await roomSetupDrawn();
         const R = await import("./room-setup.mjs");
         const K = await import("./ui-kit.mjs");
         const KINDS = {
@@ -48914,7 +50344,7 @@ const INVARIANTS = [
         };
         const students = studentActors();
         const tables = {};
-        for (const [tab, kinds] of Object.entries(KINDS)) {
+        for (const [tab] of Object.entries(KINDS)) {
             const p = pane(tab);
             const all = [...(p?.querySelectorAll("table") ?? [])];
             tables[tab] = [all.length, all.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table")).length,
@@ -48985,7 +50415,7 @@ const INVARIANTS = [
         needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
         const students = studentActors();
         must(students.length > 0, "the matrices have no student's column - nothing below is read");
-        const { root, pane } = await roomSetupDrawn();
+        const { pane } = await roomSetupDrawn();
         const heads = ["stashes", "fog"].map(tab => [...(pane(tab)?.querySelectorAll("thead th") ?? [])].slice(1)
             .map(th => [th.classList.contains("drpg-data-lines-2"), th.title, th.getAttribute("aria-label"), th.querySelector(":scope > span.drpg-data-clamp")?.textContent ?? null,
                 th.classList.contains("drpg-student-head")]));
@@ -49018,7 +50448,7 @@ const INVARIANTS = [
          * the scene's regions of each name that may be rooms (rooms.mjs `canBeRoom`), decided by `roomDecided`.
          */
         needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
-        const { root, pane } = await roomSetupDrawn();
+        const { pane } = await roomSetupDrawn();
         const Rm = await import("./rooms.mjs");
         const { workingScene } = await import("./utils.mjs");
         let scene = workingScene();
@@ -49090,7 +50520,8 @@ const INVARIANTS = [
         await settle();
         const after = said();
         const L = (k, d) => game.i18n.format(k, d);
-        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9.0" })}` });
+        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9" })}` });
+        // "9", not "9.0", since E71 group D (14.11.2026, R6552): the size goes through utils.mjs localeFormat, as Pre-season's checks.
         const facts = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 200, bytes: ROOM_IMAGE_LIMITS.bytes + 1 }) });
         const missing = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 404, bytes: null }) });
         const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "wirePictureWarnings")
@@ -52938,7 +54369,7 @@ const INVARIANTS = [
                 + `<section class="tab-navigation"><div class="navigation-container"><div class="navigation-inner-container"><nav class="feature-tab sheet-tabs tabs" data-group="primary">`
                 + `<a class="features active" data-action="tab" data-group="primary" data-tab="features"><span>Actions</span></a>`
                 + `<a class="inventory" data-action="tab" data-group="primary" data-tab="inventory"><span>Inventory</span></a></nav></div></div></section></header></div></div>`;
-            const nav = body.querySelector("nav.sheet-tabs"), [chosen, other] = body.querySelectorAll("nav.sheet-tabs > a");
+            const [chosen, other] = body.querySelectorAll("nav.sheet-tabs > a");
             const w = (el, prop, pseudo = null) => C.winner(el, prop, pseudo)?.value ?? null;
             // A colour no rule gives reads null on both tabs and would compare unequal to nothing (the r112 review's P3).
             must(w(chosen, "color") !== null && (theme !== "glass" || w(chosen, "--brush") !== null),
@@ -54413,19 +55844,32 @@ const INVARIANTS = [
         const S = await import("./sequence.mjs"), G = await import("./glass.mjs");
         const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
         const T = S.SEQUENCE_TIMES.trialEntry, read = {};
+        /* WHAT IS READ IS ORDER AND LOWER BOUNDS, NOT A WINDOW OF THE WALL CLOCK (R6850, 14.11.2026). Until then the
+           hand-back and the release were each held to [want, want + 250] ms on `performance.now()`: red in 1 of 3 and 1
+           of 7 full tier-1 runs on two other lines, green alone, and on the GM page with 150-600 ms stalls of its own thread red in 6 of 20 -
+           three of them a release 287-356 ms past its 3400 with every call in order, two a hand-back that began at 3255
+           and 3360 and was cut short by the end at 3401 (the module's own defect, R6850's), one a hand-back's timer read
+           at 2999 for 3000 (Node's timer clock counts whole milliseconds from its turn's start). A late timer is the
+           machine; what the hand-over promises is that nothing comes early and nothing is cut short: held at once, handed
+           back no sooner than `end - hand` (less a tick, TICK), let go no sooner than `end` nor than `hand` after the
+           hand-back, and the host gone by the release's own turn. A release that never comes leaves `calls` short at
+           `until`'s deadline. Raw times, not rounded ones, so the gap is read as the module made it. */
+        const TICK = 2;
         const stand = () => {
             const calls = [], t0 = performance.now();
-            const at = () => Math.round(performance.now() - t0);
-            return { calls, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
-                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]), release: () => calls.push(["release", null, at()]) };
+            const at = () => performance.now() - t0;
+            const me = { calls, gone: null, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]),
+                release: () => { calls.push(["release", null, at()]); queueMicrotask(() => { me.gone = !document.getElementById(S.SEQUENCE_HOST_ID); }); } };
+            return me;
         };
-        const near = (got, want, slack = 250) => Number.isFinite(got) && got >= want && got <= want + slack;
         const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}`, trialCut: true });
         try {
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
             const m = stand(), c = clock("m");
             read.motion = await S.playTrialEntry(c, { pieces: m });
+            read.heldAtOnce = m.calls.map(x => x.slice(0, 2));
             read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
             read.covered = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
             await wait(T.closed + 150);
@@ -54433,9 +55877,9 @@ const INVARIANTS = [
             await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + 1500);
             const [hold, back, rel] = ["hold", "handBack", "release"].map(k => m.calls.find(x => x[0] === k));
             read.calls = m.calls.map(x => x[0]);
-            read.hold = hold?.[1] === T.handIn && hold?.[2] < 100;
-            read.back = back?.[1] === T.hand && near(back?.[2], T.end - T.hand);
-            read.release = near(rel?.[2], T.end);
+            read.hold = hold?.[1] === T.handIn;
+            read.back = back?.[1] === T.hand && back?.[2] >= T.end - T.hand - TICK;
+            read.release = rel?.[2] >= T.end && rel?.[2] >= back?.[2] + T.hand && m.gone === true;
             read.again = await S.playTrialEntry(c, { pieces: stand() });
             S.endSequence("cut");
             body.classList.add("drpg-reduced-motion");
@@ -54466,10 +55910,56 @@ const INVARIANTS = [
         read.coverNames = ["#drpg-hud", "#drpg-despair", "#countdowns", "#drpg-room-tile", "#drpg-voice-tile"].every(x => String(S.COVERED ?? "").includes(x));
         read.washRule = /drpg-seq-pulse/.test(css);
         equal(stableJson(read), stableJson({
-            motion: "motion", look: "glass", covered: true, wash: 0, calls: ["hold", "handBack", "release"], hold: true, back: true, release: true, again: null,
+            motion: "motion", heldAtOnce: [["hold", T.handIn]], look: "glass", covered: true, wash: 0, calls: ["hold", "handBack", "release"], hold: true, back: true, release: true, again: null,
             still: "still", stillHold: [["hold", 0]], stillEnd: ["hold", "release"],
             pulse: { stood: true, resumed: true, runs: true }, cover: [], coverNames: true, washRule: false
-        }), "[in motion: what played, its look, the cover; a wash at the closed curtain; the stand-in's calls in order; held over handIn at the start; handed back over hand before the end; let go at the end; the same event again; still: what played, held at once, let go at its end; the pulse's clock held, resumed and running; blocks of COVERED the stylesheet's cover leaves out; the cover names the blocks; a wash rule left in the stylesheet]");
+        }), "[in motion: what played, held before the play answered, its look, the cover; a wash at the closed curtain; the stand-in's calls in order; held over handIn; handed back over hand, no sooner than end - hand; let go no sooner than end nor than hand after the hand-back, the host gone by then; the same event again; still: what played, held at once, let go at its end; the pulse's clock held, resumed and running; blocks of COVERED the stylesheet's cover leaves out; the cover names the blocks; a wash rule left in the stylesheet]");
+    }],
+    ["R6850 - the end of the trial's entry and exit gives the hand-back all of its `hand` ms, however late its frame came (scripts/sequence.mjs `playSequence`'s `endNotBefore`, `drawTrialEntry`; R4420's red under load, docs/dev/r4420/STATUS.md): on a stand-in for the curtain's pieces, with the page's thread held from before the hand-back's frame to past the sequence's `end` - a slow table's stall - the hand-back is called over `hand`, and the curtain is let go no sooner than `hand` ms after it, with the host gone by then; the entry and the exit alike", async () => {
+        /* 14.11.2026. Red at 1463f22b: the end was a timer at `end` and nothing else, so a hand-back whose timer came late
+           was cut short by it - here, both timers overdue as the stall ends, the release came in the same turn as the
+           hand-back. The stall is the case's own (a busy loop on this page from `end - hand - 100` to `end + 50` ms on the
+           stand-in's clock), so it measures the same on an idle machine and a loaded one; `stalled` says it took. */
+        const S = await import("./sequence.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const read = {};
+        const stand = () => {
+            const calls = [], t0 = performance.now();
+            const at = () => performance.now() - t0;
+            const me = { calls, t0, gone: null, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]),
+                release: () => { calls.push(["release", null, at()]); queueMicrotask(() => { me.gone = !document.getElementById(S.SEQUENCE_HOST_ID); }); } };
+            return me;
+        };
+        const stall = (me, T) => setTimeout(() => { const to = me.t0 + T.end + 50; while (performance.now() < to) { /* the stall */ } }, Math.max(0, me.t0 + T.end - T.hand - 100 - performance.now()));
+        const reading = (me, T) => {
+            const back = me.calls.find(x => x[0] === "handBack"), rel = me.calls.find(x => x[0] === "release");
+            return {
+                calls: me.calls.map(x => x[0]), stalled: back?.[2] >= T.end - T.hand + 300, over: back?.[1] === T.hand,
+                full: rel?.[2] - back?.[2] >= T.hand, gone: me.gone
+            };
+        };
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            const T = S.SEQUENCE_TIMES.trialEntry, m = stand();
+            const played = await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6850e:${Date.now()}`, trialCut: true }, { pieces: m });
+            if (played === "motion") stall(m, T);
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + T.hand + 1500);
+            read.entry = { played, ...reading(m, T) };
+            S.endSequence("cut");
+            const X = S.SEQUENCE_TIMES.trialExit, x = stand();
+            const out = await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `R6850x:${Date.now()}`, trialCut: true }, { pieces: x, on: true });
+            if (out === "motion") stall(x, X);
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), X.end + X.hand + 1500);
+            read.exit = { played: out, ...reading(x, X) };
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        const want = played => ({ played, calls: ["hold", "handBack", "release"], stalled: true, over: true, full: true, gone: true });
+        equal(stableJson(read), stableJson({ entry: want("motion"), exit: want("motion") }),
+            "[for the entry and then the exit: what played; the stand-in's calls in order; the stall held the hand-back's frame past its time; the hand-back over hand; let go no sooner than hand after it; the host gone by then]");
     }],
     ["R4421 - the trial's exit is E61's and names a new day in the same write (scripts/transitions.mjs `transitionFor`, `onClockHeard`; the owner's decision of 12.11.2026, every default accepted): out of the Class Trial into Daily Life is `{ kind: \"trialExit\", owner: \"E61\" }` with no direction for the curtain, and with `newDay` when the same write opened a later day (a chapter's end whose next morning lands in one run of the clock's row); the Investigation's way out stays the curtain's; heard, it hands the curtain no direction", async () => {
         /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was `{ kind: "trialExit", how: "centre" }`, a hint for
@@ -57537,7 +59027,8 @@ const INVARIANTS = [
         const files = {};
         for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
         const PL = { title: "Ustawienia postaci", details: "Szczegóły", experiences: "Doświadczenia", statistics: "Statystyki", reserves: "Health i Sanity",
-            maxHealth: "Health (maks.)", maxSanity: "Sanity (maks.)", newExperience: "Nowe doświadczenie", delete: "Usuń" };
+            maxHealth: "Health (maks.)", maxSanity: "Sanity (maks.)", newExperience: "Dodaj doświadczenie", delete: "Usuń" };
+        /* E57 C12: newExperience follows the English, which line A made a verb ("Add Experience", was "New Experience"). */
         const en = files.en.DRPG?.DhSettings ?? {}, pl = files.pl.DRPG?.DhSettings ?? {};
         const DH_KEYS = ["Tabs.settings", "Tabs.details", "Tabs.experiences", "basics", "maxWithThing", "experience"];
         const read = {
@@ -59043,7 +60534,7 @@ const INVARIANTS = [
         };
         equal(stableJson([groupOf(aKitchen.actor.name), groupOf(sRow.actor.name), groupOf(offRow.actor.name), groupOf(aSpare.actor.name), groupOf(lone.name),
             lines.filter(line => line.includes(sRow.actor.name)).length]),
-            stableJson(["Kitchen", "(Spectators' room)", "(sent nowhere)", "(sent nowhere)", "ACCOUNTS WITH NO CHARACTER", 1]),
+            stableJson(["Kitchen", "(Spectators' room)", "(sent nowhere)", "(sent nowhere)", "Accounts with no character", 1]),
             "[the group of a character placed in the Kitchen; of a Spectator talking; of a character whose owner is offline; of a spare its account's ranking passed over; of an account with no character; the Spectator's lines]");
     }],
 
@@ -59311,6 +60802,80 @@ const INVARIANTS = [
         ]), stableJson([true, true, false, true, true, true, true, true, true, true]),
             "[the walk writes the pending row, asks, runs no announcement; the sound first; to the walker's players; kept; "
             + "the announcement drops the row and notes the bodies heard before its gather; asked at the stores' opening and a GM's leaving; registered]");
+    }],
+
+    ["R6550 - the fog files and voice.mjs hold no English literal a screen shows: T13 (uiLiterals) finds nothing in scripts/fog*.mjs or scripts/voice.mjs (E71 C20, DB12, S18-46)", async () => {
+        /*
+         * E71 C20, 14.11.2026; the owner's DB12 and audit S18-46: the literals move with the stage that rewrites a file.
+         * T13 (scripts/tests-text.mjs `uiLiterals`) read on the module's own sources, as served, with the kit's lexer
+         * (tests-lint.mjs's, as R1058 hands it): the fog family's files and voice.mjs, each of them read (a file the
+         * crawl does not reach would make the count say nothing). Red at C20's parent: 53 findings in fog.mjs and 49 in
+         * voice.mjs - the registration steps' labels, the reasons the fog stands down, the fog diagnosis's lines and
+         * the voice plan's report. diagnostics.mjs's console is not read here: it stays English (DB12).
+         */
+        const files = ["fog.mjs", "fog-reveal.mjs", "fog-diagnostics.mjs", "fog-doorways.mjs", "fog-geometry.mjs", "voice.mjs"];
+        const all = await moduleSources();
+        // bridge-guards.mjs beside them, as tools/check.mjs reads every script: T13 takes the bridge's closed list of
+        // reasons from it ("unknown sender", fog.mjs `fogShareRefusal`), and its own findings are not this test's.
+        const read = files.filter(file => all.has(file));
+        const scripts = new Map([...read, "bridge-guards.mjs"].filter(file => all.has(file)).map(file => [`scripts/${file}`, all.get(file)]));
+        const r = TEXT_DETECTORS.uiLiterals({ scripts, lexer: { blankComments, blankLiterals, callArgs } });
+        const mine = r.found.filter(f => read.some(file => f.file === `scripts/${file}`));
+        equal(stableJson([read.length, scripts.has("scripts/bridge-guards.mjs"), r.counts.files > 0, mine.map(f => f.what)]),
+            stableJson([files.length, true, true, []]),
+            "[the six files read; bridge-guards.mjs beside them; at least one of them draws UI, so T13 reads it; T13's findings in the six]");
+    }],
+    ["R6551 - the Season checklist's Dice So Nice row is no optional one: module.json requires Dice So Nice, and the row's title says \"optional\" in neither language (scripts/season-setup.mjs `steps`; module.json `relationships.requires`; lang/en.json and lang/pl.json DRPG.Season step.diceSoNice; E71 group D, the coordinator's word of 14.11.2026: required, not a taste question)", async () => {
+        /*
+         * E71 group D, 14.11.2026. The module does not start without Dice So Nice (module.json requires it; the row's own
+         * hint says so since B15), so a checklist row titled "Dice So Nice (optional)" and drawn as advisory said the
+         * opposite of the manifest. The row's `optional` flag stays as R1132 holds the First session rows: it is done
+         * wherever the module runs. Red at e8a46890: its titles "Dice So Nice (optional)" and "Dice So Nice (opcjonalnie)".
+         */
+        const fetchJson = async path => { try { const res = await fetch(path, { cache: "no-cache" }); return res.ok ? await res.json() : null; } catch { return null; } };
+        const manifest = await fetchJson(`/modules/${MODULE_ID}/module.json?t=${Date.now()}`);
+        const files = { en: await fetchJson(`/modules/${MODULE_ID}/lang/en.json`), pl: await fetchJson(`/modules/${MODULE_ID}/lang/pl.json`) };
+        must(manifest && files.en && files.pl, "module.json or a language file did not load - this would measure nothing");
+        const S = await import("./season-setup.mjs");
+        must(typeof S.steps === "function", "season-setup.mjs exports no steps - this would measure nothing");
+        const row = S.steps({ roomScene: null }).find(step => step.key === "diceSoNice") ?? null;
+        must(row, "the checklist has no diceSoNice row - this would measure nothing");
+        // en.json spells the key flat ("step.diceSoNice"), pl.json nests it (step: { diceSoNice }): Foundry reads both.
+        const title = lang => foundry.utils.getProperty(foundry.utils.expandObject(files[lang] ?? {}), "DRPG.Season.step.diceSoNice") ?? null;
+        const required = (manifest.relationships?.requires ?? []).some(entry => entry.id === "dice-so-nice");
+        equal(stableJson([required, /optional/i.test(title("en") ?? "optional"), /opcjonaln/i.test(title("pl") ?? "opcjonalnie")]),
+            stableJson([true, false, false]),
+            "[module.json requires dice-so-nice; the row's English title says optional; its Polish title says so]");
+    }],
+    ["R6552 - a room picture's size reads the same in Room setup as in Pre-season's checks, in the page's number format (scripts/room-setup.mjs `pictureWarning`; scripts/season-setup.mjs, its `mb`; utils.mjs `localeFormat`; lang DRPG.Panel.checksImagesBytes; E71 group D, group B's review of 14.11.2026: `toFixed` wrote \"2.5\" on a Polish page, where the number is \"2,5\")", async () => {
+        /*
+         * E71 group D, 14.11.2026. Both windows fill DRPG.Panel.checksImagesBytes's {mb}; Pre-season's checks with
+         * localeFormat("number", ..., { maximumFractionDigits: 1 }), Room setup's with `toFixed(1)`, which ignores the page's
+         * language (a Polish page read "2.5 MB") and writes a whole number with a ".0". Measured on whole and half
+         * megabytes, so the English harness sees the difference too. Red at 7cfbf294: "3.0 MB" against "3 MB".
+         */
+        const R = await import("./room-setup.mjs"), U = await import("./utils.mjs");
+        must(typeof R.pictureWarning === "function" && typeof U.localeFormat === "function", "room-setup.mjs pictureWarning or utils.mjs localeFormat is missing - this would measure nothing");
+        const sizes = [3, 2.5].map(n => {
+            const said = R.pictureWarning({ heavy: true, bytes: n * 1048576 });
+            const want = game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: U.localeFormat("number", n, { maximumFractionDigits: 1 }) });
+            return [said.includes(want), /\d\.0\b/.test(said)];
+        });
+        equal(stableJson(sizes), stableJson([[true, false], [true, false]]),
+            "[3 MB: Room setup says Pre-season's size, and no \"N.0\"; 2.5 MB: the same]");
+    }],
+    ["R6553 - investigation.mjs holds no English literal a screen shows: T13 (uiLiterals) finds nothing in it, the case map's failures read from lang/ (DRPG.CaseMap.failed.*; E71 group D, after E54 split the file, 14.11.2026)", async () => {
+        /*
+         * E71 group D, 14.11.2026, the literals of the E54 files the batches cover. investigation.mjs's case map named
+         * what failed in English ("add a node", ...) inside "The case map could not ..." on the Debug log a GM reads.
+         * Red at c621e842: T13's five findings in investigation.mjs. The same reading as R6550's.
+         */
+        const all = await moduleSources();
+        must(all.has("investigation.mjs"), "investigation.mjs was not read - this would measure nothing");
+        const scripts = new Map(["investigation.mjs", "bridge-guards.mjs"].filter(file => all.has(file)).map(file => [`scripts/${file}`, all.get(file)]));
+        const r = TEXT_DETECTORS.uiLiterals({ scripts, lexer: { blankComments, blankLiterals, callArgs } });
+        equal(stableJson([r.counts.files > 0, r.found.filter(f => f.file === "scripts/investigation.mjs").map(f => f.what)]), stableJson([true, []]),
+            "[investigation.mjs draws UI, so T13 reads it; T13's findings in it]");
     }],
     ["R4801 - scaleWindow stands once on each of the two render hooks after init (E54 W2): registered by `registerWindows`, and a second call of it changes neither the hooks nor the readers", async () => {
         /*
@@ -60508,12 +62073,6 @@ const E61_CUTS = {"gm-1600x900":[[[290.21353250677083,0],[324.252015179061,242.1
 /* R3719: round 4's fill of E61_CUTS' 1366x768 cut for the test's seed - the median area in px² and the count, read at 1db3f62 */
 const AT_1366_ROUND4 = [25668, 19];
 const E61_CUT_FHD = [[[290.21353250677083,0],[324.252015179061,242.19638900231323],[0,287.76703786951094],[0,0]],[[324.252015179061,242.19638900231323],[377.6879622086186,622.4129085833539],[0,675.4934900491985],[0,287.76703786951094]],[[1163.2109375,0],[1163.2109375,145.078125],[756.7890625,145.078125],[756.7890625,0]],[[1553.0335637577543,62.960387212440764],[1561.8820691297765,0],[1920,0],[1920,114.53415646968789]],[[1532.7251639160972,207.46216055583955],[1553.0335637577543,62.960387212440764],[1920,114.53415646968789],[1920,261.8900892783031]],[[1920,709.0543612342037],[1669.1511888955324,673.7998599374793],[1716.4439482655246,337.29439182823444],[1920,365.9023292477208]],[[0,713.3011117968645],[384.02831398199464,767.2727715932463],[340.07736826754405,1080],[0,1080]],[[1771.2756113063313,911.3774339174706],[1920,890.4755841898595],[1920,1080],[1794.973967493229,1080]],[[1716.4439482655246,337.29439182823444],[1730.7787776644113,235.29678074785267],[1920,261.8900892783031],[1920,365.9023292477208]],[[504.344375256651,0],[547.2517867834182,0],[551.0425131290056,32.34180220074007],[505.46557160273414,21.089602707419544]],[[547.2517867834182,0],[756.7890625,0],[756.7890625,148.7711356766522],[551.0425131290056,32.34180220074007]],[[340.0773682675441,1080],[607.9753647439298,1080],[633.1688402740657,897.9508813000169],[381.4567121917143,785.5706691098366]],[[804.2807774084737,1080],[831.9375569882919,1080],[838.4805704787667,986.628959396064],[816.5293889841439,962.4868898931891]],[[607.9753647439298,1080],[804.2807774084737,1080],[814.0130158602875,986.628959396064],[633.1688402740657,897.9508813000169]],[[831.9375569882919,1080],[991.8597959098455,1080],[993.1690588915312,1054.2771792807928],[838.4805704787667,986.628959396064]],[[991.8597959098455,1080],[1137.5413991565852,1080],[1136.026982870185,1052.5802401071414],[993.1690588915312,1054.2771792807928]],[[1137.5413991565852,1080],[1308.4892180037652,1080],[1304.0275517261898,1022.3137347472712],[1136.026982870185,1052.5802401071414]],[[1308.4892180037652,1080],[1337.293744423144,1080],[1328.9876602735055,933.975425218232],[1304.0275517261898,1022.3137347472712]],[[1337.293744423144,1080],[1530.4993691446227,1080],[1526.4853059846791,969.7816058799178],[1334.0124681435616,1022.3137347472712]],[[1530.4993691446227,1080],[1794.973967493229,1080],[1772.3542076347935,919.0520455756852],[1526.4853059846791,969.7816058799178]],[[290.21353250677083,0],[504.344375256651,0],[505.46557160273414,21.089602707419544],[403.7645226654647,306.98566389717365],[331.401195651659,293.0654512768973]],[[403.7645226654647,306.98566389717365],[353.29647892687564,448.8584869563989],[331.401195651659,293.0654512768973]],[[1163.2109375,0],[1561.8820691297765,0],[1543.0975553752387,133.65876041874805],[1319.3252173337312,162.13566673290143],[1163.2109375,144.54330722568557]],[[1543.0975553752387,133.65876041874805],[1535.669062357632,186.5152347191703],[1319.3252173337312,162.13566673290143]],[[164.23264271844673,652.4120973561684],[78.30070035074846,724.3055575819405],[0,713.3011117968645],[0,675.4934900491985]],[[1754.1656886680075,685.7478686973093],[1850.638394083013,900.2237221817312],[1920,890.4755841898595],[1920,709.0543612342037]]];
-
-/* R3716: a convex pane moved out along its edges' normals by `d` (the reverse of glass-close.mjs `insetPoly`) */
-function outset(P, d) {
-    const n = P.length, cx = P.reduce((t, q) => t + q[0], 0) / n, cy = P.reduce((t, q) => t + q[1], 0) / n;
-    return P.map(([x, y]) => { const l = Math.hypot(x - cx, y - cy) || 1; return [x + (x - cx) / l * d * 1.5, y + (y - cy) / l * d * 1.5]; });
-}
 
 /* R3703, R3716 (E61 C3): a frame of 24 panes around the map's hole, the curtain's shape in small; `jag` alternates the
    inner corners' depth (0.45 and 0.62 of the half-screen), which gives the hole the reflex corners a cut has */
