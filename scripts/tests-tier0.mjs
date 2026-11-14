@@ -13109,7 +13109,7 @@ const REGRESSIONS = [
         ok(/^Nonstop Debate - /.test(floor.holdingDebate) && /^Nonstop Debate - /.test(floor.holdingDebateOver)
             && !/discussion/i.test(floor.holdingDebate + floor.holdingDebateOver), "the console's debate lines are not the debate's (S06-10)");
         equal(JSON.stringify([ev.trialDebateMeta, ev.trialDiscussionMeta, ev.trialObjectionFloor]),
-            JSON.stringify(["Present a Truth Bullet from your Inventory", "Talk it through - the GM opens the debate", "{who} has the floor"]),
+            JSON.stringify(["Present a Truth Bullet from your Inventory", "The students talk it through until the GM opens the debate", "{who} has the floor"]),
             "the Event card's metas are not the audit's (S06-24)");
         for (const code of ["en", "pl"]) {
             const l = lang[code];
@@ -19507,8 +19507,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 broken: [],
-                move: ["That cost an action - 1 action left.", "That cost an action - 2 actions left.", "That cost an action - 5 actions left."],
-                eclipse: ["1 crossing)", "2 crossings)"],
+                move: ["That cost an action. You have 1 action left.", "That cost an action. You have 2 actions left.", "That cost an action. You have 5 actions left."],
+                eclipse: ["End this session and open the T Eclipse: a new session begins, and everyone places their token with 1 crossing each", "End this session and open the T Eclipse: a new session begins, and everyone places their token with 2 crossings each"],
                 summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 Remnants left behind"],
                 thin: ["No Key Remnant has been found yet", "Only 2 Key Remnants have been found"],
                 overflow: ["2 fewer actions each, on top of anything Wounded already took", true],
@@ -19516,9 +19516,9 @@ const REGRESSIONS = [
             },
             pl: {
                 broken: [],
-                move: ["To kosztowało akcję - została 1 akcja.", "To kosztowało akcję - zostały 2 akcje.", "To kosztowało akcję - zostało 5 akcji."],
+                move: ["To przejście kosztowało akcję. Została ci 1 akcja.", "To przejście kosztowało akcję. Zostały ci 2 akcje.", "To przejście kosztowało akcję. Zostało ci 5 akcji."],
                 eclipse: ["1 przejście)", "2 przejścia)"],
-                summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
+                summary: ["P: co się u ciebie działo.", "P: co działo się przy stole.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
                 thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnanty"],
                 overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
                 approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
@@ -19798,10 +19798,10 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 broken: [],
-                armed: ["Aiko may now use advantage on their next roll.", "Aiko may now use a flat bonus or penalty on their next roll."],
+                armed: ["Aiko's next roll gets advantage.", "Aiko's next roll gets a flat bonus or penalty."],
                 forYou: "Another student spent Hope on you: your next roll gets advantage. It is already switched on in your roll window.",
-                pending: "Waiting on your next roll: a flat bonus or penalty. Spent the moment you roll.",
-                waits: "Armed after this window opened: advantage and a flat bonus or penalty. It is not part of this roll - it waits for your next one.",
+                pending: "Waiting for your next roll: a flat bonus or penalty. That roll uses it up, but a Loaded Die waits for an action roll.",
+                waits: "Your next roll gets what was armed after this window opened: advantage and a flat bonus or penalty.",
                 price: ["You get 2 actions back.", true, true],
                 reserves: "You lose 1 Health and 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). You have 3 picks. Press Level Up beside your name on your sheet to make them.",
@@ -19811,10 +19811,10 @@ const REGRESSIONS = [
             },
             pl: {
                 broken: [],
-                armed: ["Aiko może teraz użyć przewagi przy następnym rzucie.", "Aiko może teraz użyć stałej premii albo kary przy następnym rzucie."],
+                armed: ["Przy następnym rzucie postaci Aiko zadziała efekt przewagi.", "Przy następnym rzucie postaci Aiko zadziała efekt stałej premii albo kary."],
                 forYou: "Inny uczeń wydaje na ciebie Hope: twój następny rzut ma przewagę. Okno rzutu ma to już włączone.",
-                pending: "Czeka na twój następny rzut: stała premia albo kara. Zużyte w chwili rzutu.",
-                waits: "Nałożone po otwarciu tego okna: przewaga i stała premia albo kara. Nie wchodzi do tego rzutu - czeka na twój następny.",
+                pending: "Czeka na twój następny rzut: stała premia albo kara. Efekt znika po tym rzucie, ale Loaded Die czeka na rzut akcji.",
+                waits: "Na twój następny rzut czeka też to, co doszło po otwarciu tego okna: przewaga i stała premia albo kara.",
                 price: ["Odzyskujesz: 2 akcje.", true, true],
                 reserves: "Tracisz 1 Health i 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Masz 3 wybory. Naciśnij przycisk Level Up obok swojego imienia na arkuszu i wybierz.",
@@ -20063,13 +20063,13 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 now: ["up to 1 connected room", "up to 5 connected rooms",
-                    "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
+                    "2 actions each time of day. Searching a room, working on a project, observing a Remnant, and analyzing a Truth Bullet each cost one. A Short Rest costs 1 action, a Long Rest 2 actions.",
                     "With no Health left you get 1 action instead of 2 actions in Daily Life and the Investigation, until somebody patches you up. In the Class Trial, Wounded takes no action.",
                     "You have 2 actions", "A trap is built as projects. Plan about 7-10 progress in total, roughly 4 to 5 actions.",
                     "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
-                    "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
+                    "3 actions each time of day. Searching a room, working on a project, observing a Remnant, and analyzing a Truth Bullet each cost one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
                     "With no Health left you get 2 actions instead of 3 actions in Daily Life and the Investigation, until somebody patches you up. In the Class Trial, Wounded takes no action.",
                     "You have 3 actions", "A trap is built as projects. Plan about 9-14 progress in total, roughly 5 to 7 actions.",
                     "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
@@ -20078,13 +20078,13 @@ const REGRESSIONS = [
             },
             pl: {
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
-                    "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
+                    "2 akcje na każdą porę dnia. Po jednej akcji kosztują przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
                     "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada. W Class Trial Wounded nie zabiera akcji.",
                     "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
-                    "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
+                    "3 akcje na każdą porę dnia. Po jednej akcji kosztują przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
                     "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada. W Class Trial Wounded nie zabiera akcji.",
                     "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
