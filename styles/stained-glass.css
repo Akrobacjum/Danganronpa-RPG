@@ -4476,8 +4476,6 @@ body.drpg-theme-stained-glass .application[class] .window-content {
 body.drpg-theme-stained-glass .application[class] {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-}
-body.drpg-theme-stained-glass .application[class] {
     background: transparent !important;
 }
 /* AND THE DAY'S BOARDS WEAR IT (12.11.2026; the owner's report at a real table on 1.2.109: their frame was the trial
