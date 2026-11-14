@@ -142,7 +142,7 @@ export async function maskKiller(state) {
     // microphone is blocked, before anybody sees the "?".
     await settleBlock();
     await placeVoicesNow();
-    for (const { scene, token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => error(`Could not mask a token of ${killer.name}`, err));
+    for (const { token } of tokensOf(killer)) await token.update(maskPatch()).catch(err => error(`Could not mask a token of ${killer.name}`, err));
     await retell();
     // Veiled (E43's season canary, 14.11.2026): its document names no speaker and no reader, so it does not say whose mask
     // it is. In an incident postSecret veils it anyway (secret.mjs `incidentVeils`); the end's card below needs it always.

@@ -541,7 +541,6 @@ export   const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;
     const rays = [rA];
     for (const x of xs) { if (x - rays[rays.length - 1].x0 < 40 || rB.x0 - x < 40) continue; const u = (x - rA.x0) / gap; rays.push({ x0: x, s: rA.s + u * (rB.s - rA.s) + (rnd() - 0.5) * 0.12, edgeY }); }
     rays.push(rB);
-    const spacing = step;
     // one crossing depth for the whole pencil (or none)
     let ystar = 1e9;
     for (let i = 0; i + 1 < rays.length; i++) { const a = rays[i], b = rays[i + 1]; if (a.s - b.s > 1e-6) ystar = Math.min(ystar, (b.x0 - a.x0) / (a.s - b.s)); }

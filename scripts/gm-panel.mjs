@@ -24,7 +24,6 @@ import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoverie
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
-import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";

@@ -4743,7 +4743,7 @@ function playDiscoveryAnimation(room, tokenDoc, { standing = true } = {}) {
     const { fogScratch, lineScratch, fogTex, lineTex, fogSprite, lineSprite, lineLayer } = L;
 
     const plan = revealBandPlan(room, { width, height, grid, lineWidth });
-    const { lines, seed } = plan;
+    const { seed } = plan;
 
     /*
      * THE CURTAIN'S PULSE, SHAPE FOR SHAPE.

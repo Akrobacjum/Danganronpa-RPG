@@ -122,8 +122,6 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             bubbles: log ? [...log.querySelectorAll(".drpg-messenger-bubble")].map(b => ({ id: b.dataset.messageId, text: b.textContent.trim().slice(-60) })) : null,
             empty: Boolean(log?.querySelector(".drpg-messenger-empty")) };`;
     const OPEN = `${M} ${UNTIL} const app = A.openMessenger("${P1}"); await until(() => app?.rendered); return Boolean(app?.rendered);`;
-    const kept = text => `const NH = await import("${repoUrl}/scripts/notice-history.mjs");
-        return NH.noticeEntries().filter(e => String(e.text ?? "").includes(${J(text)})).map(e => ({ source: e.source, messageId: e.messageId ?? null, link: e.link?.messenger ?? null }));`;
 
     /* ------------------------------ A0. the harness's models ------------------------------ */
     phase("A0: what the harness models of the window in front and of a hidden page");
