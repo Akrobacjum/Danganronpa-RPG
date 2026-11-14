@@ -89,18 +89,29 @@ on the old end under the load (it would be red on runs like 13 and 17; R6850 is 
   8/8, 69-day-boards 8/8, 93-spectator 18/18, 74-room-tile 46/46, 63-class-trial 77/79. 63's two reds, E5 and I7 (the
   vote window's privacy note against gm2's copy of the ballots), read the same on the base without the change
   (77/79, 106 s), so they are not this line's.
-- To run again after the E54 merge, on the tip: quick, full tier 1, R4420 and R6850 under the load, the five scenarios.
+- R2001 and 63's E5, I7 are known base reds (the coordinator, 14.11.2026: R2001 the ledger regroup's, fixed on top of
+  E54 in the assembly; E5, I7 fixed on claude/e71-c, 39d3b18c, 79/79).
+- To run again after the E54 merge, on the tip: R4420 and R6850, and the load repro, 20 runs.
 
 ## 7. Needs a local Foundry
 
-- Whether a real table's browser stalls past the hand-back's frame and the cut-short hand-back is seen as a blink:
-  reasoned from the timers and the hold's code, not seen. It needs a real table on a slow machine (or a v14 client with
-  CPU throttling in the browser's devtools), playing Start the Class Trial and End the trial under Stained Glass.
+- **LIVE-R4420-01** - the hand-back on a real slow machine: under Stained Glass, Start the Class Trial and End the trial
+  on a browser whose main thread stalls (a slow machine, or a v14 client with the CPU throttled 6x in the browser's
+  devtools), and look at the last half second of each: the copies fade out while the live curtain fades in, with no
+  frame where the screen goes dark or the glass jumps. Before this change the end could cut that half second short;
+  that a table sees it as a blink is reasoned from the timers and the hold's code, not seen. Needs a real v14 table
+  and a person watching. Not yet a row of `audit/AUDIT-1.2.42.md` section 9.2 (the coordinator's to place).
 - Not a local-Foundry item, not done here: the same in Chromium on the glass harness with the page's CPU throttled
   (Playwright's CDP `Emulation.setCPUThrottlingRate`), which would read the hand-back's frames; no such probe exists
   for the entry yet.
 
-## 8. Log
+## 8. For the 1.2.113 notes
 
-- 14.11.2026: repro, cause, fix and the measurements above, committed on 1463f22b (the session's stop hook asked for
-  the work pushed). Once E54 lands, claude/fervent-sagan-gme4vt is merged in and the change put in the split file.
+The sentence for a GM (its source: sections 3 and 5): "On a slow computer the curtain could flash at the very end of
+the Class Trial's opening and closing animations; the curtain now always gets its full fade back before the animation
+ends."
+
+## 9. Log
+
+- 14.11.2026: repro, cause, fix and the measurements above, committed on 1463f22b (85cb7c24). sequence.mjs is not one of
+  E54's cuts (the coordinator), so the E54 merge moves nothing; once it lands it is merged in and R4420 run again.
