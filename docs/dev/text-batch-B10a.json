@@ -11029,6 +11029,48 @@
     }
    },
    "owner": null
+  },
+  {
+   "key": "DRPG.Vote.verdictSteps.overflow",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "verdict",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The console's name for the verdict's step that feeds the Despair Overflow (VERDICT_STEP_LABELS), read by stepLabel in the steps' report and in the list of the steps a stopped verdict has not done.",
+     "file": "scripts/verdict.mjs",
+     "fn": "stepLabel",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "the Despair overflow",
+    "after": "the Despair Overflow"
+   },
+   "pl": {
+    "before": "Despair overflow",
+    "after": "Despair Overflow"
+   },
+   "removed": [
+    "The coordinator's round of 14.11.2026: \"Overflow\" is the glossary's term (overflow, n), capitalized in both languages; nothing else changes. Reviewed by no fresh agent: a capital only."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
   }
  ]
 }
