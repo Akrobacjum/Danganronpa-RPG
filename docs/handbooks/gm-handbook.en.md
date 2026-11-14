@@ -79,7 +79,7 @@ Two old values may be missing. Where the file permissions were taken away by a v
 
 ### 1.3 Module settings worth knowing
 
-The module's settings are in two places. The game's settings, everything that changes the table for everybody, open from the GM panel's **Settings** tile, under Between sessions; only a GM who may change the world's settings can open them. Pick a section on the left, change what you want, then press **Save changes**; a line under each setting says what it changes, and its tooltip says the rest. This browser's own settings (language, theme, look, effects, volumes, the messenger's sounds and the voice) are the gear's window, the same for a GM and a player, and also Configure Settings, DRPG Settings (section 18).
+The module's settings are in two places. The game's settings, everything that changes the table for everybody, open from the GM panel's **Settings** tile, under Between sessions; only a GM who may change the world's settings can open them. Pick a section on the left, change what you want, then press **Save changes**; a line under each setting says what it changes, and its tooltip says the rest. This browser's own settings (language, theme, look, effects, volumes, the messenger's sounds and the voice) are the gear's window, the same for a GM and a player, and also Configure Settings, Danganronpa RPG settings (section 18).
 
 Among the game's settings:
 
