@@ -937,7 +937,7 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
        without the room; none, the line without the witnesses (tier 2 "the GM's next line tells a
        hidden body to be announced by hand"). */
     /* A DISCOVERY WAITING FOR YOUR WORD (1.2.113; the owner's decision A of 13.11.2026). Two witnesses found a body and the
-       primary was asked (chapter.mjs `askPendingBodies`); "Not yet" leaves it here, so the line names its room and opens
+       primary was asked (body.mjs `askPendingBodies`); "Not yet" leaves it here, so the line names its room and opens
        the discovery window, which opens on it. */
     const [asked] = pendingBodyDiscoveries({ clock, held: flagsHeldNow });
     if (asked) return { text: game.i18n.format("DRPG.Panel.nextBodyAsked", { room: esc(asked.room) }), action: "bodyDialog" };

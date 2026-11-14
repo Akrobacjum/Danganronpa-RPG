@@ -1421,7 +1421,7 @@ function stateWidth(root, sized) {
 }
 
 /**
- * The stated width, written once more after Foundry's own render hooks (E21 W1). settings.mjs `scaleWindow` runs on every
+ * The stated width, written once more after Foundry's own render hooks (E21 W1). window-scale.mjs `scaleWindow` runs on every
  * render and multiplies a window's `position.width` by the slider, under 48 px less than the screen: under Monokuma Legacy
  * the width named here already follows the slider (`legacy`), and the 704 px of `drpg-wide` stood 94 % of a phone's
  * screen, not 342 px of 390. Two frames after the render, as `fitKitWidth`; nothing written when the window already

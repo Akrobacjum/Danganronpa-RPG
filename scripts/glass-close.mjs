@@ -7,7 +7,7 @@
  * fronts, seams instead of lead, sizes unlike the rest. Round 3 closes the hole with panes of the curtain's own kind:
  *
  * - `fillHole` tiles the hole the standing panes leave with convex panes of three to five corners, cut by straight
- *   lines as the curtain's cut is (glass.mjs `split`, the same half-plane clip): the hole is cut into convex pieces
+ *   lines as the curtain's cut is (glass-geometry.mjs `split`, the same half-plane clip): the hole is cut into convex pieces
  *   along the standing panes' own edges, pieces are joined where the join is still a convex pane of at most five
  *   corners, and a piece larger than the standing panes' median area is split by a straight cut across its length.
  *   The standing panes keep their exact place and shape; the new ones fill what is left, and nothing else.
@@ -31,7 +31,7 @@ const centroid = poly => { const n = poly.length; return [poly.reduce((s, q) => 
 /* two corners closer than a hundredth of a pixel are one (at half a pixel, a join dropped a real corner and opened a sliver, round 5) */
 const dedupe = poly => poly.filter((q, i) => { const p = poly[(i + poly.length - 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.01; });
 
-/** A convex polygon split by the line through (px, py) with normal (nx, ny): [side >= 0, side < 0] (glass.mjs `split`). */
+/** A convex polygon split by the line through (px, py) with normal (nx, ny): [side >= 0, side < 0] (glass-geometry.mjs `split`). */
 function splitPoly(poly, px, py, nx, ny) {
   const A = [], B = [];
   const side = ([x, y]) => (x - px) * nx + (y - py) * ny;
@@ -50,7 +50,7 @@ function splitPoly(poly, px, py, nx, ny) {
 }
 
 
-/** Separating axes on convex polygons; a shared edge is not an overlap (glass.mjs `overlaps`). */
+/** Separating axes on convex polygons; a shared edge is not an overlap (glass-geometry.mjs `overlaps`). */
 export function convexOverlap(A, B) {
   const axes = P => P.map((p, i) => { const q = P[(i + 1) % P.length]; const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [-(q[1] - p[1]) / l, (q[0] - p[0]) / l]; });
   const ext = (P, ax) => { let a0 = 1e9, a1 = -1e9; for (const p of P) { const d = p[0] * ax[0] + p[1] * ax[1]; a0 = Math.min(a0, d); a1 = Math.max(a1, d); } return [a0, a1]; };
