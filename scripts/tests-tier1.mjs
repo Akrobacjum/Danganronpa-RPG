@@ -37439,12 +37439,12 @@ const INVARIANTS = [
             en: {
                 broken: [],
                 cost: ["Costs 1 action.", "Costs 2 actions.", "Costs 5 actions.", "Costs 22 actions.", "Costs 25 actions."],
-                lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
+                lines: ["Costs 2 actions. You have 5 actions left.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
                 skipped: "No action is needed here. This costs 1 Sanity.",
-                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
+                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with."],
                 tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and Tamper takes nothing else."],
-                raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
-                    `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
+                raw: [`The victim rolls ${lc} and ${sv} at disadvantage for 2 turns of their own.`, `The victim cannot use ${st} or ${rr} for 2 turns of their own.`,
+                    `The victim cannot use ${sv} for 1 turn of their own.`, "You get 1 action back.", "You get 1 Sanity back."]
             },
             pl: {
                 broken: [],
@@ -37453,8 +37453,8 @@ const INVARIANTS = [
                 skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
                 analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
                 tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji, a Tamper nie przyjmuje niczego innego."],
-                raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
-                    `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
+                raw: [`Przez 2 tury ofiara rzuca z utrudnieniem przy ${lc} i ${sv}.`, `Przez 2 tury ofiara nie może użyć ${st} ani ${rr}.`,
+                    `Przez 1 turę ofiara nie może użyć ${sv}.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
             },
             quoted: [["action"], []]
         }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Price.will.action at 1, 2, 5, 22 and 25; "
@@ -37521,7 +37521,7 @@ const INVARIANTS = [
             pass: /"DRPG\.Trial\.turn\.closingPassEarly"[^]{0,160}seconds:\s*TRIAL\.modes\.closing\.passWindowSeconds/.test(fn("trial-prompt.mjs", "promptTurn")),
             note: /"DRPG\.Floor\.modeNote"[^]{0,200}step:\s*adjustStep\(floor\)/.test(stripComments(sources.get("trial-floor-ui.mjs") ?? "")),
             half: (rest.match(/full \? marks : Math\.ceil\(marks \/ 2\)/g) ?? []).length,
-            restProse: [/short: "Restores half Health"/.test(config), /short: "Restores half Sanity"/.test(config)]
+            restProse: [/short: "Restores half your lost Health, rounded up"/.test(config), /short: "Restores half your lost Sanity, rounded up"/.test(config)]
         };
         equal(stableJson(read), stableJson({
             en: {
@@ -37535,13 +37535,125 @@ const INVARIANTS = [
                 ballots: ["0 z 1 głosu wróciło", "1 z 1 głosu wrócił", "2 z 3 głosów wróciły", "5 z 7 głosów wróciło"],
                 pass: `Pasuję w pierwszych ${pass} s oddaje wybór GM-owi; potem kończy Closing Argument.`,
                 note: `To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje ${step} s albo wraca od razu do otwartej debaty.`,
-                half: ["Przywraca połowę Health", "Przywraca połowę Sanity"]
+                half: ["Wraca połowa straconego Health, zaokrąglona w górę.", "Wraca połowa straconego Sanity, zaokrąglona w górę."]
             },
             sources: { ratio: true, ballots: true, pass: true, note: true, half: 2, restProse: [true, true] }
         }), "[in English, then Polish: the room ratio of 3 rooms for 2 living students; the vote's meta at 0 and 1 of 1, 2 of 3, 5 of 7; "
             + "the Closing's early Pass and the console's footnote with TRIAL's seconds; the Polish Rest's short Sleep and Meal; then the readers: "
             + "roomRatioLine through localeFormat and no toFixed, the trial card through voteMetaLine, promptTurn and the console filling the "
             + "seconds from TRIAL, rest.mjs's two halves and config.mjs's English that says them]");
+    }],
+
+    ["R6400 - the Rest report's lines are read from lang/, in English and Polish, and say a resource as its reserve (scripts/rest.mjs `applyRest`; E71 B04, 14.11.2026): Sleep, Meal and Breath each name what they gave through `DRPG.Rest.applied.*`, never an English literal, and no line says Sanity is \"cleared\" (D5, M7)", async () => {
+        /*
+         * E71 line A, B04 (14.11.2026). Red at 1463f22b: `applyRest` pushed `${opt.label}: ${healed} Health recovered`,
+         * `... Sanity cleared` and `... +${gain} Hope` as English literals into the card every Rest posts, so a Polish
+         * player read English there, and "cleared" says Sanity the way D5 and the guide's M7 forbid (a reserve: what is
+         * given back). Read from source, as R1163 reads rest.mjs: the lines are drawn inside `meansWrite` on a sheet the
+         * GMs hold, which tier 1 does not write.
+         */
+        const sources = new Map(await otherSources());
+        const rest = stripComments(sources.get("rest.mjs") ?? "");
+        must(rest.length > 1000, "rest.mjs did not load - this reads nothing");
+        const apply = bodyOf(rest, "async function applyRest", { until: "function kindLabel" });
+        must(apply.length > 500, "applyRest is gone - this reads nothing");
+        const literals = ["Health recovered", "Sanity cleared", " Hope`"].filter(w => apply.includes(w));
+        equal(stableJson(literals), "[]", "[the English literals left in applyRest's report lines]");
+        const keys = ["health", "sanity", "hope"].map(k => `DRPG.Rest.applied.${k}`);
+        equal(stableJson(keys.filter(k => !apply.includes(`"${k}"`))), "[]", "[the report keys applyRest does not read]");
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const at = key => key.split(".").reduce((node, part) => node?.[part], file);
+            const bad = keys.filter(k => typeof at(k) !== "string" || !at(k).includes("{label}") || !at(k).includes("{n}"));
+            equal(stableJson(bad), "[]", `[${lang}: the report keys missing, or without {label} and {n}]`);
+            const cleared = keys.filter(k => /clear|oczyszcz|czyści/i.test(String(at(k))));
+            equal(stableJson(cleared), "[]", `[${lang}: a report line that says a resource is cleared, not given back (D5)]`);
+        }
+    }],
+
+    ["R6401 - the GMs' card of a Direct Murder that came to nothing gives the GMs' reason, not the killer's line (scripts/eclipse.mjs `judgePendingMurders`; E71 line A, 14.11.2026): `Action.murderCancelled`'s {reason} is `Action.murderNobodyGm` or the family `Action.murderWitnessGm`, in English and Polish, with no second person and no \"try again\"; the killer keeps `murderNobody` and `murderWitness`", async () => {
+        /*
+         * E71 line A, B04's code faults (the coordinator, 14.11.2026). Red at 876878f5: `judgePendingMurders` handed the
+         * killer's own sentence ("... The action stays spent; try again at another time of day.") to the GMs' whisper as
+         * `{reason}`, so the GMs' card spoke to the killer in the second person (P2). Read from source and the two files:
+         * the cancel is reached only by an Eclipse's end with a parked declaration, which tier 2 drives (E12 C0's tests).
+         */
+        const sources = new Map(await otherSources());
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        must(eclipse.length > 1000, "eclipse.mjs did not load - this reads nothing");
+        const judge = bodyOf(eclipse, "async function judgePendingMurders", { until: "async function askAtTheLights" });
+        must(judge.includes("DRPG.Action.murderCancelled"), "judgePendingMurders no longer posts the GMs' card - this reads nothing");
+        const read = { gmKeys: ["DRPG.Action.murderNobodyGm", "DRPG.Action.murderWitnessGm"].filter(k => !judge.includes(`"${k}"`)) };
+        const forms = { en: ["one", "other"], pl: ["one", "few", "many", "other"] };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const A = file?.DRPG?.Action ?? {};
+            const words = [A.murderNobodyGm, ...forms[lang].map(f => A.murderWitnessGm?.[f])];
+            read[lang] = words.filter(w => typeof w !== "string" || (lang === "en" ? /\b(you|your)\b|try again/i : /spróbuj|\btwo(j|ja|je|ją)\b|\bciebie\b/i).test(w)).length;
+            read[`${lang}Witness`] = forms[lang].filter(f => !String(A.murderWitnessGm?.[f] ?? "").includes("{n}")).length;
+        }
+        equal(stableJson(read), stableJson({ gmKeys: [], en: 0, enWitness: 0, pl: 0, plWitness: 0 }),
+            "[the GMs' reason keys judgePendingMurders does not read; per language, the GMs' reasons missing or speaking to the killer, and the witness forms without {n}]");
+    }],
+
+    ["R6402 - the GMs' night note on an opened murder follows the opening's own night rule (scripts/murder-rules.mjs `nightNoteKey`; config.mjs `MURDER_OPENING`; E71 line A, 14.11.2026): at Night the side that rolls gets `Murder.nightNoteDirect` or `nightNoteIndirect` only while its entry gives advantage or disadvantage, and `Murder.nightNoteNone` when it gives neither, as the victim's has since E64", async () => {
+        /*
+         * E71 line A, B03's code faults (the coordinator, 14.11.2026). Red at 876878f5: `nightNoteKey` answered
+         * `nightNoteIndirect` ("the victim's opening roll has disadvantage") for every trap at Night, while E64 set
+         * `MURDER_OPENING.victim.nightDisadvantage` false and the rolls (murder-rules.mjs, roll-draw.mjs) stopped giving it.
+         * Read from source and config: the note is posted when a murder opens, which tier 2 drives.
+         */
+        const sources = new Map(await otherSources());
+        const rules = stripComments(sources.get("murder-rules.mjs") ?? "");
+        must(rules.length > 1000, "murder-rules.mjs did not load - this reads nothing");
+        const body = bodyOf(rules, "function nightNoteKey", { until: "\n}" });
+        must(body.includes("atNight"), "nightNoteKey is gone - this reads nothing");
+        const { MURDER_OPENING } = await import("./config.mjs");
+        const read = {
+            flags: ["nightAdvantage", "nightDisadvantage", "MURDER_OPENING"].filter(w => !body.includes(w)),
+            none: body.includes('"DRPG.Murder.nightNoteNone"'),
+            victimNow: [MURDER_OPENING.victim.nightAdvantage ?? false, MURDER_OPENING.victim.nightDisadvantage ?? false]
+        };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const w = file?.DRPG?.Murder?.nightNoteNone;
+            read[lang] = typeof w === "string" && !(lang === "en" ? /advantage/i : /przewag|utrudnien/i).test(w);
+        }
+        equal(stableJson(read), stableJson({ flags: [], none: true, victimNow: [false, false], en: true, pl: true }),
+            "[what nightNoteKey does not read of the opening's night rule; whether it has the note for a night that changes nothing; the victim's flags now; the note in each language, naming no advantage]");
+    }],
+
+    ["R6403 - a list a sentence names is joined by utils.mjs `listOf`, so English takes its Oxford comma and Polish its „i” (E71 line A, 14.11.2026; EN2, DB35): murder-rules.mjs `applyUnlocks` (`Murder.unlockedActions` {names}), tail-gm.mjs `onTailCrossing` (`Infiltrate.tail.movedWith` {who}), watch-gm.mjs `startWatches` (`Infiltrate.watch.start` {who}) and action-briefing.mjs `tamperThresholdFacts` (`Action.dcTamperRelief` {what}) join with `listOf`, never `.join(\", \")`", async () => {
+        /*
+         * E71 line A's code faults (the coordinator, 14.11.2026). Red at 5ce68aec: each of the four joined its list with
+         * ", ", so "A, B, C" in English (no "and") and in Polish (no „i”). Read from source: the cards are posted by an
+         * incident's unlock, a tail's crossing, a watch's start and Tamper's briefing, which tier 2 drives. cleanup.mjs's
+         * `Cleanup.toolsBroken` is E54's file and waits for its landing.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [["murder-rules.mjs", "applyUnlocks", "DRPG.Murder.unlockedActions"], ["tail-gm.mjs", "onTailCrossing", "DRPG.Infiltrate.tail.movedWith"],
+            ["watch-gm.mjs", "startWatches", "DRPG.Infiltrate.watch.start"], ["action-briefing.mjs", "tamperThresholdFacts", "DRPG.Action.dcTamperRelief"]];
+        const read = SITES.map(([file, fn, key]) => {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "";
+            return [file, fn, body.includes(key), /\.join\(", "\)/.test(body), /\blistOf\(/.test(body)];
+        });
+        must(read.every(([, , has]) => has), `a site no longer names its key - this reads nothing: ${stableJson(read)}`);
+        equal(stableJson(read), stableJson(SITES.map(([file, fn]) => [file, fn, true, false, true])),
+            "[each site: names its key, joins with \", \", calls listOf]");
+    }],
+
+    ["R6404 - the incident's dead keys are gone from both files (E71 line A, 14.11.2026; audit/findings-1.2.42/text.md 352-356): `Murder.addThird`, `whoWalkedIn`, `nobodyElse` (the tracker's \"Somebody walks in\" control is gone), `noStressLeft` (superseded by `spentHealth`) and `betrayalConfirm` (the betrayal window says `betrayalButton`), and no script names them", async () => {
+        /* E71 line A's code faults (the coordinator, 14.11.2026). Red at 4acd3f5b: all five in en.json and pl.json, no reader. */
+        const DEAD = ["addThird", "whoWalkedIn", "nobodyElse", "noStressLeft", "betrayalConfirm"];
+        const sources = new Map(await otherSources());
+        must(sources.size > 100, "the module's sources did not load - this reads nothing");
+        const read = { scripts: DEAD.filter(k => [...sources.values()].some(src => new RegExp(`DRPG\\.Murder\\.${k}(?![\\w])`).test(src))) };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            must(file?.DRPG?.Murder?.opened, `lang/${lang}.json has no DRPG.Murder - this reads nothing`);
+            read[lang] = DEAD.filter(k => Object.hasOwn(file.DRPG.Murder, k));
+        }
+        equal(stableJson(read), stableJson({ scripts: [], en: [], pl: [] }), "[the dead keys a script names; the dead keys each file still holds]");
     }],
 
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {

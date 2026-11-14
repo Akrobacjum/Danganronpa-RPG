@@ -1,0 +1,4859 @@
+{
+  "$comment": [
+    "B01b, a batch of stage E71 (line A, claude/e71-a), with E25's content part: each text written from the facts of the functions that run its rule (O6, M1), the English by one agent, the Polish by another from the facts, the code and the old Polish without the new English (DB26), then read by the EN, cold EN, PL and (rules batches) mechanics reviewers and revised once; `reviews` holds what each reviewer still holds open after that revision, `owner` is null (no owner's page yet). Written on claude/e71-a 14.11.2026; the afters are the text of lang/ and config.mjs from the commit that adds this file."
+  ],
+  "batch": "B01b",
+  "stage": "E71",
+  "texts": [
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.obstacle.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "A Despair Call aimed at a player picks any living student, in any room; Monokumas, characters not in the class and the dead are not offered.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickPlayer",
+          "note": null
+        },
+        {
+          "fact": "Obstacle grants \"disadvantage\": it is armed for the target's next roll and used up by it.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "grantEffect",
+          "note": null
+        },
+        {
+          "fact": "A student who already holds an armed Obstacle is refused before the Despair is paid.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "refusalBeforePaying",
+          "note": null
+        },
+        {
+          "fact": "Only a GM buys a Despair Call, never in an Eclipse or a Class Trial; a Call that would change nothing is refused before the pool is touched.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Disadvantage on a player's roll.",
+        "after": "Gives a student in any room disadvantage on their next roll."
+      },
+      "pl": {
+        "before": "Utrudnienie na rzut gracza.",
+        "after": "Wybrany uczeń, w dowolnym pokoju, dostaje utrudnienie na swój następny rzut."
+      },
+      "removed": [
+        "\"a player's roll\" becomes \"a student ... their next roll\" (DB24; fact 2: the next roll, not any one).",
+        "The refusal of a second armed Obstacle is said by DRPG.Calls.alreadyArmed when it happens (O13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.forTheGame.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "A Despair Call aimed at a player picks any living student, in any room; Monokumas, characters not in the class and the dead are not offered.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickPlayer",
+          "note": null
+        },
+        {
+          "fact": "Approval grants \"advantage\": it is armed for the target's next roll and used up by it.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "grantEffect",
+          "note": null
+        },
+        {
+          "fact": "A student who already holds an armed Approval is refused before the Despair is paid.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "refusalBeforePaying",
+          "note": null
+        },
+        {
+          "fact": "Only a GM buys a Despair Call, never in an Eclipse or a Class Trial; a Call that would change nothing is refused before the pool is touched.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Advantage on a player's roll.",
+        "after": "Gives a student in any room advantage on their next roll."
+      },
+      "pl": {
+        "before": "Przewaga na rzut gracza.",
+        "after": "Wybrany uczeń, w dowolnym pokoju, dostaje przewagę na swój następny rzut."
+      },
+      "removed": [
+        "\"a player's roll\" becomes \"a student ... their next roll\" (DB24; fact 2).",
+        "The refusal of a second armed Approval is said by DRPG.Calls.alreadyArmed when it happens (O13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.behindClosedDoors.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The room is picked from the rooms of the caller's scene; a room already sealed is refused before paying.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickRoom",
+          "note": null
+        },
+        {
+          "fact": "A sealed room refuses every crossing into it (DRPG.Calls.sealedBlocked); those already inside are not moved out. The Mastermind and a Pick the Lock pass go through.",
+          "file": "scripts/movement.mjs",
+          "fn": "restrictedFrom",
+          "note": null
+        },
+        {
+          "fact": "Seals and restrictions are cleared when the time of day ends (and when an Eclipse opens).",
+          "file": "scripts/call-world.mjs",
+          "fn": "clearSeals",
+          "note": null
+        },
+        {
+          "fact": "The seal is written and announced only when the write lands.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "sealRoomEffect",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Seal a room for one time of day.",
+        "after": "Seals a room until the time of day ends; a successful Pick the Lock still gets a student in, and those inside stay."
+      },
+      "pl": {
+        "before": "Zapieczętuj pokój na jedną porę dnia.",
+        "after": "Wybrany pokój zostaje zapieczętowany do końca pory dnia. Wejść do niego można jeszcze po udanym Pick the Lock, a kto jest w środku, zostaje w środku."
+      },
+      "removed": [
+        "\"for one time of day\" becomes \"until the time of day ends\" (fact 3: the seal ends with the current time of day, not after a full one).",
+        "The Mastermind's way in (fact 2) is left out of both languages: the card is public, and nobody but the Mastermind's player acts on it (M9, O13); neither language says \"only\", so the sentence stays true for the Mastermind."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "M4: \"nobody can enter it\" drops a condition a player acts on - a Pick the Lock pass gets its holder into a sealed room (movement.mjs restrictedFrom; fact 2) - so a player who reads it would not try the lock; the Mastermind stays unsaid (M9) (proposed: Seals a room until the time of day ends; only Pick the Lock gets anyone in.) - executor: Taken in part: the Pick the Lock way in is in (M4); \"only Pick the Lock gets anyone in\" is not, because the Mastermind also crosses (movement.mjs restrictedFrom), so the after names Pick the Lock without \"only\" and adds that those inside stay."
+          ]
+        },
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "PL-a/agreement: „wejść do niego może tylko Mastermind i ktoś” joins two alternatives with „i” under a singular verb; they are either-or, and „komu uda się Pick the Lock” is stiff (proposed: Wybrany pokój zostaje zapieczętowany do końca pory dnia: wejść może tylko Mastermind albo ktoś po udanym Pick the Lock. Kto jest w środku, zostaje w środku.) - executor: Taken in part: the „i” under a singular verb is gone with the Mastermind, whom the public card does not name (M9); „po udanym Pick the Lock” is taken."
+          ]
+        },
+        "mechanics": {
+          "verdict": "wrong",
+          "points": [
+            "M2/M4: the English \"nobody can enter it\" is not what movement.mjs restrictedFrom runs - the Mastermind (mover.mastermind) and a holder of a Pick the Lock pass (holdsPass; config.mjs DOOR_ACTIONS Pick the Lock opens \"a lock or a seal\") still cross in, and a student who could pick the seal would read the public card as no way in (proposed: \"Seals a room until the time of day ends: only the Mastermind, or a student who picks the lock, can get in. Those inside stay.\"). - executor: Taken in part, settled from the code: movement.mjs restrictedFrom lets the Mastermind (mover.mastermind) and a Pick the Lock pass (holdsPass) through a seal, so \"nobody can enter it\" is gone; the Mastermind is left unnamed on a public card (M9) and no \"only\" is written, so the text stays true for them."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.thisWillHurt.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "A Despair Call aimed at a player picks any living student, in any room; Monokumas, characters not in the class and the dead are not offered.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickPlayer",
+          "note": null
+        },
+        {
+          "fact": "Pain marks up to its damage.hitPoints (2) of Health, never past the track's end; the card names what landed.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "damageEffect",
+          "note": null
+        },
+        {
+          "fact": "A student with no Health left to lose is refused before paying (DRPG.Calls.nothingToMark).",
+          "file": "scripts/call-effects.mjs",
+          "fn": "refusalBeforePaying",
+          "note": null
+        },
+        {
+          "fact": "{hp} is filled from the entry's damage by PROSE_NUMBERS.hp.",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "en": {
+        "before": "A player loses {hp} Health.",
+        "after": "A student in any room loses up to {hp} Health."
+      },
+      "pl": {
+        "before": "Gracz traci {hp} Health.",
+        "after": "Wybrany uczeń, w dowolnym pokoju, traci do {hp} Health."
+      },
+      "removed": [
+        "\"A player\" becomes \"A student\" (DB24).",
+        "\"up to\" added: fact 2, only what is left is lost."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.paranoia.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "A Despair Call aimed at a player picks any living student, in any room; Monokumas, characters not in the class and the dead are not offered.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickPlayer",
+          "note": null
+        },
+        {
+          "fact": "Paranoia marks up to its damage.stress (2) of Sanity, never past the track's end; the card names what landed.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "damageEffect",
+          "note": null
+        },
+        {
+          "fact": "A student with no Sanity left to lose is refused before paying (DRPG.Calls.nothingToMark).",
+          "file": "scripts/call-effects.mjs",
+          "fn": "refusalBeforePaying",
+          "note": null
+        },
+        {
+          "fact": "{stress} is filled from the entry's damage by PROSE_NUMBERS.stress.",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "en": {
+        "before": "A player loses {stress} Sanity.",
+        "after": "A student in any room loses up to {stress} Sanity."
+      },
+      "pl": {
+        "before": "Gracz traci {stress} Sanity.",
+        "after": "Wybrany uczeń, w dowolnym pokoju, traci do {stress} Sanity."
+      },
+      "removed": [
+        "\"A player\" becomes \"A student\" (DB24).",
+        "\"up to\" added: fact 2, only what is left is lost."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.chained.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "A Despair Call aimed at a player picks any living student, in any room; Monokumas, characters not in the class and the dead are not offered.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickPlayer",
+          "note": null
+        },
+        {
+          "fact": "A chained student is refused every crossing out of the room they stand in; the public card names no room, the target's own notice does.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "chainEffect",
+          "note": null
+        },
+        {
+          "fact": "The chain refuses the move whoever the mover is, the Mastermind included.",
+          "file": "scripts/movement.mjs",
+          "fn": "restrictedFrom",
+          "note": null
+        },
+        {
+          "fact": "Seals and restrictions are cleared when the time of day ends (and when an Eclipse opens).",
+          "file": "scripts/call-world.mjs",
+          "fn": "clearSeals",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "en": {
+        "before": "One player cannot leave their room until the end of the time of day.",
+        "after": "A student, wherever they are, cannot leave their room until the time of day ends."
+      },
+      "pl": {
+        "before": "Jeden gracz nie może opuścić pokoju do końca pory dnia.",
+        "after": "Wybrany uczeń, gdziekolwiek jest, nie może wyjść ze swojego pokoju do końca pory dnia."
+      },
+      "removed": [
+        "\"One player\" becomes \"A student\" (DB24).",
+        "Which room it is (fact 2: the public card names none, the target's notice does) is left out of both languages: the sentence is also the GM window's header, where \"the card\" is wrong (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 2: „w dowolnym pokoju ... nie może z niego wyjść” points „z niego” at an indefinite „dowolny pokój”, and „wie tylko ten uczeń” is not true (the GMs know too; F2 says only that the public card names no room) (proposed: Wybrany uczeń, gdziekolwiek jest, nie może wyjść ze swojego pokoju do końca pory dnia; pokój podaje mu osobne powiadomienie.) - executor: Taken in part: the first sentence is the proposal; „pokój podaje mu osobne powiadomienie” is not added, since the sentence is also the GM window's header and the English does not say it either (T29)."
+          ]
+        },
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "M2: the Polish \"Który to pokój, wie tylko ten uczeń\" is more than the code says - chainEffect leaves the room off the public card and tells the target, but the GMs hold the restriction and everyone in that room sees who stays; the public card just names no room (proposed: \"Jeden uczeń, w dowolnym pokoju, nie może z niego wyjść do końca pory dnia. Karta nie podaje, który to pokój.\"). - executor: Taken in part: „wie tylko ten uczeń” is gone; „Karta nie podaje, który to pokój” is not added, since the sentence is also the GM window's header (fact 0), so neither language names the card."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.silence.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "A Despair Call aimed at a player picks any living student, in any room; Monokumas, characters not in the class and the dead are not offered.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickPlayer",
+          "note": null
+        },
+        {
+          "fact": "A silenced student is refused every Hope Call; the target is told by DRPG.Calls.silencedNotice.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "silenceEffect",
+          "note": null
+        },
+        {
+          "fact": "A student already silenced is refused before paying.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "refusalBeforePaying",
+          "note": null
+        },
+        {
+          "fact": "Seals and restrictions are cleared when the time of day ends (and when an Eclipse opens).",
+          "file": "scripts/call-world.mjs",
+          "fn": "clearSeals",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "en": {
+        "before": "One player cannot spend Hope Calls until the end of the time of day.",
+        "after": "A student in any room cannot make Hope Calls until the time of day ends."
+      },
+      "pl": {
+        "before": "Jeden gracz nie może wydawać Hope Calls do końca pory dnia.",
+        "after": "Wybrany uczeń, w dowolnym pokoju, nie może wydawać Hope Calls do końca pory dnia."
+      },
+      "removed": [
+        "\"One player\" becomes \"A student\" (DB24); \"spend Hope Calls\" becomes \"make Hope Calls\", the module's verb for a Call (B01a).",
+        "The target's notice (DRPG.Calls.silencedNotice) is its own text and leaves the Polish (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.fuelTheCub.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The Monocub is picked from every Monocub; the GM's list shows each one's Hope.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickMonocub",
+          "note": null
+        },
+        {
+          "fact": "The pool is charged {cost} (1) and the Monocub credited grantsHope (1) Hope through creditHopeFromDespair, with nothing owed.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "hopeFromDespairEffect",
+          "note": null
+        },
+        {
+          "fact": "A Monocub at its maximum Hope, or Hope under the Overflow's darkening, is refused before paying.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "refusalBeforePaying",
+          "note": null
+        },
+        {
+          "fact": "Confusion costs its hopeCost of Hope on top of its action; a Monocub's Hope comes only from a GM's conversion.",
+          "file": "scripts/config.mjs",
+          "fn": "MONOCUB",
+          "note": null
+        },
+        {
+          "fact": "The tile also offers the Bounty (choices).",
+          "file": "scripts/config.mjs",
+          "fn": "DESPAIR_CALLS",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        4
+      ],
+      "en": {
+        "before": "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion.",
+        "after": "Turns {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
+      },
+      "pl": {
+        "before": "Zamień {cost} Despair w {hope} Hope dla Monocuba, by mógł użyć Confusion.",
+        "after": "{cost} Despair zamienia się w {hope} Hope wybranego Monocuba, by mógł użyć Confusion."
+      },
+      "removed": [
+        "The imperative \"Turn\" becomes the third person \"Turns\": the sentence stands on a card the whole table reads (P1, P2).",
+        "The refusal of a Monocub at its maximum or under the darkening (fact 3) is said when it happens, before anything is paid (O13), and leaves the Polish; the picker's list of Hope is the GM's window, not the public card's (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "T29/O3: on the public card „lista pokazuje Hope każdego z nich” describes the GM's picker, which nobody reading the card holds; X6: „Nie da się, gdy” has no subject; „zaciemnienie blokuje Hope” should name the darkening, as the other Overflow texts do (proposed: {cost} Despair zamienia się w {hope} Hope wybranego Monocuba. Nie działa, gdy jego Hope jest pełny albo gdy zaciemnienie Despair blokuje zdobywanie Hope.) - executor: Taken in part: the picker's list goes and the subjectless „Nie da się” goes with the whole refusal, which is said when it happens (O13); the Polish ends, like the English, with Confusion."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.gameProtection.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The Monokuma may pick any project they know of; finished and frozen projects are not offered, and one named anyway is refused before paying (DRPG.Project.noneToMove).",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickProject",
+          "note": null
+        },
+        {
+          "fact": "The project loses |progress| (2) progress; on a secret project the public card says only \"a project\" and the name goes on a veiled card.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "progressEffect",
+          "note": null
+        },
+        {
+          "fact": "{progress} is the magnitude of the entry's progress (PROSE_NUMBERS.progress).",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Remove {progress} progress from a project.",
+        "after": "Removes {progress} progress from a project that is not finished or frozen; a secret one goes unnamed on the public card."
+      },
+      "pl": {
+        "before": "Odejmij {progress} postępu projektowi.",
+        "after": "Projekt, o którym Monokuma wie, traci {progress} postępu; ukończonego ani zamrożonego nie da się wybrać. Nazwy tajnego projektu publiczna karta nie podaje; poznają ją tylko wtajemniczeni."
+      },
+      "removed": [
+        "The imperative becomes the third person (P1, P2): a card the whole table reads."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.favoriteProject.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The Monokuma may pick any project they know of; finished and frozen projects are not offered, and one named anyway is refused before paying.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickProject",
+          "note": null
+        },
+        {
+          "fact": "The project gains progress (2); on a secret project the public card says only \"a project\".",
+          "file": "scripts/call-effects.mjs",
+          "fn": "progressEffect",
+          "note": null
+        },
+        {
+          "fact": "{progress} is filled by PROSE_NUMBERS.progress.",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Add {progress} progress to a project.",
+        "after": "Adds {progress} progress to a project that is not finished or frozen; a secret one goes unnamed on the public card."
+      },
+      "pl": {
+        "before": "Dodaj {progress} postępu projektowi.",
+        "after": "Projekt, o którym Monokuma wie, zyskuje {progress} postępu; ukończonego ani zamrożonego nie da się wybrać. Nazwy tajnego projektu publiczna karta nie podaje."
+      },
+      "removed": [
+        "The imperative becomes the third person (P1, P2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.feedOverflow.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The Call has no target; it adds feedsOverflow (1) to the Overflow's count, and the card says the count against its threshold.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "feedOverflowEffect",
+          "note": null
+        },
+        {
+          "fact": "{overflow} is filled by PROSE_NUMBERS.overflow from feedsOverflow.",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        },
+        {
+          "fact": "The glossary's name is Overflow, capitalized (DB25, EN13).",
+          "file": "docs/glossary.json",
+          "fn": "overflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Pour {overflow} Despair into the overflow that darkens the world.",
+        "after": "Pours {overflow} Despair into the Overflow."
+      },
+      "pl": {
+        "before": "Wlej {overflow} Despair do overflow, który zaciemnia świat.",
+        "after": "Wlewa {overflow} Despair do Overflow."
+      },
+      "removed": [
+        "\"that darkens the world\" left: what the Overflow does is its own texts' (DRPG.Overflow.*), and a Call's effect does not explain it (O3).",
+        "\"overflow\" capitalized as the mechanic's name (EN13, the glossary's overflow)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.contraband.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The list offers every module item on a character that is not a Monokuma or a Monocub, a dead character's among them (\"{name}'s body\"); a Truth Bullet is never offered.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickItem",
+          "note": null
+        },
+        {
+          "fact": "The item is deleted on the GM's browser and the card names it (DRPG.Calls.destroyed).",
+          "file": "scripts/call-effects.mjs",
+          "fn": "destroyItemEffect",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Destroy any one item.",
+        "after": "Destroys one item a student carries, or one left on a body; a Truth Bullet cannot be destroyed."
+      },
+      "pl": {
+        "before": "Zniszcz dowolny jeden przedmiot.",
+        "after": "Niszczy jeden przedmiot ucznia albo jeden zostawiony przy ciele; Truth Bulletu nie da się zniszczyć."
+      },
+      "removed": [
+        "\"any one item\" is narrowed to what the picker offers (fact 1)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before's \"any one item\" is wider than the code: Truth Bullets and a Monokuma's or a Monocub's items are never offered (call-pickers.mjs pickItem). The after follows the code."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.publicAnnouncement.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The room is one of the caller's scene's rooms; the order is written and announced at once (DRPG.Calls.gatherCalled).",
+          "file": "scripts/call-effects.mjs",
+          "fn": "gatherEffect",
+          "note": null
+        },
+        {
+          "fact": "The order is carried out when the time of day changes (not during an Eclipse), by the primary GM.",
+          "file": "scripts/call-world.mjs",
+          "fn": "runPendingGather",
+          "note": null
+        },
+        {
+          "fact": "Every living student and every Monocub on that scene is teleported into the room, at no cost to them; Monokumas and the dead stay.",
+          "file": "scripts/call-world.mjs",
+          "fn": "gatherEveryone",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Call everyone to one room at the start of the next time of day.",
+        "after": "Calls every living student and every Monocub to a room; they are moved there at the start of the next time of day, or after the Eclipse if one comes first."
+      },
+      "pl": {
+        "before": "Wezwij wszystkich do jednego pokoju na początek następnej pory dnia.",
+        "after": "Żywi uczniowie i Monocuby zostają wezwani do jednego pokoju i trafiają tam na początku następnej pory dnia, a gdy przed nią wypada Eclipse, dopiero po nim."
+      },
+      "removed": [
+        "\"Call everyone to one room\" becomes what happens (facts 1-3): the room is public now, the move comes at the next time of day.",
+        "Which GM carries the order out is the code's (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.motive.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The picker asks three answers: the demand, how many times of day it runs (MOTIVE.minTimesOfDay to maxTimesOfDay, 3 by default) and the price of missing it.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickMotive",
+          "note": null
+        },
+        {
+          "fact": "setMotive announces the motive publicly; its countdown is shown on the clock (HUD) and ticks each time of day.",
+          "file": "scripts/rules.mjs",
+          "fn": "setMotive",
+          "note": null
+        },
+        {
+          "fact": "A motive lapses at the chapter's end at the latest: one of an earlier chapter is no longer current.",
+          "file": "scripts/rules.mjs",
+          "fn": "motive",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Announce a motive: a demand, a deadline in times of day, and the price of ignoring it.",
+        "after": "Announces a Motive to everyone: a demand, a deadline in times of day, and the price of missing it. The clock counts the deadline down."
+      },
+      "pl": {
+        "before": "Ogłoś Motive: żądanie, termin w porach dnia i cenę zignorowania go.",
+        "after": "Monokuma ogłasza Motive: żądanie, ile pór dnia jest na jego spełnienie, i cenę za niespełnienie. Zegar odlicza pozostałe pory dnia."
+      },
+      "removed": [
+        "The imperative becomes the third person (P1, P2); \"ignoring it\" becomes \"missing it\", the deadline's word."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.newRule.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Despair Call's effect sentence is printed on the public card every browser gets (announce with no whisper list), after the Call is paid and applied; it is also the Call window's header on the Monokuma's GM browser.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The Monokuma writes the rule's words in the picker; the rule is announced on a public card (DRPG.Calls.newRuleTitle) with its own sound.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "newRuleEffect",
+          "note": null
+        },
+        {
+          "fact": "The rule is kept in world state and shown on every character sheet, stamped with its chapter.",
+          "file": "scripts/rules.mjs",
+          "fn": "addRule",
+          "note": null
+        },
+        {
+          "fact": "The season's reset clears the rules (registerSeasonState group rules).",
+          "file": "scripts/rules.mjs",
+          "fn": "registerSeasonState",
+          "note": null
+        },
+        {
+          "fact": "New Rule costs 9 Despair (cost).",
+          "file": "scripts/config.mjs",
+          "fn": "DESPAIR_CALLS",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Introduce one new killing game rule of your choice.",
+        "after": "Announces a new rule of the killing game, written by the Monokuma who makes the Call. It stays on every character sheet for the rest of the season."
+      },
+      "pl": {
+        "before": "Wprowadź jedną nową zasadę killing game własnego wyboru.",
+        "after": "Monokuma własnymi słowami wprowadza nową zasadę killing game. Zasada trafia na każdy arkusz postaci, z rozdziałem, w którym weszła, i obowiązuje do końca sezonu."
+      },
+      "removed": [
+        "\"Introduce ... of your choice\" becomes the third person with what the Call does: the public card, the sheet, the season (facts 1-3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "coldEn: \"in the Monokuma's own words\" - with several Monokumas at the table, \"the Monokuma\" has no referent; I read it as the one making the Call (proposed: Announces a new rule of the killing game, in the calling Monokuma's own words. It stays on every character sheet for the rest of the season.) - executor: Taken in part: \"written by the Monokuma who makes the Call\" names the referent in plainer words than \"the calling Monokuma\"."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.DESPAIR_CALLS.bounty.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Bounty is chosen in Fuel a Monocub's tile, on a GM's browser; nothing public is posted, and the Monocubs' players and the GMs are told on veiled cards.",
+          "file": "scripts/monocub.mjs",
+          "fn": "tellBounty",
+          "note": null
+        },
+        {
+          "fact": "It is refused on anyone but a living student, on a student who already has one, and when the pool lacks the Despair; its cost (1) is owed from the pool, paid at the next time of day.",
+          "file": "scripts/monocub.mjs",
+          "fn": "postBountyNow",
+          "note": null
+        },
+        {
+          "fact": "The first Monocub whose Confusion hinders that student and lands gets reward (1) Hope into its purse.",
+          "file": "scripts/monocub.mjs",
+          "fn": "claimBounty",
+          "note": null
+        },
+        {
+          "fact": "An unclaimed Bounty lapses at the next time of day and its Despair goes back to the pool.",
+          "file": "scripts/monocub.mjs",
+          "fn": "lapseBounties",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "A secret Bounty: one Hope for the first Monocub whose Confusion hinders the named student. Only the Monocubs and the GMs know; the Despair goes at the next time of day.",
+        "after": "A secret Bounty on a living student: one Hope for the first Monocub whose Confusion hinders them. Only the Monocubs and the GMs know. If nobody claims it by the next time of day, it lapses and the Despair goes back to the pool."
+      },
+      "pl": {
+        "before": "Tajne Bounty: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Wiedzą tylko Monocuby i GM-owie; Despair schodzi w następnej porze dnia.",
+        "after": "Tajne Bounty na żywego ucznia: Hope dla pierwszego Monocuba, którego udane Confusion przeszkodzi temu uczniowi. Wiedzą tylko Monocuby i GM-owie. Pula płaci Despair o następnej porze dnia; nieodebrane Bounty wtedy wygasa, a Despair wraca."
+      },
+      "removed": [
+        "\"the Despair goes at the next time of day\" becomes the lapse and the refund (fact 4): a Bounty unclaimed by then costs nothing.",
+        "The tile it is chosen in and the refusal of a student who already has one leave the Polish (O13, T29): the GM is in that tile, and the refusal says itself."
+      ],
+      "needsCode": [
+        "\"one Hope\" is DESPAIR_CALLS.bounty.reward (1) written as a word; a PROSE_NUMBERS row `reward` (of: entry => entry?.reward) would let it be {reward}, kept as the before has it until then."
+      ],
+      "disagreements": [
+        "The before said the Despair \"goes at the next time of day\"; the code returns it then when the Bounty lapsed unclaimed (monocub.mjs lapseBounties). The after follows the code."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "coldEn: \"the Despair comes back\" names no Despair; I understood that the Despair paid for the Bounty returns to the pool that paid it (proposed: If nobody claims it by the next time of day, it lapses and the Despair spent on it goes back to the pool.) - executor: Taken in part: \"goes back to the pool\" names where the Despair returns; \"spent on it\" is left out, since the price is owed until the next time of day (fact 1)."
+          ]
+        },
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity: the Polish keeps F0 (Fuel a Monocub's tile) and F1 (refused on a student who already has one; the pool pays at the next time of day) that the English after drops; the Polish wording reads well at 44 words, near the 45 limit. - executor: Taken in part: the Polish moves instead - the tile and the refusal of a second Bounty leave it (O13, T29); when the pool pays stays in the Polish and the English says it through the refund (the English is at 44 of 45 words)."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.REST.options.sleep.short",
+      "group": "config",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The option text stands after the option's name in the Rest window the resting student's player opens (\"Sleep - ...\"); a Long Rest shows `long`, a Short Rest `short`.",
+          "file": "scripts/rest.mjs",
+          "fn": "REST",
+          "note": null
+        },
+        {
+          "fact": "A Short Rest's Sleep heals half the Health marks, rounded up in the character's favor.",
+          "file": "scripts/rest.mjs",
+          "fn": "applyRest",
+          "note": null
+        }
+      ],
+      "kept": [
+        1
+      ],
+      "en": {
+        "before": "Restores half Health",
+        "after": "Restores half your lost Health, rounded up"
+      },
+      "pl": {
+        "before": "Przywraca połowę Health",
+        "after": "Wraca połowa straconego Health, zaokrąglona w górę."
+      },
+      "removed": [
+        "\"half Health\" becomes \"half your lost Health, rounded up\": the half is of what was lost, not of the track (fact 2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.REST.options.meal.short",
+      "group": "config",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The option text stands after the option's name in the Rest window the resting student's player opens (\"Sleep - ...\"); a Long Rest shows `long`, a Short Rest `short`.",
+          "file": "scripts/rest.mjs",
+          "fn": "REST",
+          "note": null
+        },
+        {
+          "fact": "A Short Rest's Meal clears half the Sanity marks, rounded up in the character's favor.",
+          "file": "scripts/rest.mjs",
+          "fn": "applyRest",
+          "note": null
+        }
+      ],
+      "kept": [
+        1
+      ],
+      "en": {
+        "before": "Restores half Sanity",
+        "after": "Restores half your lost Sanity, rounded up"
+      },
+      "pl": {
+        "before": "Przywraca połowę Sanity",
+        "after": "Wraca połowa straconego Sanity, zaokrąglona w górę."
+      },
+      "removed": [
+        "\"half Sanity\" becomes \"half your lost Sanity, rounded up\" (fact 2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.REST.options.breath.long",
+      "group": "config",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The option text stands after the option's name in the Rest window the resting student's player opens (\"Sleep - ...\"); a Long Rest shows `long`, a Short Rest `short`.",
+          "file": "scripts/rest.mjs",
+          "fn": "REST",
+          "note": null
+        },
+        {
+          "fact": "Breath adds 2 Hope (full ? 2 : 1), never past the maximum.",
+          "file": "scripts/rest.mjs",
+          "fn": "applyRest",
+          "note": null
+        },
+        {
+          "fact": "Under the Overflow's darkening, and on a Relief's rest, Breath is greyed and its reason replaces this text.",
+          "file": "scripts/rest.mjs",
+          "fn": "BREATH_REFUSED",
+          "note": null
+        }
+      ],
+      "kept": [
+        1
+      ],
+      "en": {
+        "before": "Grants 2 Hope",
+        "after": "Grants 2 Hope"
+      },
+      "pl": {
+        "before": "Daje 2 Hope",
+        "after": "Daje 2 Hope"
+      },
+      "removed": [
+        "Nothing: the text is short, true and natural; it is a text here only for its number."
+      ],
+      "needsCode": [
+        "The 2 is a constant in rest.mjs applyRest (`full ? 2 : 1`), not config; a field on REST.options.breath (as long/short amounts) and a PROSE_NUMBERS row would make it a placeholder (E66 STATUS Open 22, \"Breath's 2/1\"). The digit stays until then."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.REST.options.breath.short",
+      "group": "config",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The option text stands after the option's name in the Rest window the resting student's player opens (\"Sleep - ...\"); a Long Rest shows `long`, a Short Rest `short`.",
+          "file": "scripts/rest.mjs",
+          "fn": "REST",
+          "note": null
+        },
+        {
+          "fact": "Breath adds 1 Hope (not full ? 2 : 1), never past the maximum.",
+          "file": "scripts/rest.mjs",
+          "fn": "applyRest",
+          "note": null
+        },
+        {
+          "fact": "Under the Overflow's darkening, and on a Relief's rest, Breath is greyed and its reason replaces this text.",
+          "file": "scripts/rest.mjs",
+          "fn": "BREATH_REFUSED",
+          "note": null
+        }
+      ],
+      "kept": [
+        1
+      ],
+      "en": {
+        "before": "Grants 1 Hope",
+        "after": "Grants 1 Hope"
+      },
+      "pl": {
+        "before": "Daje 1 Hope",
+        "after": "Daje 1 Hope"
+      },
+      "removed": [
+        "Nothing: the text is short, true and natural; it is a text here only for its number."
+      ],
+      "needsCode": [
+        "The 1 is a constant in rest.mjs applyRest (`full ? 2 : 1`), not config; a field on REST.options.breath (as long/short amounts) and a PROSE_NUMBERS row would make it a placeholder (E66 STATUS Open 22, \"Breath's 2/1\"). The digit stays until then."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CLEANUP.conceal.label",
+      "group": "config",
+      "surface": "tile-label",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The clean-up's concealment is rolled only with a witness in the room (Shadow against threshold 16); its line is whispered to the cleaner's player and the GMs (cardHead with the label).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        },
+        {
+          "fact": "The same roll's window is titled DRPG.Roll.concealIntent, \"Hide what you are doing\".",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        },
+        {
+          "fact": "Sabotage's concealment opens the same window title.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Cover what you are doing",
+        "after": "Hide what you are doing"
+      },
+      "pl": {
+        "before": "Zamaskuj, co robisz",
+        "after": "Ukryj, co robisz"
+      },
+      "removed": [
+        "\"Cover\" becomes \"Hide\": the roll window the player just rolled in is titled \"Hide what you are doing\" (DRPG.Roll.concealIntent), and one roll gets one name (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "EN6 (DB16, Title Case for every name) would write the roll's name \"Hide What You Are Doing\"; the window title DRPG.Roll.concealIntent is in sentence case, so the after matches it. For the owner: whether this roll's name is a Title Case name."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CLEANUP.conceal.successWithDespair",
+      "group": "config",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The clean-up's concealment is rolled only with a witness in the room (Shadow against threshold 16); its line is whispered to the cleaner's player and the GMs (cardHead with the label).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        },
+        {
+          "fact": "A success with Despair costs stress.successDespair (1) Sanity.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Nobody works out what you are doing, but it costs you.",
+        "after": "Nobody works out what you are doing, but it costs you Sanity."
+      },
+      "pl": {
+        "before": "Nikt nie domyśla się, co robisz, ale to cię kosztuje.",
+        "after": "Nikt nie domyśla się, co robisz, ale tracisz za to Sanity."
+      },
+      "removed": [
+        "\"it costs you\" now names what it costs (M3)."
+      ],
+      "needsCode": [
+        "The cost is CLEANUP.conceal.stress.successDespair; a PROSE_NUMBERS row for it would let the sentence carry {n} Sanity. Left without a number until then (M5)."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CLEANUP.conceal.failure",
+      "group": "config",
+      "surface": "player-card",
+      "screen": "cleanup",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The clean-up's concealment is rolled only with a witness in the room (Shadow against threshold 16); its line is whispered to the cleaner's player and the GMs (cardHead with the label).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        },
+        {
+          "fact": "A failure costs stress.failureHope (1) Sanity with Hope, stress.failureDespair (2) with Despair, and never stops the clean-up.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        },
+        {
+          "fact": "The witnesses' players and the GMs are told the cleaner is doing something in the room (DRPG.Cleanup.seenCleaning).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "The others see roughly what you are up to.",
+        "after": "The others in the room see you are up to something. It costs you Sanity, more with Despair, and the clean-up goes on."
+      },
+      "pl": {
+        "before": "Pozostali widzą mniej więcej, co knujesz.",
+        "after": "Pozostali w pokoju widzą, że coś tu robisz. Tracisz Sanity, z Despair więcej, ale sprzątasz dalej."
+      },
+      "removed": [
+        "The Sanity cost added where it is paid (M3); \"the others\" named as those in the room (fact 3)."
+      ],
+      "needsCode": [
+        "The Sanity is CLEANUP.conceal.stress.failureHope / failureDespair (1 and 2 by the band); a placeholder would need a PROSE_NUMBERS row read by band. Left without a number (M5)."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.killer.hope",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The killer's opening line is whispered to the GMs only (tellGms), with the Key Remnant count on its own line; a failure is also a toast on the GM's browser.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "On a success the incident starts with the victim's turn (turn 1, turnSide victim).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "An opening that succeeds with Hope, or a critical, of a direct murder that is not self-inflicted hides the killer behind a \"?\" until they reveal themselves or the time of day ends.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "opensMask",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2
+      ],
+      "en": {
+        "before": "The incident begins.",
+        "after": "The incident begins, and the killer stays hidden behind a “?” until they reveal themselves or the time of day ends."
+      },
+      "pl": {
+        "before": "Incydent się zaczyna.",
+        "after": "Incydent się zaczyna. Zabójca jest ukryty za „?”, dopóki się nie ujawni albo nie skończy się pora dnia."
+      },
+      "removed": [
+        "Nothing left; the mask's rule, which the before did not say, is added so the GM knows what the victim sees (fact 3, T29).",
+        "From whom the killer is hidden is left out of both languages: every player but the killer sees the “?” (mask-gm.mjs maskPatch), which the GMs see on the board."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "M4/parity: the Polish drops from whom the killer is hidden, the victim (F2), which the English after keeps (proposed: Incydent się zaczyna. Przed ofiarą zabójca kryje się za „?”, dopóki się nie ujawni albo nie skończy się pora dnia.) - executor: Kept: settled from the code, the mask hides the killer from every player's view but the killer's (mask-gm.mjs maskPatch, castCopyFor), not from the victim alone, so „przed ofiarą” would narrow it; the English now says, as the Polish does, only that the killer is behind a “?”."
+          ]
+        },
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "M2: the English \"hidden from the victim\" narrows what mask-gm.mjs does - maskPatch rewrites the killer's tokens for every browser and castCopyFor empties killerId in every copy but the killers', so every player but the killer's, not the victim alone, sees the \"?\" (only GMs and Spectators see through it) (proposed: \"The incident begins, and the killer stays hidden from the players behind a “?” until they reveal themselves or the time of day ends.\"). - executor: Taken in part: \"from the victim\" is gone, so the English says what the Polish says; \"from the players\" is not added, since the killer is a player and sees through their own mask."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.killer.critical",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The killer's opening line is whispered to the GMs only (tellGms), with the Key Remnant count on its own line; a failure is also a toast on the GM's browser.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "On a success the incident starts with the victim's turn (turn 1, turnSide victim).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "An opening that succeeds with Hope, or a critical, of a direct murder that is not self-inflicted hides the killer behind a \"?\" until they reveal themselves or the time of day ends.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "opensMask",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2
+      ],
+      "en": {
+        "before": "The incident begins.",
+        "after": "The incident begins, and the killer stays hidden behind a “?” until they reveal themselves or the time of day ends."
+      },
+      "pl": {
+        "before": "Incydent się zaczyna.",
+        "after": "Incydent się zaczyna. Zabójca jest ukryty za „?”, dopóki się nie ujawni albo nie skończy się pora dnia."
+      },
+      "removed": [
+        "Nothing left; the mask's rule, which the before did not say, is added so the GM knows what the victim sees (fact 3, T29).",
+        "From whom the killer is hidden is left out of both languages: every player but the killer sees the “?” (mask-gm.mjs maskPatch)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "M4/parity: the Polish drops from whom the killer is hidden, the victim (F2), which the English after keeps (proposed: Incydent się zaczyna. Przed ofiarą zabójca kryje się za „?”, dopóki się nie ujawni albo nie skończy się pora dnia.) - executor: Kept: settled from the code, the mask hides the killer from every player's view but the killer's (mask-gm.mjs maskPatch, castCopyFor), not from the victim alone, so „przed ofiarą” would narrow it; the English now says, as the Polish does, only that the killer is behind a “?”."
+          ]
+        },
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "M2: as killer.hope - the mask (mask-gm.mjs maskPatch, castCopyFor) hides the killer from every player's browser but the killer's, not from the victim alone (proposed: \"The incident begins, and the killer stays hidden from the players behind a “?” until they reveal themselves or the time of day ends.\"). - executor: Taken in part: \"from the victim\" is gone, so the English says what the Polish says; \"from the players\" is not added, since the killer is a player and sees through their own mask."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.killer.despair",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The killer's opening line is whispered to the GMs only (tellGms), with the Key Remnant count on its own line; a failure is also a toast on the GM's browser.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "On a success the incident starts with the victim's turn (turn 1, turnSide victim).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "An opening that succeeds with Hope, or a critical, of a direct murder that is not self-inflicted hides the killer behind a \"?\" until they reveal themselves or the time of day ends.",
+          "file": "scripts/mask-gm.mjs",
+          "fn": "opensMask",
+          "note": null
+        },
+        {
+          "fact": "With Despair the victim's Sanity is filled to its maximum (none left) and Role Reversal is denied to them for the incident.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "Unmasked, the victim's first whisper names the killer (DRPG.Murder.victimUnderAttackBy).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "tellVictimTheIncidentBegan",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        3,
+        4
+      ],
+      "en": {
+        "before": "The incident begins. The victim loses all their Sanity and loses access to Role Reversal for this incident.",
+        "after": "The incident begins, and the victim sees who the killer is. The victim has no Sanity left, and Role Reversal is closed to them for this incident."
+      },
+      "pl": {
+        "before": "Incydent się zaczyna. Ofiara traci całe Sanity i dostęp do Role Reversal na ten incydent.",
+        "after": "Incydent się zaczyna. Ofiara traci całe Sanity i w tym incydencie nie może wziąć Role Reversal. Zabójca nie jest ukryty: ofiara od razu dowiaduje się, kto to."
+      },
+      "removed": [
+        "\"loses all their Sanity\" becomes the reserve, \"no Sanity left\" (D5, M7); \"loses access to\" becomes \"is closed to them\"."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "coldEn: in \"They have no Sanity left\" the pronoun can be the victim or the killer, and the card does not say whether this is a cause or a consequence; I understood that the victim is now at 0 Sanity and cannot use Role Reversal (proposed: The incident begins, and the victim sees who the killer is. The victim has no Sanity left, so Role Reversal is closed to them for this incident.) - executor: Taken in part: \"The victim\" replaces \"They\"; \"so\" is not taken, since the empty Sanity does not cause the denial - the code writes both (resolveKillerOpening)."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.killer.failure",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The killer's opening line is whispered to the GMs only (tellGms), with the Key Remnant count on its own line; a failure is also a toast on the GM's browser.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "A failed opening ends the murder with no follow-up; the victim is never told anything.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "A Direct Murder costs its action either way and is declared only in an Eclipse, so another attempt is in another time of day.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "No incident, and the victim never learns anything was attempted. The action is spent; the attempt can be made again in another time of day.",
+        "after": "No incident, and the victim never learns of the attempt. The action stays spent; the killer can try again in another time of day."
+      },
+      "pl": {
+        "before": "Bez incydentu, a ofiara nigdy się nie dowie, że cokolwiek próbowano. Akcja przepada; próbę można ponowić o innej porze dnia.",
+        "after": "Incydentu nie ma, a ofiara nigdy się nie dowie o próbie. Akcja przepada; zabójca może spróbować znowu o innej porze dnia."
+      },
+      "removed": [
+        "\"the attempt can be made again\" becomes \"the killer can try again\" (X11: the passive hid who acts)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.killer.selfInflicted.failure",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A self-inflicted opening skips Stage 5: on a success the incident goes straight to the clean-up stage, the band still sets the Key Remnants, and the line goes to the GMs only.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        },
+        {
+          "fact": "A failure ends the murder with no follow-up and tells nobody but the GMs.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveKillerOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "They could not go through with it. Nobody died, and nobody else ever learns it was considered. The action is spent; it can be attempted again in another time of day.",
+        "after": "They could not go through with it. Nobody died, and nobody else learns it was considered. The action stays spent; they can try again in another time of day."
+      },
+      "pl": {
+        "before": "Nie potrafili tego zrobić. Nikt nie zginął i nikt inny nigdy się nie dowie, że to rozważano. Akcja przepada; można spróbować ponownie o innej porze dnia.",
+        "after": "Nie udało się. Nikt nie zginął i nikt poza GM-ami się o tym nie dowie. Akcja przepada, a kolejna próba jest możliwa o innej porze dnia."
+      },
+      "removed": [
+        "\"ever\" dropped; \"it can be attempted again\" becomes \"they can try again\" (X11)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.victim.hope",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The victim's opening line (an indirect murder) is whispered to the GMs only (tellGms); the victim is not sent it.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "Every success leaves an Evident Incident Remnant tied to the crime on the victim (remnant hope/despair/critical evident).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "A success does not end the incident: the GMs are told the victim may use their Free Move and that the incident stays open until a GM ends it (DRPG.Murder.victimNoticedNext).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Something is wrong with this room, and you have no idea why. Spend your Free Move, if you still have it, and you live.",
+        "after": "The victim senses something is wrong in this room, but not why. Their roll leaves an Incident Remnant (Evident)."
+      },
+      "pl": {
+        "before": "Coś jest nie tak z tym pokojem i nie masz pojęcia dlaczego. Wydaj swój Free Move, jeśli jeszcze go masz, a przeżyjesz.",
+        "after": "Ofiara czuje, że z tym pokojem coś jest nie tak, choć nie wie co. Zostaje na niej Incident Remnant (Evident)."
+      },
+      "removed": [
+        "\"you\" becomes \"the victim\": only the GMs read it (P1, fact 1).",
+        "The Remnant the roll leaves added (fact 2).",
+        "The Free Move and the incident left open (fact 2) leave both languages: DRPG.Murder.victimNoticedNext, whispered to the GMs right after this line, says both (O3); \"they live\" is the guide's fiction, which no code runs (M2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.victim.despair",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The victim's opening line (an indirect murder) is whispered to the GMs only (tellGms); the victim is not sent it.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "Every success leaves an Evident Incident Remnant tied to the crime on the victim (remnant hope/despair/critical evident).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "A success does not end the incident: the GMs are told the victim may use their Free Move and that the incident stays open until a GM ends it (DRPG.Murder.victimNoticedNext).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You work out what has been set up here, and you can tell the others. The project behind it stays active.",
+        "after": "The victim works out what was set up here and can tell the others; the project behind it stays active. Their roll leaves an Incident Remnant (Evident)."
+      },
+      "pl": {
+        "before": "Rozgryzasz, co tu zastawiono, i możesz powiedzieć innym. Projekt za tym pozostaje aktywny.",
+        "after": "Ofiara rozgryza, co tu zastawiono, i może powiedzieć o tym innym; projekt, który za tym stoi, pozostaje aktywny. Zostaje na niej Incident Remnant (Evident)."
+      },
+      "removed": [
+        "\"you\" becomes \"the victim\" (P1, fact 1).",
+        "The Remnant added (fact 2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.victim.critical",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The victim's opening line (an indirect murder) is whispered to the GMs only (tellGms); the victim is not sent it.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "Every success leaves an Evident Incident Remnant tied to the crime on the victim (remnant hope/despair/critical evident).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "A success does not end the incident: the GMs are told the victim may use their Free Move and that the incident stays open until a GM ends it (DRPG.Murder.victimNoticedNext).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You spot the trap and know whose hands built it.",
+        "after": "The victim spots the trap and knows who built it. Their roll leaves an Incident Remnant (Evident)."
+      },
+      "pl": {
+        "before": "Dostrzegasz pułapkę i wiesz, czyje ręce ją zbudowały.",
+        "after": "Ofiara dostrzega pułapkę i wie, kto ją zbudował. Zostaje na niej Incident Remnant (Evident)."
+      },
+      "removed": [
+        "\"you\" becomes \"the victim\" (P1, fact 1); \"whose hands built it\" becomes \"who built it\".",
+        "The Remnant added (fact 2)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The victim is told nothing by the code on a critical; that they know who built the trap is the GM's to tell (resolveVictimOpening). Kept, now written to the GM who tells it."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.MURDER_OPENING.victim.failure",
+      "group": "config",
+      "surface": "gm-card",
+      "screen": "murder-cards",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The victim's opening line (an indirect murder) is whispered to the GMs only (tellGms); the victim is not sent it.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        },
+        {
+          "fact": "A failure starts the incident with the victim alone and Role Reversal and Double Role Reversal denied; the victim is told the trap closed.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "resolveVictimOpening",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You notice nothing. The trap closes.",
+        "after": "The victim notices nothing, and the trap closes. The victim cannot take Role Reversal, and nobody who walks in can take Double Role Reversal."
+      },
+      "pl": {
+        "before": "Niczego nie zauważasz. Pułapka się zamyka.",
+        "after": "Ofiara niczego nie zauważa, a pułapka się zamyka. Nie może już wziąć Role Reversal, a nikt, kto wejdzie, nie weźmie Double Role Reversal."
+      },
+      "removed": [
+        "\"You\" becomes \"The victim\" (P1, fact 1); that the incident begins with the victim alone is DRPG.Murder.indirectBegins's, the next line (O3), and the victim's own whisper is its own text (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Style: „Ofiara ... ofiara” twice in one sentence (proposed: Ofiara niczego nie zauważa, a pułapka się zamyka; dowiaduje się o tym z wiadomości. Zaczyna się incydent, w którym jest sama i nie może wziąć Role Reversal ani Double Role Reversal.) - executor: Taken in part: the doubled „Ofiara” goes; the victim's message and „jest sama” leave the Polish, since DRPG.Murder.indirectBegins, the next line, says the incident begins with the victim alone (O3)."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.INDIRECT_MURDER.subProjects.0.note",
+      "group": "config",
+      "surface": "gm-diagnostics",
+      "screen": "murder-window",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The parts are read only for their progress by the murder window's cost line; no window shows the note today.",
+          "file": "scripts/murder-ui.mjs",
+          "fn": "indirectCostText",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "May require a specific room with the right equipment, unless you obtained the tool.",
+        "after": "May need a room with the right equipment, unless the killer already has the tool."
+      },
+      "pl": {
+        "before": "Może wymagać konkretnego pokoju z właściwym sprzętem, chyba że masz narzędzie.",
+        "after": "Może wymagać konkretnego pokoju z właściwym sprzętem, chyba że zabójca ma już narzędzie."
+      },
+      "removed": [
+        "\"you obtained\" becomes \"the killer already has\": the reader is the GM planning the trap, not the killer (V1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.INDIRECT_MURDER.concealIntent.successWithDespair",
+      "group": "config",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a Work on an indirect murder with a witness in the room, Conceal Your Intent is rolled (Shadow against threshold 16); its line goes on the Work's report card, whispered to the worker's player and the GMs.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealProjectIntent",
+          "note": null
+        },
+        {
+          "fact": "A success with Despair adds CONCEALED_WITH_DESPAIR (1) progress to the Work.",
+          "file": "scripts/action-project.mjs",
+          "fn": "CONCEALED_WITH_DESPAIR",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The others see nothing, and the project gains +1 progress.",
+        "after": "The others see nothing, and the project gains +1 progress."
+      },
+      "pl": {
+        "before": "Pozostali nic nie widzą, a projekt zyskuje +1 postępu.",
+        "after": "Pozostali nic nie widzą, a projekt zyskuje dodatkowo +1 postępu."
+      },
+      "removed": [
+        "Nothing: true and short; a text here for its number."
+      ],
+      "needsCode": [
+        "The +1 is action-project.mjs CONCEALED_WITH_DESPAIR, a constant in code (E66 STATUS Open 22, \"Conceal Your Intent's +1\"); a config field and a PROSE_NUMBERS row would make it a placeholder. The digit stays until then."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.INDIRECT_MURDER.concealIntent.failure",
+      "group": "config",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a Work on an indirect murder with a witness in the room, Conceal Your Intent is rolled (Shadow against threshold 16); its line goes on the Work's report card, whispered to the worker's player and the GMs.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealProjectIntent",
+          "note": null
+        },
+        {
+          "fact": "A failure does not stop the Work; the room (roomAudience) is told the worker is busy with something there, with no project named (DRPG.Project.concealSeen).",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealProjectIntent",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The others get a general description of what you are doing - e.g. 'fiddling with test tubes'.",
+        "after": "The others in the room see roughly what you are doing, though not what it is for, and your Work goes on."
+      },
+      "pl": {
+        "before": "Pozostali dostają ogólny opis tego, co robisz - np. „grzebie przy probówkach”.",
+        "after": "Pozostali w pokoju widzą, że przy czymś się krzątasz, ale nie wiedzą, przy jakim projekcie. Praca idzie dalej."
+      },
+      "removed": [
+        "The example \"e.g. 'fiddling with test tubes'\" and its dash aside left (X4); the room's card names no project, which the after says (fact 2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SABOTAGE_CONCEAL.label",
+      "group": "config",
+      "surface": "tile-label",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "With a witness in the room, the sabotage's concealment is rolled first (Shadow against threshold 16); its line goes on the Sabotage's report card, whispered to the saboteur's player and the GMs.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        },
+        {
+          "fact": "The roll's window is titled DRPG.Roll.concealIntent, \"Hide what you are doing\".",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Cover what you are doing",
+        "after": "Hide what you are doing"
+      },
+      "pl": {
+        "before": "Zamaskuj, co robisz",
+        "after": "Ukryj, co robisz"
+      },
+      "removed": [
+        "\"Cover\" becomes \"Hide\", the roll window's own title (O14), as CLEANUP.conceal.label."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "As CLEANUP.conceal.label: for the owner, whether the roll's name takes Title Case (EN6); the after matches the window title's sentence case."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SABOTAGE_CONCEAL.successWithDespair",
+      "group": "config",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "With a witness in the room, the sabotage's concealment is rolled first (Shadow against threshold 16); its line goes on the Sabotage's report card, whispered to the saboteur's player and the GMs.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        },
+        {
+          "fact": "A success with Despair puts despairPenalty (-1) on the sabotage roll.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Nobody works out what you are doing - but you fumble, and the sabotage is harder.",
+        "after": "Nobody works out what you are doing, but you fumble, and your sabotage roll takes a penalty."
+      },
+      "pl": {
+        "before": "Nikt nie domyśla się, co robisz - ale potykasz się i sabotaż jest trudniejszy.",
+        "after": "Nikt nie domyśla się, co robisz, ale potykasz się i rzut na Sabotage dostaje karę."
+      },
+      "removed": [
+        "The dash aside becomes a comma (X4); \"the sabotage is harder\" says where the penalty falls (M3)."
+      ],
+      "needsCode": [
+        "The penalty is SABOTAGE_CONCEAL.despairPenalty (-1); a PROSE_NUMBERS row (penalty, magnitude) would let the sentence say {penalty}. Left without a number (M5)."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SABOTAGE_CONCEAL.failure",
+      "group": "config",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "With a witness in the room, the sabotage's concealment is rolled first (Shadow against threshold 16); its line goes on the Sabotage's report card, whispered to the saboteur's player and the GMs.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        },
+        {
+          "fact": "A failure does not stop the sabotage, whose action is already spent (DRPG.Action.sabotageSeenOn follows); the room is told the saboteur is doing something to a project (sabotageWatchedLine).",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The others see roughly what you are up to - 'prying at the lock', 'pulling wires out'.",
+        "after": "The others in the room see roughly what you are doing to the project, but the Sabotage goes on."
+      },
+      "pl": {
+        "before": "Pozostali widzą mniej więcej, co knujesz - „dłubie przy zamku”, „wyrywa kable”.",
+        "after": "Pozostali w pokoju widzą mniej więcej, co robisz przy projekcie, ale Sabotage idzie dalej."
+      },
+      "removed": [
+        "The dash aside and the quoted examples go (X4); the room is told roughly what the saboteur is doing to a project (DRPG.Action.sabotageWatched), and the Sabotage goes on (fact 1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Glossary/PL-k: „majstrujesz” is the stem of Tinker's forbidden Polish gloss („majstrowanie”), and „sabotaż” should be Sabotage as in key 42 (proposed: Pozostali w pokoju widzą, że grzebiesz przy jakimś projekcie, ale Sabotage idzie dalej.) - executor: Taken in part: „majstrujesz” goes and Sabotage is the action's name; „mniej więcej, co robisz” is kept from the before in place of „grzebiesz przy jakimś projekcie”, since the room's card says everyone sees roughly what (DRPG.Action.sabotageWatched)."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ITEM_CATEGORIES.usable.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "item-tables",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No window reads ITEM_CATEGORIES.*.hint today (grep of scripts/ for a category's hint outside config.mjs and the prose walk finds none); it is config prose for whoever reads the table.",
+          "file": null,
+          "fn": null,
+          "note": "Read by grep on 14.11.2026: scripts/inventory.mjs, sheet.mjs, tables-editor.mjs, gm-items.mjs and the rest read label, plural, limit and limitGroup only."
+        },
+        {
+          "fact": "Usable kinds: Healing restores Health, Sanity Relief restores Sanity (USABLE_KINDS).",
+          "file": "scripts/config.mjs",
+          "fn": "USABLE_KINDS",
+          "note": null
+        },
+        {
+          "fact": "A used usable is marked Broken, not deleted: it works once.",
+          "file": "scripts/config.mjs",
+          "fn": "BROKEN_ITEMS",
+          "note": null
+        }
+      ],
+      "kept": [
+        1,
+        2
+      ],
+      "en": {
+        "before": "Healing items restore Health, sanity-relief items clear Sanity.",
+        "after": "A Healing item restores Health and a Sanity Relief item restores Sanity; each works once and then stays in the inventory, broken."
+      },
+      "pl": {
+        "before": "Leczące przywracają Health, uspokajające oczyszczają Sanity.",
+        "after": "Przedmiot leczący przywraca Health, a uspokajający Sanity. Działa raz: po użyciu zostaje w ekwipunku jako zepsuty."
+      },
+      "removed": [
+        "\"clear Sanity\" becomes \"restores Sanity\" (D5, M7: a resource is its reserve).",
+        "The kinds take USABLE_KINDS's names (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ITEM_CATEGORIES.crimeTool.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "item-tables",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No window reads ITEM_CATEGORIES.*.hint today (grep of scripts/ for a category's hint outside config.mjs and the prose walk finds none); it is config prose for whoever reads the table.",
+          "file": null,
+          "fn": null,
+          "note": "Read by grep on 14.11.2026: scripts/inventory.mjs, sheet.mjs, tables-editor.mjs, gm-items.mjs and the rest read label, plural, limit and limitGroup only."
+        },
+        {
+          "fact": "A readied Murder Weapon gives advantage on Self-Defense and Role Reversal (weaponAdvantage).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisSituational",
+          "note": null
+        },
+        {
+          "fact": "The weapon crisis action takes more Health with a higher-tier weapon (weaponDamage) and is rolled at disadvantage without one readied.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyDamage",
+          "note": null
+        },
+        {
+          "fact": "A Murder Weapon swung in an incident breaks when the incident's clean-up stage ends (destroysTools).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "endResolution",
+          "note": null
+        },
+        {
+          "fact": "It shares the gear group's slots with cleaning tools and tools (LIMIT_GROUPS.gear).",
+          "file": "scripts/config.mjs",
+          "fn": "LIMIT_GROUPS",
+          "note": null
+        }
+      ],
+      "kept": [
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Makes a murder incident easier.",
+        "after": "Readied in an incident, it gives advantage on Self-Defense and Role Reversal; a weapon blow with it takes more Health the higher its tier, and without one readied that blow is at disadvantage. One used to strike breaks when the clean-up ends."
+      },
+      "pl": {
+        "before": "Ułatwia incydent morderstwa.",
+        "after": "W ręku daje przewagę na Self-Defense i Role Reversal. Cios bronią zabiera tym więcej Health, im wyższy jej tier, a bez broni w ręku rzucasz z utrudnieniem. Użyte w incydencie psuje się, gdy kończy się sprzątanie."
+      },
+      "removed": [
+        "\"Makes a murder incident easier\" becomes what it does (facts 1-3, M1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "EN9/O14: the module's term is \"Hold ready\" (DB20, glossary hold-ready; the handbook's \"held ready\", DRPG.Items.readyTooltip \"Held ready.\"), and \"Readied\" is a variant of it (proposed: Held ready in an incident, it gives advantage on Self-Defense and Role Reversal, and a weapon blow with it takes more Health the higher its tier. One swung breaks when the clean-up ends.) - executor: Kept: \"readied\" is the owner-approved word of B01a for a held item (CRISIS_ACTIONS.selfDefence.hint \"A readied weapon gives advantage\", Tamper.coverHint \"a readied cleaning tool\"); DB20 keeps the \"Hold ready\" control's name as it is and does not forbid the adjective."
+          ]
+        },
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "coldEn: \"One swung breaks when the clean-up ends\" is a clipped construction no native speaker would say (proposed: A crime tool used to strike a blow breaks when the clean-up ends.) - executor: Taken in part: \"One swung\" becomes \"One used to strike\"; \"A crime tool\" is not taken, since the category's name is Murder Weapon (glossary murder-weapon) and the sentence already speaks of it."
+          ]
+        },
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "O14: „Cios bronią” and „bez broni w ręku rzucasz” name the crisis action by a description; its name is <the weapon crisis action's label>, English in Polish (PL-k) (proposed: W ręku daje przewagę na Self-Defense i Role Reversal, a <the weapon crisis action's label> zabiera nim tym więcej Health, im wyższy jego tier; bez niego w ręku <the weapon crisis action's label> idzie z utrudnieniem. Użyte w incydencie psuje się, gdy kończy się sprzątanie.) - executor: Kept: the crisis action's English name holds a word this line may not write, so both languages name it by what it does („cios bronią”, \"a weapon blow\"), as CRISIS_ACTIONS.weaponAttack.hint's own text does."
+          ]
+        },
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "M4: the English drops half of kept fact 2 - config.mjs CRISIS_ACTIONS.weaponAttack has unarmedDisadvantage, so <the weapon crisis action's label> without a readied weapon is rolled at disadvantage, the one reason in the hint to ready one before a fight; the Polish keeps it (proposed: \"Readied in an incident, it gives advantage on Self-Defense and Role Reversal; <the weapon crisis action's label> takes more Health the higher its tier and is rolled at disadvantage without one. One swung breaks when the clean-up ends.\"). - executor: Taken in part: the disadvantage without a readied weapon is in; the action is called \"a weapon blow\", not by its name, which holds a word this line may not write."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ITEM_CATEGORIES.cleaningTool.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "item-tables",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No window reads ITEM_CATEGORIES.*.hint today (grep of scripts/ for a category's hint outside config.mjs and the prose walk finds none); it is config prose for whoever reads the table.",
+          "file": null,
+          "fn": null,
+          "note": "Read by grep on 14.11.2026: scripts/inventory.mjs, sheet.mjs, tables-editor.mjs, gm-items.mjs and the rest read label, plural, limit and limitGroup only."
+        },
+        {
+          "fact": "A readied Cleaning Tool gives advantage on a clean-up roll (toolAdvantage; not on Move the Body).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "attemptCleanup",
+          "note": "Also armed in attemptStageSix for the other clean-up actions."
+        },
+        {
+          "fact": "Its tier comes off a clean-up's number to beat (toolTierReducesDc), never below CLEANUP.minDc.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupDc",
+          "note": null
+        },
+        {
+          "fact": "A cleaning tool used for a murder breaks when that body is found (destroysToolsOnDiscovery).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "destroyCleaningTools",
+          "note": null
+        }
+      ],
+      "kept": [
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Makes covering up a murder easier.",
+        "after": "Readied, it makes cleaning up easier: advantage on every clean-up roll but Move the Body, and its tier off the number to beat, never below the minimum. One used for a murder breaks once the body is found."
+      },
+      "pl": {
+        "before": "Ułatwia zatarcie śladów morderstwa.",
+        "after": "W ręku daje przewagę na rzuty sprzątania, poza Move the Body, a jego tier obniża próg, choć nie poniżej minimum. Użyte przy morderstwie psuje się, gdy ktoś znajdzie ciało."
+      },
+      "removed": [
+        "\"Makes covering up a murder easier\" becomes how (facts 1-3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "EN9/O14: \"Readied\" stands for the glossary's \"Hold ready\" (DB20), and \"the number to beat\" is a new synonym for the threshold the handbook and the Tool hint name (proposed: Held ready, it makes cleaning up easier: advantage on the roll, and its tier off the threshold. One used for a murder breaks once the body is found.) - executor: Kept: \"readied\" and \"the number to beat\" are the owner-approved words of B01a (Tamper.coverHint \"a readied cleaning tool\", CRISIS_ACTIONS.finishingBlow.hint \"The number to beat is ...\"), so neither is a new synonym."
+          ]
+        },
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ITEM_CATEGORIES.tool.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "item-tables",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No window reads ITEM_CATEGORIES.*.hint today (grep of scripts/ for a category's hint outside config.mjs and the prose walk finds none); it is config prose for whoever reads the table.",
+          "file": null,
+          "fn": null,
+          "note": "Read by grep on 14.11.2026: scripts/inventory.mjs, sheet.mjs, tables-editor.mjs, gm-items.mjs and the rest read label, plural, limit and limitGroup only."
+        },
+        {
+          "fact": "A readied tool gives advantage on Work and Sabotage and takes its tier off their thresholds.",
+          "file": "scripts/action-project.mjs",
+          "fn": "reliefHeld",
+          "note": null
+        },
+        {
+          "fact": "A roll with Despair that is no critical wears the readied tool one point; a tool of the lowest tier is spent by any roll.",
+          "file": "scripts/use-items.mjs",
+          "fn": "rollSpends",
+          "note": null
+        },
+        {
+          "fact": "Wear fills the durability ITEM_DURABILITY gives its tier, and then it breaks.",
+          "file": "scripts/use-items.mjs",
+          "fn": "breakOnDespair",
+          "note": null
+        }
+      ],
+      "kept": [
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Held ready, it gives advantage on project work - sabotage included - and its tier comes off the threshold. It can break.",
+        "after": "Readied, it gives advantage on Work and Sabotage, and its tier comes off the number to beat. Rolls with Despair wear it down until it breaks; one of the lowest tier breaks after any roll."
+      },
+      "pl": {
+        "before": "W ręku daje przewagę przy pracy nad projektem - sabotaż włącznie - a jego Tier schodzi z progu. Może się zepsuć.",
+        "after": "W ręku daje przewagę przy pracy nad projektem i przy Sabotage, a jego tier obniża próg. Każdy rzut z Despair bez krytyku odbiera mu punkt wytrzymałości, a gdy ich zabraknie, narzędzie się psuje. Narzędzie najniższego tieru zużywa się po pierwszym rzucie."
+      },
+      "removed": [
+        "The dash aside \"- sabotage included -\" becomes \"Work and Sabotage\" (X4).",
+        "\"It can break\" becomes when (fact 2, M3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "EN9: the before's \"Held ready\" is the DB20 term that \"stays as it is\" (glossary hold-ready), and the after replaces it with \"Readied\"; O14: \"the number to beat\" replaces the before's and the handbook's \"threshold\" (proposed: Held ready, it gives advantage on Work and Sabotage, and its tier comes off the threshold. Rolls with Despair wear it down until it breaks.) - executor: Kept: the before's \"Held ready\" and \"threshold\" give way to \"readied\" and \"the number to beat\", the owner-approved words of B01a (CRISIS_ACTIONS.selfDefence.hint, finishingBlow.hint); DB20 keeps the control's name \"Hold ready\", which this hint does not name."
+          ]
+        },
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ITEM_CATEGORIES.truthBullet.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "item-tables",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No window reads ITEM_CATEGORIES.*.hint today (grep of scripts/ for a category's hint outside config.mjs and the prose walk finds none); it is config prose for whoever reads the table.",
+          "file": null,
+          "fn": null,
+          "note": "Read by grep on 14.11.2026: scripts/inventory.mjs, sheet.mjs, tables-editor.mjs, gm-items.mjs and the rest read label, plural, limit and limitGroup only."
+        },
+        {
+          "fact": "Truth Bullets have no carry limit (limit null) and are never offered to Contraband.",
+          "file": "scripts/config.mjs",
+          "fn": "ITEM_CATEGORIES",
+          "note": null
+        }
+      ],
+      "kept": [
+        1
+      ],
+      "en": {
+        "before": "Evidence. No carry limit.",
+        "after": "Evidence for the Class Trial: no carry limit, and Contraband cannot destroy it."
+      },
+      "pl": {
+        "before": "Dowód. Bez limitu noszenia.",
+        "after": "Dowód na Class Trial: nie ma limitu noszenia, a Contraband nie może go zniszczyć."
+      },
+      "removed": [
+        "\"Evidence. No carry limit.\" in telegraph style (X6) becomes one sentence."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "X6: „Dowód.” stands alone as a fragment, and the English after says what it is evidence for (proposed: Dowód na Class Trial. Możesz nosić ich dowolnie wiele, a Contraband nie może go zniszczyć.) - executor: Taken in part: „Dowód na Class Trial” is in; „Możesz nosić ich dowolnie wiele” is not, since it mixes the plural with „go”; the limit is said as in the before."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ITEM_CATEGORIES.bedroomKey.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "item-tables",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No window reads ITEM_CATEGORIES.*.hint today (grep of scripts/ for a category's hint outside config.mjs and the prose walk finds none); it is config prose for whoever reads the table.",
+          "file": null,
+          "fn": null,
+          "note": "Read by grep on 14.11.2026: scripts/inventory.mjs, sheet.mjs, tables-editor.mjs, gm-items.mjs and the rest read label, plural, limit and limitGroup only."
+        },
+        {
+          "fact": "Giving a room key to another student hands them a copy; the giver keeps theirs.",
+          "file": "scripts/handover.mjs",
+          "fn": "shareKey",
+          "note": null
+        }
+      ],
+      "kept": [
+        1
+      ],
+      "en": {
+        "before": "Opens one bedroom. Copy it to let somebody else in.",
+        "after": "Opens one bedroom. Give it to somebody to let them in: they get a copy and you keep yours."
+      },
+      "pl": {
+        "before": "Otwiera jedną sypialnię. Skopiuj go, by wpuścić kogoś innego.",
+        "after": "Otwiera jedną sypialnię. Gdy dasz go innemu uczniowi, dostanie kopię, a ty zatrzymasz swój."
+      },
+      "removed": [
+        "\"Copy it\" becomes what the player does, give it, and what follows (fact 2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.pipTooltip",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Each pip of a pool's row is a GM's control: clicking pip i sets the pool to i, through adjustDespair on the primary GM.",
+          "file": "scripts/despair.mjs",
+          "fn": "despairRowOf",
+          "note": null
+        },
+        {
+          "fact": "Clicking the pip that equals the pool's current value sets it to one less (target = i - 1): it takes one point off, and no Despair Call is bought.",
+          "file": "scripts/despair.mjs",
+          "fn": "despairRowOf",
+          "note": null
+        },
+        {
+          "fact": "{name} is the pool's label (poolLabel), {n} the pip's value; the tooltip is drawn on a GM's browser only.",
+          "file": "scripts/despair.mjs",
+          "fn": "despairRowOf",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Set {name}'s Despair to {n}. Click the last filled one to spend it.",
+        "after": "Set {name}'s Despair to {n}. Clicking the last filled pip takes one off and buys no Despair Call."
+      },
+      "pl": {
+        "before": "Ustaw Despair puli {name} na {n}. Kliknij ostatnie zapełnione pole, by je wydać.",
+        "after": "Ustaw Despair puli {name} na {n}. Kliknięcie ostatniego zapełnionego pola odejmuje jeden punkt i nie kupuje Despair Calla."
+      },
+      "removed": [
+        "\"to spend it\" becomes \"to take one off\": the click lowers the pool by one and buys nothing (fact 1)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text says the click spends the point; the code only lowers the pool by one, with no Call and no card (despairRowOf, the pip's set)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.notEnough",
+      "group": "window",
+      "surface": "toast",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Before a Despair Call is paid, the pool's spendable Despair (its count less what it owes for conversions) is compared with the Call's cost; short, the GM is warned and nothing is paid.",
+          "file": "scripts/despair.mjs",
+          "fn": "spendDespairCall",
+          "note": null
+        },
+        {
+          "fact": "{held} is spendableDespair(userId), the pool that pays, which is not always the pool of the GM who clicked.",
+          "file": "scripts/despair.mjs",
+          "fn": "spendDespairCall",
+          "note": null
+        },
+        {
+          "fact": "The warning is ui.notifications on the paying GM's browser.",
+          "file": "scripts/despair.mjs",
+          "fn": "spendDespairCall",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{call} costs {cost} Despair and you hold {held}.",
+        "after": "{call} costs {cost} Despair, and the pool can spend only {held}."
+      },
+      "pl": {
+        "before": "{call} kosztuje {cost} Despair, a masz {held}.",
+        "after": "{call} kosztuje {cost} Despair, a pula, która za niego płaci, może wydać tylko {held}."
+      },
+      "removed": [
+        "\"you hold\" becomes \"the pool can spend\": the number is the paying pool's spendable Despair, less what it owes (fact 1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.hopeConverted",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A GM's conversion (the Students window, the Monocub and Mastermind windows) or Fuel a Monocub credits the student's Hope from a Monokuma's Despair, at most up to the Hope maximum.",
+          "file": "scripts/despair.mjs",
+          "fn": "creditHopeFromDespair",
+          "note": null
+        },
+        {
+          "fact": "The card is whispered to the receiver's owners and the GMs (whisperToOwner, veiled); {who} is the paying pool's label, or \"Monokuma\" when none is found; {n} is the Hope granted.",
+          "file": "scripts/despair.mjs",
+          "fn": "creditHopeFromDespair",
+          "note": null
+        },
+        {
+          "fact": "On the window's road the pool pays at the next time of day (recordOwed); the player is not told this.",
+          "file": "scripts/despair.mjs",
+          "fn": "convertDespairToHope",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{who} converts some of their Despair - you gain {n} Hope.",
+        "after": "{who} gives you {n} Hope from their Despair."
+      },
+      "pl": {
+        "before": "{who} zamienia część swojego Despair - zyskujesz {n} Hope.",
+        "after": "{who} zamienia dla ciebie część swojego Despair na Hope. Zyskujesz {n} Hope."
+      },
+      "removed": [
+        "The dash aside (X4) goes: one sentence says who gave and how much.",
+        "\"converts some of their Despair\": the amount is {n}, and the conversion is said as a gift; when the pool pays is the GM's (fact 2, DRPG.Despair.owedGiven)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.owedGiven",
+      "group": "window",
+      "surface": "toast",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "After a conversion to Hope the giving GM is told on this browser how much the pool owes (ui.notifications.info); {n} is the Despair granted, {pool} the pool's label.",
+          "file": "scripts/despair.mjs",
+          "fn": "convertDespairToHope",
+          "note": null
+        },
+        {
+          "fact": "A Bounty owes its price the same way and the line is added to the GMs' card of the Bounty (whisperToGms).",
+          "file": "scripts/monocub.mjs",
+          "fn": "tellBounty",
+          "note": null
+        },
+        {
+          "fact": "The debt is paid at the next time of day (settleOwed, run on the primary GM).",
+          "file": "scripts/despair.mjs",
+          "fn": "settleOwed",
+          "note": null
+        },
+        {
+          "fact": "Only a GM's row draws the owed pips and the debt; a player's row draws the pool as it stands.",
+          "file": "scripts/despair.mjs",
+          "fn": "despairRowOf",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2,
+        3
+      ],
+      "en": {
+        "before": {
+          "one": "{n} Despair owed from {pool}. The pool pays at the next time of day; only GMs see it owed.",
+          "other": "{n} Despair owed from {pool}. The pool pays at the next time of day; only GMs see it owed."
+        },
+        "after": {
+          "one": "{pool} owes {n} Despair and pays it at the next time of day. Until then, only GMs see the debt.",
+          "other": "{pool} owes {n} Despair and pays it at the next time of day. Until then, only GMs see the debt."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+          "few": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+          "many": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+          "other": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie."
+        },
+        "after": {
+          "one": "Pula {pool} jest winna {n} Despair i spłaci go na początku następnej pory dnia. Dług widzą tylko GM-owie.",
+          "few": "Pula {pool} jest winna {n} Despair i spłaci go na początku następnej pory dnia. Dług widzą tylko GM-owie.",
+          "many": "Pula {pool} jest winna {n} Despair i spłaci go na początku następnej pory dnia. Dług widzą tylko GM-owie.",
+          "other": "Pula {pool} jest winna {n} Despair i spłaci go na początku następnej pory dnia. Dług widzą tylko GM-owie."
+        }
+      },
+      "removed": [
+        "\"only GMs see it owed\" becomes \"Until then, only GMs see the debt\": after the payment every bar shows the lower pool (fact 3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.removePoolAsk",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Revoking an extra pool asks first, Cancel being the default; {name} is the pool's label, {n} the Despair it holds.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "confirmRemovePool",
+          "note": null
+        },
+        {
+          "fact": "A revoke drops the account from the extra pools, deletes its Despair and clears its name; the account keeps its other rights (an Assistant GM stays one).",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "confirmRemovePool",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Revoke \"{name}\"? The {n} Despair in that pool goes with it, and so does the name. The account keeps every other right it has.",
+        "after": "Revoke “{name}”? The pool's {n} Despair and its name go with it; the account keeps every other right it has."
+      },
+      "pl": {
+        "before": "Odebrać pulę „{name}”? Razem z nią przepada jej nazwa i cały Despair, jaki w niej jest ({n}). Konto zachowuje wszystkie pozostałe uprawnienia.",
+        "after": "Odebrać pulę „{name}”? Przepada jej nazwa i cały jej Despair ({n}). Konto zachowuje pozostałe uprawnienia, także rolę Asystenta GM-a."
+      },
+      "removed": [
+        "Two sentences on what goes become one clause (O2); nothing is left out."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.poolGone",
+      "group": "window",
+      "surface": "toast",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A revoke is checked against the extra pools as they are when it is pressed; when the account is no longer an extra pool (another GM changed it, or the account is gone), the GM is warned and nothing is revoked.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "openGmTeamDialog",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "That pool is not an opted-in extra any more - somebody else has already changed it. Nothing was revoked.",
+        "after": "That pool is no longer granted, so there is nothing to revoke."
+      },
+      "pl": {
+        "before": "Ta pula nie jest już dodatkowo przyznaną pulą - ktoś inny zdążył ją zmienić. Niczego nie odebrano.",
+        "after": "To konto nie ma już dodatkowej puli, więc nie ma czego odebrać."
+      },
+      "removed": [
+        "The dash aside and \"somebody else has already changed it\" go (X4, T29): the cause can also be an account that is gone (fact 0).",
+        "\"Nothing was revoked\" (X1) becomes \"there is nothing to revoke\"."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.addPool",
+      "group": "window",
+      "surface": "button",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The footer's secondary button grants a pool to the Assistant GM picked under \"Grant a pool to\"; its toast says \"Pool granted.\"",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "gmTeamButtons",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Add pool",
+        "after": "Grant pool"
+      },
+      "pl": {
+        "before": "Dodaj pulę",
+        "after": "Przyznaj pulę"
+      },
+      "removed": [
+        "\"Add\" becomes \"Grant\": the select, the toast and the intro call it granting (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.removePool",
+      "group": "window",
+      "surface": "button",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The footer's secondary button, and the title and yes of the question it asks, revoke the pool picked under \"Revoke the pool from\"; its toast says \"Pool revoked.\"",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "gmTeamButtons",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Remove pool",
+        "after": "Revoke pool"
+      },
+      "pl": {
+        "before": "Usuń pulę",
+        "after": "Odbierz pulę"
+      },
+      "removed": [
+        "\"Remove\" becomes \"Revoke\": the select, the question and the toast call it revoking (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.unfold",
+      "group": "window",
+      "surface": "button",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "With one GM, Despair Flow opens on its Overflow tab and folds the Pools, Monokumas, and Students tabs behind this button.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "despairFlowLayout",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Show pools, Monokumas and students",
+        "after": "Show pools, Monokumas, and students"
+      },
+      "pl": {
+        "before": "Pokaż pule, Monokumy i uczniów",
+        "after": "Pokaż pule, Monokumy i uczniów"
+      },
+      "removed": [
+        "The Oxford comma is added (EN2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.title",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The heading of the public card that announces a change of the Overflow's rules.",
+          "file": "scripts/overflow.mjs",
+          "fn": "setOverflowRules",
+          "note": null
+        },
+        {
+          "fact": "The mechanic's name is the Overflow (glossary overflow; EN13 capitalizes a mechanic's name).",
+          "file": "scripts/overflow.mjs",
+          "fn": "setOverflowRules",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Despair overflow",
+        "after": "Despair Overflow"
+      },
+      "pl": {
+        "before": "Despair overflow",
+        "after": "Overflow"
+      },
+      "removed": [
+        "\"overflow\" is capitalized as the mechanic's name (EN6, EN13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.caption",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The caption under the Despair pools on every browser, \"<caption> · shown/threshold\", the count shown as \"?\" to a player.",
+          "file": "scripts/despair.mjs",
+          "fn": "buildOverflowCaption",
+          "note": null
+        },
+        {
+          "fact": "The title of the Event panel's card while an Overflow effect runs.",
+          "file": "scripts/events.mjs",
+          "fn": "overflowCard",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Despair overflow",
+        "after": "Despair Overflow"
+      },
+      "pl": {
+        "before": "Despair overflow",
+        "after": "Overflow"
+      },
+      "removed": [
+        "\"overflow\" is capitalized as the mechanic's name (EN6, EN13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.clear",
+      "group": "window",
+      "surface": "button",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Overflow tab's button, and the title of the question it asks, set the count back to 0 on the primary GM; a darkening already drawn stands.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "clearOverflowFromTab",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Clear the overflow",
+        "after": "Clear the Overflow"
+      },
+      "pl": {
+        "before": "Wyczyść overflow",
+        "after": "Wyzeruj Overflow"
+      },
+      "removed": [
+        "\"overflow\" is capitalized (EN13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.clearAsk",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The question before a GM's Clear; {count} is the Overflow's count and {max} its threshold.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "clearOverflowFromTab",
+          "note": null
+        },
+        {
+          "fact": "The Clear zeroes the count alone (countOnly): a darkening already drawn, running or armed for the next time of day, stays.",
+          "file": "scripts/overflow.mjs",
+          "fn": "resetOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Set the spilled Despair back to 0? It holds {count} of {max} now. A darkening already drawn stays until its time of day ends.",
+        "after": "Set the Overflow back to 0? It holds {count} of {max} now. A darkening already drawn stays in force."
+      },
+      "pl": {
+        "before": "Wyzerować rozlany Despair? Teraz jest go {count} z {max}. Zaciemnienie, które już wylosowano, trwa do końca swojej pory dnia.",
+        "after": "Wyzerować licznik Overflow? Stoi teraz na {count} z {max}. Wylosowane już zaciemnienie zostaje: i to, które trwa, i to, które czeka na następną porę dnia."
+      },
+      "removed": [
+        "\"the spilled Despair\" becomes \"the Overflow\", the name the button uses.",
+        "\"until its time of day ends\" becomes \"stays in force\": an armed darkening also stays, through a time of day still to come (fact 1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.cleared",
+      "group": "window",
+      "surface": "toast",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "After a GM's Clear is done, the GM's browser is told (ui.notifications.info).",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "clearOverflowFromTab",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The Despair overflow is back to 0.",
+        "after": "The Despair Overflow is back to 0."
+      },
+      "pl": {
+        "before": "Despair overflow wrócił do 0.",
+        "after": "Licznik Overflow wynosi teraz 0."
+      },
+      "removed": [
+        "\"overflow\" is capitalized (EN13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.cardBody",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When the count reaches the threshold and the hat is not empty, the Overflow pays the threshold, keeps the rest, and draws one effect at random from the ticked ones.",
+          "file": "scripts/overflow.mjs",
+          "fn": "checkOverflow",
+          "note": null
+        },
+        {
+          "fact": "The card is public (announce with no whisper list); {n} is the points paid, the threshold.",
+          "file": "scripts/overflow.mjs",
+          "fn": "announceOverflow",
+          "note": null
+        },
+        {
+          "fact": "The same body is used for a darkening (kind state, which lasts one time of day) and for a one-off (Rot, Earthquake, kind event), which runs once at the draw (runOverflowEvent).",
+          "file": "scripts/overflow.mjs",
+          "fn": "announceOverflow",
+          "note": null
+        },
+        {
+          "fact": "A spill that reaches the threshold arms the next time of day; a check at a boundary arms the time of day that begins.",
+          "file": "scripts/overflow.mjs",
+          "fn": "addOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": {
+          "one": "{n} point of spilled Despair has found a use. For one time of day, this is what the school becomes:",
+          "other": "{n} points of spilled Despair have found a use. For one time of day, this is what the school becomes:"
+        },
+        "after": {
+          "one": "The Overflow spends {n} point of spilled Despair and draws one effect. A darkening lasts one time of day; a one-off happens at once.",
+          "other": "The Overflow spends {n} points of spilled Despair and draws one effect. A darkening lasts one time of day; a one-off happens at once."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "{n} punkt rozlanego Despair znalazł zastosowanie. Przez jedną porę dnia szkoła staje się tym:",
+          "few": "{n} punkty rozlanego Despair znalazły zastosowanie. Przez jedną porę dnia szkoła staje się tym:",
+          "many": "{n} punktów rozlanego Despair znalazło zastosowanie. Przez jedną porę dnia szkoła staje się tym:",
+          "other": "{n} punktów rozlanego Despair znalazło zastosowanie. Przez jedną porę dnia szkoła staje się tym:"
+        },
+        "after": {
+          "one": "Overflow wydaje {n} punkt Despair i losuje efekt. Zaciemnienie trwa jedną porę dnia, a efekt jednorazowy dzieje się od razu.",
+          "few": "Overflow wydaje {n} punkty Despair i losuje efekt. Zaciemnienie trwa jedną porę dnia, a efekt jednorazowy dzieje się od razu.",
+          "many": "Overflow wydaje {n} punktów Despair i losuje efekt. Zaciemnienie trwa jedną porę dnia, a efekt jednorazowy dzieje się od razu.",
+          "other": "Overflow wydaje {n} punktów Despair i losuje efekt. Zaciemnienie trwa jedną porę dnia, a efekt jednorazowy dzieje się od razu."
+        }
+      },
+      "removed": [
+        "\"For one time of day, this is what the school becomes\" becomes the two kinds and how long each lasts: a one-off does not last a time of day (fact 2).",
+        "\"have found a use\" becomes \"The Overflow spends\" (O1)."
+      ],
+      "needsCode": [
+        "The card cannot say which time of day a darkening takes: one armed by a spill takes the next one (fact 3), and some effect lines say \"this time of day\" (Lockdown, Insomnia, Power Cut). A body per case, or the time of day as a placeholder, would need announceOverflow to pass it."
+      ],
+      "disagreements": [
+        "The old text said every drawn effect lasts one time of day; Rot and Earthquake run once at the draw (overflow.mjs runOverflowEvent; config.mjs OVERFLOW.effects kind \"event\")."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.cardBodyTrial",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "In a Class Trial a darkening drawn by a spill waits for the time of day after the trial, and this body is used for it; Rot and Earthquake take cardBody and happen at once.",
+          "file": "scripts/overflow.mjs",
+          "fn": "announceOverflow",
+          "note": null
+        },
+        {
+          "fact": "The verdict zeroes the count and keeps such a darkening pending; the next check points it at its time of day without paying again or a new card.",
+          "file": "scripts/overflow.mjs",
+          "fn": "resetOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": {
+          "one": "{n} point of spilled Despair has found a use. From the next time of day after the trial, for one time of day, this is what the school becomes:",
+          "other": "{n} points of spilled Despair have found a use. From the next time of day after the trial, for one time of day, this is what the school becomes:"
+        },
+        "after": {
+          "one": "The Overflow spends {n} point of spilled Despair and draws a darkening. It takes hold in the first time of day after the trial, and the verdict does not cancel it.",
+          "other": "The Overflow spends {n} points of spilled Despair and draws a darkening. It takes hold in the first time of day after the trial, and the verdict does not cancel it."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "{n} punkt rozlanego Despair znalazł zastosowanie. Od następnej pory dnia po procesie, przez jedną porę dnia, szkoła staje się tym:",
+          "few": "{n} punkty rozlanego Despair znalazły zastosowanie. Od następnej pory dnia po procesie, przez jedną porę dnia, szkoła staje się tym:",
+          "many": "{n} punktów rozlanego Despair znalazło zastosowanie. Od następnej pory dnia po procesie, przez jedną porę dnia, szkoła staje się tym:",
+          "other": "{n} punktów rozlanego Despair znalazło zastosowanie. Od następnej pory dnia po procesie, przez jedną porę dnia, szkoła staje się tym:"
+        },
+        "after": {
+          "one": "Overflow wydaje {n} punkt Despair na wylosowane zaciemnienie. Przyjdzie w pierwszej porze dnia po Class Trial i werdykt go nie odwoła.",
+          "few": "Overflow wydaje {n} punkty Despair na wylosowane zaciemnienie. Przyjdzie w pierwszej porze dnia po Class Trial i werdykt go nie odwoła.",
+          "many": "Overflow wydaje {n} punktów Despair na wylosowane zaciemnienie. Przyjdzie w pierwszej porze dnia po Class Trial i werdykt go nie odwoła.",
+          "other": "Overflow wydaje {n} punktów Despair na wylosowane zaciemnienie. Przyjdzie w pierwszej porze dnia po Class Trial i werdykt go nie odwoła."
+        }
+      },
+      "removed": [
+        "\"From the next time of day after the trial, for one time of day\" becomes \"It lasts the next time of day after the trial\" (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "PL-b/step 1: „werdykt go nie odwoła” points a masculine pronoun at „zaciemnienie” (neuter), in every form (proposed, with the family's forms: Overflow wydaje {n} punkt Despair na wylosowane zaciemnienie. Przyjdzie w pierwszej porze dnia po Class Trial, a werdykt je zachowuje:) - executor: Kept: „go” is right - a negated verb takes the genitive, and the genitive of the neuter „ono” is „go” („werdykt go nie odwoła”); the closing colon becomes a full stop, as in cardBody."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.playerHint",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A player's tooltip on the Overflow caption, where the count is shown as \"?\" and the threshold {max} is public.",
+          "file": "scripts/despair.mjs",
+          "fn": "buildOverflowCaption",
+          "note": null
+        },
+        {
+          "fact": "At the threshold one effect is drawn: a darkening for one time of day, or a one-off at once.",
+          "file": "scripts/overflow.mjs",
+          "fn": "checkOverflow",
+          "note": null
+        },
+        {
+          "fact": "The spill is Despair that would not fit in a full pool (adjustDespair), and Feed the Overflow adds to it.",
+          "file": "scripts/overflow.mjs",
+          "fn": "addOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2
+      ],
+      "en": {
+        "before": "Despair that no Monokuma could hold. At {max} the school gets worse for one time of day. How close it is now is the GMs' to know.",
+        "after": "Despair from full pools and from Feed the Overflow collects here. At {max}, the school gets worse. Only the GMs see the count."
+      },
+      "pl": {
+        "before": "Despair, którego żaden Monokuma nie mógł pomieścić. Przy {max} szkoła robi się gorsza na jedną porę dnia. Jak blisko jest teraz, wiedzą tylko GM-owie.",
+        "after": "Tu trafia Despair z pełnych pul i z Feed the Overflow. Przy {max} szkoła robi się gorsza. Stan licznika widzą tylko GM-owie."
+      },
+      "removed": [
+        "\"for one time of day\": a one-off does not last a time of day (fact 1); what is drawn and how long it lasts is the card's (O3, DRPG.Overflow.cardBody)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said the school gets worse for one time of day; Rot and Earthquake happen once at the draw (overflow.mjs runOverflowEvent)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "X6: „Despair ponad pełną pulę i z Feed the Overflow.” has no verb, and „albo jednorazowy, od razu” is telegraph (proposed, 23 words: Zbiera się tu Despair spoza pełnych pul i z Feed the Overflow. Przy {max} losuje się zaciemnienie na porę dnia albo jednorazowy efekt.) - executor: Taken in part: the sentence has a verb; what is drawn leaves both languages for the card (O3), since the tooltip's limit is 23 words."
+          ]
+        },
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "M2: the English \"Despair no Monokuma's pool could hold\" reads as Despair that fits in no pool at all; despair.mjs spillFrom spills what one full pool cannot hold, after its debt, whatever the other pools hold (proposed: \"Despair that spills from a full Monokuma pool, and what Feed the Overflow adds. At {max}, something in the school gets worse. Only the GMs see how close it is.\"). - executor: Taken in part: \"from full pools\" says what spills, in place of \"no Monokuma's pool could hold\"; the proposal's wording is over the tooltip's limit of 23 words."
+          ]
+        }
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.gmHint",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A GM's tooltip on the caption while no darkening runs and none is queued; {count} is the real count, {max} the threshold. Also a line of the Despair explainer for a GM.",
+          "file": "scripts/despair.mjs",
+          "fn": "buildOverflowCaption",
+          "note": null
+        },
+        {
+          "fact": "A spill that reaches the threshold arms the next time of day at once (armAhead); a one-off (Rot, Earthquake) runs at the draw.",
+          "file": "scripts/overflow.mjs",
+          "fn": "addOverflow",
+          "note": null
+        },
+        {
+          "fact": "With nothing ticked, nothing is drawn and nothing paid.",
+          "file": "scripts/overflow.mjs",
+          "fn": "checkOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Spilled Despair: {count} of {max}. It fires the moment it reaches {max}: a darkening takes the next time of day, a one-off happens at once.",
+        "after": "Spilled Despair: {count} of {max}. At {max} it draws a darkening for the next time of day, or a one-off at once."
+      },
+      "pl": {
+        "before": "Rozlany Despair: {count} z {max}. Odpala, gdy tylko sięgnie {max}: zaciemnienie obejmuje następną porę dnia, jednorazowe dzieje się od razu.",
+        "after": "W Overflow jest {count} z {max}. Przy {max} losuje zaciemnienie na następną porę dnia albo efekt jednorazowy, który działa od razu."
+      },
+      "removed": [
+        "\"It fires the moment it reaches\" is shortened to \"At {max} it draws\" (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.gmHintQueued",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A GM's tooltip while a darkening is armed for, or kept by the verdict for, the next time of day; {what} is its name.",
+          "file": "scripts/despair.mjs",
+          "fn": "buildOverflowCaption",
+          "note": null
+        },
+        {
+          "fact": "While one is queued a spill arms nothing new, and the count waits for the check after that time of day.",
+          "file": "scripts/overflow.mjs",
+          "fn": "addOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Spilled Despair: {count} of {max}. {what} is already drawn for the next time of day, and the counter waits until that time of day has passed.",
+        "after": "Spilled Despair: {count} of {max}. {what} is drawn for the next time of day; the counter waits until that time of day ends."
+      },
+      "pl": {
+        "before": "Rozlany Despair: {count} z {max}. {what} jest już wylosowane na następną porę dnia, a licznik czeka, aż ta pora dnia minie.",
+        "after": "W Overflow jest {count} z {max}. {what} czeka już na następną porę dnia; do jej końca licznik nic nie wylosuje."
+      },
+      "removed": [
+        "\"already\" and \"has passed\" are shortened (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.emptyPool",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Shown on the Overflow tab and in a GM's Despair explainer when nothing is ticked.",
+          "file": "scripts/overflow.mjs",
+          "fn": "overflowSection",
+          "note": null
+        },
+        {
+          "fact": "With an empty hat the Overflow never fires and never pays: the counter goes on climbing.",
+          "file": "scripts/overflow.mjs",
+          "fn": "checkOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Nothing is ticked, so the overflow will never fire and never spend the counter. That is a real setting - the counter as pure atmosphere - but nothing will happen until you tick something.",
+        "after": "Nothing is ticked, so the Overflow never fires and never spends its counter. Tick an effect to put it in the hat."
+      },
+      "pl": {
+        "before": "Nic nie jest zaznaczone, więc overflow nigdy nie odpali i nigdy nie wyda licznika. To prawdziwe ustawienie - licznik jako czysty klimat - ale nic się nie stanie, dopóki czegoś nie zaznaczysz.",
+        "after": "Nic nie jest zaznaczone, więc Overflow nigdy nie odpali ani nie wyda Despair, a licznik będzie tylko rósł. Zaznacz efekt, żeby trafił do kapelusza."
+      },
+      "removed": [
+        "\"That is a real setting - the counter as pure atmosphere -\" goes (O9, X4): why the setting exists is the code's note.",
+        "\"nothing will happen until you tick something\" becomes what to do (O7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.silenced",
+      "group": "window",
+      "surface": "toast",
+      "screen": "calls",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "While the Overflow's Silence runs, every Hope Call is refused with this text, and the sheet's Calls drawer shows it as its lock note; a Monokuma's drawer is not locked.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        },
+        {
+          "fact": "The drawer's note.",
+          "file": "scripts/sheet.mjs",
+          "fn": "callLockNote",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Silence. Nobody is spending Hope Calls this time of day.",
+        "after": "Silence: nobody can use a Hope Call this time of day."
+      },
+      "pl": {
+        "before": "Silence. Nikt nie wydaje Hope Calls o tej porze dnia.",
+        "after": "Silence. Nikt nie wydaje Hope Calls o tej porze dnia."
+      },
+      "removed": [
+        "\"Nobody is spending\" becomes \"nobody can use\": the Calls are refused, not merely unused."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.noHopeNow",
+      "group": "window",
+      "surface": "toast",
+      "screen": "which-resource",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "While the Overflow's Despair runs, nobody gains Hope: the actor hook deletes any increase.",
+          "file": "scripts/overflow.mjs",
+          "fn": "overflowBlocksHope",
+          "note": null
+        },
+        {
+          "fact": "Shown as a warning when a Despair Call that grants Hope is chosen, on the greyed Breath of a rest, and in the item window instead of a Hope bonus.",
+          "file": "scripts/sheet.mjs",
+          "fn": "runCall",
+          "note": null
+        },
+        {
+          "fact": "The rest window's Breath.",
+          "file": "scripts/rest.mjs",
+          "fn": "choosePicks",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Despair. No Hope is earned this time of day.",
+        "after": "Despair: nobody gains Hope this time of day."
+      },
+      "pl": {
+        "before": "Despair. Nikt nie zdobywa Hope o tej porze dnia.",
+        "after": "Despair. Nikt nie zdobywa Hope o tej porze dnia."
+      },
+      "removed": [
+        "\"No Hope is earned\" becomes \"nobody gains Hope\" (X11)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.name.powercut",
+      "group": "window",
+      "surface": "tile-label",
+      "screen": "gm-team",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The name of the Overflow effect that shuts completed projects' room actions for its time of day.",
+          "file": "scripts/overflow.mjs",
+          "fn": "facilityStatesFor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Power cut",
+        "after": "Power Cut"
+      },
+      "pl": {
+        "before": "Power cut",
+        "after": "Power Cut"
+      },
+      "removed": [
+        "Title Case for a name (EN6); the GM handbook's mention is E57's."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.what.darkness",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Darkness takes its size {n} off an Eclipse's crossings, never below the floor of one; a free-placement Eclipse gets ECLIPSE_MOVES, two crossings, instead.",
+          "file": "scripts/overflow.mjs",
+          "fn": "overflowCrossings",
+          "note": null
+        },
+        {
+          "fact": "The line is on the public card and the GM's tab, and on each browser's Event panel while it runs.",
+          "file": "scripts/overflow.mjs",
+          "fn": "overflowWhat",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": {
+          "one": "The lights go further down: {n} fewer crossing in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms.",
+          "other": "The lights go further down: {n} fewer crossings in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms."
+        },
+        "after": {
+          "one": "The lights dim further: each Eclipse gives {n} fewer crossing, never fewer than one, and an Eclipse that would let students start anywhere gives two crossings instead.",
+          "other": "The lights dim further: each Eclipse gives {n} fewer crossings, never fewer than one, and an Eclipse that would let students start anywhere gives two crossings instead."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Światła gasną jeszcze bardziej: o {n} przejście mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
+          "few": "Światła gasną jeszcze bardziej: o {n} przejścia mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
+          "many": "Światła gasną jeszcze bardziej: o {n} przejść mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
+          "other": "Światła gasną jeszcze bardziej: o {n} przejść mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi."
+        },
+        "after": {
+          "one": "Światła gasną: w Eclipse jest o {n} przejście mniej, ale zawsze zostaje co najmniej jedno. Eclipse, które pozwala zacząć w dowolnym pokoju, daje tylko dwa przejścia.",
+          "few": "Światła gasną: w Eclipse jest o {n} przejścia mniej, ale zawsze zostaje co najmniej jedno. Eclipse, które pozwala zacząć w dowolnym pokoju, daje tylko dwa przejścia.",
+          "many": "Światła gasną: w Eclipse jest o {n} przejść mniej, ale zawsze zostaje co najmniej jedno. Eclipse, które pozwala zacząć w dowolnym pokoju, daje tylko dwa przejścia.",
+          "other": "Światła gasną: w Eclipse jest o {n} przejść mniej, ale zawsze zostaje co najmniej jedno. Eclipse, które pozwala zacząć w dowolnym pokoju, daje tylko dwa przejścia."
+        }
+      },
+      "removed": [
+        "\"you\" becomes \"students\": the card is the whole table's (P2).",
+        "\"pulled back to two rooms\" becomes \"gives two crossings\": the number is crossings (fact 0)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.what.despair",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "While it runs, any increase of a character's Hope is deleted; spending Hope and a GM's lowering go through.",
+          "file": "scripts/overflow.mjs",
+          "fn": "onPreUpdateActor",
+          "note": null
+        },
+        {
+          "fact": "Hope given back for a refused Call is not a gain and goes through.",
+          "file": "scripts/overflow.mjs",
+          "fn": "onPreUpdateActor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No Hope is earned at all. Spending what you already hold still works.",
+        "after": "Nobody gains Hope; spending the Hope already held still works."
+      },
+      "pl": {
+        "before": "Nie zdobywa się w ogóle Hope. Wydawanie tego, co już masz, wciąż działa.",
+        "after": "Nikt nie zdobywa Hope, ale zebrany wcześniej Hope można wydawać jak zwykle."
+      },
+      "removed": [
+        "\"what you already hold\": the card is the whole table's (P2).",
+        "Not stated: the refund of a refused Call (fact 1), an exception no student plans around (O13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "T29/O19: a public card tells the whole table that a GM's lowering still works, which no player acts on, and „Wydawanie go i obniżanie ... działa” has a singular verb on two subjects (proposed: Nikt nie zdobywa Hope, ale ten, który już się ma, można wydawać jak zwykle.) - executor: Taken in part: the GM's lowering goes; „ten, który już się ma, można wydawać” does not agree, so the kept Hope is „zebrany wcześniej Hope”."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.what.silence",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "While it runs every Hope Call is refused; Despair Calls are not Hope Calls and stay open.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No Hope Calls. Not one, by anybody.",
+        "after": "Nobody can use a Hope Call; Despair Calls still work."
+      },
+      "pl": {
+        "before": "Żadnych Hope Calls. Ani jednego, u nikogo.",
+        "after": "Żadnych Hope Calls dla nikogo. Despair Calls działają jak zwykle."
+      },
+      "removed": [
+        "\"Not one, by anybody\" becomes \"Nobody can use a Hope Call\" (X6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.what.fog",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "While it runs nobody has a Free Move (hasFreeMove answers no).",
+          "file": "scripts/overflow.mjs",
+          "fn": "overflowBlocksFreeMove",
+          "note": null
+        },
+        {
+          "fact": "A crossing then uses a Sprint crossing or an action, as later crossings do.",
+          "file": "scripts/actions.mjs",
+          "fn": "hasFreeMove",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You cannot find your way for free: no Free Move. Crossings still cost actions as usual.",
+        "after": "Nobody has a Free Move, so even the first crossing into another room uses a Sprint crossing or an action."
+      },
+      "pl": {
+        "before": "Nie znajdujesz drogi za darmo: brak Free Move. Przejścia wciąż kosztują akcje jak zwykle.",
+        "after": "Nikt nie ma Free Move, więc nawet pierwsze przejście do innego pokoju kosztuje akcję albo przejście z Calla Sprint."
+      },
+      "removed": [
+        "\"You cannot find your way for free\": the card is the whole table's (P2).",
+        "\"cost actions as usual\" names the Sprint crossing too (fact 1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.what.rot",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Rot runs once at the draw: each item of a living character loses up to {n} durability, but never its last point, so nothing breaks; an item on its last point is skipped.",
+          "file": "scripts/overflow.mjs",
+          "fn": "rotEverything",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Everything the school owns gets worse at once: {n} durability off every item with more than one point left. Nothing breaks.",
+        "after": "Everything the living carry wears down at once: each item loses up to {n} durability but never its last point, so nothing breaks."
+      },
+      "pl": {
+        "before": "Wszystko, co ma szkoła, psuje się naraz: o {n} wytrzymałości mniej na każdym przedmiocie, który jakąś ma; nic nie łamie się do końca.",
+        "after": "Rzeczy niszczeją: każdy przedmiot, który nosi ktoś żywy, traci do {n} wytrzymałości, ale ostatni punkt zostaje, więc nic się nie psuje."
+      },
+      "removed": [
+        "\"with more than one point left\" becomes \"never its last point\": an item with three points loses at most two (fact 0)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.what.earthquake",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Earthquake runs once at the draw: every project with progress that is neither finished nor frozen loses up to {n} progress.",
+          "file": "scripts/overflow.mjs",
+          "fn": "shakeProjects",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The building shakes and work is undone: every project still under way loses {n} progress.",
+        "after": "The building shakes and work is undone: every unfinished project that is not frozen loses up to {n} progress."
+      },
+      "pl": {
+        "before": "Budynek się trzęsie i praca idzie na marne: każdy projekt w toku traci {n} postępu.",
+        "after": "Budynek się trzęsie: każdy rozpoczęty projekt, który nie jest ukończony ani zamrożony, traci do {n} postępu."
+      },
+      "removed": [
+        "\"still under way\" becomes \"unfinished ... not frozen\", the two the code leaves out (fact 0)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.rulesChanged",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A save of Despair Flow that changes the threshold or any effect's on or size posts a public card; {n} is the threshold.",
+          "file": "scripts/overflow.mjs",
+          "fn": "setOverflowRules",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The overflow has been retuned. It now fires at {n}.",
+        "after": "The Overflow's rules have changed: it now fires at {n}."
+      },
+      "pl": {
+        "before": "Overflow przestrojony. Odpala teraz przy {n}.",
+        "after": "Overflow ma nowe ustawienia: odpala teraz przy {n}."
+      },
+      "removed": [
+        "\"has been retuned\" becomes \"rules have changed\" (X11)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.explainTitle",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "unassigned",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The heading of the Overflow's section in the Despair explainer, for players and GMs.",
+          "file": "scripts/explain.mjs",
+          "fn": "despairExplainerBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "What is despair overflow",
+        "after": "The Despair Overflow"
+      },
+      "pl": {
+        "before": "Czym jest Despair overflow",
+        "after": "Czym jest Overflow"
+      },
+      "removed": [
+        "The question without its mark becomes the mechanic's name (EN13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.explainEmpty",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A player's line in the Despair explainer when nothing is ticked; a GM reads DRPG.Overflow.emptyPool there.",
+          "file": "scripts/explain.mjs",
+          "fn": "despairExplainerBody",
+          "note": null
+        },
+        {
+          "fact": "With an empty hat the Overflow never fires.",
+          "file": "scripts/overflow.mjs",
+          "fn": "checkOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Nothing is in the GM's hat right now, so the overflow will not fire until they put something in it.",
+        "after": "The GM's hat is empty, so the Overflow cannot fire until a GM puts an effect in it."
+      },
+      "pl": {
+        "before": "Kapelusz GM-a jest teraz pusty, więc overflow nie odpali, dopóki czegoś do niego nie włoży.",
+        "after": "Kapelusz GM-a jest pusty, więc Overflow nie odpali, dopóki GM czegoś do niego nie włoży."
+      },
+      "removed": [
+        "\"Nothing is in the GM's hat right now\" becomes \"The GM's hat is empty\" (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.explainBody",
+      "group": "window",
+      "surface": "config-description",
+      "screen": "unassigned",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Monokuma's pool holds {max} (STARTING.despairMax); Despair that would not fit spills into one counter shared by every Monokuma.",
+          "file": "scripts/explain.mjs",
+          "fn": "despairExplainerBody",
+          "note": null
+        },
+        {
+          "fact": "At the threshold the Overflow pays that much, keeps the rest, and draws one effect at random from the ticked ones.",
+          "file": "scripts/overflow.mjs",
+          "fn": "checkOverflow",
+          "note": null
+        },
+        {
+          "fact": "The Despair Call Feed the Overflow adds to the counter.",
+          "file": "scripts/overflow.mjs",
+          "fn": "addOverflow",
+          "note": null
+        },
+        {
+          "fact": "A Class Trial verdict zeroes the count; a darkening drawn during the trial waits and comes at the next time of day.",
+          "file": "scripts/overflow.mjs",
+          "fn": "resetOverflow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "A Monokuma's pool holds {max}. Despair earned past that collects here, in one counter shared by every Monokuma. At the threshold it pays that much, keeps the rest, and draws one effect at random from the GM's hat, for one time of day. Feed the Overflow pours Despair in on purpose. A Class Trial verdict empties it; a darkening announced during the trial still comes, at the next time of day.",
+        "after": "Despair past a full pool of {max} goes into the shared Overflow. At its threshold it spends that many points, keeps the rest, and draws one effect from the GM's hat. The Feed the Overflow Call adds to it; a Class Trial verdict empties it."
+      },
+      "pl": {
+        "before": "Pula Monokumy mieści {max}. Despair zdobyty ponad to zbiera się tutaj, w jednym liczniku wspólnym dla wszystkich Monokum. Przy progu płaci tyle, zachowuje resztę i losuje jeden efekt z kapelusza GM-a, na jedną porę dnia. Feed the Overflow wlewa Despair celowo. Werdykt Class Trial go opróżnia; zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.",
+        "after": "Pula Monokumy mieści {max} Despair; nadmiar każdej trafia do wspólnego Overflow, do którego dolewa też Feed the Overflow. Przy progu Overflow wydaje tyle, zachowuje resztę i losuje efekt z kapelusza GM-a. Werdykt Class Trial zeruje licznik."
+      },
+      "removed": [
+        "\"for one time of day\": a one-off does not last a time of day; the card says how long each lasts (O3, DRPG.Overflow.cardBody).",
+        "\"a darkening announced during the trial still comes, at the next time of day\": said on the trial's card (DRPG.Overflow.cardBodyTrial) and the GM's tab (DRPG.Overflow.currentWaiting) (O3).",
+        "\"at random\" goes with the hat, which draws.",
+        "The darkening drawn in a trial leaves the Polish too: the trial's card (DRPG.Overflow.cardBodyTrial) says it (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said the drawn effect lasts one time of day; Rot and Earthquake happen once at the draw (overflow.mjs runOverflowEvent)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "coldEn: \"At its threshold it pays that much\" does not say what is paid or to whom; I understood that on reaching the threshold the Overflow spends that many points, keeps any surplus and draws one effect (proposed: When it reaches its threshold, it spends that many points, keeps any extra, and draws one effect from the GM's hat.) - executor: Taken in part: \"spends that many points\" says what is paid; \"When it reaches\" is left as \"At its threshold\" to stay under the limit of 45 words."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.explainVeil",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A player sees \"?\" for the count in the caption; a GM sees the count.",
+          "file": "scripts/despair.mjs",
+          "fn": "buildOverflowCaption",
+          "note": null
+        },
+        {
+          "fact": "The line is in the Despair explainer for players and GMs.",
+          "file": "scripts/explain.mjs",
+          "fn": "despairExplainerBody",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Players see “?” rather than the number: when it fires is Monokuma's to know. Nothing about the investigation lives in it.",
+        "after": "Players see “?” instead of the count; only the GMs know how close it is to firing."
+      },
+      "pl": {
+        "before": "Gracze widzą „?” zamiast liczby: kiedy odpali, wie Monokuma. Nic ze śledztwa w nim nie mieszka.",
+        "after": "Gracze widzą „?” zamiast stanu licznika, a GM-owie widzą liczbę."
+      },
+      "removed": [
+        "\"when it fires is Monokuma's to know\" becomes \"only the GMs know\": a Monokuma is a GM.",
+        "\"Nothing about the investigation lives in it\" goes (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Motive.none",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The rules manager's Motive section when no Motive is in force.",
+          "file": "scripts/rules.mjs",
+          "fn": "motiveSection",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No motive in force.",
+        "after": "No Motive is in force."
+      },
+      "pl": {
+        "before": "Żaden Motive nie obowiązuje.",
+        "after": "Żaden Motive nie obowiązuje."
+      },
+      "removed": [
+        "\"motive\" is capitalized as the Call's name, as the section's heading reads it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Motive.withdraw",
+      "group": "window",
+      "surface": "button",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The button withdraws the Motive in force: setMotive(null) writes it empty and announces DRPG.Motive.withdrawn to the table.",
+          "file": "scripts/rules.mjs",
+          "fn": "motiveSection",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Withdraw",
+        "after": "Withdraw Motive"
+      },
+      "pl": {
+        "before": "Wycofaj",
+        "after": "Wycofaj Motive"
+      },
+      "removed": [
+        "The button gets its object (O11)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Motive.withdrawNote",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Withdrawing posts a public card that the Motive no longer applies.",
+          "file": "scripts/rules.mjs",
+          "fn": "setMotive",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Withdraw tells everyone the motive is off.",
+        "after": "Withdrawing it tells the whole table the Motive is off."
+      },
+      "pl": {
+        "before": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje.",
+        "after": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje."
+      },
+      "removed": [
+        "\"Withdraw tells everyone\" becomes \"Withdrawing it tells the whole table\" (D33d)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Motive.deadline",
+      "group": "window",
+      "surface": "world-voice",
+      "screen": "unassigned",
+      "readers": [
+        "everyone"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The public card that announces a Motive ends with its deadline, {n} times of day, clamped to MOTIVE's range.",
+          "file": "scripts/rules.mjs",
+          "fn": "setMotive",
+          "note": null
+        },
+        {
+          "fact": "The count goes down by one at each time of day; at zero the Motive is due and a card says so.",
+          "file": "scripts/rules.mjs",
+          "fn": "tickMotive",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": {
+          "one": "One time of day to do something about it.",
+          "other": "{n} times of day to do something about it."
+        },
+        "after": {
+          "one": "The deadline is one time of day.",
+          "other": "The deadline is {n} times of day."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Jedna pora dnia, by coś z tym zrobić.",
+          "few": "{n} pory dnia, by coś z tym zrobić.",
+          "many": "{n} pór dnia, by coś z tym zrobić.",
+          "other": "{n} pór dnia, by coś z tym zrobić."
+        },
+        "after": {
+          "one": "Jedna pora dnia, by coś z tym zrobić.",
+          "few": "{n} pory dnia, by coś z tym zrobić.",
+          "many": "{n} pór dnia, by coś z tym zrobić.",
+          "other": "{n} pór dnia, by coś z tym zrobić."
+        }
+      },
+      "removed": [
+        "\"to do something about it\" goes: the demand and its consequence above say what is at stake (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Motive.publicNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "calls",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Motive window's Next button stays disabled until both the demand and the consequence are filled in.",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickMotive",
+          "note": null
+        },
+        {
+          "fact": "The demand, the consequence, and the deadline go on one public card.",
+          "file": "scripts/rules.mjs",
+          "fn": "setMotive",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "All three are announced to everyone, word for word. A motive nobody heard is not a motive.",
+        "after": "Fill in the demand and the consequence to go on. They and the deadline are announced to the whole table."
+      },
+      "pl": {
+        "before": "Wszystkie trzy ogłaszane są wszystkim, słowo w słowo. Motive, którego nikt nie słyszał, nie jest Motive.",
+        "after": "Wpisz żądanie i konsekwencję, żeby przejść dalej. Żądanie, konsekwencja i termin trafią słowo w słowo na jedną kartę dla całego stołu."
+      },
+      "removed": [
+        "\"A motive nobody heard is not a motive\" goes (O9).",
+        "\"word for word\" goes: the card prints what was typed."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Motive.migrated",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Motive announced before deadlines existed is given MOTIVE.defaultTimesOfDay, {n}, and the GMs are whispered.",
+          "file": "scripts/migrate.mjs",
+          "fn": "motiveTimer",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": {
+          "one": "This world's motive was announced before motives had a deadline. It has been given {n} time of day so it keeps working. Withdraw and announce it again if that is not what you meant.",
+          "other": "This world's motive was announced before motives had a deadline. It has been given {n} times of day so it keeps working. Withdraw and announce it again if that is not what you meant."
+        },
+        "after": {
+          "one": "This world's Motive was announced before Motives had deadlines, so its deadline is now {n} time of day. To set another, withdraw it and buy Motive again.",
+          "other": "This world's Motive was announced before Motives had deadlines, so its deadline is now {n} times of day. To set another, withdraw it and buy Motive again."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Motive tego świata ogłoszono, zanim Motive miały termin. Dostał {n} porę dnia, by dalej działać. Wycofaj i ogłoś ponownie, jeśli nie o to chodziło.",
+          "few": "Motive tego świata ogłoszono, zanim Motive miały termin. Dostał {n} pory dnia, by dalej działać. Wycofaj i ogłoś ponownie, jeśli nie o to chodziło.",
+          "many": "Motive tego świata ogłoszono, zanim Motive miały termin. Dostał {n} pór dnia, by dalej działać. Wycofaj i ogłoś ponownie, jeśli nie o to chodziło.",
+          "other": "Motive tego świata ogłoszono, zanim Motive miały termin. Dostał {n} pór dnia, by dalej działać. Wycofaj i ogłoś ponownie, jeśli nie o to chodziło."
+        },
+        "after": {
+          "one": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pora dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz.",
+          "few": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pory dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz.",
+          "many": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pór dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz.",
+          "other": "Ten Motive ogłoszono, zanim Motive miały terminy, więc jego termin to teraz {n} pór dnia. Jeśli chcesz inny termin, wycofaj go i kup Motive jeszcze raz."
+        }
+      },
+      "removed": [
+        "\"so it keeps working\" goes (O9).",
+        "\"if that is not what you meant\" becomes \"To set another\" (O7); \"announce it again\" becomes \"buy Motive again\": a new Motive is the Despair Call, paid from a pool (rules.mjs setMotive is reached from call-effects.mjs alone, besides the console; M3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.grantTo",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The label of the Despair Flow window's select that picks which GM or assistant is given a Despair pool; the buttons beside it are DRPG.Despair.addPool.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "buildContent",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Grant a pool to",
+        "after": "Grant a pool to"
+      },
+      "pl": {
+        "before": "Przyznaj pulę",
+        "after": "Komu przyznać pulę"
+      },
+      "removed": [
+        "The Polish label read the same as its button („Przyznaj pulę”, „Odbierz pulę”); as a select's label it now asks whom, as the English does (B01b's revision, note 3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.revokeFrom",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The label of the Despair Flow window's select that picks which GM or assistant loses a Despair pool; the buttons beside it are DRPG.Despair.removePool.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "buildContent",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Revoke the pool from",
+        "after": "Revoke the pool from"
+      },
+      "pl": {
+        "before": "Odbierz pulę",
+        "after": "Komu odebrać pulę"
+      },
+      "removed": [
+        "The Polish label read the same as its button („Przyznaj pulę”, „Odbierz pulę”); as a select's label it now asks whom, as the English does (B01b's revision, note 3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    }
+  ]
+}

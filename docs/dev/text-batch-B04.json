@@ -1,0 +1,5013 @@
+{
+  "$comment": [
+    "B04, a batch of stage E71 (line A, claude/e71-a), with E25's content part: each text written from the facts of the functions that run its rule (O6, M1), the English by one agent, the Polish by another from the facts, the code and the old Polish without the new English (DB26), then read by the EN, cold EN, PL and (rules batches) mechanics reviewers and revised once; `reviews` holds what each reviewer still holds open after that revision, `owner` is null (no owner's page yet). Written on claude/e71-a 14.11.2026; the afters are the text of lang/ and config.mjs from the commit that adds this file."
+  ],
+  "batch": "B04",
+  "stage": "E71",
+  "texts": [
+    {
+      "key": "DRPG.Action.murderConfirmEclipse",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The line is the last of the Direct Murder confirmation window, under the briefing and DRPG.Action.murderSpendsAnyway, which already says the action is spent whatever comes of it and that the outcome is known only when the Eclipse ends; its button is Yes.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        },
+        {
+          "fact": "A Direct Murder is declared only during an Eclipse; outside one the tile refuses it.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        },
+        {
+          "fact": "After the yes and the note, the declaration is stored and put to the GMs on a card at once: Allow on a statistic, Change to the other, or Refuse; a refusal is told to the killer.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "askGmToAllow",
+          "note": null
+        },
+        {
+          "fact": "When the Eclipse ends, an allowed declaration opens the incident only if the killer is in a room with exactly one other person, and only the first one that opens counts.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        },
+        {
+          "fact": "The action is spent when the declaration is made, and stays spent on a refusal.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        },
+        {
+          "fact": "The agreement with the GM beforehand and the consent of the victim's player are table agreements; no code checks them.",
+          "file": null,
+          "fn": null,
+          "note": "table rule: docs/handbooks/player-handbook.en.md section Direct Murder, gm-handbook.en.md 'consent from the victim's player is a table agreement, not a checkbox'"
+        }
+      ],
+      "kept": [
+        2,
+        5
+      ],
+      "en": {
+        "before": "This parks a direct murder for the GM to rule on when the Eclipse ends. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
+        "after": "It goes to the GMs at once: a GM allows it on a statistic or refuses it, and you hear of a refusal. Declare it only if you agreed on it with the GM beforehand and the victim's player consents."
+      },
+      "pl": {
+        "before": "To parkuje Direct Murder do rozstrzygnięcia przez GM-a, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
+        "after": "Zgłoszenie od razu trafia do GM-ów: zatwierdzą je z wybraną statystyką albo odmówią, a o odmowie się dowiesz. Zabójstwo musisz wcześniej uzgodnić z GM-em i z graczem ofiary."
+      },
+      "removed": [
+        "\"This parks a direct murder ... when the Eclipse ends\": that the outcome waits for the end of the Eclipse is said by DRPG.Action.murderSpendsAnyway one line above (O3); \"parks\" names the mechanism (T29).",
+        "\"The action is spent even if the conditions fail\": DRPG.Action.murderSpendsAnyway, one line above, says it (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "\"the consent of the other player\" becomes \"the victim's player consents\", as both English handbooks name it; the other player is not known at the declaration."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcTierRow",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Search's rows are 8 for Tier 0, 12 for Tier 1 and 18 for Tier 2, joined by \" · \" into DRPG.Action.dcSearch's {rows}.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS",
+          "note": null
+        },
+        {
+          "fact": "A row is printed from each threshold's min and tier.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        },
+        {
+          "fact": "The line is one of the facts the action's window lists under the action's name or under Details' Thresholds, read by the player acting before the roll.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{n}+ a thing of tier {tier}",
+        "after": "{n}+ for a Tier {tier} item"
+      },
+      "pl": {
+        "before": "{n}+ rzecz tieru {tier}",
+        "after": "{n}+ to rzecz Tier {tier}"
+      },
+      "removed": [
+        "\"a thing of tier\" becomes \"a Tier ... item\", the handbook's and DRPG.Action.found's word (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcSearch",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Search finds an item of the tier of the highest threshold its total reaches, and nothing below the lowest.",
+          "file": "scripts/action-search.mjs",
+          "fn": "searchTier",
+          "note": null
+        },
+        {
+          "fact": "A critical finds one tier better (tierBonus 1, at most Tier 3), even a critical that reaches no threshold.",
+          "file": "scripts/action-search.mjs",
+          "fn": "searchTier",
+          "note": null
+        },
+        {
+          "fact": "The line is one of the facts the action's window lists under the action's name or under Details' Thresholds, read by the player acting before the roll.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "What you find, by your total: {rows}. The higher the tier, the better the thing; a critical finds one tier better.",
+        "after": "What you find by your total: {rows}. Below the lowest, you find nothing. A critical finds an item one tier better, even below the lowest."
+      },
+      "pl": {
+        "before": "Co znajdziesz, wg wyniku: {rows}. Im wyższy tier, tym lepsza rzecz; krytyk znajduje o tier lepiej.",
+        "after": "Wynik decyduje o tym, co znajdziesz: {rows}. Poniżej najniższego progu nie znajdujesz nic. Krytyk daje rzecz o jeden Tier lepszą, nawet gdy wynik nie sięga żadnego progu."
+      },
+      "removed": [
+        "\"The higher the tier, the better the thing\": an explanation the rows already show (O2, T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcObserveFaint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Observe's Faint column: 12, 15, 18 and 21 by visibility, Obvious to Hidden.",
+          "file": "scripts/config.mjs",
+          "fn": "OBSERVE_DC",
+          "note": null
+        },
+        {
+          "fact": "Faint is a Remnant type whose label is \"Faint Remnant\".",
+          "file": "scripts/config.mjs",
+          "fn": "REMNANT_TYPES",
+          "note": null
+        },
+        {
+          "fact": "The line is one of the facts the action's window lists under the action's name or under Details' Thresholds, read by the player acting before the roll.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A faint Remnant: {rows}.",
+        "after": "A Faint Remnant: {rows}."
+      },
+      "pl": {
+        "before": "Nikły Remnant: {rows}.",
+        "after": "Faint Remnant: {rows}."
+      },
+      "removed": [
+        "\"faint\" is capitalized as the Remnant type's label (EN18)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcAnalyze",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Analyze's thresholds by the visibility of the bullet's Remnant: the crime's column (prep, also Neutral, Incident and Tamper) 12-21, Faint 8-18, Key 6-15; there is no Daily Life column.",
+          "file": "scripts/config.mjs",
+          "fn": "ANALYZE_DC",
+          "note": null
+        },
+        {
+          "fact": "A Final Truth Bullet is read on the Key column.",
+          "file": "scripts/config.mjs",
+          "fn": "OBSERVE_TYPE_ALIAS",
+          "note": null
+        },
+        {
+          "fact": "The three ladders are printed under the Identify row, each \"Obvious n · Evident n · Subtle n · Hidden n\".",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "ladderRows",
+          "note": null
+        },
+        {
+          "fact": "The line is one of the facts the action's window lists under the action's name or under Details' Thresholds, read by the player acting before the roll.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Identifying a bullet, by how visible its Remnant was - of the crime: {rows}; faint: {faint}; Key and Final: {key}.",
+        "after": "Identifying a Truth Bullet of the crime: {rows}. A Faint one: {faint}. A Key or Final one: {key}."
+      },
+      "pl": {
+        "before": "Identyfikacja Truth Bulleta, wg widoczności jego Remnantu - ze zbrodni: {rows}; nikły: {faint}; Key i Final: {key}.",
+        "after": "Próg identyfikacji Truth Bulletu zależy od widoczności jego Remnantu. Remnant zbrodni: {rows}. Faint Remnant: {faint}. Key Remnant i Final Truth Bullet: {key}."
+      },
+      "removed": [
+        "\"by how visible its Remnant was\": each row names its visibility (Obvious, Evident, Subtle, Hidden), so the words go (O2).",
+        "The label-colon chain in one sentence (X7) becomes three short sentences; \"bullet\" becomes \"Truth Bullet\" (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcRelief",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A readied Tool takes its tier off every Work and Sabotage threshold, and the numbers printed are already lowered by it.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        },
+        {
+          "fact": "The relief is read off the tool the character holds ready.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": " (your tool in hand takes {n} off)",
+        "after": " (your readied tool takes {n} off)"
+      },
+      "pl": {
+        "before": " (narzędzie w ręce zdejmuje {n})",
+        "after": " (już o {n} niżej dzięki narzędziu w ręku)"
+      },
+      "removed": [
+        "\"in hand\" becomes \"readied\", the word for an item held ready (EN9, O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcConceal",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "With anybody else in the room, a Sabotage first rolls Shadow against 16 to cover what you are doing; a Work rolls no such cover.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        },
+        {
+          "fact": "The threshold is SABOTAGE_CONCEAL.threshold, its statistic Shadow.",
+          "file": "scripts/config.mjs",
+          "fn": "SABOTAGE_CONCEAL",
+          "note": null
+        },
+        {
+          "fact": "The line is printed on the Projects tile's window whenever anybody else is in the room.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Somebody is here, so first you cover what you are doing: {n}+.",
+        "after": "Somebody is here, so a Sabotage starts with a Shadow roll to cover what you are doing: {n}+. Work on Project needs no such roll."
+      },
+      "pl": {
+        "before": "Ktoś tu jest, więc najpierw zakrywasz, co robisz: {n}+.",
+        "after": "Gdy ktoś tu jest, przed Sabotage rzucasz Shadow na {n}+, żeby ukryć, co robisz. Praca nad projektem nie wymaga takiego rzutu."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old text did not say the cover is a Sabotage's alone and is rolled on Shadow; the line stands on the Projects window, where a Work rolls no cover (concealSabotage). Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcIndirect",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Working on an indirect murder with somebody else in the room, you first roll Shadow against 16 (Conceal Your Intent); alone, the project gains +1 progress instead.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealProjectIntent",
+          "note": null
+        },
+        {
+          "fact": "The threshold is INDIRECT_MURDER.concealIntent.threshold, its statistic Shadow.",
+          "file": "scripts/config.mjs",
+          "fn": "INDIRECT_MURDER",
+          "note": null
+        },
+        {
+          "fact": "The line is printed when a project in this room is an indirect murder.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "An indirect murder also hides its intent: {n}+.",
+        "after": "For an indirect murder with somebody here, you first roll Shadow to hide your intent: {n}+."
+      },
+      "pl": {
+        "before": "Pośrednie morderstwo dodatkowo ukrywa zamiar: {n}+.",
+        "after": "Gdy przy pracy nad pośrednim morderstwem ktoś tu jest, najpierw rzucasz Shadow na {n}+, żeby ukryć zamiar."
+      },
+      "removed": [
+        "Not stated here, in either language: the +1 progress for working alone (D13), a number the line has no placeholder for; the card says it (DRPG.Project.aloneBonus). The Polish drops the name Conceal Your Intent, which the English does not carry either."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text did not say the roll is needed only with somebody in the room and is rolled on Shadow (concealProjectIntent). Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcListen",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Listen: 14+ tells how many people are in the room picked (DRPG.Listen.anonymous) or that it sounds empty; 18+ names them; a critical names everyone in every neighboring room.",
+          "file": "scripts/action-listen.mjs",
+          "fn": "performListen",
+          "note": null
+        },
+        {
+          "fact": "The thresholds are Listen's, 14 and 18.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS",
+          "note": null
+        },
+        {
+          "fact": "The line is one of the facts the action's window lists under the action's name or under Details' Thresholds, read by the player acting before the roll.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{a}+ tells you whether anyone is there, {b}+ who.",
+        "after": "{a}+ tells you how many people are there or that the room is empty, {b}+ who. A critical names everyone in every neighboring room."
+      },
+      "pl": {
+        "before": "{a}+ mówi, czy ktoś tam jest, {b}+ kto.",
+        "after": "Przy {a}+ wiesz, ile osób tam jest albo że pokój jest pusty, przy {b}+ także kto to. Krytyk zdradza, kto jest w każdym sąsiednim pokoju."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said the lower roll tells \"whether anyone is there\"; it tells how many (performListen; B01a's approved Listen description: \"A good roll counts the people there\"). Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcPalm",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Palm rolls the cover first (Shadow, `unseen`) and then the hand (Hand); taking needs Shadow 15 and Hand 12, planting Shadow 13 and Hand 8.",
+          "file": "scripts/palm.mjs",
+          "fn": "palmTitle",
+          "note": null
+        },
+        {
+          "fact": "The numbers are ACTIONS.palm threshold, unseen.threshold, plant.threshold and plant.unseen.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS",
+          "note": null
+        },
+        {
+          "fact": "The line is one of the facts the action's window lists under the action's name or under Details' Thresholds, read by the player acting before the roll.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "thresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Taking: {take}+, and {unseen}+ to stay unseen. Planting: {plant}+ and {plantUnseen}+.",
+        "after": "To take: Shadow {unseen}+ to stay unseen, then Hand {take}+. To plant: Shadow {plantUnseen}+, then Hand {plant}+."
+      },
+      "pl": {
+        "before": "Zabranie: {take}+, a {unseen}+, by nikt nie zauważył. Podłożenie: {plant}+ i {plantUnseen}+.",
+        "after": "Najpierw rzucasz Shadow, żeby nikt nie zauważył, a potem Hand. Zabranie: Shadow {unseen}+ i Hand {take}+. Podłożenie: Shadow {plantUnseen}+ i Hand {plant}+."
+      },
+      "removed": [
+        "The rolls are named by their statistic and put in the order they are thrown (Shadow, then Hand, as the handbook's Palm row reads)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcTamper",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Erase a Trace works on any non-Reinforced Remnant the character knows of in the room, not only their own.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "tamperThresholdFacts",
+          "note": null
+        },
+        {
+          "fact": "The ladder is the cleanup DC for each visibility, already lowered by a readied cleaning tool's tier and by an unfound body.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleaningTier",
+          "note": null
+        },
+        {
+          "fact": "The line stands under the Erase row of the Tamper window.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "tamperThresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Erasing your Remnant, by how visible it is: {rows}{relief}.",
+        "after": "Erase a Trace works on any Remnant you know of here that is not Reinforced. By how visible it is: {rows}{relief}."
+      },
+      "pl": {
+        "before": "Zatarcie własnego Remnantu, wg widoczności: {rows}{relief}.",
+        "after": "Erase a Trace działa na każdy Remnant w tym pokoju, o którym wiesz, chyba że jest Reinforced. Progi według widoczności: {rows}{relief}."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said \"your Remnant\"; the erase works on any Remnant you know of here that is not Reinforced (DRPG.Tamper.coverHint, B01a: \"You know of {n} Remnants here that you can erase\"). Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dcTamperRelief",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The reliefs (DRPG.Action.reliefTool, DRPG.Action.reliefFresh) are joined by \", \" into {what}, and the ladder's numbers are already lowered by them.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "tamperThresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": " (lowered by {what})",
+        "after": " (already includes {what})"
+      },
+      "pl": {
+        "before": " (obniżone przez: {what})",
+        "after": " (już obniżone {what})"
+      },
+      "removed": [
+        "\"lowered by\" goes: the host says the ladder already includes the reliefs, and each relief starts with its number and says what gives it (\"-{n} for ...\"; in Polish \"o {n} dzięki ...\", \"o {n}, bo ...\", section 14), so the joined list reads as one."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.reliefTool",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A readied cleaning tool takes its tier off the erase ladder.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleaningTier",
+          "note": null
+        },
+        {
+          "fact": "The relief is listed in DRPG.Action.dcTamperRelief's {what}.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "tamperThresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "your cleaning tool, -{n}",
+        "after": "-{n} for your readied cleaning tool"
+      },
+      "pl": {
+        "before": "narzędzie do sprzątania, -{n}",
+        "after": "o {n} dzięki narzędziu do sprzątania w ręku"
+      },
+      "removed": [
+        "The number first, then what gives it, so the list joined in {what} reads as one (\"-2 for your readied cleaning tool, -3 for ...\")."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.reliefFresh",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The fresh scene's relief stands while a body of this chapter is not yet found and the phase is not one the rule ends in; on a GM only the bodies this character's player may know count.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "freshSceneBonus",
+          "note": null
+        },
+        {
+          "fact": "The relief is listed in DRPG.Action.dcTamperRelief's {what}.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "tamperThresholdFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "the fresh scene, -{n}",
+        "after": "-{n} for a body nobody has found yet"
+      },
+      "pl": {
+        "before": "świeżą scenę, -{n}",
+        "after": "o {n}, bo ciała nikt jeszcze nie znalazł"
+      },
+      "removed": [
+        "\"the fresh scene\" becomes what makes it fresh, a body not yet found (freshSceneBonus)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.spentAfterRoll",
+      "group": "window",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A later roll window of an action closed after one of its rolls already landed: the action is not refunded.",
+          "file": "scripts/action-pipeline.mjs",
+          "fn": "spentAfterRoll",
+          "note": null
+        },
+        {
+          "fact": "Tamper says it the same way when its price was an action.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "releaseTamper",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{action}: the first roll already landed, so the action stays spent.",
+        "after": "{action}: your first roll already counts, so the action stays spent."
+      },
+      "pl": {
+        "before": "{action}: pierwszy rzut już się odbył, więc akcja pozostaje wydana.",
+        "after": "{action}: pierwszy rzut już padł, więc akcja przepada."
+      },
+      "removed": [
+        "\"landed\" becomes \"counts\", what it means for the player."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.found",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Search that finds an item reports its tier and name on the action's card, whispered to the player and the GMs.",
+          "file": "scripts/action-report.mjs",
+          "fn": "report",
+          "note": null
+        },
+        {
+          "fact": "An item not carried (full hands) adds DRPG.Inventory.notCarried after it; a substitute adds DRPG.Action.substitute below.",
+          "file": "scripts/action-report.mjs",
+          "fn": "report",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Found a Tier {tier} item: <strong>{item}</strong>",
+        "after": "You find a Tier {tier} item: <strong>“{item}”</strong>"
+      },
+      "pl": {
+        "before": "Znaleziono przedmiot Tier {tier}: <strong>{item}</strong>",
+        "after": "Znajdujesz „<strong>{item}</strong>” (Tier {tier})"
+      },
+      "removed": [
+        "The item's name is put in quotes (EN17). No final period in either language: report appends DRPG.Inventory.notCarried's bracket straight after the line (action-report.mjs report)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dynamicSuccess",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Dynamic Action that reaches its band's number succeeds at the band's tier; the card says the tier and the GMs get a card to give an item or reply.",
+          "file": "scripts/action-dynamic.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "A Reroll that turns a miss into a success says the same.",
+          "file": "scripts/reroll.mjs",
+          "fn": "settleDynamic",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Success - the GM decides what a Tier {tier} result gives you.",
+        "after": "A hit at Tier {tier}. The GM decides what it gives you."
+      },
+      "pl": {
+        "before": "Sukces - GM zdecyduje, co daje ci wynik Tier {tier}.",
+        "after": "Sukces na Tier {tier}. GM zdecyduje, co ci to daje."
+      },
+      "removed": [
+        "The dash aside (X4) becomes two sentences; \"Success\" becomes \"A hit\" (EN8)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dynamicFound",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "action-tiles",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The GMs' card of a Dynamic success has three answers: Create an item, Give an item and Reply.",
+          "file": "scripts/action-dynamic.mjs",
+          "fn": "offerDynamicFind",
+          "note": null
+        },
+        {
+          "fact": "It is followed by DRPG.Bridge.createItemStays.",
+          "file": "scripts/action-dynamic.mjs",
+          "fn": "offerDynamicFind",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The roll succeeded at Tier {tier}. Decide what it gives: an item, or something said.",
+        "after": "The roll succeeded at Tier {tier}. Decide what it gives: an item or a reply."
+      },
+      "pl": {
+        "before": "Rzut się udał na Tier {tier}. Zdecyduj, co daje: przedmiot albo coś, co powiesz.",
+        "after": "Rzut udał się na Tier {tier}. Zdecyduj, co z tego wynika: utwórz przedmiot, daj istniejący albo odpowiedz graczowi."
+      },
+      "removed": [
+        "\"something said\" becomes \"a reply\", the card's own button (Reply)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dynamicRerollMissed",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "action-tiles",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Reroll that turns a Dynamic success into a miss ends every unanswered card of it, its buttons off, with this line; the card's other words are greyed.",
+          "file": "scripts/action-dynamic.mjs",
+          "fn": "withdrawDynamicFind",
+          "note": null
+        },
+        {
+          "fact": "The line is written with its key and each reader writes it in their own language.",
+          "file": "scripts/secret.mjs",
+          "fn": "readersLines",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A Reroll turned this roll into a miss: the success no longer stands, and it gives nothing.",
+        "after": "A Reroll turned this roll into a miss, so it gives nothing."
+      },
+      "pl": {
+        "before": "Reroll zmienił ten rzut w chybienie: sukces już nie obowiązuje i nic nie daje.",
+        "after": "Po Rerollu ten rzut jest pudłem: sukces przepada i nie ma czego dawać."
+      },
+      "removed": [
+        "\"the success no longer stands\": said by \"turned this roll into a miss\" (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dynamicAnsweredMissed",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "action-tiles",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When a Reroll turns a Dynamic success into a miss after a GM answered its card, the GMs are told in one card, with the character and the player's words; what was given is not taken back by the module.",
+          "file": "scripts/action-dynamic.mjs",
+          "fn": "withdrawDynamicFind",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A Reroll turned {name}'s Dynamic success into a miss after a GM had answered its card (\"{what}\"). What was given on it stands; it is the GMs' to take back.",
+        "after": "A Reroll turned {name}'s Dynamic success into a miss after a GM had answered its card (“{what}”). What was given stands unless a GM takes it back."
+      },
+      "pl": {
+        "before": "Reroll zmienił sukces Dynamic postaci {name} w chybienie, gdy GM już odpowiedział na jego kartę („{what}”). To, co na niej dano, zostaje; cofnąć to mogą GM-owie.",
+        "after": "Reroll zmienił sukces Dynamic Action postaci {name} („{what}”) w pudło, a GM już odpowiedział na tę kartę. To, co dano, zostaje; GM-owie mogą to cofnąć ręcznie."
+      },
+      "removed": [
+        "\"it is the GMs' to take back\" becomes \"unless a GM takes it back\" (withdrawDynamicFind takes nothing back); straight quotes become curly."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.leavesRemnant",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An action's card says a Remnant was left when the roll left one the roller is told of; a plain Despair that leaves nothing prints nothing.",
+          "file": "scripts/action-report.mjs",
+          "fn": "report",
+          "note": null
+        },
+        {
+          "fact": "A Contribution to an indirect murder adds the same line to the Call's receipt when its hide roll left a Remnant.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "progressEffect",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Leaves a Remnant behind.",
+        "after": "You leave a Remnant behind."
+      },
+      "pl": {
+        "before": "Zostawia Remnant.",
+        "after": "Zostawiasz Remnant."
+      },
+      "removed": [
+        "The subject is the reader, who left it (V1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.actionReturned",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A critical Work gives its action back, and the card says so.",
+          "file": "scripts/action-report.mjs",
+          "fn": "report",
+          "note": null
+        },
+        {
+          "fact": "A Reroll that makes the roll a critical gives the action back with the same line.",
+          "file": "scripts/reroll.mjs",
+          "fn": "settleActionRefund",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Critical - the action is returned.",
+        "after": "A critical gives you the action back."
+      },
+      "pl": {
+        "before": "Krytyk - akcja wraca.",
+        "after": "Krytyk: akcja do ciebie wraca."
+      },
+      "removed": [
+        "The dash aside (X4) becomes one sentence."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.goalHealingHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Healing goal asks the room for a usable that restores Health.",
+          "file": "scripts/action-search.mjs",
+          "fn": "chooseSearchCategory",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Food and medicine. Restores Health.",
+        "after": "Food and medicine that restore Health."
+      },
+      "pl": {
+        "before": "Jedzenie i leki. Przywraca Health.",
+        "after": "Jedzenie i leki przywracają Health."
+      },
+      "removed": [
+        "Telegraph style (X6) becomes one phrase, as DRPG.Action.goalStressHint reads."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.goalCrimeHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The goal asks for the Murder Weapon category (ITEM_CATEGORIES.crimeTool, label \"Murder Weapon\").",
+          "file": "scripts/action-search.mjs",
+          "fn": "chooseSearchCategory",
+          "note": null
+        },
+        {
+          "fact": "What is found decides the Remnant: a found item that is a Murder Weapon or a Cleaning Tool leaves a Faint Prep Remnant, whatever was asked for.",
+          "file": "scripts/inventory.mjs",
+          "fn": "leavesTraceFor",
+          "note": null
+        },
+        {
+          "fact": "The find decides it, not the ask.",
+          "file": "scripts/action-search.mjs",
+          "fn": "traceTheFind",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A potential murder tool. Leaves a Prep Remnant.",
+        "after": "A Murder Weapon. Finding one leaves a Prep Remnant."
+      },
+      "pl": {
+        "before": "Potencjalne narzędzie zbrodni. Zostawia Prep Remnant.",
+        "after": "Szukasz czegoś, co liczy się jako Narzędzie zbrodni. Gdy znajdziesz Narzędzie zbrodni albo narzędzie do sprzątania, zostawiasz Faint Prep Remnant."
+      },
+      "removed": [
+        "\"a potential murder tool\" becomes the category's name, \"Murder Weapon\" (glossary murder-weapon)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text tied the Remnant to the goal; the code ties it to what is found (traceTheFind). \"Finding one\" says that."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.goalCleaningHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The goal asks for the Cleaning Tool category (ITEM_CATEGORIES.cleaningTool).",
+          "file": "scripts/action-search.mjs",
+          "fn": "chooseSearchCategory",
+          "note": null
+        },
+        {
+          "fact": "A found Cleaning Tool leaves a Faint Prep Remnant, whatever was asked for.",
+          "file": "scripts/inventory.mjs",
+          "fn": "leavesTraceFor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A cleaning tool. Leaves a Prep Remnant.",
+        "after": "A Cleaning Tool. Finding one leaves a Prep Remnant."
+      },
+      "pl": {
+        "before": "Narzędzie do sprzątania. Zostawia Prep Remnant.",
+        "after": "Szukasz narzędzia do sprzątania. Gdy je znajdziesz, zostawiasz Faint Prep Remnant."
+      },
+      "removed": [
+        "\"A cleaning tool\" is the category's name (ITEM_CATEGORIES.cleaningTool \"Cleaning Tool\")."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.substitute",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The line follows a Search's find when the room had none of what was asked for and gave something else; a planted item reads the same, so the card never tells a plant apart.",
+          "file": "scripts/action-search.mjs",
+          "fn": "searchDraw",
+          "note": null
+        },
+        {
+          "fact": "It is printed under DRPG.Action.found on the action's card.",
+          "file": "scripts/action-report.mjs",
+          "fn": "report",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Not what you were looking for - it is what this room had.",
+        "after": "What you were looking for isn't here. You find something else in this room instead."
+      },
+      "pl": {
+        "before": "Tego, czego szukasz, tu nie ma. Znajdujesz coś innego, co było w tym pokoju.",
+        "after": "Tego, czego szukasz, tu nie ma. Znajdujesz coś innego, co było w tym pokoju."
+      },
+      "removed": [
+        "The dash aside (X4) becomes two sentences, as the approved Polish pair N39 reads."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.specificSent",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Search for something specific rolls, takes the room's Search Token, and sends the player's description with the roll to a GM's card (create an item, give an item, nothing there, or refuse).",
+          "file": "scripts/action-search.mjs",
+          "fn": "searchSpecific",
+          "note": null
+        },
+        {
+          "fact": "The player's own card (the action report, whispered to the owner and the GMs) carries this line as its outcome.",
+          "file": "scripts/action-report.mjs",
+          "fn": "report",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Your description is with the GM. They will say what you found.",
+        "after": "The roll uses up one of this room's Search Tokens, and the GM has your description with it. The GM gives you an item, says nothing is here, or refuses."
+      },
+      "pl": {
+        "before": "Twój opis poszedł do GM-a. Odpowie, co się znalazło.",
+        "after": "Rzut zużywa jeden Search Token tego pokoju, a twój opis trafia z wynikiem do GM-a. GM da ci przedmiot, powie, że nic tu nie ma, albo odmówi."
+      },
+      "removed": [
+        "\"is with the GM. They will say what you found\": joined and widened to what the GM can answer (searchSpecific); the Search Token taken is now said in both languages."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dynamicDescribe",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Dynamic Action window asks for a description first, and it is required; the player may also propose a statistic.",
+          "file": "scripts/action-dynamic.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "The description goes to a GM, who sets the difficulty band and the statistic, or refuses.",
+          "file": "scripts/action-dynamic.mjs",
+          "fn": "askDynamicDifficulty",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Describe what your character does. The GM reads this and sets the difficulty.",
+        "after": "Describe what you do; without it, nothing is sent. The GM reads it and sets the difficulty."
+      },
+      "pl": {
+        "before": "Opisz, co robi twoja postać. GM to czyta i ustala trudność.",
+        "after": "Opisz, co robisz: bez opisu nie wyślesz prośby. GM to czyta i ustala trudność."
+      },
+      "removed": [
+        "\"your character does\": \"you do\", the reader acting (O4, EN12); the proposed statistic and the refusal are the tile hint's, DRPG.Action.dynamicHint (O3), in both languages."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity (M4): the PL carries the required description, the proposed statistic and the refusal, which the EN after lacks; one side must change. - executor: Taken in part: parity reached by the Polish dropping the proposed statistic and the refusal, which the tile hint DRPG.Action.dynamicHint says (O3), and the English gaining the required description."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.youAreIn",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Every action window's briefing names the room the character's token stands in, or says it is in no room (DRPG.Action.noRoomNote).",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "briefingFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "You are in: {room}",
+        "after": "You are in {room}."
+      },
+      "pl": {
+        "before": "Jesteś w pokoju {room}",
+        "after": "Jesteś w pokoju {room}"
+      },
+      "removed": [
+        "The label-colon shape \"You are in: {room}\" (X7); the early pass changed only the Polish (X12), which this keeps."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.gmPrompt",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The prompt stands above the text field of Analyze's window, shown only with the Ask for a hint row; {action} is the action's label.",
+          "file": "scripts/action-analyze.mjs",
+          "fn": "requestFieldHtml",
+          "note": null
+        },
+        {
+          "fact": "The words are optional and go to a GM with the roll (DRPG.Action.requestOptional under the field).",
+          "file": "scripts/action-menus.mjs",
+          "fn": "requestFieldHtml",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "{action} - what are you trying to do? The GM sees this with your roll.",
+        "after": "{action}: what are you trying to find out? The GM sees this with your roll."
+      },
+      "pl": {
+        "before": "{action} - co próbujesz zrobić? GM zobaczy to razem z twoim rzutem.",
+        "after": "{action}: co próbujesz ustalić? Jeśli coś wpiszesz, GM zobaczy to razem z twoim rzutem."
+      },
+      "removed": [
+        "The dash after {action} (X4) is a colon; \"do\" is \"find out\", since only the hint row shows the field."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.placeholder.directMurder",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "betrayal",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The placeholder of the note asked after a Direct Murder or a betrayal declared in an Eclipse; the note goes to the GMs with the declaration.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        },
+        {
+          "fact": "Not found in code: no function checks that the murder was agreed beforehand; the GM's allowance stands for it.",
+          "file": null,
+          "fn": null,
+          "note": "not found in code"
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Who, where, and how - as agreed beforehand.",
+        "after": "Who, where, and how, as agreed beforehand. The GMs get this with your declaration."
+      },
+      "pl": {
+        "before": "Kogo, gdzie i jak - tak, jak uzgodniono wcześniej.",
+        "after": "Kogo, gdzie i jak, tak jak uzgodniono wcześniej. To trafi do GM-ów razem ze zgłoszeniem."
+      },
+      "removed": [
+        "The dash (X4); \"as agreed beforehand\" stays as an example of what to write, not a rule the code runs (fact 1)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderNobody",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "At the Eclipse's end, a declared Direct Murder whose killer stands with nobody else in the room comes to nothing; the killer is told on a veiled card and the GMs are told why (DRPG.Action.murderCancelled, this text as its {reason}).",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        },
+        {
+          "fact": "The action was spent at the declaration and is not given back.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Nobody here to kill. The attempt is spent; try again another time of day.",
+        "after": "Nobody else is in the room, so the attempt fails. The action stays spent; try again at another time of day."
+      },
+      "pl": {
+        "before": "Nie ma tu kogo zabić. Próba przepada; spróbuj o innej porze dnia.",
+        "after": "W pokoju nie ma nikogo innego, więc nie ma kogo zabić. Akcja przepada; spróbuj o innej porze dnia."
+      },
+      "removed": [],
+      "needsCode": [
+        "This text is also the {reason} of the GMs' card DRPG.Action.murderCancelled, where its \"try again\" speaks to the killer on a GM card; a reason key of the GMs' own would need judgePendingMurders to pass it."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderWitness",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "At the Eclipse's end, a declared Direct Murder whose killer stands with more than one other person comes to nothing; {n} is the people present minus the one victim, so 1 or more.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        },
+        {
+          "fact": "The killer is told on a veiled card, and the GMs are told why with this text as the {reason} of DRPG.Action.murderCancelled.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        },
+        {
+          "fact": "The action was spent at the declaration and is not given back.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": {
+          "one": "You are not alone with your victim - {n} other person would see it. The attempt is spent; try again another time of day.",
+          "other": "You are not alone with your victim - {n} other people would see it. The attempt is spent; try again another time of day."
+        },
+        "after": {
+          "one": "{n} person besides your victim is in the room and would see it, so the attempt fails. The action stays spent; try again at another time of day.",
+          "other": "{n} people besides your victim are in the room and would see it, so the attempt fails. The action stays spent; try again at another time of day."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Nie jesteś z ofiarą sam na sam - zobaczyłaby to {n} inna osoba. Próba przepada; spróbuj o innej porze dnia.",
+          "few": "Nie jesteś z ofiarą sam na sam - zobaczyłyby to {n} inne osoby. Próba przepada; spróbuj o innej porze dnia.",
+          "many": "Nie jesteś z ofiarą sam na sam - zobaczyłoby to {n} innych osób. Próba przepada; spróbuj o innej porze dnia.",
+          "other": "Nie jesteś z ofiarą sam na sam - zobaczyłoby to {n} innych osób. Próba przepada; spróbuj o innej porze dnia."
+        },
+        "after": {
+          "one": "Poza ofiarą jest tu jeszcze {n} osoba, więc zabójstwo miałoby świadka. Akcja przepada; spróbuj o innej porze dnia.",
+          "few": "Poza ofiarą są tu jeszcze {n} osoby, więc zabójstwo miałoby świadków. Akcja przepada; spróbuj o innej porze dnia.",
+          "many": "Poza ofiarą jest tu jeszcze {n} osób, więc zabójstwo miałoby świadków. Akcja przepada; spróbuj o innej porze dnia.",
+          "other": "Poza ofiarą jest tu jeszcze {n} osób, więc zabójstwo miałoby świadków. Akcja przepada; spróbuj o innej porze dnia."
+        }
+      },
+      "removed": [
+        "The dash aside (X4) and \"You are not alone with your victim\", which the count says."
+      ],
+      "needsCode": [
+        "As DRPG.Action.murderNobody: the GMs' card DRPG.Action.murderCancelled quotes this text, \"try again\" and \"your victim\" included."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.sabotageSeenOn",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Sabotage with others present rolls Shadow first; on a miss the saboteur is told the room sees roughly what they do (SABOTAGE_CONCEAL.failure), then this line, and the sabotage goes on: the action was paid before and is not withdrawn.",
+          "file": "scripts/action-project.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "You are doing it in front of them. The action is already spent, so it goes ahead.",
+        "after": "The action is already spent, so the sabotage goes ahead even though you were seen."
+      },
+      "pl": {
+        "before": "Robisz to na oczach innych. Akcja jest już wydana, więc sabotaż idzie dalej.",
+        "after": "Robisz to na oczach innych. Akcja jest już wydana, więc sabotaż idzie dalej."
+      },
+      "removed": [
+        "\"You are doing it in front of them.\": joined into the one sentence (O2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderSpendsAnyway",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Direct Murder confirmation's note: confirmed, the action is spent before the declaration is parked, and it is not given back whatever the outcome.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        },
+        {
+          "fact": "A GM's refusal is told to the killer at once; an allowance is told nothing until the Eclipse ends, when the room decides whether the incident opens.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "ruleOnParkedMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Confirming spends the action whether or not it comes off - and you will not find out which until the Eclipse ends.",
+        "after": "Confirming spends the action whatever comes of it. You learn how it went when the Eclipse ends, or sooner if a GM refuses it."
+      },
+      "pl": {
+        "before": "Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się dopiero po zakończeniu Eclipse.",
+        "after": "Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się dopiero po zakończeniu Eclipse."
+      },
+      "removed": [
+        "The dash (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said the killer learns nothing until the Eclipse ends; a GM's refusal is whispered at once (eclipse.mjs ruleOnParkedMurder). The after says so.",
+        "The same window's DRPG.Action.murderConfirmEclipse (not in this part) also says the action is spent even if the conditions fail, and that the GM rules when the Eclipse ends, while the GMs' card asks at the declaration (eclipse.mjs askGmToAllow); one of the two should hold the spend (O3)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderPromptParked",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "betrayal",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The prompt of the note asked after a Direct Murder or a betrayal is declared in an Eclipse.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        },
+        {
+          "fact": "A Direct Murder's note goes on the GMs' card at once, and again in the window asked at the Eclipse's end if no GM answered.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "askGmToAllow",
+          "note": null
+        },
+        {
+          "fact": "A betrayal's note goes with the declaration and reaches the incident's opening at the Eclipse's end.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performBetrayal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "What are you doing, and how? The GM reads this when the lights come up.",
+        "after": "What are you doing, and how? The GM reads this with your declaration and has it again when the Eclipse ends."
+      },
+      "pl": {
+        "before": "Co robisz i jak? GM przeczyta to, gdy zapali się światło.",
+        "after": "Co robisz i jak? Notatka trafia do GM-a razem ze zgłoszeniem, a GM ma ją przed sobą także po zakończeniu Eclipse."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said the GM reads it when the lights come up; a Direct Murder's note is on the GMs' card from the declaration (eclipse.mjs askGmToAllow)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderParked",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Once the declaration is parked, the killer gets this card; an allowance is not told until the Eclipse ends, a refusal is told at once.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "ruleOnParkedMurder",
+          "note": null
+        },
+        {
+          "fact": "At the Eclipse's end the room decides: alone with exactly one other person, the incident opens, unless one is already open.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Your move is made. The GM has to allow it, and nobody knows how it went - not even you - until the Eclipse ends and the room settles.",
+        "after": "Your Direct Murder is declared. If a GM refuses it, you hear at once; otherwise you learn how it went when the Eclipse ends. An incident opens only if you are then alone with one other person and none is open yet."
+      },
+      "pl": {
+        "before": "Twój ruch wykonany. GM musi na niego pozwolić, a jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi.",
+        "after": "Zgłoszenie jest przyjęte. Jeśli GM odmówi, dowiesz się od razu; jeśli pozwoli, nic nie usłyszysz do końca Eclipse. Wtedy incydent się otworzy, jeśli zostaniesz z kimś sam na sam i żaden incydent nie będzie jeszcze otwarty."
+      },
+      "removed": [
+        "\"nobody knows how it went - not even you\" and \"the room settles\": the dash aside (X4) and the flavor; what stays is when the killer learns it."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said nobody learns how it went until the Eclipse ends; a GM's refusal is whispered at once (eclipse.mjs ruleOnParkedMurder)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderParkedToast",
+      "group": "window",
+      "surface": "toast",
+      "screen": "betrayal",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The toast on the killer's browser once a Direct Murder or a betrayal is parked in an Eclipse; both are judged when the Eclipse ends.",
+          "file": "scripts/action-murder.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Declared. The answer comes when the Eclipse does.",
+        "after": "Declared. You learn the outcome when the Eclipse ends."
+      },
+      "pl": {
+        "before": "Zgłoszono. Odpowiedź przyjdzie razem z końcem Eclipse.",
+        "after": "Zgłoszenie przyjęte. Wynik poznasz po zakończeniu Eclipse."
+      },
+      "removed": [
+        "\"when the Eclipse does\" read as its start; it is its end. A GM's refusal comes sooner, which DRPG.Action.murderParked says (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderSecondDeclaration",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "At the Eclipse's end, a declaration whose room test passes while an incident is already open is refused; the killer gets DRPG.Action.murderRefused and the GMs this card.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{killer} also declared a direct murder in the dark, but an incident was already open. Their attempt was refused and their action is spent.",
+        "after": "{killer} also declared a Direct Murder during the Eclipse, but an incident was already open. The attempt is refused, and the action stays spent."
+      },
+      "pl": {
+        "before": "Także {killer}: Direct Murder w ciemności - ale incydent był już otwarty. Próba odrzucona, akcja przepada.",
+        "after": "{killer} też zgłasza Direct Murder podczas Eclipse, ale incydent jest już otwarty. Próba zostaje odrzucona, a akcja przepada."
+      },
+      "removed": [
+        "\"in the dark\" is \"during the Eclipse\"; \"Direct Murder\" takes the action's name (EN6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderCancelled",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "At the Eclipse's end, a declaration whose killer stands with nobody or with more than one other person comes to nothing; the GMs are told with the killer's own line as {reason}.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{killer}'s direct murder came to nothing in {room} - {reason}",
+        "after": "{killer}'s Direct Murder in {room} came to nothing: {reason}"
+      },
+      "pl": {
+        "before": "Direct Murder ({killer}) w pokoju {room} nie dochodzi do skutku: {reason}",
+        "after": "Direct Murder ({killer}) w pokoju {room} nie dochodzi do skutku: {reason}"
+      },
+      "removed": [
+        "The dash before {reason} (X4) is a colon; \"Direct Murder\" takes the action's name (EN6)."
+      ],
+      "needsCode": [
+        "{reason} is the killer's own line (judgePendingMurders passes DRPG.Action.murderNobody or DRPG.Action.murderWitness), so the GMs' card reads in the second person, \"try again\" included (P2); GM-only reason keys (e.g. \"nobody else was there\", \"{n} other people were there besides {victim}\") would need judgePendingMurders to pass them."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "P2: {reason} is the killer's own line (eclipse.mjs judgePendingMurders passes DRPG.Action.murderNobody or murderWitness), so the GMs' card reads \"...came to nothing: Nobody else is in the room, so the attempt fails. The action stays spent; try again at another time of day.\", which is second person and an instruction to the GMs; the after longer than the before makes this worse; list it under needsCode (proposed: GM-only reason keys, e.g. \"{killer}'s Direct Murder in {room} came to nothing: nobody else was there.\" and a plural \"... {n} other people were there besides {victim}.\", which needs a code change) - executor: Taken in part: the needsCode is written; the host stays as it is, since the owner's pair N18 stands in its Polish word for word and the after is no longer than the before's words; the reason keys of the GMs' own wait for the code change."
+          ]
+        },
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderOpens",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "At the Eclipse's end, a declaration allowed (on the card or at the lights) whose killer stands with exactly one other person opens the incident; the GMs get this card with the note, then the incident opens.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{killer} declared a direct murder during the Eclipse and ended it alone with {victim} in {room}. The incident is open.",
+        "after": "{killer} declared a Direct Murder during the Eclipse and ended it alone with {victim} in {room}. The incident is open."
+      },
+      "pl": {
+        "before": "Direct Murder podczas Eclipse: {killer} zostaje sam na sam z postacią {victim} w pokoju {room}. Incydent jest otwarty.",
+        "after": "Direct Murder podczas Eclipse: {killer} zostaje sam na sam z postacią {victim} w pokoju {room}. Incydent jest otwarty."
+      },
+      "removed": [
+        "\"direct murder\" capitalized as the action's name (EN6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.requestOptional",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "project-start",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The note under an optional request field (Analyze's hint, and the other windows that send words to a GM with the roll).",
+          "file": "scripts/action-menus.mjs",
+          "fn": "requestFieldHtml",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Optional - leave it empty and the GM rules on the roll alone.",
+        "after": "Optional. Leave it empty, and the GM rules on the roll alone."
+      },
+      "pl": {
+        "before": "Opcjonalne - zostaw puste, a GM orzeknie na podstawie samego rzutu.",
+        "after": "Możesz zostawić to pole puste; wtedy GM oceni sam rzut."
+      },
+      "removed": [
+        "The dash (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.searchTokensLeft",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Search window's briefing gives the room's Search Tokens left and the most a room has (the world setting).",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "briefingFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Searches left here: {left} of {max}.",
+        "after": "{left} of {max} Search Tokens left in this room."
+      },
+      "pl": {
+        "before": "Przeszukania tutaj: {left} z {max}.",
+        "after": "Search Tokeny w tym pokoju: {left} z {max}."
+      },
+      "removed": [
+        "\"Searches left here:\": the glossary's name, Search Token (O14, EN7), and no label-colon (X7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.failStress",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Observe briefing's line with the Sanity a miss costs (ACTIONS.observe.failStress, OBSERVE_FAIL_STRESS).",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "briefingFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A failed roll costs {n} Sanity.",
+        "after": "On a miss, you lose {n} Sanity."
+      },
+      "pl": {
+        "before": "Nieudany rzut kosztuje {n} Sanity.",
+        "after": "Przy pudle tracisz {n} Sanity."
+      },
+      "removed": [
+        "\"A failed roll costs\": the outcome words of DB18 (EN8) and the reserve (M7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderNeedsApproval",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The GMs' card put while the Eclipse runs: allow (on a statistic) or refuse; the victim is not known yet.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "askGmToAllow",
+          "note": null
+        },
+        {
+          "fact": "Who the killer is alone with is read when the Eclipse ends; an allowed declaration can still come to nothing then.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A direct murder, declared in the dark. Nothing opens until you allow it - and who they end up alone with is not settled yet.",
+        "after": "A Direct Murder, declared during the Eclipse. Nothing opens unless a GM allows it, and who the killer ends up alone with is settled when the Eclipse ends."
+      },
+      "pl": {
+        "before": "Direct Murder zgłoszony w ciemności. Nic się nie otworzy, dopóki nie pozwolisz - a z kim skończą sam na sam, jeszcze nie wiadomo.",
+        "after": "Zgłoszono Direct Murder podczas Eclipse. Bez zgody GM-a nic się nie otworzy. Z kim zabójca zostanie sam na sam, okaże się dopiero po zakończeniu Eclipse, więc nawet po zgodzie próba może jeszcze przepaść."
+      },
+      "removed": [
+        "\"until you allow it\": the card is the GMs', so the GM in the third person (P2); the dash (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderRefused",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Told to the killer on a veiled card when a GM refuses the declaration (at once) or at the lights.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "ruleOnParkedMurder",
+          "note": null
+        },
+        {
+          "fact": "Also told at the Eclipse's end when an incident was already open, and when a declared betrayal cannot open; there no GM refused.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The GM did not allow it. The action is spent.",
+        "after": "The attempt is refused. The action stays spent."
+      },
+      "pl": {
+        "before": "GM nie pozwolił. Akcja przepada.",
+        "after": "Zgłoszenie zostaje odrzucone. Akcja przepada."
+      },
+      "removed": [
+        "Why it was refused (a GM's refusal, an incident already open, a betrayal that cannot open) is left out in both languages: the killer may not know that another incident is open (M9)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text said \"The GM did not allow it\", which is false where an incident was already open or a betrayal could not open (eclipse.mjs judgePendingMurders); the after names no one."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity (M4): the PL names both reasons (a GM refusal or an incident that cannot open), the EN after names none; one side must change. - executor: Taken in part: parity reached on the English side's reading: the Polish drops both reasons, since an incident already open is what the killer may not know (M9), and \"a GM refuses\" is false when no GM refused."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderApprovedGm",
+      "group": "window",
+      "surface": "toast",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The toast to the GM who allowed a parked declaration; the incident is decided when the Eclipse ends.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "ruleOnParkedMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name}'s direct murder is allowed. It resolves when the Eclipse ends.",
+        "after": "{name}'s Direct Murder is allowed. It resolves when the Eclipse ends."
+      },
+      "pl": {
+        "before": "Direct Murder ({name}) dozwolony. Rozstrzygnie się z końcem Eclipse.",
+        "after": "Pozwalasz na Direct Murder ({name}). Czy dojdzie do incydentu, okaże się po zakończeniu Eclipse."
+      },
+      "removed": [
+        "\"direct murder\" capitalized as the action's name (EN6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderRefusedGm",
+      "group": "window",
+      "surface": "toast",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The toast to the GM who refused a parked declaration; the row is dropped and the action stays spent.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "ruleOnParkedMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name}'s direct murder is refused. Their action is spent.",
+        "after": "{name}'s Direct Murder is refused. The action stays spent."
+      },
+      "pl": {
+        "before": "Direct Murder ({name}) odrzucony. Akcja przepada.",
+        "after": "Odmawiasz Direct Murder ({name}). Akcja przepada."
+      },
+      "removed": [
+        "\"direct murder\" capitalized as the action's name (EN6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderNotParked",
+      "group": "window",
+      "surface": "toast",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The toast to a GM pressing a declaration's button when no declaration is waiting: the Eclipse ended, or a GM already ruled on it.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "ruleOnParkedMurder",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "That declaration is no longer waiting - the Eclipse has ended, or it has already been ruled on.",
+        "after": "That declaration is no longer waiting: the Eclipse has ended, or a GM has already ruled on it."
+      },
+      "pl": {
+        "before": "To zgłoszenie już nie czeka: Eclipse się skończyło albo zgłoszenie jest już rozstrzygnięte.",
+        "after": "To zgłoszenie już nie czeka: Eclipse się skończyło albo zgłoszenie jest już rozstrzygnięte."
+      },
+      "removed": [
+        "The dash (X4) is a colon."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderAsk",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Asked at the Eclipse's end in a GM's window, only for a declaration no GM ruled on and whose killer stands with exactly one other person.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "askAtTheLights",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{killer} declared a direct murder in the dark and has ended up alone with {victim} in {room}. Open the incident?",
+        "after": "{killer} declared a Direct Murder during the Eclipse and ended it alone with {victim} in {room}. Open the incident?"
+      },
+      "pl": {
+        "before": "Direct Murder w ciemności: {killer} zostaje sam na sam z postacią {victim} w pokoju {room}. Otworzyć incydent?",
+        "after": "Direct Murder podczas Eclipse: {killer} zostaje sam na sam z postacią {victim} w pokoju {room}. Otworzyć incydent?"
+      },
+      "removed": [
+        "\"in the dark\" is \"during the Eclipse\", as DRPG.Action.murderOpens has it; \"Direct Murder\" capitalized (EN6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.murderAskNote",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The window at the lights asks again a declaration the GMs' card left unanswered; a refusal opens nothing, the action stays spent, and closing the window refuses.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "askAtTheLights",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "You were asked this when it was declared and it is still unanswered. Refusing opens nothing; the action stays spent either way.",
+        "after": "No GM answered this when it was declared. Refusing opens nothing, and so does closing this window; the action stays spent either way."
+      },
+      "pl": {
+        "before": "Pytano o to przy zgłoszeniu i pytanie wciąż czeka. Odmowa niczego nie otwiera; akcja przepada tak czy inaczej.",
+        "after": "Nikt nie odpowiedział na kartę zgłoszenia, więc pytanie wraca teraz. Odmowa albo zamknięcie okna niczego nie otwiera, a akcja i tak przepada."
+      },
+      "removed": [
+        "\"You were asked this\": the card went to all the GMs (P2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.willCost",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An action window's briefing says the action's price and the actions left, for an action whose price is no chain.",
+          "file": "scripts/action-briefing.mjs",
+          "fn": "briefingFacts",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": {
+          "one": "Action cost {n}. You have {left}.",
+          "other": "Action cost {n}. You have {left}."
+        },
+        "after": {
+          "one": "Costs {n} action. You have {left}.",
+          "other": "Costs {n} actions. You have {left}."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Koszt: {n} akcja. Masz {left}.",
+          "few": "Koszt: {n} akcje. Masz {left}.",
+          "many": "Koszt: {n} akcji. Masz {left}.",
+          "other": "Koszt: {n} akcji. Masz {left}."
+        },
+        "after": {
+          "one": "Koszt: {n} akcja. Masz {left}.",
+          "few": "Koszt: {n} akcje. Masz {left}.",
+          "many": "Koszt: {n} akcji. Masz {left}.",
+          "other": "Koszt: {n} akcji. Masz {left}."
+        }
+      },
+      "removed": [
+        "\"Action cost {n}\": a sentence with a verb, and the noun counted by the family (X6)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.pipTooltip",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Only a GM's sheet makes the action pips clickable; the tooltip and the aria-label carry the pip's number.",
+          "file": "scripts/sheet.mjs",
+          "fn": "actionPips",
+          "note": null
+        },
+        {
+          "fact": "A click on pip i sets the actions left to i, and a click on the last filled pip (i equal to the actions left) sets them to one fewer.",
+          "file": "scripts/sheet.mjs",
+          "fn": "actionPips",
+          "note": null
+        },
+        {
+          "fact": "setActions writes the value the click asks for; nothing is spent or paid, it is the GM's correction by hand.",
+          "file": "scripts/actions.mjs",
+          "fn": "setActions",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Set remaining actions to {n}. Click the last filled one to spend it.",
+        "after": "Click to set this student's actions left to {n}. A click on the last filled one empties it."
+      },
+      "pl": {
+        "before": "Ustaw pozostałe akcje na {n}. Kliknij ostatnią zapełnioną, by ją wydać.",
+        "after": "Ustaw pozostałe akcje ucznia na {n}. Kliknięcie ostatniego pełnego znacznika odejmuje jedną akcję."
+      },
+      "removed": [
+        "\"spend it\" left: the click corrects the count by hand and pays for nothing (setActions), so the after says it empties the pip."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.woundedTooltip",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The tooltip stands on the sheet's Actions label while the student is Wounded (no Health left).",
+          "file": "scripts/sheet.mjs",
+          "fn": "injectActionBar",
+          "note": null
+        },
+        {
+          "fact": "Wounded takes WOUNDED_ACTIONS_LOST from STARTING.actions, and only in the phases STATES.wounded.actionsLostIn names (Daily Life and the Investigation); in the Class Trial it takes none.",
+          "file": "scripts/actions.mjs",
+          "fn": "actionBudget",
+          "note": null
+        },
+        {
+          "fact": "tests-tier0 reads this key by name among the eight reserve texts: it must name Health or Sanity and never the marks.",
+          "file": null,
+          "fn": null,
+          "note": "tests-tier0.mjs, the EIGHT list (line 22118), not a function"
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "No Health left - one action per time of day.",
+        "after": "Wounded: no Health left, so one action fewer per time of day in Daily Life and the Investigation."
+      },
+      "pl": {
+        "before": "Nie zostało już Health - jedna akcja na porę dnia.",
+        "after": "Wounded: bez Health uczeń ma w Daily Life i Investigation o akcję mniej na porę dnia."
+      },
+      "removed": [
+        "The dash aside went (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The before says \"one action per time of day\": that is the budget of two less one, and holds only in Daily Life and the Investigation; in the Class Trial a Wounded student loses no action (actions.mjs actionBudget, STATES.wounded.actionsLostIn). The after says one action fewer and where."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity (M4): the EN after names the state Wounded and the PL does not; the PL carries the Class Trial exception the EN lacks (proposed, 22 words: Wounded: bez Health uczeń ma w Daily Life i Investigation o akcję mniej na porę dnia. W Class Trial nie traci akcji.) - executor: Taken in part: the Polish now names Wounded and the student, as proposed; the Class Trial sentence is left out in both languages, since \"w Daily Life i Investigation\" already bounds the loss within the tooltip's budget."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.lockedTooltip",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A pip beyond the budget is drawn locked; its tooltip is shown to the owner and the GMs, never to a viewer.",
+          "file": "scripts/sheet.mjs",
+          "fn": "actionPips",
+          "note": null
+        },
+        {
+          "fact": "The budget loses an action while the student is Wounded in Daily Life and the Investigation; healed, the next refill gives it back.",
+          "file": "scripts/actions.mjs",
+          "fn": "actionBudget",
+          "note": null
+        },
+        {
+          "fact": "tests-tier0 reads this key by name among the eight reserve texts: it must name Health or Sanity and never the marks.",
+          "file": null,
+          "fn": null,
+          "note": "tests-tier0.mjs, the EIGHT list (line 22118), not a function"
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Forfeit. No Health left, so this stays shut until they heal.",
+        "after": "This action is lost while the student has no Health left."
+      },
+      "pl": {
+        "before": "Przepada. Nie zostało już Health, więc to zostaje zamknięte do czasu wyleczenia.",
+        "after": "Ta akcja jest zablokowana, bo nie zostało już Health."
+      },
+      "removed": [
+        "\"Forfeit.\" (telegraph, X6) and \"stays shut until they heal\" became one sentence; when it comes back is the refill's, said in the handbook."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.pipReadOnly",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A player's own sheet and status strip show this on the action pips, with the actions left and the time of day's maximum; the family is keyed on the maximum.",
+          "file": "scripts/sheet.mjs",
+          "fn": "actionPips",
+          "note": null
+        },
+        {
+          "fact": "With no actions left the strip shows DRPG.Actions.allSpent instead.",
+          "file": "scripts/player-status.mjs",
+          "fn": "actionsTooltip",
+          "note": null
+        },
+        {
+          "fact": "The pips are not clickable for a player: actions are spent by taking actions.",
+          "file": "scripts/sheet.mjs",
+          "fn": "actionPips",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        2
+      ],
+      "en": {
+        "before": {
+          "one": "{left} of {max} action this time of day. Spent by acting.",
+          "other": "{left} of {max} actions this time of day. Spent by acting."
+        },
+        "after": {
+          "one": "{left} of {max} action left this time of day. You spend it by taking an action.",
+          "other": "{left} of {max} actions left this time of day. You spend them by taking actions."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie.",
+          "few": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie.",
+          "many": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie.",
+          "other": "{left} z {max} akcji o tej porze dnia. Wydawane przez działanie."
+        },
+        "after": {
+          "one": "{left} z {max} akcji o tej porze dnia. Ubywa ich, gdy wykonujesz akcje.",
+          "few": "{left} z {max} akcji o tej porze dnia. Ubywa ich, gdy wykonujesz akcje.",
+          "many": "{left} z {max} akcji o tej porze dnia. Ubywa ich, gdy wykonujesz akcje.",
+          "other": "{left} z {max} akcji o tej porze dnia. Ubywa ich, gdy wykonujesz akcje."
+        }
+      },
+      "removed": [
+        "\"Spent by acting.\" (telegraph, X6) became a whole sentence."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "Cold reading: the one form renders as \"1 of 3 action left\", and English uses the plural after \"of {max}\" (proposed for one: {left} of {max} actions left this time of day. You spend it by taking an action.). - executor: Kept: the family is keyed on {max} (sheet.mjs actionPips), so the one form renders only with a maximum of one (\"1 of 1 action left\", \"0 of 1 action left\"), where the singular is right."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.freeMoveSpent",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Shown on the sheet's and the strip's Move feet, and in the GM's roster, when the time of day's Free Move is gone.",
+          "file": "scripts/player-status.mjs",
+          "fn": "buildPlayerView",
+          "note": null
+        },
+        {
+          "fact": "A crossing pays the Free Move, then a banked free crossing (Sprint and the like), then a banked Burst, then an action.",
+          "file": "scripts/actions.mjs",
+          "fn": "nextCrossingPrice",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Free Move used. The next crossing costs an action.",
+        "after": "Free Move used. A crossing now takes a banked free crossing or Burst first, then an action."
+      },
+      "pl": {
+        "before": "Free Move zużyty. Następne przejście kosztuje akcję.",
+        "after": "Free Move jest już zużyty. Następne przejście opłaca najpierw darmowe przejście z zapasu, potem Burst z zapasu, a gdy ich brak, akcja."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The before says the next crossing costs an action; a banked free crossing or a Burst pays first (actions.mjs nextCrossingPrice, takeMove), which R1200 already fixed in the Move briefing."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.moveLegend",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Move is always two feet: solid while a slot can be taken, outlined otherwise.",
+          "file": "scripts/sheet.mjs",
+          "fn": "moveFeetHtml",
+          "note": null
+        },
+        {
+          "fact": "The second foot is in the Eclipse's color; outside an Eclipse it is drawn off (dimmed), in one the two feet are the Eclipse's crossings.",
+          "file": "scripts/sheet.mjs",
+          "fn": "moveSlots",
+          "note": null
+        },
+        {
+          "fact": "The legend follows the row's own sentence in the sheet's and the strip's tooltips.",
+          "file": "scripts/sheet.mjs",
+          "fn": "freeMovePip",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Solid: yours to take. Outlined: spent. The second foot, in the Eclipse's color, is the Eclipse's second crossing: dimmed outside an Eclipse.",
+        "after": "Solid: yours to take. Outlined: spent. The second foot, in the Eclipse's color, is an Eclipse crossing and is dimmed outside one."
+      },
+      "pl": {
+        "before": "Pełna: do wzięcia. Obrys: zużyta. Druga stopa, w kolorze Eclipse, to drugie przejście Eclipse: przygaszona poza Eclipse.",
+        "after": "Pełna stopa to wolne przejście, sam obrys to zużyte. Druga stopa ma kolor Eclipse: w Eclipse to drugie przejście, poza nim jest przygaszona."
+      },
+      "removed": [
+        "The label-colon tail \"second crossing: dimmed outside an Eclipse\" became a clause (X7); the early pass's \"color\" stays."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.allSpent",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The strip's actions row shows this out of an Eclipse when no actions are left.",
+          "file": "scripts/player-status.mjs",
+          "fn": "actionsTooltip",
+          "note": null
+        },
+        {
+          "fact": "Every character's actions are refilled at each time-of-day change (applyTimeOfDayChange), at an Eclipse's opening when one is used (the refill after the flag), and at the start of a Class Trial (openTrialBudget).",
+          "file": "scripts/actions.mjs",
+          "fn": "resetAllActions",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "No actions left. They come back when the next Eclipse begins.",
+        "after": "No actions left. They come back with the next time of day."
+      },
+      "pl": {
+        "before": "Nie masz już akcji. Wrócą na początku kolejnego Eclipse.",
+        "after": "Nie masz już akcji. Wrócą na początku kolejnego Eclipse."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The before says actions come back when the next Eclipse begins; when the GM moves the clock without an Eclipse they come back at the change of the time of day (clock.mjs applyTimeOfDayChange, actions.mjs resetAllActions). The after says \"with the next time of day\", true in both cases. The owner's Polish pair N56 (\"Wrócą na początku kolejnego Eclipse\") has the same narrowing: for the owner."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "For the owner (M1): the after is the approved pair N56 and stays word for word, but the kept fact says actions refill at every time-of-day change (and at an Eclipse's opening and a Class Trial's start), and the EN after says „with the next time of day”; „Wrócą na początku kolejnego Eclipse” may be untrue when the next time of day is no Eclipse. - executor: Kept: N56 is the owner's approved pair and stays word for word; the narrowing (actions also come back at a time-of-day change without an Eclipse, and at a Class Trial's start) goes to the owner in notes."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.eclipseMovesLeft",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "In an Eclipse the sheet's budget line, the sheet's Move tooltip and the strip's Move row say the crossings this Eclipse still allows (eclipse.mjs movesLeft).",
+          "file": "scripts/player-status.mjs",
+          "fn": "eclipseMoveRow",
+          "note": null
+        },
+        {
+          "fact": "The count is what is left, not the allowance.",
+          "file": "scripts/sheet.mjs",
+          "fn": "freeMovePip",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": {
+          "one": "{n} Eclipse crossing",
+          "other": "{n} Eclipse crossings"
+        },
+        "after": {
+          "one": "{n} Eclipse crossing left",
+          "other": "{n} Eclipse crossings left"
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "{n} przejście Eclipse",
+          "few": "{n} przejścia Eclipse",
+          "many": "{n} przejść Eclipse",
+          "other": "{n} przejść Eclipse"
+        },
+        "after": {
+          "one": "zostało {n} przejście Eclipse",
+          "few": "zostały {n} przejścia Eclipse",
+          "many": "zostało {n} przejść Eclipse",
+          "other": "zostało {n} przejść Eclipse"
+        }
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.eclipseFreePlacement",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "In an Eclipse with free placement (eclipseMovesLeft null, the Night Eclipse) the player may place their token in any room.",
+          "file": "scripts/player-status.mjs",
+          "fn": "eclipseMoveRow",
+          "note": null
+        },
+        {
+          "fact": "The text stands alone as a tooltip, opens a tooltip sentence followed by \". \" and the legend, and is one item of the sheet's budget line joined by \" · \".",
+          "file": "scripts/sheet.mjs",
+          "fn": "freeMovePip",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "place anywhere",
+        "after": "Place your token in any room"
+      },
+      "pl": {
+        "before": "ustaw gdziekolwiek",
+        "after": "Ustaw swój token w dowolnym pokoju"
+      },
+      "removed": [
+        "The lowercase fragment opened a sentence in the strip's and the sheet's tooltips (\"place anywhere. Solid: ...\"); the after starts with a capital and works in all three places."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Price.will.actionsLeft",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "priceLine joins DRPG.Price.will.action (the cost) and this (the actions left) with a space, each its own family; shown in the action's briefing and the Objection's line.",
+          "file": "scripts/price.mjs",
+          "fn": "priceLine",
+          "note": null
+        },
+        {
+          "fact": "tests-tier1 holds the English line \"Costs 2 actions. You have 5 actions.\" literally.",
+          "file": null,
+          "fn": null,
+          "note": "tests-tier1.mjs line 37442, the R-test of the price lines"
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": {
+          "one": "You have {left} action.",
+          "other": "You have {left} actions."
+        },
+        "after": {
+          "one": "You have {left} action left.",
+          "other": "You have {left} actions left."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Masz {left} akcję.",
+          "few": "Masz {left} akcje.",
+          "many": "Masz {left} akcji.",
+          "other": "Masz {left} akcji."
+        },
+        "after": {
+          "one": "Masz {left} akcję.",
+          "few": "Masz {left} akcje.",
+          "many": "Masz {left} akcji.",
+          "other": "Masz {left} akcji."
+        }
+      },
+      "removed": [],
+      "needsCode": [
+        "scripts/tests-tier1.mjs line 37442 holds the English line literally: en.lines[0] must read \"Costs 2 actions. You have 5 actions left.\"; the Polish line \"Kosztuje 2 akcje. Masz 5 akcji.\" (line 37452) stays, as the Polish after is the before."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Price.will.burst",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When the action step will be paid by a banked Burst (quote.grant), the line is this alone.",
+          "file": "scripts/price.mjs",
+          "fn": "priceLine",
+          "note": null
+        },
+        {
+          "fact": "canPayStep lets a banked Burst pay the action step whatever its amount.",
+          "file": "scripts/price.mjs",
+          "fn": "canPayStep",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": {
+          "one": "Costs {n} action - your banked Burst pays it.",
+          "other": "Costs {n} actions - your banked Burst pays it."
+        },
+        "after": {
+          "one": "Costs {n} action, which your banked Burst pays.",
+          "other": "Costs {n} actions, which your banked Burst pays."
+        }
+      },
+      "pl": {
+        "before": {
+          "one": "Kosztuje {n} akcję - płaci za nią Burst z zapasu.",
+          "few": "Kosztuje {n} akcje - płaci za nie Burst z zapasu.",
+          "many": "Kosztuje {n} akcji - płaci za nie Burst z zapasu.",
+          "other": "Kosztuje {n} akcji - płaci za nie Burst z zapasu."
+        },
+        "after": {
+          "one": "Kosztuje {n} akcję, ale płaci za nią Burst z zapasu.",
+          "few": "Kosztuje {n} akcje, ale płaci za nie Burst z zapasu.",
+          "many": "Kosztuje {n} akcji, ale płaci za nie Burst z zapasu.",
+          "other": "Kosztuje {n} akcji, ale płaci za nie Burst z zapasu."
+        }
+      },
+      "removed": [
+        "The dash aside became a clause (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Price.will.breakdown",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Added after the Sanity step's line when the payment takes the last Sanity left (quote.lastSanity).",
+          "file": "scripts/price.mjs",
+          "fn": "priceLine",
+          "note": null
+        },
+        {
+          "fact": "The last Sanity is still payable; the window warns, it does not refuse; no Sanity left is the Breakdown state.",
+          "file": "scripts/price.mjs",
+          "fn": "canPayStep",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "That is your last point of Sanity. Paying it breaks you down.",
+        "after": "That is your last Sanity. Paying it puts you in Breakdown."
+      },
+      "pl": {
+        "before": "To twój ostatni punkt Sanity. Zapłacenie go wpędzi cię w Breakdown.",
+        "after": "To twój ostatni punkt Sanity. Gdy go wydasz, wpadniesz w Breakdown."
+      },
+      "removed": [
+        "\"point of\" left; \"breaks you down\" became the state's name, Breakdown."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Price.nothingLeft.analyze",
+      "group": "window",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The refusal when Analyze's whole chain is offered (in a Class Trial: an action, then Hope, then Sanity) and none can be paid; printed into a tooltip or a warning.",
+          "file": "scripts/price.mjs",
+          "fn": "quotePrice",
+          "note": null
+        },
+        {
+          "fact": "PRICE_CHAINS.analyze: action 1, Hope 1, Sanity RESOLUTION_STRESS_COST, the later steps only in the Class Trial.",
+          "file": "scripts/config.mjs",
+          "fn": "PRICE_CHAINS",
+          "note": null
+        },
+        {
+          "fact": "tests-tier1 holds this English text literally.",
+          "file": null,
+          "fn": null,
+          "note": "tests-tier1.mjs line 37444"
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with.",
+        "after": "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with."
+      },
+      "pl": {
+        "before": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
+        "after": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."
+      },
+      "removed": [
+        "Only the Oxford comma was added (EN2), as the early pass did for DRPG.Price.nothingLeft.objection."
+      ],
+      "needsCode": [
+        "scripts/tests-tier1.mjs line 37444 holds the English text literally: en.analyze[1] must read \"No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with.\"; the Polish (line 37454) stays, as the Polish after is the before."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Price.refundLost",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Whispered to the owner when a Hope refund did not land and overflowBlocksHope() holds (the Despair Overflow, under which no Hope is earned); {what} is the Hope label, \"1 Hope\".",
+          "file": "scripts/price.mjs",
+          "fn": "refundPrice",
+          "note": null
+        },
+        {
+          "fact": "The quiet \"all\" caller (a refused Objection) words the loss itself and does not send this.",
+          "file": "scripts/price.mjs",
+          "fn": "refundPrice",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Your {what} could not come back while Despair is running. Tell the GM.",
+        "after": "The {what} you paid did not come back, because the Despair Overflow blocks Hope. Tell the GM."
+      },
+      "pl": {
+        "before": "Nie dało się zwrócić ci {what}, bo trwa zaciemnienie Despair. Powiedz GM-owi.",
+        "after": "Nie odzyskujesz {what}: trwa zaciemnienie Overflow, w którym nie zdobywa się Hope. Powiedz o tym GM-owi."
+      },
+      "removed": [
+        "\"Your {what}\" read \"Your 1 Hope\"; the after names what was paid and the Overflow by its name."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.TraitRuling.gmBody",
+      "group": "window",
+      "surface": "gm-card",
+      "screen": "unassigned",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The GM's window and card for a roll whose definition lists several statistics with no proposal: a button per listed statistic and Refuse.",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "pickHere",
+          "note": null
+        },
+        {
+          "fact": "The player tells the GM in their thread what the student does; the GM picks one of the listed statistics.",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "askGms",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The roll lists several statistics. Pick one from what the player says their character does.",
+        "after": "This roll can use several statistics. Pick one from what the player says their student does, or refuse."
+      },
+      "pl": {
+        "before": "Ten rzut wymienia kilka statystyk. Wybierz jedną na podstawie tego, co według gracza robi jego postać.",
+        "after": "Ten rzut dopuszcza kilka statystyk. Gracz napisze, co robi jego uczeń; według tego wybierz jedną z nich albo odmów."
+      },
+      "removed": [
+        "\"character\" became \"student\" (EN12)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.TraitRuling.changedBody",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "After a GM's \"Change to\", the player's window shows the proposed and the GM's statistic, with \"Roll {stat}\" and a pass.",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "rollChanged",
+          "note": null
+        },
+        {
+          "fact": "Nothing is spent before the ruling: the caller pays its action, Sanity or price only after a pick it rolls; a pass, or the window closed, answers null and the caller does nothing.",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "askGms",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "You proposed {proposed}. The GM changed it to {stat}. Nothing has been spent yet.",
+        "after": "You proposed {proposed}. The GM changed it to {stat}. You pay nothing unless you roll."
+      },
+      "pl": {
+        "before": "Twoja propozycja: {proposed}. GM zmienił ją na {stat}. Nic jeszcze nie zeszło.",
+        "after": "Proponujesz {proposed}, a GM zmienia to na {stat}. Płacisz dopiero wtedy, gdy rzucisz; jeśli zrezygnujesz, nic nie tracisz."
+      },
+      "removed": [
+        "\"Nothing has been spent yet.\" is X1's shape; the after says the price (an action, Sanity or another) is paid only on a roll (O8, M3), in both languages."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.TraitRuling.pass",
+      "group": "window",
+      "surface": "button",
+      "screen": "unassigned",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The secondary button of the window after a GM's \"Change to\"; closing the window is the same pass.",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "rollChanged",
+          "note": null
+        },
+        {
+          "fact": "A pass writes one line in the player's thread and the caller spends nothing.",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "rollChanged",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "I'll pass (nothing spent)",
+        "after": "Pass"
+      },
+      "pl": {
+        "before": "Rezygnuję (nic nie schodzi)",
+        "after": "Zrezygnuj"
+      },
+      "removed": [
+        "\"(nothing spent)\" moved to the window's body (DRPG.TraitRuling.changedBody), which says the action costs nothing unless the player rolls (X1, O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.TraitRuling.passedLine",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "messenger",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A pass writes this line in the player's own thread, as the player's message; the GM reads it under the card.",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "rollChanged",
+          "note": null
+        },
+        {
+          "fact": "The line voids the GM's pick for that definition (traitPass in the line's meta).",
+          "file": "scripts/trait-ruling.mjs",
+          "fn": "rollChanged",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "I'll pass on the roll ({stat}). Nothing was spent.",
+        "after": "I pass on the {stat} roll."
+      },
+      "pl": {
+        "before": "Rezygnuję z rzutu ({stat}). Nic nie zeszło.",
+        "after": "Rezygnuję z rzutu na {stat}."
+      },
+      "removed": [
+        "\"Nothing was spent.\" is X1's shape; the GM sees from the line that nothing was rolled."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Rest.noRooms",
+      "group": "window",
+      "surface": "toast",
+      "screen": "file:scripts/rest.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When no room of the character's scene is marked for the kind of rest, restRoomsSentence answers this sentence; {kind} is data.kind or, when the caller passes none, kindLabel(kind), so it is always \"Short Rest\" or \"Long Rest\".",
+          "file": "scripts/rest.mjs",
+          "fn": "restRoomsSentence",
+          "note": null
+        },
+        {
+          "fact": "The Rest window's rows read it as their hint and their reason when no room allows the rest (restVariants passes no kind, so the kindLabel fallback names it).",
+          "file": "scripts/rest.mjs",
+          "fn": "restVariants",
+          "note": null
+        },
+        {
+          "fact": "A rest taken in a room that does not allow it is refused with a warning built by the same function, before anything is spent.",
+          "file": "scripts/rest.mjs",
+          "fn": "takeRest",
+          "note": null
+        },
+        {
+          "fact": "Which rooms allow which rest is a region flag the GM sets per room in Room Setup.",
+          "file": "scripts/rest.mjs",
+          "fn": "setRestRoom",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "No room on this map is marked for a {kind} yet. The GM sets that up per scene.",
+        "after": "No room on this map allows a {kind} yet. The GM decides which rooms do."
+      },
+      "pl": {
+        "before": "Żaden pokój na tej mapie nie jest jeszcze oznaczony pod {kind}. GM ustawia to per scena.",
+        "after": "Żaden pokój na tej mapie nie pozwala na {kind}. Pokoje do odpoczynku wyznacza GM."
+      },
+      "removed": [
+        "\"The GM sets that up per scene\" becomes \"The GM decides which rooms do\": that the marks are per scene is how the module stores them (T29), and Room Setup's intro, DRPG.Rest.manageIntro, tells the GM where.",
+        "\"marked for\" becomes \"allows\", the word DRPG.Rest.allowedIn and DRPG.Rest.wrongRoom use for the same thing (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "S02-37 (an empty {kind}, \"marked for a  yet\") no longer happens: restRoomsSentence falls back to kindLabel(kind) since the gaps fix of 12.11.2026 (R3980), so the sentence is true with the kind named; nothing in the text had to change for it."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Rest.reliefNoBreath",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "file:scripts/rest.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a rest that Relief gives, Breath is offered greyed with this reason as its line and its title in the picker.",
+          "file": "scripts/rest.mjs",
+          "fn": "choosePicks",
+          "note": null
+        },
+        {
+          "fact": "If a Breath gets past the picker, applyRest gives no Hope and writes \"Breath: \" and this sentence into the rest's report.",
+          "file": "scripts/rest.mjs",
+          "fn": "applyRest",
+          "note": null
+        },
+        {
+          "fact": "Breath gives 1 Hope on a Short Rest; Relief costs Hope (HOPE_CALLS.relief), so the owner ruled on 13.11.2026 that its rest offers no Breath.",
+          "file": "scripts/rest.mjs",
+          "fn": "BREATH_REFUSED",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Relief costs more Hope than Breath gives, so this rest offers no Breath.",
+        "after": "A rest from Relief gives no Hope."
+      },
+      "pl": {
+        "before": "Relief kosztuje więcej Hope, niż daje Breath, więc w tym odpoczynku Breath nie ma.",
+        "after": "Odpoczynek z Relief nie daje Hope."
+      },
+      "removed": [
+        "\"Relief costs more Hope than Breath gives\": the reason the rule was made (O9, X2), dropped, nowhere; the rule stays."
+      ],
+      "needsCode": [
+        "The rest's report lines are English literals in rest.mjs applyRest (\"{n} Health recovered\", \"{n} Sanity cleared\", \"+{n} Hope\"), not lang keys, so a Polish player reads English, and \"Sanity cleared\" says the resource as marks cleared, against D5 and M7 (\"N left\" / recovered); they want lang keys, e.g. \"{n} Sanity recovered\"."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.force.prompt",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "file:scripts/action-doors.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Force the Door's window asks for a door out of the character's room; {n} is INFILTRATE.force.lockDc.",
+          "file": "scripts/action-doors.mjs",
+          "fn": "performForce",
+          "note": null
+        },
+        {
+          "fact": "One Body roll is judged against everything that holds the door at once: a barricade must be topped (a tie holds), a lock or a seal needs lockDc or more, and a critical passes all.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "forceDoor",
+          "note": null
+        },
+        {
+          "fact": "The people in the character's own room are always told who forced or tried which door; on a pass or a miss with Despair the room beyond is told too, and the rooms next to either hear a banging with no name.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "tellRooms",
+          "note": null
+        },
+        {
+          "fact": "Every attempt at a door that something holds leaves a Remnant, evident when it was loud, subtle otherwise.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "leaveDoorTrace",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Force a door out of {room}. A barricade gives to a roll above its strength, a lock or a seal to {n} or more; everything on the door at once. The rooms around hear it.",
+        "after": "Force a door out of {room}. One roll must beat everything on the door: top a barricade's strength, and reach {n} for a lock or a seal. Your room sees you; if the door gives or you miss with Despair, everyone nearby hears it."
+      },
+      "pl": {
+        "before": "Wyważ drzwi z: {room}. Barykada ustępuje rzutowi powyżej swojej siły, zamek albo pieczęć wynikowi {n} lub więcej; wszystko na drzwiach naraz. Pokoje dookoła to słyszą.",
+        "after": "Wybierz drzwi z pokoju {room}. Jeden rzut Body musi naraz przebić barykadę wynikiem wyższym niż jej siła i otworzyć zamek albo pieczęć wynikiem od {n}. Tu zawsze cię widać; przy trafieniu albo pudle z Despair także za drzwiami, a obok słychać łomot."
+      },
+      "removed": [
+        "\"The rooms around hear it\" was true only on a pass or a miss with Despair; now said with that condition (M4), and that the character's own room always sees.",
+        "That a critical passes everything, and the Remnant: not here; the Remnant is in the row's hint, DRPG.Infiltrate.row.force.hint (O3); the critical is the player handbook's section on Force the Door (O13)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "Cold reading: \"all at once\" leaves it open whether one roll has to beat every obstacle on the door together or whether each needs its own roll; I understood one roll for all of them (proposed: Force a door out of {room}. One roll has to beat everything on the door: a barricade's strength, and {n} for a lock or a seal. Your room sees you; if the door gives or you miss with Despair, everyone nearby hears it.). - executor: Taken in part: \"One roll must beat everything on the door\" now says it is one roll; the rest of the proposal's wording was not needed."
+          ]
+        },
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "O2/T22: „a gdy drzwi ustąpią albo przy pudle z Despair, także za nimi” mixes a clause with a phrase and leaves the verb out, and „obok słychać łomot” reads as unconditional though it holds only on a hit or a miss with Despair (proposed, 45 words: Wybierz drzwi z pokoju {room}. Rzut Body musi naraz przebić barykadę wynikiem wyższym niż jej siła i otworzyć zamek albo pieczęć wynikiem od {n}; krytyk otwiera wszystko. Tu zawsze cię widać; przy trafieniu albo pudle z Despair także za drzwiami, a obok słychać łomot.) - executor: Taken in part: the clause and phrase are no longer mixed and the banging stands under the hit-or-Despair condition, but the critical that opens everything is left out of both languages (the player handbook's Force the Door, as removed says), so the text is 40-odd words, not 45 with the critical."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.force.banging",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/action-doors.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a pass or a miss with Despair, each living student in a room next to either room is whispered this card, with no name; {room} is the room beyond the door.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "forceDoor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A banging from: {room}.",
+        "after": "A loud banging comes from {room}."
+      },
+      "pl": {
+        "before": "Łomot z: {room}.",
+        "after": "Słychać łomot przy drzwiach pokoju {room}."
+      },
+      "removed": [
+        "\"A banging from: {room}\": the label-colon shape becomes a sentence (X7, the Polish X12)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.pick.prompt",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "file:scripts/action-doors.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Pick the Lock's window asks for a door out of the character's room; {n} is INFILTRATE.pick.dc, {clean} pick.clean, {cover} pick.cover.threshold.",
+          "file": "scripts/action-doors.mjs",
+          "fn": "performPick",
+          "note": null
+        },
+        {
+          "fact": "A Shadow roll comes first, then Hand; a Hand of dc or more (or a critical) opens a lock or a seal, never a barricade, and gives the picker alone a pass into the room beyond until they leave it.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "pickLock",
+          "note": null
+        },
+        {
+          "fact": "The room's owner is warned of a careless pick: an open below clean, or a miss with Despair.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "pickLock",
+          "note": null
+        },
+        {
+          "fact": "Shadow of the cover threshold or more (or a critical) keeps the room beyond from seeing who it was; the character's own room is always told.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "pickLock",
+          "note": null
+        },
+        {
+          "fact": "An unused pass is lost when the time of day ends.",
+          "file": "scripts/lockpick-gm.mjs",
+          "fn": "endPassesAtEclipseStart",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "en": {
+        "before": "Pick a lock out of {room}: Hand {n} opens it for you alone, until you leave the room beyond; {clean} or more and the owner never knows. Shadow {cover} or more and nobody in the room beyond sees who it was; the people in your own room always do.",
+        "after": "Pick a lock or a seal out of {room}. Hand {n}+ opens it for you alone until you leave the room beyond; below {clean} or on a miss with Despair, its owner finds out. Shadow {cover}+ hides you beyond the door, never here."
+      },
+      "pl": {
+        "before": "Otwórz zamek z: {room}. Hand {n} go otwiera dla ciebie samego, dopóki nie wyjdziesz z pokoju za nim; {clean} lub więcej i właściciel się nie dowie. Shadow {cover} lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był; osoby w twoim pokoju widzą to zawsze.",
+        "after": "Wybierz drzwi z pokoju {room}. Najpierw Shadow: od {cover} za drzwiami cię nie rozpoznają, tu widać cię zawsze. Potem Hand: od {n} otwierasz zamek albo pieczęć tylko dla siebie, do wyjścia z tamtego pokoju. Poniżej {clean} albo przy pudle z Despair dowie się właściciel pokoju."
+      },
+      "removed": [
+        "That an unused way in is lost when the time of day ends: in the card of an open, DRPG.Infiltrate.pick.opened, where the reader meets it (O13).",
+        "That a barricade does not open to a pick: the row's hint, DRPG.Infiltrate.row.pick.hint, says it (O3); here \"a lock or a seal\" names what opens."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.pick.coverTitle",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "file:scripts/action-doors.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The title of Pick the Lock's first roll, Shadow against INFILTRATE.pick.cover.threshold, which decides whether the room beyond sees who it was.",
+          "file": "scripts/action-doors.mjs",
+          "fn": "performPick",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Pick the Lock - does anyone see?",
+        "after": "Pick the Lock: staying unseen"
+      },
+      "pl": {
+        "before": "Pick the Lock - czy ktoś widzi?",
+        "after": "Pick the Lock: czy ktoś cię zobaczy?"
+      },
+      "removed": [
+        "The dash and the question (X4, X21) become a label after a colon; the roll's question is the same."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.pick.opened",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/action-doors.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "An open gives the picker a pass into the room beyond, for them alone; the lock stays locked for everyone else.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "pickLock",
+          "note": null
+        },
+        {
+          "fact": "The pass ends when its holder leaves the room after walking in, and an unused one ends with the time of day (or an Eclipse's start).",
+          "file": "scripts/lockpick-gm.mjs",
+          "fn": "endPassesAtEclipseStart",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The lock gives. You may walk into {room} until you leave it again; it stays locked for everyone else.",
+        "after": "The lock gives. Walk into {room} before the time of day ends, and it stays open to you until you leave again; it stays locked for everyone else."
+      },
+      "pl": {
+        "before": "Zamek ustępuje. Możesz wejść do: {room}, dopóki z niego nie wyjdziesz; dla wszystkich innych zostaje zamknięty.",
+        "after": "Zamek ustępuje. Wejdź do pokoju {room} przed końcem pory dnia, a drzwi zostaną dla ciebie otwarte, dopóki z niego nie wyjdziesz. Dla innych zostają zamknięte."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old text left out that a pass not used is lost at the time of day's end (lockpick-gm.mjs passesAtNewTimeOfDay, endPassesAtEclipseStart; the player handbook's Pick the Lock); now said. A pass in use is kept past the time of day until its holder walks out (onPassCrossing), which \"until you leave again\" keeps; an Eclipse's start is that boundary of the time of day, so neither language names it."
+      ],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "T29: \"walk into {room} ... and stay until you leave it\" is circular: staying until you leave says nothing. The fact is that the way in lasts until the holder leaves the room or the time of day ends (lockpick-gm.mjs endPassesAtEclipseStart) (proposed: \"The lock gives. You can walk into {room} until you leave it again or the time of day ends; it stays locked for everyone else.\") - executor: Taken in part: the circular \"stay until you leave it\" is gone, but not the proposed \"until you leave it again or the time of day ends\", which would end a pass in use at the time of day's end; the code ends only an unused pass then (passesAtNewTimeOfDay) and a used one when its holder walks out (onPassCrossing). After: \"Walk into {room} before the time of day ends, and it stays open to you until you leave again\"."
+          ]
+        },
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "Cold reading: \"stay until you leave it\" says nothing, since anyone stays until they leave (proposed: The lock gives. You can walk into {room} this time of day, and the door stays open to you until you leave; it stays locked for everyone else.). - executor: Taken in part: the circular clause is gone; \"this time of day\" now bounds only the walking in (an unused pass ends with it), and the door stays open until the holder leaves, as onPassCrossing and passesAtNewTimeOfDay run it."
+          ]
+        },
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "O2: „To wejście tracisz, gdy z pokoju wyjdziesz, a jeśli z niego nie skorzystasz, z końcem pory dnia” leaves a verb out and does not say the pass ends on leaving after walking in (proposed: Zamek ustępuje tylko tobie: możesz wejść do pokoju {room}, a dla innych drzwi zostają zamknięte. Gdy wejdziesz i potem wyjdziesz, wejście przepada; niewykorzystane przepada z końcem pory dnia albo z początkiem Eclipse.) - executor: Taken in part: the verb is back and the pass is said to end when the holder leaves; not the proposal's wording, and the Eclipse's start is not named, since it is the time of day's boundary (endPassesAtEclipseStart) and the English does not name it either."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.pick.held",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/action-doors.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The card of a pick that did not open: the key \"held\" is chosen whenever something holds the door and it did not open, a barricade alone included, where Pick the Lock cannot work.",
+          "file": "scripts/action-doors.mjs",
+          "fn": "performPick",
+          "note": null
+        },
+        {
+          "fact": "At a door held only by a barricade nothing opens and no one is told.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "pickLock",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The lock to {room} holds.",
+        "after": "The door to {room} stays shut."
+      },
+      "pl": {
+        "before": "Zamek do: {room} trzyma.",
+        "after": "Drzwi do pokoju {room} nie ustępują."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"The lock to {room} holds\" was false at a door held only by a barricade, which performPick also answers with this key; \"The door ... stays shut\" is true for both."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.watch.notInEclipse",
+      "group": "window",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "While an Eclipse runs, Keep Watch's row is struck through with this reason, and pressing it warns with it before anything is paid.",
+          "file": "scripts/action-watch.mjs",
+          "fn": "watchShutWhy",
+          "note": null
+        },
+        {
+          "fact": "A watch is declared before an Eclipse and kept through the coming one.",
+          "file": "scripts/watch-gm.mjs",
+          "fn": "watchRefusal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A watch is set before an Eclipse, not during one.",
+        "after": "You can only set a watch before an Eclipse starts."
+      },
+      "pl": {
+        "before": "Czuwanie ustala się przed Eclipse, nie w trakcie.",
+        "after": "Keep Watch można wybrać tylko przed rozpoczęciem Eclipse."
+      },
+      "removed": [
+        "\"not during one\": the antithesis (X3); \"only before ... starts\" keeps the rule."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.watch.notAtNight",
+      "group": "window",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "When the coming time of day is night, Keep Watch's row is struck through with this reason, and the GM refuses it too.",
+          "file": "scripts/action-watch.mjs",
+          "fn": "watchShutWhy",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No watch before the Night Eclipse.",
+        "after": "You cannot keep watch before the Night Eclipse."
+      },
+      "pl": {
+        "before": "Bez czuwania przed nocnym Eclipse.",
+        "after": "Keep Watch nie działa przed nocnym Eclipse."
+      },
+      "removed": [
+        "\"No watch before ...\": the telegraph shape (X6) becomes a sentence to the reader."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.watch.kept",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/action-watch.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Body roll of INFILTRATE.keepWatch.dc or more, or a critical, keeps a watch; it is answered with this card.",
+          "file": "scripts/watch-gm.mjs",
+          "fn": "declareWatch",
+          "note": null
+        },
+        {
+          "fact": "At the Eclipse's start the post is the room the watcher stands in then.",
+          "file": "scripts/watch-gm.mjs",
+          "fn": "startWatches",
+          "note": null
+        },
+        {
+          "fact": "While the watch runs, a crossing out of the post is sent back: the watcher stays there until the Eclipse ends.",
+          "file": "scripts/movement.mjs",
+          "fn": "watchHolds",
+          "note": null
+        },
+        {
+          "fact": "A strong watch also hinders a killer's opening roll against the watcher; the watch and why stay the GMs'.",
+          "file": "scripts/watch-gm.mjs",
+          "fn": "openingHindrance",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "You will keep watch through the coming Eclipse, from the room you stand in when it starts.",
+        "after": "You will keep watch through the coming Eclipse from the room you stand in when it starts, and you stay there until it ends."
+      },
+      "pl": {
+        "before": "Czuwasz przez nadchodzący Eclipse, w pokoju, w którym stoisz, gdy się zacznie.",
+        "after": "Czuwasz przez całe nadchodzące Eclipse w pokoju, w którym będziesz stać, gdy się zacznie. Do końca Eclipse z niego nie wyjdziesz."
+      },
+      "removed": [
+        "The hindrance on a killer's roll: not said to the watcher, as the code keeps it (M9)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text left out that the watcher cannot leave the post during the Eclipse (movement.mjs watchHolds; DRPG.Bridge.why.onWatch); now said."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.watch.start",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/watch-gm.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "At the Eclipse's start the watcher is told who stands in the post, by name, joined with \", \"; the empty case is DRPG.Infiltrate.watch.startEmpty.",
+          "file": "scripts/watch-gm.mjs",
+          "fn": "startWatches",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "You keep watch over {room}. In it: {who}.",
+        "after": "You keep watch over {room}. You see {who} there."
+      },
+      "pl": {
+        "before": "Czuwasz w: {room}. Są tam: {who}.",
+        "after": "Czuwasz w pokoju {room}. Widzisz tam: {who}."
+      },
+      "removed": [
+        "\"In it: {who}\": the label-colon shape becomes a sentence (X7)."
+      ],
+      "needsCode": [
+        "{who} is joined with \", \" in watch-gm.mjs startWatches, not through utils.mjs listOf, so three names have no Oxford comma (EN2)."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.watch.summary",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/watch-gm.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "At the Eclipse's end the watcher gets the post and two counts, the crossings into it ({entered}) and out of it ({left}), and the watch is over.",
+          "file": "scripts/watch-gm.mjs",
+          "fn": "endWatches",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Your watch over {room} is over. Came in: {entered}. Left: {left}.",
+        "after": "Your watch over {room} is over: {entered} came in and {left} went out."
+      },
+      "pl": {
+        "before": "Czuwanie w: {room} się skończyło. Weszło: {entered}. Wyszło: {left}.",
+        "after": "Koniec czuwania w pokoju {room}. Wejścia: {entered}, wyjścia: {left}."
+      },
+      "removed": [
+        "\"Came in: {entered}. Left: {left}.\": the chain of label-colon-value (X7) becomes one sentence."
+      ],
+      "needsCode": [
+        "{entered} and {left} are bare numbers, not a plural family; \"1 came in\" reads, but a count of people would want DRPG.Unit-style families."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.shut.done",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/action-doors.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Body roll puts a barricade up in the room the character stands in; its strength is the roll's total.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "shutDoor",
+          "note": null
+        },
+        {
+          "fact": "While it stands, a walk in through a door is refused; a passage, a breach or a tunnel still lets people through.",
+          "file": "scripts/movement.mjs",
+          "fn": "barricadedFrom",
+          "note": null
+        },
+        {
+          "fact": "It comes down when its author crosses out of the room, when the time of day ends, and when an Eclipse starts; Force the Door can break it by topping its strength.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "forceDoor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends.",
+        "after": "You barricade {room}. Until you leave or the time of day ends, nobody walks in through a door unless they force it."
+      },
+      "pl": {
+        "before": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia.",
+        "after": "Barykadujesz pokój {room}. Dopóki z niego nie wyjdziesz albo nie skończy się pora dnia, nikt nie wejdzie drzwiami, chyba że je wyważy."
+      },
+      "removed": [
+        "\"while you stay inside\" becomes \"Until you leave\"; that passages and breaches still let people through, and the Eclipse's start, stay in the player handbook's Shut the Door (O13)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old text promised that nobody walks in, which Force the Door breaks; \"unless they force it\" makes it true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.tail.prompt",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "file:scripts/action-tail.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The window asks whom to tail among the students in the room and lets the player propose Leg or Shadow; {n} is INFILTRATE.tail.unseen.threshold.",
+          "file": "scripts/action-tail.mjs",
+          "fn": "performTail",
+          "note": null
+        },
+        {
+          "fact": "Below the threshold on the Shadow roll (and with no critical) the target's owners are told the tailer's name at once, and the tail goes on all the same.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "startTail",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Pick whom to follow. Shadow {n} or more and they do not notice you; below it they learn who follows them.",
+        "after": "Pick whom to follow. Shadow {n} or more and they do not notice you; below it they learn your name, but the tail goes on."
+      },
+      "pl": {
+        "before": "Wybierz, kogo śledzić. Shadow {n} lub więcej: bez zauważenia; poniżej cel dowie się, kto go śledzi.",
+        "after": "Wybierz, kogo z tego pokoju chcesz śledzić, i zaproponuj Leg albo Shadow. Rzut Shadow poniżej {n} od razu zdradza celowi, kto go śledzi, ale śledzenie trwa dalej."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.tail.unseenTitle",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "file:scripts/action-tail.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The title of Tail Someone's Shadow roll against INFILTRATE.tail.unseen.threshold, which decides whether the target notices.",
+          "file": "scripts/action-tail.mjs",
+          "fn": "performTail",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Tail Someone - do they notice?",
+        "after": "Tail Someone: staying unseen"
+      },
+      "pl": {
+        "before": "Tail Someone - czy zauważy?",
+        "after": "Tail Someone: czy cel cię zauważy?"
+      },
+      "removed": [
+        "The dash and the question (X4, X21) become a label after a colon; the roll's question is the same."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.tail.started",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/action-tail.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Each settled crossing of the target sends the tailer \"{name} moves to {room}\".",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "onTailCrossing",
+          "note": null
+        },
+        {
+          "fact": "The tail is lost when the tailer is neither in the room the target left nor in the one it reached.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "onTailCrossing",
+          "note": null
+        },
+        {
+          "fact": "It ends with the day, when a body is announced, and when the target Dashes above the tail's total.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "tailsAfterDash",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "You are tailing {name}. You hear where they go until the day ends.",
+        "after": "You are tailing {name}. Until the day ends, you learn each room they move to, as long as you keep up."
+      },
+      "pl": {
+        "before": "Śledzisz: {name}. Dowiadujesz się, dokąd idzie, do końca dnia.",
+        "after": "Śledzisz postać {name}: do końca dnia przy każdym jej przejściu dowiesz się, dokąd idzie. Gubisz trop, gdy nie ma cię ani w pokoju, z którego wychodzi, ani w tym, do którego wchodzi."
+      },
+      "removed": [
+        "The other ends (a body found, a Dash) come as their own cards, DRPG.Infiltrate.tail.end.* (O13)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "\"You hear where they go\" left out that the tailer must keep up: a tailer in neither room is lost (tail-gm.mjs onTailCrossing); now said."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "nikt tak nie mówi",
+          "points": [
+            "Nikt tak nie mówi: „Tracisz ją” reads as losing the character, not the trail (proposed: Śledzisz postać {name}: przy każdym jej przejściu dowiesz się, dokąd idzie. Gubisz trop, gdy nie ma cię ani w pokoju, z którego wychodzi, ani w tym, do którego wchodzi. Śledzenie kończy się z dniem, po ogłoszeniu ciała albo gdy cel ucieknie Dashem z wynikiem wyższym niż twój rzut.) - executor: Taken in part: „Tracisz ją” becomes „Gubisz trop”, as proposed; the proposal's ends (a body announced, a Dash) are left out of both languages, since they come as their own cards, DRPG.Infiltrate.tail.end.* (O13)."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.tail.movedWith",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/tail-gm.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "On a critical effect roll, outside an Eclipse, the card also names who stands in the room the target reached, joined with \", \".",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "onTailCrossing",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name} moves to {room}. There: {who}.",
+        "after": "{name} moves to {room} and finds {who} there."
+      },
+      "pl": {
+        "before": "{name} przechodzi do: {room}. Tam: {who}.",
+        "after": "{name} przechodzi do pokoju {room} i zastaje tam: {who}."
+      },
+      "removed": [
+        "\"There: {who}\": the label-colon shape becomes a sentence (X7)."
+      ],
+      "needsCode": [
+        "{who} is joined with \", \" in tail-gm.mjs onTailCrossing, not through utils.mjs listOf, so three names have no Oxford comma (EN2)."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.tail.end.dash",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "file:scripts/tail-gm.mjs",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Dash of the target above the tail's total (a critical tail only to a critical Dash) ends the tail with this card.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "tailsAfterDash",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "{name} dashed away. You lost the tail.",
+        "after": "{name} dashed away, and you lost track of them."
+      },
+      "pl": {
+        "before": "{name} ucieka Dashem. Zgubiono trop.",
+        "after": "{name} ucieka Dashem i gubisz trop."
+      },
+      "removed": [
+        "\"You lost the tail\" reads as if the tailer shook off a tail; \"lost track of them\" is DRPG.Infiltrate.tail.end.lost's own words (O14)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.listen.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The row's hint follows its price (DRPG.Action.willCost); Listen picks a neighboring room and rolls Shadow; a room with no neighbor greys the row.",
+          "file": "scripts/action-listen.mjs",
+          "fn": "infiltrateRows",
+          "note": null
+        },
+        {
+          "fact": "A good roll counts the people there, a better one names them, a critical names everyone in every neighboring room.",
+          "file": "scripts/action-listen.mjs",
+          "fn": "performListen",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Shadow at a wall: who is in a neighbouring room.",
+        "after": "Roll Shadow at a wall to learn who is in a neighboring room."
+      },
+      "pl": {
+        "before": "Shadow przy ścianie: kto jest w sąsiednim pokoju.",
+        "after": "Wybierz sąsiedni pokój i rzuć Shadow, żeby usłyszeć, kto tam jest."
+      },
+      "removed": [
+        "\"Shadow at a wall:\": the label-colon shape becomes a sentence (X7); the outcomes are the tile's description, DRPG.Config.ACTIONS.listen.description (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "\"neighbouring\" is British spelling, against EN1 and the glossary's neighbor entry; now \"neighboring\"."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.tail.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Tail Someone follows a student in the character's room; each crossing of the target sends a card naming the room.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "onTailCrossing",
+          "note": null
+        },
+        {
+          "fact": "The tail is lost when the tailer is in neither the room left nor the room reached.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "onTailCrossing",
+          "note": null
+        },
+        {
+          "fact": "Below the Shadow threshold the target learns who follows them.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "startTail",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Follow somebody in your room and learn where they go.",
+        "after": "Follow somebody in your room and learn each room they move to, as long as you keep up. They may notice you."
+      },
+      "pl": {
+        "before": "Idź za kimś z twojego pokoju i dowiedz się, dokąd idzie.",
+        "after": "Idź za kimś z tego pokoju i dowiaduj się, dokąd przechodzi, dopóki dotrzymujesz mu kroku. Przy słabym rzucie Shadow cel dowie się, kto go śledzi."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.shut.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Shut the Door rolls Body and barricades the room the character stands in, the roll's total its strength.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "shutDoor",
+          "note": null
+        },
+        {
+          "fact": "Force the Door breaks a barricade only with a roll above its strength.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "forceDoor",
+          "note": null
+        },
+        {
+          "fact": "Not in a room with more than INFILTRATE.shut.maxExits open doors, nor in another student's bedroom, nor in an Eclipse.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "shutRefusal",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Body: barricade the room you stand in from inside.",
+        "after": "Roll Body to barricade the room you stand in from inside. The higher the roll, the harder it is to force."
+      },
+      "pl": {
+        "before": "Body: zabarykaduj od środka pokój, w którym stoisz.",
+        "after": "Rzuć Body i zabarykaduj od środka pokój, w którym stoisz. Force the Door przebija barykadę tylko wynikiem wyższym niż twój rzut."
+      },
+      "removed": [
+        "\"Body:\": the label-colon shape becomes a sentence (X7)."
+      ],
+      "needsCode": [
+        "The rooms it works in (at most INFILTRATE.shut.maxExits open doors) have no placeholder here; the refusal says it when met."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.force.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Force the Door rolls Body at a door out of the character's room against a barricade, a lock and a seal at once.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "forceDoor",
+          "note": null
+        },
+        {
+          "fact": "A pass or a miss with Despair is heard in the rooms around; the character's own room always sees who it was.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "tellRooms",
+          "note": null
+        },
+        {
+          "fact": "Every attempt at a door something holds leaves a Remnant.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "leaveDoorTrace",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Body at a door next to you: a barricade, a lock or a seal gives way. Loud.",
+        "after": "Roll Body to break a barricade, a lock, or a seal on a door out of your room. It can be heard, and it leaves a Remnant."
+      },
+      "pl": {
+        "before": "Body przy drzwiach obok: barykada, zamek albo pieczęć ustępuje. Głośno.",
+        "after": "Rzuć Body przy drzwiach z tego pokoju: jeden rzut na barykadę, zamek i pieczęć naraz. Przy trafieniu albo przy pudle z Despair słychać to w pokojach dookoła, a tutaj zawsze widać, że to ty. Każda próba zostawia Remnant."
+      },
+      "removed": [
+        "\"Loud.\": the one-word fragment (X6) becomes \"It can be heard\", true for its conditions (a pass or a miss with Despair), which DRPG.Infiltrate.force.prompt says."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.pick.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Pick the Lock rolls Shadow, then Hand, at a locked or sealed door out of the character's room, never a barricade.",
+          "file": "scripts/action-doors.mjs",
+          "fn": "performPick",
+          "note": null
+        },
+        {
+          "fact": "An open is a pass for the picker alone, until they leave the room beyond.",
+          "file": "scripts/doors-gm.mjs",
+          "fn": "pickLock",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Hand at a locked or sealed door next to you: the way in is open to you alone, until you leave that room.",
+        "after": "Roll Hand to open a locked or sealed door out of your room, for you alone, until you leave the room beyond."
+      },
+      "pl": {
+        "before": "Hand przy zamkniętych albo zapieczętowanych drzwiach obok: wejście otwarte tylko dla ciebie, dopóki nie wyjdziesz z tego pokoju.",
+        "after": "Rzuć Shadow, a potem Hand przy zamkniętych albo zapieczętowanych drzwiach z tego pokoju; barykady tak nie otworzysz. Otwarte drzwi wpuszczają tylko ciebie, dopóki nie wyjdziesz z pokoju za nimi."
+      },
+      "removed": [
+        "\"Hand at ...:\": the label-colon shape becomes a sentence (X7); the Shadow roll first is in DRPG.Infiltrate.pick.prompt (O3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.keepWatch.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Keep Watch is declared before an Eclipse with a Body roll.",
+          "file": "scripts/action-watch.mjs",
+          "fn": "performWatch",
+          "note": null
+        },
+        {
+          "fact": "At the Eclipse's start the watcher learns who is in the post, through it who comes in and who leaves, and at its end the counts.",
+          "file": "scripts/watch-gm.mjs",
+          "fn": "startWatches",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Body, before an Eclipse: through it you hear who is in your room, who comes in and who leaves.",
+        "after": "Before an Eclipse, roll Body to keep watch over your room through it: you learn who is there, who comes in, and who leaves, and at its end how many came and went."
+      },
+      "pl": {
+        "before": "Body, przed Eclipse: przez cały Eclipse wiesz, kto jest w twoim pokoju, kto wchodzi i kto wychodzi.",
+        "after": "Rzuć Body przed Eclipse. Gdy Eclipse się zacznie, dowiesz się, kto jest w pokoju, w którym stoisz, potem kto wchodzi i kto wychodzi, a na koniec ile było wejść i wyjść."
+      },
+      "removed": [
+        "\"Body, before an Eclipse:\": the label shape becomes a sentence (X7); the Oxford comma added (EN2)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.dash.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Dash rolls Leg; a total of 12+ or 18+, or a critical, grants more free crossings by band (INFILTRATE.dash.bands, critical), and a miss none.",
+          "file": "scripts/bridge-runs-acts.mjs",
+          "fn": "handleDash",
+          "note": null
+        },
+        {
+          "fact": "Free crossings end with the time of day.",
+          "file": "scripts/actions.mjs",
+          "fn": "clearGrants",
+          "note": null
+        },
+        {
+          "fact": "A Dash above a tail's total loses whoever tails the dasher.",
+          "file": "scripts/tail-gm.mjs",
+          "fn": "tailsAfterDash",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Leg: free crossings to run with.",
+        "after": "Roll Leg for free crossings until the time of day ends; the higher the roll, the more you get, and a miss gets none. It can also shake off a tail."
+      },
+      "pl": {
+        "before": "Leg: darmowe przejścia na szybki bieg.",
+        "after": "Rzuć Leg: im wyższy wynik, tym więcej darmowych przejść do końca pory dnia, a przy pudle żadnych. Wynik wyższy niż rzut tego, kto cię śledzi, zrywa śledzenie."
+      },
+      "removed": [
+        "\"Leg: free crossings to run with\": the label-colon shape becomes a sentence (X7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Infiltrate.row.echoes.hint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Echoes rolls nothing and answers the nearest room by crossings, the asker's own excepted, with a living student of another player.",
+          "file": "scripts/echoes-gm.mjs",
+          "fn": "nearestEchoRoom",
+          "note": null
+        },
+        {
+          "fact": "Struck through in an Eclipse.",
+          "file": "scripts/action-listen.mjs",
+          "fn": "echoesShutWhy",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "No roll: the nearest room where another player's student is.",
+        "after": "Without a roll, learn the nearest room that holds another player's student."
+      },
+      "pl": {
+        "before": "Bez rzutu: najbliższy pokój, w którym jest uczeń innego gracza.",
+        "after": "Bez rzutu poznajesz najbliższy pokój poza twoim, w którym jest żywy uczeń innego gracza."
+      },
+      "removed": [
+        "\"No roll:\": the label-colon shape becomes a sentence (X7)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    }
+  ]
+}

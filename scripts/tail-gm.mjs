@@ -29,7 +29,7 @@
 
 import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, whisperToOwnerOnly, log, error, esc } from "./utils.mjs";
+import { isPrimaryGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
 import { tailStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
@@ -131,7 +131,7 @@ export async function onTailCrossing(event = {}) {
         }
         const who = row.critical && !event.eclipse ? await standingIn(there?.scene, event.to, new Set([tailerId, target.id])) : [];
         const text = who.length
-            ? game.i18n.format("DRPG.Infiltrate.tail.movedWith", { name: target.name, room: event.to, who: who.join(", ") })
+            ? game.i18n.format("DRPG.Infiltrate.tail.movedWith", { name: target.name, room: event.to, who: listOf(who) })
             : game.i18n.format("DRPG.Infiltrate.tail.moved", { name: target.name, room: event.to });
         await whisperToOwnerOnly(tailer, `<p>${esc(text)}</p>`);
         sent++;
