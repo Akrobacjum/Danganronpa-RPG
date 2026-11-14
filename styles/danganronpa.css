@@ -7714,6 +7714,8 @@ body.drpg-player #scene-controls {
     background-color: transparent !important;
     background-image: none !important;
     border-color: var(--drpg-line) !important;
+    /* the tile's own text colour, Bone: why, below ("The tile's own text colour") */
+    color: var(--drpg-bone) !important;
 }
 
 /* With the fill gone the border IS the tile, so the hover state has to carry
@@ -7752,12 +7754,8 @@ html body {
    The label already restated it; the cost line did not, and inherited black on
    black. Set on the tile so anything added to it later inherits something
    readable, and the cost line uses Dim, which is the token for exactly this:
-   present, secondary, still legible at 4.84:1. */
-.drpg-action-button,
-.drpg-call-button {
-    color: var(--drpg-bone) !important;
-}
-
+   present, secondary, still legible at 4.84:1. The tile's Bone is written in the
+   tile's rule above since E55 S3 (14.11.2026); until then it was a rule of its own here. */
 .drpg-action-button .drpg-action-cost {
     color: var(--drpg-dim);
     opacity: 1;
