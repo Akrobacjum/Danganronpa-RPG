@@ -1700,7 +1700,7 @@ const INVARIANTS = [
          * of them is false, so they are rewritten rather than kept. The grid's own
          * numbers are R474's (headless) and R299 (a)'s.
          */
-        const { booksFor, handbookHtml, openHandbooks } = await import("./handbooks.mjs");
+        const { booksFor, handbookHtml } = await import("./handbooks.mjs");
         equal(booksFor({ isGM: false }).map(b => b.id).join(), "player-brochure,player-handbook",
             "a player is offered the wrong handbooks");
         equal(booksFor({ isGM: true }).length, 3, "a GM is missing a handbook");
@@ -17596,7 +17596,7 @@ const INVARIANTS = [
         const roleRetell = () => { calls.push("retell"); return P.retellPassages({ ...cCtx(coUsers2.map(u => (u.id === "R555U4" ? { ...u, isGM: true } : u))), primary: () => true }); };
         cOut.length = 0;
         const named = await P.onUserUpdated(U7, { name: "R555 renamed" }, {}, "R555GM", { retell: roleRetell });
-        const roled = await P.onUserUpdated(U4, { role: 4 }, {}, "R555GM", { retell: roleRetell });
+        await P.onUserUpdated(U4, { role: 4 }, {}, "R555GM", { retell: roleRetell });
         equal(J([named ?? null, calls, cOut.map(o => o.packet.userId).sort()]), J([null, ["retell"], ["R555U6"]]),
             "[a rename's retell, the retells asked, sent after U4 was made a GM: U6, the door now] - a change of role tells nobody, or a rename retells (O18)");
 
@@ -40659,7 +40659,6 @@ const INVARIANTS = [
         const { PROPS } = await import("./style-snapshot.mjs");
         const RT = await import("./room-tile.mjs");
         const VT = await import("./voice-tile.mjs");
-        const HUD = await import("./hud.mjs");
         must(C.rules.length > 1000, `${C.rules.length} rule(s) read - the cascade did not load the sheets`);
         const A8 = /drpg-room-tile|drpg-room-art|drpg-voice-(?!panel)|drpg-launch-mini|drpg-foundry-tools|drpg-foundry-window|drpg-gm-launcher/;
         const split = text => { const out = []; let d = 0, part = ""; for (const ch of text) { if (ch === "(" || ch === "[") d++; if (ch === ")" || ch === "]") d--; if (ch === "," && !d) { out.push(part.trim()); part = ""; } else part += ch; } return [...out, part.trim()].filter(Boolean); };
@@ -48891,7 +48890,7 @@ const INVARIANTS = [
          * well as `change`, a click written twice) reads `writes` two a click here.
          */
         needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
-        const { root, pane } = await roomSetupDrawn();
+        const { pane } = await roomSetupDrawn();
         const R = await import("./room-setup.mjs");
         const K = await import("./ui-kit.mjs");
         const KINDS = {
@@ -48903,7 +48902,7 @@ const INVARIANTS = [
         };
         const students = studentActors();
         const tables = {};
-        for (const [tab, kinds] of Object.entries(KINDS)) {
+        for (const [tab] of Object.entries(KINDS)) {
             const p = pane(tab);
             const all = [...(p?.querySelectorAll("table") ?? [])];
             tables[tab] = [all.length, all.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table")).length,
@@ -48974,7 +48973,7 @@ const INVARIANTS = [
         needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
         const students = studentActors();
         must(students.length > 0, "the matrices have no student's column - nothing below is read");
-        const { root, pane } = await roomSetupDrawn();
+        const { pane } = await roomSetupDrawn();
         const heads = ["stashes", "fog"].map(tab => [...(pane(tab)?.querySelectorAll("thead th") ?? [])].slice(1)
             .map(th => [th.classList.contains("drpg-data-lines-2"), th.title, th.getAttribute("aria-label"), th.querySelector(":scope > span.drpg-data-clamp")?.textContent ?? null,
                 th.classList.contains("drpg-student-head")]));
@@ -49007,7 +49006,7 @@ const INVARIANTS = [
          * the scene's regions of each name that may be rooms (rooms.mjs `canBeRoom`), decided by `roomDecided`.
          */
         needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
-        const { root, pane } = await roomSetupDrawn();
+        const { pane } = await roomSetupDrawn();
         const Rm = await import("./rooms.mjs");
         const { workingScene } = await import("./utils.mjs");
         let scene = workingScene();
@@ -52927,7 +52926,7 @@ const INVARIANTS = [
                 + `<section class="tab-navigation"><div class="navigation-container"><div class="navigation-inner-container"><nav class="feature-tab sheet-tabs tabs" data-group="primary">`
                 + `<a class="features active" data-action="tab" data-group="primary" data-tab="features"><span>Actions</span></a>`
                 + `<a class="inventory" data-action="tab" data-group="primary" data-tab="inventory"><span>Inventory</span></a></nav></div></div></section></header></div></div>`;
-            const nav = body.querySelector("nav.sheet-tabs"), [chosen, other] = body.querySelectorAll("nav.sheet-tabs > a");
+            const [chosen, other] = body.querySelectorAll("nav.sheet-tabs > a");
             const w = (el, prop, pseudo = null) => C.winner(el, prop, pseudo)?.value ?? null;
             // A colour no rule gives reads null on both tabs and would compare unequal to nothing (the r112 review's P3).
             must(w(chosen, "color") !== null && (theme !== "glass" || w(chosen, "--brush") !== null),
@@ -59993,12 +59992,6 @@ const E61_CUTS = {"gm-1600x900":[[[290.21353250677083,0],[324.252015179061,242.1
 /* R3719: round 4's fill of E61_CUTS' 1366x768 cut for the test's seed - the median area in px² and the count, read at 1db3f62 */
 const AT_1366_ROUND4 = [25668, 19];
 const E61_CUT_FHD = [[[290.21353250677083,0],[324.252015179061,242.19638900231323],[0,287.76703786951094],[0,0]],[[324.252015179061,242.19638900231323],[377.6879622086186,622.4129085833539],[0,675.4934900491985],[0,287.76703786951094]],[[1163.2109375,0],[1163.2109375,145.078125],[756.7890625,145.078125],[756.7890625,0]],[[1553.0335637577543,62.960387212440764],[1561.8820691297765,0],[1920,0],[1920,114.53415646968789]],[[1532.7251639160972,207.46216055583955],[1553.0335637577543,62.960387212440764],[1920,114.53415646968789],[1920,261.8900892783031]],[[1920,709.0543612342037],[1669.1511888955324,673.7998599374793],[1716.4439482655246,337.29439182823444],[1920,365.9023292477208]],[[0,713.3011117968645],[384.02831398199464,767.2727715932463],[340.07736826754405,1080],[0,1080]],[[1771.2756113063313,911.3774339174706],[1920,890.4755841898595],[1920,1080],[1794.973967493229,1080]],[[1716.4439482655246,337.29439182823444],[1730.7787776644113,235.29678074785267],[1920,261.8900892783031],[1920,365.9023292477208]],[[504.344375256651,0],[547.2517867834182,0],[551.0425131290056,32.34180220074007],[505.46557160273414,21.089602707419544]],[[547.2517867834182,0],[756.7890625,0],[756.7890625,148.7711356766522],[551.0425131290056,32.34180220074007]],[[340.0773682675441,1080],[607.9753647439298,1080],[633.1688402740657,897.9508813000169],[381.4567121917143,785.5706691098366]],[[804.2807774084737,1080],[831.9375569882919,1080],[838.4805704787667,986.628959396064],[816.5293889841439,962.4868898931891]],[[607.9753647439298,1080],[804.2807774084737,1080],[814.0130158602875,986.628959396064],[633.1688402740657,897.9508813000169]],[[831.9375569882919,1080],[991.8597959098455,1080],[993.1690588915312,1054.2771792807928],[838.4805704787667,986.628959396064]],[[991.8597959098455,1080],[1137.5413991565852,1080],[1136.026982870185,1052.5802401071414],[993.1690588915312,1054.2771792807928]],[[1137.5413991565852,1080],[1308.4892180037652,1080],[1304.0275517261898,1022.3137347472712],[1136.026982870185,1052.5802401071414]],[[1308.4892180037652,1080],[1337.293744423144,1080],[1328.9876602735055,933.975425218232],[1304.0275517261898,1022.3137347472712]],[[1337.293744423144,1080],[1530.4993691446227,1080],[1526.4853059846791,969.7816058799178],[1334.0124681435616,1022.3137347472712]],[[1530.4993691446227,1080],[1794.973967493229,1080],[1772.3542076347935,919.0520455756852],[1526.4853059846791,969.7816058799178]],[[290.21353250677083,0],[504.344375256651,0],[505.46557160273414,21.089602707419544],[403.7645226654647,306.98566389717365],[331.401195651659,293.0654512768973]],[[403.7645226654647,306.98566389717365],[353.29647892687564,448.8584869563989],[331.401195651659,293.0654512768973]],[[1163.2109375,0],[1561.8820691297765,0],[1543.0975553752387,133.65876041874805],[1319.3252173337312,162.13566673290143],[1163.2109375,144.54330722568557]],[[1543.0975553752387,133.65876041874805],[1535.669062357632,186.5152347191703],[1319.3252173337312,162.13566673290143]],[[164.23264271844673,652.4120973561684],[78.30070035074846,724.3055575819405],[0,713.3011117968645],[0,675.4934900491985]],[[1754.1656886680075,685.7478686973093],[1850.638394083013,900.2237221817312],[1920,890.4755841898595],[1920,709.0543612342037]]];
-
-/* R3716: a convex pane moved out along its edges' normals by `d` (the reverse of glass-close.mjs `insetPoly`) */
-function outset(P, d) {
-    const n = P.length, cx = P.reduce((t, q) => t + q[0], 0) / n, cy = P.reduce((t, q) => t + q[1], 0) / n;
-    return P.map(([x, y]) => { const l = Math.hypot(x - cx, y - cy) || 1; return [x + (x - cx) / l * d * 1.5, y + (y - cy) / l * d * 1.5]; });
-}
 
 /* R3703, R3716 (E61 C3): a frame of 24 panes around the map's hole, the curtain's shape in small; `jag` alternates the
    inner corners' depth (0.45 and 0.62 of the half-screen), which gives the hole the reflex corners a cut has */

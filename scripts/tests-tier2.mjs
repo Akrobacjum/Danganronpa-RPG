@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText,
     bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
@@ -3142,7 +3142,6 @@ async function proposeOnRow(who, tokenId, proposal = {}) {
 const C9_FOUND = Object.freeze({ name: "SUITE C9 a cup on the desk", playerText: "SUITE C9 it was there all along" });
 const C9_STORY = Object.freeze({ name: "SUITE C9 a vase of flowers", text: "SUITE C9 nothing happened in here" });
 async function reshapeCopiesFixture(who, holders, note, place = {}) {
-    const cleanup = await import("./cleanup.mjs");
     const remnants = await import("./remnants.mjs");
     const bullets = await import("./truth-bullets.mjs");
     const observe = await import("./observe.mjs");
@@ -14766,7 +14765,7 @@ const SCENARIOS = [
         const { trustedWrite } = await import("./resource-guard.mjs");
         const { actionsLeft } = await import("./actions.mjs");
         const { rerollBookmarkStore } = await import("./gm-stores.mjs");
-        const { player, theirs, other } = playerAndCharacters();
+        const { theirs, other } = playerAndCharacters();
         must(other, "the world has no character this player does not play");
         const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
         must(answerer, `${other.name} has no connected player - this would measure nothing`);
@@ -18240,7 +18239,6 @@ const SCENARIOS = [
          */
         const [victim, witness, other] = cast(3);
         const V = await import("./verdict.mjs");
-        const M = await import("./monocub.mjs");
         const { cubStore } = await import("./gm-stores.mjs");
         const clock = getClock();
         const names = [FLAGS.deceased, FLAGS.monocub];
@@ -21101,7 +21099,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { trustedWrite } = await import("./resource-guard.mjs");
-        const { M, killer, victim, putBack } = await swingFixture();
+        const { killer, victim, putBack } = await swingFixture();
         const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
         const marks = () => [victim.system.resources.hitPoints.value, victim.system.resources.stress.value];
         let F = null;
@@ -21380,7 +21378,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
         const [who] = cast(1);
-        const cleanup = await import("./cleanup.mjs");
         const { remnantData } = await import("./remnants.mjs");
         const S = await import("./gm-stores.mjs");
         const F = await cleanupFixture(who, "SUITE E08 C3 a trace reshaped and rerolled");
@@ -26935,7 +26932,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const V = await import("./vote.mjs");
         const { livingStudents } = await import("./chapter.mjs");
         const { studentActors } = await import("./monokuma.mjs");
-        const { ownerIdsOf, isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, which finishes a verdict - this would measure nothing");
         const living = livingStudents();
         must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
@@ -31694,7 +31691,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const [za, zb] = await hall.createEmbeddedDocuments("Region", [
                 { name: "SUITE Zone A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
                 { name: "SUITE Zone B", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
-            const [t1, t2] = await hall.createEmbeddedDocuments("Token", [
+            const [, t2] = await hall.createEmbeddedDocuments("Token", [
                 { actorId: one.actor.id, actorLink: true, name: one.actor.name, x: 100, y: 100, width: 1, height: 1 },
                 { actorId: two.actor.id, actorLink: true, name: two.actor.name, x: 1100, y: 100, width: 1, height: 1 }]);
             await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id, zones: { a: za.id, b: zb.id } });
@@ -40656,7 +40653,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * context is locked, so "what is playing" is read off the playlist's own
          * `playing` flags, which is what Foundry itself reads.
          */
-        const music = await import("./music.mjs");
         const floor = await import("./trial-floor.mjs");
 
         /*
@@ -43490,7 +43486,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * is asserted here through `presentBullet` because that is what the window's
          * first button calls.
          */
-        const [who, other] = cast(2);
+        const [who] = cast(2);
         const floorMod = await import("./trial-floor.mjs");
         const trial = await import("./trial.mjs");
         const price = await import("./price.mjs");
@@ -43613,7 +43609,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 ok(item, `no fixture bullet for ${actor.name}`);
                 made.push(item);
             }
-            const [whoItem, otherItem, thirdItem] = made;
+            const [whoItem, otherItem] = made;
 
             await setClock({ ...clock, phase: "classTrial" });
             await floorMod.startFloor({});
@@ -44389,7 +44385,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         ok(kit, "there is no Objection filled on the primary GM - the card is still built on the objector's browser");
         if (!kit) return;
         const { trial, speakers } = kit;
-        const { TRIAL_FLAGS } = trial;
         const floorMod = await import("./trial-floor.mjs");
         const bullets = await import("./truth-bullets.mjs");
         const NH = await import("./notice-history.mjs");
@@ -54023,7 +54018,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         const [a, b, c] = cast(3);
         must(a && b && c, "three students are needed - this would measure nothing");
-        const cleanup = await import("./cleanup.mjs");
         const R = await import("./remnants.mjs");
         const S = await import("./gm-stores.mjs");
         const E = await import("./gm-store.mjs");
@@ -72239,7 +72233,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
         const room = (name, x, y) => ({ name, shapes: [{ type: "rectangle", x, y, width: 600, height: 600 }], flags: mark, behaviors: [] });
         const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-        const projects = [], actors = [], posted = [], items = [];
+        const projects = [], actors = [], posted = [];
         const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
         // A card to the GMs alone whose text is `key`'s, up to its reason, for the project `name`.
         const toldGms = (key, name) => posted.filter(m => String(contentOf(m) ?? "").includes(game.i18n.format(key, { name, why: "" }).trim())
@@ -77218,7 +77212,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
         const { cardFlag } = await import("./secret.mjs");
-        const { rifleStore } = await import("./gm-stores.mjs");
         const { positionIn } = await import("./movement.mjs");
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
@@ -80428,7 +80421,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const UI = await import("./projects-ui.mjs");
         const o = await import("./overflow.mjs");
         const { overflowStore } = await import("./gm-stores.mjs");
-        const { positionIn, roomOfToken, boundsOf } = await import("./movement.mjs");
+        const { roomOfToken, boundsOf } = await import("./movement.mjs");
         const { roomRegions } = await import("./rooms.mjs");
         const { contentOf, cardFlag } = await import("./secret.mjs");
         const { PROJECT_SCALE, TRAITS } = await import("./config.mjs");
@@ -82876,7 +82869,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const answers = await Promise.all(Array.from({ length: n }, () => D.adjustDespair(game.user.id, 1)));
             seen.despair = { answers, end: D.getDespair(game.user.id) };
 
-            const room = "SUITE E17 T1 room", sceneId = "zE17T1noScene00", max = SearchTokens.max;
+            const room = "SUITE E17 T1 room", sceneId = "zE17T1noScene00";
             const spent = await Promise.all(Array.from({ length: 10 }, () => SearchTokens.spend(room, sceneId)));
             seen.search = { spent: spent.filter(Boolean).length, left: SearchTokens.store[SearchTokens.key(room, sceneId)] ?? null };
 
@@ -89209,7 +89202,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(killer && victim, "no two living students with a connected player - this would measure nothing");
         const was = foundry.utils.deepClone(getClock());
         const MARK = "E37T10 room";
-        const words = el => el?.textContent?.replace(/\s+/g, " ").trim() ?? "";
         const summaries = () => [...document.querySelectorAll(".drpg-popup")]
             .filter(card => card.querySelector(".drpg-day-summary") && card.textContent.includes(MARK));
         const dismiss = () => {
@@ -89592,7 +89584,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const donor = kuma ? M.poolUserFor(kuma) : null;
         must(kuma && donor, "no Monokuma actor draws on a pool - this would measure nothing");
         must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
-        const { player, theirs, other } = playerAndCharacters();
+        const { player, other } = playerAndCharacters();
         must(other, "the world has no character this player does not play");
         const outsider = game.users.find(u => !u.isGM && u.active && u.id !== player.id) ?? null;
         must(outsider, "no second connected player who is not in on the project - this would measure nothing");
@@ -96727,7 +96719,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * layouts; STATUS E95-C5 fix). Red first on 09709763: the row was taken off the sheet when no state was held, and
          * neither rule existed.
          */
-        const { STATES } = await import("./config.mjs");
         const student = cast(3).at(-1);
         must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub),
             "no living student outside every special state - this would measure nothing");
@@ -98213,7 +98204,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         const T = await import("./timed-effects.mjs");
         const F = await import("./facilities.mjs");
-        const D = await import("./despair-award.mjs");
         const P = await import("./despair.mjs");
         const { applyEffects } = await import("./facilities-gm.mjs");
         const { TIMES_OF_DAY } = await import("./config.mjs");
@@ -98794,7 +98784,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * with the GMs' record of it (`recordFor`). The grants are read off the character's flag and put back. Red at 5d2e2ab:
          * no `dash.settle` in the table.
          */
-        const S = await import("./gm-stores.mjs");
         const G = await import("./bridge-guards.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const { freeMovesLeft } = await import("./actions.mjs");
@@ -99159,7 +99148,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         const S = await import("./gm-stores.mjs");
         const G = await import("./bridge-guards.mjs");
-        const M = await import("./movement.mjs");
         const W = await import("./watch-gm.mjs");
         const { INFILTRATE } = await import("./config.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
@@ -100021,7 +100009,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             seen = all.length;
             return fresh.map(w => w.html);
         };
-        const grant = key => E.grantWords ? E.grantWords(key, "acc") : game.i18n.localize(`DRPG.Calls.grants.${key}`);
         const reset = async () => {
             if (flagWas === null) await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             else await target.setFlag(MODULE_ID, FLAGS.pendingCall, flagWas);

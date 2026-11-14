@@ -340,7 +340,7 @@ export function bareCuts(text) {
         read++;
         const open = m.index + m[0].length - 1;
         const { args } = callArgs(blank, open);
-        const [from, to] = scopeOf(blank, tests, m.index);
+        const [from] = scopeOf(blank, tests, m.index);
         for (const arg of args) {
             const expr = blank.slice(arg.start, arg.end);
             if (FINDER.test(expr)) {

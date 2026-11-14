@@ -8629,7 +8629,6 @@ const REGRESSIONS = [
                 moved = false;
                 for (const k of roads.keys()) {
                     if (grounded.has(k)) continue;
-                    const file = roads.get(k)[0][0];
                     const places = table(k) ? named.get(k).filter(p => roads.get(k).some(r => r[2] === p.caller)) : named.get(k);
                     if (places.length && places.every(p => p.gated || [...roads.keys()].some(o => o !== k && grounded.has(o) && o.endsWith(`|${p.caller}`)))) {
                         grounded.add(k);
@@ -21677,7 +21676,7 @@ const REGRESSIONS = [
                 if (file === "ui-kit.mjs") kit.push(`${file} ${what}`);
                 else outside.set(file, (outside.get(file) ?? 0) + 1);
             };
-            for (const m of blank.matchAll(SITE)) add("DialogV2");
+            for (const _ of blank.matchAll(SITE)) add("DialogV2");
             /* A window a caller opens through the kit is read too (E21 C2b): the floor below is what the reader reads,
                and each group of E21 moves windows from the census into these calls - 126 sites outside the kit at C2a,
                96 read once C2b's moved, under the floor, with nothing wrong with the reader. Not in the census. */
