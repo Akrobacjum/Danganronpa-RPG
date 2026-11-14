@@ -37439,12 +37439,12 @@ const INVARIANTS = [
             en: {
                 broken: [],
                 cost: ["Costs 1 action.", "Costs 2 actions.", "Costs 5 actions.", "Costs 22 actions.", "Costs 25 actions."],
-                lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
+                lines: ["Costs 2 actions. You have 5 actions left.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
                 skipped: "No action is needed here. This costs 1 Sanity.",
-                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
+                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope, and no Sanity left, so there is nothing to pay for Analyze with."],
                 tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and Tamper takes nothing else."],
-                raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
-                    `Their opponent cannot use ${sv} for 1 turn.`, "You get 1 action back.", "You get 1 Sanity back."]
+                raw: [`The victim rolls ${lc} and ${sv} at disadvantage for 2 turns of their own.`, `The victim cannot use ${st} or ${rr} for 2 turns of their own.`,
+                    `The victim cannot use ${sv} for 1 turn of their own.`, "You get 1 action back.", "You get 1 Sanity back."]
             },
             pl: {
                 broken: [],
@@ -37453,8 +37453,8 @@ const INVARIANTS = [
                 skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
                 analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
                 tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji, a Tamper nie przyjmuje niczego innego."],
-                raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
-                    `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
+                raw: [`Przez 2 tury ofiara rzuca z utrudnieniem przy ${lc} i ${sv}.`, `Przez 2 tury ofiara nie może użyć ${st} ani ${rr}.`,
+                    `Przez 1 turę ofiara nie może użyć ${sv}.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
             },
             quoted: [["action"], []]
         }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Price.will.action at 1, 2, 5, 22 and 25; "
@@ -37521,7 +37521,7 @@ const INVARIANTS = [
             pass: /"DRPG\.Trial\.turn\.closingPassEarly"[^]{0,160}seconds:\s*TRIAL\.modes\.closing\.passWindowSeconds/.test(fn("trial-prompt.mjs", "promptTurn")),
             note: /"DRPG\.Floor\.modeNote"[^]{0,200}step:\s*adjustStep\(floor\)/.test(stripComments(sources.get("trial-floor-ui.mjs") ?? "")),
             half: (rest.match(/full \? marks : Math\.ceil\(marks \/ 2\)/g) ?? []).length,
-            restProse: [/short: "Restores half Health"/.test(config), /short: "Restores half Sanity"/.test(config)]
+            restProse: [/short: "Restores half your lost Health, rounded up"/.test(config), /short: "Restores half your lost Sanity, rounded up"/.test(config)]
         };
         equal(stableJson(read), stableJson({
             en: {
@@ -37535,7 +37535,7 @@ const INVARIANTS = [
                 ballots: ["0 z 1 głosu wróciło", "1 z 1 głosu wrócił", "2 z 3 głosów wróciły", "5 z 7 głosów wróciło"],
                 pass: `Pasuję w pierwszych ${pass} s oddaje wybór GM-owi; potem kończy Closing Argument.`,
                 note: `To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje ${step} s albo wraca od razu do otwartej debaty.`,
-                half: ["Przywraca połowę Health", "Przywraca połowę Sanity"]
+                half: ["Wraca połowa straconego Health, zaokrąglona w górę.", "Wraca połowa straconego Sanity, zaokrąglona w górę."]
             },
             sources: { ratio: true, ballots: true, pass: true, note: true, half: 2, restProse: [true, true] }
         }), "[in English, then Polish: the room ratio of 3 rooms for 2 living students; the vote's meta at 0 and 1 of 1, 2 of 3, 5 of 7; "

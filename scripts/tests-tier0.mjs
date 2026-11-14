@@ -19610,7 +19610,9 @@ const REGRESSIONS = [
                 // E72 C19: the panel's lines, a count before Hope.
                 "Monocub.panelBet", "Monocub.panelBounty", "Monocub.panelOffer",
                 // E71 B04 (R6400): the Rest report's three lines, a count before Health, Sanity or Hope.
-                "Rest.applied.health", "Rest.applied.sanity", "Rest.applied.hope"
+                "Rest.applied.health", "Rest.applied.sanity", "Rest.applied.hope",
+                // E71 B01b and B03: the Overflow's explainer and the Mastermind's purse, a count before Despair or Hope.
+                "Overflow.explainBody", "Mastermind.hopeReadout"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -19662,7 +19664,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 74, S: 39, R: 29, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 76, S: 39, R: 29, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");

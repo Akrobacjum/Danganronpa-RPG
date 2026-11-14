@@ -88285,8 +88285,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         const [lc, sv, st, rr] = ["leaveClue", "survive", "secureTrace", "roleReversal"].map(label);
         const want = {
-            en: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`],
-            pl: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`]
+            en: [`The victim rolls ${lc} and ${sv} at disadvantage for 2 turns of their own.`, `The victim cannot use ${st} or ${rr} for 2 turns of their own.`],
+            pl: [`Przez 2 tury ofiara rzuca z utrudnieniem przy ${lc} i ${sv}.`, `Przez 2 tury ofiara nie może użyć ${st} ani ${rr}.`]
         };
         const read = Object.fromEntries(["en", "pl"].map(code => [code, cards[code].map((text, i) => [text.includes(want[code][i]), text.includes("DRPG.")])]));
         equal(stableJson(read), stableJson({ en: [[true, false], [true, false]], pl: [[true, false], [true, false]] }),

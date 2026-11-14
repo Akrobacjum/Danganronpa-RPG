@@ -5008,6 +5008,158 @@
         "mechanics": null
       },
       "owner": null
+    },
+    {
+      "key": "DRPG.TraitRuling.openingKiller",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "tellOpeningRoller whispers this line to incidentAudienceIds(state, { stage: \"openingRoll\" }): every seat of the incident's opening roll reads it at once, the killer's and the victim's lines alike (the side picks the key, not the readers).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "tellOpeningRoller",
+          "note": null
+        },
+        {
+          "fact": "The GM picks the opening roll's statistic (openingTraitFor); with the killer's proposal, the GM rules on it (openingProposalFor reads it through trait-ruling.mjs proposalOf).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openingProposalFor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The GM is choosing the statistic for your opening. Tell them in your thread how you go about it.",
+        "after": "The GM is choosing the killer's statistic for the opening. The killer says in their thread how they go about it."
+      },
+      "pl": {
+        "before": "GM wybiera statystykę do twojego rzutu otwarcia. Napisz mu w swoim wątku, jak się do tego zabierasz.",
+        "after": "GM wybiera statystykę do rzutu otwarcia zabójcy. Zabójca opisuje w swoim wątku, jak się do tego zabiera."
+      },
+      "removed": [
+        "\"your opening\" / „twojego rzutu otwarcia” and \"you\" / „dla ciebie”: the card goes to every seat of the opening at once (fact 0), so the role names who it is about (P1, P2, DB19); T16 found it after the batch landed (E68's text, O12: a lint finding names it)."
+      ],
+      "needsCode": [
+        "tellOpeningRoller sends the killer's line and the victim's line to the same audience; a line per seat (the killer's to the killer, the victim's to the victim) would let each speak to its reader."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.TraitRuling.openingKillerProposed",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "tellOpeningRoller whispers this line to incidentAudienceIds(state, { stage: \"openingRoll\" }): every seat of the incident's opening roll reads it at once, the killer's and the victim's lines alike (the side picks the key, not the readers).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "tellOpeningRoller",
+          "note": null
+        },
+        {
+          "fact": "The GM picks the opening roll's statistic (openingTraitFor); with the killer's proposal, the GM rules on it (openingProposalFor reads it through trait-ruling.mjs proposalOf).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openingProposalFor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The GM is ruling on the statistic you proposed for your opening.",
+        "after": "The GM is ruling on the statistic the killer proposed for the opening."
+      },
+      "pl": {
+        "before": "GM rozstrzyga o statystyce zaproponowanej do twojego rzutu otwarcia.",
+        "after": "GM rozstrzyga o statystyce, którą zabójca zaproponował do rzutu otwarcia."
+      },
+      "removed": [
+        "\"your opening\" / „twojego rzutu otwarcia” and \"you\" / „dla ciebie”: the card goes to every seat of the opening at once (fact 0), so the role names who it is about (P1, P2, DB19); T16 found it after the batch landed (E68's text, O12: a lint finding names it)."
+      ],
+      "needsCode": [
+        "tellOpeningRoller sends the killer's line and the victim's line to the same audience; a line per seat (the killer's to the killer, the victim's to the victim) would let each speak to its reader."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.TraitRuling.openingVictim",
+      "group": "window",
+      "surface": "player-card",
+      "screen": "murder-cards",
+      "readers": [
+        "player"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "tellOpeningRoller whispers this line to incidentAudienceIds(state, { stage: \"openingRoll\" }): every seat of the incident's opening roll reads it at once, the killer's and the victim's lines alike (the side picks the key, not the readers).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "tellOpeningRoller",
+          "note": null
+        },
+        {
+          "fact": "The GM picks the opening roll's statistic (openingTraitFor); with the killer's proposal, the GM rules on it (openingProposalFor reads it through trait-ruling.mjs proposalOf).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "openingProposalFor",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The GM is setting up a roll for you.",
+        "after": "The GM is setting up the victim's roll."
+      },
+      "pl": {
+        "before": "GM przygotowuje dla ciebie rzut.",
+        "after": "GM przygotowuje rzut ofiary."
+      },
+      "removed": [
+        "\"your opening\" / „twojego rzutu otwarcia” and \"you\" / „dla ciebie”: the card goes to every seat of the opening at once (fact 0), so the role names who it is about (P1, P2, DB19); T16 found it after the batch landed (E68's text, O12: a lint finding names it)."
+      ],
+      "needsCode": [
+        "tellOpeningRoller sends the killer's line and the victim's line to the same audience; a line per seat (the killer's to the killer, the victim's to the victim) would let each speak to its reader."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
     }
   ]
 }
