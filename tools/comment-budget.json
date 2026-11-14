@@ -91,10 +91,6 @@
       "citations": 5,
       "doubledJsdoc": 0
     },
-    "scripts/crossing-settle.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
     "scripts/dh-settings.mjs": {
       "citations": 3,
       "doubledJsdoc": 0
