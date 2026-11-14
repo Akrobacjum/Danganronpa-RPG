@@ -400,7 +400,7 @@ export function buildScreenMap({ scripts, keys, espree, screens = SCREENS, confi
     const direct = u => ["app", "dialog", "card", "toast", "hook", "draw"].some(m => u.marks.has(m));
     for (let level = 0; level < VIA_LEVELS; level++) {
         const add = [];
-        for (const [file, f] of files) {
+        for (const [, f] of files) {
             for (const u of f.units) {
                 if (u.marks.size) continue;
                 for (const name of u.refs) {

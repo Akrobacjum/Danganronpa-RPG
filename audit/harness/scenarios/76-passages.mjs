@@ -2261,7 +2261,7 @@ const PHASE_V = "V: Find Passage - p1's Analyze is searched on the primary GM: a
    the Analyze window has no Find Passage row and the bridge no `passage.find`. */
 async function phaseV({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl }) {
     phase(PHASE_V, { flow: "secret-passages" });
-    const MOD = "danganronpa-rpg", PLACE = { teleport: true, movementAction: "displace", animate: false };
+    const PLACE = { teleport: true, movementAction: "displace", animate: false };
     const AIKO = "TOKAIKO000000000", BOTAN = "TOKBOTAN00000000";
     const found = worldPrint(await dump("p3"));
     const MM = `const M = await import("${repoUrl}/scripts/mastermind.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");`;

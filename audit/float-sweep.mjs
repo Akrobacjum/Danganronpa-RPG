@@ -118,7 +118,6 @@ async function measure(page, n, { plant = null, without = WITHOUT } = {}) {
         const appBefore = boxOf(app);
         const scrollBefore = scrolling();
         const own = el.getBoundingClientRect().height;
-        const styleBefore = el.getAttribute("style");
         const cs = getComputedStyle(el);
         // what its text needs, read on a copy of the field at its width (the field itself may not grow)
         const probe = el.cloneNode(false);

@@ -49,7 +49,7 @@
  */
 
 /* The client-side steps below run in a page (stringified for `eval`), where these are the page's. */
-/* global document, Hooks, game, ui, Event, MouseEvent, foundry */
+/* global document, Hooks, game, ui, Event, MouseEvent */
 
 export const layers = ["ci"];
 

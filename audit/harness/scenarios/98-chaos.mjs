@@ -26,7 +26,6 @@
  */
 export const layers = ["ci"];
 
-const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 

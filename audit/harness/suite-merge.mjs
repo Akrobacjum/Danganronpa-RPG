@@ -78,7 +78,7 @@ export function mergeShards(dir, baseline) {
     for (const field of ["count", "total", "hash"]) {
         if (agree(field).size > 1) problems.push(`the shards disagree on ${field}: ${shards.map(s => `${s.at} ${JSON.stringify(s.shard[field])}`).join(", ")}`);
     }
-    const count = shards[0].shard.count, total = shards[0].shard.total, hash = shards[0].shard.hash;
+    const count = shards[0].shard.count, total = shards[0].shard.total;
     totals.tier2 = total;
     const byIndex = new Map();
     for (const s of shards) {

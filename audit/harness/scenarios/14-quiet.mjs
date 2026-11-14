@@ -21,8 +21,6 @@
  */
 export const layers = ["ci", "local-gate"];
 
-const MOD = "danganronpa-rpg";
-
 export async function run({ gm, p1, check, phase, settle, repoUrl }) {
     /* ---- 1. the clock ------------------------------------------------------
        `renderHud` stamps the phase and the hour on the body for the strip, the

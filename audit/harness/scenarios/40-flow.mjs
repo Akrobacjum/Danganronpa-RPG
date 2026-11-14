@@ -18,7 +18,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
 
     const clearLogs = async () => { for (const c of [gm, ...players]) await c.eval(`globalThis.__notifications.length = 0; globalThis.__dialogLog.length = 0; return true;`); };
     const notifs = c => c.eval(`return globalThis.__notifications.map(n => n.level + ": " + n.msg);`);
-    const dialogs = c => c.eval(`return globalThis.__dialogLog.map(d => (d.title ?? "?") + " [" + (d.buttons ?? []).join("/") + "]");`);
     /*
      * EVERY CARD SINCE A MARK, AND WHAT THIS CLIENT MAKES OF IT.
      *
@@ -476,7 +475,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const stuck = `const banner = game.i18n.localize("DRPG.Safeword.banner");
         return [...document.querySelectorAll(".drpg-popup-sticky .drpg-popup-title")].filter(t => t.firstChild?.textContent.trim() === banner).length;`;
     const p3Stuck0 = await p3.eval(stuck);
-    const sw = await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs"); await S.callSafeword({}); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 }).catch(e => String(e));
+    await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs"); await S.callSafeword({}); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 }).catch(e => String(e));
     await settle(800);
     for (const c of [gm, p1, p2]) {
         const cards = (await cardsSince(c, sw0[c.who])).filter(x => x.visible).map(x => x.says.slice(0, 100));

@@ -2116,7 +2116,7 @@ function safeJson(v) {
             }
             return val;
         }));
-    } catch (err) { return { unserializable: String(v) }; }
+    } catch { return { unserializable: String(v) }; }
 }
 
 /* ------------------------------- boot ------------------------------------- */

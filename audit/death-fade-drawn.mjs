@@ -70,7 +70,6 @@ for (const [w, h] of SIZES) {
             window.__df = DF;
             const H = window.innerHeight;
             const panes = window.__glass?.LAST?.panes ?? [];
-            const centre = p => [(p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2];
             // glass only: a pane whose centre holds no element of the interface over the board (the UI keeps its colours,
             // the storyboard's #5), the largest such pane of its batch
             const inside = (poly, x, y) => {

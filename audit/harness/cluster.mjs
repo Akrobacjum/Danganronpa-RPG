@@ -1098,7 +1098,7 @@ async function main() {
     spawnClient("p3", IDS.p3);
     for (const account of accounts) if (!account.late) spawnClient(account.who, account.id);
 
-    const boots = await Promise.all([...clients.keys()].map(w => clients.get(w).ready));
+    await Promise.all([...clients.keys()].map(w => clients.get(w).ready));
     const failed = [...bootInfo.entries()].filter(([, b]) => b.t === "bootFailed");
     for (const [who, info] of bootInfo) {
         if (info.t === "ready") {

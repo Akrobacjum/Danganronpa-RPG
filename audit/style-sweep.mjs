@@ -565,24 +565,7 @@ async function selectedPass(browser) {
  * their own ground must read under 1.5:1. Exit 1 on any part below its ratio, or a control not seen.
  */
 function pickAndReadRow() {
-    const parse = c => {
-        const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
-        if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
-        if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
-        return [0, 0, 0, 0];
-    };
-    const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
-    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
-    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
     const cs = (el, pseudo) => globalThis.getComputedStyle(el, pseudo);
-    const groundUnder = el => {
-        const chain = [];
-        for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
-        let g = chain.at(-1)[3] >= 1 ? chain.pop() : [255, 255, 255, 1];
-        while (chain.length) g = over(chain.pop(), g);
-        return g;
-    };
-    const opacityTo = (el, stop) => { let o = 1; for (let e = el; e && e !== stop.parentElement; e = e.parentElement) o *= Number(cs(e).opacity); return o; };
     const shown = el => el.getClientRects().length > 0 && cs(el).visibility !== "hidden";
     const ownWords = el => [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
     const doc = globalThis.document;
