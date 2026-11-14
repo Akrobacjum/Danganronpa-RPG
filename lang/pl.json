@@ -2100,7 +2100,11 @@
         "restoreFromAFileTooltip": "Otwiera plik kopii i pokazuje, co przywróci, zanim cokolwiek się zmieni",
         "clearTheMastermindTooltip": "Nikt nie jest Mastermindem, dopóki nie wybierzesz go ponownie",
         "backUpTooltip": "Zapisuje każdy sekret GM-a w tym świecie do pliku, którego żaden gracz nie powinien zobaczyć",
-        "enterTooltip": "Zapisuje obsadę; bez zabójcy i ofiary nic nie zostaje zapisane"
+        "enterTooltip": "Zapisuje obsadę; bez zabójcy i ofiary nic nie zostaje zapisane",
+        "tellOnGiveTooltip": "Zaznaczone: gracz dostaje wiadomość, co otrzymał. Odznacz, by dać po cichu",
+        "foundryAndModulesTooltip": "Pokazuje, które części Foundry, Daggerheart i modułów, na których opiera się moduł, działają tutaj; do zgłoszenia błędu",
+        "notNowInviteTooltip": "Odrzuca na razie zaproszenie. GM-owie dostają wiadomość i mogą zaprosić cię ponownie",
+        "refuseBribeTooltip": "Odrzuca ofertę. Oferujący zachowuje swój Hope i dostaje wiadomość o odmowie"
       },
       "Setup": {
         "roomPictureThumbnailTooltip": "Otwiera zdjęcie tego pokoju w pełnym rozmiarze",

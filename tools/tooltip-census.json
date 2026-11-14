@@ -575,19 +575,11 @@
   },
   {
    "file": "scripts/gm-items.mjs",
-   "unit": "hubGivePane",
-   "kind": "checkbox",
-   "key": null,
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
    "unit": "giveChoiceBar",
    "kind": "kit:modeBar",
    "key": null,
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: each bar is named by the words before it (Give what, From) and each of its buttons by its own word; a press shows that form below and gives nothing until Give"
   },
   {
    "file": "scripts/gm-panel.mjs",
@@ -604,14 +596,6 @@
    "key": "DRPG.Panel.nextLabel",
    "count": 1,
    "why": "none needed: Its label names the step it runs (Start the Eclipse, Announce the body, ...) and the line beside it says why."
-  },
-  {
-   "file": "scripts/gm-panel.mjs",
-   "unit": "openFailureLog",
-   "kind": "footer",
-   "key": "DRPG.Panel.foundryReport",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
    "file": "scripts/gm-stores.mjs",
@@ -1543,15 +1527,7 @@
    "kind": "footer",
    "key": "DRPG.Monocub.inviteAccept",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/monocub.mjs",
-   "unit": "openInvitation",
-   "kind": "footer",
-   "key": "DRPG.Monocub.inviteDecline",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: its words, I accept the Rule, stand under the Rule and its three steps, and the intro says what a Monocub keeps doing"
   },
   {
    "file": "scripts/monocub.mjs",
@@ -1559,15 +1535,7 @@
    "kind": "footer",
    "key": "DRPG.Monocub.bribeAccept",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/monocub.mjs",
-   "unit": "openBribeOffer",
-   "kind": "footer",
-   "key": "DRPG.Monocub.bribeRefuse",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's one line says who offers how much Hope and that accepting puts it in your purse"
   },
   {
    "file": "scripts/murder-rules.mjs",

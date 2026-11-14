@@ -2010,7 +2010,11 @@
         "restoreFromAFileTooltip": "Opens a backup file and shows what it brings back before anything changes",
         "clearTheMastermindTooltip": "Nobody is the Mastermind until you pick one again",
         "backUpTooltip": "Saves every GM secret of this world to a file no player should see",
-        "enterTooltip": "Records the cast; nothing is written without a killer and a victim"
+        "enterTooltip": "Records the cast; nothing is written without a killer and a victim",
+        "tellOnGiveTooltip": "Ticked, the player gets a message saying what they received. Untick it to give quietly",
+        "foundryAndModulesTooltip": "Shows which parts of Foundry, Daggerheart and the modules the module relies on work here, for a fault report",
+        "notNowInviteTooltip": "Turns the invitation down for now. The GMs are told and can invite you again",
+        "refuseBribeTooltip": "Turns the offer down. They keep their Hope and are told you refused"
       },
       "Setup": {
         "roomPictureThumbnailTooltip": "Opens this room's picture at full size",

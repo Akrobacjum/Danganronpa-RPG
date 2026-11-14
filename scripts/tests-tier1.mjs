@@ -27063,7 +27063,8 @@ const INVARIANTS = [
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         // 38 since the 1.2.112 tree: studentsTooltip went with the Students left line's button (E101, R4054) and give2Tooltip with
         // the Monocubs window (E72 C6), as docs/dev/e102/STATUS.md "Open" planned.
-        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 38, "lang/en.json has not the family's 38 keys under DRPG.Tips.Gm");
+        // 38 of C4 and its reviews, and 4 of E102 C12 that R6352 holds (14.11.2026)
+        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 38 + 4, "lang/en.json has not the family's 38 keys and C12's 4 under DRPG.Tips.Gm");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -27165,6 +27166,29 @@ const INVARIANTS = [
         /* Red at 3aae7c72: pickChoice's Next drew no tooltip. */
         const TIPS = [
             ["DRPG.Tips.Actions.nextTooltip","call-pickers.mjs","pickChoice"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R6352 - the Gm family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): the GM panel's give tab's Tell the player (gm-items.mjs `hubGivePane`), the Debug log's Foundry and modules (gm-panel.mjs `openFailureLog`), a Monocub invitation's Not now and a Bribe's Refuse (monocub.mjs `openInvitation`, `openBribeOffer`), each key under DRPG.Tips.Gm with words in English and in Polish within the guide's 23, written where its control draws it; R4753 counts these four with its 38", async () => {
+        /* Red at c15061e2: none of the four keys was in lang/*.json or drawn. */
+        const TIPS = [
+            ["DRPG.Tips.Gm.tellOnGiveTooltip","gm-items.mjs","hubGivePane"],
+            ["DRPG.Tips.Gm.foundryAndModulesTooltip","gm-panel.mjs","openFailureLog"],
+            ["DRPG.Tips.Gm.notNowInviteTooltip","monocub.mjs","openInvitation"],
+            ["DRPG.Tips.Gm.refuseBribeTooltip","monocub.mjs","openBribeOffer"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());

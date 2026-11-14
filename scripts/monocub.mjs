@@ -56,7 +56,7 @@ import { cubStore, cubCopy, cubTargetStore, bountyStore, projectWorkStore } from
 import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader, callRowsHtml, pickedRow } from "./call-pickers.mjs";
 
@@ -498,7 +498,7 @@ export async function openInvitation(actor) {
         </div>`,
         footer: {
             primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.inviteAccept"), callback: () => "accept" },
-            secondary: [{ action: "decline", label: game.i18n.localize("DRPG.Monocub.inviteDecline"), callback: () => "decline" }]
+            secondary: [{ action: "decline", label: game.i18n.localize("DRPG.Monocub.inviteDecline"), tooltip: tipText("DRPG.Tips.Gm.notNowInviteTooltip"), callback: () => "decline" }]
         },
         rejectClose: false
     });
@@ -1581,7 +1581,7 @@ export async function openBribeOffer(actor, bribeId, offer) {
         body: `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAsk", { name: offer?.fromName ?? "?", cost: offer?.cost ?? 0, cub: actor.name }))}</p>`,
         footer: {
             primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.bribeAccept"), callback: () => "accept" },
-            secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Monocub.bribeRefuse"), callback: () => "refuse" }]
+            secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Monocub.bribeRefuse"), tooltip: tipText("DRPG.Tips.Gm.refuseBribeTooltip"), callback: () => "refuse" }]
         },
         rejectClose: false
     });

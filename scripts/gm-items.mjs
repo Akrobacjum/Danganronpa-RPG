@@ -240,7 +240,7 @@ function hubGivePane(ctx) {
         + pane("bullet:create", bulletCreatePane(null, { nameField: "bulletName" }))
         + pane("key", keyPane)
         + `<div data-drpg-give-tell${state.what === "key" ? " hidden" : ""}>${formGrid([{ full: `<label class="drpg-checkbox">
-                <input type="checkbox" name="tell" checked />
+                <input type="checkbox" name="tell" checked${tipAttr("DRPG.Tips.Gm.tellOnGiveTooltip")} />
                 ${L("DRPG.Items.tellPlayer")}</label>` }])}</div>`
         + note("item", "DRPG.Items.overCapNote") + note("bullet", "DRPG.TruthBullet.secretNote");
 }
