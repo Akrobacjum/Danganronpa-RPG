@@ -151,6 +151,13 @@ worked on (`sinceOf`); all ten are in v1.2.112's suite, so the tool's answer is 
 cleared to "-" (which `renderRBlock` reads as new) and `node tools/registry.mjs --write --stage E102` wrote them:
 1.2.112 for the ten, E102 for R4755 and R6350 (no release carries them).
 
+**At the line's tip (68144d00, 14.11.2026).** Census 335 -> 242 sites needing help, every one a row with a reason; no row
+"E102 C6" or "E102 C12" left. Full tier 1: 1618 ran, 1602 passed, 1 failed, 16 skipped - the failure R2001, red at
+1463f22b and at 123f8242 (the ledger's 14.11 change; the fix comes on the base, the coordinator). Scenario 95 4/4 (37
+Case keys held drawn), 62 52/52, 61 113/114: Z2 matches "2 traces on the map" where E71's early pass (2dbf3c88, in the
+base) wrote "2 Remnants on the map" - the base's, not touched here. R1320 held E21 C2a's dropped closing label and was
+turned over in 68144d00 (the full tier 1 at 767c8e34 found it; the targeted runs of 7386194a had not included it).
+
 Scenario 95 holds every C6 and C12 key its windows draw (11 Case, Gm tellOnGive, Setup diceLook since cc4088ff).
 
 **The C12 rows are this line's too** (the coordinator, 14.11): the 43 in C6's files with C6b, the other 30 as C12, one
