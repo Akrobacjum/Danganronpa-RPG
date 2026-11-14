@@ -25458,6 +25458,22 @@ const REGRESSIONS = [
         equal(JSON.stringify(reads), JSON.stringify({ verdictHeld: true, finalVerdictLevelUps: true }), "{the verdict's survivors and the Final Trial's batch: whether each reads aliveAsTableKnows}");
         equal((code.match(/\blivingStudentsForGm\b/g) ?? []).length, 0, "verdict.mjs still reads the GMs' list of the living somewhere");
     }],
+    ["R7161 - the music follows every world setting a state of it reads (E59 C-115, CHAINS.md B-S1): each `test` of music-states.mjs's states reads world settings - `getSetting(SETTINGS.x)`, the clock through `getClock`, the floor through `trialFloor`, the body's hold through `bodyDiscoveryFresh` - and each one so read is a key music-play.mjs `registerMusic`'s `updateSetting` watch names; the vote's state (E110 part 3) read `trialProgress`, which the watch did not name, so a vote opened with no floor standing kept the Discussion's music and the verdict did not end the vote's", async () => {
+        const sources = new Map(await otherSources());
+        const states = stripComments(sources.get("music-states.mjs") ?? "");
+        const watch = fnSource(stripComments(sources.get("music-play.mjs") ?? ""), "registerMusic");
+        const GETTERS = { getClock: "clock", trialFloor: "trialQueue", bodyDiscoveryFresh: "bodyFound" };
+        const tests = [...states.matchAll(/\btest:\s*\(\)\s*=>\s*([^\n]+)/g)].map(m => m[1]);
+        must(tests.length >= 10 && watch.length > 500, `only ${tests.length} state test(s) and ${watch.length} characters of the watch read - this would measure too little`);
+        const read = new Set();
+        for (const t of tests) {
+            for (const m of t.matchAll(/\bSETTINGS\.(\w+)/g)) read.add(m[1]);
+            for (const [fn, key] of Object.entries(GETTERS)) if (new RegExp(`\\b${fn}\\(`).test(t)) read.add(key);
+        }
+        ok(read.has("clock") && read.has("trialQueue") && read.has("trialProgress"), `the states' reads were not found: ${[...read].join(", ")}`);
+        const unwatched = [...read].filter(key => !new RegExp(`\\bSETTINGS\\.${key}\\b`).test(watch)).sort();
+        equal(JSON.stringify(unwatched), "[]", "settings a music state reads that the music's updateSetting watch does not follow");
+    }],
 ];
 
 

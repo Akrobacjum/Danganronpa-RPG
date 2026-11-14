@@ -240,9 +240,13 @@ export function registerMusic() {
             recheckMusicKeys(userId);
             return;
         }
+        /* THE VOTE'S RECORD TOO (E59 on the 1.2.115 line, CHAINS.md B-S1; R7161): the vote's state reads the trial's
+           record (music-states.mjs `voteMusicPlays`), and a vote opened with no floor standing, or the verdict, writes
+           neither the floor nor the clock. */
         if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
             && key !== `${MODULE_ID}.${SETTINGS.clock}`
-            && key !== `${MODULE_ID}.${SETTINGS.bodyFound}`) return;
+            && key !== `${MODULE_ID}.${SETTINGS.bodyFound}`
+            && key !== `${MODULE_ID}.${SETTINGS.trialProgress}`) return;
         // Asked AFTER the setting has landed, so this is the state we are
         // moving TO rather than the one we are leaving.
         schedule({ now: stateDef(currentState())?.immediate === true });
