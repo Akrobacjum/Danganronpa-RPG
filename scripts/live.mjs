@@ -10,7 +10,7 @@
  * stays clickable through an Eclipse and only corrects itself when the window
  * is closed and opened again.
  *
- * The GM panel already had half of this: `keepStandingFresh` redrew the "what
+ * The GM panel already had half of this: `keepStandingFresh` (gone by 1.2.70) redrew the "what
  * happens now" line and deliberately left the tiles alone. That is the worst of
  * the three possible states. A dead window teaches you to reopen it; a live
  * window you can trust; a window where the top line updates and the buttons do

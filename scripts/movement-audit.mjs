@@ -69,14 +69,14 @@ const BURST_MS = 30_000;
 const AUDIT_ROWS_KEPT = 1000;
 const book = { rows: [], told: new Map(), lines: new Map(), dropped: 0 };
 
-/** Foundry's `orient2dFast`: > 0 one side of a -> b, < 0 the other, 0 on its line. */
+/** Foundry's `foundry.utils.orient2dFast`: > 0 one side of a -> b, < 0 the other, 0 on its line. */
 const orient = (a, b, c) => (a.y - c.y) * (b.x - c.x) - (a.x - c.x) * (b.y - c.y);
 
 /**
  * Whether a one-way wall lets a step through that sets out from `side` of its line (the sign of
  * `orient` against the wall's own two ends): Foundry's rule as the plan reads it - a wall with a
  * direction (`dir` 1 LEFT, 2 RIGHT) is no wall to a step that starts on the side it names
- * (`orient2dFast` < 0 is LEFT, > 0 RIGHT). Not read in v14's source.
+ * (`foundry.utils.orient2dFast` < 0 is LEFT, > 0 RIGHT). Not read in v14's source.
  */
 function oneWayOpen(wall, side) {
     const dir = Number(wall.dir ?? 0);

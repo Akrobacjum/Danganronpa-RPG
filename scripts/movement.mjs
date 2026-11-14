@@ -2976,7 +2976,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
        -------------------------------------------------------------------
        Foundry v14 delivers a move as a SERIES of updates along the token's
        path - the core says as much, deprecating `updateToken` for movement
-       in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
+       in favour of `moveToken` / `TokenDocument#_onUpdateMovement` since v13. Every one of
        those intermediate updates carries new x/y, so charging on each of
        them told the player "that cost an action" two, three, four times for
        one drag. Waiting for the last update fixed that and introduced

@@ -922,8 +922,8 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         //
         // AS THE SHEET HOLDS THEM, NOT AS DAGGERHEART PREPARES THEM (E29 fix r2-H25, 06.10.2026; found by fix
         // r2-H24). This writes the sheet, which Daggerheart prepares again: it adds a class's hit points to Health's
-        // maximum and a Level Up's picks to a statistic or a maximum (character.mjs `prepareBaseData`, 2.10.5). The
-        // maxima rose from the prepared one (`meansWrite`'s `maxOf`, the end of a track) and the rest from the
+        // maximum and a Level Up's picks to a statistic or a maximum (character.mjs `DhCharacter#prepareBaseData`, 2.10.5).
+        // The maxima rose from the prepared one (`meansWrite`'s `maxOf`, the end of a track) and the rest from the
         // prepared value with the GMs' for the sheet's, so the sheet took the class's hit points and a pick a second
         // time: at 525a186 (06.10.2026, e29run/r2h25red; tier 2, "a GM's Level Up rises from the sheet's maximum"), +1
         // Health and +1 to a statistic over a class's 5 hit points and a pick of +1 wrote 12 and 2 for 7 and 1. Each

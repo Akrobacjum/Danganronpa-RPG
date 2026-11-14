@@ -656,7 +656,7 @@ export async function liftCubWitness() {
  * THE ABILITIES (E33 C10, 07.10.2026; audit S09-48, decision D39)
  * --------------------------------------------------------------------------
  * One ability lived in three files (this one, gm-bridge.mjs's one action for it,
- * sheet.mjs `meddleButton`), so a second one would have been a fourth copy of
+ * sheet.mjs `meddleButton`, gone with C10), so a second one would have been a fourth copy of
  * every question: who may use it, when it is shut, whom it is aimed at, what is
  * thrown, how it is scored. Each ability is a ROW of `MONOCUB.abilities`
  * (config.mjs), and the rows are data: a row names its behaviour by key, and

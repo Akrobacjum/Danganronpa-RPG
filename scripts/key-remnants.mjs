@@ -766,7 +766,7 @@ export async function askToChargeForUnfoundKeys() {
 
 /**
  * Apply the Key Remnant planner's rows the GM changed, exactly as `openKeyPlanner()`
- * used to on its own Save - now called from the Investigation Dashboard's
+ * (investigation.mjs, gone by 1.2.70) used to on its own Save - now called from the Investigation Dashboard's
  * single Save instead of a dialog of its own. See the "Key Remnants" tab in
  * `openInvestigationDashboard`.
  *

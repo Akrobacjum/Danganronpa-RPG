@@ -150,9 +150,9 @@ function onRenderCountdowns(app, element) {
  * THE TRAY'S OWN CONTROLS ON A PROJECT ROW (E36 C2)
  * --------------------------------------------------------------------------
  * 25.10.2026; audit S17-18, S09-36. Daggerheart 2.10.5's tray writes the
- * Countdowns setting itself: its -/+ (`editCountdown`, read from the row's
+ * Countdowns setting itself: its -/+ (`DhCountdowns#editCountdown`, read from the row's
  * `data-countdown`) and its menu's Delete (`countdown.delete()`) whole, outside
- * the module's queue, and its Reveal and Hide (`toggleVisibility`) flip a
+ * the module's queue, and its Reveal and Hide (`DhCountdowns#toggleVisibility`) flip a
  * `hidden` the module's secrecy does not read. On a GM's tray a project row's
  * -/+ is one change of the entry, by addProgress, and its Delete is
  * deleteProject; Reveal and Hide are not offered on it - who sees a project is

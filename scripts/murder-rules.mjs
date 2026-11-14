@@ -1383,7 +1383,7 @@ function carriesWeapon(held) {
 /**
  * The weapon this attack swings, and the tier it counts as.
  *
- * Two things the old `bestWeaponTier` could not express, both from the guide's
+ * Two things the old `bestWeaponTier` (gone by 1.2.70) could not express, both from the guide's
  * own Attack-with-a-weapon row:
  *
  *   "Przedmiot tieru 0 jest negocjowalny jako tier 1 lub 2 w ramach
