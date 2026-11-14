@@ -25528,6 +25528,12 @@ const REGRESSIONS = [
         ok(/\bbefore\b[\s\S]*\bnow\b/.test(body), "setSpectator no longer reads the Spectators' accounts before and after - this test reads the wrong road");
         ok(/unsetFlag\(\s*MODULE_ID\s*,\s*SPECTATOR_TALK_FLAG\s*\)/.test(body), "setSpectator leaves the talk switch of an account that stopped being a Spectator's");
     }],
+    ["R7169 - the Sound window's Test plays what the event plays (E59 C-115, CHAINS.md B-S12): an event left empty that names another to fall back to (`fallsBackTo`: \"Death fade\" plays the death's file) is played by sfx-play.mjs `pickSound` through `soundsFor`, which follows the fallback; `testSfx` asked `soundFor`, the event's own file, and said \"no file yet\" where the live sound plays; it asks `soundsFor` and never `soundFor`", async () => {
+        const sfx = stripComments(new Map(await otherSources()).get("sfx-play.mjs") ?? "");
+        ok(/\bsoundsFor\(/.test(fnSource(sfx, "pickSound")) && /fallsBackTo/.test(fnSource(sfx, "soundsFor")), "the live road no longer follows the fallback through soundsFor - this test reads the wrong road");
+        const test = fnSource(sfx, "testSfx");
+        equal(JSON.stringify({ follows: /\bsoundsFor\(/.test(test), own: /\bsoundFor\(/.test(test) }), JSON.stringify({ follows: true, own: false }), "{testSfx: whether it reads soundsFor, whether it reads the own file alone}");
+    }],
 ];
 
 

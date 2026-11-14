@@ -761,7 +761,9 @@ export async function testSfx(key) {
         };
     }
 
-    const src = soundFor(key);
+    // What the event plays, its fallback's file included (E59 on the 1.2.115 line, CHAINS.md B-S12; R7169): an empty
+    // "Death fade" plays the death's file live, and its Test said it had none.
+    const src = soundsFor(key).join(SOUND_SEPARATOR) || null;
     if (!src) return { played: false, key, why: game.i18n.localize("DRPG.Sound.why.noFile") };
 
     const volume = event.ignoresVolume ? 1 : sfxVolume("sound");
