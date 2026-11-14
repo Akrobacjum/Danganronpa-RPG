@@ -9,8 +9,8 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 | --- | --- | --- |
 | 0 | Read: plans E25 and E57 (plan-130), e57-prep, e71's CHANGES and FROZEN, the audit's issue texts (lines-board `issues.json`, `plan.json`) | done |
 | 1 | E25's handbook part: contradictions, D13, D14, D5, D33c-D33f, the Polish glossary, features since the plan | done (d8fbb34f D33c; 68f80f8c player and brochure; the GM pair and the tests' D33c forms next) |
-| 2 | E57 C6-C8: the English handbooks by the guide | rewritten (1c1d818e); seven reviews read; the fix pass in progress |
-| 3 | E57 C9-C11: the Polish handbooks from the facts and the old Polish | not started |
+| 2 | E57 C6-C8: the English handbooks by the guide | rewritten (1c1d818e); seven reviews (English, cold, mechanics) applied by ten fix agents (GM b2362972, player and brochure next) |
+| 3 | E57 C9-C11: the Polish handbooks from the facts and the old Polish | in progress: 21 writers from the facts of the final English (docs/handbook-facts.<book>.en.json, 10246 facts) and the old Polish, never the new English sentences (DB26) |
 | 4 | Reviews (English, cold, Polish in three steps, mechanics), labels brought up to date, tier 1 | not started |
 
 ## Readings taken at the base (1463f22b, 14.11.2026)
@@ -28,6 +28,8 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 | --- | --- | --- | --- | --- |
 | R321 (tests-tier0.mjs :13697, :13708, :13709, :13717, :13719) | Polish "GMa" (5 sentences) | "GM-a" (D33c) | the Class Trial's world copy, the dead objector refused, the verdict's runner, Skip once, the Level Up latch | red at d8fbb34f with the old regexes, green after (`run-tests.mjs --tier 1 --only R321`, 14.11) |
 | R431 (tests-tier0.mjs :14406, :14408, :14410, :14417, :14418) | Polish "GMa", "GMem", "GMowie" (5 sentences) | "GM-a", "GM-em", "GM-owie" | a rename carries keys, the rename record, the body records, the put-back of a player's mark, one student one witness | the same |
+| R321 (tests-tier0.mjs :13687, player `lateBallot`) | "If you connect while a vote is open, your ballot comes as your browser loads" | "... your ballot comes as the game loads" | a late joiner gets a ballot; the browser wording moved to 17.12 (O19) | red at b2362972's tree with the new player text, green after (`--only R321`, 14.11) |
+| R1036 (tests-tier0.mjs :17892, player `mutedDead` first pattern) | "... gives it back when it ends - a death nobody has found too" | "... gives it back when it ends\\. It does so for a death nobody has found too" | the dead's microphones off for the trial, an unfound death included (the dash aside split, X4) | the same (`--only R1036`) |
 
 ## Where this line follows the UI, not the decision, until the text lines land
 

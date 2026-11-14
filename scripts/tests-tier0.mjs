@@ -13684,7 +13684,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
-                    lateBallot: [/If you connect while a vote is open, your ballot comes as your browser loads/],
+                    lateBallot: [/If you connect while a vote is open, your ballot comes as the game loads/],
                     majority: [/\*\*more than half\*\* of the ballots issued - for each name/],
                     verdictCard: [/Everyone then sees one card, \*\*THE VERDICT\*\*/, /If it is your character, you are also told privately/],
                     deadObjector: [/A dead student neither presents evidence nor objects\./]
@@ -17889,7 +17889,7 @@ const REGRESSIONS = [
                 player: {
                     overrule: [/The GM can also \*\*Overrule\*\* the newest Objection/, /what you paid stays paid, and the trial goes back to where it was, with the time it had then/],
                     noKill: [/The verdict kills nobody: the sentence is carried out when the trial ends/],
-                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends - a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
+                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends\. It does so for a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
                 },
                 stale: [/mutes nobody/, /does not mute anyone/, /\*\*End this mode now\*\*/, /the table learns it with the verdict/, /Silence is kept by the table, not by the software/, /the trial counts you among the living: you are sent a ballot/]
             },
