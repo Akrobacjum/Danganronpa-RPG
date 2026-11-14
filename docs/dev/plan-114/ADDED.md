@@ -1,5 +1,7 @@
 # 1.2.114: the work outside the stages, put into stages
 
+**Moved to 1.2.115 (later on 14.11.2026).** The owner made 1.2.114 a release of its own for the Class Trial changes (E110: "Niech 1.2.114 bedzie etapem na zmiany w class trial"; "Foundry, audyt i cala reszte przesuwamy na 1.2.115"). Everything below, written for 1.2.114, now holds for 1.2.115: the nine stages E56, E109, E59, E39, E40, E43, E53, E58 and E83 are planned for 1.2.115, the ship command for that train is unchanged, and the local gate runs on 1.2.115's release commit. The ship command for 1.2.114 is `node tools/stages.mjs ship E110`.
+
 Written 14.11.2026 by the coordinator, on the owner's instruction of the same day ("Dodaj rzeczy spoza etapow do
 etapow 1.2.114"). Before it, four pieces of 1.2.114's work belonged to no stage: the owner's answers to the review
 page, the performance baseline, the open live checks and the local gate's parts not run. A piece with no stage has
