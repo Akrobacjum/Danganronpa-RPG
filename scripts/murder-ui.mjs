@@ -221,7 +221,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                 { label: game.i18n.localize("DRPG.Murder.killer"), id: ids.killer,
                   field: `<select name="killer" id="${ids.killer}"${tipAttr("DRPG.Tips.Trial.killerTooltip")}>${optionsFor(defaultKiller)}</select>` },
                 { label: game.i18n.localize("DRPG.Murder.victim"), id: ids.victim,
-                  field: `<select name="victim" id="${ids.victim}">${options}</select>` },
+                  field: `<select name="victim" id="${ids.victim}"${tipAttr("DRPG.Tips.Sweep.Trial.murderVictimTooltip")}>${options}</select>` },
                 { full: `<label class="drpg-checkbox">
                     <input type="checkbox" name="indirect"${
                         /*
@@ -237,7 +237,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                          * while the builder lives, and the box is ticked by `indirect`
                          * either way.
                          */
-                    indirect || armed.has(defaultKiller) ? " checked" : ""} />
+                    indirect || armed.has(defaultKiller) ? " checked" : ""}${tipAttr("DRPG.Tips.Sweep.Trial.murderTrapTooltip", null, { title: true })} />
                     ${game.i18n.localize("DRPG.Murder.indirect")}</label>` },
                 { full: `<p class="drpg-help" data-drpg-trap-note${trapFirst ? "" : " hidden"}>${indirectCostText()}</p>` },
                 { label: game.i18n.localize("DRPG.Murder.openingStatistic"), id: ids.openingTrait,

@@ -515,7 +515,7 @@ export async function promptForNote(actor, { title, prompt, placeholder, traits 
     const propose = (traits ?? []).length > 1;
     const form = `<form>
             <p>${prompt}</p>
-            <textarea name="note" rows="3" placeholder="${
+            <textarea name="note" rows="3"${tipAttr("DRPG.Tips.Sweep.Actions.murderNoteTooltip")} placeholder="${
                 foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
             ${propose ? `<div class="${TRAIT_SLOT}">${traitFieldHtml(actor, traits, { propose: true, how: false })}</div>` : ""}
         </form>`;

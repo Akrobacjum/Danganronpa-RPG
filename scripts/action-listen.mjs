@@ -24,6 +24,7 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant } from "./action-menus.mjs";
 import { watchShutWhy } from "./action-watch.mjs";
 import { isEclipse } from "./settings.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -145,11 +146,11 @@ export async function performListen(actor, def, options) {
         ask: `<form>
             <p>${game.i18n.format("DRPG.Listen.prompt", { room: foundry.utils.escapeHTML(here ?? "-") })}</p>
             <label>${game.i18n.localize("DRPG.Listen.which")}
-                <select name="room">${options_}</select></label>
+                <select name="room"${tipAttr("DRPG.Tips.Sweep.Actions.listenRoomTooltip")}>${options_}</select></label>
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), tooltip: tipText("DRPG.Tips.Sweep.Actions.listenRollTooltip"),
                 callback: (e, b, d) => neighbours[Number(d.element.querySelector("[name=room]").value)] ?? null
             },
             close: "cancel"

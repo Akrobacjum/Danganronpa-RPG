@@ -295,7 +295,7 @@ export function caseOverviewHtml({ graph, finders = null, problems = [], open = 
         + `<span class="drpg-case-check-count">${esc(count)}</span></div>`);
     if (list.length) notes.push(`<ul class="drpg-case-problems">${list.join("")}</ul>`);
     return `<details class="drpg-case-overview" data-drpg-case-overview${open ? " open" : ""}>`
-        + `<summary><strong>${esc(F("DRPG.CaseMap.summaryTitle", { chapter: graph?.chapter ?? "-" }))}</strong>`
+        + `<summary${tipAttr("DRPG.Tips.Sweep.Case.overviewFoldTooltip")}><strong>${esc(F("DRPG.CaseMap.summaryTitle", { chapter: graph?.chapter ?? "-" }))}</strong>`
         + counts.map(([label, n]) => `<span class="drpg-case-count">${esc(label)}: ${n}</span>`).join("")
         + `<span class="drpg-case-count${list.length ? " has-warn" : ""}">${esc(count)}</span></summary>`
         + `<div class="drpg-case-overview-body">${notes.join("")}${summary ? `<fieldset class="drpg-case-edit-summary">${summary}</fieldset>` : ""}</div></details>`;
@@ -389,7 +389,7 @@ export function cameraHtml(zoom = 1) {
         + cam("out", "-", "DRPG.CaseMap.zoomOut")
         + `<output class="drpg-case-zoom" data-drpg-case-zoom-level aria-label="${esc(L("DRPG.CaseMap.zoomLevel"))}">${Math.round(clampZoomOf(zoom) * 100)}%</output>`
         + cam("in", "+", "DRPG.CaseMap.zoomIn")
-        + `<button type="button" class="drpg-case-cam" data-drpg-case-camera="fit">${esc(L("DRPG.CaseMap.zoomFit"))}</button></div>`;
+        + `<button type="button" class="drpg-case-cam" data-drpg-case-camera="fit"${tipAttr("DRPG.Tips.Sweep.Case.fitViewTooltip")}>${esc(L("DRPG.CaseMap.zoomFit"))}</button></div>`;
 }
 
 const clampZoomOf = z => Math.min(CAMERA_LIMITS.max, Math.max(CAMERA_LIMITS.min, Number(z) || 1));

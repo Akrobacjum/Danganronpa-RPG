@@ -39,7 +39,7 @@ import { observeStore } from "./gm-stores.mjs";
 import { stableJson } from "./gm-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** How the player said they were looking. */
 export const DECLARATIONS = {
@@ -1233,10 +1233,10 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     <input type="text" name="name" readonly
                            value="${foundry.utils.escapeHTML(stored.name ?? fallbackName)}" /></label>`
                 : `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                    <input type="text" name="name"${isCritical ? "" : " autofocus"}
+                    <input type="text" name="name"${isCritical ? "" : " autofocus"}${tipAttr("DRPG.Tips.Sweep.Actions.bulletNameTooltip")}
                            value="${foundry.utils.escapeHTML(fallbackName)}" /></label>`}
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
-                <textarea name="playerText" rows="3"${stored && !isCritical ? " autofocus" : ""}
+                <textarea name="playerText" rows="3"${stored && !isCritical ? " autofocus" : ""}${tipAttr("DRPG.Tips.Sweep.Actions.bulletTextTooltip")}
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
             ${/*

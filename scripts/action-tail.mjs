@@ -19,6 +19,7 @@ import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford } from "./actio
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { isMonokuma } from "./monokuma.mjs";
+import { tipAttr } from "./ui-kit.mjs";
 
 /** Whom this character may tail from here, as this browser sees the room: students on tokens it can see, no Monocub or Monokuma. */
 export function tailTargets(actor) {
@@ -50,7 +51,7 @@ export async function performTail(actor, options = {}) {
             ask: `<form>
                 <p>${esc(game.i18n.format("DRPG.Infiltrate.tail.prompt", { n: rule.unseen.threshold }))}</p>
                 <label>${esc(game.i18n.localize("DRPG.Infiltrate.tail.who"))}
-                    <select name="who">${targets.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select></label>
+                    <select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.tailWhoTooltip")}>${targets.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select></label>
                 ${traitFieldHtml(actor, traits, { propose: true })}
             </form>`,
             footer: {

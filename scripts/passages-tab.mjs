@@ -188,7 +188,16 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
  */
 function button(act, key, { held = null } = {}) {
     const why = held ? ` disabled data-tooltip="${esc(t(held))}" aria-description="${esc(t(held))}"` : "";
-    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}>${esc(t(key))}</button>`;
+    // What the button does, as its tooltip (the tooltip sweep, 1.2.115); a held button keeps its reason instead.
+    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}${held ? "" : tipAttr(
+        act === "show" ? "DRPG.Tips.Sweep.More.passageShowTooltip"
+            : act === "repick" ? "DRPG.Tips.Sweep.More.passageRepickTooltip"
+                : act === "close" ? "DRPG.Tips.Sweep.More.passageCloseTooltip"
+                    : act === "open" ? "DRPG.Tips.Sweep.More.passageOpenTooltip"
+                        : act === "public" ? "DRPG.Tips.Sweep.More.passageMakePublicTooltip"
+                            : act === "secret" ? "DRPG.Tips.Sweep.More.passageMakeSecretTooltip"
+                                : act === "delete" ? "DRPG.Tips.Sweep.More.passageDeleteTooltip"
+                                    : "DRPG.Tips.Sweep.More.passageCloseBreachTooltip")}>${esc(t(key))}</button>`;
 }
 
 /**

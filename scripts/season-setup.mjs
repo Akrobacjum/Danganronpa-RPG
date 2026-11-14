@@ -231,7 +231,7 @@ const lastRoomChecks = new Map();
 function roomGuideHtml() {
     return `<div class="drpg-room-guide">
         <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
-        <p><button type="button" data-drpg-check>${
+        <p><button type="button" data-drpg-check${tipAttr("DRPG.Tips.Sweep.Setup.checkRoomsTooltip")}>${
             foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.checkRooms"))}</button></p>
         <div data-drpg-check-out class="drpg-room-check"></div>
     </div>`;
@@ -1431,7 +1431,7 @@ async function askStartHere() {
         classes: ["drpg-panel", "drpg-window-start-here"],
         title: game.i18n.localize("DRPG.Season.startHereTitle"),
         body: `<p>${esc(game.i18n.localize("DRPG.Season.startHereText"))}</p>`,
-        footer: { primary: { action: "open", label: game.i18n.localize("DRPG.Season.title") }, close: { role: "close", action: "close" } },
+        footer: { primary: { action: "open", label: game.i18n.localize("DRPG.Season.title"), tooltip: tipText("DRPG.Tips.Sweep.Setup.startHereOpenTooltip") }, close: { role: "close", action: "close" } },
         rejectClose: false
     });
     if (answer === "open") await openSeasonSetup();

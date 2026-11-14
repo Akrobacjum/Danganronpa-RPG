@@ -644,7 +644,7 @@ export async function openMastermindDialog() {
         body: `<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>
             <label>${game.i18n.localize("DRPG.Mastermind.whoIs")}
-                <select name="who">
+                <select name="who"${tipAttr("DRPG.Tips.Sweep.Trial.mastermindWhoTooltip")}>
                     <option value="">${game.i18n.localize("DRPG.Mastermind.nobody")}</option>
                     ${options}
                 </select></label>

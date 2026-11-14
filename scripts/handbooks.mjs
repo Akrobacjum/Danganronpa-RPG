@@ -22,7 +22,7 @@ import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { pageLanguage } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error, markLanguage } from "./utils.mjs";
-import { DrpgApp, kitTabBar, wireKitTabs } from "./ui-kit.mjs";
+import { DrpgApp, kitTabBar, wireKitTabs, tipText } from "./ui-kit.mjs";
 
 const LAUNCHER_ID = "drpg-book-launcher";
 const WINDOW_CLASS = "drpg-handbook";
@@ -67,6 +67,12 @@ export function registerHandbooks() {
     // every canvas draw, because Foundry rebuilds the body's furniture.
     Hooks.once("ready", renderBookLauncher);
     Hooks.on("canvasReady", () => renderBookLauncher());
+}
+
+/** What a book's tab says it holds (the tooltip sweep, 1.2.115): the words of the window's tab bar. */
+function bookTip(id) {
+    return tipText(id === "gm-handbook" ? "DRPG.Tips.Sweep.More.gmBookTabTooltip"
+        : id === "player-handbook" ? "DRPG.Tips.Sweep.More.playerBookTabTooltip" : "DRPG.Tips.Sweep.More.brochureTabTooltip");
 }
 
 /** The books this user may open. */
@@ -390,7 +396,8 @@ class HandbookApp extends DrpgApp() {
 
         // The kit's bar (E44 C4a): one tab a book, no pane of its own - `show` fills the one text below.
         const bar = document.createElement("template");
-        bar.innerHTML = kitTabBar(booksFor().map(book => ({ key: book.id, label: game.i18n.localize(book.label) })),
+        bar.innerHTML = kitTabBar(booksFor().map(book => ({ key: book.id, label: game.i18n.localize(book.label),
+            tooltip: bookTip(book.id) })),
             { active: this.book });
         const tabs = bar.content.firstElementChild;
 

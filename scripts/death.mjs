@@ -13,7 +13,7 @@ import { isTruthBullet, dropSecret } from "./truth-bullets.mjs";
 import { publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log, error, whisperToGms, gmIds, warn, plural, isPrimaryGm } from "./utils.mjs";
-import { drpgConfirm, drpgWindow, emptyOption } from "./ui-kit.mjs";
+import { drpgConfirm, drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { everyPart, registerSeasonState } from "./season-reset.mjs";
 import { deferredOfferStore, deathStore, lootTraceStore } from "./gm-stores.mjs";
 import { leaveBody, removeBodyTiles } from "./body-tile.mjs";
@@ -746,7 +746,7 @@ export async function openDeathDialog({ actor = null } = {}) {
     const picker = actor
         ? `<p><strong>${foundry.utils.escapeHTML(actor.name)}</strong></p>`
         : `<label>${game.i18n.localize("DRPG.Chapter.whoDied")}
-                <select name="actor">${emptyOption("DRPG.Chapter.chooseOne", { selected: !chosen })}${listed
+                <select name="actor"${tipAttr("DRPG.Tips.Sweep.Trial.whoDiedTooltip")}>${emptyOption("DRPG.Chapter.chooseOne", { selected: !chosen })}${listed
                     .map(a => `<option value="${a.id}"${a.id === chosen ? " selected" : ""}>${
                         foundry.utils.escapeHTML(a.name)}</option>`).join("")}</select></label>`;
 
