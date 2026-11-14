@@ -59165,6 +59165,48 @@ const INVARIANTS = [
         equal(stableJson(wrong), "[]", "each face's licence and its text, as the font's own name table names it");
         ok(!/Special Elite[^.\n]*Open Font License|both under the \*\*SIL Open/.test(readme), "fonts/README.md still calls Special Elite OFL");
     }],
+
+    ["R6301 - module.json states no maximum anywhere and names a verified Daggerheart no older than D1's 2.10.5 and no older than its minimum (E26 prep, 14.11.2026; decision D1)", async () => {
+        /*
+         * E26 prep, 14.11.2026. D1: no `compatibility.maximum`, so a newer Daggerheart loads and the module tells the GM
+         * once per version; verified 2.10.5. The manifest at 1463f22b already said verified 2.12.8 (8f1b1b38, the owner,
+         * 13.11.2026), newer than the plan's 2.10.5, and is kept: the release rules' step 6 names only a version passed
+         * at a table. Nothing held either part before. Nothing was red in the tree: the planted manifests below are the
+         * red reading (a maximum on Foundry, one on the system, a verified older than 2.10.5, one older than the minimum).
+         */
+        const newer = (a, b) => {
+            const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
+            for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+            return false;
+        };
+        const atLeast = (a, b) => !newer(b, a);
+        const faults = m => {
+            const out = [];
+            if (m.compatibility && "maximum" in m.compatibility) out.push("Foundry maximum");
+            const dh = (m.relationships?.systems ?? []).find(r => r.id === "daggerheart");
+            if (!dh) return [...out, "no daggerheart"];
+            const c = dh.compatibility ?? {};
+            if ("maximum" in c) out.push("system maximum");
+            for (const r of [...(m.relationships?.systems ?? []), ...(m.relationships?.requires ?? [])]) if (r !== dh && r.compatibility && "maximum" in r.compatibility) out.push(`${r.id} maximum`);
+            if (!c.verified || !atLeast(c.verified, "2.10.5")) out.push(`verified ${c.verified} older than 2.10.5`);
+            if (!c.minimum || !c.verified || !atLeast(c.verified, c.minimum)) out.push(`verified ${c.verified} older than the minimum ${c.minimum}`);
+            return out;
+        };
+        const plant = (dh, top = {}) => ({ compatibility: { minimum: "14.364", ...top }, relationships: { systems: [{ id: "daggerheart", compatibility: dh }] } });
+        equal(stableJson([
+            faults(plant({ minimum: "2.6.5", verified: "2.12.8" }, { maximum: "14" })),
+            faults(plant({ minimum: "2.6.5", verified: "2.12.8", maximum: "2.12.8" })),
+            faults(plant({ minimum: "2.6.5", verified: "2.6.5" })),
+            faults(plant({ minimum: "2.12.9", verified: "2.12.8" })),
+            faults(plant({ minimum: "2.6.5", verified: "2.10.10" }))
+        ]), stableJson([["Foundry maximum"], ["system maximum"], ["verified 2.6.5 older than 2.10.5"], ["verified 2.12.8 older than the minimum 2.12.9"], []]),
+            "the planted manifests [Foundry maximum | system maximum | verified 2.6.5 | below its minimum | 2.10.10 as numbers, clean]");
+        const res = await fetch(`/modules/${MODULE_ID}/module.json`);
+        must(res.ok, "module.json did not load");
+        const manifest = JSON.parse(await lfText(res));
+        must((manifest.relationships?.systems ?? []).length > 0, "module.json names no system");
+        equal(stableJson(faults(manifest)), "[]", "module.json's compatibility (D1)");
+    }],
 ];
 
 /**

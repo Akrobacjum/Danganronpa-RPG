@@ -8,7 +8,7 @@ R block R6300-R6349.
 | Font licences: each face's real licence named, each text in fonts/ (R6300) | done | C1 |
 | Modified Press Start 2P under its Reserved Font Name: renamed DRPG Pixel in its name tables; `check fonts` | done | C2 |
 | module.zip ships nothing it should not (no macros/, no "DM" in lang/ or handbooks); reproducible build (tools/build-package.mjs, check package); tools that write files on a CRLF checkout (tools/crlf-writers.mjs) | done | C3 |
-| module.json: Daggerheart verified, no maximum (D1) | open | |
+| module.json: Daggerheart verified, no maximum (D1): already verified 2.12.8 (8f1b1b38), newer than the plan's 2.10.5, kept; R6301 holds it | done | C4 |
 | README draft (docs/dev/e26/README-DRAFT.md) | open | |
 
 ## Measured
