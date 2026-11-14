@@ -27242,6 +27242,22 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
+    ["R6354 - two Setup tooltips name the window's words as its controls say them (the text lines' read of DRPG.Tips, 14.11.2026, through the coordinator): the Sound window's Play names the button beside it by that button's own label (DRPG.Music.reset, \"Stop the track\" / \"Wyłącz utwór\", not \"Reset music\"), and the new item's Category names its picture by the item form's word (DRPG.Tables.picture, \"Picture\" / \"Obrazek\", not \"icon\" / \"Ikona\"), in English and in Polish", async () => {
+        /* Red at 7025ac5c: Play's tooltip said "Reset music" / "Resetuj muzykę" and Category's "icon" / "Ikona". */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const read = (lang, ...path) => path.reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), lang.DRPG);
+        const out = {};
+        for (const [name, lang] of [["en", en], ["pl", pl]]) {
+            const stop = read(lang, "Music", "reset"), picture = read(lang, "Tables", "picture");
+            const play = read(lang, "Tips", "Setup", "playTooltip") ?? "", category = read(lang, "Tips", "Setup", "categoryTooltip") ?? "";
+            must(stop && picture && play && category, `lang/${name}.json lacks a word this reads - this would measure nothing`);
+            out[name] = { playNamesStop: play.toLowerCase().includes(stop.toLowerCase()), playSaysReset: /reset/i.test(play),
+                categoryNamesPicture: category.toLowerCase().includes(picture.toLowerCase()), categorySaysIcon: /\b(icon|ikona)\b/i.test(category) };
+        }
+        const want = { playNamesStop: true, playSaysReset: false, categoryNamesPicture: true, categorySaysIcon: false };
+        equal(stableJson(out), stableJson({ en: want, pl: want }), "{per language: Play's tooltip names Stop the track and not Reset; Category's names Picture and not icon}");
+    }],
     ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
         /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
