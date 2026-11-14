@@ -9223,7 +9223,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
             ["STORE gm-stores.mjs#verdictStore", "not a source (fix r1-G1): a GM store (`gmVerdict`) `applyVerdict` writes - the verdict's `at` and the Blackened its GM named - and `finishVerdict` reads; never sent to a player"],
-            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjection`, the lapse) and read by OBJECTION! and the console as a display"]
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjectionInStep`, the lapse) and read by OBJECTION! and the console as a display"]
         ];
         // E56 C5 (13.11.2026): a reason names the function, never `file.mjs:N` - 45 such line numbers had drifted off what they named.
         ok(!TRIAL_CENSUS.some(([, why]) => /\b[\w-]+\.mjs:\d/.test(String(why ?? ""))), "a census row's reason cites a line (file.mjs:N): name the function it means instead");

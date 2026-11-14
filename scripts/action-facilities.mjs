@@ -23,8 +23,8 @@
  * the Overflow's word through overflow.mjs's own static readers. The sheet imports this file statically since.
  */
 
-import { FACILITIES, TRAITS } from "./config.mjs";
-import { esc, plural } from "./utils.mjs";
+import { TRAITS } from "./config.mjs";
+import { plural } from "./utils.mjs";
 import { actionsLeft, canPayFor, spendAction, refundAction } from "./actions.mjs";
 import { locateActor } from "./movement.mjs";
 import {
@@ -146,12 +146,3 @@ export async function useFacility(actor, value) {
     return res.ok ? res.value ?? null : null;
 }
 
-/** The effects of an action as a line for the GM's editor and the handbook's examples: "Health 2, Hope 1 (those present)". */
-export function effectsLine(effects) {
-    return (effects ?? []).map(effect => {
-        const name = game.i18n.localize(`DRPG.Facility.effect.${effect.kind}`);
-        const n = FACILITIES.effects[effect.kind]?.text ? "" : ` ${effect.n}`;
-        const scope = effect.scope && effect.scope !== "self" ? ` (${game.i18n.localize(`DRPG.Facility.scope.${effect.scope}`)})` : "";
-        return `${esc(name)}${n}${scope}`;
-    }).join(", ");
-}

@@ -28,7 +28,8 @@
     "restShutReason": "action-facilities.mjs: history - rest.mjs's two-rest reason the Facilities tile read until fix line 113f deleted it (13.11.2026)",
     "nightFoldsIntoBoard": "day-summary.mjs: history - the Night's summary folded into the roll-over's board until 13.11.2026 (fix line 113j)",
     "visibleCountdownTypes": "projects-tray.mjs: Daggerheart 2.12.8's countdowns.mjs function, not this module's (fix line 113n, A113-C1-2)",
-    "actorResources": "resources.mjs: Daggerheart 2.12.8's feature field read by its `_cleanupOptionalResources`, not this module's (compat-113)"
+    "actorResources": "resources.mjs: Daggerheart 2.12.8's feature field read by its `_cleanupOptionalResources`, not this module's (compat-113)",
+    "fillObjection": "trial-floor.mjs: history - the floor op's asker nothing called, removed in E56 part 2 (14.11.2026), named where its step's doc says so"
   },
   "files": {
     "scripts/a11y.mjs": {
