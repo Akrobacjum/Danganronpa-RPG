@@ -1288,10 +1288,16 @@ export const X_RULES = Object.freeze([
     { id: "X1", what: "reassurance by denying a loss", en: /\b(?:[Nn]othing (?:was|is|has been|got|gets) (?:spent|lost|used|wasted|taken)|[Nn]o \p{L}+ (?:was|were|is|are) (?:spent|lost|used|wasted))\b/u,
         pl: new RegExp(W("[Nn]ic nie (?:wydano|stracono|zużyto|przepadło|zostało (?:wydane|stracone|zużyte))|[Nn]ie (?:wydano|stracono|zużyto) (?:nic|niczego)"), "u") },
     { id: "X2", what: "a design rationale", en: /\b(?:by design|on purpose|deliberately|intentionally)\b/iu, pl: new RegExp(W("celowo|z założenia|zamierzenie"), "iu") },
-    { id: "X3", what: "the antithesis \"X, not Y\"", en: /, not (?:\S+ ){0,4}\S+[.;!?](?:\s|$)/u,
+    /* E57 (14.11.2026): a participle after "not" ("not counting", "nie znając", "nie klikając") is no antithesis, and the verbs the
+       text lines' Polish put after ", nie" (trafia, wracają, zapisuje, tracisz, weźmie) join the 31.10 list. */
+    { id: "X3", what: "the antithesis \"X, not Y\"", en: /, not (?!\p{L}+ing\b)(?:\S+ ){0,4}\S+[.;!?](?:\s|$)/u,
         /* A Polish ", nie" before a verb is a negation, not an antithesis: the verbs read 31.10 after it are left out. */
-        pl: /, (?:a )?nie (?!(?:można|wolno|ma|mają|jest|są|było|będzie|zostanie|został\p{L}*|trzeba|może|mogą|da|działa|liczy)(?![\p{L}]))(?:\S+ ){0,3}\S+[.;!?](?:\s|$)/u },
-    { id: "X4", what: "a dash that tacks an aside on", en: /[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{"“(]/u, pl: /[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{„"(]/u },
+        pl: /, (?:a )?nie (?!(?:można|wolno|ma|mają|jest|są|było|będzie|zostanie|został\p{L}*|trzeba|może|mogą|da|działa|liczy|trafia|wracają|zapisuje|tracisz|weźmie|\p{L}+ąc)(?![\p{L}]))(?:\S+ ){0,3}\S+[.;!?](?:\s|$)/u },
+    /* X4 reads a SENTENCE (E57, 14.11.2026): after the text lines it flagged every spaced dash, 95 of them, most a title's or a label
+       pair's separator ("Room setup - {scene}", "{action} - {trait}") or the minus button named ("The - and + buttons"), none an
+       aside tacked on to a sentence. A dash is the rule's when, in one sentence, four words stand before it and three after it,
+       and what follows is not "and +" or "or +" (the button). Measured on the files: 95 found before, the rest read by hand. */
+    { id: "X4", what: "a dash that tacks an aside on", test: u => dashAside(u.text) },
     { id: "X5", what: "a bracketed plural", en: /\p{L}\((?:s|es)\)/u, pl: /\p{L}\((?:y|i|e|ów)\)/u },
     { id: "X6", what: "telegraph style", by: "T18 (E65 C7, telegraph)" },
     { id: "X7", what: "a chain of label-colon-value inside a sentence", any: /(?:\p{L}[^.!?:]*: [^.!?:;]+[;,] ){2,}/u },
@@ -1374,6 +1380,22 @@ export function patterns(bag = {}) {
     return { found, read, byRule, counts: { rules: X_RULES.length, matched: X_RULES.filter(r => !r.by).length, allowed } };
 }
 
+/** X4's sentence test: the first " - " with four words before it and three after it in its own sentence, as a match. */
+export function dashAside(text) {
+    const plain = String(text).replace(/<[^>]*>/g, m => " ".repeat(m.length));
+    const words = s => (s.match(/[\p{L}\p{N}{}]+/gu) ?? []).length;
+    for (const m of plain.matchAll(/[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{"“„(]/gu)) {
+        const at = m.index + 1;
+        const start = Math.max(plain.lastIndexOf(". ", at), plain.lastIndexOf("! ", at), plain.lastIndexOf("? ", at), plain.lastIndexOf(": ", at)) + 1;
+        const rest = plain.slice(at + 3);
+        const end = rest.search(/[.!?](\s|$)/u);
+        const before = plain.slice(start, at), after = end < 0 ? rest : rest.slice(0, end);
+        if (/^(?:and|or|i|albo|lub)\s+\+/iu.test(after)) continue;
+        if (words(before) >= 4 && words(after) >= 3) return Object.assign([plain.slice(at, at + 3)], { index: at });
+    }
+    return null;
+}
+
 /* ---------------------------------- T7 ------------------------------------- */
 
 /* A number written as a word (English; Polish in its genders and cases), and the rule nouns after it (E65 C6's slice). */
@@ -1386,9 +1408,19 @@ const RULE_NOUN = Object.freeze({
     pl: "kość|kości|kośćmi|akcja|akcje|akcji|akcję|akcjach|akcjami|tura|tury|turę|tur|turze|turach|Hope|Despair|Health|Sanity"
 });
 /* Not read: "one" as a pronoun ("no one", "the one ... that", in NUMBER_WORD), and the module's name for a dice style ("One
-   dice look", „Jeden wygląd kości”, „w jednym stylu kości”). */
+   dice look", „Jeden wygląd kości”, „w jednym stylu kości”). A determiner between the word and the noun ("take one this
+   turn", "one each turn") makes the word a pronoun and the noun the time it happens in, not what is counted (E57 T7,
+   14.11.2026: the crisis menu's Self-Defense hint, an approved text, read "one this turn"). */
 const NUMBER_RE = Object.freeze(Object.fromEntries(["en", "pl"].map(lang => [lang, new RegExp(
-    `${W(NUMBER_WORD[lang])}\\s+(?:(?!of\\b|z\\b|wygląd|styl)[\\p{L}-]+\\s+)?${W(RULE_NOUN[lang])}(?!\\s+(?:look|style|wygląd))`, "giu")])));
+    `${W(NUMBER_WORD[lang])}\\s+(?:(?!of\\b|z\\b|wygląd|styl|(?:this|that|the|each|every|per|a|an|tej|tę|tym|tą)\\s)[\\p{L}-]+\\s+)?${W(RULE_NOUN[lang])}(?!\\s+(?:look|style|wygląd))`, "giu")])));
+
+/**
+ * T7's allowed texts (E57, 14.11.2026): a key whose number word the owner approved as written, with the reason, both
+ * languages alike. Read by `ruleNumberWords`; a fixture passes its own through `ruleNumberAllow`.
+ */
+export const RULE_NUMBER_ALLOW = Object.freeze({
+    "DRPG.Config.HOPE_CALLS.freeCrit.effect": "\"one of the two dice\" / „jedna z dwóch kości” names the pair every roll throws, Hope's and Fear's, which no config number gives; the owner approved the text as written (docs/dev/text-batch-B01a.json, 01.11.2026, O14: the Fear die and Despair not in one sentence)"
+});
 
 /**
  * T7, its part in E65 (plan; the rest of the rules-parity test is E25's and
@@ -1404,8 +1436,10 @@ const NUMBER_RE = Object.freeze(Object.fromEntries(["en", "pl"].map(lang => [lan
 export function ruleNumberWords(bag = {}) {
     const found = [];
     let read = 0;
+    const allow = bag.ruleNumberAllow ?? RULE_NUMBER_ALLOW;
     for (const u of uiUnits(bag)) {
         read++;
+        if (Object.hasOwn(allow, u.key)) continue;
         const re = NUMBER_RE[u.lang];
         re.lastIndex = 0;
         const m = re.exec(u.text);
@@ -2586,8 +2620,12 @@ export const MODES = Object.freeze({
     /* FAIL since E57 T4 (14.11.2026): red only over a limit on a surface with a `fail` stage (B1, DB11); the rest it reports
        beside it (`reported`). At 0 after two config texts and one Polish were shortened and two key rules narrowed. */
     lengthOver: Object.freeze({ test: "T4", mode: "fail", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
-    patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
-    ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    /* FAIL since E57 (14.11.2026, 1.2.113): 212 findings; the X3 and X4 detectors narrowed red first, the texts fixed, eight keys allowed in docs/text-budgets.json (one an owner-approved text), which it reads
+     * ("budgets" in reads, as T21: without its allow rows it is not the verdict, so R1059's served run leaves it out). */
+    patterns: Object.freeze({ test: "T5", mode: "fail", fail: "E71", reads: Object.freeze(["lang", "budgets"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
+    /* FAIL since E57 (14.11.2026, 1.2.113): 23 findings: 20 texts rewritten or given their placeholder (the Bounty's {reward}),
+       one owner-approved text allowed (RULE_NUMBER_ALLOW), and "take one this turn" read as the pronoun it is (NUMBER_RE). */
+    ruleNumberWords: Object.freeze({ test: "T7", mode: "fail", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     /* FAIL since E57 C12 (14.11.2026): its one finding after the text lines, SFX_EVENTS.despairCall.hint, reworded. */
     monokumaVoice: Object.freeze({ test: "T21", mode: "fail", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
     /* FAIL since E57 C12 (14.11.2026): after the text lines, two readouts allowed (COLON_CHAIN_ALLOW) and one sentence split. */
@@ -2994,7 +3032,10 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.x1ok": "You keep your action.",                       // passes
                 "DRPG.Fx.x2": "The light flickers on purpose.",               // X2
                 "DRPG.Fx.x3": "The debate runs from the console, not here.",  // X3
+                "DRPG.Fx.x3part": "The module takes 40 KB, not counting its history.",   // a participle, no antithesis: passes (E57)
                 "DRPG.Fx.x4": "Tick to opt in - the timing is yours.",        // X4
+                "DRPG.Fx.x4title": "Room setup - {scene}",                      // a title's separator, no sentence on its left: passes (E57)
+                "DRPG.Fx.x4minus": "The - and + buttons change the count.",     // the minus button named: passes (E57)
                 "DRPG.Fx.x4ok": "A well-known room",                           // a hyphen inside a word: passes
                 "DRPG.Fx.x5": "You have {n} pick(s).",                         // X5
                 "DRPG.Fx.x7": "Identified by the crime: {rows}; faint: {faint}; Key: {key}.",   // X7
@@ -3026,6 +3067,8 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.x1": "GM odmówił. Nic nie wydano.",                   // X1
                 "DRPG.Fx.x1ok": "Nie tracisz akcji.",                          // passes
                 "DRPG.Fx.x3": "Debatę prowadzi GM z konsoli, nie stąd.",       // X3
+                "DRPG.Fx.x3part": "GM wybiera Remnant, nie znając wyniku.",     // a participle: passes (E57)
+                "DRPG.Fx.x3verb": "Truth Bullety, które przepadły, nie wracają.",   // a verb read 14.11: passes (E57)
                 "DRPG.Fx.x3ok": "Tego, nie można cofnąć.",                     // a negated verb: passes
                 "DRPG.Fx.x10": "Incydent po prostu się kończy.",               // X10
                 "DRPG.Fx.x12": "Jesteś w: {room}.",                            // X12
@@ -3037,7 +3080,7 @@ export const FIXTURES = Object.freeze({
         }
     },
     ruleNumberWords: {
-        flags: ["DRPG.Config.FX.p en", "DRPG.Fx.a en", "DRPG.Fx.a pl", "DRPG.Fx.b en", "DRPG.Fx.b pl", "DRPG.Fx.c en", "DRPG.Fx.c pl", "DRPG.Fx.h en", "DRPG.Fx.h pl"],
+        flags: ["DRPG.Config.FX.p en", "DRPG.Fx.a en", "DRPG.Fx.a pl", "DRPG.Fx.b en", "DRPG.Fx.b pl", "DRPG.Fx.c en", "DRPG.Fx.c pl", "DRPG.Fx.h en", "DRPG.Fx.h pl", "DRPG.Fx.l en"],
         input: {
             en: {
                 "DRPG.Fx.a": "Gain one Hope.",                                // flagged
@@ -3049,8 +3092,12 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.g": "One dice look for the table",                   // the dice style's name: passes
                 "DRPG.Fx.h": "Two free actions",                              // one adjective between: flagged
                 "DRPG.Fx.i": "the one action that counts",                    // "the one": passes
-                "DRPG.Fx.j": "Choose one of Hope or Despair."                 // "of" between: passes
+                "DRPG.Fx.j": "Choose one of Hope or Despair.",                // "of" between: passes
+                "DRPG.Fx.k": "Take one this turn without a roll.",            // a determiner between: "one" is a pronoun, passes
+                "DRPG.Fx.l": "Down to one action each turn.",                 // flagged: the count stands before its noun
+                "DRPG.Fx.pair": "One of the two dice is set to 12."           // the same words as c, allowed below: passes
             },
+            ruleNumberAllow: { "DRPG.Fx.pair": "an approved text (E57)" },
             prose: { "DRPG.Config.FX.p": "Survive for the next two turns." },   // flagged
             pl: {
                 "DRPG.Fx.a": "Zyskujesz jeden Hope.",                         // flagged
@@ -3059,7 +3106,8 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.d": "Raz dziennie.",                                 // "raz" is no number word here: passes
                 "DRPG.Fx.e": "Weź {n} kości.",                                // passes
                 "DRPG.Fx.g": "Jeden wygląd kości przy stole",                 // the dice style's name: passes
-                "DRPG.Fx.h": "Dorzuca jedną kość kary."                       // flagged
+                "DRPG.Fx.h": "Dorzuca jedną kość kary.",                      // flagged
+                "DRPG.Fx.k": "Weź jedną w tej turze bez rzutu."               // a determiner between: passes
             }
         }
     },

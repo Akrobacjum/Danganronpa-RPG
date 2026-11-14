@@ -24057,8 +24057,8 @@ const INVARIANTS = [
             game.i18n.translations = own;
             tab.draw();
         }
-        const START = ["Known after a season reset, not now.",
-            "Znają je po resecie sezonu, nie teraz."];
+        const START = ["Known only after a season reset.",
+            "Znają je dopiero po resecie sezonu."];
         const WAY = ["A tunnel or stairs can go one way only: pick it under its Shape. A passage in a wall always goes both ways.",
             "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Tajne przejście w ścianie zawsze prowadzi w obie strony."];
         const ends = (text, i) => typeof text === "string" && text.endsWith(`${START[i]} ${WAY[i]}`);
@@ -24088,7 +24088,7 @@ const INVARIANTS = [
         const size = [Math.max(20, Math.round(grid * 0.36)), Math.max(4, Math.round(grid * 0.07)), Math.round(grid * 0.38)];
         const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
         equal(J([drew, texts, [en?.DRPG?.Passage?.mark?.from, pl?.DRPG?.Passage?.mark?.from]]),
-            J([2, [[words("DRPG.Passage.mark.to", "R903 Lab"), ...size], [words("DRPG.Passage.mark.from", "R903 Dorm"), ...size]], ["Secret passage from {room}", "Tajne przejście z: {room}"]]),
+            J([2, [[words("DRPG.Passage.mark.to", "R903 Lab"), ...size], [words("DRPG.Passage.mark.from", "R903 Dorm"), ...size]], ["Secret passage from {room}", "Tajne przejście z pokoju {room}"]]),
             `[the marks drawn, each mark's words as [text, size, keyline, below its centre] at grid ${grid}, the way out's words in English and in Polish]`);
     }],
     ["R904 - 'Known passages' says what to do with each passage (H81-03, H81-04, H81-02): a passage in a wall is to be walked through its gap and has no button, a tunnel keeps 'Go through' enabled wherever the token stands, a one-way tunnel says which way in the rooms as the row names them, and a refusal away from an end says where to stand, in English and in Polish", async () => {
@@ -60262,7 +60262,7 @@ const INVARIANTS = [
         };
         equal(stableJson([groupOf(aKitchen.actor.name), groupOf(sRow.actor.name), groupOf(offRow.actor.name), groupOf(aSpare.actor.name), groupOf(lone.name),
             lines.filter(line => line.includes(sRow.actor.name)).length]),
-            stableJson(["Kitchen", "(Spectators' room)", "(sent nowhere)", "(sent nowhere)", "ACCOUNTS WITH NO CHARACTER", 1]),
+            stableJson(["Kitchen", "(Spectators' room)", "(sent nowhere)", "(sent nowhere)", "Accounts with no character", 1]),
             "[the group of a character placed in the Kitchen; of a Spectator talking; of a character whose owner is offline; of a spare its account's ranking passed over; of an account with no character; the Spectator's lines]");
     }],
 
