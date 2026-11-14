@@ -33,11 +33,26 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 | Brochure, English | 1606 | 1661 | 2055 | none |
 | Brochure, Polish | 1480 | 1542 | 1975 | |
 
-The books grew; they did not shorten by the 20-30 % B4 names as a report. The rules part of the GM handbook is 7 %
-shorter than the whole book after E25; the player handbook's rules part is 5 % longer and the brochure 24 % longer.
-What grew them is the fix pass: the cold and mechanics reads found rules a reader could not apply and terms used
-before they were explained, and each fix states the missing part (M4: no rule dropped to get shorter). Lines grew
-more than words (GM 1411 -> 2459) because long paragraphs were split and prose became tables and lists.
+The books grew; they did not shorten by the 20-30 % B4 names as a report. Where the words came from, English, by step
+(`wc -w` of each commit; the rules part is everything before the appendix's heading):
+
+| Step (commit) | GM rules part | GM appendix | Player rules part | Player appendix | Brochure |
+| --- | --- | --- | --- | --- | --- |
+| After E25 (ce38e5ab) | 68453 | none | 23227 | none | 1661 |
+| The rewrite (1c1d818e) | 64780 (-3673) | 12127 | 23739 (+512) | 2446 | 1791 (+130) |
+| The fix pass (b2362972, 2cdd9a25) | 63323 (-1457) | 14891 (+2764) | 24345 (+606) | 3000 (+554) | 2054 (+263) |
+| Now (60b2c8d0) | 63377 | 14892 | 24370 | 3006 | 2055 |
+
+- The GM handbook: the rules part is 7 % shorter (-5076 words); all of its growth is the appendix (14892 words),
+  12127 of it written in the rewrite. The rewrite took 3673 words of technical detail out of the rules part and wrote
+  an appendix three times that size. Why is a reading, not a measurement: each appendix note restates which rule it
+  qualifies and the circumstances, where the old text had the detail inside the rule's own sentence.
+- The player handbook: the rules part grew 5 % (+1143), half in the rewrite and half in the fix pass; the appendix
+  is 3006 words.
+- The brochure grew 24 % (+394), two thirds of it in the fix pass.
+- The fix pass's own additions are the rules and definitions the cold and mechanics reads found missing (in the rules
+  parts: GM -1457 net, player +606, brochure +263) and the technical notes they moved out of rule sections (GM
+  appendix +2764, player +554). Which added sentence is which was not counted one by one.
 
 ## Tests whose handbook sentences changed (the coordinator's yes of 14.11.2026: test data only, each fact still held)
 
@@ -55,7 +70,7 @@ R620's Polish GM Palm row ("Body 12 po odmowie") was dropped by the Polish fix p
 ## Where this line follows the UI, not the decision, until the text lines land
 
 - "Neighbours": the Room setup column is **Neighbors** since group B (Vault.neighboursColumn) and the handbooks quote it so. The prose "Neighbours list" (GM 706, 734, 738) and Vault.neighboursNote ("“Neighbours” is where a door overrules the map") stay British: R431 pins two of those sentences, and the coordinator gave that rename to group D's commit, which brings them and the note together.
-- The merge of e71-b: one key changed on both sides, DRPG.Bridge.what.overflow.add (B "Add to the Overflow", C "Add Despair to the Overflow"); C's value kept, as it holds B's capital too. Every other key is the side that changed it (checked key by key, 0 mismatches).
+- The merge of e71-b: one key changed on both sides, DRPG.Bridge.what.overflow.add (B "Add to the Overflow", C "Add Despair to the Overflow"); C's value kept, as it holds B's capital too. Every other key is the side that changed it (checked key by key, 0 mismatches). 60b2c8d0's message says the room action's button changed in e71-c; it changed in e71-b (34c76fe2).
 
 - "pool" (Tier pools, Room pools, The global pool, `DRPG.Tables.*`, `DRPG.Vault.globalPool`): D33d says "table", but the
   UI still says "pool"; the handbook names what the GM sees, so the GM handbook keeps "pool" in both languages (40 words
