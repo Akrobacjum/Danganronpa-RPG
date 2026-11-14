@@ -50,7 +50,7 @@ import { sheetMode, RENDER_MODES } from "./sheet-mode.mjs";
 import { trimItemSheet } from "./sheet-item.mjs";
 import { installRenderPlan, settle } from "./sheet-repaint.mjs";
 import { leaveLoadoutTab, keepTabScroll, removeSystemCreators, fitActionTiles, watchTileFit, holdActionsTab, growForCalls } from "./sheet-fit.mjs";
-import { frameTraits, markTraitGlyphs, flashHope, injectActionBar, injectInitButton, injectAdvanceButton, markSheetState, injectClassControls, injectItemButton, injectUltimate } from "./sheet-header.mjs";
+import { frameTraits, markTraitGlyphs, fitTraitRow, flashHope, injectActionBar, injectInitButton, injectAdvanceButton, markSheetState, injectClassControls, injectItemButton, injectUltimate } from "./sheet-header.mjs";
 import { paintPartyReserves, noteStepStart, onTunnelStep, redrawPassageSheets, saveBiography, tidySidebar, paintReserves, injectEquippedTools, noteEmptyExperience, injectKnownPassages, injectSafeword, tidyBiography } from "./sheet-sidebar.mjs";
 import { repaintPresentButtons, tidyInventoryTab, groupInventory } from "./sheet-inventory.mjs";
 import { forgetTamper, replaceEffectsTab, injectActionPanel } from "./sheet-actions.mjs";
@@ -153,6 +153,7 @@ export const SHEET_STEPS = [
     ["leaveLoadoutTab", ({ app, element }) => leaveLoadoutTab(app, element)],
     ["frameTraits", ({ element }) => frameTraits(element)],
     ["markTraitGlyphs", ({ element }) => markTraitGlyphs(element)],
+    ["fitTraitRow", ({ app, element }) => fitTraitRow(app, element)],
     ["injectUltimate", ({ app, element, mode }) => injectUltimate(app, element, mode)],
     ["markSheetState", ({ app, element, mode }) => markSheetState(app, element, mode)],
     ["injectInitButton", ({ app, element, mode }) => injectInitButton(app, element, mode)],

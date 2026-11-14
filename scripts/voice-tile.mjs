@@ -131,7 +131,7 @@ import { safeRoomImage } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
-import { tile as kitTile, launcher, launcherState, pixelGlyph, sliderList, slider as kitSlider } from "./ui-kit.mjs";
+import { tile as kitTile, launcher, launcherState, pixelGlyph, sliderList, slider as kitSlider, setTip } from "./ui-kit.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
 import { spectatorViewer, talkSwitchOn } from "./spectator.mjs";
 import { toggleSpectatorTalk } from "./spectator-ui.mjs";
@@ -141,7 +141,6 @@ import { trialFloor } from "./trial-floor.mjs";
 import { myEavesdrop, eavesdropsUnderWay } from "./eavesdrop-gm.mjs";
 import { myMask, requestReveal } from "./mask-gm.mjs";
 
-import { setTip } from "./ui-kit.mjs";
 
 const TILE_ID = "drpg-voice-tile";
 

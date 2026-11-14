@@ -49,6 +49,7 @@ import { searchTier, findOf, rollTone, listenLabels, projectProgress, sabotageHi
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
+import { listenName } from "./action-listen.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
@@ -1907,7 +1908,7 @@ async function listenLines(actor, { room, target, total, isCritical }) {
     const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
     const shown = r => labelOf.get(r) ?? r;
     const named = r => {
-        const who = occupantsOf(r, actor, scene).map(a => a.name);
+        const who = occupantsOf(r, actor, scene).map(listenName);
         return who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty");
     };
     const hit = resolveThreshold(Number(total), def.thresholds);
@@ -1943,6 +1944,8 @@ async function settleGmRuling(actor, bookmark, after, done) {
             withHope: after.withHope,
             withFear: after.withFear
         },
+        // A critical owes its hint again on an Observe or an Analyze alone (R7121).
+        criticalHint: ["observe", "analyze"].includes(bookmark.actionKey),
         body: `<p class="drpg-warning">${game.i18n.format("DRPG.Reroll.rulingVoid", {
             old: bookmark.total ?? "?", new: after.total
         })}</p>`,

@@ -27906,6 +27906,18 @@ const INVARIANTS = [
             sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text", "text"] }
         }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
     }],
+    ["R7301 - Room setup draws every cell it builds: each key of the row `roomCells` builds but the room's own name is a column of one of the window's tabs (`roomSetupContent`'s `tableFor([...])`), so no control is built for a table that never shows it (the tooltip sweep's finding, 1.2.115: a `concealed` cell, the room's old hiding-place box, was built for every room and placed in no tab; a stash's concealment is the Stashes tab's, per stash, since ITEM-02)", async () => {
+        /* Red at 071a3c19: "concealed" was built and drawn nowhere. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(src.length > 500, "room-setup.mjs read as nothing - this would measure nothing");
+        const cells = fnSource(src, "roomCells"), content = fnSource(src, "roomSetupContent");
+        // The row's own object, the last `return {` at the function's first indent; a names map above holds keys at the same depth.
+        const returned = [...cells.matchAll(/^ {8}return \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
+        const built = [...returned.matchAll(/^ {12}([a-z]+):/gm)].map(m => m[1]).filter(k => k !== "name");
+        const tabled = new Set([...content.matchAll(/tableFor\(\[([^\]]*)\]\)/g)].flatMap(m => [...m[1].matchAll(/"([a-z]+)"/g)].map(x => x[1])));
+        must(built.length >= 10 && tabled.size >= 10, `read ${built.length} built cell(s) and ${tabled.size} tabled column(s) - this would measure nothing`);
+        equal(built.filter(k => !tabled.has(k)).join(", "), "", "{the cells roomCells builds that no tab's table draws}");
+    }],
     ["R7300 - every control the module draws has a tooltip, a hint, or a row that says why it needs none, and \"none needed\" is no longer a reason (the tooltip sweep, 1.2.115; Q-E57-8, the owner's \"Robic teraz\" of 14.11.2026): tools/tooltip-census.json, the baseline `node tools/check.mjs tooltips` holds every site with no tooltip and no hint line to, keeps only rows of six reasons - \"label is enough: ...\" (the label and its options say it all), \"hint: ...\" and \"help in code: ...\" (help the census cannot see near the control, each with a held { fn, pattern } found in that function of its file), \"not met: ...\" (no reader meets it as a control), \"conditional: ...\" (a tooltip drawn under a named condition), or a stage's commit that gives one; E102's \"none needed\" rows, an agent's judgement the owner never saw, are each a tooltip now or one of those", async () => {
         /* Red at 9e7e3d78 (1.2.114): 224 rows read "none needed: ...", and no row "hint: ..." existed. The gate (tools/tooltip-census.mjs `compare`)
            matches every drawn site to a row; this holds what a row may say, and that the help a hint row points at is still in its function. */
@@ -60618,8 +60630,11 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
-    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of equal columns", async () => {
+    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of six equal columns, in one row (the owner, 14.11.2026: \"koniecznie w 1 rzedzie\"), three only on the row the fit gave up on (`data-drpg-trait-fit=\"wrap\"`, sheet-header.mjs `fitTraitRow`)", async () => {
         /*
+         * Red at 21973f06 (1.2.115's assembly) for the one row: the grid was `repeat(auto-fill, ...)`, six columns only where
+         * six fit at the widest name's full width and three elsewhere - 3 over 3 on the default 850 px sheet in both themes
+         * (Chromium, 14.11.2026), which the owner's photo of 1.2.114 showed.
          * Red at ceb9e9c8 (1.2.112). Daggerheart's name is `flex: 1` (a 0 basis) with `word-break: break-word`
          * (header.less:44-53 at 2.12.8, unchanged since 2.6.5), so beside the name row's buttons it shrinks to one glyph's
          * width: the captioned Level Up and Give / take (sheet-header.mjs `headerButton`, 1.2.105) stand `flex: 0 0 auto` and,
@@ -60654,12 +60669,15 @@ const INVARIANTS = [
             trait.dataset.attribute = "presence";
             const plate = trait.appendChild(Object.assign(document.createElement("div"), { className: "trait-name drpg-stat-named" }));
             const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const columns = v(traits, "grid-template-columns");
+            traits.dataset.drpgTraitFit = "wrap";
+            const wrapped = v(traits, "grid-template-columns");
             return [v(row, "flex-wrap"), v(name, ["flex", "flex-basis"]), v(name, "word-break"), v(name, "overflow-wrap"),
-                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"])];
+                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"]), columns, wrapped];
         };
-        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center"];
+        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center", "repeat(6, minmax(0, 1fr))", "repeat(3, minmax(0, 1fr))"];
         equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
-            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column]");
+            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column; the row's columns; the columns of a row the fit gave up on]");
     }],
     ["R5761 - a disabled field in Foundry's and other modules' windows reads as disabled in both themes and an enabled one is left as it was (the owner, 13.11.2026, on Dice So Nice's colour fields, which it disables itself unless the colorset is custom - module/ui/DiceConfig.js `toggleCustomColors`, 6.4.5): read through the module's cascade on Dice So Nice's markup (partial-appearance.hbs: a text field and its `input[type=color]` twin) in its ApplicationV2 frame, a disabled text field, colour field and select take the not-allowed cursor and a lowered opacity, the colour field greyed (`grayscale`), Legacy's disabled text its dim ink; the enabled ones take none of it", async () => {
         /*
@@ -61309,6 +61327,156 @@ const INVARIANTS = [
         const watch = fnSource(map, "showProjectCard").match(/watch:\s*\{[^}]*\}/)?.[0] ?? "";
         equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
             "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
+    }],
+    ["R7120 - the owner's text answers on DRPG-Q113 (E109, 14.11.2026): Overflow.hopeBlocked says only that the darkening blocks Hope (#6, Q-A1), TraitRuling.propose reads as the bridge's Send (#16, Q-A11), the incident's stage after the fight is \"Tamper\" on the tracker and on the cards (#11, Q-A6), Prepare the Weapon's note names no tool the code never checks (#49, H13), and Season.resetKeeps keeps no promise the assignments group breaks (#53, H20)", async () => {
+        /*
+         * Red at 9e7e3d78 on the first four (hopeBlocked named Hope Calls and "You keep your Hope"; propose read
+         * "Propose"; the stage label "Resolution" and the cards "the clean-up"; the note "unless the killer already has the
+         * tool"). The fifth was green there already: E71's B15 had dropped "who watches whom" from resetKeeps; it is held
+         * here so the text cannot drift back while season-wipe.mjs `RESET_STEPS` clears the assignments.
+         */
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const { INDIRECT_MURDER } = await import("./config.mjs");
+        const { RESET_STEPS } = await import("./season-wipe.mjs");
+        /* The cards that name the stage (afterInterrupted's English does not; its Polish did, "przed sprzątaniem"): each
+           names it "the Tamper stage" / "etap Tamper" now. "clean them up", "posprzątać" and "żadne sprzątanie" are the activity, and stay. */
+        const named = ["openedSelfNote", "selfWentThrough", "resolutionNoteSelf", "resolutionNote", "ranOutTwoKillersNote"];
+        const cards = { en: named, pl: [...named, "afterInterrupted"] };
+        const read = lang => {
+            const f = flats[lang];
+            const note = lang === "en" ? INDIRECT_MURDER.subProjects[0].note : f["DRPG.Config.INDIRECT_MURDER.subProjects.0.note"];
+            return [
+                f["DRPG.Overflow.hopeBlocked"],
+                f["DRPG.TraitRuling.propose"] === f["DRPG.Bridge.send"],
+                f["DRPG.Murder.stage.resolution"], f["DRPG.Remnant.action.resolution"],
+                cards[lang].map(k => `DRPG.Murder.${k}`).filter(k => typeof f[k] !== "string" || (lang === "en" && /the clean-up/i.test(f[k]))
+                    || !(lang === "en" ? /the Tamper stage/i : /etap\w* Tamper/).test(f[k])),
+                typeof note === "string" && !(lang === "en" ? /\btool\b/i : /narzędzi/i).test(note),
+                RESET_STEPS.includes("assignments") && typeof f["DRPG.Season.resetKeeps"] === "string"
+                    && !(lang === "en" ? /watches/i : /pilnuje/i).test(f["DRPG.Season.resetKeeps"])
+            ];
+        };
+        equal(stableJson([read("en"), read("pl")]), stableJson([
+            ["The darkening blocks Hope this time of day.", true, "Tamper", "Tamper", [], true, true],
+            ["Zaciemnienie blokuje Hope o tej porze dnia.", true, "Tamper", "Tamper", [], true, true]
+        ]), "[hopeBlocked, propose = Bridge.send, the stage label, the Remnant's stage label, the cards not naming the Tamper stage, Prepare the Weapon's note without the tool, resetKeeps without who watches whom] in English, then Polish");
+    }],
+    ["R7121 - the critical's hint line is on Observe's and Analyze's critical cards only (E109, DRPG-Q113 #43, Q-NC-10; the owner, 14.11.2026: \"Ograniczyc\"): call-gm.mjs `callCardHtml` draws DRPG.Bridge.criticalHint only when its caller says the card owes one (`criticalHint`), action-observe.mjs and action-analyze.mjs say so, and the Reroll's re-asked ruling says so for an Observe or an Analyze alone", async () => {
+        /* Red at 9e7e3d78: a critical roll drew the line on every card (a Dynamic action's, a Search's), whatever the caller. */
+        const B = await import("./gm-bridge.mjs");
+        const hint = game.i18n.localize("DRPG.Bridge.criticalHint");
+        const roll = { trait: "instinct", total: 22, isCritical: true };
+        const drawn = opts => {
+            const card = document.createElement("template");
+            card.innerHTML = B.callCardHtml({ name: "R7121 Student" }, { title: "R7121", ...opts });
+            return card.content.textContent.includes(hint);
+        };
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const callOf = (text, fn) => (fnSource(text, fn).match(/callGm\(actor, \{[\s\S]*?\n {4}\}\);/)?.[0] ?? "");
+        const observe = callOf(await src("action-observe.mjs"), "ruleObserve"), analyze = callOf(await src("action-analyze.mjs"), "askForHint");
+        const reroll = fnSource(await src("reroll.mjs"), "settleGmRuling");
+        equal(stableJson([drawn({ roll }), drawn({ roll, criticalHint: true }), drawn({ roll: { ...roll, isCritical: false }, criticalHint: true }),
+            /criticalHint:\s*true/.test(observe), /criticalHint:\s*true/.test(analyze),
+            /criticalHint:\s*\[\s*"observe",\s*"analyze"\s*\]\.includes\(bookmark\.actionKey\)/.test(reroll)]),
+        stableJson([false, true, false, true, true, true]),
+            "[a critical card that owes no hint draws the line, one that owes it, a card that owes it on a roll no critical, Observe's call says it owes, Analyze's, the Reroll's re-asked ruling by the action]");
+    }],
+    ["R7122 - Analyze's roll card comes before its result card, as Find Stash's does (E109, DRPG-Q113 #40, Q-NC-7; the owner, 14.11.2026: \"Zmienic kolejnosc\"): action-analyze.mjs `analyseBullet` reads the roll in hand, then posts the roll card (`whisperToOwner`, awaited, so its message exists on the server before the request leaves), then asks `requestAnalyzeResolve`, whose result card the GM's client posts only on that request", async () => {
+        /*
+         * Red at 9e7e3d78: the roll card was posted after `requestAnalyzeResolve` had answered, so it landed under the
+         * result card. Not the bridge's timing: the order follows from the awaits, read here off the source. A refusal is
+         * still said after the card (the bridge's toast), as Find Stash's and Find Passage's are.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-analyze.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "analyseBullet");
+        const at = needle => body.indexOf(needle);
+        const [hand, card, ask] = [at("rollInHand(actor)"), at("await whisperToOwner("), at("await requestAnalyzeResolve(")];
+        const stash = fnSource(src, "locateStash");
+        equal(stableJson([hand >= 0 && card >= 0 && ask >= 0, hand < card, card < ask, /rollId(?:,|\s*\})/.test(body.slice(ask)),
+            stash.indexOf("await whisperToOwner(") < stash.indexOf("await requestStashSearch(")]),
+        stableJson([true, true, true, true, true]),
+            "[analyseBullet reads the roll in hand, posts its card and asks, the roll read before the card, the card before the ask, the ask sends the roll read first, Find Stash's card before its ask]");
+    }],
+    ["R7123 - Move the Body's number to beat has the clean-up's floor, `CLEANUP.minDc`, as every other clean-up roll's (E109, DRPG-Q113 #48, H11; the owner, 14.11.2026: change): cleanup.mjs `resolveStageSix` takes the tool's relief off the threshold through `atLeastFloor`, not `Math.max(0, ...)`", async () => {
+        /*
+         * Red at 9e7e3d78: the relief stopped at 0. No tier reaches the floor today (16 less a tier of at most 3), so the
+         * change moves no roll a table can make; it is the one rule written once. Read off the source, as no fixture can
+         * reach the floor; `atLeastFloor` itself is asked with a relief that would.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "resolveStageSix");
+        const C = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        equal(stableJson([/const threshold = atLeastFloor\(\(def\.threshold \?\? 0\) - relief\)/.test(body), /Math\.max\(0,\s*\(def\.threshold/.test(body),
+            C.atLeastFloor(16 - 12), CLEANUP.minDc]),
+        stableJson([true, false, 8, 8]),
+            "[resolveStageSix floors the threshold with atLeastFloor, it still floors at 0, atLeastFloor(16 - 12), CLEANUP.minDc]");
+    }],
+    ["R7124 - the GM's session log keeps the newest 60 rows and counts the ones it dropped, and diagnose()'s text says so (E109, DRPG-Q113 #60, Q-E43-6, E43-F7; the owner, 14.11.2026: \"Zmieniamy\"): utils.mjs `keepNewest` drops the oldest row of a full log, `record` keeps through it, and diagnostics.mjs `failureText` names the count dropped", async () => {
+        /*
+         * Red at 9e7e3d78: a full log refused every new row, so a burst of refusals left the newest out (E43's matrix read
+         * 17 of its 73 as unlogged). Asked on a log of its own, never this browser's: tier 1 writes nothing, and a GM's
+         * real log at a table is theirs.
+         */
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const log = [];
+        let dropped = 0;
+        for (let i = 1; i <= 75; i++) dropped += U.keepNewest(log, { level: "warn", message: `row ${i}`, stack: null, at: i, count: 1 }, 60);
+        const text = D.failureText([{ level: "warn", message: "row 75", stack: null, at: 0, count: 1 }], 15);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson([log.length, log[0]?.message, log.at(-1)?.message, dropped, /keepNewest\(sessionLog,/.test(fnSource(src, "record")),
+            typeof U.sessionFailuresDropped === "function", /15 older rows? (?:were|was) dropped/.test(text), D.failureText([], 0)]),
+        stableJson([60, "row 16", "row 75", 15, true, true, true, "Nothing has failed since this page loaded."]),
+            "[rows kept, the oldest kept, the newest kept, rows dropped, record keeps through keepNewest, the dropped count is read, the report names it, an empty log's report]");
+    }],
+    ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
+        /*
+         * Red at 9e7e3d78: there was no replay (E99's STATUS: "there is no board to replay"). Asked with the table's switch
+         * off and no sound (`on: false, sound: false`), so tier 1 draws nothing on a GM's screen and plays nothing; the
+         * road is the one a live replay takes up to the drawing.
+         */
+        const S = await import("./sequence.mjs");
+        ok(typeof S.replayCaseSummary === "function", "sequence.mjs exports no replayCaseSummary - there is no replay to measure");
+        const flag = { at: 7125, chapter: 1, correct: true, nodes: [{ role: "evidence", name: "R7125 knife", text: "" }], links: [] };
+        const card = isGM => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID && key === "caseBoard" ? flag : undefined) });
+        const quiet = { on: false, sound: false };
+        const played = [S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(false), quiet)];
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const ui = await src("trial-floor-ui.mjs"), cs = await src("case-summary.mjs");
+        const offered = /\.\.\.\(progress\.summaryShown && !finalNow\s*\?\s*\[\{ action: "caseSummaryReplay"/.test(ui);
+        const wired = /caseSummaryReplay: async \(\) => \(await import\("\.\/case-summary\.mjs"\)\)\.replayCaseSummary\(\)/.test(ui);
+        const body = fnSource(cs, "replayCaseSummary");
+        const writes = /setTrialProgress|ChatMessage\.create|\.update\(|setSetting/.test(body);
+        equal(stableJson([game.user.isGM ? played : ["off", "off", null], offered, wired, /summaryShown/.test(body), writes]),
+            stableJson([["off", "off", null], true, true, true, false]),
+            "[the replays of a GM's card twice and of a player's card, the console offers it once the summary is out, the button runs case-summary.mjs's replay, which finds this trial's card, and writes nothing]");
+    }],
+    ["R7330 - the six statistics' row gives way in the owner's order and stops at the first step that fits (sheet-header.mjs `traitFitStep`; the owner, 14.11.2026, \"koniecznie w 1 rzedzie\"): the gap, then the plate's padding, then the names' letter-spacing, then the mark above the name; three columns only where none of them fits. Fed the widths Chromium measured on Daggerheart 2.12.8's stylesheet with the module's sheets (14.11.2026): Legacy at 850 px moves the mark above, Legacy at 667 px fits nothing, the glass at 850 px stops at the letter-spacing and at 667 px at the mark above, and every sheet wider than six full-width names keeps its row as drawn", async () => {
+        /*
+         * Red at 21973f06: no `traitFitStep` - the row wrapped to 3 over 3 wherever six full-width names did not fit.
+         * Pure: a step is judged from the widths a measure answers for it (the widest statistic, the column gap, the mark's
+         * overhang beside the name, the row's width), the numbers below those Chromium read for each step. Nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        /* [need with the mark beside, need with its padding cut, need at letter-spacing 0, need with the mark above] for
+           "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
+           (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
+        const sheet = (beside, cut, untracked, above) => row => step => {
+            const need = step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
+            const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
+            return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
+        const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
+        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
+            ["", "gap", "gap pad", "gap pad track", "above track"]]),
+            "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
 ];
 

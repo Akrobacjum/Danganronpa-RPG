@@ -28,7 +28,7 @@ import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./
 import { cardWarn } from "./chat-card.mjs";
 import { whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen, RAISED } from "./live.mjs";
 import { showRoomGroup } from "./ui-hold.mjs";
@@ -38,7 +38,6 @@ import {
     tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName
 } from "./tables-pools.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**
@@ -1192,6 +1191,27 @@ function wireNewItemForm(root) {
  * left Room Setup's list. `poolNameRefusal` is the one check, for the pane's
  * family, and the prompt keeps the typed name with the refusal under it.
  */
+/*
+ * THE ROOMS FOLLOW A RENAMED TABLE (1.2.115; the tooltip sweep's finding, the coordinator's word of 14.11.2026). A room
+ * stores the NAME of the table it draws from (its regions' `drpgItemTable`, Room setup's Draws from), and a Search finds
+ * the table by that name (tables-pools.mjs `tableForRoom`, `roomTableNames`), so a Rename left every room that named the
+ * table on a name no table had, drawing from the global pool from then on. Each room of every scene that named the old
+ * name is pointed at the new one through `setVaultRoom`, which writes every piece of the room. Not when another table
+ * still carries the old name: those rooms then name a table that exists, and which of the two they meant is not known.
+ * Answers the rooms repointed. The tier-2 "a room table renamed in the Item tables window ..." holds it.
+ */
+async function repointRooms(from, to) {
+    if (!from || !to || from === to || game.tables?.getName?.(from)) return [];
+    const { setVaultRoom, VAULT_FLAGS } = await import("./vault.mjs");
+    const done = [];
+    for (const scene of game.scenes ?? []) {
+        const rooms = new Set(Array.from(scene.regions ?? []).filter(r => r.getFlag?.(MODULE_ID, VAULT_FLAGS.table) === from).map(r => r.name));
+        for (const room of rooms) if (await setVaultRoom(room, { table: to, scene })) done.push(room);
+    }
+    if (done.length) log(`Item table "${from}" renamed "${to}": ${done.length} room(s) repointed (${done.join(", ")}).`);
+    return done;
+}
+
 function wirePaneHeading(pane, root, { current, show, nameEl }) {
     /* ITS OWN TWO BUTTONS, LOOKED UP HERE (22.09). When this was split out of
        `wirePoolPane` (1.2.44) the listeners came with it and the two lookups stayed
@@ -1213,7 +1233,9 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
         if (name === null || name === current().name) return;
 
         try {
+            const was = current().name;
             await current().update({ name });
+            await repointRooms(was, name);
             showPoolName(nameEl, name);
             const button = root.querySelector(`[data-drpg-table="${CSS.escape(current().id)}"]`);
             const entry = button?.querySelector("span");

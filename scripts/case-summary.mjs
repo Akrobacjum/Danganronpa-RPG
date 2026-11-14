@@ -107,3 +107,20 @@ export async function showCaseSummary() {
     ui.notifications.info(sent);
     return sent;
 }
+
+/**
+ * REPLAY THE SUMMARY (E109, DRPG-Q113 #56; Q-E99-9): on a GM, the board of this trial's sent summary played again on
+ * this browser alone (sequence.mjs `replayCaseSummary`). The card is the newest GM's case summary card whose board was
+ * sent at the trial's `summaryShown`; with none in the chat (deleted, or the chat cleared) the GM is told and nothing
+ * plays. Before the summary is out there is nothing to replay, and the console offers no button.
+ */
+export async function replayCaseSummary() {
+    if (!game.user?.isGM) return null;
+    const { trialProgress } = await import("./vote.mjs");
+    const { caseSummaryBoard, replayCaseSummary: replay } = await import("./sequence.mjs");
+    const shown = trialProgress()?.summaryShown ?? null;
+    if (shown == null) { ui.notifications.warn(game.i18n.localize("DRPG.CaseSummary.noVerdict")); return null; }
+    const card = [...(game.messages?.contents ?? [])].reverse().find(m => caseSummaryBoard(m)?.at === shown) ?? null;
+    if (!card) { ui.notifications.warn(game.i18n.localize("DRPG.CaseSummary.replayNone")); return null; }
+    return replay(card);
+}

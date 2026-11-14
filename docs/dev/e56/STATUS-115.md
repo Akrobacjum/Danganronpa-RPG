@@ -79,3 +79,31 @@ goes, so a restart loses nothing.
 On 05ababdc (14.11.2026, this machine, 4 cores): `node run-all.mjs lint check gate` green (lint 405 files 0 problems,
 check 24 parts green, gate 37/37); `node run-tests.mjs --tier 1`: **1674 passed, 0 failed, 16 skipped, 0 red**, 1689
 tests, 558 s wall. This commit adds only this section.
+
+## The coordinator's answers (14.11.2026)
+
+- Q-E56-4: keep the 119 `known` rows with their reasons.
+- Q-E56-115-2: yes, the comments lint reads the suite's files.
+- Q-E56-115-1: not 1.2.116 - everything that needs no Foundry closes in 1.2.115. The duplicate ui-kit.mjs imports and
+  the 11 local `esc` copies go in once the tooltip line is merged; the coordinator says when.
+
+## Q-E56-115-1 done, on the merged base (14.11.2026)
+
+Merged claude/fervent-sagan-gme4vt at 93f2ccae (the tooltip sweep) in f63a2485 (a merge commit: 7748fe4d was past
+the base's ca36e77a).
+
+- **Duplicate imports**: `no-duplicate-imports` on, as an error (eslint.config.mjs). Red first on f63a2485: "405
+  files, 48 problem(s)" - 48 statements in 42 files (ui-kit.mjs in 40, utils.mjs in 2, settings.mjs in 1). Merged
+  into the first statement of each module by an AST script, in four commits of 10-11 files; per file the set of
+  bindings and every statement after the imports checked equal to the parent. run-all's lint part plants a doubled
+  import in each of its six folders: "0/6" with the rule off, "6/6" on.
+- **Local esc copies**: 13 with utils `esc`'s exact body (C10-LIST's 11 plus cleanup-reshape.mjs's and
+  trial-progress.mjs's), in 9 files, replaced by the import, in two commits; eslint-scope over the parent and the tree:
+  every reference to a copy resolves to the import, the bare `foundry.utils.escapeHTML` copies (another behaviour) and
+  `esc` parameters as they were. The suite's own 12 copies in tests-tier2.mjs (fixtures') left. openProjectManager,
+  the room table rename road and roomCells not touched (projects-ui.mjs's two were ownedFieldset's and
+  passageFieldset's).
+- Tip 8f42103a: quick green (lint 405 files 0 problems, check 24 parts, gate 37/37), prose missing 0 extra 0; tier 1
+  **1675 passed, 0 failed, 16 skipped, 0 red** (1690 tests, 575 s). Scenarios: 65-season 58/60 with 2 expected red
+  (Foundry limits), 76-passages 118/119 with 1 expected red (a Foundry limit), 40-flow 89/89, 95-tooltips-drawn 4/4;
+  each exit 0.

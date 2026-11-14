@@ -237,6 +237,7 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null,
         gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total, n: OBSERVE_FAIL_STRESS })}</small></p>${
             observeModeLine(declaration)}`,
         roll,
+        criticalHint: true,
         request,
         room,
         // This is the branch where a GM decides there IS something at the point

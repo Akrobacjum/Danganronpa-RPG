@@ -18,7 +18,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
-import { launcher, drpgWindow, box } from "./ui-kit.mjs";
+import { launcher, drpgWindow, box, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoveries } from "./chapter.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
@@ -30,9 +30,7 @@ import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";

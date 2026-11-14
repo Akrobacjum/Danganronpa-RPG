@@ -84,9 +84,8 @@ import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural, listOf } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { findRemnantToken, askTransform, whisperToOwner, plainText, proposeReshape, keepAttempt, recreationDataFor, attemptOf, forgetAttempt, keepAttemptFact } from "./cleanup-reshape.mjs";
 export { askTransform, plainText, reshapeCardParts, applyReshapeRuling, declineReshapeRuling, ruleReshape, askTransformChange, attemptOf } from "./cleanup-reshape.mjs";
 
@@ -1790,7 +1789,9 @@ export async function resolveStageSix({
     await noteCleaningTool(actor, held);
 
     const relief = def.toolBonusPerTier ? cleaningTier(held) * def.toolBonusPerTier : 0;
-    const threshold = Math.max(0, (def.threshold ?? 0) - relief);
+    // The clean-up's floor, as every other clean-up roll's (E109, DRPG-Q113 #48, H11; the owner, 14.11.2026): until
+    // 1.2.115 it stopped at 0. No tier reaches 8 from Move the Body's 16 today; the rule is written once (R7123).
+    const threshold = atLeastFloor((def.threshold ?? 0) - relief);
     const success = isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
 

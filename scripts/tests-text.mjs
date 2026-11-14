@@ -659,8 +659,8 @@ const GLOSSARY_FIELDS = Object.freeze({
     side: Object.freeze({ required: ["variants", "scope"], optional: ["case", "otherCase", "except"] })
 });
 const GLOSSARY_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-/* A decision (D33a, DB15, DA27, DC35, DX4, TR25), an amend (A7), or where no decision is named the issue or the plan entry that names the thing (S18-31, "E65 plan"). */
-const SOURCE_ID = /^(?:D\d+[a-z]?|DB\d+|DA\d+|DC\d+|DX\d+|TR\d+|A\d+|S\d\d-\d\d|E\d\d plan)$/;
+/* A decision (D33a, DB15, DA27, DC35, DX4, TR25), an amend (A7), or where no decision is named the issue or the plan entry that names the thing (S18-31, "E65 plan"; a three-digit stage since E109, "E109 plan"). */
+const SOURCE_ID = /^(?:D\d+[a-z]?|DB\d+|DA\d+|DC\d+|DX\d+|TR\d+|A\d+|S\d\d-\d\d|E\d{2,3} plan)$/;
 const SCOPES = Object.freeze(["ui", "handbooks"]), RETIRED_SCOPES = Object.freeze(["text", "label", "keys"]);
 
 const isText = x => typeof x === "string" && x.trim() !== "";

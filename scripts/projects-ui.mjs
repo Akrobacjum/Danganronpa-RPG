@@ -24,20 +24,18 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { error, markFired, markLanguage, serialWrite } from "./utils.mjs";
-import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode } from "./ui-kit.mjs";
+import { error, markFired, markLanguage, serialWrite, plural, esc } from "./utils.mjs";
+import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode, tipAttr, tipText } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 // The scale option's count (E71, 12.11.2026): its own line, so the utils import above stays as other lines edit it.
-import { plural } from "./utils.mjs";
 import {
     leaveIconOnly, keepNarrativeShown, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     addTrayTitle, labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
 
@@ -539,7 +537,10 @@ function wireProjectManager(dialog, projects, rooms) {
             ev.preventDefault();
             const project = projects.find(p => p.id === btn.dataset.drpgEdit);
             if (!project) return;
+            // The rows first (1.2.115, R7301): closing the window to edit one project dropped what the others were changed to.
+            const rows = readManager(dialog, projects);
             await dialog.close();
+            await applyProjectManager(rows, projects);
             await openProjectDialog({ project, rooms });
             await openProjectManager();
         });
@@ -646,6 +647,7 @@ export async function openProjectManager() {
         return made ? openProjectManager() : undefined;
     }
     const content = projectManagerBody(projects, rooms, { always: await alwaysSecretIds(projects) });
+    const leaveWith = then => (e, b, d) => ({ then, rows: readManager(d, projects) });
 
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Project.manageTitle"),
@@ -659,8 +661,12 @@ export async function openProjectManager() {
         footer: {
             primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), tooltip: tipText("DRPG.Tips.Sweep.Actions.saveManagerTooltip"), callback: (e, b, d) => readManager(d, projects) },
             secondary: [
-                { action: "new", label: game.i18n.localize("DRPG.Project.createButton"), tooltip: tipText("DRPG.Tips.Sweep.Actions.createFromManagerTooltip") },
-                { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.shareTooltip") }
+                /* Create and Share leave this window for another and reopen it after; each takes the rows with it, as Save
+                   does (1.2.115, R7301: until then they answered their word alone and a room changed in a row was lost). */
+                { action: "new", label: game.i18n.localize("DRPG.Project.createButton"), tooltip: tipText("DRPG.Tips.Sweep.Actions.createFromManagerTooltip"),
+                  callback: leaveWith("new") },
+                { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.shareTooltip"),
+                  callback: leaveWith("share") }
             ],
             close: { role: "cancel", action: "cancel" }
         },
@@ -670,11 +676,12 @@ export async function openProjectManager() {
         rejectClose: false
     });
 
-    if (result === "new") {
+    if (result?.then) await applyProjectManager(result.rows, projects);
+    if (result?.then === "new") {
         await openCreateDialog(rooms);
         return openProjectManager();
     }
-    if (result === "share") {
+    if (result?.then === "share") {
         await openShareDialog();
         return openProjectManager();
     }
@@ -1436,7 +1443,6 @@ async function presetSizeOf(preset, ownedOf = null) {
 
 /** The approval window's box for the owner's three: what the card names, and why it may not be done. */
 function ownedFieldset({ preset, label, refused, why = null }) {
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     return `<fieldset class="drpg-passage-preset" data-drpg-owned-preset="${esc(preset)}"><legend>${esc(game.i18n.localize(`DRPG.Project.preset.${preset}`))}</legend>
         <p class="drpg-help">${esc(label)}</p>${refused ? `
         ${box("warning", esc(game.i18n.format("DRPG.Project.presetRefused", { why: why ?? "" })))}` : ""}</fieldset>`;
@@ -1444,7 +1450,6 @@ function ownedFieldset({ preset, label, refused, why = null }) {
 
 /** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */
 function passageFieldset({ offer, to, preset = "secretPassage" }) {
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     const t = key => game.i18n.localize(key);
     const legend = esc(t(`DRPG.Project.preset.${preset}`));
     if (!offer) return `<fieldset class="drpg-passage-preset"><legend>${legend}</legend>

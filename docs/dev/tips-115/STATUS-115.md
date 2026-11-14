@@ -113,3 +113,23 @@ another of these drew), and 84 (never run).
 | --- | --- | --- |
 | Q-T115-1 | A control whose own help line already says it: a tooltip too, or the line as its hint? | the line (36 rows "hint: ..."), by O3; each held by its pattern, so losing the line turns the gate red |
 | Q-T115-2 | The two possible bugs of section 7: fix here? | no: a behaviour change outside a tooltip sweep; told to the coordinator, the tooltips describe what the code does today |
+
+## 9. The three findings fixed (the coordinator's word of 14.11.2026, Q-T115-2 changed)
+
+Each confirmed red first, then fixed, one commit each, from 389d3895.
+
+| Finding | Red, measured | Fix | Commit |
+| --- | --- | --- | --- |
+| Projects manager: Create, Share (and a row's Edit) leave without the rows | tier-2 "the Projects manager keeps what its rows were changed to ...": the Gym on all three routes after a row picked the Hall | each route writes the rows as Save does (`applyProjectManager`) before it goes; Create's tooltip no longer says changes are lost, EN and PL | c1407a7a |
+| A renamed room table leaves its rooms on the old name | tier-2 "a room table renamed in the Item tables window ...": both Kitchen pieces still named the old table | Rename points every room of every scene that named it at the new name (`repointRooms` through `setVaultRoom`), unless another table keeps the old name; the Rename tooltip says the rooms follow | 071a3c19 |
+| Room setup's `concealed` cell, built for every room, drawn nowhere | R7301 (every cell `roomCells` builds is a tab's column) read "concealed" | removed, not wired: a stash's concealment is the Stashes tab's, per stash (ITEM-02); a room-wide box would be a second switch over the same fact | 867f3e0b |
+
+Follow-up 1c820482: R503's census rows for `repointRooms`; R7301's cut by regex (check.mjs contract, rule 3). No
+handbook stated any of the three behaviours. Tier-2 tests are named, not numbered, so of the R block only R7301 is
+used by these fixes.
+
+At 1c820482: `npm run quick` green; full tier 1 1689 ran, 1674 passed, 0 failed, 16 skipped, 0 red; the two tier-2
+tests 2/2 with `--only`. Scenarios at 867f3e0b (only test files changed after): 40-flow 89/89, 62-investigation 52/52,
+66-rooms 77/77, 74-room-tile 46/46, 76-passages 118/119 (1 expected red, as on main), 51-lang-mixed 38/38, 65-season
+58/60 (2 expected red, as on main). The first tier 1 after the fixes read 2 failures: R503 (above) and one whose name
+the run's kept tail does not show; the next run, with R503 fixed, read R503 alone.

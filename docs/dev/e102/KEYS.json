@@ -643,7 +643,7 @@
   "tiedToCrimeTooltip": {
    "key": "DRPG.Tips.Case.tiedToCrimeTooltip",
    "en": "Whether it belongs to the murder. A tied Remnant stays when the Faint Remnants are cleared",
-   "pl": "Czy należy do morderstwa. Powiązany Remnant zostaje, gdy czyści się Faint Remnanty",
+   "pl": "Czy wiąże się z morderstwem. Powiązany Remnant zostaje, gdy czyścisz Faint Remnanty",
    "sites": [
     "investigation:caseTraceCells"
    ]
@@ -725,7 +725,7 @@
   "roomPlannedIncidentRemnantTooltip": {
    "key": "DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip",
    "en": "The room this Remnant goes in when you place it; left empty, you pick one then",
-   "pl": "Pokój, w którym stanie ten Remnant, gdy go postawisz; puste - wybierzesz go wtedy",
+   "pl": "Pokój, w którym stanie ten Remnant, gdy go postawisz; przy pustym polu wybierzesz go wtedy",
    "sites": [
     "investigation:schemaEditor"
    ]
@@ -733,7 +733,7 @@
   "placeOnTheMapTooltip": {
    "key": "DRPG.Tips.Case.placeOnTheMapTooltip",
    "en": "Opens New Remnant with every field of this plan filled in; cancelled, nothing is placed",
-   "pl": "Otwiera Nowy Remnant z wypełnionym każdym polem tego planu; anulowane - nic nie staje na mapie",
+   "pl": "Otwiera Nowy Remnant z wypełnionym każdym polem tego planu; gdy go anulujesz, nic nie staje na mapie",
    "sites": [
     "investigation:schemaEditor"
    ]
@@ -884,7 +884,7 @@
   "roomPlannedFinalTooltip": {
    "key": "DRPG.Tips.Case.roomPlannedFinalTooltip",
    "en": "The room the Final Truth Remnant goes in when you place it; left empty, you pick one then",
-   "pl": "Pokój, w którym stanie Final Truth Remnant, gdy go postawisz; puste - wybierzesz go wtedy",
+   "pl": "Pokój, w którym stanie Final Truth Remnant, gdy go postawisz; przy pustym polu wybierzesz go wtedy",
    "sites": [
     "investigation:schemaEditor"
    ]

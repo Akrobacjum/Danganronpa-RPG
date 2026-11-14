@@ -33,9 +33,8 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { LANGUAGES } from "./i18n.mjs";
 import { error, esc, isPrimaryGm, listOf } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr } from "./ui-kit.mjs";
 
-import { tipAttr } from "./ui-kit.mjs";
 
 /** Every module the manifest marks as required, whatever their state. */
 function required() {

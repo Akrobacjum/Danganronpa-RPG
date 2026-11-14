@@ -8004,10 +8004,9 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
    18-24 px past its column into the next one, the next one's mark on it, and the six ran 100 px past the header at 667.
    Now the name row wraps and the name is sized by its words, breaking inside one only when that word is wider than the
    row: the buttons go to a second line before the name gives way. A named plate holds its mark's room inside its width.
-   The statistics stand on a grid of equal columns, each statistic centred in its own at the width its widest name needs
-   (`--drpg-trait-need`: "Shadow" with its mark, 106 px under Legacy and 115 under the glass, measured in Chromium), six
-   columns where six fit and three where they do not (the `min()` turns negative once the row is wider than six), and the
-   row as wide as six need, which Daggerheart's 38.5rem was not. Daggerheart's selectors with `body` before them: one
+   The statistics' row is the next block's since 14.11.2026: here it was a grid of six columns where six fitted at the
+   widest name's full width, stated (`--drpg-trait-need`, 106 px under Legacy and 115 under the glass), and three
+   elsewhere. Daggerheart's selectors with `body` before them: one
    element over its (0,8,1). R5760 reads the cascade; the drawing is the commit's measurement (Chromium, Daggerheart
    2.12.8's stylesheet built from its source, no Foundry stylesheet). */
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .name-row {
@@ -8020,19 +8019,67 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     word-break: normal;
     overflow-wrap: anywhere;
 }
+/* THE SIX STATISTICS IN ONE ROW (14.11.2026; the owner on 1.2.114 under the glass, an 850 px sheet whose six stood
+   3 over 3: "Podoba mi sie pomysl by wysrodkowac, ale koniecznie w 1 rzedzie"). The grid above made six columns only where
+   six fitted at "Shadow"'s full width, three elsewhere: 3 over 3 at 667 and 850 px in both themes, and at 140 % up to
+   1120 px (Chromium, Daggerheart 2.12.8's stylesheet, 21973f06). Now six equal columns always, each statistic centred in
+   its own at the width the widest needs (`--drpg-trait-need`, which sheet-header.mjs `fitTraitRow` measures and writes),
+   and the row centred in the header, at most 48rem times the slider wide (Daggerheart's 38.5rem, unscaled, outranked the
+   slider's rule below and held the row at 616 px at 140 %, so a 1568 px Legacy sheet moved its marks above). Where six do not fit, the row gives way in the owner's order, one token of
+   `data-drpg-trait-fit` a step, and stops at the first that fits: `gap` (1rem to the mark's 8 px overhang and a pixel),
+   `pad` (the mark's room in the plate cut to 2 px past where the mark ends, 2 px saved), `track` (the names' letter-spacing to 0: the
+   glass's VT323 "SHADOW" 63 to 50.4 px; Legacy's pixel face has none), `above` (the mark over the name, the plate's
+   padding 2 px, the gap 2 px). Not the names' size: both themes draw them at their floor already (Legacy 11 px times the
+   scale, the glass VT323 at its 21 px `--drpg-sg-floor`). Measured in Chromium, 14.11.2026, "Shadow" with its plate: Legacy
+   86 px beside its mark, 84 with the padding cut, about 72 with the mark above; the glass 89, 87, 75 untracked, 59 above.
+   Where even `above` does not fit - Legacy on a row under about 454 px, its 667 px sheet's row is 362 - the row is three
+   over three (`wrap`), as before: nothing overlaps or runs out of the header. `measure` lays each statistic at its
+   natural width for the fitter's reading. R5760 reads this cascade, R7330 the order; the drawing is the commit's
+   measurement. */
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
-    --drpg-trait-gap: 0.5rem;
-    --drpg-trait-need: calc(6.75rem * var(--drpg-slider-scale, 1));
+    --drpg-trait-gap: 1rem;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(max(calc((100% - 5 * var(--drpg-trait-gap)) / 6),
-        min(calc((100% - 2 * var(--drpg-trait-gap)) / 3), calc((6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap) - 100%) * 999))), 1fr));
-    gap: 0.5rem var(--drpg-trait-gap);
-    max-width: calc(6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    column-gap: var(--drpg-trait-gap);
+    row-gap: 0.5rem;
+    margin-inline: auto;
+    max-width: calc(48rem * var(--drpg-slider-scale, 1));
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait {
     justify-self: center;
-    width: min(100%, var(--drpg-trait-need));
+    width: min(100%, var(--drpg-trait-need, 100%));
     min-width: 0;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="measure"] .trait {
+    width: max-content;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="gap"] {
+    --drpg-trait-gap: 9px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="pad"] .trait .trait-name.drpg-stat-named {
+    padding-inline-start: calc(var(--drpg-stat-mark-size) - 6px);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="track"] .trait :is(.trait-name, .trait-name span) {
+    letter-spacing: 0;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] {
+    --drpg-trait-gap: 2px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] .trait {
+    padding-top: var(--drpg-trait-mark-room, 24px);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] .trait .trait-name.drpg-stat-named {
+    padding-inline: 2px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="above"] .trait .trait-name .tier-mark.drpg-stat-mark {
+    left: 50%;
+    right: auto;
+    top: auto;
+    bottom: calc(100% + 2px);
+    transform: translateX(-50%);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit="wrap"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .application.sheet.actor .glassy,
