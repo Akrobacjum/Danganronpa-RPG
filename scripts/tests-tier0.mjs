@@ -25661,6 +25661,24 @@ const REGRESSIONS = [
         ok(/\bkeepLive\(/.test(card), "showRemnantCard writes the card once and keeps nothing live");
         ok(/items:\s*true/.test(card) && /tokens:\s*true/.test(card) && /remnantStore/.test(card) && /after:/.test(card), `the Remnant card's live region does not hear the items, the tokens and the ledger, or does not wire a GM's card again: ${card.replace(/\s+/g, " ").slice(-500)}`);
     }],
+    ["R7178 - every action a trace is left by wears its icon once analyzed, on the map and on its card (E59 C-115, CHAINS.md B-R3; PH 8: a Remnant wears \"?\" only until your copy is analyzed, then the icon of what left it): each `action: \"x\"` written in a `dropRemnant(` call of scripts/ is a key of remnant-icons.mjs `ACTION_ICONS` and of remnant-ring.mjs `GLYPH_ACTIONS` - the door actions (\"infiltrate\") and the facilities (\"facility\") fell back to the question mark", async () => {
+        const sources = new Map(await otherSources());
+        const acts = new Set();
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file)) continue;
+            const blank = blankComments(lf(raw));
+            for (const m of blank.matchAll(/\bdropRemnant\(/g)) {
+                const open = m.index + m[0].length - 1;
+                const { close } = callArgs(blank, open);
+                for (const a of blank.slice(open, close).matchAll(/\baction:\s*"(\w+)"/g)) acts.add(a[1]);
+            }
+        }
+        must(acts.size >= 4 && acts.has("search"), `only ${[...acts].join(", ")} read as trace actions - this would measure too little`);
+        const icons = stripComments(sources.get("remnant-icons.mjs") ?? ""), ring = stripComments(sources.get("remnant-ring.mjs") ?? "");
+        const iconList = bodyOf(icons, "const ACTION_ICONS = ", { until: "]" }), glyphList = bodyOf(ring, "const GLYPH_ACTIONS = ", { until: "];" });
+        const missing = [...acts].sort().filter(a => !iconList.includes(`"${a}"`) || !glyphList.includes(`"${a}"`));
+        equal(JSON.stringify(missing), "[]", `trace actions with no map icon or no card glyph (of ${[...acts].sort().join(", ")})`);
+    }],
 ];
 
 

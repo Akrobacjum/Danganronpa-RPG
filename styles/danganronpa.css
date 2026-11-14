@@ -3353,6 +3353,9 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-remnant-glyph[data-drpg-act="discard"] { -webkit-mask-image: var(--drpg-pix-trash); mask-image: var(--drpg-pix-trash); }
 .drpg-remnant-glyph[data-drpg-act="manual"] { -webkit-mask-image: var(--drpg-pix-monokuma-eye); mask-image: var(--drpg-pix-monokuma-eye); }
 .drpg-remnant-glyph[data-drpg-act="loot"] { -webkit-mask-image: var(--drpg-pix-palm-action); mask-image: var(--drpg-pix-palm-action); }
+/* The door actions and the facilities, their tiles' glyphs (E59 on the 1.2.115 line, CHAINS.md B-R3). */
+.drpg-remnant-glyph[data-drpg-act="infiltrate"] { -webkit-mask-image: var(--drpg-pix-listen); mask-image: var(--drpg-pix-listen); }
+.drpg-remnant-glyph[data-drpg-act="facility"] { -webkit-mask-image: var(--drpg-pix-rest); mask-image: var(--drpg-pix-rest); }
 
 .drpg-remnant-title {
     display: grid;

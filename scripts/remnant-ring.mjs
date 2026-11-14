@@ -240,7 +240,7 @@ const liveRemnantCards = new WeakMap();
  * question mark, exactly like the token does.
  */
 const GLYPH_ACTIONS = ["search", "project", "sabotage", "dynamic", "resolution",
-    "incident", "discard", "manual", "loot"];
+    "incident", "discard", "manual", "loot", "infiltrate", "facility"];
 
 function glyph(action) {
     const act = GLYPH_ACTIONS.includes(action) ? action : "unknown";

@@ -63,6 +63,10 @@ const SOURCES = {
     discard: { var: "--drpg-pix-trash" },
     // Taking something off a body (handover.mjs, `lootBody`) - the hand that Palm uses.
     loot: { var: "--drpg-pix-palm-action" },
+    // The door actions (doors-gm.mjs: Shut, Force, Pick) and the facilities' room actions (facilities-gm.mjs) wear their
+    // tiles' glyphs - the Infiltrate tile's ear and the Facilities tile's bed (E59 on the 1.2.115 line, CHAINS.md B-R3).
+    infiltrate: { var: "--drpg-pix-listen" },
+    facility: { var: "--drpg-pix-rest" },
     // A GM-placed trace (Key Remnants, the Final Truth) was left by Monokuma's
     // own hand, and says so.
     manual: { selector: "#drpg-gm-launcher i::before" }
