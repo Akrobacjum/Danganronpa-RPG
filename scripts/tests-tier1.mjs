@@ -10,6 +10,7 @@ import {
     LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES, HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC,
     ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS, PHASES, PRICE_CHAINS, RESOLUTION_STRESS_COST, FLAGS
 } from "./config.mjs";
+import { atReadableFloor } from "./tests-css.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS } from "./settings.mjs";
@@ -29509,7 +29510,7 @@ const INVARIANTS = [
         const discovery = fnSource(stripComments(chapterText(sources)), "runDiscovery");
         equal(stableJson([
             bar("drpg-theme-monokuma-legacy"), bar("drpg-theme-monokuma-legacy drpg-pixel-font"), bar("drpg-theme-stained-glass"),
-            token("--drpg-text-xs"),
+            atReadableFloor(token("--drpg-text-xs")),
             /popupKind:\s*"objection",\s*popupTitle:\s*game\.i18n\.localize\("DRPG\.Chapter\.bodyTitle"\)[\s\S]{0,400}DRPG\.Chapter\.bodyBanner/.test(discovery),
             [game.i18n.has("DRPG.Chapter.bodyTitle"), game.i18n.localize("DRPG.Chapter.bodyTitle")]
         ]), stableJson([
@@ -29617,7 +29618,7 @@ const INVARIANTS = [
             const face = node => theme === "drpg-theme-stained-glass"
                 ? [value(node, "--brush-on"), value(node, "--brush-ink")]
                 : [value(node, ["background", "background-color"]), value(node, "color")];
-            return { line: value(text, "line-height"), time: value(time, "font-size"), mask: value(log, ["mask", "mask-image"]),
+            return { line: value(text, "line-height"), time: atReadableFloor(value(time, "font-size")), mask: value(log, ["mask", "mask-image"]),
                 save: face(save), template: face(template) };
         };
         const styles = manifest.styles ?? [];
@@ -50302,7 +50303,7 @@ const INVARIANTS = [
             };
             read[theme] = Object.fromEntries(Object.entries(parts).map(([name, el]) => {
                 const size = sizeOf(el);
-                return [name, FLOOR.test(size) ? true : size];
+                return [name, FLOOR.test(atReadableFloor(size)) ? true : size];
             }));
         }
         const yes = { description: true, chip: true, groupLine: true, groupCount: true, lineAbove: true, musicNote: true };
@@ -55450,7 +55451,8 @@ const INVARIANTS = [
          */
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         const floor = name => {
-            const m = css.match(new RegExp(`${name}:\\s*max\\(min\\((\\d+)px,\\s*([\\d.]+)rem\\),\\s*calc\\(([\\d.]+)rem \\* var\\(--drpg-legacy-scale, 1\\)\\)\\)`));
+            // the floor's 11 px is `calc(11px * var(--drpg-floor-scale, 1))` since the slider reaches 25 % (R7332): 1 at 0.8
+            const m = css.match(new RegExp(`${name}:\\s*max\\(min\\((?:calc\\()?(\\d+)px(?: \\* var\\(--drpg-floor-scale, 1\\)\\))?,\\s*([\\d.]+)rem\\),\\s*calc\\(([\\d.]+)rem \\* var\\(--drpg-legacy-scale, 1\\)\\)\\)`));
             return m ? Math.round(Math.max(Math.min(Number(m[1]), Number(m[2]) * 16), Number(m[3]) * 16 * 0.8) * 10) / 10 : null;
         };
         equal(stableJson(["--drpg-text-xs", "--font-size-11", "--font-size-12", "--font-size-13", "--font-size-14"].map(floor)),
@@ -61451,14 +61453,15 @@ const INVARIANTS = [
            "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
            (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
         const sheet = (beside, cut, untracked, above) => row => step => {
-            const need = step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
+            const need = step.includes("short") ? 52 : step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
             const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
             return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
         };
         const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
         const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
-        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
-            ["", "gap", "gap pad", "gap pad track", "above track"]]),
+        /* Legacy at 667 takes the short names since they came in (R7333): at them a statistic is its value's box, 52 px. */
+        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["above track short", "above track", "", "above track", "gap pad track", ""],
+            ["", "gap", "gap pad", "gap pad track", "above track", "above track short"]]),
             "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
     ["R7126 - the Key limit's line counts the rows the GM has filled or placed (E109, DISAGREEMENTS.json D22, decided by the coordinator on the owner's delegation, 14.11.2026): key-remnants.mjs `keyRowsUsed` counts a slot with a trace or any of its four words, and both lines that say \"{used} of {limit}\" (investigation.mjs's planner and the Map's summary) take it, not min(slots, limit)", async () => {
@@ -61516,6 +61519,64 @@ const INVARIANTS = [
             /wireChargeHeld/.test(bridge), typeof flats.en["DRPG.Case.chargeAgain"] === "string" && names("en"), typeof flats.pl["DRPG.Case.chargeAgain"] === "string" && names("pl")]),
         stableJson([true, true, true, true, true, true, true]),
             "[the held card carries the button, its flag, the button asks the primary's charge, it is wired by the card's flag, a GM's browser wires it, every English form names the button, every Polish form]");
+    }],
+    ["R7331 - the Interface scale reaches down to 25 % (the owner, 14.11.2026: \"Chcialbym powiekszyc tez zakres zmniejszenia ui (aktualnie minimum to 0.8, celujmy w 0.25\"): settings.mjs states the range once (`UI_SCALE`: 0.25 to 1.4 by 0.05), the setting is registered with it, and `clampSlider` holds a stored value to it - 0.25 and 1.4 kept, below and above them clamped, a value that is no number read as 1; the setting's hint names 25% and 140% in both languages, and the window's line under the slider (`DRPG.SettingsWindow.scaleSmall`, the hint itself stays one line, R4061) says below 80% the text is smaller than the module's readable size", async () => {
+        /*
+         * Red at adc15d2d: registered 0.8 to 1.4, `sliderScale` clamped at 0.8, no `UI_SCALE` and no `clampSlider`, the hints
+         * said 80% to 140%. Read: the registration, a pure clamp, both language files; nothing written.
+         */
+        const S = await import("./settings.mjs");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.uiScale}`);
+        const clamp = typeof S.clampSlider === "function" ? S.clampSlider : null;
+        const lang = async code => (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json())).DRPG;
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const says = d => [/25\s?%/.test(d.Settings.uiScale.hint) && /140\s?%/.test(d.Settings.uiScale.hint), /80\s?%/.test(d.SettingsWindow.scaleSmall ?? "")];
+        equal(stableJson([reg?.range ?? null, S.UI_SCALE ?? null, clamp ? [0.1, 0.25, 0.5, 0.8, 1, 1.4, 2, Number.NaN, "x"].map(clamp) : null, says(en), says(pl)]),
+            stableJson([{ min: 0.25, max: 1.4, step: 0.05 }, { min: 0.25, max: 1.4, step: 0.05, readable: 0.8 }, [0.25, 0.25, 0.5, 0.8, 1, 1.4, 1.4, 1, 1], [true, true], [true, true]]),
+            "[the registered range; UI_SCALE; the clamp of 0.1, 0.25, 0.5, 0.8, 1, 1.4, 2, NaN and a word; the English hint names 25% and 140%, the window's small-scale line 80%; the Polish the same]");
+    }],
+
+    ["R7332 - under 80 % the readability floor follows the Interface scale down in proportion, and from 80 % up it holds (the owner's 25 %, 14.11.2026; R60 keeps the 11 px from 80 % up): settings.mjs `floorScaleOf` is the slider over 0.8 under it and 1 from it, `applyTheme` stamps it as `--drpg-floor-scale` on the document and the body, and every 11 px floor the module's served sheets write reads it - no bare `max(11px` or `min(11px` is left; under the glass the floor (`--drpg-sg-floor`) already rides on the type scale, which carries the slider", async () => {
+        /*
+         * Red at adc15d2d: no `floorScaleOf`, no `--drpg-floor-scale`, 24 floors written `max(11px, ...)` (13 in
+         * danganronpa.css, 11 in components.css) and one `min(11px, 0.6875rem)`: at 25 % the words would have stood at
+         * 11 px in boxes drawn at a quarter. Read: a pure function, the settings source and the served sheets' text.
+         */
+        const S = await import("./settings.mjs");
+        const of = typeof S.floorScaleOf === "function" ? S.floorScaleOf : null;
+        const settingsSrc = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        const stamped = /setProperty\("--drpg-floor-scale"/.test(settingsSrc) && /floorScaleOf\(sliderScale\(\)\)/.test(settingsSrc);
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        let bare = 0, scaled = 0;
+        for (const href of manifest.styles ?? []) {
+            const css = (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            bare += (css.match(/(?:max|min)\(\s*11px/g) ?? []).length;
+            scaled += (css.match(/calc\(11px \* var\(--drpg-floor-scale, 1\)\)/g) ?? []).length;
+        }
+        const glass = /--drpg-sg-floor:\s*calc\(21px \* var\(--drpg-sg-scale, 1\)\)/.test(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        must(scaled + bare > 20, `${scaled + bare} floors read - the sheets were not read`);
+        equal(stableJson([of ? [0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4].map(of) : null, stamped, bare, scaled >= 25, glass]),
+            stableJson([[0.3125, 0.5, 0.625, 0.9875, 1, 1, 1], true, 0, true, true]),
+            "[floorScaleOf at 0.25, 0.4, 0.5, 0.79, 0.8, 1, 1.4; applyTheme stamps it; bare 11 px floors left; the floors that read it (25); the glass's floor rides on its scale]");
+    }],
+    ["R7333 - where even the mark above does not fit, the six take their short names before the row gives up on one line (the owner's \"koniecznie w 1 rzedzie\", 14.11.2026, through the coordinator: the short names already in lang - LEG BOD HAN EYE SHA HEA - with the mark above, the full name as the plate's tooltip and its aria-label): sheet-header.mjs `TRAIT_FIT_STEPS` ends on `above track short`, `traitFitStep` takes it where it fits and gives `wrap` only where even it does not, and `shortTraitName` reads a statistic's short name off Daggerheart's key `DAGGERHEART.CONFIG.Traits.<key>.short`", async () => {
+        /*
+         * Red at 6c6b1461: no `short` step - Legacy at 667 px stood three over three (its row 362 px, six with the mark above
+         * 454). Fed: a statistic at its short name is as wide as its value's box (52 px at 100 %, 72.8 at 140 %), the widest
+         * thing in it then; rows of 362 (667 px at 100 %), 252 (667 px at 140 %) and 519 (934 px at 140 %). Pure, and one
+         * localize; nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        const measure = (row, box) => step => {
+            const need = step.includes("short") ? box : step.includes("above") ? (box > 60 ? 101 : 74) : 86.2;
+            return { need, gap: step.includes("above") ? 2 : step.includes("gap") ? 9 : 16, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const short = typeof H.shortTraitName === "function" ? ["agility", "presence", "knowledge"].map(H.shortTraitName) : null;
+        equal(stableJson([pick(measure(362, 52)), pick(measure(252, 72.8)), pick(measure(519, 72.8)), short]),
+            stableJson(["above track short", "wrap", "above track short",
+                ["agility", "presence", "knowledge"].map(k => game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${k}.short`))]),
+            "[Legacy 667 px at 100 %, 667 px at 140 %, 934 px at 140 %; the short names of Leg, Shadow and Head]");
     }],
 ];
 

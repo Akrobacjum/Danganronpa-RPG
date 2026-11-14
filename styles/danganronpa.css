@@ -358,7 +358,7 @@
        `--drpg-tile-text` still multiplies BELOW the floor on a cramped action
        grid. That multiply happens at the use site, not here, and it is deliberate
        and only there. */
-    --drpg-text-xs: max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller (11 px since E48 K6, S12-41) */
+    --drpg-text-xs: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller (11 px since E48 K6, S12-41) */
     --drpg-text-sm: calc(0.8125rem * var(--drpg-legacy-scale, 1));   /* 13px at 100 % */
     --drpg-text-md: calc(0.9375rem * var(--drpg-legacy-scale, 1));   /* 15px at 100 % */
     --drpg-text-base: calc(1rem * var(--drpg-legacy-scale, 1));      /* 16px at 100 % */
@@ -3820,7 +3820,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
     border-radius: 3px;
     color: var(--drpg-bone);
-    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8rem * var(--drpg-legacy-scale, 1)));
     white-space: nowrap;
     cursor: pointer;
 }
@@ -3897,7 +3897,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     /* W-2, Dawid 19.09: every bare size in this sheet takes the Interface scale,
        and the ones 80 % would push under 10px keep a floor. The rest follow this
        pattern with no comment of their own. */
-    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8rem * var(--drpg-legacy-scale, 1)));
     white-space: nowrap;
 }
 
@@ -3973,7 +3973,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 
 .drpg-gm-panel .drpg-gmp-section h4 {
     margin: 0 0 4px;
-    font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.78rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.65;
@@ -4041,7 +4041,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-gmp-button span {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: max(11px, calc(0.84rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.84rem * var(--drpg-legacy-scale, 1)));
     /* Long labels wrap between words and break only as a last resort, instead
        of spilling out of the tile. */
     overflow-wrap: anywhere;
@@ -4374,7 +4374,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    control, the checkbox and selects are. */
 .drpg-mini-button {
     padding: 2px 8px;
-    font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.78rem * var(--drpg-legacy-scale, 1)));
     border-radius: 3px;
     cursor: pointer;
     background: rgba(var(--drpg-bone-rgb), 0.18);
@@ -4447,7 +4447,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 }
 
 .drpg-evidence-who {
-    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8rem * var(--drpg-legacy-scale, 1)));
     opacity: 0.75;
 }
 
@@ -4538,7 +4538,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 
 .drpg-evidence-hint {
     margin: 0;
-    font-size: max(11px, calc(0.85rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.85rem * var(--drpg-legacy-scale, 1)));
     opacity: 0.8;
 }
 
@@ -8029,8 +8029,12 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
    padding 2 px, the gap 2 px). Not the names' size: both themes draw them at their floor already (Legacy 11 px times the
    scale, the glass VT323 at its 21 px `--drpg-sg-floor`). Measured in Chromium, 14.11.2026, "Shadow" with its plate: Legacy
    86 px beside its mark, 84 with the padding cut, about 72 with the mark above; the glass 89, 87, 75 untracked, 59 above.
-   Where even `above` does not fit - Legacy on a row under about 454 px, its 667 px sheet's row is 362 - the row is three
-   over three (`wrap`), as before: nothing overlaps or runs out of the header. `measure` lays each statistic at its
+   Where even `above` does not fit - Legacy on a row under about 454 px, its 667 px sheet's row is 362 - the six take
+   their short names (`short`, the coordinator's step for the owner's one row: LEG BOD HAN EYE SHA HEA drawn from
+   `data-drpg-short`, the full name kept as the plate's tooltip and aria-label), each then as wide as its value's box
+   (52 px times the slider). Only where even those do not fit - a row under about 322 px at 100 % (a Legacy sheet under
+   about 630 px), 447 px at 140 % (a Legacy sheet narrowed by hand under about 860 px) - is the row three over three
+   (`wrap`): nothing overlaps or runs out of the header. `measure` lays each statistic at its
    natural width for the fitter's reading. R5760 reads this cascade, R7330 the order; the drawing is the commit's
    measurement. */
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
@@ -8074,6 +8078,12 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     top: auto;
     bottom: calc(100% + 2px);
     transform: translateX(-50%);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="short"] .trait .trait-name > span {
+    display: none;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit~="short"] .trait .trait-name::after {
+    content: attr(data-drpg-short);
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits[data-drpg-trait-fit="wrap"] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -12575,7 +12585,7 @@ body.drpg-high-contrast .drpg-trace-context {
     margin: 0 0 2px;
     padding-bottom: 2px;
     border-bottom: 1px solid var(--drpg-line);
-    font-size: max(11px, calc(0.82rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.82rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -12586,7 +12596,7 @@ body.drpg-high-contrast .drpg-trace-context {
 
 .drpg-room-group > h5 .notes {
     font-variant-numeric: tabular-nums;
-    font-size: max(11px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.75rem * var(--drpg-legacy-scale, 1)));
 }
 
 .drpg-tables-new {
@@ -13882,7 +13892,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
    is 8.94 px - the "about 9 px" the audit read. The time takes the module's 11 px floor, as the item windows'
    steps did (their rule below, E47). */
 .drpg-messenger-time {
-    font-size: max(11px, var(--drpg-text-xs));
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-xs));
 }
 
 /* The GM's buttons on a ruling card: the module's red route, sized to a
@@ -14974,6 +14984,17 @@ body.drpg-theme-monokuma-legacy #pause.paused {
     text-transform: uppercase;
 }
 
+/* A WINDOW'S HEADER CONTROLS KEEP A 24 PX TARGET UNDER 80 % (14.11.2026; the Interface scale down to 25 %, settings.mjs
+   `UI_SCALE`). The title bar's controls take the type's size (`--drpg-text-xs` above), which under 80 % follows the slider
+   down: at 25 % the style harness's GM panel's close button measured 19 x 5 px under Legacy (Chromium, 5f0fbac4), a
+   window nobody could close. The floor is a control's, not a word's: 24 px each way, the glass's own floor for the same
+   buttons (stained-glass.css, "THINGS THAT ARE CLICKED"), switched on only under 80 % - the clamp is 0 while
+   `--drpg-floor-scale` is 1 - so from 80 % up nothing changes. Both themes, every window. */
+body .application[class] .window-header :is(button, .header-control) {
+    min-width: clamp(0px, calc((1 - var(--drpg-floor-scale, 1)) * 10000px), 24px);
+    min-height: clamp(0px, calc((1 - var(--drpg-floor-scale, 1)) * 10000px), 24px);
+}
+
 /* ==========================================================================
    DAGGERHEART'S STATUS ICONS ARE NOT PART OF THIS INTERFACE
    --------------------------------------------------------------------------
@@ -15166,8 +15187,8 @@ body.drpg-theme-monokuma-legacy #pause.paused {
    reading). It is the glass's brush (`::before`, absolute, 5 px past each side), not the glyph: the glyph is 14.3 px
    in a 32.3 px button with 8 px of padding a side, so nothing is cut. */
 :is(.drpg-window-tables, .application.dialog:is(.drpg-window-take, .drpg-window-autopsy, .drpg-give-key, .drpg-window-items)) {
-    --drpg-text-xs: max(11px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));
-    --drpg-text-sm: max(11px, calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+    --drpg-text-xs: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --drpg-text-sm: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
 }
 
 /* The four that set their size another way, read the same way after the two steps above: Create an item's and a new
@@ -15181,7 +15202,7 @@ body.drpg-theme-monokuma-legacy #pause.paused {
 }
 
 body.drpg-theme-monokuma-legacy .application.dialog:is(.drpg-window-take, .drpg-window-autopsy, .drpg-give-key, .drpg-window-items, .drpg-window-tables) .drpg-role-label {
-    font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1))) !important;
+    font-size: max(calc(11px * var(--drpg-floor-scale, 1)), calc(0.690625rem * var(--drpg-legacy-scale, 1))) !important;
 }
 
 .drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-new-head {
@@ -17338,10 +17359,10 @@ body.drpg-theme-monokuma-legacy {
     --font-size-8: max(min(8px, 0.5rem), calc(0.5rem * var(--drpg-legacy-scale, 1)));
     --font-size-9: max(min(9px, 0.5625rem), calc(0.5625rem * var(--drpg-legacy-scale, 1)));
     --font-size-10: max(min(10px, 0.625rem), calc(0.625rem * var(--drpg-legacy-scale, 1)));
-    --font-size-11: max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
-    --font-size-12: max(min(11px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
-    --font-size-13: max(min(11px, 0.8125rem), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
-    --font-size-14: max(min(11px, 0.875rem), calc(0.875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-11: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-12: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    --font-size-13: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.8125rem), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+    --font-size-14: max(min(calc(11px * var(--drpg-floor-scale, 1)), 0.875rem), calc(0.875rem * var(--drpg-legacy-scale, 1)));
     --font-size-15: calc(0.9375rem * var(--drpg-legacy-scale, 1));
     --font-size-16: calc(1rem * var(--drpg-legacy-scale, 1));
     --font-size-18: calc(1.125rem * var(--drpg-legacy-scale, 1));

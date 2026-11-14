@@ -9,6 +9,7 @@ import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL
 import { SETTINGS, actionsTabHeight, callsHeight } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
+import { atReadableFloor } from "./tests-css.mjs";
 import {
     ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
@@ -950,7 +951,7 @@ const REGRESSIONS = [
             important: [plant(".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }", ".drpg-chip > b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8 !important; }"), "!important"],
             legacyChip: [plant(chipOff, ""), "--drpg-kit-btn-ink is declared for the glass and not for Legacy"],
             fontSize: [plant(".drpg-chip > b {", ".drpg-chip > b { font-size: 12px;"), "sets font-size without a kit size token"],
-            floor: [plant("--drpg-kit-chip-size: max(11px, var(--drpg-text-xs));", "--drpg-kit-chip-size: var(--drpg-text-xs);"), "under Legacy is not floored at 11 px"],
+            floor: [plant("--drpg-kit-chip-size: max(calc(11px * var(--drpg-floor-scale, 1)), var(--drpg-text-xs));", "--drpg-kit-chip-size: var(--drpg-text-xs);"), "under Legacy is not floored at 11 px"],
             width: [plant(".drpg-chips { display: flex;", ".drpg-chips { width: 400px; display: flex;"), "above 390 px"],
             uppercase: [plant(".drpg-chips { display: flex;", ".drpg-chips { text-transform: uppercase; display: flex;"), "under 1.3"],
             /* in the kit's part of the sheet, above "The A8 surfaces" (E44 C6), whose rules keep today's look and are not a
@@ -3791,7 +3792,7 @@ const REGRESSIONS = [
         for (const n of WANT) {
             const line = block.match(new RegExp(`--font-size-${n}:([^;]+);`));
             ok(line, `the ladder lost rung ${n}, so it silently falls off the slider`);
-            const value = line[1];
+            const value = atReadableFloor(line[1]);
             ok(value.includes("var(--drpg-legacy-scale"), `rung ${n} does not follow the slider`);
             const rem = value.match(/([\d.]+)rem/);
             ok(rem, `rung ${n} is not stated in rem`);

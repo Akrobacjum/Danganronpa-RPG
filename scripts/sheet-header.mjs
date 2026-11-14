@@ -94,15 +94,24 @@ export function markTraitGlyphs(element) {
  * overhang and a pixel), then the plate's padding (the mark's room, cut to where the mark ends), then the names'
  * letter-spacing (to 0), then the mark moves above the name. The names' size is not a step: in both themes they stand at
  * their floor already - 11 px times the Interface scale under Legacy (`--drpg-text-xs`), VT323 at the glass's own floor
- * (`--drpg-sg-floor`, 21 px) - so it would give nothing. Where even the mark above does not fit, the row is three over
- * three (`wrap`), as before, and nothing overlaps or runs out of the header: in Chromium on Daggerheart 2.12.8's
- * stylesheet that is Legacy below a row of 454 px (a sheet of about 760 px; 362 px at the owner's 667 px sheet). Each
+ * (`--drpg-sg-floor`, 21 px) - so it would give nothing. Where even the mark above does not fit, the six take their
+ * short names (`short`: LEG BOD HAN EYE SHA HEA, the full name the plate's tooltip and aria-label); only where even
+ * those do not fit is the row three over three (`wrap`), and nothing overlaps or runs out of the header. Each
  * step is measured, not predicted: `fitTraitRow` sets it on the row (`data-drpg-trait-fit`), reads the statistics at
  * their natural width (`measure`) and keeps the first that fits; again whenever the row's width changes and once the
  * fonts have loaded. With no layout (the harness) the row stays as drawn. R5760 reads the cascade, R7330 the order.
  */
-export const TRAIT_FIT_STEPS = Object.freeze([[], ["gap"], ["gap", "pad"], ["gap", "pad", "track"], ["above", "track"]]
-    .map(tokens => Object.freeze(tokens)));
+export const TRAIT_FIT_STEPS = Object.freeze([[], ["gap"], ["gap", "pad"], ["gap", "pad", "track"], ["above", "track"],
+    ["above", "track", "short"]].map(tokens => Object.freeze(tokens)));
+
+/**
+ * A statistic's short name, Daggerheart's own key (`DAGGERHEART.CONFIG.Traits.<key>.short`, which lang/en.json and
+ * lang/pl.json set: LEG BOD HAN EYE SHA HEA). The last step before `wrap` draws it in place of the full name, which stays
+ * the plate's tooltip and aria-label (the owner's one row, through the coordinator, 14.11.2026). R7333.
+ */
+export function shortTraitName(key) {
+    return game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.short`);
+}
 
 /**
  * The first of `TRAIT_FIT_STEPS` at which six statistics fit their row, as its tokens joined by a space, or "wrap". `measure(step)` answers the widest
@@ -138,6 +147,10 @@ export function fitTraitRow(app, element) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     const row = root?.querySelector?.(".character-header-sheet .character-traits");
     if (!row || !row.querySelector(":scope > .trait")) return;
+    for (const trait of row.querySelectorAll(":scope > .trait[data-attribute]")) {
+        const plate = trait.querySelector(":scope > .trait-name");
+        if (plate) plate.dataset.drpgShort = shortTraitName(trait.dataset.attribute);
+    }
     let width = null;
     const fit = () => {
         if (!row.isConnected || !row.clientWidth) return;
@@ -147,6 +160,20 @@ export function fitTraitRow(app, element) {
         row.dataset.drpgTraitFit = step;
         if (need) row.style.setProperty("--drpg-trait-need", `${Math.ceil(need)}px`);
         else row.style.removeProperty("--drpg-trait-need");
+        // At the short names the full one stays the plate's tooltip and its aria-label; off them, what this put there goes.
+        const short = step.split(" ").includes("short");
+        for (const plate of row.querySelectorAll(":scope > .trait > .trait-name[data-drpg-short]")) {
+            const full = plate.querySelector(":scope > span")?.textContent?.trim() ?? "";
+            if (short && full) {
+                plate.dataset.tooltip = full;
+                plate.setAttribute("aria-label", full);
+                plate.dataset.drpgShortTip = "";
+            } else if ("drpgShortTip" in plate.dataset) {
+                delete plate.dataset.tooltip;
+                plate.removeAttribute("aria-label");
+                delete plate.dataset.drpgShortTip;
+            }
+        }
     };
     fit();
     try { app?._drpgTraitFit?.disconnect(); } catch { /* already gone */ }

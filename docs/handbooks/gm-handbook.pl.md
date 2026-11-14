@@ -1734,7 +1734,7 @@ Po lewej stoi lista sekcji: **Wygląd**, **Efekty i dostępność**, **Dźwięk 
 |---|---|
 | **Język** | English albo Polski, osobno w każdej przeglądarce, domyślnie English, celowo niezależnie od języka samego Foundry; zmiana prosi o przeładowanie, a nazwy z gry, takie jak Truth Bullet, zostają po angielsku |
 | **Motyw** | *Stained Glass* (obecny wygląd: czarne, pęknięte szkło wzdłuż krawędzi ekranu, kolor w spoinach) albo *Monokuma Legacy* (wcześniejszy wygląd), który ma przełącznik **Czcionka pikselowa** |
-| **Skala interfejsu** | od 80% do 140%; dotyczy czcionki i paneli modułu |
+| **Skala interfejsu** | od 25% do 140%; dotyczy czcionki i paneli modułu; poniżej 80% tekst jest mniejszy niż czytelny rozmiar modułu |
 | **Puls szkła**, **Pora dnia za zegarem** i **Szkło rozmywa mapę** | w motywie Stained Glass |
 | **Ograniczone animacje** i **Wysoki kontrast** | w obu motywach; każde z nich włącza się też samo, gdy prosi o to ustawienie systemu operacyjnego |
 
