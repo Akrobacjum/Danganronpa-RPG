@@ -20,7 +20,7 @@ Rzut z Hope daje ci 1 Hope, a krytyk (obie kości z tym samym wynikiem) 2 Hope. 
 - Zawracają cię zamknięte drzwi, zapieczętowane pokoje, cudze sypialnie, do których nie masz klucza, i Chained, czyli Despair Call, który trzyma cię w pokoju do końca pory dnia.
 - W Eclipse gasną światła i nikt nikogo nie widzi ani nie słyszy. Ustawiasz wtedy swój token do 2 połączonych pokoi dalej, a w nocnym Eclipse w dowolnym pokoju.
 - Widzisz tylko swój pokój i ludzi w nim; odwiedzone pokoje są za zasłoną, a reszta tonie we mgle. Jeśli twój stół używa ustawienia **Głos osobno w każdym pokoju**, twój głos idzie za tokenem i słyszysz tylko swój pokój.
-- Każdy pokój ma **Search Tokens**, zwykle 3, wspólne dla wszystkich.
+- Każdy pokój ma **Search Tokeny**, zwykle 3, wspólne dla wszystkich.
 
 > [!IMPORTANT]
 > Podczas Eclipse wydajesz akcję tylko na zabójstwo, które ogłaszasz (Direct Murder albo zwrócenie się przeciw zabójcy), a Calli nie ma wcale.

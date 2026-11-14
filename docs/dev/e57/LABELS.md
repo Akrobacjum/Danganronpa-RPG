@@ -6,7 +6,7 @@ several keys share lists them all (first five). Brought up to date after the tex
 changed is a handbook line to change. The second table is the bold spans that are no lang value (game names,
 emphasis, labels drawn by Foundry or Daggerheart, or a label that drifted).
 
-Quoted labels: 3054 (EN 1478, PL 1576).
+Quoted labels: 3053 (EN 1477, PL 1576).
 
 | Handbook | Line | Label | Key(s) |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 53 | Season checklist | `DRPG.Panel.goSeasonChecklistButton`, `DRPG.Season.checklistTitle` |
 | gm-handbook.en | 62 | Keep players out of the file browser | `DRPG.Settings.enforcePlayerFiles.name` |
 | gm-handbook.en | 63 | Keep Isometric Perspective's welcome window closed for everyone | `DRPG.Settings.enforceIsoWelcome.name` |
-| gm-handbook.en | 64 | Keep Daggerheart's welcome window closed for everyone | `DRPG.Settings.enforceDhWelcome.name` |
+| gm-handbook.en | 64 | Keep Daggerheart's welcome journal closed for everyone | `DRPG.Settings.enforceDhWelcome.name` |
 | gm-handbook.en | 65 | Voice inside the Foundry window for everyone | `DRPG.Settings.liveKitInFoundry.name` |
 | gm-handbook.en | 66 | Voice tile instead of the camera dock | `DRPG.Settings.voiceTile.name` |
 | gm-handbook.en | 67 | Rooms decide what players can see | `DRPG.Settings.regionFog.name` |
@@ -53,7 +53,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 87 | Keep players out of the file browser | `DRPG.Settings.enforcePlayerFiles.name` |
 | gm-handbook.en | 87 | Give back Foundry's settings | `DRPG.GiveBack.menuLabel`, `DRPG.GiveBack.title` |
 | gm-handbook.en | 88 | Keep character sheets anonymous | `DRPG.Settings.enforceAnonymity.name` |
-| gm-handbook.en | 89 | Players' statistics without approval | `DRPG.Settings.autoApproveTraits.name` |
+| gm-handbook.en | 89 | Players' statistics need no approval | `DRPG.Settings.autoApproveTraits.name` |
 | gm-handbook.en | 90 | Frisk: forcing after a refusal | `DRPG.Settings.friskForce.name` |
 | gm-handbook.en | 91 | Dice look for the table | `DRPG.Settings.forceDiceLook.name` |
 | gm-handbook.en | 91 | Search Tokens per room | `DRPG.Settings.searchTokensPerRoom.name` |
@@ -65,11 +65,11 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 91 | Rolls grant Despair | `DRPG.Settings.despairFromRolls.name` |
 | gm-handbook.en | 91 | Replace the Daggerheart Fear tracker | `DRPG.Settings.hideSystemFear.name` |
 | gm-handbook.en | 91 | Guard token editing from Isometric Perspective | `DRPG.Settings.isoTokenShield.name` |
-| gm-handbook.en | 91 | Keep Daggerheart's welcome window closed for everyone | `DRPG.Settings.enforceDhWelcome.name` |
+| gm-handbook.en | 91 | Keep Daggerheart's welcome journal closed for everyone | `DRPG.Settings.enforceDhWelcome.name` |
 | gm-handbook.en | 91 | Separate voice in each room | `DRPG.Settings.voiceEnabled.name` |
 | gm-handbook.en | 93 | Music follows the game state | `DRPG.Settings.musicEnabled.name` |
 | gm-handbook.en | 93 | Vary the sounds you hear often | `DRPG.Sound.varyLabel` |
-| gm-handbook.en | 96 | Players' statistics without approval | `DRPG.Settings.autoApproveTraits.name` |
+| gm-handbook.en | 96 | Players' statistics need no approval | `DRPG.Settings.autoApproveTraits.name` |
 | gm-handbook.en | 96 | Music follows the game state | `DRPG.Settings.musicEnabled.name` |
 | gm-handbook.en | 96 | Separate voice in each room | `DRPG.Settings.voiceEnabled.name` |
 | gm-handbook.en | 108 | Back up | `DRPG.Case.backup` |
@@ -282,7 +282,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 382 | Approved by the GM. | `DRPG.RollDialog.traitApproved` |
 | gm-handbook.en | 382 | Changed by the GM. | `DRPG.RollDialog.traitChanged` |
 | gm-handbook.en | 382 | Chosen by the GM. | `DRPG.RollDialog.traitByGm` |
-| gm-handbook.en | 396 | Players' statistics without approval | `DRPG.Settings.autoApproveTraits.name` |
+| gm-handbook.en | 396 | Players' statistics need no approval | `DRPG.Settings.autoApproveTraits.name` |
 | gm-handbook.en | 396 | Approved automatically. | `DRPG.TraitRuling.autoApproved` |
 | gm-handbook.en | 398 | Set the difficulty | `DRPG.Action.dynamicSet` |
 | gm-handbook.en | 398 | Refuse | `DRPG.Action.dynamicRefuse`, `DRPG.Action.murderRefuse`, `DRPG.Items.itemRefuse`, `DRPG.Monocub.bribeRefuse`, `DRPG.Calls.approveNo` (+3) |
@@ -454,12 +454,12 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 730 | Neighbors | `DRPG.Vault.neighboursColumn` |
 | gm-handbook.en | 746 | Search Tokens | `DRPG.SearchTokens.title` |
 | gm-handbook.en | 746 | Search Tokens per room | `DRPG.Settings.searchTokensPerRoom.name` |
-| gm-handbook.en | 746 | The search was not counted. | `DRPG.SearchTokens.timeout` |
+| gm-handbook.en | 746 | This search did not count. You keep your action. | `DRPG.SearchTokens.timeout` |
 | gm-handbook.en | 750 | Rooms decide what players can see | `DRPG.Settings.regionFog.name` |
 | gm-handbook.en | 765 | Players only see who is in their room | `DRPG.Settings.roomVisibility.name` |
 | gm-handbook.en | 775 | Free Move | `DRPG.Facility.effect.freeMove`, `DRPG.Panel.freeMove`, `DRPG.Explain.status.moveTitle` |
 | gm-handbook.en | 777 | Crossing rooms costs a Move | `DRPG.Settings.chargeMovement.name` |
-| gm-handbook.en | 788 | A player's token moved through a wall | `DRPG.Settings.moveAudit.name` |
+| gm-handbook.en | 788 | When a player's token moves through a wall | `DRPG.Settings.moveAudit.name` |
 | gm-handbook.en | 792 | Refund last crossing | `DRPG.Panel.refundCrossing` |
 | gm-handbook.en | 792 | Refund last crossing | `DRPG.Panel.refundCrossing` |
 | gm-handbook.en | 801 | Crossing rooms costs a Move | `DRPG.Settings.chargeMovement.name` |
@@ -506,7 +506,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 855 | Convert to passages | `DRPG.Season.convertDoors` |
 | gm-handbook.en | 856 | Hide | `DAGGERHEART.CONFIG.Traits.presence.verb.charm`, `DRPG.Season.hideRulers` |
 | gm-handbook.en | 856 | Show | `DRPG.Passage.tab.show`, `DRPG.Tables.roomFilter`, `DRPG.Season.showRulers` |
-| gm-handbook.en | 857 | A player's token moved through a wall | `DRPG.Settings.moveAudit.name` |
+| gm-handbook.en | 857 | When a player's token moves through a wall | `DRPG.Settings.moveAudit.name` |
 | gm-handbook.en | 857 | Note it in the Debug log | `DRPG.Settings.moveAudit.log` |
 | gm-handbook.en | 857 | Send the token back | `DRPG.Settings.moveAudit.sendBack` |
 | gm-handbook.en | 885 | Works: apply an effect | `DRPG.Items.itemWorks` |
@@ -717,7 +717,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 1327 | Difficulty | `DRPG.Action.difficulty`, `DRPG.Investigation.difficulty`, `DRPG.Facility.editor.dc` |
 | gm-handbook.en | 1329 | Status | `DRPG.Investigation.keyStatus` |
 | gm-handbook.en | 1329 | Place | `DRPG.Investigation.place` |
-| gm-handbook.en | 1329 | Create more than the opening roll allows | `DRPG.Investigation.keyLimitOverride` |
+| gm-handbook.en | 1329 | Place more than the opening roll allows | `DRPG.Investigation.keyLimitOverride` |
 | gm-handbook.en | 1331 | Create a Key Remnant here | `DRPG.Investigation.createHereTitle`, `DRPG.Bridge.keyRemnantHere` |
 | gm-handbook.en | 1338 | Realization preview | `DRPG.CaseRealize.preview` |
 | gm-handbook.en | 1338 | Place | `DRPG.Investigation.place` |
@@ -974,7 +974,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 1679 | Music follows the game state | `DRPG.Settings.musicEnabled.name` |
 | gm-handbook.en | 1694 | Saving... | `DRPG.Music.saveState.saving` |
 | gm-handbook.en | 1694 | Saved | `DRPG.Music.saveState.saved` |
-| gm-handbook.en | 1694 | Not saved - see the console | `DRPG.Music.saveState.failed` |
+| gm-handbook.en | 1694 | Not saved. See the console. | `DRPG.Music.saveState.failed` |
 | gm-handbook.en | 1694 | Close | `DRPG.Passage.tab.close`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
 | gm-handbook.en | 1696 | Sound | `DRPG.Sound.title` |
 | gm-handbook.en | 1696 | Music | `DRPG.Sound.tabMusic` |
@@ -1118,7 +1118,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.en | 2048 | Silence now | `DRPG.Voice.silenceNow` |
 | gm-handbook.en | 2056 | Apply | `DRPG.Panel.apply`, `DRPG.Advance.apply`, `DRPG.Advance.da39.apply` |
 | gm-handbook.en | 2060 | Still to act | `DRPG.Hud.stillToAct` |
-| gm-handbook.en | 2072 | Players' statistics without approval | `DRPG.Settings.autoApproveTraits.name` |
+| gm-handbook.en | 2072 | Players' statistics need no approval | `DRPG.Settings.autoApproveTraits.name` |
 | gm-handbook.en | 2076 | Lock players' resources on the sheet | `DRPG.Settings.lockPlayerResources.name` |
 | gm-handbook.en | 2108 | Lock players' resources on the sheet | `DRPG.Settings.lockPlayerResources.name` |
 | gm-handbook.en | 2114 | Rolls grant Despair | `DRPG.Settings.despairFromRolls.name` |
@@ -1163,9 +1163,9 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 53 | Lista kontrolna sezonu | `DRPG.Panel.goSeasonChecklistButton`, `DRPG.Season.checklistTitle` |
 | gm-handbook.pl | 62 | Bez przeglądarki plików dla graczy | `DRPG.Settings.enforcePlayerFiles.name` |
 | gm-handbook.pl | 63 | Trzymaj okno powitalne Isometric Perspective zamknięte u wszystkich | `DRPG.Settings.enforceIsoWelcome.name` |
-| gm-handbook.pl | 64 | Trzymaj okno powitalne Daggerheart zamknięte u wszystkich | `DRPG.Settings.enforceDhWelcome.name` |
+| gm-handbook.pl | 64 | Trzymaj dziennik powitalny Daggerheart zamknięty u wszystkich | `DRPG.Settings.enforceDhWelcome.name` |
 | gm-handbook.pl | 65 | Głos w oknie Foundry u wszystkich | `DRPG.Settings.liveKitInFoundry.name` |
-| gm-handbook.pl | 66 | Kafel głosu zamiast doku kamer | `DRPG.Settings.voiceTile.name` |
+| gm-handbook.pl | 66 | Kafelek głosu zamiast doku kamer | `DRPG.Settings.voiceTile.name` |
 | gm-handbook.pl | 67 | Pokoje decydują, co widzą gracze | `DRPG.Settings.regionFog.name` |
 | gm-handbook.pl | 69 | Wygląd kości | `DRPG.DiceLook.diag.title` |
 | gm-handbook.pl | 69 | Wygląd kości przy stole | `DRPG.Settings.forceDiceLook.name` |
@@ -1190,20 +1190,20 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 86 | Wymuszaj prywatne rzuty graczy | `DRPG.Settings.forcePrivateRolls.name` |
 | gm-handbook.pl | 87 | Bez przeglądarki plików dla graczy | `DRPG.Settings.enforcePlayerFiles.name` |
 | gm-handbook.pl | 87 | Oddaj ustawienia Foundry | `DRPG.GiveBack.menuLabel`, `DRPG.GiveBack.title` |
-| gm-handbook.pl | 88 | Anonimowe karty postaci | `DRPG.Settings.enforceAnonymity.name` |
+| gm-handbook.pl | 88 | Anonimowe arkusze postaci | `DRPG.Settings.enforceAnonymity.name` |
 | gm-handbook.pl | 89 | Statystyki graczy bez zatwierdzania | `DRPG.Settings.autoApproveTraits.name` |
 | gm-handbook.pl | 90 | Frisk: zmuszanie po odmowie | `DRPG.Settings.friskForce.name` |
 | gm-handbook.pl | 91 | Wygląd kości przy stole | `DRPG.Settings.forceDiceLook.name` |
-| gm-handbook.pl | 91 | Search Tokens na pokój | `DRPG.Settings.searchTokensPerRoom.name` |
+| gm-handbook.pl | 91 | Search Tokeny na pokój | `DRPG.Settings.searchTokensPerRoom.name` |
 | gm-handbook.pl | 91 | Zablokuj graczom okno rzutu | `DRPG.Settings.lockRollDialog.name` |
 | gm-handbook.pl | 91 | Gracze widzą tylko osoby w swoim pokoju | `DRPG.Settings.roomVisibility.name` |
 | gm-handbook.pl | 91 | Pokoje decydują, co widzą gracze | `DRPG.Settings.regionFog.name` |
-| gm-handbook.pl | 91 | Zablokuj graczom zasoby na karcie | `DRPG.Settings.lockPlayerResources.name` |
+| gm-handbook.pl | 91 | Zablokuj graczom zasoby na arkuszu | `DRPG.Settings.lockPlayerResources.name` |
 | gm-handbook.pl | 91 | Przejście między pokojami kosztuje Move | `DRPG.Settings.chargeMovement.name` |
 | gm-handbook.pl | 91 | Rzuty dają Despair | `DRPG.Settings.despairFromRolls.name` |
 | gm-handbook.pl | 91 | Zastąp licznik Fear z Daggerheart | `DRPG.Settings.hideSystemFear.name` |
 | gm-handbook.pl | 91 | Chroń edycję tokenów przed Isometric Perspective | `DRPG.Settings.isoTokenShield.name` |
-| gm-handbook.pl | 91 | Trzymaj okno powitalne Daggerheart zamknięte u wszystkich | `DRPG.Settings.enforceDhWelcome.name` |
+| gm-handbook.pl | 91 | Trzymaj dziennik powitalny Daggerheart zamknięty u wszystkich | `DRPG.Settings.enforceDhWelcome.name` |
 | gm-handbook.pl | 91 | Głos osobno w każdym pokoju | `DRPG.Settings.voiceEnabled.name` |
 | gm-handbook.pl | 93 | Muzyka podąża za stanem gry | `DRPG.Settings.musicEnabled.name` |
 | gm-handbook.pl | 93 | Różnicuj dźwięki, które słychać często | `DRPG.Sound.varyLabel` |
@@ -1221,7 +1221,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 169 | Edytuj kampanię | `DRPG.Panel.jump` |
 | gm-handbook.pl | 169 | Zdanie na następny poranek | `DRPG.Clock.morningLine` |
 | gm-handbook.pl | 169 | Safeword | `DRPG.Safeword.title`, `DRPG.Season.safeword`, `DRPG.Config.SFX_EVENTS.safeword.label` |
-| gm-handbook.pl | 169 | Odnów też akcje i Search Tokens | `DRPG.Panel.alsoReset` |
+| gm-handbook.pl | 169 | Odnów też akcje i Search Tokeny | `DRPG.Panel.alsoReset` |
 | gm-handbook.pl | 169 | Zakończ rozdział | `DRPG.Chapter.endTitle`, `DRPG.Panel.goChapterEndButton` |
 | gm-handbook.pl | 169 | Sceny | `DRPG.Vault.tabScenes` |
 | gm-handbook.pl | 169 | Zapisz | `DRPG.Assign.save`, `DRPG.Zones.findings.save`, `DRPG.Tables.placeSave`, `DRPG.Note.save` |
@@ -1380,7 +1380,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 312 | Trwa Eclipse. Najpierw je zakończ. | `DRPG.Hud.rewindEclipse`, `DRPG.Clock.rewindDuringEclipse` |
 | gm-handbook.pl | 316 | Edytuj kampanię | `DRPG.Panel.jump` |
 | gm-handbook.pl | 316 | Zdanie na następny poranek | `DRPG.Clock.morningLine` |
-| gm-handbook.pl | 316 | Odnów też akcje i Search Tokens | `DRPG.Panel.alsoReset` |
+| gm-handbook.pl | 316 | Odnów też akcje i Search Tokeny | `DRPG.Panel.alsoReset` |
 | gm-handbook.pl | 316 | Rozdział | `DRPG.Investigation.filterChapter`, `DRPG.Clock.chapter` |
 | gm-handbook.pl | 316 | Dzień | `DRPG.Clock.day` |
 | gm-handbook.pl | 316 | Sesja | `DRPG.Clock.session` |
@@ -1435,7 +1435,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 411 | Ustawienia pokoi | `DRPG.Vault.manageTitle` |
 | gm-handbook.pl | 411 | Facilities | `DRPG.Vault.tabFacilities`, `DRPG.Remnant.action.facility`, `DRPG.Config.ACTIONS.rest.label` |
 | gm-handbook.pl | 419 | Sabotage | `DRPG.Remnant.action.sabotage`, `DRPG.Bridge.what.project.sabotage`, `DRPG.Config.ACTIONS.sabotage.label` |
-| gm-handbook.pl | 435 | Zablokuj graczom zasoby na karcie | `DRPG.Settings.lockPlayerResources.name` |
+| gm-handbook.pl | 435 | Zablokuj graczom zasoby na arkuszu | `DRPG.Settings.lockPlayerResources.name` |
 | gm-handbook.pl | 437 | ? | `DRPG.Remnant.tieShortOpen`, `DRPG.Overflow.hiddenValue` |
 | gm-handbook.pl | 439 | ? | `DRPG.Remnant.tieShortOpen`, `DRPG.Overflow.hiddenValue` |
 | gm-handbook.pl | 443 | Przeszłość | `DRPG.Sheet.biographyLabel` |
@@ -1444,7 +1444,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 445 | Monocub | `DRPG.Monocub.panelTitle`, `DRPG.Monocub.isOne`, `DRPG.Panel.state.monocub` |
 | gm-handbook.pl | 445 | Poza klasą | `DRPG.Class.notInClass`, `DRPG.Panel.group.notInClass` |
 | gm-handbook.pl | 445 | Monokuma | `DRPG.Assign.monokuma`, `DRPG.Vote.monokuma`, `DRPG.Monokuma.isMonokuma`, `DRPG.Secret.speaker` |
-| gm-handbook.pl | 445 | Anonimowe karty postaci | `DRPG.Settings.enforceAnonymity.name` |
+| gm-handbook.pl | 445 | Anonimowe arkusze postaci | `DRPG.Settings.enforceAnonymity.name` |
 | gm-handbook.pl | 445 | ? | `DRPG.Remnant.tieShortOpen`, `DRPG.Overflow.hiddenValue` |
 | gm-handbook.pl | 455 | Silence | `DRPG.Calls.silencedBadge`, `DRPG.Overflow.name.silence`, `DRPG.Config.DESPAIR_CALLS.silence.label` |
 | gm-handbook.pl | 463 | Reroll | `DRPG.Bridge.what.reroll.ask`, `DRPG.Reroll.title`, `DRPG.Config.HOPE_CALLS.reroll.label` |
@@ -1479,7 +1479,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 547 | Zostaw | `DRPG.Audit.keep` |
 | gm-handbook.pl | 547 | Cofnij wszystko | `DRPG.Audit.undoAll` |
 | gm-handbook.pl | 547 | Zostaw wszystko | `DRPG.Audit.acceptAll` |
-| gm-handbook.pl | 549 | Zablokuj graczom zasoby na karcie | `DRPG.Settings.lockPlayerResources.name` |
+| gm-handbook.pl | 549 | Zablokuj graczom zasoby na arkuszu | `DRPG.Settings.lockPlayerResources.name` |
 | gm-handbook.pl | 555 | +1 Despair | `DRPG.Rolls.awayDespair` |
 | gm-handbook.pl | 555 | Rzuty dają Despair | `DRPG.Settings.despairFromRolls.name` |
 | gm-handbook.pl | 555 | - nikt - | `DRPG.Assign.nobody`, `DRPG.Vault.noOwner`, `DRPG.Case.castNobody` |
@@ -1522,13 +1522,13 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 625 | Poza klasą: bez akcji, głosów i Level Upów. | `DRPG.Class.npcLine` |
 | gm-handbook.pl | 625 | Poza klasą | `DRPG.Class.notInClass`, `DRPG.Panel.group.notInClass` |
 | gm-handbook.pl | 625 | Postacie bez gracza są oznaczone | `DRPG.Season.step.npcs` |
-| gm-handbook.pl | 625 | Postać, której nie gra żaden gracz, to pewnie NPC: oznacz ją na jej karcie jako Poza klasą albo zostaw, jak jest. | `DRPG.Season.hint.npcs` |
+| gm-handbook.pl | 625 | Postać, której nie gra żaden gracz, to pewnie NPC: oznacz ją na jej arkuszu jako „Poza klasą” albo zostaw, jak jest. | `DRPG.Season.hint.npcs` |
 | gm-handbook.pl | 627 | Widz | `DRPG.Spectator.role` |
 | gm-handbook.pl | 627 | Uczniowie | `DRPG.Despair.tabStudents`, `DRPG.Panel.whoIsAlive`, `DRPG.Panel.group.students` |
 | gm-handbook.pl | 627 | Widz | `DRPG.Spectator.role` |
 | gm-handbook.pl | 627 | Porozmawiaj z Widzami | `DRPG.Spectator.talk` |
 | gm-handbook.pl | 627 | Wróć do swojego pokoju | `DRPG.Spectator.talkBack` |
-| gm-handbook.pl | 627 | Kafel głosu zamiast doku kamer | `DRPG.Settings.voiceTile.name` |
+| gm-handbook.pl | 627 | Kafelek głosu zamiast doku kamer | `DRPG.Settings.voiceTile.name` |
 | gm-handbook.pl | 637 | Postać umiera | `DRPG.Chapter.deathTitle` |
 | gm-handbook.pl | 637 | Gaśnięcie | `DRPG.Config.SFX_EVENTS.deathFade.label` |
 | gm-handbook.pl | 645 | Monocub | `DRPG.Monocub.panelTitle`, `DRPG.Monocub.isOne`, `DRPG.Panel.state.monocub` |
@@ -1606,14 +1606,14 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 724 | Bez prywatności | `DRPG.Vault.notSharedColumn`, `DRPG.Fog.check.piecesDiffer.field.notShared` |
 | gm-handbook.pl | 726 | Zepsute | `DRPG.Vault.brokenColumn` |
 | gm-handbook.pl | 730 | Sąsiedzi | `DRPG.Vault.neighboursColumn` |
-| gm-handbook.pl | 746 | Search Tokeny | `DRPG.Facility.effect.searchToken` |
-| gm-handbook.pl | 746 | Search Tokens na pokój | `DRPG.Settings.searchTokensPerRoom.name` |
-| gm-handbook.pl | 746 | Przeszukanie nie zostało policzone. | `DRPG.SearchTokens.timeout` |
+| gm-handbook.pl | 746 | Search Tokeny | `DRPG.SearchTokens.title`, `DRPG.Facility.effect.searchToken` |
+| gm-handbook.pl | 746 | Search Tokeny na pokój | `DRPG.Settings.searchTokensPerRoom.name` |
+| gm-handbook.pl | 746 | Search się nie liczy. Nie tracisz akcji. | `DRPG.SearchTokens.timeout` |
 | gm-handbook.pl | 750 | Pokoje decydują, co widzą gracze | `DRPG.Settings.regionFog.name` |
 | gm-handbook.pl | 765 | Gracze widzą tylko osoby w swoim pokoju | `DRPG.Settings.roomVisibility.name` |
 | gm-handbook.pl | 775 | Free Move | `DRPG.Facility.effect.freeMove`, `DRPG.Panel.freeMove`, `DRPG.Explain.status.moveTitle` |
 | gm-handbook.pl | 777 | Przejście między pokojami kosztuje Move | `DRPG.Settings.chargeMovement.name` |
-| gm-handbook.pl | 788 | Żeton gracza przesunięty przez ścianę | `DRPG.Settings.moveAudit.name` |
+| gm-handbook.pl | 788 | Token gracza przesunięty przez ścianę | `DRPG.Settings.moveAudit.name` |
 | gm-handbook.pl | 792 | Zwróć ostatnie przejście | `DRPG.Panel.refundCrossing` |
 | gm-handbook.pl | 792 | Zwróć ostatnie przejście | `DRPG.Panel.refundCrossing` |
 | gm-handbook.pl | 803 | Piętra | `DRPG.Fog.floors` |
@@ -1632,7 +1632,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 825 | Zablokowano | `DRPG.Voice.tile.state.blocked` |
 | gm-handbook.pl | 825 | Łączenie | `DRPG.Voice.tile.state.connecting` |
 | gm-handbook.pl | 825 | Rozłączono | `DRPG.Voice.tile.state.disconnected` |
-| gm-handbook.pl | 825 | Kafel głosu zamiast doku kamer | `DRPG.Settings.voiceTile.name` |
+| gm-handbook.pl | 825 | Kafelek głosu zamiast doku kamer | `DRPG.Settings.voiceTile.name` |
 | gm-handbook.pl | 827 | Kogo słyszysz | `DRPG.Voice.list.open` |
 | gm-handbook.pl | 829 | Głos w oknie Foundry u wszystkich | `DRPG.Settings.liveKitInFoundry.name` |
 | gm-handbook.pl | 838 | Tajne przejścia | `DRPG.Vault.tabPassages` |
@@ -1660,9 +1660,9 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 855 | Zamień na przejścia | `DRPG.Season.convertDoors` |
 | gm-handbook.pl | 856 | Ukryj | `DRPG.Season.hideRulers` |
 | gm-handbook.pl | 856 | Pokaż | `DRPG.Passage.tab.show`, `DRPG.Tables.roomFilter`, `DRPG.Season.showRulers` |
-| gm-handbook.pl | 857 | Żeton gracza przesunięty przez ścianę | `DRPG.Settings.moveAudit.name` |
+| gm-handbook.pl | 857 | Token gracza przesunięty przez ścianę | `DRPG.Settings.moveAudit.name` |
 | gm-handbook.pl | 857 | Zapisz to w Dzienniku debugowania | `DRPG.Settings.moveAudit.log` |
-| gm-handbook.pl | 857 | Cofnij żeton | `DRPG.Settings.moveAudit.sendBack` |
+| gm-handbook.pl | 857 | Cofnij token | `DRPG.Settings.moveAudit.sendBack` |
 | gm-handbook.pl | 885 | Działa i daje efekt | `DRPG.Items.itemWorks` |
 | gm-handbook.pl | 885 | Działa bez efektu i się zużywa | `DRPG.Items.itemNoEffect` |
 | gm-handbook.pl | 885 | Nie działa | `DRPG.Items.itemRefuse` |
@@ -1854,7 +1854,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 1302 | Zapisz | `DRPG.Assign.save`, `DRPG.Zones.findings.save`, `DRPG.Tables.placeSave`, `DRPG.Note.save` |
 | gm-handbook.pl | 1302 | Zamknij | `DRPG.Passage.tab.close`, `DRPG.Passage.list.seal`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
 | gm-handbook.pl | 1302 | Postaw | `DRPG.Monocub.bet`, `DRPG.Investigation.finalAskPlace`, `DRPG.Investigation.place` |
-| gm-handbook.pl | 1307 | Zostawił (tylko GM-owie) | `DRPG.CaseMap.panelAuthor` |
+| gm-handbook.pl | 1307 | Kto zostawił (tylko GM-owie) | `DRPG.Remnant.authorLabel`, `DRPG.CaseMap.panelAuthor` |
 | gm-handbook.pl | 1307 | Follow My Traces | `DRPG.Observe.followTraces` |
 | gm-handbook.pl | 1311 | Tabela | `DRPG.Tables.col.table`, `DRPG.CaseMap.viewTable` |
 | gm-handbook.pl | 1313 | Zamknij | `DRPG.Passage.tab.close`, `DRPG.Passage.list.seal`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
@@ -1876,7 +1876,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 1327 | Trudność | `DRPG.Action.difficulty`, `DRPG.Investigation.difficulty` |
 | gm-handbook.pl | 1329 | Stan | `DRPG.Passage.tab.state`, `DRPG.Investigation.keyStatus`, `DRPG.Project.cardStatus`, `DRPG.Panel.stateColumn`, `DRPG.CaseMap.panelState` |
 | gm-handbook.pl | 1329 | Postaw | `DRPG.Monocub.bet`, `DRPG.Investigation.finalAskPlace`, `DRPG.Investigation.place` |
-| gm-handbook.pl | 1329 | Utwórz więcej, niż pozwala rzut otwarcia | `DRPG.Investigation.keyLimitOverride` |
+| gm-handbook.pl | 1329 | Postaw więcej, niż pozwala rzut otwarcia | `DRPG.Investigation.keyLimitOverride` |
 | gm-handbook.pl | 1331 | Utwórz tu Key Remnant | `DRPG.Investigation.createHereTitle`, `DRPG.Bridge.keyRemnantHere` |
 | gm-handbook.pl | 1338 | Podgląd realizacji | `DRPG.CaseRealize.preview` |
 | gm-handbook.pl | 1338 | Postaw | `DRPG.Monocub.bet`, `DRPG.Investigation.finalAskPlace`, `DRPG.Investigation.place` |
@@ -2116,8 +2116,8 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 1651 | Zresetuj sezon | `DRPG.Season.resetTitle`, `DRPG.Season.resetButton` |
 | gm-handbook.pl | 1653 | Postęp Class Trial i jego głosowanie | `DRPG.Season.group.trialProgress` |
 | gm-handbook.pl | 1653 | Incydent | `DRPG.Events.ticker.incident`, `DRPG.Murder.stage.incident`, `DRPG.Remnant.action.incident`, `DRPG.Config.SFX_CATEGORIES.incident.label` |
-| gm-handbook.pl | 1653 | Truth Bullets w pakietach obsady | `DRPG.Season.group.bullets` |
-| gm-handbook.pl | 1655 | Dokąd trafiają żetony obsady | `DRPG.Season.resetCastTitle` |
+| gm-handbook.pl | 1653 | Truth Bullety w ekwipunku obsady | `DRPG.Season.group.bullets` |
+| gm-handbook.pl | 1655 | Dokąd trafiają tokeny obsady | `DRPG.Season.resetCastTitle` |
 | gm-handbook.pl | 1659 | Historia powiadomień | `DRPG.Notices.title` |
 | gm-handbook.pl | 1661 | Zresetuj sezon | `DRPG.Season.resetTitle`, `DRPG.Season.resetButton` |
 | gm-handbook.pl | 1664 | RESET | `DRPG.Season.resetWord` |
@@ -2138,7 +2138,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 1679 | Muzyka podąża za stanem gry | `DRPG.Settings.musicEnabled.name` |
 | gm-handbook.pl | 1694 | Zapisywanie... | `DRPG.Music.saveState.saving` |
 | gm-handbook.pl | 1694 | Zapisano | `DRPG.Music.saveState.saved` |
-| gm-handbook.pl | 1694 | Nie zapisano - zajrzyj do konsoli | `DRPG.Music.saveState.failed` |
+| gm-handbook.pl | 1694 | Nie zapisano. Zajrzyj do konsoli. | `DRPG.Music.saveState.failed` |
 | gm-handbook.pl | 1694 | Zamknij | `DRPG.Passage.tab.close`, `DRPG.Passage.list.seal`, `DRPG.FoundryTools.close`, `DRPG.Kit.close`, `DRPG.Panel.close` |
 | gm-handbook.pl | 1696 | Dźwięk | `DRPG.Sound.title`, `DRPG.Config.SFX_SLIDERS.sound.label` |
 | gm-handbook.pl | 1696 | Dźwięk | `DRPG.Sound.title`, `DRPG.Config.SFX_SLIDERS.sound.label` |
@@ -2244,7 +2244,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 1911 | Lista kontrolna sezonu | `DRPG.Panel.goSeasonChecklistButton`, `DRPG.Season.checklistTitle` |
 | gm-handbook.pl | 1911 | Pokoje decydują, co widzą gracze | `DRPG.Settings.regionFog.name` |
 | gm-handbook.pl | 1913 | Pomiń Eclipse | `DRPG.Panel.advance` |
-| gm-handbook.pl | 1913 | Odnów też akcje i Search Tokens | `DRPG.Panel.alsoReset` |
+| gm-handbook.pl | 1913 | Odnów też akcje i Search Tokeny | `DRPG.Panel.alsoReset` |
 | gm-handbook.pl | 1913 | Edytuj kampanię | `DRPG.Panel.jump` |
 | gm-handbook.pl | 1914 | Pule Tier | `DRPG.Tables.tabTierPools` |
 | gm-handbook.pl | 1914 | Pule Tier | `DRPG.Tables.tabTierPools` |
@@ -2285,7 +2285,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 2028 | Bez prywatności | `DRPG.Vault.notSharedColumn`, `DRPG.Fog.check.piecesDiffer.field.notShared` |
 | gm-handbook.pl | 2030 | Mapa ma pokoje | `DRPG.Season.step.rooms` |
 | gm-handbook.pl | 2030 | Sprawdź pokoje na tej scenie | `DRPG.Season.checkRooms` |
-| gm-handbook.pl | 2030 | Każdy nazwany region rozstrzygnięty: pokój albo nie | `DRPG.Season.step.roomsMarked` |
+| gm-handbook.pl | 2030 | O każdym nazwanym regionie zdecydowano: pokój albo nie | `DRPG.Season.step.roomsMarked` |
 | gm-handbook.pl | 2032 | Ukryj kursor GM-ów | `DRPG.Season.cursorButton` |
 | gm-handbook.pl | 2034 | Otwórz | `DRPG.Passage.tab.open`, `DRPG.Mastermind.lair.unlock`, `DRPG.Panel.openColumn`, `DRPG.Season.openIt` |
 | gm-handbook.pl | 2036 | Otwórz wygląd kości | `DRPG.DiceLook.diag.open` |
@@ -2299,8 +2299,8 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | gm-handbook.pl | 2056 | Zastosuj | `DRPG.Panel.apply`, `DRPG.Advance.apply`, `DRPG.Advance.da39.apply` |
 | gm-handbook.pl | 2060 | Zostały akcje | `DRPG.Hud.stillToAct` |
 | gm-handbook.pl | 2072 | Statystyki graczy bez zatwierdzania | `DRPG.Settings.autoApproveTraits.name` |
-| gm-handbook.pl | 2076 | Zablokuj graczom zasoby na karcie | `DRPG.Settings.lockPlayerResources.name` |
-| gm-handbook.pl | 2108 | Zablokuj graczom zasoby na karcie | `DRPG.Settings.lockPlayerResources.name` |
+| gm-handbook.pl | 2076 | Zablokuj graczom zasoby na arkuszu | `DRPG.Settings.lockPlayerResources.name` |
+| gm-handbook.pl | 2108 | Zablokuj graczom zasoby na arkuszu | `DRPG.Settings.lockPlayerResources.name` |
 | gm-handbook.pl | 2114 | Rzuty dają Despair | `DRPG.Settings.despairFromRolls.name` |
 | gm-handbook.pl | 2114 | - nikt - | `DRPG.Assign.nobody`, `DRPG.Vault.noOwner`, `DRPG.Case.castNobody` |
 | gm-handbook.pl | 2116 | Rola | `DRPG.Panel.roleColumn` |
@@ -2404,10 +2404,9 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-handbook.en | 236 | Who you hear | `DRPG.Voice.list.open` |
 | player-handbook.en | 236 | name | `DRPG.CaseMap.needs.name` |
 | player-handbook.en | 236 | name | `DRPG.CaseMap.needs.name` |
-| player-handbook.en | 236 | Mute everybody for you | `DRPG.Voice.list.muteAll` |
 | player-handbook.en | 239 | Listen | `DRPG.Infiltrate.row.listen.label` |
 | player-handbook.en | 243 | Search Tokens | `DRPG.SearchTokens.title` |
-| player-handbook.en | 243 | The search was not counted. | `DRPG.SearchTokens.timeout` |
+| player-handbook.en | 243 | This search did not count. You keep your action. | `DRPG.SearchTokens.timeout` |
 | player-handbook.en | 253 | Details | `DRPG.DhSettings.details`, `DRPG.Kit.details` |
 | player-handbook.en | 253 | Thresholds | `DRPG.Kit.thresholds` |
 | player-handbook.en | 262 | GM | `DRPG.Passage.tab.originGm`, `DRPG.Passage.tab.howGm`, `DRPG.Action.waitsForGm` |
@@ -2456,7 +2455,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-handbook.en | 608 | Nothing can be thrown away during the Class Trial. | `DRPG.Items.noDiscardInTrial` |
 | player-handbook.en | 614 | Usables | `DRPG.Sheet.groupUsables` |
 | player-handbook.en | 615 | Gear | `DRPG.Sheet.groupGear`, `DRPG.Project.glyph.gear` |
-| player-handbook.en | 616 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Case.store.bullets`, `DRPG.CaseMap.studentBullets` |
+| player-handbook.en | 616 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Investigation.bullets`, `DRPG.Case.store.bullets`, `DRPG.CaseMap.studentBullets` |
 | player-handbook.en | 617 | Room Keys | `DRPG.Sheet.groupKeys` |
 | player-handbook.en | 624 | Hand it over | `DRPG.Handover.give` |
 | player-handbook.en | 624 | Share a copy | `DRPG.Handover.share` |
@@ -2467,7 +2466,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-handbook.en | 644 | Reinforced | `DRPG.Cleanup.gmReinforced`, `DRPG.Remnant.reinforcedShort`, `DRPG.Remnant.reinforcedColumn` |
 | player-handbook.en | 650 | Key Remnant | `DRPG.Reveal.defaultName` |
 | player-handbook.en | 662 | Truth Bullet | `DRPG.Items.whatBullet`, `DRPG.Trial.objectionPickLabel`, `DRPG.TruthBullet.title` |
-| player-handbook.en | 662 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Case.store.bullets`, `DRPG.CaseMap.studentBullets` |
+| player-handbook.en | 662 | Truth Bullets | `DRPG.Sheet.groupTruthBullets`, `DRPG.Investigation.bullets`, `DRPG.Case.store.bullets`, `DRPG.CaseMap.studentBullets` |
 | player-handbook.en | 672 | Analyzed in vain | `DRPG.TruthBullet.locked` |
 | player-handbook.en | 674 | Chapter | `DRPG.Sheet.bulletsByChapter`, `DRPG.Investigation.filterChapter`, `DRPG.Clock.chapter` |
 | player-handbook.en | 674 | Location | `DRPG.Sheet.bulletsByRoom` |
@@ -2650,10 +2649,10 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-handbook.pl | 38 | Eye | `DAGGERHEART.CONFIG.Traits.instinct.name`, `DRPG.Config.TRAITS.eye.label` |
 | player-handbook.pl | 39 | Shadow | `DAGGERHEART.CONFIG.Traits.presence.name`, `DRPG.Config.TRAITS.shadow.label` |
 | player-handbook.pl | 40 | Head | `DAGGERHEART.CONFIG.Traits.knowledge.name`, `DRPG.Config.TRAITS.head.label` |
-| player-handbook.pl | 58 | Zablokuj graczom zasoby na karcie | `DRPG.Settings.lockPlayerResources.name` |
+| player-handbook.pl | 58 | Zablokuj graczom zasoby na arkuszu | `DRPG.Settings.lockPlayerResources.name` |
 | player-handbook.pl | 64 | Breakdown | `DRPG.Facility.state.breakdown`, `DRPG.RollDialog.source.state`, `DRPG.Rolls.legal.breakdown`, `DRPG.States.drpgBreakdown.name`, `DRPG.Config.STATES.breakdown.label` (+1) |
 | player-handbook.pl | 65 | Wounded | `DRPG.Facility.state.wounded`, `DRPG.States.drpgWounded.name`, `DRPG.Config.STATES.wounded.label`, `DRPG.Config.SFX_EVENTS.wounded.label` |
-| player-handbook.pl | 72 | Zablokuj graczom zasoby na karcie | `DRPG.Settings.lockPlayerResources.name` |
+| player-handbook.pl | 72 | Zablokuj graczom zasoby na arkuszu | `DRPG.Settings.lockPlayerResources.name` |
 | player-handbook.pl | 73 | ? | `DRPG.Remnant.tieShortOpen`, `DRPG.Overflow.hiddenValue` |
 | player-handbook.pl | 76 | Przeszłość | `DRPG.Sheet.biographyLabel` |
 | player-handbook.pl | 78 | Nie żyje | `DRPG.Class.deathMark`, `DRPG.Panel.state.dead` |
@@ -2718,8 +2717,8 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-handbook.pl | 236 | Kogo słyszysz | `DRPG.Voice.list.open` |
 | player-handbook.pl | 236 | Wycisz wszystkich u siebie | `DRPG.Voice.list.muteAll` |
 | player-handbook.pl | 239 | Listen | `DRPG.Infiltrate.row.listen.label` |
-| player-handbook.pl | 243 | Search Tokens | `DRPG.SearchTokens.title` |
-| player-handbook.pl | 243 | Przeszukanie nie zostało policzone. | `DRPG.SearchTokens.timeout` |
+| player-handbook.pl | 243 | Search Tokeny | `DRPG.SearchTokens.title`, `DRPG.Facility.effect.searchToken` |
+| player-handbook.pl | 243 | Search się nie liczy. Nie tracisz akcji. | `DRPG.SearchTokens.timeout` |
 | player-handbook.pl | 253 | Szczegóły | `DRPG.DhSettings.details`, `DRPG.Kit.details` |
 | player-handbook.pl | 253 | Progi | `DRPG.Kit.thresholds` |
 | player-handbook.pl | 262 | GM | `DRPG.Passage.tab.originGm`, `DRPG.Passage.tab.howGm`, `DRPG.Action.waitsForGm` |
@@ -2973,7 +2972,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-handbook.pl | 1112 | Tajne przejścia | `DRPG.Vault.tabPassages` |
 | player-handbook.pl | 1116 | Kogo słyszysz | `DRPG.Voice.list.open` |
 | player-handbook.pl | 1116 | Kogo słyszysz | `DRPG.Voice.list.open` |
-| player-handbook.pl | 1118 | Search Tokens | `DRPG.SearchTokens.title` |
+| player-handbook.pl | 1118 | Search Tokeny | `DRPG.SearchTokens.title`, `DRPG.Facility.effect.searchToken` |
 | player-handbook.pl | 1122 | Spójrz poza oczywiste | `DRPG.Observe.nonObvious` |
 | player-handbook.pl | 1122 | Opis | `DRPG.DhSettings.description`, `DRPG.Room.describe`, `DRPG.Vault.tabDescription`, `DRPG.TrialScene.hallRoom.words`, `DRPG.Project.description` (+1) |
 | player-handbook.pl | 1128 | Szerokie okna projektów | `DRPG.Settings.wideProjectWindows.name` |
@@ -3023,7 +3022,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-brochure.pl | 14 | Rzuty dają Despair | `DRPG.Settings.despairFromRolls.name` |
 | player-brochure.pl | 18 | Eclipse | `DRPG.Voice.tile.state.eclipsed`, `DRPG.Explain.phase.eclipseTitle` |
 | player-brochure.pl | 22 | Głos osobno w każdym pokoju | `DRPG.Settings.voiceEnabled.name` |
-| player-brochure.pl | 23 | Search Tokens | `DRPG.SearchTokens.title` |
+| player-brochure.pl | 23 | Search Tokeny | `DRPG.SearchTokens.title`, `DRPG.Facility.effect.searchToken` |
 | player-brochure.pl | 30 | Remnant | `DRPG.Cleanup.gmTrace`, `DRPG.Remnant.cardFacts`, `DRPG.Remnant.cardTitle`, `DRPG.Remnant.cardWhat`, `DRPG.Remnant.tokenName` (+1) |
 | player-brochure.pl | 30 | Truth Bullet | `DRPG.Items.whatBullet`, `DRPG.Trial.objectionPickLabel`, `DRPG.TruthBullet.title`, `DRPG.Config.ITEM_CATEGORIES.truthBullet.label` |
 | player-brochure.pl | 34 | Search | `DRPG.Remnant.action.search`, `DRPG.Config.ACTIONS.search.label` |
@@ -3065,7 +3064,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-brochure.pl | 104 | Gotowe | `DRPG.Kit.check.done`, `DRPG.Trial.turn.done`, `DRPG.Ready.done`, `DRPG.Ready.status.done` |
 | player-brochure.pl | 104 | Pasuję | `DRPG.Trial.turn.pass` |
 
-## Bold spans with no lang value (1014)
+## Bold spans with no lang value (1015)
 
 | Handbook | Span | Times |
 | --- | --- | --- |
@@ -3858,6 +3857,7 @@ Quoted labels: 3054 (EN 1478, PL 1576).
 | player-handbook.en | Listening at the door. | 1 |
 | player-handbook.en | Mastermind | 1 |
 | player-handbook.en | Morning, Noon, Afternoon, Evening, Night | 1 |
+| player-handbook.en | Mute everybody for you | 1 |
 | player-handbook.en | Neutral | 1 |
 | player-handbook.en | Neutral Truth Bullet | 1 |
 | player-handbook.en | Night Eclipse | 1 |

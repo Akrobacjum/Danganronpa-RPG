@@ -240,7 +240,7 @@ A Monocub keeps its microphone during an Eclipse and is told that nobody hears i
 
 ### Search Tokens
 
-Every room has a number of **Search Tokens** per time of day: **3** by default, anywhere from **0 to 10** as the GM sets it. Each Search spends one, and a searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand. If a Search ends with *The search was not counted.*, you keep the action, and the room keeps its token. A room the GM has sealed tells you it cannot be searched, and you keep the action.
+Every room has a number of **Search Tokens** per time of day: **3** by default, anywhere from **0 to 10** as the GM sets it. Each Search spends one, and a searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand. If a Search ends with *This search did not count. You keep your action.*, the room keeps its token as well. A room the GM has sealed tells you it cannot be searched, and you keep the action.
 
 ---
 

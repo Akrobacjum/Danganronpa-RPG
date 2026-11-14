@@ -55,7 +55,7 @@ Przy tworzeniu postaci rozkład to **+2, +1, +1, 0, 0, -1**, a rozkładasz go, j
 
 Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty przedmiot, Call, Level Up. Pokazują je kropki na twoim arkuszu, na arkuszu drużyny i na twoim tokenie, a kliknięcie kropek niczego nie zmienia.
 
-Jeśli mimo to zmienisz liczbę na arkuszu ręcznie, zmiana zostaje sprawdzona. Gdy GM ma włączone **Zablokuj graczom zasoby na karcie**, a tak jest domyślnie, statystyka, maksimum albo Hope, których nic w grze nie tłumaczy, wracają od razu i dostajesz o tym wiadomość; utrata Health, Sanity albo akcji zostaje, a zysk, którego nic w grze nie tłumaczy, trafia do GM-ów, którzy decydują. Gdy blokada jest wyłączona, taka zmiana zostaje, a GM-owie widzą ją na swojej liście.
+Jeśli mimo to zmienisz liczbę na arkuszu ręcznie, zmiana zostaje sprawdzona. Gdy GM ma włączone **Zablokuj graczom zasoby na arkuszu**, a tak jest domyślnie, statystyka, maksimum albo Hope, których nic w grze nie tłumaczy, wracają od razu i dostajesz o tym wiadomość; utrata Health, Sanity albo akcji zostaje, a zysk, którego nic w grze nie tłumaczy, trafia do GM-ów, którzy decydują. Gdy blokada jest wyłączona, taka zmiana zostaje, a GM-owie widzą ją na swojej liście.
 
 ### Dwa stany, których nie chcesz
 
@@ -69,7 +69,7 @@ Jeśli mimo to zmienisz liczbę na arkuszu ręcznie, zmiana zostaje sprawdzona. 
 
 ### Co mówi twój arkusz
 
-- **Co zostało.** Pod każdym z dwóch pasków arkusz mówi, ile zostało, a obok, ile może być najwięcej: **3 / 4** dla Health, **6 / 6** dla Sanity. Nietknięty uczeń ma dwa pełne paski, a pasek skraca się, gdy cię ranią. Przy włączonym **Zablokuj graczom zasoby na karcie** twój arkusz nie ma pola na tę liczbę; przy wyłączonym pole jest, a wpisujesz w nie, ile ci zostało. Dwa paski twojego tokenu czyta się tak samo, pełne u nietkniętego ucznia, i na tokenie nie da się w nie wpisać liczby.
+- **Co zostało.** Pod każdym z dwóch pasków arkusz mówi, ile zostało, a obok, ile może być najwięcej: **3 / 4** dla Health, **6 / 6** dla Sanity. Nietknięty uczeń ma dwa pełne paski, a pasek skraca się, gdy cię ranią. Przy włączonym **Zablokuj graczom zasoby na arkuszu** twój arkusz nie ma pola na tę liczbę; przy wyłączonym pole jest, a wpisujesz w nie, ile ci zostało. Dwa paski twojego tokenu czyta się tak samo, pełne u nietkniętego ucznia, i na tokenie nie da się w nie wpisać liczby.
 - **Sanity jest tylko twoje.** Inny gracz, który otworzy twój arkusz albo przeczyta twój wiersz na arkuszu drużyny, widzi twoje Health i **?** w miejscu Sanity, a twój token nie pokazuje innym graczom paska Sanity. Ty i GM-owie widzicie i Health, i Sanity. Sanity jest ukryte tylko na ekranie (rozdział 17).
 - **Rzut w Breakdown.** Dodatkowa kość na karcie rzutu nazywa się **Disadvantage**, a karta nikomu nie mówi nic więcej o przyczynie. Przyczynę podają ci twoje własne okno rzutu i odprawa akcji kryzysowej; inny gracz nie przeczyta jej na karcie.
 - **Breakdown i Wounded są na twoim arkuszu, dla wszystkich.** Kto otworzy twój arkusz, widzi pod twoim Health i Sanity plakietkę, gdy jesteś w Breakdown albo Wounded. Inny gracz, który zobaczy plakietkę Breakdown, wie więc, że twoje Sanity się skończyło, choć nie zna jego liczby. Żaden token nie pokazuje żadnej z tych ikon, także twój; nakładka śmierci nadal jest rysowana na tokenie.
@@ -240,7 +240,7 @@ Głośnik pokazuje, ile innych osób jest w twoim kanale, licząc każdą, któr
 
 ### Search Tokens
 
-Każdy pokój ma na porę dnia pewną liczbę przeszukań, czyli **Search Tokens**: domyślnie 3, a GM ustawia od 0 do 10. Każde Search wydaje jeden Search Token. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie, a HUD mówi, ile zostało tam, gdzie stoisz. Jeśli Search kończy się komunikatem *Przeszukanie nie zostało policzone.*, zachowujesz akcję, a pokój zachowuje token. Pokój, który GM zapieczętował, mówi ci, że nie da się go przeszukać, a akcję zachowujesz.
+Każdy pokój ma na porę dnia pewną liczbę przeszukań, czyli **Search Tokeny**: domyślnie 3, a GM ustawia od 0 do 10. Każde Search wydaje jeden Search Token. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie, a HUD mówi, ile zostało tam, gdzie stoisz. Jeśli Search kończy się komunikatem *Search się nie liczy. Nie tracisz akcji.*, pokój także zachowuje token. Pokój, który GM zapieczętował, mówi ci, że nie da się go przeszukać, a akcję zachowujesz.
 
 ---
 
@@ -1115,7 +1115,7 @@ Ten dodatek zbiera to, czego rozdziały powyżej nie mówią graczowi przy stole
 
 **Kogo słyszysz.** To, co ustawisz w **Kogo słyszysz**, pamięta ta przeglądarka.
 
-Token, który Search zabiera z **Search Tokens** pokoju, potwierdza przeglądarka GM-a. Odpowiedź, która nie przyjdzie w ciągu 5 sekund, jest spóźniona, a Search ze spóźnioną odpowiedzią nie jest liczone.
+Token, który Search zabiera z **Search Tokeny** pokoju, potwierdza przeglądarka GM-a. Odpowiedź, która nie przyjdzie w ciągu 5 sekund, jest spóźniona, a Search ze spóźnioną odpowiedzią nie jest liczone.
 
 ### 17.4 Akcje
 
