@@ -54,7 +54,7 @@ export function stripCssComments(text) {
 
 /* Quote-aware block walk: every `{ ... }` of a sheet as { prelude, own, context }, where `own` is the block's text with
    its nested blocks taken out (its declarations) and `context` the preludes of the blocks it stands in (`@media ...`). */
-function blocksOf(css) {
+export function blocksOf(css) {
     const text = String(css ?? "");
     const out = [];
     const walk = (start, end, context) => {
@@ -93,7 +93,7 @@ function blocksOf(css) {
 }
 
 /* A block's declarations: its own text split on the semicolons outside brackets and quotes, each `property: value`. */
-function declarationsOf(own) {
+export function declarationsOf(own) {
     const parts = [];
     let depth = 0, part = "", quote = null;
     for (const ch of String(own)) {

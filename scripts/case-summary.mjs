@@ -66,7 +66,7 @@ export async function showCaseSummary() {
     if (!game.user?.isGM) return null;
     const { MODULE_ID } = await import("./config.mjs");
     const { esc } = await import("./utils.mjs");
-    const { drpgWindow } = await import("./ui-kit.mjs");
+    const { drpgWindow, tipText } = await import("./ui-kit.mjs");
     const { caseGraph, caseTicks } = await import("./case-schema.mjs");
     const { findersByAnyRemnant } = await import("./investigation.mjs");
     const { trialProgress, setTrialProgress } = await import("./vote.mjs");
@@ -86,7 +86,7 @@ export async function showCaseSummary() {
         title: L("DRPG.CaseSummary.previewTitle"),
         classes: ["drpg-panel", "drpg-window-case-summary"],
         body: `<p>${esc(L("DRPG.CaseSummary.intro"))}</p>${html}`,
-        footer: { close: { role: "close", action: "close" }, secondary: [{ action: "send", label: L("DRPG.CaseSummary.send"), class: "drpg-state-change" }], default: "close" },
+        footer: { close: { role: "close", action: "close" }, secondary: [{ action: "send", label: L("DRPG.CaseSummary.send"), class: "drpg-state-change", tooltip: tipText("DRPG.Tips.Case.sendToEveryoneTooltip") }], default: "close" },
         rejectClose: false
     });
     if (answer !== "send") return null;

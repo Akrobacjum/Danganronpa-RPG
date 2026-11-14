@@ -69,7 +69,7 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { WINDOW_HELP } from "./ui-kit.mjs";
 
@@ -1571,7 +1571,7 @@ function diceLookSection(findings, esc) {
     const title = game.i18n.localize("DRPG.DiceLook.diag.title");
     // Its console line ("ask them to run game.drpg.diagnoseDiceLook()") is Diagnostics' since E101 item 2 (`foundryReport`).
     return checkPart("dice", title, `${rows.length ? checkList(rows, { label: title }) : ""}
-            <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
+            <p><button type="button" data-drpg-dice-look${tipAttr("DRPG.Tips.Setup.diceLookTooltip")}>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
 }
 
 /**
