@@ -343,7 +343,13 @@ Work out who is in a neighbouring room. No GM needed. You pick the room before y
 
 A neighbouring room you have never been in is listed as *Unexplored room 1*, *Unexplored room 2* and so on, in the picker and in the answer: Listen tells you who is behind a door, not what the room behind it is.
 
-The tile is called **Infiltrate**: its window lists its actions one under another - Listen first, then Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock and Keep Watch. In a room with no neighbouring room Listen is greyed with the reason.
+**Listening at the door** (since 1.2.113). With voice per room on, a Listen of 14 or more does one more thing after its card: your voice moves into the voice channel of the room you listened at. You hear that room, and your microphone is off - nobody there hears you, and you cannot turn it on until you stop. Nobody in that room is told, but the number on their voice tile's speaker counts everyone in the channel, you too. **Stop listening** on your voice tile brings you back to your own room's channel, and your microphone comes back a few seconds later. It also ends when you walk out of the room you listen from (a step inside it, or into a doorway, does not), when the time of day ends, at an Eclipse, an incident or a Class Trial. Listening at the same room again in the same time of day costs no action and no roll. Without voice per room, Listen is the card alone.
+
+The tile is called **Infiltrate**: its window lists its actions one under another - Listen first, then Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock and Keep Watch. In a room with no neighbouring room Listen is greyed with the reason.
+
+### Echoes - no roll, 1 action
+
+The nearest room where a living student of another player stands, counted in crossings - doors, stairs and the tunnels you know. The card names the room, never who or how many; rooms the same distance away are picked at random. Your own room, bodies, Monokuma, a Monocub, a Spectator, a hidden token and a GM's character do not count. Not during an Eclipse: the row is struck through with the reason. A GM must be connected; with nobody to find the card says you hear nobody.
 
 ### Tail Someone - Shadow, then Leg or Shadow, 1 action
 
@@ -635,6 +641,8 @@ There is exactly one, and the kind of murder decides whose it is.
 **Direct murder:** the killer rolls (Body or Hand, against **8**; advantage at Night). The GM picks which of the two; while they do, the killer is told so, and says in their thread how they go about it.
 
 **You propose the statistic.** When you declare a Direct Murder in an Eclipse, the window asks *Which statistic do you propose?* - Body or Hand, Body to start - under your sentence of how. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass. A betrayal's confirmation asks the same (and *How do you do it?* outside an Eclipse); the GM rules on it as the opening rolls, and you are told *The GM is ruling on the statistic you proposed for your opening.* A trap's victim proposes nothing: the GM picks.
+
+**Behind a "?"** (since 1.2.113). A direct murder whose opening succeeds with Hope, or is a critical, hides the killer. The victim and everyone else see the killer's token as a "?" with no name, the victim is told only that *someone* is moving on them, another player's window for the killer's sheet closes, and the killer leaves the room's voice channel for a silent one of their own: they hear nothing and nobody hears them. A GM and a Spectator see who it is. As the killer you are asked *Stay hidden?*: **Reveal yourself** gives everyone your token and your name back and puts your voice back in your room; **Stay hidden** keeps the "?" until the time of day ends, and **Reveal yourself** stays on your voice tile until then. What it cannot hide: a player who opens the browser's console can still read which character the "?" token belongs to.
 
 | Killer's roll | What happens |
 |---|---|

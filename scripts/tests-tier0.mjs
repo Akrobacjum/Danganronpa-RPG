@@ -6464,6 +6464,11 @@ const REGRESSIONS = [
             // E69 C3: a tail begun on the primary (tail-gm.mjs), the one gate and its own two reasons, whose run passes its
             // `{ refused }` on.
             startTail: "refused", tailRefusal: "returns",
+            // E69 C6, C7 (13.11.2026): an eavesdrop begun and Echoes read on the primary (eavesdrop-gm.mjs, echoes-gm.mjs),
+            // whose runs pass their `{ refused }` on.
+            startEavesdrop: "refused", echoesFor: "refused", echoesRefusal: "returns",
+            // E69 C8 (13.11.2026): a killer's reveal on the primary (mask-gm.mjs), whose run passes its `{ refused }` on.
+            revealMask: "refused",
             // E74 C2: a barricade put up on the primary (doors-gm.mjs), its refusals by `shutRefusal`.
             shutDoor: "refused", shutRefusal: "why",
             // E74 C3: a door forced on the primary (doors-gm.mjs), whose run passes its `{ refused }` on.
@@ -10329,6 +10334,7 @@ const REGRESSIONS = [
             ["NOTDONE action-doors.mjs#performShut", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.shut`, the reason the literal noGm); Shut the Door with no GM connected, before its price (E74 C2); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-tail.mjs#performTail", "composed on this client from closed lists (`sayNotDone`: the action the literal `tail.start`, the reason the literal noGm); a tail with no GM connected, before its window and its price (E69 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-listen.mjs#performDash", "composed on this client from closed lists (`sayNotDone`: the action the literal `dash.settle`, the reason the literal noGm); a Dash with no GM connected, before its price (E69 C5); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-listen.mjs#performEchoes", "composed on this client from closed lists (`sayNotDone`: the action the literal `listen.echoes`, the reason the literal noGm); Echoes with no GM connected, before its price (E69 C7); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-facilities.mjs#useFacility", "composed on this client from closed lists (`sayNotDone`: the action the literal `facility.use`, the reason the literal noGm); a room action with no GM connected, before its price (E93 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-search.mjs#performSearch", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); a Search for something specific with no GM connected, before the price (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-search.mjs#performSearch (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); the same after the dice, before the room's search token is taken (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
@@ -10784,7 +10790,9 @@ const REGRESSIONS = [
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
-        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound", "team"], [], ["no-such-sprite"]]),
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["listen", "lock", "mic", "query", "sound", "team"], [], ["no-such-sprite"]]),
+            // E69 C8 (13.11.2026): Reveal yourself wears Legacy's query mark, `query` (an intended change).
+            // E69 C6 (13.11.2026): Stop listening and a GM's eavesdroppers wear Legacy's ear, `listen` (an intended change).
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],
 
@@ -23073,7 +23081,7 @@ const REGRESSIONS = [
             // result an action's roller reads - Shut, Force, Pick, a tail begun, a watch kept, a Dash, a room action, the GM's
             // text, a watch's summary - is E49's card; a note to another reader or a running report is a line (WHY.line); a
             // GMs' warning is a warning card. Each site's verdict: docs/dev/e93/STATUS.md. In the table's order.
-            "action-doors.mjs": {"card": 3}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"card": 1, "line": 1},
+            "action-doors.mjs": {"card": 3}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"card": 3, "line": 1},
             "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
             "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
             "action-report.mjs": {"built": 1}, "action-tail.mjs": {"card": 1}, "action-watch.mjs": {"card": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
@@ -23086,12 +23094,17 @@ const REGRESSIONS = [
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
             "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
             "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
-            "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
+            "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3},
+            // E69 C6, C7 (13.11.2026): the listener's line and Echoes' result are E49's card (action-listen.mjs); the GMs'
+            // warning that voice per room is off is a warning card (eavesdrop-gm.mjs).
+            "eavesdrop-gm.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
             "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},
-            "level-up.mjs": {"heading": 1, "line": 4}, "mastermind.mjs": {"message": 1},
+            "level-up.mjs": {"heading": 1, "line": 4},
+            // E69 C8 (13.11.2026): the killer's own cards behind the "?" (mask-gm.mjs), its start and its end at the time of day.
+            "mask-gm.mjs": {"card": 2}, "mastermind.mjs": {"message": 1},
             "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`

@@ -47,7 +47,9 @@ export const WARM_IMPORTS = Object.freeze({
         "action-tail.mjs", "action-doors.mjs", "infiltrate-reroll.mjs"]),
     /* The GMs' own: Room setup's Passages tab and the Class Trial console's case schema and summary; and the room action
        editors of Room setup's Facilities tab and a project's window (facility-editor.mjs, the e93 line's E93 C2). */
-    gm: Object.freeze(["passages-tab.mjs", "case-trial.mjs", "case-summary.mjs", "facility-editor.mjs"])
+    gm: Object.freeze(["passages-tab.mjs", "case-trial.mjs", "case-summary.mjs", "facility-editor.mjs",
+        /* Echoes, read on the primary GM when a player asks it (E69 C7). */
+        "echoes-gm.mjs"])
 });
 
 /* Reached only by `import()` and left cold, each with its reason (R4200 reads that one is written). */

@@ -15,9 +15,44 @@ Branch `claude/e93` (E69 follows E93 on it). R numbers from R3750-R3799. Spec: [
 
 ## Next
 
-E74 (Doors and Keep Watch) on this branch. Not in this round of E69: C6 (the eavesdrop on LiveKit), C7 (Echoes), C8
-(murder privacy, Q-E69-4's default: its own stage), the GM handbook's section, E53's ledger counters (Q-E69-5), a Reroll
+E74 (Doors and Keep Watch) on this branch. Not in this round of E69 (C6 and C7 built for 1.2.113, below; C8 stays Q-E69-4's
+own stage): the GM handbook's section (written for 1.2.113 in 9.5), E53's ledger counters (Q-E69-5), a Reroll
 branch for a tail (`settleTail`) and a Dash.
+
+## 1.2.113: C6, C7, C8 (the fix line of 13.11.2026; the audit A113-C5-2)
+
+The owner's decision of 13.11.2026: every change from the audit goes in 1.2.113. The audit found C6, C7 and C8 absent with
+no owner agreement to leave them out. Built from the plan's rows 10.11 (a) and (b), C6-C9, LIVE-E69-03 and Q-E69-2/-3.
+R numbers R6020-R6026.
+
+| Part | What | Tests |
+| --- | --- | --- |
+| C6 | The eavesdrop: after a good Listen roll (14+, or a critical), the card first (Q-E69-2), then `listen.eavesdrop` asks the primary GM, which reads the roll off its record, keeps a row (gm-stores.mjs `eavesdropStore`, an owner's copy `eavesdropCopy`), and the voice decision sends the listener into the room's channel (voice.mjs `listeningRow`, one rule in `placeVoices` after the Spectators' room, the design of every other voice rule); the microphone blocked by the trial's own BROADCAST_AUDIO write (`settleTrialVoices`, a `trialMuteStore` row); Stop listening on the voice tile (`listen.stop`); the GM's list Who you hear holds a line per listener (glyph `listening`, the button `stop-listening`); a free repeat on the same room in the same time of day; the ends as the plan lists | R6020, R6021, R6022, R6025, R6026; E69-T5; scenarios 30 (a console's packets) and 33 E69-C; LIVE-E69-03 |
+| C7 | Echoes: a row of the Infiltrate window, one action, no roll (`listen.echoes`); the nearest room by crossings (doors, stairs, the tunnels the asker knows) with a living student of another player, read on the GM (echoes-gm.mjs); ties at random; struck through in an Eclipse (Q-E69-3) | R6023, R6024, R6026; E69-T6; scenarios 30 and 33 E69-C; LIVE-E69-06 |
+| C8 | Built after all (the coordinator, 13.11: the owner's decision of 13.11 overrides Q-E69-4's default). An opening on Hope or a critical of a direct murder hides the killer (mask-gm.mjs, GmStore `maskStore`): their tokens a "?" with the mystery man and one flag `masked`, the look kept by the GMs alone; every cast copy but the killers' holds no killer (incident-store.mjs `castCopyFor`); the victim's whisper says "someone"; another player's sheet of the killer closes (anonymity.mjs `maskedSheetClosed`); the killer sent to a silent voice room of their own (voice.mjs `maskedRow`, the coordinator's answer of 13.11; they hear nothing) and their microphone blocked by C6's block with one more reason (`maskMutedIds`); the killer asked to reveal (`mask.reveal`, and a Reveal yourself on the voice tile); ends at the reveal or the next time of day | R6027-R6032; E69-T7; 30-security "the killer behind a ?, read from a console"; LIVE-E69-05 |
+| C9 | Handbooks EN and PL: the player handbook's eavesdrop and Echoes, the GM handbook's 9.5 paragraph; AUDIT 9.2 rows LIVE-E69-03 and LIVE-E69-06; no `game.drpg` name added, so no api-surface row | check text, parity, live |
+
+Defaults taken (owner may revise):
+
+- Nobody in the listened room is told, as the 10.11 answer (a) says; but the voice tile's speaker number counts every
+  participant of the channel (voice-tile.mjs `channelCount`, R550), so it probably shows the listener as one more. Hiding
+  it would tell those browsers who listens; left as it is, measured by LIVE-E69-03 (3).
+- The block is lifted `EAVESDROP_GRACE_MS` (4 s) after the move back is sent, so the room does not hear the first words
+  while the reconnect runs. A design number; LIVE-E69-03 (5) measures it.
+- A free repeat costs no action and no roll and gives no new card (it repeats the channel, not the reading); it is on the
+  room listened into, on that scene, in that time of day, whatever ended the first.
+- A Reroll of the Listen roll does not end an eavesdrop it earned.
+- An eavesdrop cannot begin in an Eclipse, a Class Trial or an incident (the GM refuses; the card still came).
+- Echoes does not name the asker's own room; names the room by its region's name even when the asker has not explored
+  it (as a tail's card does); refused in an Eclipse, a Class Trial and an incident; with no GM connected nothing is paid.
+- The plan's "GM's voice panel" is read as the GM's list Who you hear on the voice tile, the panel a GM has per voice.
+- C8: a GM and a Spectator see through the "?" (the coordinator's default), from the documents they hold; the killer's own
+  browser shows the "?" too; the mask does not end with the incident, only at the reveal or the next time of day; the
+  mask is written before the incident's stage, so the copy the stage sends the victim already holds no killer.
+- C8, what stays: a token document keeps its `actorId`, so a console resolves the "?" to the killer (Foundry's limit);
+  30-security records it with a note, not a known-leaks.json entry, because a foundryLimit entry needs its paragraph in
+  the root README.md, which this line may not edit; it needs a console, not the interface. The coordinator asks the
+  owner. LIVE-E69-05.
 
 ## What a console can still do
 

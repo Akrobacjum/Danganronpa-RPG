@@ -48,7 +48,8 @@ import {
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_BULLET_GIVE, ACTION_FACILITY_USE, ACTION_DASH,
-    ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
+    ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -58,7 +59,8 @@ import {
     friskForceRoll, handleVaultSteal, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
-    handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock
+    handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock,
+    handleEavesdrop, handleEavesdropStop, handleEchoes, handleMaskReveal
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -248,6 +250,45 @@ export const BRIDGE_ACTIONS = table({
             rollId: "the effect's roll the result is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Tail Someone roll of that character",
             unseenRollId: "the Shadow roll the target's noticing is read from (bridge-guards.mjs rollRefusal): the sender's own drawn roll of that character, thrown as tailUnseen"
         }
+    },
+    [ACTION_LISTEN_EAVESDROP]: {
+        label: "DRPG.Bridge.what.listen.eavesdrop",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, room: as.text, total: as.num, isCritical: as.bool, rollId: as.id }),
+        run: handleEavesdrop,
+        // The asker says nothing more on it: the card came first (Q-E69-2), the move is the voice's (`performListen`).
+        answer: "reply",
+        /* A good Listen roll on the GMs' record of it, settling one eavesdrop; a packet naming none asks a free repeat,
+           which the run grants only on a row of this time of day on that room (eavesdrop-gm.mjs `freeRepeat`). */
+        rolled: { field: "rollId", actor: "actorId", kind: "listen", settles: "eavesdrop", when: "rollId" },
+        claims: {
+            room: "judged by startEavesdrop (eavesdrop-gm.mjs): a neighbour of the room the GMs read the character standing in, outside an Eclipse, a Class Trial and an incident",
+            rollId: "the Listen roll the eavesdrop is earned with (bridge-guards.mjs rollRefusal): the sender's own drawn Listen roll of that character, at Listen's lowest band or a critical; none, a free repeat the run judges"
+        }
+    },
+    [ACTION_LISTEN_STOP]: {
+        label: "DRPG.Bridge.what.listen.stop",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleEavesdropStop,
+        // The asker's tile loses its button when the copy changes; nothing is said.
+        answer: "ack"
+    },
+    [ACTION_LISTEN_ECHOES]: {
+        label: "DRPG.Bridge.what.listen.echoes",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleEchoes,
+        // The asker's card names the room the GM found, or none (`performEchoes`).
+        answer: "reply"
+    },
+    [ACTION_MASK_REVEAL]: {
+        label: "DRPG.Bridge.what.mask.reveal",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleMaskReveal,
+        // The asker's "?" goes when the token's look comes back; nothing is said.
+        answer: "ack"
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",

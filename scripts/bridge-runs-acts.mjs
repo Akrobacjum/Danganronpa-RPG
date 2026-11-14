@@ -277,6 +277,54 @@ export async function handleTailStart(payload, sender) {
     return { reply: { seen: out.seen } };
 }
 
+/**
+ * LISTEN'S EAVESDROP (E69 C6, 13.11.2026; eavesdrop-gm.mjs). With a roll: the GMs' record of the sender's Listen roll
+ * (the runner's `onRecord`) must reach Listen's lowest band or be a critical. Without one: a free repeat, which
+ * `startEavesdrop` grants only on a row of this time of day on that room. Answers `{ reply: { moved, free } }`.
+ */
+export async function handleEavesdrop(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const rolled = typeof payload.rollId === "string" && payload.rollId.length > 0;
+    if (rolled) {
+        const { ACTIONS } = await import("./config.mjs");
+        const lowest = Math.min(...(ACTIONS.listen.thresholds ?? []).map(t => t.min));
+        if (!payload.isCritical && !((Number(payload.total) || 0) >= lowest)) return { refused: "nothing was carried out: that Listen roll heard nothing" };
+    }
+    const { startEavesdrop } = await import("./eavesdrop-gm.mjs");
+    const out = await startEavesdrop({ actor, into: payload.room, userId: sender?.id ?? null, rolled });
+    if (out.refused) return { refused: out.refused };
+    return { reply: { moved: out.moved, free: out.free } };
+}
+
+/** Stop listening (E69 C6): the sender's character's eavesdrop ended, if one stands. */
+export async function handleEavesdropStop(payload) {
+    const { endEavesdrop } = await import("./eavesdrop-gm.mjs");
+    if (!(await endEavesdrop(payload.actorId ?? "", "stop"))) return { refused: "nothing was carried out: no eavesdrop stands" };
+    return {};
+}
+
+/** A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
+export async function handleMaskReveal(payload) {
+    const { revealMask } = await import("./mask-gm.mjs");
+    const out = await revealMask(payload.actorId ?? "");
+    if (out.refused) return { refused: out.refused };
+    return {};
+}
+
+/**
+ * ECHOES (E69 C7, 13.11.2026; echoes-gm.mjs). The nearest room by crossings with a living student of another player, read
+ * on this GM. Answers `{ reply: { room, steps } }`, `room` null when there is none.
+ */
+export async function handleEchoes(payload) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { echoesFor } = await import("./echoes-gm.mjs");
+    const out = await echoesFor(actor);
+    if (out.refused) return { refused: out.refused };
+    return { reply: { room: out.room, steps: out.steps } };
+}
+
     // Analyze is scored here for the same reason as Observe: the difficulty is
     // read from what the bullet really is, which is the answer being bought.
 export async function handleAnalyzeResolve(payload, sender, ctx) {

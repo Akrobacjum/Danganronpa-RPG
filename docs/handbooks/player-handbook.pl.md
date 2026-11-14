@@ -343,7 +343,13 @@ Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzu
 
 Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 1*, *Nieodkryty pokój 2* i tak dalej, na liście wyboru i w odpowiedzi: Listen mówi ci, kto jest za drzwiami, nie jaki pokój za nimi leży.
 
-Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+**Podsłuch pod drzwiami** (od 1.2.113). Gdy głos według pokoi jest włączony, Listen z wynikiem 14 lub więcej po swojej karcie robi jeszcze jedno: twój głos przechodzi na kanał głosowy pokoju, którego słuchałeś. Słyszysz ten pokój, a twój mikrofon jest wyłączony - nikt tam cię nie słyszy i nie włączysz go, dopóki nie przestaniesz. Nikt w tym pokoju nie dostaje wiadomości, ale liczba na głośniku jego kafla głosu liczy wszystkich na kanale, także ciebie. **Przestań słuchać** na twoim kaflu głosu przenosi cię z powrotem na kanał twojego pokoju, a mikrofon wraca kilka sekund później. Podsłuch kończy się też, gdy wyjdziesz z pokoju, z którego słuchasz (krok w jego obrębie albo w drzwi tego nie robi), gdy kończy się pora dnia, przy Eclipse, incydencie albo Class Trial. Ponowny podsłuch tego samego pokoju w tej samej porze dnia nie kosztuje akcji ani rzutu. Bez głosu według pokoi Listen to sama karta.
+
+Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+
+### Echoes - bez rzutu, 1 akcja
+
+Najbliższy pokój, w którym stoi żywy uczeń innego gracza, licząc przejścia - drzwi, schody i tunele, które znasz. Karta podaje pokój, nigdy kto ani ilu; pokoje w tej samej odległości są wybierane losowo. Nie liczą się: twój pokój, ciała, Monokuma, Monocub, Widz, ukryty token ani postać GM-a. Nie w czasie Eclipse: wiersz jest przekreślony z powodem. Potrzebny jest połączony GM; gdy nie ma kogo znaleźć, karta mówi, że nikogo nie słychać.
 
 ### Tail Someone - Shadow, potem Leg albo Shadow, 1 akcja
 
@@ -635,6 +641,8 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 **Direct Murder:** rzuca zabójca (Body albo Hand, przeciw **8**; przewaga nocą). Którą z dwóch, wybiera GM; póki wybiera, zabójca dostaje o tym wiadomość i pisze w swoim wątku, jak się do tego zabiera.
 
 **Proponujesz statystykę.** Gdy zgłaszasz Direct Murder podczas Eclipse, okno pyta *Którą statystykę proponujesz?* - Body albo Hand, na start Body - pod twoim zdaniem o tym, jak to robisz. GM odpowiada na jednej karcie: pozwala na twoją propozycję, zmienia ją na drugą albo odmawia. Do zapalenia świateł nic nie słyszysz; otwarcie rzuca się potem na statystyce, na którą GM pozwolił, bez drugiego okna i bez rezygnacji. Potwierdzenie zdrady pyta o to samo (a poza Eclipse także *Jak to robisz?*); GM rozstrzyga o tym, gdy rzut otwarcia wychodzi, a ty czytasz *GM rozstrzyga o statystyce zaproponowanej do twojego rzutu otwarcia.* Ofiara pułapki nic nie proponuje: wybiera GM.
+
+**Za „?”** (od 1.2.113). Direct Murder, którego otwarcie udaje się z Hope albo jest krytykiem, ukrywa zabójcę. Ofiara i wszyscy inni widzą token zabójcy jako „?” bez imienia, ofiara dowiaduje się tylko, że *ktoś* na nią rusza, okno karty zabójcy u innego gracza się zamyka, a zabójca opuszcza kanał głosowy pokoju i trafia do cichego kanału tylko dla siebie: niczego nie słyszy i nikt go nie słyszy. GM i Widz widzą, kto to jest. Jako zabójca dostajesz pytanie *Zostać w ukryciu?*: **Ujawnij się** oddaje wszystkim twój token i imię i przywraca twój głos w pokoju; **Zostań w ukryciu** trzyma „?” do końca pory dnia, a **Ujawnij się** zostaje do tego czasu na twoim kaflu głosu. Czego nie ukryje: gracz, który otworzy konsolę przeglądarki, nadal może odczytać, do której postaci należy token „?”.
 
 | Rzut zabójcy | Co się dzieje |
 |---|---|

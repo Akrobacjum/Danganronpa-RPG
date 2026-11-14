@@ -1870,6 +1870,34 @@ async function despairOf(who) {
 }
 
 /** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
+/**
+ * THE ROOMS OF A SCENE IN A LINE OF DOORS (E69 C6, C7): the harness's scene draws no doors, so each room's doors are Room
+ * Setup's word (`ROOM_FLAGS.neighbours`), written on every piece: each room next to the one before and the one after it in
+ * `allRooms`' order. Answers the rooms and `putBack`, which writes every piece's list back as it was.
+ */
+async function roomsInLine(scene) {
+    const M = await import("./movement.mjs");
+    const { roomRegions } = await import("./rooms.mjs");
+    const rooms = M.allRooms(scene);
+    const were = [];
+    for (const [i, room] of rooms.entries()) {
+        const list = [rooms[i - 1], rooms[i + 1]].filter(Boolean).join(", ");
+        for (const piece of roomRegions(scene, room)) {
+            were.push([piece, piece.getFlag(MODULE_ID, M.ROOM_FLAGS.neighbours) ?? null]);
+            await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list);
+        }
+    }
+    return {
+        rooms,
+        putBack: async () => {
+            for (const [piece, was] of were) {
+                if (was === null) await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.neighbours);
+                else await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, was);
+            }
+        }
+    };
+}
+
 async function playerInRoom() {
     const { locateActor } = await import("./movement.mjs");
     const found = game.users.filter(u => !u.isGM && u.active).flatMap(player => game.actors
@@ -100210,6 +100238,228 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             self: "cannotNow", theirs: "notYours", noRoll: "rollUnknown", card: [1, 1, true], lost: [0, 2, null],
             dashBelow: [0, true], dashAbove: [1, null], critTail: [0, 1, null] }),
             "{unseen, seen: [answer, the tail kept, cards to the target so far]; self; theirs; noRoll; card: [cards, cards to the tailer so far, the tail kept]; lost: [cards, cards to the tailer so far (the move, the end), the tail]; dashBelow, dashAbove: [tails lost, kept]; critTail: [an ordinary Dash, a critical Dash, kept]} - a tail on the GMs' record of its rolls");
+    }],
+    ["E69-T5 - Listen's eavesdrop begins on the GMs' record of a good Listen roll, blocks the listener's microphone by the trial's own write, is free to repeat on the same room for the rest of the time of day, and ends on Stop listening (scripts/eavesdrop-gm.mjs, bridge-runs-acts.mjs `handleEavesdrop`, `handleEavesdropStop`, bridge-table.mjs `listen.eavesdrop`, `listen.stop`, voice.mjs `settleTrialVoices`; E69 C6, the owner's 10.11 (a), (c)): a roll at 15 on a neighbouring room is answered and moves the voice only where voice can move; at 5 it is refused; a room not next to the character's is refused; another player's character notYours; the same roll twice rollUsed; with voice that can move the row is kept, the account blocked and given back after the grace; a packet naming no roll is a free repeat on that room and refused on another; Stop listening ends a row that stands and is refused on none", async () => {
+        /*
+         * E69 C6, 13.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the character's
+         * with the GMs' record of it (`recordFor`). The row with voice that moves is begun on the GM itself with the suite's
+         * `voice` (the harness's avclient-livekit is a shim no setting turns on for this world). Put back: the records, the
+         * messages, the row, the block (`settleTrialVoices` after the grace), the GMs' whispers. Red at ceb9e9c8: no
+         * `listen.eavesdrop` in the table, no eavesdrop-gm.mjs.
+         */
+        needs(env.primaryGm(), "the eavesdrop is judged and its block written on the primary GM");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const V = await import("./voice.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const E = await import("./eavesdrop-gm.mjs");
+        const { avclientActive } = await import("./voice-client.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const line = await roomsInLine(where.scene);
+        const next = M.neighbouringRooms(where.scene, where.room);
+        if (!next.length) await line.putBack();
+        must(next.length, `${where.room} has no neighbouring room - this would measure nothing`);
+        const far = M.allRooms(where.scene).find(r => r !== where.room && !next.includes(r)) ?? "R6020 No Such Room";
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER"));
+        must(other, "no character the player does not own - this would measure nothing");
+        const moves = Boolean(avclientActive() && game.settings.get(MODULE_ID, "voiceEnabled") === true);
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const permsWere = player._source?.permissions ? { ...player._source.permissions } : {};
+        const made = [], told = [];
+        const ask = async (action, packet) => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `E69T5${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? "done";
+        };
+        const rollOf = async (total, key = "listen") => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const blocked = () => (game.users.get(player.id)?._source?.permissions ?? {}).BROADCAST_AUDIO === false;
+        const read = {};
+        await S.eavesdropStore.whenHydrated();
+        const rowWas = S.eavesdropStore.get(actor.id) ?? null;
+        try {
+            if (rowWas) await S.eavesdropStore.drop(actor.id);
+            const good = await rollOf(15);
+            const first = await ask("listen.eavesdrop", { room: next[0], rollId: good });
+            read.good = [first?.moved === moves, Boolean(S.eavesdropStore.get(actor.id)?.active) === moves];
+            read.again = await ask("listen.eavesdrop", { room: next[0], rollId: good });
+            read.miss = await ask("listen.eavesdrop", { room: next[0], rollId: await rollOf(5) });
+            read.far = await ask("listen.eavesdrop", { room: far, rollId: await rollOf(15) });
+            read.theirs = await ask("listen.eavesdrop", { actorId: other.id, room: next[0], rollId: await rollOf(15) });
+            if (S.eavesdropStore.get(actor.id)) await S.eavesdropStore.drop(actor.id);
+            read.freeNone = await ask("listen.eavesdrop", { room: next[0] });
+            // Voice that moves, on the GM itself.
+            const begun = await E.startEavesdrop({ actor, into: next[0], userId: player.id, rolled: true, voice: async () => true });
+            await settle();
+            const row = S.eavesdropStore.get(actor.id);
+            read.begun = [begun, Boolean(row?.active), row?.from === where.room, row?.into === next[0], E.eavesdropMutedIds().has(player.id), blocked()];
+            read.stop = await ask("listen.stop", {});
+            read.stopped = [S.eavesdropStore.get(actor.id)?.active ?? null, E.eavesdropMutedIds().has(player.id)];
+            await S.eavesdropStore.patch(actor.id, { endedAt: Date.now() - E.EAVESDROP_GRACE_MS - 1 });
+            await V.settleTrialVoices();
+            await settle();
+            read.givenBack = [E.eavesdropMutedIds().has(player.id), blocked()];
+            read.stopNone = await ask("listen.stop", {});
+            const free = await ask("listen.eavesdrop", { room: next[0] });
+            read.free = [free?.free ?? free, free?.moved === moves];
+            read.freeOther = next[1] ? await ask("listen.eavesdrop", { room: next[1] }) : "refused";
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (S.eavesdropStore.get(actor.id)) await S.eavesdropStore.drop(actor.id);
+            if (rowWas) await S.eavesdropStore.patch(actor.id, rowWas);
+            await V.settleTrialVoices();
+            if (blocked() && permsWere.BROADCAST_AUDIO !== false) {
+                const gone = (await import("./utils.mjs")).forcedDeletion();
+                await game.users.get(player.id).update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : gone });
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length)) await m.delete();
+            await line.putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ good: [true, true], again: "rollUsed", miss: "refused", far: "refused", theirs: "notYours", freeNone: "refused",
+            begun: [{ moved: true, free: false }, true, true, true, true, true], stop: "done", stopped: [false, true], givenBack: [false, false],
+            stopNone: "refused", free: [true, true], freeOther: "refused" }),
+            "{good: [moved as voice can, row as voice can]; again; miss; far; theirs; freeNone; begun: [answer, active, from, into, muted, blocked]; stop; stopped: [active, muted in the grace]; givenBack: [muted, blocked]; stopNone; free: [free, moved as voice can]; freeOther} - the eavesdrop on the GMs' record");
+    }],
+    ["E69-T6 - Echoes names the nearest room by crossings holding a living student of another player, read on the GM (scripts/echoes-gm.mjs `echoesFor`, bridge-runs-acts.mjs `handleEchoes`, bridge-table.mjs `listen.echoes`; E69 C7, the owner's 10.11 (b)): a player's Echoes is answered with a room no other room that holds one is nearer than, which holds one, and never the asker's own; with every other student's token hidden it answers none; another player's character notYours", async () => {
+        /*
+         * E69 C7, 13.11.2026. Judged as the primary judges the player's packet; the distances read here from the harness scene's
+         * doors (`neighbouringRooms`; it draws no stairs and no tunnel). Hidden tokens are put back. Red at ceb9e9c8: no
+         * `listen.echoes` in the table.
+         */
+        needs(env.primaryGm(), "Echoes is read on the primary GM");
+        needs(world.atLeast("namedRooms", 2), "a room to stand in and a room to find");
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER"));
+        must(other, "no character the player does not own - this would measure nothing");
+        const told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "listen.echoes", requestId: `E69T6${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null;
+        };
+        const scene = where.scene;
+        const line = await roomsInLine(scene);
+        const owners = a => game.users.filter(u => !u.isGM && a.testUserPermission(u, "OWNER")).map(u => u.id);
+        const mine = owners(actor);
+        const counted = scene.tokens.filter(t => t.actor && t.actor.id !== actor.id && t.actor.type === "character" && !t.hidden && !isDeadForGm(t.actor)
+            && !t.actor.getFlag(MODULE_ID, FLAGS.monokuma) && !t.actor.getFlag(MODULE_ID, FLAGS.monocub) && !t.actor.getFlag(MODULE_ID, FLAGS.spectator)
+            && owners(t.actor).some(id => !mine.includes(id)));
+        const occupied = new Set(counted.map(t => M.roomOfToken(t)).filter(r => r && r !== where.room));
+        if (!occupied.size) await line.putBack();
+        must(occupied.size, "no other player's living student stands in another room - this would measure nothing");
+        const dist = new Map([[where.room, 0]]);
+        for (let ring = [where.room], d = 1; ring.length; d++) {
+            const nextRing = [];
+            for (const r of ring) for (const n of M.neighbouringRooms(scene, r)) if (!dist.has(n)) { dist.set(n, d); nextRing.push(n); }
+            ring = nextRing;
+        }
+        const nearest = Math.min(...[...occupied].map(r => dist.get(r) ?? Infinity));
+        const hiddenWere = [];
+        const read = {};
+        try {
+            const found = await ask({});
+            read.found = [occupied.has(found?.room), found?.room !== where.room, dist.get(found?.room) === nearest, found?.steps === nearest];
+            read.theirs = await ask({ actorId: other.id });
+            for (const t of scene.tokens.filter(t => t.actor && t.actor.id !== actor.id && !t.hidden)) {
+                hiddenWere.push(t);
+                await t.update({ hidden: true });
+            }
+            await settle();
+            read.none = await ask({});
+        } finally {
+            for (const t of hiddenWere) await t.update({ hidden: false });
+            await line.putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ found: [true, true, true, true], theirs: "notYours", none: { room: null, steps: 0 } }),
+            "{found: [a room that holds one, not the asker's, none nearer, its crossings]; theirs; none: every other token hidden} - Echoes on the GM");
+    }],
+    ["E69-T7 - a killer behind a \"?\" on the GMs' record: the tokens masked and given back exactly, the victim's copy of the cast holds no killer, the killer's microphone blocked and given back, the reveal the killer's own road, the time of day its end (scripts/mask-gm.mjs, incident-store.mjs `castFor`, voice.mjs `settleTrialVoices`, bridge-table.mjs `mask.reveal`; E69 C8, the owner's 10.11 (c)): `maskKiller` writes \"?\" on the killer's tokens with the flag and keeps their look in the GMs' store; the victim's copy holds `killerId` null and the killer's its own; the killer's player is blocked; another player's reveal is notYours, the killer's ends it - every token's look as it was, no flag, the block lifted - and a second is refused; a new time of day ends a mask", async () => {
+        /*
+         * E69 C8, 13.11.2026. The incident's state handed in as a fixture (`castFor`'s `state`), nothing of a real incident
+         * opened. Put back: the store, the tokens' looks, the block. Red at f7e1721d: no mask-gm.mjs, no `mask.reveal`.
+         */
+        needs(env.primaryGm(), "the mask is written on the primary GM");
+        needs(world.atLeast("playerAccounts", 2), "the killer's player and the victim's are two players");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const K = await import("./mask-gm.mjs");
+        const I = await import("./incident-store.mjs");
+        const V = await import("./voice.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const owners = a => game.users.filter(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const killer = game.actors.find(a => a.type === "character" && owners(a).length && game.scenes.some(s => s.tokens.some(t => t.actorId === a.id)));
+        must(killer, "no player's character with a token - this would measure nothing");
+        const kp = owners(killer)[0];
+        const victim = game.actors.find(a => a.type === "character" && a.id !== killer.id && owners(a).length && !owners(a).some(u => u.id === kp.id));
+        must(victim, "no character of another player - this would measure nothing");
+        const vp = owners(victim)[0];
+        const tokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.actorId === killer.id));
+        const looks = () => tokens().map(t => [K.lookOf(t), K.isMaskedToken(t)]);
+        const before = looks();
+        const permsWere = kp._source?.permissions ? { ...kp._source.permissions } : {};
+        const blocked = () => (game.users.get(kp.id)?._source?.permissions ?? {}).BROADCAST_AUDIO === false;
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const told = [];
+        const ask = async (sender, packet) => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "mask.reveal", requestId: `E69T7${foundry.utils.randomID(8)}`, ...packet },
+                sender.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : "done";
+        };
+        const state = { active: true, stage: "incident", killerId: killer.id, victimId: victim.id, indirect: false };
+        const cast = { killerId: killer.id, victimId: victim.id, killerTurnId: killer.id, indirect: false };
+        const read = {};
+        await S.maskStore.whenHydrated();
+        try {
+            read.masked = await K.maskKiller(state);
+            await settle();
+            read.tokens = tokens().map(t => [t.name, t.texture.src, K.isMaskedToken(t)]);
+            read.kept = JSON.stringify((S.maskStore.get(killer.id)?.tokens ?? []).map(r => r.look)) === JSON.stringify(before.map(([look]) => look));
+            read.copies = [I.castFor(vp.id, cast, state)?.killerId ?? null, I.castFor(kp.id, cast, state)?.killerId ?? null];
+            read.block = [K.maskMutedIds().has(kp.id), blocked()];
+            read.theirs = await ask(vp, { actorId: killer.id });
+            read.reveal = await ask(kp, { actorId: killer.id });
+            read.back = [JSON.stringify(looks()) === JSON.stringify(before), S.maskStore.get(killer.id) ?? null, K.maskMutedIds().has(kp.id), blocked(),
+                I.castFor(vp.id, cast, state)?.killerId === killer.id];
+            read.again = await ask(kp, { actorId: killer.id });
+            await K.maskKiller(state);
+            await settle();
+            read.timeOfDay = [await K.masksAtNewTimeOfDay(), JSON.stringify(looks()) === JSON.stringify(before), S.maskStore.get(killer.id) ?? null];
+        } finally {
+            if (S.maskStore.get(killer.id)) await K.endMask(killer.id, "suite");
+            await V.settleTrialVoices();
+            if (blocked() && permsWere.BROADCAST_AUDIO !== false) {
+                const gone = (await import("./utils.mjs")).forcedDeletion();
+                await game.users.get(kp.id).update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : gone });
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ masked: true, tokens: tokens().map(() => ["?", "icons/svg/mystery-man.svg", true]), kept: true,
+            copies: [null, killer.id], block: [true, true], theirs: "notYours", reveal: "done", back: [true, null, false, false, true],
+            again: "refused", timeOfDay: [1, true, null] }),
+            "{masked; tokens [name, picture, flag]; kept: the looks in the GMs' store; copies [victim's killerId, killer's]; block [muted, blocked]; theirs; reveal; back [looks as before, row, muted, blocked, victim's copy names the killer]; again; timeOfDay [ended, looks, row]} - the mask");
     }],
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*

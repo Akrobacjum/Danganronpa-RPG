@@ -516,6 +516,20 @@ export const SETTINGS = {
     gmLockpicks: "gmLockpicks",
     mineLockpicks: "mineLockpicks",
     /**
+     * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a)): a GM store (gm-stores.mjs `eavesdropStore`), a row per
+     * listener `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, and each owner's copy of their own
+     * characters' rows (`mineEavesdrops`, `eavesdropCopy`), which the voice tile's Stop listening and the Listen window
+     * read. Synced and backed up.
+     */
+    gmEavesdrops: "gmEavesdrops",
+    mineEavesdrops: "mineEavesdrops",
+    /**
+     * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c)): a GM store (gm-stores.mjs `maskStore`), a row per killer
+     * behind a "?" `{ killerId, victimId, userIds, mark, tokens, at }`, `tokens` each masked token's look as it was. No
+     * player copy: a player reads the one token flag. Synced and backed up.
+     */
+    gmMasks: "gmMasks",
+    /**
      * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
      * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
      * characters' rows (`mineTimedEffects`, `timedEffectCopy`), which their sheet reads. Synced and backed up.
@@ -2292,6 +2306,28 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.mineLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The eavesdrops (E69 C6): the GMs' store, read by the primary's voice pass, and each owner's copy, whose change
+    // repaints the voice tile (its Stop listening, voice-tile.mjs `paintStopListening`).
+    game.settings.register(MODULE_ID, SETTINGS.gmEavesdrops, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineEavesdrops, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgEavesdropCopy")
+    });
+    // The masks (E69 C8): no `onChange` - read by the primary (mask-gm.mjs) and by every GM's cast copies.
+    game.settings.register(MODULE_ID, SETTINGS.gmMasks, {
         scope: "client",
         config: false,
         type: Object,

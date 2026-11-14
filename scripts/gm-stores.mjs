@@ -1101,6 +1101,46 @@ export const lockpickCopy = defineGmCopy({
 });
 
 /**
+ * THE EAVESDROPS (E69 C6, 13.11.2026; the owner's 10.11 (a), the plan's C6). A row per listener, keyed by the listener's
+ * actor id - one channel at a time: `{ actorId, userId, sceneId, from, into, mark, active, endedAt, at }`, `from` the room
+ * the listener stands in, `into` the neighbouring room whose voice channel they hear, `mark` the time of day it began in
+ * (a repeat on `into` is free for the rest of it), `active` whether they are in that channel now, `endedAt` when it ended
+ * (the microphone stays blocked a moment after, `EAVESDROP_GRACE_MS`). Written, read and dropped by the primary alone
+ * (eavesdrop-gm.mjs); synced, so a new primary keeps the listener where they are; backed up, and its owners told again
+ * after a restore (R182). Cut by the reset's "actions" group. No old key.
+ */
+export const eavesdropStore = defineGmStore({
+    name: "eavesdrops", key: SETTINGS.gmEavesdrops,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    afterRestore: () => import("./eavesdrop-gm.mjs").then(m => m.retellEavesdrops()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c), the plan's C8). A row per killer behind a "?", keyed by the
+ * killer's actor id: `{ killerId, victimId, userIds, mark, tokens, at }` - `userIds` the killer's owners, whose
+ * microphone the mask blocks, `mark` the time of day it began in (it ends with it), `tokens` each masked token's
+ * `{ sceneId, tokenId, look }`, what it looked like (mask-gm.mjs `lookOf`), written back at the end. Written, read and
+ * dropped by the primary alone (mask-gm.mjs); synced, so a new primary ends it; backed up. Cut by the reset's "actions"
+ * group. No player copy - a player reads only the token's flag, which names nobody - and no old key.
+ */
+export const maskStore = defineGmStore({
+    name: "masks", key: SETTINGS.gmMasks,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S EAVESDROPS (E69 C6): `{ actorId: { sceneId, from, into, mark, active } }` for the characters this user owns,
+ * as the primary GM sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the voice
+ * tile (its Stop listening, the microphone's reason) and the Listen window (a free repeat).
+ */
+export const eavesdropCopy = defineGmCopy({
+    name: "eavesdrops", key: SETTINGS.mineEavesdrops, from: "eavesdrops", resetGroup: "actions", fallback: {},
+    combine: offersCombine
+});
+
+/**
  * THE TAILS UNDER WAY (E69 C3, 12.11.2026; the owner's audit entry E69, DA8, DA19-DA21, DA26). A row per tailer, keyed by
  * the tailer's actor id - one tail a tailer (DA26), a new one replaces it: `{ tailerId, targetId, total, critical, day,
  * at, userId }`, `total` and `critical` the effect roll's off the GMs' record of it (a Dash loses a tail below its total,

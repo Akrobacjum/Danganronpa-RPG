@@ -80,7 +80,7 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
-import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
+import { castStore, blackenedStore, castCopy, deathStore, deathCopy, maskStore, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { playerOwns, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
@@ -581,7 +581,10 @@ function castCopyFor(userId, cast, state = null) {
     const withheld = [...(afterFight ? [...INCIDENT_FIGHT, ...(copy.thirdId ? [] : ["thirdId", "thirdSide"])] : ["keyRemnants"]),
         "lastCrisis", "departed", "openingTrait", ...(killer ? [] : ["freeCleanup"]), "recent"];
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
-    if (!seen.indirect || killer) return { copy, withheld };
+    /* THE KILLER BEHIND A "?" (E69 C8, 13.11.2026; mask-gm.mjs): while the GMs hold a mask for this incident's killer, every
+       copy but the killers' holds no killer, as a trap's victim's does. The cast is sent again when the mask ends. */
+    const masked = !killer && Boolean(theirs.killerId && maskStore.get(theirs.killerId));
+    if ((!seen.indirect && !masked) || killer) return { copy, withheld };
     return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };
 }
 
