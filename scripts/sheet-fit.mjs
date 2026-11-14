@@ -279,7 +279,7 @@ const TILE_TEXT_FLOOR = 0.68;
  * with it - which is exactly what happened on 28.08, when "Determination"
  * became "Resolve" and stopped being the word every other tile was paying for.
  *
- * READ AT EACH FIT, NOT AT IMPORT (E56 C12, 13.11.2026; R5471). It was worked out once when this file was imported,
+ * READ AT EACH FIT, NOT AT IMPORT (E56 C12, 13.11.2026; R5471). It was worked out once when sheet.mjs was imported,
  * from the English labels: i18n.mjs `localizeConfig` writes the language file's labels into these same tables later
  * (at `i18nInit`, and again when a language file is applied on the same page), so a Polish word longer than every
  * English one was never the word measured. Some sixty short labels split at spaces, beside the layout reads

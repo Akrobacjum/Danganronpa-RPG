@@ -666,7 +666,7 @@ async function showPassageDialog(actor, row) {
  *
  * ENABLED WHEREVER THE TOKEN STANDS (H81-03, 20.10.2026; the owner's item 4b and the design A10's step 11, which
  * disables it away from an end). A disabled button says the truth only while the row is drawn again as the token
- * moves, and nothing draws it then: of this file's hooks (`registerSheetTweaks`) none draws the list on a token's move -
+ * moves, and nothing draws it then: of sheet.mjs's hooks (`registerSheetTweaks`) none draws the list on a token's move -
  * the list is drawn on the sheet's own render and on `drpgPassagesChanged`; `onTunnelStep` hears a move (H81-13), and
  * goes through, but draws nothing - and a linked token's move is no update of its
  * actor, which is what renders an actor's sheet (Foundry's rule as this module reads it; Daggerheart's sheet is not on

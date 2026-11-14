@@ -18284,7 +18284,7 @@ const SCENARIOS = [
         /*
          * E72 C9, 12.11.2026; audit S18-62, DC22. The sheet's Monocub tiles dimmed only on the price (actions, Hope), so
          * Redeem used today and an open Ask for Hope looked pressable until the GM refused them. The tile asks the row's
-         * blocks this browser can answer (monocub.mjs `cubBlockSaid`, read by sheet.mjs `abilityButton`). A Monocub with
+         * blocks this browser can answer (monocub.mjs `cubBlockSaid`, read by sheet-actions.mjs `abilityButton`). A Monocub with
          * two Hope and nothing used (a); Redeem used today (b); an Ask for Hope open (c); the Hope full (d). Read: each
          * tile's sentence for Redeem and Ask for Hope (that the tile reads it is R3803's). Red at f22a7e8's runtime: no
          * cubBlockSaid.
@@ -19350,9 +19350,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a Monocub paid for a crossing, or walked into a murder's room, or was told something no public fact explains, or a GM's move was refused ([free step, the murder room's code and words, its put-back mark, the put-back's line on the player, a GM's move])");
     }],
 
-    ["1.2.113 a Monocub's crossing costs nothing once its Free Move is spent - the movement charge, handed a Monocub with no Free Move, no free crossing, no Burst and no action, the movement cost on and no Eclipse, lets its crossing stand and writes nothing; the same character as no Monocub is put back (movement.mjs `chargeRoute`, E72 C10; what sheet.mjs `monocubMoveNote` says)", async () => {
+    ["1.2.113 a Monocub's crossing costs nothing once its Free Move is spent - the movement charge, handed a Monocub with no Free Move, no free crossing, no Burst and no action, the movement cost on and no Eclipse, lets its crossing stand and writes nothing; the same character as no Monocub is put back (movement.mjs `chargeRoute`, E72 C10; what sheet-actions.mjs `monocubMoveNote` says)", async () => {
         /*
-         * 1.2.113, 13.11.2026. The Monocub's panel says Move's price (sheet.mjs `monocubMoveNote`); from the r112 review's
+         * 1.2.113, 13.11.2026. The Monocub's panel says Move's price (sheet-actions.mjs `monocubMoveNote`); from the r112 review's
          * P2 it read actions.mjs `nextCrossingPrice` once the Free Move was spent - a Sprint, a Burst, an action - on the
          * premise that a Monocub pays its crossings as a student does. Measured here on the charge itself, as E17-T4 drives
          * it: movement.mjs's `onUpdateToken` taken off `Hooks.events`, handed a plain token of a plain character whose id is
@@ -49130,7 +49130,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * waiting for them" and looked no different. A direct murder opens here with its
          * invitation held (`heldInvitations`) and the killer's opening scored a success, so
          * the first turn is the victim's. Read off the tile each side's sheet draws
-         * (sheet.mjs `actionButton`): its name, whether it has a cost line and the GM's chip,
+         * (sheet-actions.mjs `actionButton`): its name, whether it has a cost line and the GM's chip,
          * its stripe, whether it is dimmed and marked disabled, and whether its tooltip says
          * the off-turn sentence; then the killer's press, and the sentence on the victim's
          * Search tile. Until C16: "Direct Murder", "1 action", the chip, the "gm" stripe, live
@@ -49175,7 +49175,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the fight's tile kept its name, its cost or the GM's chip, was live off-turn or lit on the turn, or the press and the other tiles did not say the sentence (killer's tile, victim's tile, said, Search's tooltip)");
     }],
 
-    ["every action's tile and its press agree on whether it is locked and why, in every phase that locks (E40-T3): daily life, an Eclipse, the Class Trial and a fight - for every key of ACTIONS, the sheet's tile (sheet.mjs `actionButton`) and the press (`performAction`) say the same lock sentence or none; and a fight and an Eclipse never stand together", async () => {
+    ["every action's tile and its press agree on whether it is locked and why, in every phase that locks (E40-T3): daily life, an Eclipse, the Class Trial and a fight - for every key of ACTIONS, the sheet's tile (sheet-actions.mjs `actionButton`) and the press (`performAction`) say the same lock sentence or none; and a fight and an Eclipse never stand together", async () => {
         /*
          * E40 C4, 13.11.2026; plan E40 item 3, "a phase x action matrix on one shared 'allowed now' predicate". Two readers
          * decide whether an action may run now, each with its own chain: the tile (`actionButton`: `locked` and its
@@ -54507,7 +54507,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     ["the GM's sheet shows the offers standing and its menu takes one back that cannot then be spent", async () => {
         /*
-         * E10 C6, 1.2.71; audit S03-17. A GM's sheet was handed no offer (sheet.mjs `injectAdvanceButton`
+         * E10 C6, 1.2.71; audit S03-17. A GM's sheet was handed no offer (sheet-header.mjs `injectAdvanceButton`
          * read none on a GM's browser), so the GM's Level Up button never lit and nothing said what
          * stood; and the menu behind it asked only which Level Up and who picks - an offer made by
          * mistake stood until it was spent. Two Standards are offered to a student a connected player
@@ -60359,7 +60359,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     ["a player's write on the road is judged as E29's table says: ultimate", async () => {
         /* E33 C1b, 06.10.2026; R220's census. The Ultimate is the player's to write: `setUltimate`
-           (game.drpg) and the sheet's own field (sheet.mjs `commitUltimate`, on blur), each on the road
+           (game.drpg) and the sheet's own field (sheet-header.mjs `commitUltimate`, on blur), each on the road
            named `ultimate`, which stays on the player's browser; the GMs' audit lists the flag and it
            stands, as E29 fix r1-G4's test reads it. At ed0890b (C1a) both writes were bare. */
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
@@ -71182,7 +71182,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * a player's drag on one floor; this drives the owner's own road ("Z GMa") between two floors: on a scene of the
          * suite's own (two floors, heights 0 and 10, as "H81-01 stairs"), the suite's GM moves the student's token as a
          * drag writes it - x and y, no option - from beside the stairs' end downstairs onto it, and the sheet's trigger
-         * on this browser (sheet.mjs `onTunnelStep`) takes it up through `passage.cross`, the primary's own road here
+         * on this browser (sheet-sidebar.mjs `onTunnelStep`) takes it up through `passage.cross`, the primary's own road here
          * (bridge-asks.mjs `requestPassageCross`'s local), judged and written by `crossTunnel`. Then the season's placing
          * (call-world.mjs `teleportInto`) puts the token back on that end through the room's own teleport, given here
          * as a Foundry that writes the spot with no option of the module's (the harness's regions have none, and which
@@ -74692,7 +74692,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * C3 (the three gates read `deadToViewer` alone; a Monocub's body is looted as any body is: E14-T2).
          * The harm: a Monocub uses and throws away what is on their own body, the discard's trace lands at their token
          * and not at the body, and the open stash section offers a Rifle the GM's side then refuses in silence
-         * (stash-reach.mjs `stealFromVault` asks `isDeceased`). sheet.mjs `addUseButton`, `addDiscardButton` and
+         * (stash-reach.mjs `stealFromVault` asks `isDeceased`). sheet-inventory.mjs `addUseButton`, `addDiscardButton` and
          * `buildOpenStashSection` close for the dead except a Monocub (`!isMonocub`). Drawn by the module's own
          * render hook on a stand-in sheet (`drawnSheet`): a student holding a usable thing and a broken one, in a room
          * where another student's open stash holds something; read alive (the control: all three drawn), then dead
@@ -82650,7 +82650,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * right now." alone, and the tile looked live: a player was not told where a rest could be taken. A student
          * stood alone in a room whose rest marks are taken off for the test (put back after); this GM presses Rest
          * for them. Read: the windows the press opened, each row's state and words, the buttons, the toast, and the
-         * tile's reason (sheet.mjs `roomBlockFor`). Red before C4: no window, the toast, no reason on the tile.
+         * tile's reason (sheet-actions.mjs `roomBlockFor`). Red before C4: no window, the toast, no reason on the tile.
          */
         needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by their token");
         const { performAction } = await import("./action-rolls.mjs");
@@ -93796,7 +93796,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             bars: [hp.left, sanity.left], killerBars: [hp.left, null] }),
         "{sheet: the victim's two rows; gm: the GM's incident card's second line; victim and killer: theirs; bars: the token's two bars' values (a GM's); killerBars: the killer's player's}");
     }],
-    ["E45-T1 - one sheet mode at the table (E45 C1; audit S17-37, the owner's A8 of 11.10): a student made dead, a Monocub and an NPC not in the class by the GM's own writes, each read for its owner and for another player: sheet.mjs `sheetMode`'s mode and row buttons; the sheet drawn by the render hook for this GM, the strip and the room tile each agree with it", async () => {
+    ["E45-T1 - one sheet mode at the table (E45 C1; audit S17-37, the owner's A8 of 11.10): a student made dead, a Monocub and an NPC not in the class by the GM's own writes, each read for its owner and for another player: sheet-mode.mjs `sheetMode`'s mode and row buttons; the sheet drawn by the render hook for this GM, the strip and the room tile each agree with it", async () => {
         /*
          * E45 C1, 08.11.2026. The flags written for real (a death as the world records one, the Monocub's flag over it,
          * "Not in the class"), each taken back after; no Daggerheart sheet renders headless, so the hook draws a stand-in
@@ -97799,12 +97799,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
             "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
     }],
-    ["E93-T16 - the Facilities tile is struck through only when no row of its window can be taken (scripts/action-facilities.mjs `facilitiesRows`, `facilitiesShutReason`, sheet.mjs `roomBlockFor`; the owner's report of 13.11.2026 at a table on 1.2.112: \"The Facilities action is struck through when there are no rests available in the room, even though a GM's room action or a project's action is available\"): in a room with neither rest marked, the tile is live while a GM's room action is open; with that action closed this time of day and no project it is dimmed and its reason names every row's; with a completed project's free action there it is live again; under Lockdown it is dimmed with the Lockdown line; and at each step the window's rows say the same", async () => {
+    ["E93-T16 - the Facilities tile is struck through only when no row of its window can be taken (scripts/action-facilities.mjs `facilitiesRows`, `facilitiesShutReason`, sheet-actions.mjs `roomBlockFor`; the owner's report of 13.11.2026 at a table on 1.2.112: \"The Facilities action is struck through when there are no rests available in the room, even though a GM's room action or a project's action is available\"): in a room with neither rest marked, the tile is live while a GM's room action is open; with that action closed this time of day and no project it is dimmed and its reason names every row's; with a completed project's free action there it is live again; under Lockdown it is dimmed with the Lockdown line; and at each step the window's rows say the same", async () => {
         /*
          * 13.11.2026 (fix line 113f). A connected player's character in a named room, read on this GM's browser (`locateActor`
          * and `canSee` answer for a GM as for its player: a public project). The room's rest marks are taken off and its GM
          * actions written for the test; the character is given one action so the GM's action's price is covered. Read at
-         * each step: the tile's reason (sheet.mjs `roomBlockFor`, "rest") and whether every row of the window (rest.mjs
+         * each step: the tile's reason (sheet-actions.mjs `roomBlockFor`, "rest") and whether every row of the window (rest.mjs
          * `restVariants` and action-facilities.mjs `facilityRows`, the window's two halves) is greyed. Put back: the rest
          * marks, the room's actions, `facilityClosed`, the project, the darkening, the actions. Red at ceb9e9c8: the tile
          * read the two rests alone, so it was dimmed with the GM's action open and with the project's.
@@ -98482,7 +98482,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             other: [[1], 1], ultimate: [[2], 0], next: [1] }),
             "{clean; given: [rows, sheet lines]; other: [the window's Call dice, rows] after another Call; ultimate: the same after the Ultimate; next: the next Ultimate's dice} - a stronger next Ultimate");
     }],
-    ["E93-T14 - a room action's timed effect is drawn on the sheet where its armed Hope Calls are, in the same badge (scripts/sheet.mjs `pendingStack`, timed-effects.mjs `effectBadges`; the owner's answer to Q-E93-3 and the owner's ask of 12.11.2026, \"w podobnym miejscu co efekty hope calls\"): given, it is a Call's badge in the stack beside the action pips - its short name on a white chip, not Hope's gold, what it does and until when in the tooltip - and nothing of it is drawn under the states; ended, the stack holds none", async () => {
+    ["E93-T14 - a room action's timed effect is drawn on the sheet where its armed Hope Calls are, in the same badge (scripts/sheet-header.mjs `pendingStack`, timed-effects.mjs `effectBadges`; the owner's answer to Q-E93-3 and the owner's ask of 12.11.2026, \"w podobnym miejscu co efekty hope calls\"): given, it is a Call's badge in the stack beside the action pips - its short name on a white chip, not Hope's gold, what it does and until when in the tooltip - and nothing of it is drawn under the states; ended, the stack holds none", async () => {
         /*
          * E93, 12.11.2026. The stack as the header draws it (`pendingStack`, the armed Calls' badges), and the sidebar's
          * resources section as the system draws it, painted by `paintReserves` (as the sheet's reserve tests build it), for

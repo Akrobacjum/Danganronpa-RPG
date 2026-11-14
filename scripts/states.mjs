@@ -294,7 +294,7 @@ function shouldHave(actor, state) {
 
 /**
  * Whether `actor` is in `state` (one of `STATES`) as the rule has it, the reading `syncOnce` writes the status from:
- * the sheet's state badges read it (sheet.mjs `paintStateBadges`, E95 C5), so a sheet drawn before the status lands
+ * the sheet's state badges read it (sheet-sidebar.mjs `paintStateBadges`, E95 C5), so a sheet drawn before the status lands
  * says what the reserves already say.
  */
 export function stateHeld(actor, state) {
@@ -478,7 +478,7 @@ export async function syncAll() {
  * nobody - a GM, the owner, another player, an Observer - on any character. From E24 C1b
  * (08.11) to E95 C4 the wrapper hid Breakdown only from a user who may not read the
  * Sanity and drew Wounded for all. The sheet says both instead, to every reader
- * (sheet.mjs `paintStateBadges`). A view on this browser, not a data change: the
+ * (sheet-sidebar.mjs `paintStateBadges`). A view on this browser, not a data change: the
  * statuses stay on the actor every client holds, every rule reads them as before, and a
  * console reads them. The token HUD's status palette lists statuses, not the token's
  * drawn icons, and is not changed. A table's check (LIVE-E95-05, AUDIT 9.2).

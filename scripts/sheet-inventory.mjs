@@ -245,7 +245,7 @@ export function groupInventory(app, element, mode = modeOf(app)) {
 /*
  * WHAT NO HEADING FILES (E14 part 2 C6, 24.10.2026; audit S03-18).
  *
- * The groups above are drawn by category, and the stylesheet hides Daggerheart's own inventory lists, so an item with
+ * The groups of sheet-sidebar.mjs `INVENTORY_GROUPS` are drawn by category, and the stylesheet hides Daggerheart's own inventory lists, so an item with
  * no category flag - dragged on from the sidebar or a compendium - or with one this module does not have was on the
  * actor and on no screen: nothing to use, hand over or remove, and a GM took the drop for failed. They are drawn here,
  * carried ones only, each row opening the item's sheet, with a line saying what to do. Give / take items lists by

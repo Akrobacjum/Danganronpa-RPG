@@ -2655,7 +2655,7 @@ function dhSettingsStandIn(source, { name, tab, doc = document } = {}) {
 }
 
 /*
- * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet.mjs `markTraitGlyphs`).
+ * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet-header.mjs `markTraitGlyphs`).
  * Daggerheart 2.6.5 templates/sheets/actors/character/header.hbs:107-133, read at the tag: `.character-traits`, one
  * `.trait` per trait in the system's order with `data-attribute` (Daggerheart's key), its `.trait-name` (the tier mark and
  * a span with the label) and its `.trait-value-area` (the crest's svg and the value). Inside the sheet's root as the
