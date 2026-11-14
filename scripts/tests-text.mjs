@@ -1281,7 +1281,11 @@ export const X_RULES = Object.freeze([
     { id: "X3", what: "the antithesis \"X, not Y\"", en: /, not (?:\S+ ){0,4}\S+[.;!?](?:\s|$)/u,
         /* A Polish ", nie" before a verb is a negation, not an antithesis: the verbs read 31.10 after it are left out. */
         pl: /, (?:a )?nie (?!(?:można|wolno|ma|mają|jest|są|było|będzie|zostanie|został\p{L}*|trzeba|może|mogą|da|działa|liczy)(?![\p{L}]))(?:\S+ ){0,3}\S+[.;!?](?:\s|$)/u },
-    { id: "X4", what: "a dash that tacks an aside on", en: /[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{"“(]/u, pl: /[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{„"(]/u },
+    /* X4 reads a SENTENCE (E57, 14.11.2026): after the text lines it flagged every spaced dash, 95 of them, most a title's or a label
+       pair's separator ("Room setup - {scene}", "{action} - {trait}") or the minus button named ("The - and + buttons"), none an
+       aside tacked on to a sentence. A dash is the rule's when, in one sentence, four words stand before it and three after it,
+       and what follows is not "and +" or "or +" (the button). Measured on the files: 95 found before, the rest read by hand. */
+    { id: "X4", what: "a dash that tacks an aside on", test: u => dashAside(u.text) },
     { id: "X5", what: "a bracketed plural", en: /\p{L}\((?:s|es)\)/u, pl: /\p{L}\((?:y|i|e|ów)\)/u },
     { id: "X6", what: "telegraph style", by: "T18 (E65 C7, telegraph)" },
     { id: "X7", what: "a chain of label-colon-value inside a sentence", any: /(?:\p{L}[^.!?:]*: [^.!?:;]+[;,] ){2,}/u },
@@ -1362,6 +1366,22 @@ export function patterns(bag = {}) {
         }
     }
     return { found, read, byRule, counts: { rules: X_RULES.length, matched: X_RULES.filter(r => !r.by).length, allowed } };
+}
+
+/** X4's sentence test: the first " - " with four words before it and three after it in its own sentence, as a match. */
+export function dashAside(text) {
+    const plain = String(text).replace(/<[^>]*>/g, m => " ".repeat(m.length));
+    const words = s => (s.match(/[\p{L}\p{N}{}]+/gu) ?? []).length;
+    for (const m of plain.matchAll(/[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{"“„(]/gu)) {
+        const at = m.index + 1;
+        const start = Math.max(plain.lastIndexOf(". ", at), plain.lastIndexOf("! ", at), plain.lastIndexOf("? ", at), plain.lastIndexOf(": ", at)) + 1;
+        const rest = plain.slice(at + 3);
+        const end = rest.search(/[.!?](\s|$)/u);
+        const before = plain.slice(start, at), after = end < 0 ? rest : rest.slice(0, end);
+        if (/^(?:and|or|i|albo|lub)\s+\+/iu.test(after)) continue;
+        if (words(before) >= 4 && words(after) >= 3) return Object.assign([plain.slice(at, at + 3)], { index: at });
+    }
+    return null;
 }
 
 /* ---------------------------------- T7 ------------------------------------- */
@@ -2968,6 +2988,8 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.x2": "The light flickers on purpose.",               // X2
                 "DRPG.Fx.x3": "The debate runs from the console, not here.",  // X3
                 "DRPG.Fx.x4": "Tick to opt in - the timing is yours.",        // X4
+                "DRPG.Fx.x4title": "Room setup - {scene}",                      // a title's separator, no sentence on its left: passes (E57)
+                "DRPG.Fx.x4minus": "The - and + buttons change the count.",     // the minus button named: passes (E57)
                 "DRPG.Fx.x4ok": "A well-known room",                           // a hyphen inside a word: passes
                 "DRPG.Fx.x5": "You have {n} pick(s).",                         // X5
                 "DRPG.Fx.x7": "Identified by the crime: {rows}; faint: {faint}; Key: {key}.",   // X7
