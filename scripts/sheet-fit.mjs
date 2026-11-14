@@ -454,7 +454,7 @@ export function growForCalls(app) {
         const height = app.position?.height;
         if (typeof height !== "number" || height >= SHEET_MIN_HEIGHT) return;
         // Never past the window: a sheet taller than the screen is worse than a
-        // sheet that scrolls (settings.mjs `callsHeight`).
+        // sheet that scrolls (window-scale.mjs `callsHeight`).
         app.setPosition({ height: callsHeight(window.innerHeight) });
     } catch {
         // Cosmetic. A sheet that opens at its old size still works.

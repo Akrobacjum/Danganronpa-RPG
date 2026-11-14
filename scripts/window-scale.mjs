@@ -198,8 +198,8 @@ export function scaleWindow(app, element, _context, options) {
 
 /*
  * THE WINDOWS' SIZE IS REGISTERED AT INIT, HANDED ITS READERS (E54 W2, 13.11.2026; the plan's F2). The two hooks stood
- * at this file's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read this file's own
- * `sliderScale`, `layoutHeight` and `settingsRegistered` - which held the window's size to this file: moved out, the
+ * at settings.mjs's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read settings.mjs's own
+ * `sliderScale`, `layoutHeight` and `settingsRegistered` - which held the window's size to settings.mjs: moved out, the
  * code would import its facade back. module.mjs calls `registerWindows` under `safely("the windows' size", ...)`
  * before `registerSettings()`, handing the three readers; a throw there costs the windows' size, not the rest of init.
  * Until it runs nothing is sized - as before settings are registered - and a second call changes nothing (R4801).

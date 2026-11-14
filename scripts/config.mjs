@@ -520,7 +520,7 @@ export function staleStamp(at, now) {
  * its own default; `minHeight` is what the Hope Calls panel needs under the
  * Legacy theme (grown once, upwards only - sheet-fit.mjs `growForCalls`), and
  * `glass` is the size the Stained Glass theme draws the sheet for, scaled by
- * the interface slider (settings.mjs `scaleWindow`).
+ * the interface slider (window-scale.mjs `scaleWindow`).
  */
 export const SHEET_SIZE = { minHeight: 980, glass: { width: 1120, height: 1160 } };
 
