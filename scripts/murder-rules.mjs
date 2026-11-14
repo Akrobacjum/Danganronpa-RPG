@@ -2623,7 +2623,7 @@ async function applyUnlocks(state, def, key, band, done) {
         for (const id of opened) unlocked.add(id);
         patch.unlocked = Array.from(unlocked);
         done.push(game.i18n.format("DRPG.Murder.unlockedActions", {
-            names: opened.map(id => CRISIS_ACTIONS[id]?.label ?? id).join(", ")
+            names: listOf(opened.map(id => CRISIS_ACTIONS[id]?.label ?? id))
         }));
     }
 

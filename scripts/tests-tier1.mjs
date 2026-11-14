@@ -37623,6 +37623,25 @@ const INVARIANTS = [
             "[what nightNoteKey does not read of the opening's night rule; whether it has the note for a night that changes nothing; the victim's flags now; the note in each language, naming no advantage]");
     }],
 
+    ["R6403 - a list a sentence names is joined by utils.mjs `listOf`, so English takes its Oxford comma and Polish its „i” (E71 line A, 14.11.2026; EN2, DB35): murder-rules.mjs `applyUnlocks` (`Murder.unlockedActions` {names}), tail-gm.mjs `onTailCrossing` (`Infiltrate.tail.movedWith` {who}), watch-gm.mjs `startWatches` (`Infiltrate.watch.start` {who}) and action-briefing.mjs `tamperThresholdFacts` (`Action.dcTamperRelief` {what}) join with `listOf`, never `.join(\", \")`", async () => {
+        /*
+         * E71 line A's code faults (the coordinator, 14.11.2026). Red at 5ce68aec: each of the four joined its list with
+         * ", ", so "A, B, C" in English (no "and") and in Polish (no „i”). Read from source: the cards are posted by an
+         * incident's unlock, a tail's crossing, a watch's start and Tamper's briefing, which tier 2 drives. cleanup.mjs's
+         * `Cleanup.toolsBroken` is E54's file and waits for its landing.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [["murder-rules.mjs", "applyUnlocks", "DRPG.Murder.unlockedActions"], ["tail-gm.mjs", "onTailCrossing", "DRPG.Infiltrate.tail.movedWith"],
+            ["watch-gm.mjs", "startWatches", "DRPG.Infiltrate.watch.start"], ["action-briefing.mjs", "tamperThresholdFacts", "DRPG.Action.dcTamperRelief"]];
+        const read = SITES.map(([file, fn, key]) => {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "";
+            return [file, fn, body.includes(key), /\.join\(", "\)/.test(body), /\blistOf\(/.test(body)];
+        });
+        must(read.every(([, , has]) => has), `a site no longer names its key - this reads nothing: ${stableJson(read)}`);
+        equal(stableJson(read), stableJson(SITES.map(([file, fn]) => [file, fn, true, false, true])),
+            "[each site: names its key, joins with \", \", calls listOf]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
