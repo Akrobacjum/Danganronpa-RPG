@@ -3676,7 +3676,7 @@ const levelKey = level => level?.id ?? level ?? null;
  *   hidden    a token the GM has hidden is not in the scene as far as the
  *             fiction is concerned.
  */
-function countsAsPresent(token) {
+export function countsAsPresent(token) {
     // A token document (both callers since E12 fix r1-G4); a placeable is read through its own.
     const doc = token?.document ?? token;
     const actor = doc?.actor;

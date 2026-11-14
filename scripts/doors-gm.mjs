@@ -44,7 +44,7 @@
  * Remnants (`leaveDoorTrace`, `pickTrace`), Repair the Lock (below), Keep Watch (watch-gm.mjs).
  */
 
-import { MODULE_ID, FLAGS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
+import { MODULE_ID, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { isDeceased, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, error } from "./utils.mjs";
 import { barricadeStore, bedroomNoteStore } from "./gm-stores.mjs";
@@ -129,13 +129,14 @@ async function whatHolds(actor, scene, room) {
  * when it was not among them. Answers how many students were told; their ids are added to `into` when given.
  */
 async function tellRooms(scene, rooms, text, skip = new Set(), { also = null, into = null } = {}) {
-    const { roomOfToken } = await import("./movement.mjs");
+    const { roomOfToken, countsAsPresent } = await import("./movement.mjs");
     const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
     const told = new Set();
     for (const token of scene?.tokens ?? []) {
+        // Who is in the room is movement.mjs's one answer (E59 on the 1.2.115 line, CHAINS.md B-R7; R7163): no Monokuma,
+        // no Spectator ("nobody counts you anywhere"), nobody dead as the GMs hold it, no hidden token.
         const student = token.actor;
-        if (!student || student.type !== "character" || token.hidden || skip.has(student.id) || told.has(student.id)) continue;
-        if (student.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(student) || !rooms.includes(roomOfToken(token))) continue;
+        if (!countsAsPresent(token) || skip.has(student.id) || told.has(student.id) || !rooms.includes(roomOfToken(token))) continue;
         told.add(student.id);
         await whisperToOwnerOnly(student, `<p>${esc(text)}</p>`);
     }

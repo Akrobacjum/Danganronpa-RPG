@@ -25485,6 +25485,23 @@ const REGRESSIONS = [
         const body = bodyOf(listener, 'Hooks.on("drpgProjectSightChanged"', { until: "});" });
         ok(/applyKind\(\s*\w+\.SYNC\.projects\s*\)|applyKind\(\s*SYNC\.projects\s*\)/.test(body), `the sight's change redraws only part of what reads it: ${body.replace(/\s+/g, " ").slice(0, 300)}`);
     }],
+    ["R7163 - who is in a room is one answer, for every card a room's people are sent (E59 C-115, CHAINS.md B-R7): movement.mjs `countsAsPresent` (no Monokuma, no Spectator, nobody dead as the GMs hold it, no hidden token) is exported and is the filter of doors-gm.mjs `tellRooms` (the barricade's, the banging's, the forced and picked door's cards) and of passages-gm.mjs `tellBreach` (a breach's cards and its `wallBreached`); neither reads the Monokuma or the Spectator flag on its own - the door cards reached a Spectator (\"nobody counts you anywhere\", PH 1) and the breach's the dead and the Spectators", async () => {
+        const sources = new Map(await otherSources());
+        const movement = stripComments(sources.get("movement.mjs") ?? "");
+        ok(/^export function countsAsPresent\(/m.test(movement), "movement.mjs does not export countsAsPresent");
+        const present = fnSource(movement, "countsAsPresent");
+        ok(/FLAGS\.monokuma/.test(present) && /FLAGS\.spectator/.test(present) && /isDeadForGm\(/.test(present) && /\.hidden/.test(present), "countsAsPresent no longer leaves out the Monokumas, the Spectators, the dead and the hidden");
+        const readers = {
+            tellRooms: fnSource(stripComments(sources.get("doors-gm.mjs") ?? ""), "tellRooms"),
+            tellBreach: fnSource(stripComments(sources.get("passages-gm.mjs") ?? ""), "tellBreach")
+        };
+        const shape = Object.fromEntries(Object.entries(readers).map(([name, body]) => [name, {
+            present: /\bcountsAsPresent\(/.test(body),
+            ownFilter: /FLAGS\.(?:monokuma|spectator)\b|\bisMonokuma\(/.test(body)
+        }]));
+        equal(JSON.stringify(shape), JSON.stringify({ tellRooms: { present: true, ownFilter: false }, tellBreach: { present: true, ownFilter: false } }),
+            "{each room's audience: whether it asks countsAsPresent, whether it keeps a filter of its own}");
+    }],
 ];
 
 
