@@ -2546,7 +2546,8 @@ export const MODES = Object.freeze({
     contractions: Object.freeze({ test: "T19", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     mirror: Object.freeze({ test: "T22", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     itemQuotes: Object.freeze({ test: "T23", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
-    bareLeft: Object.freeze({ test: "T25", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    /* FAIL since E57 C12 (14.11.2026): after the text lines (e71-a..d) merged it found nothing; E71 named it. */
+    bareLeft: Object.freeze({ test: "T25", mode: "fail", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
     localeCalls: Object.freeze({ test: "T20", mode: "fail", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
     naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) }),

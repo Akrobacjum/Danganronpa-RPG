@@ -269,7 +269,7 @@
       "reserves": "Health i Sanity",
       "maxHealth": "Health (maks.)",
       "maxSanity": "Sanity (maks.)",
-      "newExperience": "Nowe doświadczenie",
+      "newExperience": "Dodaj doświadczenie",
       "delete": "Usuń",
       "coreExperience": "To doświadczenie dał Level Up, więc tutaj go nie usuniesz.",
       "name": "Nazwa",
@@ -304,11 +304,11 @@
       },
       "roomVisibility": {
         "name": "Gracze widzą tylko osoby w swoim pokoju",
-        "hint": "Ukrywa inne postacie, chyba że stoją w tym samym pokoju, także przez luki w ścianach. GM-owie widzą wszystko."
+        "hint": "Ukrywa przed graczami postacie w innych pokojach, nawet te widoczne przez luki w ścianach. GM-owie widzą wszystko."
       },
       "isoTokenShield": {
         "name": "Chroń edycję tokenów przed Isometric Perspective",
-        "hint": "Trzyma moduł isometric-perspective z dala od okna konfiguracji tokenu, gdzie psuje edycję. Wyłącz, by dostać się do jego zakładki Isometric."
+        "hint": "Trzyma moduł Isometric Perspective z dala od okna konfiguracji tokenu, gdzie psuje edycję. Wyłącz, by dostać się do jego zakładki Isometric."
       },
       "regionFog": {
         "name": "Pokoje decydują, co widzą gracze",
@@ -477,7 +477,7 @@
       },
       "reset": "Każdy pokój ma znowu komplet Search Tokenów.",
       "exhausted": "W tym pokoju nie ma już Search Tokenów. Pojawią się znowu o następnej porze dnia.",
-      "pickedClean": "Ktoś był tu pierwszy. Akcja przepada.",
+      "pickedClean": "W pokoju nie było już wtedy Search Tokenu. Akcja przepada.",
       "timeout": "Search się nie liczy. Nie tracisz akcji.",
       "spendOne": "Wydaj jeden",
       "giveOne": "Oddaj jeden",
@@ -574,7 +574,7 @@
       "freeMoveSpent": "Free Move jest już zużyty. Następne przejście opłaca najpierw darmowe przejście z zapasu, potem Burst z zapasu, a gdy ich brak, akcja.",
       "moveLegend": "Pełna stopa to wolne przejście, sam obrys to zużyte. Druga stopa ma kolor Eclipse: w Eclipse to drugie przejście, poza nim jest przygaszona.",
       "cubMovesFree": "Monocub chodzi swobodnie: przejście do innego pokoju nic go nie kosztuje, także w Eclipse.",
-      "allSpent": "Nie masz już akcji. Wrócą na początku kolejnego Eclipse.",
+      "allSpent": "Nie masz już akcji. Wrócą z kolejną porą dnia.",
       "leftOf": {
         "one": "{left} z {max} akcji",
         "few": "{left} z {max} akcji",
@@ -1071,7 +1071,7 @@
       "tierShort": "Tier {tier}",
       "situationAfterRoll": "{n} przez sytuację: liczy się wynik {total}.",
       "waitsForGm": "GM",
-      "murderSpendsAnyway": "Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się dopiero po zakończeniu Eclipse.",
+      "murderSpendsAnyway": "Potwierdzając, wydajesz akcję bez względu na wynik. Czy się udało, dowiesz się po zakończeniu Eclipse albo wcześniej, jeśli GM ją odrzuci.",
       "murderPromptParked": "Co robisz i jak? Notatka trafia do GM-a razem ze zgłoszeniem, a GM ma ją przed sobą także po zakończeniu Eclipse.",
       "murderParkedConfirm": "Podejmij próbę",
       "murderParked": "Zgłoszenie jest przyjęte. Jeśli GM odmówi, dowiesz się od razu; jeśli pozwoli, nic nie usłyszysz do końca Eclipse. Wtedy incydent się otworzy, jeśli zostaniesz z kimś sam na sam i żaden incydent nie będzie jeszcze otwarty.",
@@ -1124,7 +1124,7 @@
         "many": "Rzuć Head, by poznać, czym naprawdę jest jeden z {n} Truth Bulletów; pudło blokuje go do końca rozdziału.",
         "other": "Rzuć Head, by poznać, czym naprawdę jest jeden z {n} Truth Bulletów; pudło blokuje go do końca rozdziału."
       },
-      "askHintHint": "Nie masz w ręku żadnego dowodu. Poproś GM-a o wskazówkę, gdzie szukać.",
+      "askHintHint": "Poproś GM-a o wskazówkę, gdzie szukać; im wyższy wynik, tym jaśniejsza wskazówka.",
       "findStash": "Find Stash",
       "findStashHint": "Szukaj tu skrytki innego ucznia; {n}+ albo krytyk znajduje nową i mówi, czyja jest.",
       "stashNothing": "Przeczesujesz pokój i nie znajdujesz niczego, co ktoś próbował schować.",
@@ -1145,7 +1145,7 @@
       "kindFromTables": "Według tabel przedmiotów „{item}” ma rodzaj {kind}. Przedmiot dostanie ten rodzaj bez względu na twój wybór i to on zdecyduje, co przywraca.",
       "itemWorks": "Działa i daje efekt",
       "itemNoEffect": "Działa bez efektu i się zużywa",
-      "itemRefuse": "Nie działa",
+      "itemRefuse": "Odmów",
       "creativeRefused": "GM orzekł, że „{item}” nic tu nie daje. Zostaje u ciebie.",
       "effectTitle": "Co robi „{item}”?",
       "effectHealth": "Przywrócone Health",
@@ -1477,13 +1477,13 @@
       "busy": "Głos ma inny tryb. Najpierw go zakończ albo zamknij debatę.",
       "noZones": "Sala rozpraw nie ma Strefy A i Strefy B. Wybierz je w Ustawieniach sezonu.",
       "noAnswers": "Podaj obie odpowiedzi: jedną dla Strefy A i jedną dla Strefy B.",
-      "noQuestion": "Pytanie Logic Dive nie ma treści.",
+      "noQuestion": "Pytanie w tym zestawie Logic Dive nie ma treści.",
       "noSet": "Wybierz zestaw Logic Dive.",
       "noCount": "Nie ma czego liczyć: „Policz teraz” działa tylko podczas głosowania.",
-      "noQuestionHere": "Tylko w Logic Dive.",
+      "noQuestionHere": "„Pomiń pytanie” działa tylko w Logic Dive.",
       "noSide": "Wybierz Strefę A albo Strefę B.",
       "samePick": "Ta strona jest już wybrana.",
-      "noThesis": "Tylko mówca, w swojej turze, w kilku słowach.",
+      "noThesis": "Tezę można podać tylko w turze Scrum Debate i musi mieć kilka słów.",
       "notStarted": "Tryb się nie zaczął. Sprawdź, czy obie odpowiedzi są wpisane, a w Logic Dive, czy wybrano zestaw i czy pytanie ma treść.",
       "straw": {
         "opened": "{question} Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Liczenie za {seconds} s.",
@@ -1524,7 +1524,7 @@
           "edit": "Edytuj",
           "delete": "Usuń",
           "deleteTitle": "Usuwanie zestawu Logic Dive",
-          "deleteBody": "Usunąć zestaw {name}? Tego nie da się cofnąć.",
+          "deleteBody": "Usunąć zestaw „{name}”? Tego nie da się cofnąć.",
           "noName": "Nadaj zestawowi nazwę.",
           "count": "Zestaw ma od 1 do {max} pytań.",
           "blank": "Każde pytanie potrzebuje treści i obu odpowiedzi.",
@@ -1839,7 +1839,7 @@
         "notInExchange": "Dalej może mówić tylko mówca albo ktoś, kto zgłosił Objection w tej wymianie.",
         "voteOpen": "Głosowanie już się zaczęło, więc Closing Argument nie da się wznowić.",
         "nothingToResume": "Nikt nie ma już czasu w Closing Argument.",
-        "waitsForGm": "Closing Argument nie ruszy, dopóki nie wybierzesz.",
+        "waitsForGm": "Closing Argument nie ruszy, dopóki nie wybierzesz, kto mówi.",
         "noTime": "To zabrałoby cały pozostały czas. Zamiast tego użyj Pomiń albo Zakończ ten tryb.",
         "volunteers": "Zgłoszenia: {n}",
         "confirming": "GM zatwierdza mówcę.",
@@ -2457,7 +2457,7 @@
       "moveAction": "Move the Body",
       "moveHint": "Za {n} Sanity rzucasz Body, żeby przenieść ciało do sąsiedniego pokoju. Jeśli się uda, zostaje Evident Remnant.",
       "bodyNotHere": "Ciała nie ma w tym pokoju. Żeby je przenieść, musisz być tam, gdzie leży.",
-      "nothingHere": "W tym pokoju nie ma czego sprzątać.",
+      "nothingHere": "W tym pokoju nie ma Remnantu do usunięcia.",
       "allReinforced": "Każdy Remnant w tym pokoju jest Reinforced, więc żadnego nie wymażesz ani nie przekształcisz.",
       "rerollLost": "Rerolla sprzątania nie rozegrano: nie ma zapisu próby, którą miał powtórzyć, albo dotyczyła innego Remnantu. Pierwszy rzut zostaje, a Hope wraca.",
       "reinforcedFlag": "Reinforced, nie do usunięcia",
@@ -2870,8 +2870,8 @@
         "many": "Na rozdział {chapter} przypada {n} tropów. Razem powinny zawęzić krąg podejrzanych do {min}-{max} osób.",
         "other": "Na rozdział {chapter} przypada {n} tropów. Razem powinny zawęzić krąg podejrzanych do {min}-{max} osób."
       },
-      "notePlaceholder": "Co widzi uczeń",
-      "analysisPlaceholder": "Co dodaje laboratorium",
+      "notePlaceholder": "Co widzi ten, kto znajdzie",
+      "analysisPlaceholder": "Co ujawnia Analyze",
       "difficulty": "Trudność",
       "onMap": "Który Remnant",
       "notPlaced": "Jeszcze nie postawiony",
@@ -2898,10 +2898,10 @@
       "tooThinNone": "Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż {min}. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.",
       "whoHasWhat": "Kto co ma",
       "student": "Uczeń",
-      "bullets": "Bullets",
+      "bullets": "Truth Bullets",
       "keysHeld": "Key",
       "unidentified": "Bez analizy",
-      "breakdown": "Naprawdę",
+      "breakdown": "Klucz odpowiedzi",
       "breakdownTooltip": "Czym jest każdy Truth Bullet według klucza GM-ów, niezależnie od tego, co widzi jego posiadacz.",
       "createHere": "Utwórz na mapie",
       "createNote": "Postaw od razu stawia Key Remnant wiersza na mapie, w wybranym pokoju: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju, ze słowami wpisanymi w wierszu. Wiersz, który jest już na mapie, nie ma przycisku Postaw.",
@@ -2937,7 +2937,7 @@
         "other": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, którego nie ma jeszcze na mapie."
       },
       "whichSlot": "Który to zaplanowany trop?",
-      "noSlot": "Żaden z {n}",
+      "noSlot": "Żaden z {n} zaplanowanych tropów",
       "createdHere": "Key Remnant postawiony w pokoju {room}.",
       "unfoundKeys": {
         "one": "Key Remnanty znalezione w czasie Investigation: {found} z {bar}; brakuje jednego. Do puli każdego Monokumy ({who}) trafia {despair} Despair.",
@@ -2959,10 +2959,10 @@
       "chargeTooLate": "Nie naliczono Despair za nieznalezione Key Remnanty. Zegar jest już w rozdziale {now}, a ostatnia sprawa dotyczyła rozdziału {was}, więc ten rozdział nie ma sprawy, z której można by je policzyć.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {
-        "one": "Jeszcze jeden znaleziony Key Remnant jest spoza planu i wlicza się do progu {bar} znalezionych: {names}.",
-        "few": "Jeszcze {n} znalezione Key Remnanty są spoza planu i wliczają się do progu {bar} znalezionych: {names}.",
-        "many": "Jeszcze {n} znalezionych Key Remnantów jest spoza planu i wlicza się do progu {bar} znalezionych: {names}.",
-        "other": "Jeszcze {n} znalezionych Key Remnantów jest spoza planu i wlicza się do progu {bar} znalezionych: {names}."
+        "one": "Znaleziony Key Remnant spoza planu ({names}) i tak wlicza się do progu {bar} znalezionych.",
+        "few": "{n} znalezione Key Remnanty są spoza planu ({names}); i tak wliczają się do progu {bar} znalezionych.",
+        "many": "{n} znalezionych Key Remnantów jest spoza planu ({names}); i tak wlicza się do progu {bar} znalezionych.",
+        "other": "{n} znalezionych Key Remnantów jest spoza planu ({names}); i tak wlicza się do progu {bar} znalezionych."
       },
       "newTraceTitle": "Nowy Remnant",
       "newTraceIntro": "Remnant trafia w losowe miejsce w pokoju; przesuń token, jeśli miejsce ma znaczenie.",
@@ -4734,7 +4734,7 @@
       "reactionLocked": "Rzut na samą statystykę, poza akcją, to reakcja: nic nie kosztuje i nie daje Hope ani Despair. Dają je tylko rzuty akcji.",
       "unlockedByCall": "Odblokowane przez opłacony Call.",
       "freeCritArmed": "Loaded Die działa na ten rzut: jedna kość, losowo Hope albo Despair, stoi na 12, a drugą rzucasz. Krytyk jest tylko wtedy, gdy i ona pokaże 12; inaczej rzut jest z Hope albo z Despair, zależnie od tego, która kość stoi na 12.",
-      "forcedByCall": "Ustawione przez opłacony Call. Nie da się tego wyłączyć.",
+      "forcedByCall": "Ustawione przez Call. Nie da się tego wyłączyć.",
       "forcedByHindrance": "Na tym rzucie jest kość utrudnienia. Nie da się tego wyłączyć.",
       "forcedBySituation": "Ustawione przez sytuację, na przykład pasujący pokój, narzędzie albo broń w ręku, noc czy pułapkę. Nie da się tego wyłączyć.",
       "forcedByState": "Jesteś w Breakdown, bo nie zostało ci Sanity: każdy twój rzut ma kość utrudnienia, dopóki nie odzyskasz choć trochę Sanity. Nie da się tego wyłączyć.",
@@ -5004,7 +5004,7 @@
         "many": "Wszystkich {n} tabel przedmiotów już istnieje w tym świecie.",
         "other": "Wszystkich {n} tabel przedmiotów już istnieje w tym świecie."
       },
-      "rebuildNote": "Przebudowa usuwa je i buduje na nowo z własnych list modułu. Wszystko, co edytowano ręcznie, przepada.",
+      "rebuildNote": "Przebudowa usuwa domyślne tabele przedmiotów i buduje je na nowo z własnych list modułu. Wszystko, co edytowano ręcznie, przepada.",
       "keep": "Zachowaj moje",
       "recreate": "Usuń i przebuduj",
       "someFailed": {
@@ -5036,7 +5036,7 @@
       "unfiledNote": "Żadna pula Tier nie zawiera tych nazw, więc moduł nie zna ich kategorii ani Tieru. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do puli Tier.",
       "placeTooltip": "Wybierz pule dla tego przedmiotu",
       "placeTitle": "Pule przedmiotu „{name}”",
-      "placeIntro": "Zaznacz każdą pulę, w której ten przedmiot ma być. Zaznaczenie nowej kopiuje go tam, odznaczenie wyjmuje, a odznaczenie puli, na którą patrzysz, przenosi go.",
+      "placeIntro": "Zaznacz każdą pulę, w której ten przedmiot ma być. Zaznaczenie nowej puli kopiuje go tam, a odznaczenie wyjmuje. Aby go przenieść, odznacz pulę, którą oglądasz, i zaznacz inną.",
       "placeRolesNote": "Opis, obrazek i role idą razem z nim. Pula Tier poniżej Tier 2 nie przyjmuje ról, a żadna pula nie przyjmuje roli będącej jej własną kategorią.",
       "placeSave": "Zapisz",
       "placeNone": "Przedmiot musi być w co najmniej jednej puli. Żeby usunąć go całkiem, użyj ✕ w wierszu.",
@@ -5081,7 +5081,7 @@
       },
       "createTable": "Utwórz tabelę",
       "installAction": "Zainstaluj / przeinstaluj",
-      "renameNote": "Pula Tier nosi nazwę swojej kategorii i Tieru. Tabela pokoju może mieć każdą inną nazwę.",
+      "renameNote": "Nazwa puli Tier musi zachować jej kategorię i Tier. Tabela pokoju może mieć każdą inną nazwę.",
       "renamed": "Zmieniono nazwę na „{name}”.",
       "deleteConfirm": {
         "one": "Usunąć tabelę „{name}” razem z {n} przedmiotem? Tego nie da się cofnąć.",
@@ -5504,7 +5504,7 @@
       }
     },
     "Anonymity": {
-      "aboveLimited": "Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: {actors}. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.",
+      "aboveLimited": "Udostępnione każdemu graczowi jako Właściciel, więc każdy gracz może czytać cały arkusz, z ekwipunkiem i Truth Bulletami: {actors}. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.",
       "blocked": "Uprawnień nie podniesiono: każdy gracz byłby właścicielem arkusza „{actor}” i czytałby go w całości. Uprawnienie Właściciela daj tylko graczowi tej postaci.",
       "audit": {
         "title": "Kontrola anonimowości arkuszy",
@@ -5673,7 +5673,7 @@
       "leave": "Odpuść",
       "shownHeading": "{who} pokazuje ci kieszenie:",
       "asAsked": "Tak wyglądały te kieszenie w chwili prośby.",
-      "askTitle": "Pokażesz kieszenie?",
+      "askTitle": "Prośba o Frisk",
       "askText": "{who} chce zobaczyć, co nosi {name}. Jeśli odmówisz, może spróbować cię zmusić.",
       "askTextAskOnly": "{who} chce zobaczyć, co nosi {name}.",
       "askClock": {
@@ -5916,7 +5916,7 @@
       "mainRoom": "główny pokój",
       "deadRoom": "kanał Widzów",
       "claimTrial": "podczas Class Trial wszyscy są w jednym pokoju",
-      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie: zdejmij blokadę z listy na kafelku głosu.",
+      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie. Odblokuj go w „Kogo słyszysz” na kafelku głosu.",
       "needsAvclient": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.",
       "avDisabled": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
@@ -6239,7 +6239,7 @@
       "barred": "Runda się skończyła, a zegar się nie przesunął: w jej trakcie zaczął się incydent albo Class Trial."
     },
     "Summary": {
-      "title": "Pora dnia dobiegła końca",
+      "title": "Podsumowanie pory dnia",
       "lede": "{phase}: co się u ciebie działo.",
       "ledeGm": "{phase}: co działo się przy stole.",
       "found": "znaleziono „{item}” (Tier {tier})",
@@ -6358,7 +6358,7 @@
         "rooms": "Mapa ma pokoje",
         "roomsMarked": "O każdym nazwanym regionie zdecydowano: pokój albo nie",
         "scenes": "Szkoła i sala rozpraw są podpięte",
-        "cursor": "Kursor GM-a jest prywatny (zalecane)",
+        "cursor": "Kursor GM-ów jest prywatny (zalecane)",
         "secretDoors": "Brak sekretnych drzwi Foundry (zalecane)",
         "rulers": "Linijka ruchu graczy jest ukryta (opcjonalnie)",
         "mastermind": "Mastermind (opcjonalnie)",
@@ -6383,10 +6383,10 @@
         "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Move, Search, Listen i każdy incydent rozstrzyga się według pokoi.",
         "roomsMarked": "Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (zakładka Pokoje). O tych nazwanych regionach nikt jeszcze nie zdecydował.",
         "scenes": "W zakładce Sceny w Ustawieniach pokoi podpinasz scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.",
-        "cursor": "Inaczej gracze widzą, gdzie patrzysz na mapie.",
+        "cursor": "Inaczej gracze widzą twój kursor na mapie.",
         "secretDoors": "Każdy gracz może otworzyć sekretne drzwi Foundry. Zamień je na tajne przejścia.",
         "rulers": "Inaczej stół widzi trasę gracza, także przez tajne przejście.",
-        "mastermind": "Kto ukrywa się wśród uczniów i co to udowodni. Opcjonalne.",
+        "mastermind": "Kto ukrywa się wśród uczniów i co to udowodni.",
         "foundryHeld": "Ustawienia Foundry są oddane. Przejmij je znowu, chyba że tak ma zostać.",
         "hallTokens": "Sala rozpraw jest podpięta, a w zakładce Sceny nie ma ostrzeżeń. Ten krok jest opcjonalny.",
         "diceSoNice": "Dice So Nice pokazuje kości, gdy padają. Bez niego Danganronpa RPG się nie uruchamia.",
@@ -6493,7 +6493,7 @@
       "scenesHint": "Ustawienia sezonu podpinają scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.",
       "roomsVision": "{scene}: widzenie tokenów lub mgła Foundry są tam nadal włączone albo globalne światło jest wyłączone, więc gracze mogą widzieć czerń.",
       "moreChecking": "Sprawdzam zdjęcia pokoi, głos, kości i dostęp do arkuszy...",
-      "moreFailed": "Nie udało się pokazać dalszych sprawdzeń. Powód podaje Dziennik debugowania w panelu GM-a.",
+      "moreFailed": "Nie udało się uruchomić dalszych sprawdzeń. Powód podaje Dziennik debugowania w panelu GM-a.",
       "splitUneven": "Nierówny podział: {counts}.",
       "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
       "overflowNow": "{line} Teraz {n}.",
@@ -6540,10 +6540,10 @@
         "other": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: {n}."
       },
       "secretDoorsPutBack": {
-        "one": "Sekretne drzwi zmienione bez wiedzy GM-a ({n}) wróciły do stanu, w jakim GM je zostawił: {scenes}.",
-        "few": "{n} sekretne drzwi zmienione bez wiedzy GM-a wróciły do stanu, w jakim GM je zostawił: {scenes}.",
-        "many": "{n} sekretnych drzwi zmienionych bez wiedzy GM-a wróciło do stanu, w jakim GM je zostawił: {scenes}.",
-        "other": "{n} sekretnych drzwi zmienionych bez wiedzy GM-a wróciło do stanu, w jakim GM je zostawił: {scenes}."
+        "one": "Sekretne drzwi zmienione, gdy żaden GM nie był online ({n}), wróciły do stanu, w jakim GM je zostawił: {scenes}.",
+        "few": "{n} sekretne drzwi zmienione, gdy żaden GM nie był online, wróciły do stanu, w jakim GM je zostawił: {scenes}.",
+        "many": "{n} sekretnych drzwi zmienionych, gdy żaden GM nie był online, wróciło do stanu, w jakim GM je zostawił: {scenes}.",
+        "other": "{n} sekretnych drzwi zmienionych, gdy żaden GM nie był online, wróciło do stanu, w jakim GM je zostawił: {scenes}."
       },
       "hideRulers": "Ukryj",
       "showRulers": "Pokaż",
@@ -6620,7 +6620,7 @@
         "keyPlan": "Plan Key Remnantów",
         "searchTokens": "Search Tokeny wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
-        "bodyFound": "Znalezione ciało, które czeka na odpowiedź, i zapis, czyje ciała znaleziono",
+        "bodyFound": "Znalezione ciało, które czeka na decyzję GM-a, i zapis, czyje ciała znaleziono",
         "deaths": "Śmierci, Monocuby i ciała na mapach, a zmarli wracają i każdy uczeń ma znów pełne Health i Sanity",
         "items": "Co nosi obsada, a klucz do każdej sypialni wraca do jej właściciela",
         "advancement": "Level Upy i doświadczenia, które dodały, a statystyki i maksima wracają do arkusza startowego",
@@ -8533,7 +8533,7 @@
         },
         "incident": "Incydent jest otwarty, a ta przeglądarka nie ma jego obsady.",
         "neverHeld": "Ta przeglądarka nigdy nie miała sprawy tego świata, która zaczęła się {date}.",
-        "legacyChanged": "Stary magazyn „{store}” zmienił się po aktualizacji (GM wrócił do starszej wersji): przejmij zmiany z diagnostyki.",
+        "legacyChanged": "Stary magazyn „{store}” zmienił się po aktualizacji (GM wrócił do starszej wersji): diagnostyka pokazuje, co się zmieniło, żeby GM mógł to przenieść.",
         "claimFailed": "Ta przeglądarka nie zdołała przejąć swojego starego magazynu „{store}”: {error}. Stare wiersze zostają takie, jak były; następne wczytanie spróbuje ponownie.",
         "unseen": "Ta kontrola nie widzi, kto jest Mastermindem, ofert Level Up ani rejestru Blackened: przeglądarka, która je straciła, o tym nie wie.",
         "left": {
@@ -8590,7 +8590,7 @@
       "continued": "Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z kopii (panel GM-a, Diagnostyka, Sprawa).",
       "panelWarning": "Sprawa w tej przeglądarce jest niekompletna:",
       "restoreTitle": "Przywróć sprawę",
-      "previewStore": "{store}: nowe {add}, odświeżone {refresh}, nowsze tutaj {kept}, pod cięciem resetu {cut}, usunięte tutaj {remove}",
+      "previewStore": "{store}: nowe {add}, odświeżone {refresh}, nowsze tutaj {kept}, starsze niż ostatni reset {cut}, usunięte tutaj {remove}",
       "otherWorld": "Ten plik to sprawa innego świata ({title}). Mimo to przywróć go tutaj.",
       "beforeCut": "Przywróć mimo to wiersze usunięte przez ostatni reset (uzupełnią tylko pola, których brakuje tej przeglądarce).",
       "restoreNote": "Przywracanie bierze tylko to, co jest nowsze niż w tej przeglądarce, także usunięcia, policzone wyżej. Nigdy nie bierze cięcia resetu z pliku, a plik innego świata nie przynosi żadnych usunięć.",
@@ -8720,7 +8720,7 @@
         "bullet": "Nowy Truth Bullet"
       },
       "reachYes": "{held}/{of}: uczniowie mogą do tego dojść",
-      "reachNo": "{held}/{of}: jeszcze nie",
+      "reachNo": "{held}/{of}: uczniowie nie mogą jeszcze do tego dotrzeć",
       "panelReach": "Uczniowie mają",
       "culpritOnly": "Ma go tylko sprawca, więc się nie liczy.",
       "studentBullets": "Truth Bullety",

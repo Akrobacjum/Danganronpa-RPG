@@ -125,9 +125,11 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
             await I.applyModuleLanguage();
             globalThis.__e57was = { auto: globalThis.__dialogAuto, windows: globalThis.__dialogWindows };
             globalThis.__dialogAuto = false; globalThis.__dialogWindows = false;
-            return { lang: I.moduleLanguage(), panel: game.i18n.localize("DRPG.Panel.title") };`, { timeout: 30000 });
-        const want = lang[c.who] === "pl" ? "Danganronpa - panel GM-a" : "Danganronpa - GM Panel";
-        check(`${c.who}: the page is in ${lang[c.who] === "pl" ? "Polish" : "English"}`, r.lang === lang[c.who] && r.panel === want, JSON.stringify(r));
+            /* The words the page should show, read from that language's own file, not copied here: a text line renames them. */
+            const file = foundry.utils.expandObject(await (await fetch("modules/${MOD}/lang/${lang[c.who]}.json")).json());
+            return { lang: I.moduleLanguage(), panel: game.i18n.localize("DRPG.Panel.title"), want: foundry.utils.getProperty(file, "DRPG.Panel.title") };`, { timeout: 30000 });
+        const want = r.want;
+        check(`${c.who}: the page is in ${lang[c.who] === "pl" ? "Polish" : "English"}`, r.lang === lang[c.who] && typeof want === "string" && r.panel === want, JSON.stringify(r));
     }
 
     /* One window opened on one client: the reader above, after the opener ran (or 1.5 s, for a window that waits). */

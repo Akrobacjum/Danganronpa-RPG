@@ -19067,7 +19067,7 @@ const REGRESSIONS = [
             detectors: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
                 "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
-            modes: [["bareLeft", "T25", "report"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
+            modes: [["bareLeft", "T25", "fail"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
                 ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
                 ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
@@ -19165,7 +19165,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []], ["bareLeft", true, 0, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
