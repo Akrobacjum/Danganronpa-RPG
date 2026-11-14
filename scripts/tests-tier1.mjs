@@ -27905,6 +27905,34 @@ const INVARIANTS = [
             sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text"] }
         }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
     }],
+    ["R7300 - every control the module draws has a tooltip, a hint, or a row that says why it needs none, and \"none needed\" is no longer a reason (the tooltip sweep, 1.2.115; Q-E57-8, the owner's \"Robic teraz\" of 14.11.2026): tools/tooltip-census.json, the baseline `node tools/check.mjs tooltips` holds every site with no tooltip and no hint line to, keeps only rows of six reasons - \"label is enough: ...\" (the label and its options say it all), \"hint: ...\" and \"help in code: ...\" (help the census cannot see near the control, each with a held { fn, pattern } found in that function of its file), \"not met: ...\" (no reader meets it as a control), \"conditional: ...\" (a tooltip drawn under a named condition), or a stage's commit that gives one; E102's \"none needed\" rows, an agent's judgement the owner never saw, are each a tooltip now or one of those", async () => {
+        /* Red at 9e7e3d78 (1.2.114): 224 rows read "none needed: ...", and no row "hint: ..." existed. The gate (tools/tooltip-census.mjs `compare`)
+           matches every drawn site to a row; this holds what a row may say, and that the help a hint row points at is still in its function. */
+        needs(env.tools(), "tools/tooltip-census.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let base = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/tooltip-census.json`, { cache: "no-cache" });
+            if (res.ok) base = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        must(Array.isArray(base?.rows) && base.rows.length > 10, "tools/tooltip-census.json holds no rows - this would measure nothing");
+        const REASON = /^(label is enough|hint|help in code|not met|conditional): .{20,}$|^E\d{2,3} C\d+[a-z]?: .+$/s;
+        const reasonOf = r => String(r.why ?? "").match(/^(label is enough|hint|help in code|not met|conditional|none needed|E\d{2,3} C\d+[a-z]?)(?=:)/)?.[1] ?? "(none)";
+        const src = new Map();
+        for (const f of new Set(base.rows.filter(r => r.held?.fn).map(r => r.file))) src.set(f, await fetch(`/modules/${MODULE_ID}/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const bad = [];
+        for (const r of base.rows) {
+            const id = `${r.file} ${r.unit ?? "(top level)"} ${r.kind} ${r.key ?? "(no key)"}`;
+            if (!REASON.test(String(r.why ?? ""))) { bad.push(`${id}: "${reasonOf(r)}" is not a reason a row may give`); continue; }
+            if (!/^(hint|help in code): /.test(r.why)) continue;
+            if (!r.held?.fn || !r.held?.pattern) { bad.push(`${id}: its help is named, with no held { fn, pattern }`); continue; }
+            const body = topLevelFunction(src.get(r.file) ?? "", r.held.fn);
+            if (body === null) bad.push(`${id}: ${r.file} declares no top-level ${r.held.fn}()`);
+            else if (!new RegExp(r.held.pattern).test(body)) bad.push(`${id}: ${r.held.fn}() no longer holds ${r.held.pattern}`);
+        }
+        const by = {};
+        for (const r of base.rows) by[reasonOf(r)] = (by[reasonOf(r)] ?? 0) + (r.count ?? 1);
+        equal(bad.length ? `${bad.length} row(s): ${bad.slice(0, 12).join("; ")}${bad.length > 12 ? "; ..." : ""}` : "", "", `{the rows whose reason is not one of the six, or whose help is gone from its function; sites by reason now: ${stableJson(by)}}`);
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is
