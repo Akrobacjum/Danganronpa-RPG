@@ -81,6 +81,15 @@ const RETRY_MS = [2000, 6000, 12000];
 /** A slow re-assert, so nothing can be wrong for longer than this. */
 const HEARTBEAT_MS = 60000;
 
+/*
+ * A voice text in the page's language (E71 C20, 14.11.2026; DB12, audit S18-46): the reasons a row is placed where it
+ * is and the GM's voice plan, read when said, under DRPG.Voice.plan and DRPG.Voice.warn. The key itself where i18n is
+ * not there to ask.
+ */
+function voiceText(key, data = null) {
+    return (data ? game.i18n?.format?.(key, data) : game.i18n?.localize?.(key)) ?? key;
+}
+
 /**
  * The character tokens whose last move update this browser heard was a step of a drag still in flight (waypoints
  * pending), by token id, each with the timer that drops it (H82 fix r1, 23.10.2026; finding H82-C2-R1). While one is
@@ -1023,7 +1032,7 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
     for (const user of users) {
         if (!user?.active || byUser.has(user.id)) continue;
         const row = { actor: null, monokuma: false, user, ...voiceClaim({ user, eclipse, trial }) };
-        if (asked) row.why = "no character - the main room";
+        if (asked) row.why = voiceText("DRPG.Voice.plan.why.noCharacterMain");
         byUser.set(user.id, row);
     }
 
@@ -1043,7 +1052,7 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
             const side = (claims.get(userId) ?? []).map(r => sideOf.get(r.actor?.id)).find(Boolean) ?? null;
             if (!side) continue;
             byUser.set(userId, { ...row, target: SCRUM_ROOMS[side], camp: side,
-                why: `Scrum Debate - Zone ${side.toUpperCase()} confers in its own room` });
+                why: voiceText("DRPG.Voice.plan.why.scrumCamp", { zone: side.toUpperCase() }) });
         }
     }
 
@@ -1055,7 +1064,7 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
     for (const [userId, row] of byUser) {
         if (!row.user || !spectatorTalks(row.user, { actors })) continue;
         byUser.set(userId, { ...row, room: null, target: SPECTATOR_ROOM, claim: CLAIM.inRoom, kept: false, keep: false,
-            why: "a Spectator, talking with the Spectators" });
+            why: voiceText("DRPG.Voice.plan.why.spectatorTalks") });
     }
 
     // LISTEN'S EAVESDROP (E69 C6; eavesdrop-gm.mjs): one more rule over the account's row, after the Spectators' room.
@@ -1117,7 +1126,7 @@ export function listeningRow(row, listens = new Map()) {
     if (!listen || row.claim !== CLAIM.inRoom || row.target === SPECTATOR_ROOM) return row;
     if ((row.scene?.id ?? null) !== listen.sceneId || row.room !== listen.from) return row;
     return { ...row, target: liveKitRoomFor(listen.sceneId, listen.into), listening: { from: listen.from, into: listen.into },
-        kept: false, why: `listening at the door of ${listen.into}, from ${listen.from}` };
+        kept: false, why: voiceText("DRPG.Voice.plan.why.listening", { into: listen.into, from: listen.from }) };
 }
 
 /**
@@ -1131,7 +1140,7 @@ export function listeningRow(row, listens = new Map()) {
 export function maskedRow(row, masks = new Set()) {
     if (!row?.actor || !row.user || row.user.isGM || !masks.has(row.actor.id)) return row;
     return { ...row, room: null, target: silentRoomFor(row.user.id), claim: CLAIM.inRoom, masked: true, kept: false, keep: false,
-        why: "behind a \"?\" after a murder's opening - a silent room of its own" };
+        why: voiceText("DRPG.Voice.plan.why.masked") };
 }
 
 /** On a GM: the accounts whose character stands behind a "?" now, from the GMs' rows (E69 C8). */
@@ -1789,11 +1798,9 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
     // the Kitchen" looks the same on screen whether the module decided that
     // or simply never looked.
     if (!user) {
-        row.why = monokuma
-            ? "no GM holds this Monokuma's Despair pool"
-            : "no owner is connected";
+        row.why = voiceText(monokuma ? "DRPG.Voice.plan.why.noPoolHolder" : "DRPG.Voice.plan.why.noOwner");
     } else if (!user.active) {
-        row.why = `${user.name} is not connected`;
+        row.why = voiceText("DRPG.Voice.plan.why.notConnected", { name: user.name });
     } else if (eclipse) {
         // NOBODY TALKS DURING AN ECLIPSE, and nothing here even asks where
         // anybody is standing.
@@ -1814,7 +1821,7 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // to each other.
         row.target = eclipseRoomFor(user);
         row.claim = CLAIM.inRoom;
-        row.why = user.isGM ? "Eclipse - the GMs' own channel" : "Eclipse - in no voice channel";
+        row.why = voiceText(user.isGM ? "DRPG.Voice.plan.why.eclipseGm" : "DRPG.Voice.plan.why.eclipsePlayer");
     } else if (trial) {
         // ONE ROOM FOR THE CLASS TRIAL (D8, the owner's decision; S11-10). The
         // trial is the one scene everybody is meant to hear: the living argue,
@@ -1858,9 +1865,7 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // `secret` is said in the reason only, for the GM's plan.
         row.claim = CLAIM.dead;
         row.target = SPECTATOR_ROOM;
-        row.why = secret()
-            ? "dead, the death not public - the Spectators' room"
-            : "dead, and not back as a Monocub - the Spectators' room";
+        row.why = voiceText(secret() ? "DRPG.Voice.plan.why.deadSecret" : "DRPG.Voice.plan.why.deadPublic");
     } else {
         // Located without the canvas, per actor. Reading `canvas.scene`
         // instead only ever sees the scene the GM is LOOKING AT, so a GM
@@ -1876,8 +1881,8 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         row.claim = row.room ? CLAIM.inRoom : CLAIM.nowhere;
         row.kept = Boolean(where?.kept);
         row.why = row.room
-            ? `${row.scene?.name ?? "?"} · ${row.room}${row.kept ? " (outside every room: the room it came from)" : ""}`
-            : "no room - token outside every region, or no token";
+            ? `${row.scene?.name ?? "?"} · ${row.room}${row.kept ? ` ${voiceText("DRPG.Voice.plan.why.kept")}` : ""}`
+            : voiceText("DRPG.Voice.plan.why.noRoom");
     }
     return row;
 }
@@ -2237,16 +2242,15 @@ function sceneRoomWarnings() {
         const names = roomPieces(scene).map(r => r.name);
         if (!names.length) {
             lines.push("");
-            lines.push(`"${scene.name}" has characters on it and no rooms - everybody`);
-            lines.push("   standing there shares the main room. Name the regions to split them up.");
+            lines.push(voiceText("DRPG.Voice.warn.noRooms", { scene: scene.name }));
+            lines.push(`   ${voiceText("DRPG.Voice.warn.noRoomsFix")}`);
             continue;
         }
         const dupes = names.filter((n, i) => names.indexOf(n) !== i);
         if (dupes.length) {
             lines.push("");
-            lines.push(`"${scene.name}" has more than one region named ${
-                [...new Set(dupes)].map(n => `"${n}"`).join(", ")} - they are ONE voice room.`);
-            lines.push("   Intended for a corridor drawn in two pieces; a mistake otherwise.");
+            lines.push(voiceText("DRPG.Voice.warn.dupes", { scene: scene.name, names: [...new Set(dupes)].map(n => `"${n}"`).join(", ") }));
+            lines.push(`   ${voiceText("DRPG.Voice.warn.dupesHint")}`);
         }
     }
     return lines;
@@ -2279,21 +2283,18 @@ export function competingModuleWarnings() {
 
     const proximity = game.modules.get("proximity-voice-chat");
     if (proximity?.active) {
-        lines.push("Proximity Voice Chat is also active.");
-        lines.push("   It sets each participant's volume from token distance, on top of the room");
-        lines.push("   this module puts them in. Unconfigured, that volume is zero for everyone.");
+        lines.push(voiceText("DRPG.Voice.warn.proximity"));
+        lines.push(`   ${voiceText("DRPG.Voice.warn.proximityVolume")}`);
         let escape = "";
         try {
-            if (game.settings.get("proximity-voice-chat", "globalListen")) {
-                escape = "   Its \"global listen\" setting is ON, so it is not muting anybody right now.";
-            }
+            if (game.settings.get("proximity-voice-chat", "globalListen")) escape = voiceText("DRPG.Voice.warn.proximityGlobal");
         } catch {
             // Not registered on this client - nothing to report either way.
         }
         if (canvas?.scene?.getFlag?.("proximity-voice-chat", "disabled")) {
-            escape = `   It is switched off on "${canvas.scene.name}", so it is not muting anybody there.`;
+            escape = voiceText("DRPG.Voice.warn.proximitySceneOff", { scene: canvas.scene.name });
         }
-        lines.push(escape || "   Turn it off, or set \"global listen\", unless you are deliberately using both.");
+        lines.push(`   ${escape || voiceText("DRPG.Voice.warn.proximityFix")}`);
     }
 
     // Anything else that sounds like it moves audio around. Named rather than
@@ -2306,8 +2307,8 @@ export function competingModuleWarnings() {
         && /voice|webrtc|\bav\b|audio.?chat/i.test(`${m.id} ${m.title ?? ""}`));
     if (others.length) {
         if (lines.length) lines.push("");
-        lines.push(`Other active modules that mention voice: ${others.map(m => m.title ?? m.id).join(", ")}.`);
-        lines.push("   Worth ruling out first if the rooms below are right and the audio is not.");
+        lines.push(voiceText("DRPG.Voice.warn.others", { modules: others.map(m => m.title ?? m.id).join(", ") }));
+        lines.push(`   ${voiceText("DRPG.Voice.warn.othersHint")}`);
     }
 
     return lines;
@@ -2379,10 +2380,11 @@ export async function voicePlan({ toChat = false, targets } = {}) {
     const lines = competingModuleWarnings();
     if (lines.length) lines.push("");
 
-    lines.push(`Regional voice setting: ${getSetting(SETTINGS.voiceEnabled) ? "on" : "OFF - nothing is being applied"}`);
-    lines.push(`A/V mode: ${game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED
-        ? "DISABLED - nothing can connect" : game.webrtc?.mode}`);
-    lines.push(`This client runs the assignment loop: ${isPrimaryGm() ? "yes" : "no"}`);
+    /* In the page's language (E71 C20; DB12, S18-46): the plan is the GM's, posted to their chat with `toChat`. */
+    const P = (key, data) => voiceText(`DRPG.Voice.plan.${key}`, data);
+    lines.push(P("setting", { state: P(getSetting(SETTINGS.voiceEnabled) ? "on" : "settingOff") }));
+    lines.push(P("avMode", { mode: game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED ? P("avDisabled") : game.webrtc?.mode }));
+    lines.push(P("loop", { answer: P(isPrimaryGm() ? "yes" : "no") }));
 
     // The same decision the loop runs, on the same inputs - literally the same
     // function. A dry run computed separately from the thing it describes is a
@@ -2391,9 +2393,9 @@ export async function voicePlan({ toChat = false, targets } = {}) {
 
     if (eclipse) {
         lines.push("");
-        lines.push("AN ECLIPSE IS RUNNING. Nobody is being placed by their token - the rooms are");
-        lines.push("not even being read. No player is in any voice channel; the GMs share one.");
-        lines.push("It goes back to normal the moment it ends.");
+        lines.push(P("eclipse.running"));
+        lines.push(P("eclipse.noPlayer"));
+        lines.push(P("eclipse.ends"));
     }
     lines.push("");
 
@@ -2403,25 +2405,25 @@ export async function voicePlan({ toChat = false, targets } = {}) {
        connected, nobody holds it, or its account's ranking passed it over - is under "(sent nowhere)", never in the main
        room it does not reach; and an account with no character has its own section, with where it goes. Until E43 every
        character was grouped by its own room and an account with no character was not printed. R5201. */
-    const targetName = row => eclipse ? "(Eclipse - no player in voice)"
-        : row?.target === SPECTATOR_ROOM ? "(Spectators' room)"
-            : placeName(row, { main: "(main room)", dead: "(dead channel)" });
+    const targetName = row => eclipse ? P("eclipseGroup")
+        : row?.target === SPECTATOR_ROOM ? P("spectatorGroup")
+            : placeName(row, { main: P("mainGroup"), dead: P("deadGroup") });
     const rooms = new Map();
     const add = (key, line) => {
         if (!rooms.has(key)) rooms.set(key, []);
         rooms.get(key).push(line);
     };
-    const NOWHERE = "(sent nowhere)";
+    const NOWHERE = P("nowhere");
     for (const row of rows) {
         const chosen = byUser.get(row.user?.id);
         const speaks = Boolean(chosen && chosen.actor === row.actor);
         // An account pulled two ways is only actually going to one of them, and the plan has to show which.
-        const ignored = chosen && !speaks ? `   ← ignored, ${row.user?.name ?? "its account"} is sent with ${chosen.actor?.name ?? "another row"}${
-            contested.has(row.user?.id) ? " (see CONFLICTS)" : ""}` : "";
+        const ignored = chosen && !speaks ? `   ${P("ignored", { name: row.user?.name ?? P("itsAccount"), actor: chosen.actor?.name ?? P("anotherRow") })}${
+            contested.has(row.user?.id) ? ` ${P("seeConflicts")}` : ""}` : "";
         // Sent nothing until the GMs' cast arrives here (`keep`, `held`; E19 C3 and fix r1-G1).
-        const waiting = speaks && (row.keep || held?.has(row.user?.id)) ? "   ← sent nothing until the cast arrives" : "";
+        const waiting = speaks && (row.keep || held?.has(row.user?.id)) ? `   ${P("waiting")}` : "";
         add(speaks ? targetName(chosen) : NOWHERE, `${row.actor.name}${row.monokuma ? " [Monokuma]" : ""} - ${
-            row.user?.name ?? "nobody"} · ${speaks ? chosen.why : row.why}${ignored}${waiting}`);
+            row.user?.name ?? P("nobody")} · ${speaks ? chosen.why : row.why}${ignored}${waiting}`);
     }
     const sorted = [...rooms.entries()].sort(([a], [b]) => (a === NOWHERE) - (b === NOWHERE) || a.localeCompare(b));
     for (const [room, who] of sorted) {
@@ -2432,8 +2434,8 @@ export async function voicePlan({ toChat = false, targets } = {}) {
     const alone = [...byUser.values()].filter(row => !row.actor && row.user);
     if (alone.length) {
         lines.push("");
-        lines.push(`ACCOUNTS WITH NO CHARACTER  (${alone.length})`);
-        for (const row of alone) lines.push(`   ${row.user.name}${row.user.isGM ? " [GM]" : ""} → ${targetName(row)} · ${row.why || "no character"}`);
+        lines.push(`${P("alone")}  (${alone.length})`);
+        for (const row of alone) lines.push(`   ${row.user.name}${row.user.isGM ? " [GM]" : ""} → ${targetName(row)} · ${row.why || P("noCharacter")}`);
     }
 
     // ONE ACCOUNT, ONE ROOM. Found by this very function on the test world - one
@@ -2443,26 +2445,24 @@ export async function voicePlan({ toChat = false, targets } = {}) {
     // table rather than a thing to be resolved in code.
     if (contested.size) {
         lines.push("");
-        lines.push("CONFLICTS - these accounts own characters in more than one place:");
+        lines.push(P("conflicts"));
         for (const [userId, list] of contested) {
             const name = game.users.get(userId)?.name ?? userId;
             lines.push(`   ${name}`);
             for (const row of list) {
                 const chosen = byUser.get(userId)?.actor === row.actor;
-                lines.push(`      ${chosen ? "→" : " "} ${row.actor.name} · ${placeName(row, { main: "the main room", dead: "the dead channel" })}${
-                    chosen ? "   (this one is applied)" : ""}`);
+                lines.push(`      ${chosen ? "→" : " "} ${row.actor.name} · ${placeName(row, { main: voiceText("DRPG.Voice.mainRoom"), dead: P("deadChannel") })}${
+                    chosen ? `   ${P("applied")}` : ""}`);
             }
         }
-        lines.push("   A voice client can only be in one room. Give the spare characters to");
-        lines.push("   another account, or leave their tokens off the map.");
+        lines.push(`   ${P("oneRoom")}`);
     }
 
     for (const line of sceneRoomWarnings()) lines.push(line);
 
     lines.push("");
-    lines.push("This is the decision, not the audio. Whether two of these rooms can actually");
-    lines.push("hear each other needs a second connected client - run game.drpg.diagnoseVoice()");
-    lines.push("there and compare the room it reports with the one named above.");
+    lines.push(P("decision"));
+    lines.push(P("decisionHow"));
 
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | Voice plan\n${text}`);

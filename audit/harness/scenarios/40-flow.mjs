@@ -315,7 +315,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     check("p1: the Search's card a Reroll replaced is drawn with its total struck and a line of both totals in the new roll's colour - p2, without its words, draws neither and holds no mark",
         Boolean(searchCard) && searchArm.row?.reportMessageId === searchCard.id
             && replacedP1?.mark?.from === 14 && replacedP1.mark.to === 4 && replacedP1.mark.tone === "hope"
-            && replacedP1.struck === "line-through" && / 14 -> 4 /.test(replacedP1.line ?? "") && replacedP1.tone === "hope"
+            && replacedP1.struck === "line-through" && / 14 -> 4(?!\d)/.test(replacedP1.line ?? "") && replacedP1.tone === "hope"
             && replacedP1.onDoc === null && replacedP2 && replacedP2.mark === null && replacedP2.onDoc === null
             && replacedP2.struck === null && replacedP2.line === null,
         JSON.stringify({ named: searchArm.row?.reportMessageId ?? null, card: searchCard?.id ?? null, replacedP1, replacedP2 }), { flow: "reroll" });

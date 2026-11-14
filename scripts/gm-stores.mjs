@@ -34,6 +34,8 @@ import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
 import { tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -2793,6 +2795,7 @@ export async function openCaseWindow() {
         ? game.i18n.format("DRPG.Case.row.lastBackup", { when: localeFormat("dateTime", mark.lastBackupAt), who: mark.lastBackupBy ?? "" })
         : game.i18n.localize("DRPG.Case.row.neverBackedUp");
     const choice = await drpgWindow({
+        help: WINDOW_HELP.theCase,
         title: game.i18n.localize("DRPG.Case.tile"),
         classes: ["drpg-panel", "drpg-window-case-copy"],
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.

@@ -30,7 +30,7 @@
 
 import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
 import { getClock, incomingTimeOfDay, isEclipse, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, whisperToOwnerOnly, log, error, esc } from "./utils.mjs";
+import { isPrimaryGm, whisperToOwnerOnly, log, error, esc, listOf } from "./utils.mjs";
 import { watchStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 
@@ -105,7 +105,7 @@ export async function startWatches() {
         await watchStore.patch(actorId, { post: place.room, sceneId: place.scene.id });
         const who = await namesIn(place.scene, place.room, new Set([actorId]));
         await whisperToOwnerOnly(watcher, `<p>${esc(who.length
-            ? game.i18n.format("DRPG.Infiltrate.watch.start", { room: place.room, who: who.join(", ") })
+            ? game.i18n.format("DRPG.Infiltrate.watch.start", { room: place.room, who: listOf(who) })
             : game.i18n.format("DRPG.Infiltrate.watch.startEmpty", { room: place.room }))}</p>`);
         n++;
     }

@@ -70,6 +70,8 @@ import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 
 import { tipText } from "./ui-kit.mjs";
+// E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
+import { WINDOW_HELP } from "./ui-kit.mjs";
 
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
@@ -637,7 +639,10 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         }] : []),
         /* DICE SO NICE (E51 C8, 31.10.2026; audit S17-49; E51-48). The module draws every player's throw on the GM
            (roll-draw.mjs) and keeps each player's dice look (dice-sync.mjs) for it; a table without it rolls, and sees
-           no dice. Optional. Open is Foundry's module list, where it is switched on - offered only where this Foundry
+           no dice. Required: module.json requires it and the module does not start without it, so its title says nothing of
+           "optional" (E71 group D, 14.11.2026; R6551). The flag below stays `optional` as R1132 holds the First session
+           rows: where the checklist is drawn the module runs, so the row is done and the Next line has nothing to wait
+           on. Open is Foundry's module list, where it is switched on - offered only where this Foundry
            has the window under the name v13 gives it (`foundry.applications.sidebar.apps.ModuleManagement`, from
            memory, not read on v14); the row says its state either way. */
         {
@@ -1140,6 +1145,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     let resetAsked = false;
 
     const result = await drpgWindow({
+        help: WINDOW_HELP.seasonSetup,
         classes: ["drpg-panel", "drpg-window-season"],
         /* THE TABLES' WIDTH, 58rem (E49 A1d, the owner's approval of 11.11.2026: the footer in one row and the window on
            the screen at 1366x768). With Reset the season the footer holds four buttons; at "wide" (44rem, 704 px) they

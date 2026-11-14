@@ -39,7 +39,9 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         check(`${c.who}: config.mjs prose was swapped in place`, r.hint !== en.hint && /Przeszukaj/.test(r.hint), r.hint);
         check(`${c.who}: the glossary stays English`, r.label === "Search" && r.phase === "Daily Life" && r.stat === "Eye", JSON.stringify([r.label, r.phase, r.stat]));
         check(`${c.who}: the time of day is Polish`, r.tod === "Południe", r.tod);
-        check(`${c.who}: plural picks one/few/many`, r.p1.includes("1 Key Remnant.") && /2 Key Remnants/.test(r.p2) && /5 Key Remnants/.test(r.p5) && /22 Key Remnants/.test(r.p22), JSON.stringify([r.p1, r.p2, r.p5, r.p22]));
+        // The Polish inflects Key Remnant in the plural (glossary remnant, DB4; the owner, 12.11.2026): few "Key Remnanty",
+        // many "Key Remnantów" - the English "Key Remnants" stood here until E71 line C (14.11.2026).
+        check(`${c.who}: plural picks one/few/many`, r.p1.includes("1 Key Remnant.") && /2 Key Remnanty\./.test(r.p2) && /5 Key Remnantów\./.test(r.p5) && /22 Key Remnanty\./.test(r.p22), JSON.stringify([r.p1, r.p2, r.p5, r.p22]));
         check(`${c.who}: the system override (Fear -> Despair) survived the merge`, r.dh === "Despair", r.dh);
     }
 
@@ -76,9 +78,9 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         const P = await import("${REPO}/scripts/gm-panel.mjs");
         P.openGmPanel?.();
         await new Promise(r => setTimeout(r, 600));
-        const d = globalThis.__dialogLog.find(d => /panel GM-a/.test(d.title ?? "")) ?? globalThis.__dialogLog[0] ?? null;
+        const d = globalThis.__dialogLog.find(d => /Panel GM-a/.test(d.title ?? "")) ?? globalThis.__dialogLog[0] ?? null;
         return d ? { title: d.title, content: (d.content ?? "").replace(/\\s+/g, " ").slice(0, 300) } : null;`, { timeout: 30000 });
-    check("gm: the panel opens with a Polish title", panel?.title === "Danganronpa - panel GM-a", JSON.stringify(panel));
+    check("gm: the panel opens with a Polish title", panel?.title === "Panel GM-a", JSON.stringify(panel));
     check("gm: the panel's body is Polish", !!panel && /Rozdzia|Dzie|pora|Nast/i.test(panel.content), JSON.stringify(panel));
 
     // ---- 5. back to English on one client: the setting is per browser ----------------------
