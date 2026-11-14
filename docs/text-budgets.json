@@ -477,6 +477,54 @@
             "rule": "X16",
             "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
             "until": "E71"
+        },
+        {
+            "key": "DRPG.Voice.warn.proximityFix",
+            "rule": "X2",
+            "why": "The clause names the condition the GM needs to keep both settings on, not a rationale for the design. (E57 T5, 14.11.2026)",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Tables.roomBreakdown",
+            "rule": "X4",
+            "why": "The dash sits inside an example table name the GM types (“Kitchen - Murder Weapons”), not an aside. (E57 T5, 14.11.2026)",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Cleanup.reinforcedFlag",
+            "rule": "X11",
+            "why": "A state label on a Remnant: nobody acts at the moment it is read. (E57 T5, 14.11.2026)",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Chapter.typeless.other",
+            "rule": "X13",
+            "why": "The plural “ich” refers to the Truth Bullets counted, not to one person. (E57 T5, 14.11.2026)",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Action.dcHint",
+            "rule": "X20",
+            "why": "“Wskazówka” names what the threshold is for (the GM's hint), not a lead-in to a note. (E57 T5, 14.11.2026)",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Mask.card",
+            "rule": "X21",
+            "why": "The “?” is the mask's glyph on the token, quoted as the player sees it, not a question. (E57 T5, 14.11.2026)",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Tips.Actions.maskStayTooltip",
+            "rule": "X21",
+            "why": "The “?” is the mask's glyph on the token, quoted as the player sees it, not a question. (E57 T5, 14.11.2026)",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Config.CRISIS_ACTIONS.selfDefence.hint",
+            "rule": "X17",
+            "why": "The owner approved this text as written (docs/dev/text-batch-B01a.json, 01.11.2026): the condition on Role Reversal is the incident's denial, which the mechanics review asked to be said (E57 T5, 14.11.2026).",
+            "until": "E71"
         }
     ]
 }

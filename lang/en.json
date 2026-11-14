@@ -296,7 +296,7 @@
       },
       "searchTokensPerRoom": {
         "name": "Search Tokens per room",
-        "hint": "Search Tokens per room each time of day, 0 to 10. A Search uses one; a room with none left cannot be searched."
+        "hint": "Search Tokens per room each time of day, 0 to 10. A Search uses one; nobody can search a room with none left."
       },
       "lockRollDialog": {
         "name": "Lock the roll window for players",
@@ -553,7 +553,7 @@
         "one": "{actor} has {left} action left and needs {needed} for this.",
         "other": "{actor} has {left} actions left and needs {needed} for this."
       },
-      "woundedTooltip": "Wounded: no Health left, so one action fewer per time of day in Daily Life and the Investigation.",
+      "woundedTooltip": "Wounded: no Health left, so an action fewer per time of day in Daily Life and the Investigation.",
       "lockedTooltip": "This action is lost while the student has no Health left.",
       "pipReadOnly": { "one": "{left} of {max} action left this time of day. You spend it by taking an action.", "other": "{left} of {max} actions left this time of day. You spend them by taking actions." },
       "freeMoveAvailable": "Free Move still available this time of day.",
@@ -747,7 +747,7 @@
         "sameEnds": "the stretch needs two different ends. Pick it again.",
         "offWall": "the stretch is no longer on that wall. Pick it again.",
         "floor": "that wall is not on the character's floor. Pick a wall of that floor.",
-        "notOwn": "the item is not on the builder's own sheet: it was given away or taken, or it is on a shared sheet. Only an item on the builder's own sheet can be repaired.",
+        "notOwn": "the item is not on the builder's own sheet: it was given away or taken, or it is on a shared sheet. The builder can repair only an item on their own sheet.",
         "notRepairable": "the item is not a Usable or a piece of Gear, or it is neither broken nor worn. There is nothing to repair.",
         "nothingBack": "there is nothing to put back. Cut the breach again by hand if it should stand.",
         "itemBack": "the item's state before the repair was not recorded, or the item is gone, so nothing changed.",
@@ -767,7 +767,7 @@
         "origin": "Origin",
         "knows": "Who knows",
         "start": "At season start",
-        "startHint": "Known after a season reset, not now.",
+        "startHint": "Known only after a season reset.",
         "state": "State",
         "kindSecret": "Secret",
         "kindPublic": "Public",
@@ -1225,7 +1225,7 @@
       "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
     "Body": {
-      "noToken": "{name}'s token is on no scene with rooms, so no body was left on the map. Their belongings can be searched at their token instead.",
+      "noToken": "{name}'s token is on no scene with rooms, so no body was left on the map. Students can search their belongings at their token instead.",
       "tile": "{name}'s body"
     },
     "Monocub": {
@@ -1268,7 +1268,7 @@
       "tierBeaten": "{n} or more: {what}.",
       "tierMissed": "Under {n}: nothing comes of it.",
       "meddledOn": "You used Confusion on {name}.",
-      "tinkerIntro": "Push a project in your room one step forward or back, if someone worked on it this time of day. Your room sees you roll and which way, not on what.",
+      "tinkerIntro": "Push a project in your room one step forward or back, if someone worked on it this time of day. Your room sees your roll and its direction; the project stays hidden.",
       "tinkerRefused": "Tinker doesn't reach it. You keep your action and Hope.",
       "noProjectHere": "No project in this room to use Tinker on.",
       "grantStep": "the project one step forward with Help, back with Hinder",
@@ -1432,7 +1432,7 @@
       "noAnswers": "Give both answers: one for Zone A and one for Zone B.",
       "noQuestion": "A question in this Logic Dive set is blank.",
       "noSet": "Pick a Logic Dive set.",
-      "noCount": "Nothing to count now: only a running vote can be counted.",
+      "noCount": "Nothing to count now: you can count only a running vote.",
       "noQuestionHere": "Skip question works only in a Logic Dive.",
       "noSide": "Pick Zone A or Zone B.",
       "samePick": "You already picked that side.",
@@ -1769,7 +1769,7 @@
         "notParticipant": "That character takes no part in this trial.",
         "noDecision": "There is no decision to make now.",
         "notInExchange": "Only the speaker or someone who objected in this exchange can continue.",
-        "voteOpen": "The vote has opened, so the Closing Argument cannot be resumed.",
+        "voteOpen": "The vote has opened, so you cannot resume the Closing Argument.",
         "nothingToResume": "Nobody has time left in the Closing Argument.",
         "waitsForGm": "The Closing Argument waits until you choose who speaks.",
         "noTime": "That would take all the time left. Use Skip or End this mode instead.",
@@ -1979,8 +1979,8 @@
         "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not"
       },
       "Gm": {
-        "minusTooltip": "Takes one Despair from this pool",
-        "plusTooltip": "Adds one Despair to this pool",
+        "minusTooltip": "Takes {n} Despair from this pool",
+        "plusTooltip": "Adds {n} Despair to this pool",
         "whichStudentTooltip": "Whose items are listed below",
         "whichTableTooltip": "The table to pick the item from; the item it lists sets the category and tier below",
         "categoryTooltip": "What kind of item it is, which decides how the student can use it",
@@ -2205,7 +2205,7 @@
       "nobodyExecuted": "Nobody is executed",
       "nobodyNamed": "Nobody named",
       "namedByTable": "The table named {names} ({n} of {total}).",
-      "accusedDead": "{names} died before the verdict, and only a living student can be executed.",
+      "accusedDead": "{names} died before the verdict, and only a living student faces execution.",
       "unfoundDead": "Dead, though only the GMs know it: {names}. If you pick a student named here, their death becomes the execution, and the table learns of it when the sentence is carried out.",
       "storeNotReady": "This browser is still loading the ballots, so it cannot yet show who has voted.",
       "movedOn": "The vote has moved on since this window opened.",
@@ -2336,10 +2336,10 @@
       "moveHint": "Spend {n} Sanity and roll Body to drag the body to a connected room. If it moves, you leave an Evident Remnant.",
       "bodyNotHere": "The body is not in this room. You have to be with it to move it.",
       "nothingHere": "There is no Remnant to erase in this room.",
-      "allReinforced": "Every Remnant here is Reinforced and cannot be erased or reshaped.",
+      "allReinforced": "Every Remnant here is Reinforced, so you cannot erase or reshape any of them.",
       "rerollLost": "A clean-up Reroll could not run: the attempt it would redo was not found, or was on another Remnant. The first roll stands, and the Hope spent on it comes back.",
       "reinforcedFlag": "Reinforced, cannot be erased",
-      "reinforced": "The {what} is Reinforced and cannot be erased or reshaped.",
+      "reinforced": "The {what} is Reinforced, so you cannot erase or reshape it.",
       "vanished": "The Remnant you were working on is already gone. The effort still cost you.",
       "removed": "The {what} is gone.",
       "freeTonight": "Cleaning up your own crime scene costs no action, only {n} Sanity per attempt; the first after a critical Finishing Blow costs none.",
@@ -2612,15 +2612,15 @@
       "cannotLeave": "You cannot leave during an incident. Only a crisis action gets you out: Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
       "oneAtATime": "An incident is already running. End it before you open another.",
       "crisisPrompt": "What are you doing about it?",
-      "crisisBrief": "One action a turn. A row that is shut says why.",
+      "crisisBrief": "Each turn, you take an action. A row that is shut says why.",
       "nothingToDo": "There is nothing left for you to do this round.",
       "actionsLocked": "During an incident you act through {tile}. Hope Calls still work.",
       "thirdJoined": "{name} throws in with the killer and stays in the incident.",
       "thirdLeft": "{name} turns away and leaves. They take no part in this.",
       "thirdEscapedAlone": "{name} gets out alone and leaves the incident. The victim stays.",
-      "openingYours": "This opening roll is yours, and it cannot be skipped. If you close the window, it opens again, and after a few refusals the GMs are told.",
-      "openingRequired": "This roll cannot be skipped. Roll it.",
-      "openingDeclined": "{name} did not make the opening roll, and it cannot be skipped. Press Ask for the opening roll again on the Incident tracker, or end the incident.",
+      "openingYours": "This opening roll is yours, and you cannot skip it. If you close the window, it opens again, and after a few refusals the GMs are told.",
+      "openingRequired": "You cannot skip this roll. Roll it.",
+      "openingDeclined": "{name} did not make the opening roll, and nobody can skip it. Press Ask for the opening roll again on the Incident tracker, or end the incident.",
       "openingRemnantNote": "{name} sensed the attempt ({band}). Something of the struggle was left to notice.",
       "leftRemnants": {
         "one": "This leaves a Remnant the killer cannot wipe.",
@@ -2927,7 +2927,7 @@
       "neighboursNote": "“Neighbors” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbors are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbor has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
       "neighboursUnknown": "{room}: no room on this scene is named {names}. What was typed stays in its Neighbors and connects nothing until such a room exists.",
       "imageLarge": "This picture is large and slow to load for every player: {size}.",
-      "imageBroken": "This picture does not load - pick the file again."
+      "imageBroken": "This picture does not load. Pick the file again."
     },
     "Chapter": {
       "deathTitle": "A character dies",
@@ -3036,11 +3036,11 @@
       "finishEnd": "Finish the chapter's end",
       "dropRest": "Drop the rest",
       "endStands": "The last end of the chapter stopped at: {steps}.",
-      "dropped": "Dropped, not done: {steps}.",
+      "dropped": "Dropped and left undone: {steps}.",
       "doneEarlier": "Done before it stopped: {steps}.",
       "notStopped": "No end of the chapter waits to be finished.",
       "finishPhaseMoved": "The end of the chapter stopped in {opened}, and the clock reads {now}. Back in {opened}, Finish the chapter's end does the rest; Drop the rest leaves it undone.",
-      "endStoppedPrimary": "The end of the chapter stopped: this browser is no longer the primary GM's - {name} is - so these did not run: {steps}. What ran stays done; on {name}'s browser, Finish the chapter's end does the rest.",
+      "endStoppedPrimary": "The end of the chapter stopped because {name} is now the primary GM, so these did not run on this browser: {steps}. What ran stays done; on {name}'s browser, Finish the chapter's end does the rest.",
       "endNotRecorded": "The end of the chapter could not write down how far it has got ({error}). Nothing was done.",
       "step": {
         "reveal": "revealing the Truth Bullets",
@@ -3116,7 +3116,7 @@
       "prepareDone": "The trial hall {scene} is prepared.",
       "tableOn": "The table is on {scene}.",
       "showHall": "Show the hall",
-      "prepareOnSave": "Prepare the hall on Save: Foundry's exploration fog off, token vision off, global light on - everybody sees the whole hall.",
+      "prepareOnSave": "Prepare the hall on Save: Foundry's exploration fog off, token vision off, global light on, so everybody sees the whole hall.",
       "noHallLine": "No trial hall is linked, so the table stays on the scene it is on. Season setup links one.",
       "hallDarkLine": "The trial hall still has Foundry's token vision on, its global light off or its exploration fog on. For everyone to see the whole hall, tick \"Prepare the hall on Save\" in Season setup and press Save.",
       "noWayBackLine": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Season setup.",
@@ -3754,8 +3754,8 @@
         "other": "{n} extra crossings this time of day, free of charge."
       },
       "burst": {
-        "one": "You have {n} free action banked. It pays the whole price of one action, even a Long Rest.",
-        "other": "You have {n} free actions banked. Each pays the whole price of one action, even a Long Rest."
+        "one": "You have {n} free action banked. It pays an action's whole price, even a Long Rest's.",
+        "other": "You have {n} free actions banked. Each pays an action's whole price, even a Long Rest's."
       },
       "hopeSpent": "You spend {cost} Hope; you have {left} Hope left.",
       "noPool": "This Monokuma has no Despair pool. Check the Despair bar.",
@@ -4180,7 +4180,7 @@
       "visibleToNote": "Whoever builds it always sees it.",
       "manageTitle": "Projects",
       "manageTooltip": "Open the Projects window",
-      "manageIntro": "Only characters standing in a project's room can work on it or sabotage it. A project with no room can be worked on from any room, and no student can sabotage it. A Monokuma can sabotage any project from anywhere.",
+      "manageIntro": "Only characters standing in a project's room can work on it or sabotage it. Characters can work on a project with no room from any room, and no student can sabotage it. A Monokuma can sabotage any project from anywhere.",
       "secretNote": "Marking a project as an indirect murder makes it secret: only its killer, the players ticked for it, and the GMs see it. Use Share to let in a co-conspirator.",
       "changeImage": "Change the picture",
       "tokenName": "Work in progress",
@@ -4286,7 +4286,7 @@
       "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished.",
       "effectFailed": "{name}: an effect that runs when it is finished, or when its progress falls back below its target, failed ({error}). Its progress stays as it is; the console has the details.",
       "everyone": "This project is public, so every player who has been in its room sees it, or every player if it has no room. The ticks show who knew before it was revealed; if it becomes secret again, they and its builders see it.",
-      "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project.",
+      "builderStays": "{name} is building “{project}”: you cannot take a builder off their own project.",
       "description": "Description",
       "descriptionPlaceholder": "e.g. A false back in the bookcase, deep enough to hide a notebook",
       "descriptionNote": "Everyone who knows the project sees it. At most {max} characters.",
@@ -4575,7 +4575,7 @@
         "notWhereItStood": "The token did not stand there a moment ago.",
         "alreadyDone": "That has already happened.",
         "nothingToUndo": "There is nothing to take back.",
-        "deathStands": "That crisis action killed somebody, and a death cannot be taken back.",
+        "deathStands": "That crisis action killed somebody, and nobody can take a death back.",
         "cannotNow": "You cannot do that right now.",
         "cannotFrame": "You cannot frame that student.",
         "notThere": "Your character is not in the right place for that.",
@@ -4619,7 +4619,7 @@
         "barricaded": "The door does not give.",
         "onWatch": "You keep watch: you stay at your post until the Eclipse ends.",
         "chained": "You are chained here until this time of day ends.",
-        "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
+        "cannotLeave": "You are in an incident. The only way out is a crisis action: Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
         "trialLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",
         "noBudget": "No Free Move and no actions left.",
         "eclipseSpent": "Your Eclipse crossings are used up.",
@@ -4950,7 +4950,7 @@
       "deferred": { "one": "After the wrong vote, your Reinforced Level Up waits. You make its {n} pick with the class's next Level Up after a vote names the Blackened, or at the Final Trial's verdict. It lapses if you die first.", "other": "After the wrong vote, your Reinforced Level Up waits. You make its {n} picks with the class's next Level Up after a vote names the Blackened, or at the Final Trial's verdict. It lapses if you die first." },
       "offerSent": "{name}'s player has the offer and makes the picks now.",
       "offerFailed": "The Level Up offer couldn't be saved. Try again from the sheet's Level Up menu.",
-      "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them - it has not heard from the other GMs yet, or holds no offers at all. If one was made, offer it again, or bring the case back from a backup (GM panel, Diagnostics, The case: Restore from a file).",
+      "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them. Either it has not heard from the other GMs yet, or it holds no offers at all. If one was made, offer it again, or bring the case back from a backup (GM panel, Diagnostics, The case: Restore from a file).",
       "offerTooltip": "{kind}. Press to choose your improvements.",
       "whichKind": "Which Level Up did <strong>{actor}</strong> earn?",
       "kind": {
@@ -5077,13 +5077,13 @@
       "automationOff": "Daggerheart's Vulnerable and Defeated automations are switched off: Breakdown and Wounded take their place. To have them back, press Give back Foundry's settings in this module's settings.",
       "automationUnknown": "The values Daggerheart's Vulnerable and Defeated automations had before this module are not known: it switched them off before it kept anything. Give them back sets Daggerheart's defaults - both on. If this world had them off, switch them off again in Daggerheart's settings.",
       "fullGmOnly": "Only a full Gamemaster can give these back: Foundry lets only a full Gamemaster change the file permissions.",
-      "partly": "Given back, except: {parts}. Its value is still kept - open this window again and press Give them back.",
+      "partly": "Given back, except: {parts}. Its value is still kept. Open this window again and press Give them back.",
       "part": {
         "automation": "Daggerheart's automations",
         "permissions": "the file permissions"
       },
       "failed": "Foundry's settings could not be given back or held. The console says why.",
-      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Season setup, or this module's settings) and press Hold them again.",
+      "preSeason": "Foundry's settings are given back: the module holds none of them (Daggerheart's automations, the file permissions, the players' held settings). To hold them again, open Give back Foundry's settings (Season setup, or this module's settings) and press Hold them again.",
       "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions, and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
@@ -5179,7 +5179,7 @@
         "other": "Erase one of the {n} Remnants you know of here; the more visible it is, the harder it is to remove."
       },
       "nothingOfYours": "You know of no Remnant in this room.",
-      "onlyReinforced": "Every Remnant you know of here is Reinforced and cannot be erased or reshaped.",
+      "onlyReinforced": "Every Remnant you know of here is Reinforced, so you cannot erase or reshape any of them.",
       "frame": "Misleading Trail",
       "frameHint": "Plant a false Remnant pointing at another student with {n}+; a miss with Despair plants nothing.",
       "whichTrace": "Which Remnant",
@@ -5313,12 +5313,12 @@
         "shut": "Rerolled: the barricade's strength is now {n}.",
         "shutGone": "Rerolled: the barricade is down already, so nothing changes.",
         "forceStands": "Rerolled: the door was forced by the first roll and stays forced.",
-        "forceRefused": "Rerolled: the door cannot be tried again from here.",
+        "forceRefused": "Rerolled: you cannot try the door again from here.",
         "forced": "Rerolled: the door gives way now.",
         "forceHeld": "Rerolled: the door still holds.",
         "pickStands": "Rerolled: the lock was picked by the first roll and the picker has gone through, so it stands.",
         "pickTaken": "Rerolled: the lock holds after all, and the way in the first roll opened is gone.",
-        "pickRefused": "Rerolled: the lock cannot be tried again from here.",
+        "pickRefused": "Rerolled: you cannot try the lock again from here.",
         "picked": "Rerolled: the lock gives now, and the picker may walk in.",
         "pickHeld": "Rerolled: the lock still holds.",
         "watchStands": "Rerolled: a watch can no longer be set, so the first roll's stands.",
@@ -5338,7 +5338,7 @@
       "busy": "A Reroll for this student is already under way. Wait for it to finish. The student keeps their Hope.",
       "messageGone": "The roll is no longer in the chat, so there is nothing to throw again. You keep your Hope.",
       "interrupted": "{name}'s Reroll was interrupted before its new dice counted. The first roll stands, and the Hope paid for the Reroll comes back.",
-      "interruptedGm": "A reload cut {name}'s Reroll ({action}) short while its action was being taken back and replayed. The card shows the new total, {total}; the first was {first}. The first roll's effects may be only partly undone, so check its progress, items, Remnants, damage, and turn, and settle them by hand. The Hope stays paid, and this roll cannot be rerolled.",
+      "interruptedGm": "A reload cut {name}'s Reroll ({action}) short while its action was being taken back and replayed. The card shows the new total, {total}; the first was {first}. The reload may have undone the first roll's effects only in part, so check its progress, items, Remnants, damage, and turn, and settle them by hand. The Hope stays paid, and this roll takes no further Reroll.",
       "interruptedPending": "{name}'s Reroll did not finish. The GM will settle it, and the Hope stays paid.",
       "interruptedPaying": "{name}'s Reroll was cut short by a reload while its {cost} Hope was being paid, before the dice were thrown again. The first roll stands and can still be rerolled. Check {name}'s Hope by hand: the payment may or may not have been written.",
       "interruptedGivingBack": "{name}'s Reroll did not stand, and a reload cut short the giving back of its {cost} Hope. The first roll is back on the card and can still be rerolled. Check {name}'s Hope by hand: it may or may not have come back.",
@@ -5365,7 +5365,7 @@
       "remnantLeft": "The new result leaves a Remnant behind.",
       "remnantRemoved": "The new result removes the Remnant your first roll left.",
       "remnantManual": "The Reroll cannot adjust the Remnant your first roll left. Ask the GM to re-rate it.",
-      "traceKept": "{name}'s Reroll left the Remnant of the first roll as it was ({trace}): a GM has written on it or set its band, a Reroll put it back, it is too old for a Reroll to reach, or - where the new result would have removed it - somebody has already found it. The console says which. If the new result ({total}) should change it, re-rate or remove it by hand.",
+      "traceKept": "{name}'s Reroll left the Remnant of the first roll as it was ({trace}): a GM has written on it or set its band, a Reroll put it back, it is too old for a Reroll to reach, or the new result would have removed it but somebody has already found it. The console says which. If the new result ({total}) should change it, re-rate or remove it by hand.",
       "sabotageUndone": "Your first attempt is taken back: the target project is no longer frozen, and its repair project is gone.",
       "sabotageRedone": "{name} breaks again, and its repair now needs {n} progress.",
       "sabotageNowFails": "The new result fails: the target is left working.",
@@ -5620,12 +5620,12 @@
         "ignored": "← ignored, {name} is sent with {actor}",
         "itsAccount": "its account",
         "anotherRow": "another row",
-        "seeConflicts": "(see CONFLICTS)",
+        "seeConflicts": "(see Conflicts)",
         "waiting": "← sent nothing until the cast arrives",
         "nobody": "nobody",
-        "alone": "ACCOUNTS WITH NO CHARACTER",
+        "alone": "Accounts with no character",
         "noCharacter": "no character",
-        "conflicts": "CONFLICTS: these accounts own characters in more than one place.",
+        "conflicts": "Conflicts: these accounts own characters in more than one place.",
         "deadChannel": "the dead channel",
         "applied": "(this one is applied)",
         "oneRoom": "A voice client can only be in one room. Give the spare characters to another account, or leave their tokens off the map.",
@@ -5832,7 +5832,7 @@
         "item": "Everybody carries their opening item",
         "itemFix": "One Tier {tier} item tied to their Ultimate: hand it out from “Give / take items”.",
         "pool": "Everybody is assigned in Despair Flow",
-        "poolFix": "Assign each of them a Monokuma by hand, or deliberately assign them none, in the GM panel under Despair Flow. Until then, Despair from their rolls goes to the pool named beside them; where none is named, it goes nowhere."
+        "poolFix": "In the GM panel under Despair Flow, assign each of them a Monokuma by hand, or mark them as having none. Until then, Despair from their rolls goes to the pool named beside them; where none is named, it goes nowhere."
       },
       "title": {
         "music": "Music diagnostics",
@@ -6362,7 +6362,7 @@
         "other": "{n} rooms marked: {names}."
       },
       "stashesTitle": "Bedroom stashes given",
-      "stashesNote": "Each bedroom below had no stash for its owner, so its owner was given an open one. If you had removed one on purpose, remove it again on Room setup's Stashes tab.",
+      "stashesNote": "Each bedroom below had no stash for its owner, so its owner was given an open one. To keep one removed, remove it again on Room setup's Stashes tab.",
       "stashesGiven": {
         "one": "{n} bedroom: {names}.",
         "other": "{n} bedrooms: {names}."
@@ -6453,7 +6453,7 @@
       "plantTaken": "Somebody found “{item}”, the item planted in {room}.",
       "plantBack": "“{item}” is waiting in {room} again: the finder could not take it.",
       "plantLost": "“{item}” is gone: another planted item already waits in {room}, so it could not go back there.",
-      "plantUsableNote": "The finder gets it as the kind of item they were searching for, so it looks like an ordinary find. It can set off the trap only if they searched for a usable item: found as a tool or a weapon, it cannot be used, so it never goes off.",
+      "plantUsableNote": "The finder gets it as the kind of item they were searching for, so it looks like an ordinary find. It can set off the trap only if they searched for a usable item: found as a tool or a weapon, it is of no use to the finder, so it never goes off.",
       "plantAction": "Plant the item",
       "plantSettled": "{name} planted the item."
     },

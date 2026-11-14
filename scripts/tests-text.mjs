@@ -1398,9 +1398,19 @@ const RULE_NOUN = Object.freeze({
     pl: "kość|kości|kośćmi|akcja|akcje|akcji|akcję|akcjach|akcjami|tura|tury|turę|tur|turze|turach|Hope|Despair|Health|Sanity"
 });
 /* Not read: "one" as a pronoun ("no one", "the one ... that", in NUMBER_WORD), and the module's name for a dice style ("One
-   dice look", „Jeden wygląd kości”, „w jednym stylu kości”). */
+   dice look", „Jeden wygląd kości”, „w jednym stylu kości”). A determiner between the word and the noun ("take one this
+   turn", "one each turn") makes the word a pronoun and the noun the time it happens in, not what is counted (E57 T7,
+   14.11.2026: the crisis menu's Self-Defense hint, an approved text, read "one this turn"). */
 const NUMBER_RE = Object.freeze(Object.fromEntries(["en", "pl"].map(lang => [lang, new RegExp(
-    `${W(NUMBER_WORD[lang])}\\s+(?:(?!of\\b|z\\b|wygląd|styl)[\\p{L}-]+\\s+)?${W(RULE_NOUN[lang])}(?!\\s+(?:look|style|wygląd))`, "giu")])));
+    `${W(NUMBER_WORD[lang])}\\s+(?:(?!of\\b|z\\b|wygląd|styl|(?:this|that|the|each|every|per|a|an|tej|tę|tym|tą)\\s)[\\p{L}-]+\\s+)?${W(RULE_NOUN[lang])}(?!\\s+(?:look|style|wygląd))`, "giu")])));
+
+/**
+ * T7's allowed texts (E57, 14.11.2026): a key whose number word the owner approved as written, with the reason, both
+ * languages alike. Read by `ruleNumberWords`; a fixture passes its own through `ruleNumberAllow`.
+ */
+export const RULE_NUMBER_ALLOW = Object.freeze({
+    "DRPG.Config.HOPE_CALLS.freeCrit.effect": "\"one of the two dice\" / „jedna z dwóch kości” names the pair every roll throws, Hope's and Fear's, which no config number gives; the owner approved the text as written (docs/dev/text-batch-B01a.json, 01.11.2026, O14: the Fear die and Despair not in one sentence)"
+});
 
 /**
  * T7, its part in E65 (plan; the rest of the rules-parity test is E25's and
@@ -1416,8 +1426,10 @@ const NUMBER_RE = Object.freeze(Object.fromEntries(["en", "pl"].map(lang => [lan
 export function ruleNumberWords(bag = {}) {
     const found = [];
     let read = 0;
+    const allow = bag.ruleNumberAllow ?? RULE_NUMBER_ALLOW;
     for (const u of uiUnits(bag)) {
         read++;
+        if (Object.hasOwn(allow, u.key)) continue;
         const re = NUMBER_RE[u.lang];
         re.lastIndex = 0;
         const m = re.exec(u.text);
@@ -2584,8 +2596,12 @@ export const MODES = Object.freeze({
     glossaryHits: Object.freeze({ test: "T8", mode: "report", fail: "E25", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
     retiredHits: Object.freeze({ test: "T28", mode: "fail", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
     lengthOver: Object.freeze({ test: "T4", mode: "report", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
-    patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
-    ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    /* FAIL since E57 (14.11.2026, 1.2.113): 212 findings; the X3 and X4 detectors narrowed red first, the texts fixed, eight keys allowed in docs/text-budgets.json (one an owner-approved text), which it reads
+     * ("budgets" in reads, as T21: without its allow rows it is not the verdict, so R1059's served run leaves it out). */
+    patterns: Object.freeze({ test: "T5", mode: "fail", fail: "E71", reads: Object.freeze(["lang", "budgets"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
+    /* FAIL since E57 (14.11.2026, 1.2.113): 23 findings: 20 texts rewritten or given their placeholder (the Bounty's {reward}),
+       one owner-approved text allowed (RULE_NUMBER_ALLOW), and "take one this turn" read as the pronoun it is (NUMBER_RE). */
+    ruleNumberWords: Object.freeze({ test: "T7", mode: "fail", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     /* FAIL since E57 C12 (14.11.2026): its one finding after the text lines, SFX_EVENTS.despairCall.hint, reworded. */
     monokumaVoice: Object.freeze({ test: "T21", mode: "fail", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
     /* FAIL since E57 C12 (14.11.2026): after the text lines, two readouts allowed (COLON_CHAIN_ALLOW) and one sentence split. */
@@ -3037,7 +3053,7 @@ export const FIXTURES = Object.freeze({
         }
     },
     ruleNumberWords: {
-        flags: ["DRPG.Config.FX.p en", "DRPG.Fx.a en", "DRPG.Fx.a pl", "DRPG.Fx.b en", "DRPG.Fx.b pl", "DRPG.Fx.c en", "DRPG.Fx.c pl", "DRPG.Fx.h en", "DRPG.Fx.h pl"],
+        flags: ["DRPG.Config.FX.p en", "DRPG.Fx.a en", "DRPG.Fx.a pl", "DRPG.Fx.b en", "DRPG.Fx.b pl", "DRPG.Fx.c en", "DRPG.Fx.c pl", "DRPG.Fx.h en", "DRPG.Fx.h pl", "DRPG.Fx.l en"],
         input: {
             en: {
                 "DRPG.Fx.a": "Gain one Hope.",                                // flagged
@@ -3049,8 +3065,12 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.g": "One dice look for the table",                   // the dice style's name: passes
                 "DRPG.Fx.h": "Two free actions",                              // one adjective between: flagged
                 "DRPG.Fx.i": "the one action that counts",                    // "the one": passes
-                "DRPG.Fx.j": "Choose one of Hope or Despair."                 // "of" between: passes
+                "DRPG.Fx.j": "Choose one of Hope or Despair.",                // "of" between: passes
+                "DRPG.Fx.k": "Take one this turn without a roll.",            // a determiner between: "one" is a pronoun, passes
+                "DRPG.Fx.l": "Down to one action each turn.",                 // flagged: the count stands before its noun
+                "DRPG.Fx.pair": "One of the two dice is set to 12."           // the same words as c, allowed below: passes
             },
+            ruleNumberAllow: { "DRPG.Fx.pair": "an approved text (E57)" },
             prose: { "DRPG.Config.FX.p": "Survive for the next two turns." },   // flagged
             pl: {
                 "DRPG.Fx.a": "Zyskujesz jeden Hope.",                         // flagged
@@ -3059,7 +3079,8 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.d": "Raz dziennie.",                                 // "raz" is no number word here: passes
                 "DRPG.Fx.e": "Weź {n} kości.",                                // passes
                 "DRPG.Fx.g": "Jeden wygląd kości przy stole",                 // the dice style's name: passes
-                "DRPG.Fx.h": "Dorzuca jedną kość kary."                       // flagged
+                "DRPG.Fx.h": "Dorzuca jedną kość kary.",                      // flagged
+                "DRPG.Fx.k": "Weź jedną w tej turze bez rzutu."               // a determiner between: passes
             }
         }
     },

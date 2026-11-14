@@ -19071,13 +19071,13 @@ const REGRESSIONS = [
                 ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
                 ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
-                ["monokumaVoice", "T21", "fail"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
-                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "fail"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "fail"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
+                ["monokumaVoice", "T21", "fail"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "fail"],
+                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "fail"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "fail"], ["secondPersonToMany", "T16", "fail"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
                 ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
-                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
+                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 10, 10], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
             baselines: [["dashesIn", 3], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
@@ -19120,7 +19120,7 @@ const REGRESSIONS = [
             otherMoved: ["DRPG.Fx.cards.few stale", "DRPG.Fx.cards.many stale", "DRPG.Fx.cards.other stale", "DRPG.Fx.stale stale"], proseMoved: ["DRPG.Config.FX.hint stale", "DRPG.Fx.stale stale"]
         }));
     }],
-    ["R1059 - the text lint's FAIL detectors over the filesthe module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11)", async () => {
+    ["R1059 - the text lint's FAIL detectors over the filesthe module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance; no rule's number written as a word where a placeholder gives it (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11; E57, T7)", async () => {
         /*
          * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
          * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:
@@ -19130,7 +19130,8 @@ const REGRESSIONS = [
          * at a table - which is also why T6's four prose rows of its baseline are not judged here (`sources`), while
          * the same strings as config.mjs's literals are. The FAIL detectors that need nothing but what a table serves
          * are taken from MODES, and the list is held to the four of C1 and C2 and E66 C1's T20 (localeCalls, which
-         * reads only the scripts), so another one is a change to this test;
+         * reads only the scripts), so another one is a change to this test - E57 (14.11.2026) added T7
+         * (ruleNumberWords, FAIL at 0), while T5, FAIL the same day, reads the budgets' allow rows and stays Node's;
          * each baseline is held whole: a finding it does not hold is red, and so is a row nothing fills ("take it out
          * of the baseline"), with the number of sites judged. Read on 52eacb9c in Node: 168 families and 4774 pairs
          * found nothing; T3 3498 calls in 146 scripts, the baseline's two keys; T6 the eleven baseline sites, nothing
@@ -19165,7 +19166,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []], ["ruleNumberWords", true, 0, [], []], ["colonChains", true, 0, [], []], ["bareLeft", true, 0, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -19553,7 +19554,7 @@ const REGRESSIONS = [
                 move: ["To przejście kosztowało akcję. Została ci 1 akcja.", "To przejście kosztowało akcję. Zostały ci 2 akcje.", "To przejście kosztowało akcję. Zostało ci 5 akcji."],
                 eclipse: ["1 przejście)", "2 przejścia)"],
                 summary: ["P: co się u ciebie działo.", "P: co działo się przy stole.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
-                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 3", "Znaleziono dopiero 2 Key Remnanty, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 3"],
+                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu, a Class Trial potrzebuje więcej niż 3, żeby mieć uczciwe rozwiązanie", "Znaleziono dopiero 2 Key Remnanty, a Class Trial potrzebuje więcej niż 3, żeby mieć uczciwe rozwiązanie"],
                 overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
                 approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
             },
@@ -19648,7 +19649,10 @@ const REGRESSIONS = [
                 // E71 B01b and B03: the Overflow's explainer and the Mastermind's purse, a count before Despair or Hope.
                 "Overflow.explainBody", "Mastermind.hopeReadout",
                 // E71 B10b and B12 (line C, 14.11.2026): Confusion's least to give, a count before Despair; a Reroll's Work, a count before progress.
-                "Monocub.giveAtLeast", "Reroll.progressAdjusted"
+                "Monocub.giveAtLeast", "Reroll.progressAdjusted",
+                // E57 T7 (14.11.2026): a rule's number from a placeholder where a word stood - the Bounty's reward before Hope,
+                // the Despair stepper's step before Despair.
+                "Config.DESPAIR_CALLS.bounty.effect", "Tips.Gm.minusTooltip", "Tips.Gm.plusTooltip"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -19704,7 +19708,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 78, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -19873,7 +19877,7 @@ const REGRESSIONS = [
             + "and the round's askStart at Night]");
     }],
 
-    ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
+    ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`, the Bounty's `{reward}` since E57) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
         /*
          * E66 C4, 01.11.2026; S18-37, E66-17. config.mjs `callEffect` filled six numbers for the Calls alone; every
          * other config sentence carried its number as a digit or a word typed in - "Costs 1 Health and 1 Sanity",
@@ -20023,7 +20027,7 @@ const REGRESSIONS = [
                     "Dodaj nowe doświadczenie warte +3"]
             },
             // 8 since E72 C15: Bribe's "{cost} Hope".
-            calls: [], callCount: 8,
+            calls: [], callCount: 9,
             planted: ["a {nope} b", "T", ""],
             digits: { read: true, flagged: [], stale: [] },
             words: { flagged: [], stale: [] },
@@ -20116,13 +20120,13 @@ const REGRESSIONS = [
             },
             pl: {
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
-                    "2 akcje na każdą porę dnia. Po jednej akcji kosztują przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
+                    "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie kosztują po akcji. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
                     "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada. W Class Trial Wounded nie zabiera akcji.",
                     "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji.",
                     "Sprzątasz własne miejsce zbrodni: każda próba kosztuje 1 Sanity zamiast akcji, poza pierwszą po krytycznym Finishing Blow.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
-                    "3 akcje na każdą porę dnia. Po jednej akcji kosztują przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
+                    "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie kosztują po akcji. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
                     "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada. W Class Trial Wounded nie zabiera akcji.",
                     "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji.",
                     "Sprzątasz własne miejsce zbrodni: każda próba kosztuje 2 Sanity zamiast akcji, poza pierwszą po krytycznym Finishing Blow.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",

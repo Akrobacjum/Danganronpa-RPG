@@ -1098,8 +1098,8 @@ export const TRUTH_BULLET_TYPES = {
            answer; the sentence says what the mark does, which is the same on both: the
            chapter's sweep keeps the bullet (chapter.mjs `sparedBySweep` reads `faintOf`;
            scenario 62's E checks), and it can be analysed again. */
-        hint: "Doubtful connection to the case. Its Faint mark keeps it when the chapter's evidence "
-            + "is cleared, and it can be analysed again."
+        hint: "Doubtful connection to the case. Its Faint mark keeps it when the chapter's evidence is cleared, "
+            + "and students can analyze it again."
     },
     prep: {
         label: "Prep Truth Bullet",
@@ -1115,12 +1115,12 @@ export const TRUTH_BULLET_TYPES = {
     resolution: {
         label: "Tamper Truth Bullet",
         // Anybody's Tamper leaves one, not the killer's alone (E09 C14; S13-15, as `prep` above).
-        hint: "Left by somebody tidying up - the too-clean patch, the thing put back slightly wrong."
+        hint: "Left by somebody tidying up: the too-clean patch, the thing put back slightly wrong."
     },
     autopsy: {
         label: "Autopsy Truth Bullet",
-        hint: "The state of the body - when it was discovered, and the cause of death. Handed out "
-            + "at the start of every Investigation."
+        hint: "The state of the body: when it was discovered, and the cause of death. Handed out at the start "
+            + "of every Investigation."
     },
     final: {
         label: "Final Truth Bullet",
@@ -1894,8 +1894,7 @@ export const ACTIONS = {
         description: "Moving inside your room is free. Each time of day, crossing into another room uses your Free "
             + "Move, then your free crossings, then actions; with none left, the crossing is undone. An Overflow can "
             + "block the Free Move, and the GMs can turn the charge off.",
-        instruction: "Drag your token. Crossing into another room is what counts - the cost "
-            + "is applied when you arrive."
+        instruction: "Drag your token. Crossing into another room is what counts; the cost is applied when you arrive."
     },
     sabotage: {
         kind: "variant",
@@ -2851,7 +2850,7 @@ export const DESPAIR_CALLS = {
          * described and did not buy.
          */
         label: "Contraband", icon: "fa-trash-can", cost: 4, target: "item",
-        effect: "Destroys one item a student carries, or one left on a body; a Truth Bullet cannot be destroyed."
+        effect: "Destroys one item a student carries, or one left on a body; it cannot destroy a Truth Bullet."
     },
     publicAnnouncement: {
         /*
@@ -2922,7 +2921,7 @@ export const DESPAIR_CALLS = {
         label: "Bounty", icon: "fa-sack-dollar", cost: 1, reward: 1, target: "player", bounty: true,
         // No tile of its own (the owner, 12.11.2026): chosen in Fuel a Monocub's tile (calls.mjs `despairCallsFor`).
         inside: "fuelTheCub",
-        effect: "A secret Bounty on a living student: one Hope for the first Monocub whose Confusion hinders them. Only the Monocubs and the GMs know. If nobody claims it by the next time of day, it lapses and the Despair goes back to the pool."
+        effect: "A secret Bounty on a living student: {reward} Hope for the first Monocub whose Confusion hinders them. Only the Monocubs and the GMs know. If nobody claims it by the next time of day, it lapses and the Despair goes back to the pool."
     }
 };
 
@@ -3004,7 +3003,9 @@ export const PROSE_NUMBERS = Object.freeze({
     turns: { of: entry => entry?.hinders?.turns, unit: "nextTurnAcc" },
     mult: { of: () => INCIDENT.finishingBlowPerHp },
     actions: { of: () => STARTING.actions, unit: "action" },
-    worth: { of: () => STARTING.experienceValue }
+    worth: { of: () => STARTING.experienceValue },
+    // E57 T7: the Bounty's Hope, which its sentence once wrote as a word ("one Hope").
+    reward: { of: entry => entry?.reward }
 });
 
 /** What a sentence's `{hp}` and `{stress}` read: a Call's `damage`, a crisis action's on a Hope roll, or on a failure its Despair's. */
@@ -3255,7 +3256,7 @@ export const TRAP_TRIGGERS = {
     },
     project: {
         label: "Somebody works on a named project",
-        hint: "Pushing that project forward is what does it - the scaffold, the crane.",
+        hint: "Pushing that project forward is what does it: the scaffold, the crane.",
         icon: "fa-hammer",
         watch: "action",
         actionKey: "project",
@@ -3279,7 +3280,7 @@ export const TRAP_TRIGGERS = {
      */
     stash: {
         label: "Somebody hunts for a hidden stash here",
-        hint: "Any attempt, hit or miss. It answers the looking, not the finding.",
+        hint: "Any attempt, hit or miss: the search itself sets it off.",
         icon: "fa-box-archive",
         watch: "stash"
     },
@@ -3532,7 +3533,7 @@ export const MONOCUB = {
                   hinderTarget: "Something rattles you: disadvantage on your next roll." }
             ],
             critical: {
-                help: "They get one spent action back.", hinder: "They lose one of their actions.",
+                help: "They get back the action they spent.", hinder: "They lose an action.",
                 helpTarget: "A moment's luck: you get an action back.",
                 hinderTarget: "A moment's confusion: you lose an action."
             },
@@ -3960,7 +3961,7 @@ export const CRISIS_ACTIONS = {
         remnant: { hope: "evident", despair: "evident", critical: "evident" },
         criticalReinforced: true,
         hope: "You keep your feet. Survive and Role Reversal are open to you now.",
-        despair: "You keep your feet, but only barely - Role Reversal is open to you now.",
+        despair: "You keep your feet, but only barely. Role Reversal is open to you now.",
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
         failure: "Nothing happens. On a Despair failure you lose an extra {drain} Health or Sanity.",
@@ -4188,8 +4189,8 @@ export const CRISIS_ACTIONS = {
          * from the betrayal AFTER the incident, not from two people bleeding
          * inside it. See `afterIncident` in murder-rules.mjs.
          */
-        failure: "Only you get out. The victim stays where they are, and your one free choice "
-            + "is spent - whatever happens next, it happens without you.",
+        failure: "Only you get out. The victim stays where they are, and your one free choice is spent. Whatever "
+            + "happens next, it happens without you.",
         remnant: { hope: "obvious", despair: "evident" },
         // A failed escape leaves a trace too. It used to live under
         // `remnant.failure`, which nothing ever read: the failure branch looks up
@@ -5002,7 +5003,7 @@ export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };
 
 export const SFX_SLIDERS = {
     sound: { label: "Sound", hint: "The sound effects - windows, chat, doors, the trial floor. Not the music." },
-    music: { label: "Music", hint: "The playlists. Foundry's own playlist volume, not a second one beside it.", proxiesFoundryMusic: true }
+    music: { label: "Music", hint: "The playlists. This is Foundry's own playlist volume.", proxiesFoundryMusic: true }
 };
 
 /** The sliders this module actually stores a volume for - see above. */
@@ -5334,7 +5335,7 @@ export const SFX_EVENTS = {
     },
     analyzeMiss: {
         label: "Analyze fails",
-        hint: "An Analyze misses, and that Truth Bullet cannot be analyzed again this chapter. Heard by the player who ran it.",
+        hint: "An Analyze misses, and nobody can analyze that Truth Bullet again this chapter. Heard by the player who ran it.",
         category: "incident"
     },
     /* E94 C2: the start-of-day board's chime (MK-R2 #4), played once as the board rises on each browser. */

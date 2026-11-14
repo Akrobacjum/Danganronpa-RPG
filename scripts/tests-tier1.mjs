@@ -24055,8 +24055,8 @@ const INVARIANTS = [
             game.i18n.translations = own;
             tab.draw();
         }
-        const START = ["Known after a season reset, not now.",
-            "Znają je po resecie sezonu, nie teraz."];
+        const START = ["Known only after a season reset.",
+            "Znają je dopiero po resecie sezonu."];
         const WAY = ["A tunnel or stairs can go one way only: pick it under its Shape. A passage in a wall always goes both ways.",
             "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Tajne przejście w ścianie zawsze prowadzi w obie strony."];
         const ends = (text, i) => typeof text === "string" && text.endsWith(`${START[i]} ${WAY[i]}`);
@@ -59342,7 +59342,7 @@ const INVARIANTS = [
         };
         equal(stableJson([groupOf(aKitchen.actor.name), groupOf(sRow.actor.name), groupOf(offRow.actor.name), groupOf(aSpare.actor.name), groupOf(lone.name),
             lines.filter(line => line.includes(sRow.actor.name)).length]),
-            stableJson(["Kitchen", "(Spectators' room)", "(sent nowhere)", "(sent nowhere)", "ACCOUNTS WITH NO CHARACTER", 1]),
+            stableJson(["Kitchen", "(Spectators' room)", "(sent nowhere)", "(sent nowhere)", "Accounts with no character", 1]),
             "[the group of a character placed in the Kitchen; of a Spectator talking; of a character whose owner is offline; of a spare its account's ranking passed over; of an account with no character; the Spectator's lines]");
     }],
 
