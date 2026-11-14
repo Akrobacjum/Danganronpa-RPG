@@ -18,6 +18,11 @@
  *   3. tests-css.mjs `budgetProblems`: per sheet `important`, `colourLiterals`, `duplicates` and `deadClasses` against
  *      its row, red above (a rule was added) and below (lower the budget in the same commit: `--write`); a stray
  *      comment end is red with no budget; a sheet with no row, or a row with no sheet, is red.
+ *      Since E55 C1 (14.11.2026) a row also holds `overridden`: tests-css.mjs `overriddenDeclarations`, a declaration
+ *      a later (or `!important`) twin on the identical selector under the identical at-rules always beats, read over
+ *      the sheets as one cascade; 123 at 9b7daf8b (the 1.2.113 assembly with E55's freezes). And since C2
+ *      `deadAttributes`: a `[data-drpg-*]` the sheets select on that no script writes (`crisis` in danganronpa.css and
+ *      the `[data-drpg-gm]` arm in stained-glass.css at 9b7daf8b, 2 of 62).
  *   4. tests-css.mjs `meaningReads` (E48 K1, 11.11.2026): a meaning token read by a rule that does not name its
  *      meaning - gold outside Hope's selectors, `--drpg-attention` outside focus and selection - one problem each,
  *      after `meaningSelfCheck` on its fixture. The stage's word was "warns"; it is red here because the count is 0 and
@@ -71,7 +76,7 @@ export async function cssLint(repo = DEFAULT_REPO, { write = false } = {}) {
     const sources = crawlScripts(repo).map(([file, text]) => [file, stripComments(text)]);
     if (!sheets.length) problems.push("module.json serves no sheet - nothing was read");
     if (sources.length < 100) problems.push(`the crawl from scripts/module.mjs read ${sources.length} script(s) - deadClasses would vouch for nothing`);
-    const { counts, dead } = T.lintCounts(sheets, sources);
+    const { counts, dead, attrs } = T.lintCounts(sheets, sources);
     for (const row of dead.stale) problems.push(`deadClasses: STORED's row ${row} has no rule left in the sheets, or an emitter again`);
     const budgetPath = path.join(repo, BUDGET_FILE);
     let budget = null;
@@ -92,15 +97,15 @@ export async function cssLint(repo = DEFAULT_REPO, { write = false } = {}) {
     else problems.push(...T.budgetProblems(counts, budget));
     const sum = field => Object.values(counts).reduce((n, c) => n + c[field], 0);
     const summary = `css: ${sheets.length} sheet(s), ${sources.length} script(s); self-check ${problems.some(p => p.startsWith("self-check: ")) ? "red" : "held"}; `
-        + `!important ${sum("important")}, colour literals ${sum("colourLiterals")}, duplicate rules ${sum("duplicates")}, stray comment ends ${sum("strayCommentEnds")}, `
-        + `dead classes ${sum("deadClasses")} of ${dead.inSheet} named, meaning tokens read ${meaning.read} (${meaning.found.length} outside their selectors); ${write ? `budget written to ${BUDGET_FILE}; ` : ""}${problems.length} problem(s)`;
+        + `!important ${sum("important")}, colour literals ${sum("colourLiterals")}, duplicate rules ${sum("duplicates")}, overridden declarations ${sum("overridden")}, stray comment ends ${sum("strayCommentEnds")}, `
+        + `dead classes ${sum("deadClasses")} of ${dead.inSheet} named, dead attributes ${sum("deadAttributes")} of ${attrs.inSheet} named, meaning tokens read ${meaning.read} (${meaning.found.length} outside their selectors); ${write ? `budget written to ${BUDGET_FILE}; ` : ""}${problems.length} problem(s)`;
     return { problems, summary, counts };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url)) {
     const { problems, summary, counts } = await cssLint(DEFAULT_REPO, { write: process.argv.includes("--write") });
     for (const [file, c] of Object.entries(counts)) {
-        console.log(`  ${file}: !important ${c.important}, colour literals ${c.colourLiterals}, duplicates ${c.duplicates}, dead classes ${c.deadClasses}, stray comment ends ${c.strayCommentEnds}`);
+        console.log(`  ${file}: !important ${c.important}, colour literals ${c.colourLiterals}, duplicates ${c.duplicates}, overridden ${c.overridden}, dead classes ${c.deadClasses}, dead attributes ${c.deadAttributes}, stray comment ends ${c.strayCommentEnds}`);
     }
     for (const p of problems) console.log(`css: ${p}`);
     console.log(summary);

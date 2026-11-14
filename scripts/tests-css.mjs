@@ -161,6 +161,79 @@ export function duplicateRules(text) {
     return { count: found.length, found, read };
 }
 
+/* A selector list split on its top-level commas (a comma inside `:is()`, `:not()` or `[a="x,y"]` stays), each complex
+   selector with its whitespace collapsed. */
+function complexSelectors(prelude) {
+    const out = [];
+    let depth = 0, part = "", quote = null;
+    for (const ch of String(prelude)) {
+        if (quote) { if (ch === quote) quote = null; part += ch; continue; }
+        if (ch === "\"" || ch === "'") quote = ch;
+        if (ch === "(" || ch === "[") depth++;
+        if (ch === ")" || ch === "]") depth--;
+        if (ch === "," && !depth) { out.push(part); part = ""; } else part += ch;
+    }
+    out.push(part);
+    return out.map(s => s.replace(/\s+/g, " ").replace(/\s*([>+~])\s*/g, " $1 ").trim()).filter(Boolean);
+}
+
+/**
+ * OVERRIDDEN DECLARATIONS (E55 C1, 14.11.2026; the inventory's finders/override reading, made a lint part). A
+ * declaration nothing can ever show: for every complex selector of its rule, another declaration of the same property
+ * on the textually identical complex selector, under the identical at-rules, wins over it - `!important` first, then
+ * the later in module.json's order and the sheet's (an identical selector is an identical specificity, and no sheet
+ * has `@layer`). `sheets` is [[file, text]] in module.json's order, read as one cascade, so a base.css declaration a
+ * danganronpa.css rule restates counts against base.css. Only identical property names are compared: a later
+ * shorthand over a longhand is not counted (this undercounts, on purpose: a shorthand's reach is the browser's to
+ * read). Two declarations of one property inside one rule with different values are a fallback pair (`height: 1.25em;
+ * height: 1lh`: a browser that drops the second keeps the first), and the first is not counted; a custom property
+ * has no fallback (both values are valid to a browser), so a custom property stated twice in one rule is. `@keyframes`
+ * and `@font-face` are not style rules and are not read. What it cannot see: a winner a browser drops at parse time
+ * (it would revive the loser), which no text reading can tell. Answers `{ count, found, byFile, read }`, `found` as
+ * `file: selector { property }`.
+ */
+export function overriddenDeclarations(sheets) {
+    const decls = [];
+    const byKey = new Map();
+    let order = 0;
+    for (const [file, text] of sheets) {
+        for (const block of blocksOf(stripCssComments(text))) {
+            if (!block.prelude || block.prelude.startsWith("@")) continue;
+            if (block.context.some(c => /^@(?:-[\w]+-)?(?:keyframes|font-face)\b/i.test(c))) continue;
+            const rule = order++;
+            const sels = complexSelectors(block.prelude);
+            for (const d of declarationsOf(block.own)) {
+                const decl = { file, prelude: block.prelude, property: d.property, value: d.value.replace(/\s+/g, " "),
+                    important: /!\s*important\s*$/i.test(d.value), rule, at: decls.length, keys: [] };
+                decls.push(decl);
+                for (const sel of sels) {
+                    const key = `${block.context.join(" | ")} || ${sel} || ${d.property}`;
+                    decl.keys.push(key);
+                    if (!byKey.has(key)) byKey.set(key, []);
+                    byKey.get(key).push(decl);
+                }
+            }
+        }
+    }
+    const beaten = new Map();
+    for (const [key, list] of byKey) {
+        if (list.length < 2) continue;
+        const important = list.filter(d => d.important);
+        const winner = (important.length ? important : list).at(-1);
+        for (const d of list) {
+            if (d === winner) continue;
+            const fallback = d.rule === winner.rule && !d.property.startsWith("--") && d.value !== winner.value;
+            if (fallback) continue;
+            if (!beaten.has(d)) beaten.set(d, new Set());
+            beaten.get(d).add(key);
+        }
+    }
+    const dead = decls.filter(d => beaten.get(d)?.size === d.keys.length);
+    const byFile = Object.fromEntries(sheets.map(([file]) => [file, 0]));
+    for (const d of dead) byFile[d.file]++;
+    return { count: dead.length, found: dead.map(d => `${d.file}: ${d.prelude} { ${d.property} }`), byFile, read: decls.length };
+}
+
 /** The `drpg-` classes a sheet styles outside `:not()` - what deadClasses asks an emitter for. */
 export function styledClasses(css) {
     return new Set([...String(css ?? "").replace(/:not\([^)]*\)/g, " ").matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
@@ -235,6 +308,30 @@ export function deadClasses(css, sources) {
     return { inSheet: inSheet.size, orphans, stale };
 }
 
+/**
+ * DEAD ATTRIBUTES (E55 C2, 14.11.2026): every `[data-drpg-*]` the sheets select on outside `:not()` must be written
+ * somewhere in the module's sources, as deadClasses asks of a class. Read as written: `data-drpg-x` in any string
+ * (markup, `setAttribute`, a selector), `dataset.drpgX` or any `drpgX` name (camel case read back to `x`), and two built
+ * forms - a family `data-drpg-x-` with its trailing dash (as deadClasses's), and a name built from a named prefix and a
+ * template's literal tail (`${SEQUENCE_ATTR}-cover`, where `data-drpg-sequence` is named: the tail `}-cover` read after
+ * a `}`). The block it was written for: `.drpg-action-button[data-drpg-crisis=...]`, 28 rules no script has served
+ * since `injectCrisisPanel` went (the inventory's 2.1). Answers `{ inSheet, orphans }`; `css` and `sources` as
+ * deadClasses takes them.
+ */
+export function deadAttributes(css, sources) {
+    const plain = String(css ?? "").replace(/:not\((?:[^()]|\([^()]*\))*\)/g, " ");
+    const inSheet = new Set([...plain.matchAll(/\[data-drpg-([a-z0-9-]+)/g)].map(m => m[1]));
+    const named = new Set(), families = new Set(), tails = new Set();
+    for (const [, code] of sources) {
+        for (const m of code.matchAll(/data-drpg-([a-z0-9-]*)/g)) (m[1].endsWith("-") ? families : named).add(m[1]);
+        for (const m of code.matchAll(/\bdrpg([A-Z][A-Za-z0-9]*)/g)) named.add(m[1].replace(/[A-Z]/g, c => `-${c.toLowerCase()}`).slice(1));
+        for (const m of code.matchAll(/\}(-[a-z0-9-]+)/g)) tails.add(m[1]);
+    }
+    const built = name => [...named].some(prefix => name.startsWith(`${prefix}-`) && tails.has(name.slice(prefix.length)));
+    const orphans = [...inSheet].filter(a => a && !named.has(a) && ![...families].some(f => a.startsWith(f)) && !built(a));
+    return { inSheet: inSheet.size, orphans };
+}
+
 /** R2's kept cards: a class a stored chat card still wears, with the change that stopped writing it. */
 export const STORED = {
     "drpg-room-prose": "the move card's description, written until E77 C2 (movement.mjs chargeForCrossing)"
@@ -261,16 +358,21 @@ export function sheetCounts(text) {
  */
 export function lintCounts(sheets, sources) {
     const dead = deadClasses(stripCssComments(sheets.map(([, text]) => text).join("\n")), sources);
+    const overridden = overriddenDeclarations(sheets);
+    const attrs = deadAttributes(stripCssComments(sheets.map(([, text]) => text).join("\n")), sources);
     const counts = {};
     for (const [file, text] of sheets) {
-        const styled = styledClasses(stripCssComments(text));
-        counts[file] = { ...sheetCounts(text), deadClasses: dead.orphans.filter(c => styled.has(c)).length };
+        const own = stripCssComments(text);
+        const styled = styledClasses(own);
+        const selects = new Set(deadAttributes(own, []).orphans);
+        counts[file] = { ...sheetCounts(text), deadClasses: dead.orphans.filter(c => styled.has(c)).length,
+            overridden: overridden.byFile[file] ?? 0, deadAttributes: attrs.orphans.filter(a => selects.has(a)).length };
     }
-    return { counts, dead };
+    return { counts, dead, overridden, attrs };
 }
 
-/** The fields a budget row holds; `strayCommentEnds` has none: it is 0, always. */
-export const BUDGET_FIELDS = ["important", "colourLiterals", "duplicates", "deadClasses"];
+/** The fields a budget row holds; `strayCommentEnds` has none: it is 0, always. `overridden` since E55 C1, `deadAttributes` since C2. */
+export const BUDGET_FIELDS = ["important", "colourLiterals", "duplicates", "deadClasses", "overridden", "deadAttributes"];
 
 /**
  * THE RATCHET (the shape of audit/harness/flow-length.json): each sheet's counts against its budget row. Above a
@@ -332,10 +434,31 @@ export const FIXTURES = {
         clean: [["a.mjs", "el.className = \"drpg-alive drpg-nobody\";\nconst c = `drpg-tone-${tone}`;"]]
     },
     budgetProblems: {
-        counts: { "styles/a.css": { important: 3, colourLiterals: 2, duplicates: 0, deadClasses: 0, strayCommentEnds: 0 } },
-        above: { sheets: { "styles/a.css": { important: 2, colourLiterals: 2, duplicates: 0, deadClasses: 0 } } },
-        below: { sheets: { "styles/a.css": { important: 4, colourLiterals: 2, duplicates: 0, deadClasses: 0 } } },
-        equal: { sheets: { "styles/a.css": { important: 3, colourLiterals: 2, duplicates: 0, deadClasses: 0 } } }
+        counts: { "styles/a.css": { important: 3, colourLiterals: 2, duplicates: 0, deadClasses: 0, overridden: 0, deadAttributes: 0, strayCommentEnds: 0 } },
+        above: { sheets: { "styles/a.css": { important: 2, colourLiterals: 2, duplicates: 0, deadClasses: 0, overridden: 0, deadAttributes: 0 } } },
+        below: { sheets: { "styles/a.css": { important: 4, colourLiterals: 2, duplicates: 0, deadClasses: 0, overridden: 0, deadAttributes: 0 } } },
+        equal: { sheets: { "styles/a.css": { important: 3, colourLiterals: 2, duplicates: 0, deadClasses: 0, overridden: 0, deadAttributes: 0 } } }
+    },
+    /* E55 C1: two sheets read as one cascade. Dead: a.css's `.a { color }` (b.css restates it later), b.css's `.b { top }`
+       (a.css's earlier `!important` twin wins over it), a.css's `.c, .d { left }` (each arm restated) and the custom
+       property stated twice in one rule (the first). Alive: the fallback pair,
+       `.e, .f { left }` (only `.e` restated), a twin under another `@media`, the `!important` winner itself, and a
+       keyframe step. */
+    overriddenDeclarations: {
+        sheets: [
+            ["a.css", ".a { color: red; }\n.b { top: 0 !important; }\n.c, .d { left: 0; }\n.e, .f { left: 0; }\n:root { --x: 1; --x: 2; }\n.g { height: 1em; height: 1lh; }\n@keyframes k { from { opacity: 0; } }"],
+            ["b.css", ".a { color: blue; }\n.b { top: 1px; }\n.c { left: 1px; }\n.d { left: 2px; }\n.e { left: 1px; }\n@media (max-width: 10px) { .a { color: green; } }\n@keyframes k { from { opacity: 1; } }"]
+        ],
+        want: ["a.css: .a { color }", "a.css: .c, .d { left }", "a.css: :root { --x }", "b.css: .b { top }"],
+        clean: [["a.css", ".a { color: red; }\n.g { height: 1em; height: 1lh; }"], ["b.css", ".a:hover { color: blue; }\n@media (max-width: 10px) { .a { color: green; } }"]]
+    },
+    /* E55 C2: dead `nobody` (named nowhere) and `gone` (only in a sheet); alive `plain` (markup), `camel-case`
+       (dataset), `kind-hope` (a family), `seq-cover` (a prefix and a template's tail), `switch` (only negated). */
+    deadAttributes: {
+        css: ".a[data-drpg-plain] {}\n.b[data-drpg-camel-case=\"x\"] {}\n[data-drpg-kind-hope] {}\nbody[data-drpg-seq-cover] .c {}\n.d:not([data-drpg-switch]) {}\n.e[data-drpg-nobody] {}\n:is(.f, [data-drpg-gone]) i {}",
+        sources: [["a.mjs", "el.innerHTML = `<p data-drpg-plain>`;\nel.dataset.drpgCamelCase = 1;\nconst k = `data-drpg-kind-${tone}`;\nconst SEQ = \"data-drpg-seq\";\nbody.setAttribute(`${SEQ}-cover`, \"\");"]],
+        want: ["nobody", "gone"],
+        clean: [["a.mjs", "el.innerHTML = `<p data-drpg-plain data-drpg-nobody data-drpg-gone>`;\nel.dataset.drpgCamelCase = 1;\nconst k = `data-drpg-kind-${tone}`;\nconst SEQ = \"data-drpg-seq\";\nbody.setAttribute(`${SEQ}-cover`, \"\");"]]
     }
 };
 
@@ -343,7 +466,7 @@ export const FIXTURES = {
  * Every detector on its fixture: the planted sheet's count and the clean sheet's 0, and the ratchet's three cases - a
  * count above its budget red, below red unless `atMost`, equal green. Answers the mismatches as sentences; [] is held.
  */
-export function selfCheck(detectors = DETECTORS, { deadClassesFn = deadClasses, budgetFn = budgetProblems } = {}) {
+export function selfCheck(detectors = DETECTORS, { deadClassesFn = deadClasses, budgetFn = budgetProblems, overriddenFn = overriddenDeclarations, attributesFn = deadAttributes } = {}) {
     const problems = [];
     for (const name of Object.keys(DETECTORS)) {
         const fx = FIXTURES[name], fn = detectors[name];
@@ -359,6 +482,16 @@ export function selfCheck(detectors = DETECTORS, { deadClassesFn = deadClasses, 
     if (alive.orphans.length) problems.push(`deadClasses finds ${JSON.stringify(alive.orphans)} where every class is written`);
     if (dead.stale.length) problems.push(`deadClasses calls a STORED row stale where its rule stands: ${JSON.stringify(dead.stale)}`);
     if (dead.inSheet !== 5) problems.push(`deadClasses reads ${dead.inSheet} class(es) of its fixture, not 5`);
+    const da = FIXTURES.deadAttributes;
+    const lost = attributesFn(da.css, da.sources), kept = attributesFn(da.css, da.clean);
+    if (JSON.stringify(lost.orphans) !== JSON.stringify(da.want)) problems.push(`deadAttributes finds ${JSON.stringify(lost.orphans)} in its fixture, not ${JSON.stringify(da.want)}`);
+    if (kept.orphans.length) problems.push(`deadAttributes finds ${JSON.stringify(kept.orphans)} where every attribute is written`);
+    if (lost.inSheet !== 6) problems.push(`deadAttributes reads ${lost.inSheet} attribute(s) of its fixture, not 6`);
+    const od = FIXTURES.overriddenDeclarations;
+    const over = overriddenFn(od.sheets), none = overriddenFn(od.clean);
+    if (JSON.stringify([...over.found].sort()) !== JSON.stringify(od.want)) problems.push(`overriddenDeclarations finds ${JSON.stringify(over.found)} in its fixture, not ${JSON.stringify(od.want)}`);
+    if (none.count !== 0) problems.push(`overriddenDeclarations finds ${JSON.stringify(none.found)} in its clean sheets`);
+    if (!(over.read > 0)) problems.push("overriddenDeclarations read nothing of its fixture");
     const bp = FIXTURES.budgetProblems;
     const verdicts = {
         above: budgetFn(bp.counts, bp.above).length, below: budgetFn(bp.counts, bp.below).length,

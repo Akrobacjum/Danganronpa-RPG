@@ -37,7 +37,8 @@ import {
     DETECTORS as CSS_DETECTORS, FIXTURES as CSS_FIXTURES,
     themeTokens as cssThemeTokens, contrastOf as cssContrastOf, contrastRatio as cssContrastRatio, contrastSelfCheck as cssContrastSelfCheck,
     kitSheetProblems as cssKitSheetProblems, meaningReads as cssMeaningReads, meaningSelfCheck as cssMeaningSelfCheck, hourKept as cssHourKept, forcedBlockProblems as cssForcedBlockProblems, FORCED_STATES as CSS_FORCED_STATES,
-    hourDistances as cssHourDistances, deltaE00Check as cssDeltaE00Check
+    hourDistances as cssHourDistances, deltaE00Check as cssDeltaE00Check,
+    overriddenDeclarations as cssOverriddenDeclarations, deadAttributes as cssDeadAttributes
 } from "./tests-css.mjs";
 
 /* ==========================================================================
@@ -2646,7 +2647,7 @@ export {
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
-    cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES,
+    cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES, cssOverriddenDeclarations, cssDeadAttributes,
     cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck, cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssHourDistances, cssDeltaE00Check,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchWrites, watchLog, cast,
     kitQuestion, kitQuestions,

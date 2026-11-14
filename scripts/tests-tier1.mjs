@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssOverriddenDeclarations, cssDeadAttributes, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -39452,6 +39452,22 @@ const INVARIANTS = [
             "the self-check does not see every detector stubbed to count and read nothing (its count and its read, each)");
         ok(CSS_FIXTURES.importantCount.sheet.includes("! important") && CSS_FIXTURES.colourLiterals.sheet.includes("--drpg-ink: #"),
             "the fixtures no longer plant `! important` with a space, or a colour in a token's definition");
+    }],
+
+    ["R6100 - the CSS lint's two E55 readings count their planted faults and nothing in a clean sheet: `overriddenDeclarations` a declaration a later or an `!important` twin on the identical selector under the identical at-rules always beats, read over two sheets as one cascade (each arm of a list restated, a custom property stated twice), and not a fallback pair, a twin under another `@media`, a list with one arm left or a keyframe step; `deadAttributes` a `[data-drpg-*]` no script writes, and not one written in markup, through `dataset`, as a family, built from a named prefix and a template's tail, or only negated; the self-check sees either detector stubbed blind (E55 C1, C2)", async () => {
+        /*
+         * E55 C1 and C2, 14.11.2026. Pure, on tests-css.mjs's FIXTURES, which `node tools/check.mjs css` shows the two
+         * detectors before it counts the files (tools/css-budget.json's `overridden` and `deadAttributes`: 123 and 2 at
+         * 9b7daf8b). Red before C1: no overriddenDeclarations (the kit's name undefined, the first call throws).
+         */
+        const od = CSS_FIXTURES.overriddenDeclarations, da = CSS_FIXTURES.deadAttributes;
+        equal(JSON.stringify([...cssOverriddenDeclarations(od.sheets).found].sort()), JSON.stringify(od.want), "overriddenDeclarations does not find exactly its planted declarations");
+        equal(cssOverriddenDeclarations(od.clean).count, 0, "overriddenDeclarations counts a fallback pair, a hover or a twin under another @media");
+        equal(JSON.stringify(cssDeadAttributes(da.css, da.sources).orphans), JSON.stringify(da.want), "deadAttributes does not find exactly its planted attributes");
+        equal(cssDeadAttributes(da.css, da.clean).orphans.length, 0, "deadAttributes calls a written attribute dead");
+        equal(JSON.stringify(cssSelfCheck()), "[]", "the self-check is not green on the detectors as written");
+        ok(cssSelfCheck(undefined, { overriddenFn: () => ({ count: 0, found: [], read: 1 }) }).length > 0, "the self-check does not see overriddenDeclarations stubbed blind");
+        ok(cssSelfCheck(undefined, { attributesFn: () => ({ inSheet: 6, orphans: [] }) }).length > 0, "the self-check does not see deadAttributes stubbed blind");
     }],
 
     ["R1312 - the themes' text meets AA where Node resolves it (E44 C1c; E44-03, D29 = 2): WCAG's ratio reads 21 for black on white and 1 for a colour on itself, the contrast tool's own fixture reads ok, low, known, stale and unmeasured as written, and every pair of tools/contrast-pairs.json, in its theme with the tokens the served sheets declare on :root and the theme's body class, is AA (4.5 small, 3 large) or written known at the ratio it reads - none low, none stale, at least one measured in each theme", async () => {

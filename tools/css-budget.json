@@ -1,47 +1,61 @@
 {
-  "about": "What each stylesheet module.json serves may hold, held by tools/css-lint.mjs (node tools/check.mjs css) and, at most, by the suite's R1311 (E44 C1b, 04.11.2026; audit S17-35). Per sheet: `important` (each `!important`), `colourLiterals` (each declaration that is not a custom property and holds a hex, rgb(a)() or hsl(a)() colour), `duplicates` (a rule written again with the same selector list and declarations under the same at-rules) and `deadClasses` (R2's: a `.drpg-*` the sheets style that no script writes); a stray comment end has no budget, it is 0. A count above its budget fails: a rule added one. A count below fails until the budget is lowered in the same commit, so the budget only falls. The rows are written by `node tools/css-lint.mjs --write`, which lowers a row to its count and never raises one, from a run, never by hand.",
+  "about": "What each stylesheet module.json serves may hold, held by tools/css-lint.mjs (node tools/check.mjs css) and, at most, by the suite's R1311 (E44 C1b, 04.11.2026; audit S17-35). Per sheet: `important` (each `!important`), `colourLiterals` (each declaration that is not a custom property and holds a hex, rgb(a)() or hsl(a)() colour), `duplicates` (a rule written again with the same selector list and declarations under the same at-rules), `deadClasses` (R2's: a `.drpg-*` the sheets style that no script writes), `overridden` (E55 C1: a declaration a later or `!important` twin on the identical selector under the identical at-rules always beats, the sheets read as one cascade) and `deadAttributes` (E55 C2: a `[data-drpg-*]` the sheets select on that no script writes); a stray comment end has no budget, it is 0. A count above its budget fails: a rule added one. A count below fails until the budget is lowered in the same commit, so the budget only falls. The rows are written by `node tools/css-lint.mjs --write`, which lowers a row to its count and never raises one, from a run, never by hand.",
   "sheets": {
     "styles/base.css": {
       "important": 4,
       "colourLiterals": 9,
       "duplicates": 0,
-      "deadClasses": 0
+      "deadClasses": 0,
+      "overridden": 4,
+      "deadAttributes": 0
     },
     "styles/motion.css": {
       "important": 0,
       "colourLiterals": 0,
       "duplicates": 0,
-      "deadClasses": 0
+      "deadClasses": 0,
+      "overridden": 0,
+      "deadAttributes": 0
     },
     "styles/danganronpa.css": {
       "important": 647,
       "colourLiterals": 246,
       "duplicates": 0,
-      "deadClasses": 0
+      "deadClasses": 0,
+      "overridden": 87,
+      "deadAttributes": 1
     },
     "styles/stained-glass.css": {
       "important": 203,
       "colourLiterals": 96,
       "duplicates": 0,
-      "deadClasses": 0
+      "deadClasses": 0,
+      "overridden": 29,
+      "deadAttributes": 1
     },
     "styles/pixel-icons.css": {
       "important": 0,
       "colourLiterals": 0,
       "duplicates": 0,
-      "deadClasses": 0
+      "deadClasses": 0,
+      "overridden": 0,
+      "deadAttributes": 0
     },
     "styles/components.css": {
       "important": 0,
       "colourLiterals": 0,
       "duplicates": 0,
-      "deadClasses": 0
+      "deadClasses": 0,
+      "overridden": 3,
+      "deadAttributes": 0
     },
     "styles/narrow.css": {
       "important": 12,
       "colourLiterals": 1,
       "duplicates": 0,
-      "deadClasses": 0
+      "deadClasses": 0,
+      "overridden": 0,
+      "deadAttributes": 0
     }
   }
 }
