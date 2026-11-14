@@ -3473,6 +3473,7 @@
       "shareIntro": "Jesteś w pokoju {room}. Komu dajesz kopię „{name}”?",
       "giveIntro": "Jesteś w pokoju {room}. Komu przekazujesz przedmiot „{name}”?",
       "who": "Komu?",
+      "shareKeyNote": "Odbiorca dostaje własną kopię klucza, a ty zachowujesz swoją. Nie wydajesz akcji.",
       "shareNote": "Odbiorca dostaje własną kopię, a ty zachowujesz swoją. Kopia Truth Bulletu przychodzi z twoją analizą, jeśli się udała; nieudana analiza na nią nie przechodzi, więc odbiorca może przeanalizować kopię sam. Nie wydajesz akcji.",
       "giveNote": "Przedmiot przechodzi do odbiorcy i znika z twojego ekwipunku; gdy masz kilka sztuk, przechodzi jedna. Jeśli odbiorca nosi już tyle rzeczy tej kategorii, ile może, przekazanie nie dochodzi do skutku i przedmiot zostaje u ciebie. Nie wydajesz akcji.",
       "nobodyHere": "W pokoju {room} nie ma nikogo poza tobą, więc nie masz komu niczego przekazać.",

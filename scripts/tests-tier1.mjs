@@ -38026,6 +38026,21 @@ const INVARIANTS = [
             "[abilityButton: priceOf asked; the row's own cost or hopeCost read]");
     }],
 
+    ["R6917 - sharing a room key says what a key's copy is, not a Truth Bullet's analysis (needsCode, 14.11.2026; O13): handover.mjs `askRecipient` gives a key (its `BEDROOM_KEY_FLAG`) `Handover.shareKeyNote` and a Truth Bullet `Handover.shareNote`; the key's note names no Analyze, in English or Polish", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #38. The batch named sheet.mjs
+         * `addHandoverButton`, which sends a key down the share road (E54's file); the note itself is handover.mjs's.
+         * Red at d3d9dbe0: a key's share window read \"If your Analyze of it failed, they can still Analyze theirs\".
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "handover.mjs")?.[1] ?? ""), "askRecipient") ?? "";
+        must(body.includes("DRPG.Handover.shareNote"), "askRecipient no longer gives the share note - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const note = [en, pl].map(file => file?.DRPG?.Handover?.shareKeyNote ?? null);
+        equal(stableJson({ asks: /BEDROOM_KEY_FLAG/.test(body) && body.includes("DRPG.Handover.shareKeyNote"), note: note.map(n => typeof n === "string" && !/Analy[sz]e/.test(n)) }),
+            stableJson({ asks: true, note: [true, true] }), "[askRecipient tells a key by its flag and gives it shareKeyNote; the key's note in en, pl, with no Analyze]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

@@ -3216,6 +3216,7 @@
       "shareIntro": "Who do you share “{name}” with? You are in {room}.",
       "giveIntro": "Who do you hand “{name}” to? You are in {room}.",
       "who": "Who?",
+      "shareKeyNote": "They get their own copy of the key, and you keep yours. It costs no action.",
       "shareNote": "They get their own copy with what you know of it, and you keep yours. If your Analyze of it failed, they can still Analyze theirs. It costs no action.",
       "giveNote": "One piece goes from your inventory to theirs for good. If their hands are full, it stays with you. It costs no action.",
       "nobodyHere": "There is nobody else in {room} to hand anything to.",

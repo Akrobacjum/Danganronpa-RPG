@@ -97,7 +97,9 @@ function askRecipient(actor, item, { copying }) {
             name: foundry.utils.escapeHTML(item.name),
             room
         }),
-        note: game.i18n.localize(copying ? "DRPG.Handover.shareNote" : "DRPG.Handover.giveNote"),
+        // A key's copy has no analysis to carry (the needsCode line, R6917): its note of its own, not the Truth Bullet's.
+        note: game.i18n.localize(!copying ? "DRPG.Handover.giveNote"
+            : item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) ? "DRPG.Handover.shareKeyNote" : "DRPG.Handover.shareNote"),
         okLabel: game.i18n.localize(copying ? "DRPG.Handover.share" : "DRPG.Handover.give")
     });
 }
