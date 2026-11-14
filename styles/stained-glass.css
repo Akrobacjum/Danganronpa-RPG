@@ -2551,8 +2551,8 @@ body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value.
     background-color: var(--drpg-sg-bone-dim);
     opacity: 0.3;
 }
-/* the action budget and the free Move take the state colour, spent stays an outline */
-body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip::before { background-color: var(--drpg-glass-accent); }
+/* the action budget and the free Move take the state colour, spent stays an outline (a held pip's colour is its
+   `::before` rule's, "the pip" below, since E55 S3) */
 body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip.locked::before { background-color: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-free-move .drpg-move-slot[data-drpg-slot="eclipse"] { color: var(--drpg-sg-eclipse); }
 body.drpg-theme-stained-glass .character-header-sheet .drpg-free-move {
@@ -4290,6 +4290,8 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .
 /* the pip: E48 batch 5's dot on the 24 grid, held, and its empty dot, free (gaps-111, 13.11.2026: the owner's "E48 akcept"
    of 12.11; a square with the mask off, the box the shape, until then). R4932. */
 body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip::before {
+    /* the state colour (the action budget's line, further up; a rule of its own there until E55 S3) */
+    background-color: var(--drpg-glass-accent);
     -webkit-mask: var(--drpg-pix-dot) center / contain no-repeat;
     mask: var(--drpg-pix-dot) center / contain no-repeat;
     width: 11px;
