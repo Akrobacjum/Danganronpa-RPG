@@ -487,7 +487,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
         J10(f3.heard) === J10([ids.aiko, ids.botan]),
         J10(f3.heard), { flow: "body-discovery" });
     /* F4: Chie, Daichi's killer, walks back in: she was there, so p3 hears no discovery sound and is told nothing, and the
-       waiting discovery is not asked again. Red with `inThatDeath`'s filter taken out of chapter.mjs `checkBodySound` (a
+       waiting discovery is not asked again. Red with `inThatDeath`'s filter taken out of body.mjs `checkBodySound` (a
        mutant, 13.11.2026: 43/44, F4 alone); at a43e865e it holds with nothing to measure, as no walk-in played any sound. */
     const f4Before = await findRead();
     const f4 = await gm.eval(`${FIND_GM} await walk("${ids.chie}", bodyRoom); await new Promise(r => setTimeout(r, 600));

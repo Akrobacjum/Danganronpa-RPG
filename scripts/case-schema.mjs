@@ -385,7 +385,7 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
     }
     slots.sort((a, b) => a.slot - b.slot);
     const { rows, meta } = caseRows(chapter);
-    /* `slots` given (E97 C6): the Key plan's every slot as investigation.mjs `keyPlan` reads it, a slot no GM wrote among
+    /* `slots` given (E97 C6): the Key plan's every slot as key-remnants.mjs `keyPlan` reads it, a slot no GM wrote among
        them, so the Map has a node - and the Table's fields - for each slot the Table draws a row for. */
     return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots, autopsy });
 }
@@ -407,7 +407,7 @@ const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 /**
  * The fields of `fields` a write takes (pure): each of `names` given, read through `read` into the stored shape, and -
  * with `base`, the row as the GM's window drew it - only those that differ from it, so a Save keeps another GM's write
- * of a field this GM did not touch (the Key plan's rule, investigation.mjs `setKeyPlan`).
+ * of a field this GM did not touch (the Key plan's rule, key-remnants.mjs `setKeyPlan`).
  */
 function patchOf(fields, names, read, base) {
     const shaped = read({ ...(isPlain(base) ? base : {}), ...fields });

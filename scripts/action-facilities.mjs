@@ -15,7 +15,7 @@
  *
  * THE WINDOW AND ITS TILE READ ONE LIST (fix line 113f, 13.11.2026). The owner's report at a table on 1.2.112: "The
  * Facilities action is struck through when there are no rests available in the room, even though a GM's room action or
- * a project's action is available." The tile (sheet.mjs `roomBlockFor`) read rest.mjs's `restShutReason`, the two rests
+ * a project's action is available." The tile (sheet-actions.mjs `roomBlockFor`) read rest.mjs's `restShutReason`, the two rests
  * alone, written before E93 put the room's actions in the window. Now the window's rows are `facilitiesRows` and the
  * tile's reason is `facilitiesShutReason`, which reads them: the tile is dimmed when every row is, and not otherwise.
  * For the tile to read them as the sheet draws, the rows are judged synchronously: the projects' through facilities.mjs
@@ -96,7 +96,7 @@ export function facilitiesRows(actor) {
 
 /**
  * Why no row of the Facilities window can be taken now, row by row ("Short Rest: ... · Long Rest: ... · <action>: ..."),
- * or null while one can: the Facilities tile's tooltip (sheet.mjs `roomBlockFor`). It was rest.mjs `restShutReason`, the
+ * or null while one can: the Facilities tile's tooltip (sheet-actions.mjs `roomBlockFor`). It was rest.mjs `restShutReason`, the
  * two rests alone (E16 part 2 C4, audit S02-26), until fix line 113f. The tile stays pressable, as every dimmed tile
  * does, and its window shows the same rows greyed.
  */
