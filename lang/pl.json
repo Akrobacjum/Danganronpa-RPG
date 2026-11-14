@@ -328,7 +328,7 @@
       },
       "chargeMovement": {
         "name": "Przejście między pokojami kosztuje Move",
-        "hint": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Sprintem. Wyłączone: ruch rozliczasz ręcznie."
+        "hint": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Callem Sprint. Wyłączone: ruch rozliczasz ręcznie."
       },
       "despairFromRolls": {
         "name": "Rzuty dają Despair",
@@ -5267,7 +5267,7 @@
       "whoIsAliveNote": "Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
       "doColumn": "Zrób",
       "refundCrossing": "Zwróć ostatnie przejście",
-      "refundCrossingNote": "{to} z powrotem do {from}",
+      "refundCrossingNote": "Z powrotem: {to} → {from}",
       "nextChapterEndStopped": "Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.",
       "nextTrialOutlived": "Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.",
       "refilled": "Odnowiono akcje i Search Tokeny. Motive, pieczęcie i Overflow zostają bez zmian, a na czat nie trafiła karta pory dnia.",
