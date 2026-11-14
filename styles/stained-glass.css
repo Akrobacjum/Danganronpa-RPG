@@ -524,6 +524,7 @@ body.drpg-theme-stained-glass #scene-controls button.ui-control:hover,
 body.drpg-theme-stained-glass #sidebar-tabs button.ui-control:hover {
     border-color: color-mix(in srgb, var(--drpg-glass-accent) 70%, transparent) !important;
     background: rgba(8, 7, 12, 0.8) !important;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
 }
 body.drpg-theme-stained-glass #scene-controls button.ui-control.active,
 body.drpg-theme-stained-glass #scene-controls button.ui-control[aria-pressed="true"],
@@ -1308,10 +1309,6 @@ body.drpg-theme-stained-glass #drpg-messenger-launcher:is(:hover, :focus-visible
 }
 body.drpg-theme-stained-glass #drpg-messenger-launcher .drpg-messenger-badge {
     pointer-events: auto;
-}
-body.drpg-theme-stained-glass #scene-controls button.ui-control:hover,
-body.drpg-theme-stained-glass #sidebar-tabs button.ui-control:hover {
-    box-shadow: 0 0 10px color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
 }
 
 /* ---- the sheet's tiles: the audit's tile. Icon, name, cost; the edge in the tile's colour, the
