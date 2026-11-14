@@ -64,13 +64,18 @@ the text lint's X11 (a passive that hides who acts) on the first merge and were 
 | C1 red: R7300 and the census retire "none needed" | done, 307f63fb: R7300 red (225 sites), `check.mjs tooltips` red (224 rows) |
 | C2 the rows read, the tooltips wired, the keys merged, the baseline cut | done, 192aecb8: census 242 -> 70 sites, each a row of the six reasons; R7300 green |
 | `npm run quick` | green at 192aecb8 (lint, 24 check parts, gate self-test) |
-| full tier 1 | at 192aecb8 before R4764's update: 1688 ran, 1672 passed, 1 failed (R4764: the voice tile's second setTip, counted in the same commit), 16 skipped, 0 red; R4764 and R7300 then 2/2 with `--only` |
+| full tier 1 | at 707b18f7 (`node run-tests.mjs --tier 1`, 14.11.2026, 524 s here): 1688 ran, 1673 passed, 0 failed, 16 skipped, 0 red. Before R4764 counted the voice tile's second setTip: 1672 / 1 failed (R4764) |
 | scenario 95 (tooltips drawn) | 4/4 |
 | the touched scenarios | section 5 |
 
 ## 5. Scenarios
 
-(filled in when run)
+`node cluster.mjs scenarios/<n>.mjs` at 192aecb8, one at a time, 14.11.2026: 95-tooltips-drawn 4/4; 62-investigation
+52/52; 68-trial-zones 42/42; 41-trial-scene 52/52; 65-season 58/60 with 2 expected red (Foundry limits, as on main);
+66-rooms 77/77; 71-sheet 42/42; 73-notice-history 32/32; 75-voice-tile 42/42; 76-passages 118/119 with 1 expected red
+(a Foundry limit, as on main); 87-messenger-sound 36/36; 61-gmstore-case 114/114; 50-lang 45/45; 51-lang-mixed 38/38.
+No tier-2 test was changed. Not run: the other scenarios (their windows were not edited, or only through a file
+another of these drew), and 84 (never run).
 
 ## 6. Needs a local Foundry
 
