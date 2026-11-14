@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -421,7 +421,7 @@ const INVARIANTS = [
 
         // The other two are guarded for EVERY module window at once, so they
         // are read from the guard rather than from this one caller.
-        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        const utils = stripComments(utilsText(sources));
         const guard = bodyOf(utils, "export function guardTextFields", { until: "export function registerTextGuard" });
         ok(guard.length > 100, "guardTextFields is gone from utils.mjs");
 
@@ -15291,7 +15291,7 @@ const INVARIANTS = [
            `usingTheForge` true and then false. Red at 60741cf: the Library picture refused on The Forge (false), the
            property read alone. The frame's road has not run at a table (this repository has no Foundry page): a page
            that forbids a frame's inline script reads "the frame ran no script" here and fails, a fact to record. */
-        const forgeText = fnSource(stripComments((await moduleSources()).get("utils.mjs")), "forgeAsset").replace(/^export /, "");
+        const forgeText = fnSource(stripComments(utilsText(await moduleSources())), "forgeAsset").replace(/^export /, "");
         const realm = async on => {
             const src = `class ForgeVTT { static usingTheForge = ${on}; static ASSETS_LIBRARY_URL_PREFIX = ${JSON.stringify(LIB)}; }\n${forgeText}\n`
                 + `globalThis.__r546 = [typeof ForgeVTT, globalThis.ForgeVTT === undefined, forgeAsset(new URL(${JSON.stringify(HALL)})), `
@@ -42609,7 +42609,7 @@ const INVARIANTS = [
         const U = await import("./utils.mjs");
         const { BUTTON_ROLES } = await import("./ui-kit.mjs");
         read.cls = [U.GM_ROUTE_CLASS, BUTTON_ROLES.gmRoute.face === U.GM_ROUTE_CLASS,
-            [...sources].filter(([file, raw]) => file !== "utils.mjs" && /\b(?:const|let|var)\s+GM_ROUTE_CLASS\b/.test(stripComments(raw))).map(([file]) => file)];
+            [...sources].filter(([file, raw]) => !UTILS_FAMILY.includes(file) && /\b(?:const|let|var)\s+GM_ROUTE_CLASS\b/.test(stripComments(raw))).map(([file]) => file)];
         // The Dynamic action: one definition read once, its flag, its briefing's sentence.
         const { dynamicDef } = await import("./action-dynamic.mjs");
         const { briefingBlock } = await import("./action-briefing.mjs");

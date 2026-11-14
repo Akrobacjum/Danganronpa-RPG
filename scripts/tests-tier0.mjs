@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1773,7 +1773,7 @@ const REGRESSIONS = [
          */
         const guilty = [];
         for (const [file, raw] of await otherSources()) {
-            if (file === "utils.mjs" || file === "secret.mjs") continue;
+            if (UTILS_FAMILY.includes(file) || file === "secret.mjs") continue;
             const text = stripComments(raw);
             for (const m of text.matchAll(/ChatMessage\.create\(/g)) {
                 // The call's own argument list, up to the balanced close.
@@ -3305,7 +3305,7 @@ const REGRESSIONS = [
         }
 
         // And the JavaScript reads the cap rather than keeping a second copy of it.
-        const utils = stripComments(new Map(await otherSources()).get("utils.mjs") ?? "");
+        const utils = stripComments(utilsText(new Map(await otherSources())));
         // To the function's own end, not a fixed count: comments are blanked, not
         // removed, so a longer note inside it pushed the line past a 2000-character cut.
         const fit = bodyOf(utils, "function windowWidthFor", { until: "\n}" });
@@ -4147,7 +4147,7 @@ const REGRESSIONS = [
            source; driving the row would need an export of mastermindHopeBox. What the marker does is R70's, driven. Split
            out of R70 (MM-02, 20.09), whose text these assertions were until E40. */
         const sources = new Map(await otherSources());
-        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        const utils = stripComments(utilsText(sources));
         const guard = bodyOf(utils, "export function guardTextFields", { until: "export function registerTextGuard" });
         ok(guard.length > 200, "guardTextFields has moved or gone");
         ok(guard.indexOf("data-drpg-field") < guard.indexOf("data-drpg-enter"),
@@ -6256,7 +6256,7 @@ const REGRESSIONS = [
                 `${name} is defined somewhere other than bridge-guards.mjs - a second copy of a guard is the one that drifts`);
         }
         const spelt = [...served].flatMap(([file, text]) => [...text.matchAll(PREDICATE)].map(m => `${file}:${lineAt(text, m.index)}`));
-        ok(spelt.length === 1 && spelt[0].startsWith("utils.mjs:") && [...fnSource(served.get("utils.mjs"), "activeGmIds").matchAll(PREDICATE)].length === 1,
+        ok(spelt.length === 1 && spelt[0].startsWith("utils.mjs:") && [...fnSource(utilsText(served), "activeGmIds").matchAll(PREDICATE)].length === 1,
             `"a GM who is connected" is spelt out somewhere other than activeGmIds in utils.mjs: ${spelt.join(", ")}`);
         const taken = takenFromBridge(served);
         ok(!taken.length, `these still take the leaf's names from gm-bridge.mjs: ${taken.join(", ")}`);
@@ -8310,7 +8310,7 @@ const REGRESSIONS = [
         const found = {};
         const compared = [];
         for (const [file, raw] of sources) {
-            if (/^tests/.test(file) || file === "utils.mjs") continue;
+            if (/^tests/.test(file) || UTILS_FAMILY.includes(file)) continue;
             const src = stripComments(raw);
             const n = (src.match(/\bownerOf\(/g) ?? []).length;
             if (n) found[file] = n;
@@ -13035,7 +13035,7 @@ const REGRESSIONS = [
         const floor = stripComments(sources.get("trial-floor.mjs") ?? ""), clock = stripComments(sources.get("clock.mjs") ?? "");
         // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
         const hud = stripComments(hudText(sources)), ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
-        const season = stripComments(sources.get("season-wipe.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
+        const season = stripComments(sources.get("season-wipe.mjs") ?? ""), utils = stripComments(utilsText(sources));
         const now = topLevelFunction(utils, "serverNow") ?? "";
         ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
         // The floor's writes are the in-step twins since E70 C0 (trial-floor.mjs `FLOOR_OPS`); the public writers hand them on.
@@ -16519,7 +16519,7 @@ const REGRESSIONS = [
             "passages-gm.mjs#resolvePassageSearch": "the asker, a player, and the GMs - not another owner, who did not search; a GM's search every owner (E18 C5)"
         };
         const sources = new Map(await otherSources());
-        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        const utils = stripComments(utilsText(sources));
         ok(utils.length > 10000, "utils.mjs did not load - this would measure nothing");
         const helpers = ["whisperToOwner", "whisperToOwnerOnly"].map(name => {
             const body = fnSource(utils, name) ?? "";
@@ -18938,7 +18938,7 @@ const REGRESSIONS = [
             }
         }
         const kit = src.get("ui-kit.mjs") ?? "";
-        const utils = src.get("utils.mjs") ?? "";
+        const utils = utilsText(src);
         const whole = topLevelFunction(utils, "wholeNumber");
         const convert = topLevelFunction(src.get("despair.mjs") ?? "", "convertDespairToHope") ?? "";
         must(convert.length > 200, "despair.mjs convertDespairToHope was not read - this would measure nothing of the donations' door");
@@ -20848,7 +20848,7 @@ const REGRESSIONS = [
          * shown a planted list first - one group missing, one registered twice, one in a file that is no owner. Red
          * before C3: season-reset.mjs absent.
          */
-        const LEAF = ["config.mjs", "utils.mjs", "settings.mjs", "season-exceptions.mjs"];
+        const LEAF = ["config.mjs", "utils.mjs", "windows.mjs", "settings.mjs", "season-exceptions.mjs"];
         const OWNERS = {
             incident: "incident-store.mjs", seals: "call-world.mjs", assembly: "call-world.mjs", projects: "projects.mjs",
             mastermind: "mastermind.mjs", passages: "passages-gm.mjs", deaths: "chapter.mjs", bodyFound: "chapter.mjs",
@@ -23165,7 +23165,7 @@ const REGRESSIONS = [
         } catch (err) {
             drawn = `not drawn: ${err.message}`;
         }
-        const utils = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(lfText));
+        const utils = stripComments(await utilsFetch());
         const helpers = ["announce", "whisperToOwnerOnly", "whisperToOwner", "whisperToGms", "gmReport"]
             .filter(name => !/\bcardMarkup\(|\bchatCard\(/.test(topLevelFunction(utils, name) ?? ""));
         const POSTER = /(?<![\w.$])(announce|whisperToOwnerOnly|whisperToOwner|whisperToGms|gmReport)\(|\bChatMessage\.create\(/g;
