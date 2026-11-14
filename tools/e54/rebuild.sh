@@ -5,6 +5,8 @@
 #   tools/e54/rebuild.sh --base <sha> --work <new dir> --out <new dir> [--picks <a>..<b>] [--rows <sha>] [--no-sweep]
 #   tools/e54/rebuild.sh --base <sha> --work <its dir> --out <its dir> --continue [--no-sweep]   (on from a pick conflict
 #   a reader resolved in the worktree: the pick finished, the picks after it, then steps 3-7; a row says so)
+#   --known-fail <R id>, as often as wanted: a tier run whose failures are exactly such tests reads as passing, a row
+#   naming them - for a red the base itself carries, read failing on the base alone first (run-tests --only <id>)
 #   tools/e54/rebuild.sh --base <sha> --work <its dir> --out <its dir> --end-only [--no-sweep]   (step 7 alone, on a run
 #   that reached step 6 and was cut short - a container restart did that to the first full run; a row says so)
 #
@@ -33,12 +35,13 @@
 set -u
 T=$(cd "$(dirname "$0")" && pwd)
 PREP=$(cd "$T/../.." && pwd)
-BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1 END=0 CONT=0
+BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1 END=0 CONT=0 KNOWN=
 while [ $# -gt 0 ]; do case "$1" in
   --base) BASE=$2; shift 2;; --work) WORK=$2; shift 2;; --out) OUT=$2; shift 2;;
   --picks) PICKS=$2; shift 2;; --rows) ROWS=$2; shift 2;; --no-sweep) SWEEP=0; shift;;
   --end-only) END=1; shift;;
   --continue) CONT=1; shift;;
+  --known-fail) KNOWN="$KNOWN $2"; shift 2;;
   *) echo "rebuild: unknown argument $1"; exit 2;; esac; done
 [ -n "$BASE" ] && [ -n "$WORK" ] && [ -n "$OUT" ] || { echo "rebuild: --base, --work and --out, please"; exit 2; }
 if [ $END = 1 ]; then # step 7 alone, on a run's worktree and results (a restart that cut a run short)
@@ -70,8 +73,12 @@ proofs() { # quick and tiers 0-1 at this commit; $1 the step's name
   step "$1 quick" "quick-$1.txt" bash -c "cd audit/harness && npm run quick"; local q=$? dq=$DT
   row "$1 quick" $dq "$([ $q = 0 ] && echo green || echo "RED (logs/quick-$1.txt)")"
   step "$1 tiers" "tiers-$1.txt" bash -c "cd audit/harness && node run-tests.mjs --tier 1"; local t=$? dt=$DT
-  row "$1 tiers 0-1" $dt "$(grep 'run-tests: [0-9]* passed' "$OUT/logs/tiers-$1.txt" | tail -1)"
-  [ $q = 0 ] && [ $t = 0 ] || stop "$1" 0 "quick or tiers red; logs/quick-$1.txt, logs/tiers-$1.txt"
+  local failed=$(grep -o '^  FAIL  R[0-9]*' "$OUT/logs/tiers-$1.txt" | awk '{print $2}' | sort -u | paste -sd' ' -) known=""
+  if [ $t != 0 ] && [ -n "$failed" ] && [ -n "$KNOWN" ]; then # --known-fail: the base's own reds, read failing there first
+    known=yes; for id in $failed; do case " $KNOWN " in *" $id "*) ;; *) known="";; esac; done
+  fi
+  row "$1 tiers 0-1" $dt "$(grep 'run-tests: [0-9]* passed' "$OUT/logs/tiers-$1.txt" | tail -1)${known:+; failed only tests named by --known-fail: $failed}"
+  [ $q = 0 ] && { [ $t = 0 ] || [ -n "$known" ]; } || stop "$1" 0 "quick or tiers red; logs/quick-$1.txt, logs/tiers-$1.txt"
 }
 # glass-golden exits 1 when a size draws no glass (844x390 and 640x360 on 1.2.112: 23 of 25 captured) and 2 when it
 # cannot run; so its own line is read, and the byte comparison at the end is the proof
