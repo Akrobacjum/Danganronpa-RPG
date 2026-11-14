@@ -401,8 +401,6 @@
        the end of this file raises the second one on a screen wider than 2:1. */
     --drpg-overlay-max: 1280px;
     --drpg-window-max: 1400px;
-
-    --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
     --drpg-panel-radius: 6px;
     /* `none` since the ground went opaque at the end of this file: a
        backdrop-filter behind something nothing shows through is a compositing
@@ -755,7 +753,6 @@ body {
     max-width: none !important;
     margin-inline: auto;
     padding: 0.1rem 0.8rem;
-    overflow: visible !important;
 }
 
 /* "Sanity" is the longest caption on the sheet and kept losing its tail.
@@ -813,11 +810,6 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     display: none !important;
 }
 
-/* The Ultimate placeholder stays dimmed so it still reads as "not filled in". */
-.character-header-sheet .drpg-ultimate-value:empty::before {
-    color: var(--drpg-bone);
-    opacity: 0.45;
-}
 
 /* Keep the active tab distinguishable now that every tab is the same colour. */
 .character-header-sheet .tab-navigation nav.sheet-tabs a.active,
@@ -936,19 +928,9 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     width: max-content;
     max-width: min(46ch, 90vw);
     text-align: center;
-    border-radius: 6px;
     border: 1px solid light-dark(rgba(var(--drpg-shadow-rgb), 0.25), rgba(var(--drpg-bone-rgb), 0.18));
-    background: light-dark(rgba(var(--drpg-bone-rgb), 0.82), rgba(var(--drpg-deep-rgb), 0.72));
-    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
-       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns`
-       - has the same weight and comes later, and it reads
-       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
-       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
-    backdrop-filter: blur(3px);
-    box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35);
     color: var(--color-text-primary, inherit);
     text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.35);
-    font-family: var(--font-header, var(--font-primary));
     line-height: 1.25;
 }
 
@@ -1177,16 +1159,7 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
     max-width: min(96vw, var(--drpg-overlay-max));
     margin: 2px auto 0;
     padding: 4px 12px;
-    border-radius: 6px;
     border: 1px solid var(--drpg-blood-deep);
-    background: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
-    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
-       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns`
-       - has the same weight and comes later, and it reads
-       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
-       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
-    backdrop-filter: blur(3px);
-    box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
 }
 
 #drpg-despair .drpg-despair-row {
@@ -1208,10 +1181,6 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
 }
 
 #drpg-despair .drpg-despair-name {
-    /* Always the Despair colour - never that account's own Foundry player
-       colour, which used to make two Monokumas read as two different UI
-       themes. */
-    color: var(--drpg-blood);
     font-size: var(--font-size-12, 0.75rem);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1364,10 +1333,7 @@ body.drpg-hide-system-fear #resource-fear {
 
 .character-header-sheet .drpg-actions-section {
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 2px;
     flex: 0 0 auto;
 }
 
@@ -1599,7 +1565,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
     padding: 0.5rem;
     border: 1px solid var(--drpg-line);
     border-radius: 4px;
-    background: light-dark(rgba(var(--drpg-bone-rgb), 0.06), rgba(var(--drpg-bone-rgb), 0.09));
 }
 
 .drpg-action-panel h3 {
@@ -1687,7 +1652,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
 
 .drpg-action-button:hover:not(:disabled):not(.drpg-action-still) {
     background: none;
-    border-color: var(--drpg-eye);
     box-shadow: 0 0 6px var(--drpg-eye-glow);
 }
 
@@ -1701,11 +1665,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
 .drpg-action-button .drpg-action-name {
     color: var(--drpg-bone);
     font-size: calc(var(--drpg-text-sm) * var(--drpg-tile-text, 1));
-    /* `break-word`, not `anywhere`: a word breaks only when it has to, and the
-       soft hyphens `softWrap()` puts in the long ones decide where. `anywhere`
-       broke every label at whatever character the edge landed on - "Observ /
-       e", "Sabota / ge" - with no hyphen to say a break had happened. */
-    overflow-wrap: break-word;
 }
 
 .drpg-action-button .drpg-action-cost {
@@ -1714,7 +1673,6 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
        that shrank look like a different kind of tile rather than the same one
        set a little smaller. */
     font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1));
-    opacity: 0.6;
     white-space: nowrap;
 }
 
@@ -1907,7 +1865,6 @@ section[data-application-part="biography"] .experiences .value {
 }
 
 .drpg-inventory-group .drpg-group-count.full {
-    color: var(--drpg-crimson);
     opacity: 1;
 }
 
@@ -2493,8 +2450,6 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
    "Search" - so the label alone is scaled down and allowed to break mid-word.
    Everything else about the tile is the action template untouched. */
 body.drpg-theme-monokuma-legacy .drpg-call-button .drpg-action-name {
-    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
-    line-height: 1.05;
     letter-spacing: 0;
     overflow-wrap: break-word;
 }
@@ -2963,9 +2918,6 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-name {
     letter-spacing: 0;
 }
 
-body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
-    font-size: calc(var(--font-size-9, 0.56rem) * var(--drpg-tile-text, 1));
-}
 
 /* A wide face needs room to breathe rather than clipping mid-word. */
 body.drpg-pixel-font #drpg-hud {
@@ -3025,9 +2977,7 @@ body.drpg-theme-monokuma-legacy.drpg-pixel-font :where(.drpg-panel, .drpg-ui, .a
     flex: 0 0 auto;
     align-self: start;
     margin-top: 6px;
-    min-height: unset;
     height: min-content;
-    padding: 4px 8px;
     line-height: 1;
     background: none;
     border: 1px solid var(--color-border, currentColor);
@@ -3628,10 +3578,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    for anything wearing it. */
 .drpg-row-button {
     flex: 0 0 auto;
-    width: 22px;
-    height: 22px;
     padding: 0;
-    margin-left: 4px;
     line-height: 1;
     border-radius: 3px;
     cursor: pointer;
@@ -3672,11 +3619,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     color: var(--drpg-bone);
 }
 
-/* Crimson at full strength is 2.94:1 on Ink - a border colour, not a glyph.
-   The light variant is what the legibility block reaches for everywhere else. */
-.drpg-row-present i {
-    color: var(--drpg-crimson-light);
-}
 
 /* Bookkeeping, and it should look like it. */
 .drpg-row-stash i,
@@ -4350,10 +4292,13 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    emitter is not harmless, it is a description of a layout that no longer
    exists, and the next person to read it will believe it.
 
-   `data-drpg-crisis` further down this file is in the same position - the
-   fourteen pixel icons are dormant, not deleted, because they are drawn art
-   rather than layout and bringing the tiles back would want them. R2 does not
-   flag them: it reads classes.  */
+   `data-drpg-crisis`'s fourteen pixel icons stood further down this file in
+   the same position, kept as drawn art for tiles that might come back; R2
+   reads classes and did not flag them. E55 D1 (14.11.2026) took the 28 rules
+   out once the CSS lint's `deadAttributes` (E55 C2) read the attribute as
+   written by no script. Their glyphs stay where pixel-icons.css generates
+   them (`--drpg-pix-*`, tools/glyphs.json): a token is also read by name at
+   run time.  */
 
 /* Monocub - same panel look as a living student's action grid, quieter accent
    since there are only ever two tiles in it. */
@@ -6131,12 +6076,10 @@ body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
        how wide a notice is. Widened with the tile on 15.09 - the old 22rem
        card wrapped a two-clause sentence onto four lines. */
     width: min(27rem, 92vw);
-    border-radius: 6px;
     /* The window edge, not the divider hairline - a popup lands over the map
        and has to state its own boundary. The accent classes below override the
        colour and must stay after this shorthand. */
     border: 1px solid var(--drpg-window-edge);
-    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
     box-shadow: 0 4px 18px rgba(var(--drpg-shadow-rgb), 0.45);
     cursor: pointer;
     opacity: 0;
@@ -6209,12 +6152,9 @@ body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    padding: 0.4rem 0.5rem 0.4rem 0.75rem;
     border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
-    font-size: var(--font-size-13, 0.82rem);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
 }
 
 /* A NOTICE THAT WAITS (22.09). Past what a stack shows, the older cards are parked
@@ -6278,10 +6218,6 @@ body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
     background: rgba(var(--drpg-eye-rgb), 0.14);
 }
 
-.drpg-popup-body {
-    padding: 0.5rem 0.75rem 0.7rem;
-    font-size: var(--font-size-13, 0.82rem);
-}
 
 .drpg-popup-body p:first-child {
     margin-top: 0;
@@ -6890,10 +6826,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
 /* How long this time of day has run, under the time row. Amber at the
    handbook's first-action mark, red at the second. */
 .drpg-hud-elapsed {
-    font-size: var(--font-size-11, 0.7rem);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.6;
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
 }
@@ -6940,8 +6872,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
     margin: 0;
     padding: 6px 8px;
     border: 1px solid var(--drpg-line-strong);
-    border-radius: 4px;
-    background: rgba(var(--drpg-veil-rgb), 0.82);
     pointer-events: auto;
 }
 
@@ -6975,7 +6905,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
 #drpg-player-status .drpg-status-value {
     font-size: var(--font-size-14, 0.9rem);
     font-variant-numeric: tabular-nums;
-    color: var(--drpg-eye);
     line-height: 1.1;
 }
 
@@ -6985,9 +6914,6 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
     opacity: 0.75;
 }
 
-#drpg-player-status .is-hope .drpg-status-value {
-    color: var(--drpg-gold);
-}
 
 body.drpg-pixel-font #drpg-player-status .drpg-status-label,
 body.drpg-pixel-font #drpg-player-status .drpg-status-value,
@@ -7043,7 +6969,6 @@ body.drpg-pixel-font .drpg-hud-elapsed {
     width: 0.72rem;
     height: 0.72rem;
     line-height: 1;
-    color: var(--drpg-dim);
     opacity: 0.7;
 }
 
@@ -7063,7 +6988,6 @@ body.drpg-pixel-font .drpg-hud-elapsed {
 }
 
 #drpg-player-status .drpg-status-pip.filled {
-    color: var(--drpg-eye);
     opacity: 1;
 }
 
@@ -7099,7 +7023,6 @@ body.drpg-pixel-font .drpg-hud-elapsed {
 /* One footprint, not a track - there is only ever one free Move. */
 #drpg-player-status .drpg-free-move {
     font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
-    color: var(--drpg-eye);
 }
 
 #drpg-player-status .drpg-free-move.available {
@@ -7354,8 +7277,6 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
 
 .drpg-safeword-button {
     position: sticky;
-    left: 8px;
-    bottom: 8px;
     align-self: flex-start;
     /* AS WIDE AS ITS WORD, NEVER AS ITS RAIL (E24 C5, 09.11.2026; the owner's report on 1.2.100, R1490). Sticky keeps
        the Stop in the flow of the sheet's `.window-content`, which Daggerheart 2.10.5 lays out as a grid (sheet.less):
@@ -7374,12 +7295,7 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 9px;
-    min-height: 26px;
-    border: 1px solid var(--drpg-red);
     border-radius: 3px;
-    background: rgba(var(--drpg-red-rgb), 0.14);
-    color: var(--drpg-red);
     font-size: var(--font-size-11, 0.7rem);
     letter-spacing: 0.06em;
     line-height: 1;
@@ -7397,7 +7313,6 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
 
 body.drpg-pixel-font .drpg-safeword-button {
     font-family: var(--drpg-font-pixel);
-    font-size: var(--drpg-text-xs);
     letter-spacing: 0;
 }
 
@@ -7556,11 +7471,6 @@ body.drpg-pixel-font .drpg-safeword-button {
 .drpg-gm-panel .drpg-gmp-section > summary {
     cursor: pointer;
     list-style: none;
-    padding: 4px 2px;
-    font-size: var(--font-size-11, 0.7rem);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--drpg-dim);
     border-bottom: 1px solid var(--drpg-rule);
 }
 
@@ -7853,14 +7763,6 @@ html body {
     opacity: 1;
 }
 
-/* Daggerheart's own Hope heading takes the interface accent directly rather
-   than through a token, so the redirect above cannot reach it. The system's
-   own rule is more specific than this one and carries the colour anyway, which
-   is what the !important is for - the selector matches either way. */
-.character-header-sheet .hope-section h4,
-.character-header-sheet .resource-section h4 {
-    color: var(--drpg-eye-light) !important;
-}
 
 /* ==========================================================================
    THE SHEET SITS ON INK
@@ -7925,9 +7827,6 @@ html body {
     color: var(--drpg-bone) !important;
 }
 
-.drpg-safeword-button:hover {
-    background: var(--drpg-eye) !important;
-}
 
 /* Counts and placeholders are structure, not accent. */
 .drpg-inventory-group .drpg-group-count {
@@ -8420,7 +8319,11 @@ body.drpg-pixel-font [id*="drpg-"] * {
 }
 
 /* Except the icon fonts, which are fonts only in the technical sense - take
-   their family away and every glyph becomes a wrong letter. */
+   their family away and every glyph becomes a wrong letter. Font Awesome's own
+   `--fa-style-family`, else Foundry v14's Font Awesome 7: the FA6, FA5 and
+   `FontAwesome` names after it went in E55 (14.11.2026; the audit's S12-72):
+   module.json's minimum is Foundry 14.364, and the face a v14 table resolves
+   is LIVE-E55-03 (not read here: the harnesses load no Font Awesome). */
 body.drpg-pixel-font i[class*="fa-"],
 body.drpg-pixel-font .fa-solid,
 body.drpg-pixel-font .fa-regular,
@@ -8430,8 +8333,7 @@ body.drpg-pixel-font .fa-duotone,
 body.drpg-pixel-font .fa-brands,
 body.drpg-pixel-font [class*="fa-"]::before,
 body.drpg-pixel-font [class*="fa-"]::after {
-    font-family: var(--fa-style-family, "Font Awesome 7 Pro"), "Font Awesome 6 Pro",
-                 "Font Awesome 5 Pro", FontAwesome !important;
+    font-family: var(--fa-style-family, "Font Awesome 7 Pro") !important;
 }
 
 /* And the kit checklist's marks (ui-kit.mjs CHECK_MARKS: a check, a cross, "!", "-"): the pixel face draws no check
@@ -8803,12 +8705,6 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor h3 .drpg-group-count.fu
     color: var(--drpg-bone) !important;
 }
 
-/* The track, in both engines. */
-.application.sheet.actor .character-sidebar-sheet progress.progress-bar {
-    background-color: rgba(var(--drpg-deep-rgb), 0.9) !important;
-    border: 1px solid var(--drpg-line) !important;
-    border-radius: 2px;
-}
 
 .application.sheet.actor .character-sidebar-sheet progress.progress-bar::-webkit-progress-bar {
     background-color: rgba(var(--drpg-deep-rgb), 0.9);
@@ -9214,8 +9110,7 @@ body.drpg-pixel-font #interface *:not(i):not([class*="fa-"]):not(.editor-content
 body.drpg-pixel-font #interface i[class*="fa-"],
 body.drpg-pixel-font #interface [class*="fa-"]::before,
 body.drpg-pixel-font #interface [class*="fa-"]::after {
-    font-family: var(--fa-style-family, "Font Awesome 7 Pro"), "Font Awesome 6 Pro",
-                 "Font Awesome 5 Pro", FontAwesome !important;
+    font-family: var(--fa-style-family, "Font Awesome 7 Pro") !important;
 }
 
 /* …BUT NOT INSIDE A WINDOW THIS MODULE DID NOT BUILD.
@@ -9492,7 +9387,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     -webkit-appearance: none !important;
     appearance: none !important;
     border: 1px solid var(--drpg-line) !important;
-    border-radius: 2px;
     height: 14px;
     background-color: rgba(var(--drpg-deep-rgb), 0.9) !important;
     background-image: none !important;
@@ -10333,276 +10227,6 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 .drpg-event[data-kind="betHope"] { --acc: var(--drpg-gold); }
 
 /* ==========================================================================
-   STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS
-   --------------------------------------------------------------------------
-   Keyed off `data-drpg-crisis`, written by injectCrisisPanel in sheet.mjs.
-   Not off `def.icon`: two crisis actions already share `fa-hand-fist` with a
-   Hope Call, and tying the drawn set to a fallback nobody thinks of as load-
-   bearing is how it breaks later.
-
-   Two were redrawn. Strike was the fourth fist in this set and the fourth
-   potato - 24px has no room for knuckles - so it became the impact rather
-   than the hand, four spikes off a core, which reads nothing like Dynamic
-   action's symmetric burst. Partners in Crime stopped being a handshake, which
-   is too much geometry at this size, and became two figures standing together.
-
-   That completes the set: 35 glyphs, and Font Awesome no longer draws anything
-   this module puts on screen.
-   ========================================================================== */
-
-.drpg-action-button[data-drpg-crisis="leaveClue"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-leave-clue);
-    mask-image: var(--drpg-pix-leave-clue);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="leaveClue"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="secureTrace"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-secure-trace);
-    mask-image: var(--drpg-pix-secure-trace);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="secureTrace"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="selfDefence"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-self-defence);
-    mask-image: var(--drpg-pix-self-defence);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="selfDefence"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="survive"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-survive);
-    mask-image: var(--drpg-pix-survive);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="survive"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="roleReversal"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-role-reversal);
-    mask-image: var(--drpg-pix-role-reversal);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="roleReversal"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="strike"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-strike);
-    mask-image: var(--drpg-pix-strike);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="strike"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="pin"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-pin);
-    mask-image: var(--drpg-pix-pin);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="pin"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="keepDistance"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-keep-distance);
-    mask-image: var(--drpg-pix-keep-distance);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="keepDistance"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="weaponAttack"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-weapon-attack);
-    mask-image: var(--drpg-pix-weapon-attack);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="weaponAttack"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="finishingBlow"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-finishing-blow);
-    mask-image: var(--drpg-pix-finishing-blow);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="finishingBlow"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="sharedEscape"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-shared-escape);
-    mask-image: var(--drpg-pix-shared-escape);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="sharedEscape"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="doubleRoleReversal"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-double-role-reversal);
-    mask-image: var(--drpg-pix-double-role-reversal);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="doubleRoleReversal"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="crimePartners"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-crime-partners);
-    mask-image: var(--drpg-pix-crime-partners);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="crimePartners"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-.drpg-action-button[data-drpg-crisis="avertedEyes"] .drpg-action-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 0 !important;
-    background-color: currentColor;
-    -webkit-mask-image: var(--drpg-pix-averted-eyes);
-    mask-image: var(--drpg-pix-averted-eyes);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    image-rendering: pixelated;
-}
-
-.drpg-action-button[data-drpg-crisis="avertedEyes"] .drpg-action-icon::before {
-    content: none !important;
-}
-
-/* ==========================================================================
    THE FILL IS THE BOX
    --------------------------------------------------------------------------
    The bar was a 14px strip floating in the middle of a 40px box, which read as
@@ -10959,6 +10583,8 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    number, not the one who wants to know it. */
 .drpg-duality .drpg-duality-formula {
     display: flex;
+    /* a long roll's chips take a second line inside the card (E55, 14.11.2026; the audit's S12-89; R6102) */
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 4px;
@@ -11346,10 +10972,12 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    portrait at 275px tall is 275px wide, the name got about a character's width and
    printed one letter per line. Measured on 21.09 on a Remnant and on a project
    token, the two things in this module that open an NPC sheet. The rule was only
-   ever about the rail above, which is `.character-sidebar-sheet`. */
-.application.sheet.actor.character .window-content {
-    grid-template-columns: minmax(0, 275px) minmax(0, 1fr) !important;
-}
+   ever about the rail above, which is `.character-sidebar-sheet`. The track
+   itself is written once, further down, by `body .application.sheet.actor.character
+   .window-content` (275 px times the slider's scale): the rule that stood here,
+   `minmax(0, 275px) minmax(0, 1fr) !important`, lost to it in both themes (one
+   more element in the selector, both `!important`) and went in E55 D3
+   (14.11.2026). */
 
 /* The rail keeps its size while there is room and gives way when there is not.
    12rem still fits the portrait, both resource chips and the safeword. */
@@ -12495,23 +12123,18 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     min-height: unset;
     padding: 0;
     line-height: 1;
-    border: none;
-    background: none;
-    color: var(--drpg-bone);
     opacity: 0.75;
 }
 
 #countdowns .drpg-projects-gear i,
 #countdowns .drpg-projects-fold i {
     font-size: var(--font-size-15, 0.9375rem);
-    color: inherit;
 }
 
 #countdowns .drpg-projects-gear:hover,
 #countdowns .drpg-projects-fold:hover {
     opacity: 1;
     background: none;
-    color: var(--drpg-attention);
 }
 
 /* Folded away: the title bar stays, everything under it goes - the "no projects yet" line too, which stands
@@ -12694,7 +12317,6 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 }
 
 .drpg-item-sheet .window-content {
-    background: var(--drpg-panel-ground);
     gap: 0.6rem;
 }
 
@@ -12702,16 +12324,12 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 .drpg-item-sheet .item-sheet-header {
     align-items: center;
     gap: 0.75rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--drpg-line-strong);
 }
 
 .drpg-item-sheet .item-sheet-header img.profile {
     width: 4.5rem;
     height: 4.5rem;
     flex: 0 0 auto;
-    border-radius: var(--drpg-panel-radius);
-    border: 1px solid var(--drpg-line-strong);
     object-fit: cover;
 }
 
@@ -12946,12 +12564,6 @@ body.drpg-high-contrast .drpg-trace-context {
     opacity: 1;
 }
 
-/* A refused name stays in its field, outlined, with the sentence under it - where the GM is looking, not only in a toast
-   over the window's tabs (`nameFieldHtml` in tables.mjs). */
-:is(.drpg-window-tables, .drpg-rename-table) input[aria-invalid="true"] {
-    border-color: var(--drpg-crimson-light);
-    box-shadow: 0 0 0 1px var(--drpg-crimson-light);
-}
 
 :is(.drpg-window-tables, .drpg-rename-table) .drpg-field-error {
     margin: 2px 0 0;
@@ -13806,14 +13418,19 @@ body.drpg-theme-monokuma-legacy #drpg-book-launcher {
 
 /* The mask carries the colour from `currentColor`, so the icon follows the
    button rather than being painted twice. Half the circle, like the chat
-   glyph beneath it - and derived for the same reason the sizes above are. */
+   glyph beneath it - and derived for the same reason the sizes above are.
+   The glyph is the gear in both themes: the button opens the Look window for
+   everyone. Until E55 D4 (14.11.2026) this rule drew the speaker and an
+   unscoped stained-glass.css rule put the gear over it with `!important` in
+   both themes, so the speaker was never seen (the look freeze read it changed
+   as no difference); the gear is written here once, and that rule is gone. */
 #drpg-sound-launcher i {
     display: block;
     width: calc(var(--drpg-launcher-small) / 2);
     height: calc(var(--drpg-launcher-small) / 2);
     background: currentColor;
-    -webkit-mask-image: var(--drpg-pix-speaker);
-    mask-image: var(--drpg-pix-speaker);
+    -webkit-mask-image: var(--drpg-pix-gear);
+    mask-image: var(--drpg-pix-gear);
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -14543,8 +14160,6 @@ body.drpg-pixel-font #pause.paused figcaption {
     position: relative;
 }
 
-#pause.paused figcaption::before { top: -1.4em; }
-#pause.paused figcaption::after { bottom: -1.4em; }
 
 @keyframes drpg-pause-breathe {
     0%, 100% { opacity: 0.25; }
@@ -14632,8 +14247,6 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
 .application.sheet.actor .drpg-row-button,
 .application.sheet.actor .drpg-inventory-group button,
 .application.sheet.actor .drpg-inventory-list button {
-    width: 22px;
-    height: 22px;
     padding: 0 !important;
     min-height: 0 !important;
     line-height: 1;
@@ -14655,7 +14268,6 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
 .application.sheet.actor .drpg-row-button i,
 .application.sheet.actor .drpg-inventory-group button i {
     color: var(--drpg-bone) !important;
-    font-size: var(--drpg-text-xs);
 }
 
 /* The one exception, and it is a state rather than an action: the tool this
@@ -15336,9 +14948,11 @@ body.drpg-theme-monokuma-legacy #pause.paused {
    hidden outright now, which is the honest version of the same decision.
    ========================================================================== */
 
+/* By its own names (E55, 14.11.2026; the audit's S12-92): Daggerheart's class, and whatever stands in the right column
+   under a name holding the words, where Daggerheart puts it. `[class*="effects-display"]` anywhere also hid another
+   module's element that happened to carry the words in a longer class name; `#effects-display` is the chrome rule's
+   ("hidden for everybody, as the hotbar"). R6103. */
 .dh-effects-display,
-[class*="effects-display"],
-#ui-right-column-1 .dh-effects-display,
 #ui-right-column-1 [class*="effects-display"] {
     display: none !important;
 }
@@ -15365,6 +14979,11 @@ body.drpg-theme-monokuma-legacy #pause.paused {
 
 .application.sheet:not([class*="drpg-"]):not(.actor) .window-content {
     overflow: auto !important;
+}
+/* The ceiling only where the cut-off rows were reported (E55, 14.11.2026; the audit's S12-87): Foundry's token, scene and
+   tile config. A journal or another module's sheet keeps the height Foundry gives it, and scrolls by the rule above.
+   The three class names are v13's as the module knows them, not read off v14 (LIVE-E55-02); R6101. */
+.application.sheet:is(.token-config, .scene-config, .tile-config):not([class*="drpg-"]):not(.actor) .window-content {
     max-height: 88vh;
 }
 

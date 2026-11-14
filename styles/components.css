@@ -1089,8 +1089,6 @@ body {
     --drpg-a8-text-fallback: #efe6d8;
     /* the opaque stop of the state word's fade */
     --drpg-a8-mask-ink: #000;
-    /* a frame's rim where the glass's accent is not set */
-    --drpg-a8-accent-fallback: #8a7fa0;
     /* the Foundry tools frames' ink */
     --drpg-a8-frame-ink: #ece6f0;
     /* the Foundry tools frames' ground */
@@ -1661,7 +1659,11 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
     box-sizing: border-box;
     max-width: calc(100vw - 16px);
     background: var(--drpg-a8-frame-ground);
-    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent, var(--drpg-a8-accent-fallback)) 45%, transparent);
+    /* the glass's accent in both themes: `@property` registers it document-wide (stained-glass.css, "The state colour
+       fades"), so under Legacy it is its initial value, #ffd38f, and a `var()` fallback here never applied. The
+       fallback (`--drpg-a8-accent-fallback`, #8a7fa0) went in E55 (14.11.2026; the audit's S12-71): the value drawn
+       is unchanged, and now it is the one written. */
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
     border-radius: 4px;
     box-shadow: 0 6px 24px var(--drpg-a8-frame-shadow);
     color: var(--drpg-a8-frame-ink);
@@ -3185,7 +3187,6 @@ body .application.dialog:is(.drpg-window-season-checklist, .drpg-window-foundry-
    phone's 390 px (R1322). */
 .application.drpg-window-case .drpg-data-table-box > table.drpg-data-table {
     width: 100%;
-    min-width: min(calc(var(--drpg-window-max) - 3rem), calc(94vw - 3rem));
 }
 .application.drpg-window-case table.drpg-data-table td { vertical-align: middle; }
 .application.drpg-window-case table.drpg-data-table :is(input[type="text"], textarea, select) {
@@ -3226,9 +3227,6 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-p
 }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-check { width: 7%; text-align: center; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-found { width: 8%; }
-/* Visibility, the one select whose head is one long word, a share of its own (under Legacy "Visibility" broke in two at
-   10 %, 1366x768) */
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 11%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-act { width: 11%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-scale { width: 11%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-key-name { width: 17%; }
@@ -4722,9 +4720,6 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
     flex: 1 0 100%;
 }
 
-.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > .drpg-trial-picker {
-    margin-top: 4px;
-}
 
 .drpg-trial-frame .drpg-trial-read {
     grid-area: read;

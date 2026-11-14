@@ -6,7 +6,7 @@
       "colourLiterals": 9,
       "duplicates": 0,
       "deadClasses": 0,
-      "overridden": 4,
+      "overridden": 0,
       "deadAttributes": 0
     },
     "styles/motion.css": {
@@ -18,20 +18,20 @@
       "deadAttributes": 0
     },
     "styles/danganronpa.css": {
-      "important": 647,
-      "colourLiterals": 246,
+      "important": 612,
+      "colourLiterals": 238,
       "duplicates": 0,
       "deadClasses": 0,
-      "overridden": 87,
-      "deadAttributes": 1
+      "overridden": 0,
+      "deadAttributes": 0
     },
     "styles/stained-glass.css": {
-      "important": 203,
-      "colourLiterals": 96,
+      "important": 199,
+      "colourLiterals": 95,
       "duplicates": 0,
       "deadClasses": 0,
-      "overridden": 29,
-      "deadAttributes": 1
+      "overridden": 0,
+      "deadAttributes": 0
     },
     "styles/pixel-icons.css": {
       "important": 0,
@@ -46,7 +46,7 @@
       "colourLiterals": 0,
       "duplicates": 0,
       "deadClasses": 0,
-      "overridden": 3,
+      "overridden": 0,
       "deadAttributes": 0
     },
     "styles/narrow.css": {

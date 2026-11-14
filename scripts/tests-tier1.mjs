@@ -39470,6 +39470,74 @@ const INVARIANTS = [
         ok(cssSelfCheck(undefined, { attributesFn: () => ({ inSheet: 6, orphans: [] }) }).length > 0, "the self-check does not see deadAttributes stubbed blind");
     }],
 
+    ["R6101 - a window the module does not own is held to 88vh only where it is Foundry's token, scene or tile config: a journal, an item sheet of another module and a third-party sheet keep the height Foundry gives them, and every one of them still scrolls (E55; the audit's S12-87, LIVE-E55-02)", async () => {
+        /*
+         * E55, 14.11.2026. danganronpa.css "FOUNDRY'S OWN CONFIG WINDOWS STAY USABLE" held every foreign sheet's content to
+         * 88vh, written for the token and scene config's cut-off rows. Read: the sheets' cascade on a body of its own,
+         * `max-height` and `overflow` of each window's `.window-content`. Red before the change: the journal and the
+         * other sheet at 88vh as well. Foundry's class names (`token-config`, `scene-config`, `tile-config`) are v13's
+         * DEFAULT_OPTIONS as the module knows them, not read off v14 (LIVE-E55-02).
+         */
+        const C = await styleCascade();
+        const body = document.implementation.createHTMLDocument("R6101").body;
+        const kinds = { token: "token-config", scene: "scene-config", tile: "tile-config", journal: "journal-entry-page", other: "some-module-sheet" };
+        body.innerHTML = Object.entries(kinds).map(([k, cls]) => `<div class="application sheet ${cls}" data-k="${k}"><section class="window-content"></section></div>`).join("");
+        const read = {};
+        for (const k of Object.keys(kinds)) {
+            const content = body.querySelector(`[data-k="${k}"] > .window-content`);
+            read[k] = [C.winner(content, ["max-height"])?.value ?? null, C.winner(content, ["overflow"])?.value ?? null];
+        }
+        const want = { token: ["88vh", "auto !important"], scene: ["88vh", "auto !important"], tile: ["88vh", "auto !important"], journal: [null, "auto !important"], other: [null, "auto !important"] };
+        const norm = r => Object.fromEntries(Object.entries(r).map(([k, [h, o]]) => [k, [h, o === null ? null : `${o.replace(/\s*!\s*important\s*$/i, "")} !important`]]));
+        equal(stableJson(norm(read)), stableJson(want), "{each foreign window's content: [max-height, overflow]}");
+    }],
+
+    ["R6102 - a duality card's working wraps: `.drpg-duality-formula` is a flex row that wraps in both themes, so a long roll's chips go to a second line inside the card rather than past its edge (E55; the audit's S12-89)", async () => {
+        /*
+         * E55, 14.11.2026. Read: the sheets' cascade, `flex-wrap` of the formula under each theme. Red before the change:
+         * no `flex-wrap` winner (the initial `nowrap`). How a long formula lays out in a chat card is not read here:
+         * jsdom lays nothing out, and no harness page draws a roll card (the look freeze's list of what it cannot see).
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const body = document.implementation.createHTMLDocument("R6102").body;
+            body.className = theme;
+            body.innerHTML = `<div class="drpg-duality" data-side="hope"><div class="drpg-duality-formula"><span>2d12</span></div></div>`;
+            const f = body.querySelector(".drpg-duality-formula");
+            read[theme] = [C.winner(f, ["display"])?.value ?? null, C.winner(f, ["flex-wrap", "flex-flow"])?.value ?? null];
+        }
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": ["flex", "wrap"], "drpg-theme-stained-glass": ["flex", "wrap"] }), "{the formula's [display, flex-wrap] per theme}");
+    }],
+
+    ["R6103 - Daggerheart's effects display is hidden by its own names, not by any class holding the words: `.dh-effects-display` and `#effects-display` are `display: none`, the right column's `effects-display` child too, and an element elsewhere whose class merely contains `effects-display` (another module's) is not touched (E55; the audit's S12-92)", async () => {
+        /*
+         * E55, 14.11.2026. danganronpa.css "DAGGERHEART'S STATUS ICONS ARE NOT PART OF THIS INTERFACE" hid
+         * `[class*="effects-display"]` anywhere. Read: the sheets' cascade, `display`. Red before the change: the other
+         * module's `.my-effects-display-panel` in a window at `none !important`. Daggerheart 2.12.8's own markup for the
+         * display is not read here (no Daggerheart UI in the harness); the names are the ones the sheets and 8125's rule
+         * already carry.
+         */
+        const C = await styleCascade();
+        const body = document.implementation.createHTMLDocument("R6103").body;
+        body.innerHTML = `<aside class="dh-effects-display" data-k="dh"></aside><div id="effects-display" data-k="id"></div>`
+            + `<div id="ui-right-column-1"><div class="system-effects-display" data-k="column"></div></div>`
+            + `<div class="application"><section class="window-content"><div class="my-effects-display-panel" data-k="other"></div></section></div>`;
+        const read = Object.fromEntries([...body.querySelectorAll("[data-k]")].map(el => [el.dataset.k, /none/.test(C.winner(el, ["display"])?.value ?? "") ? "none" : "shown"]));
+        equal(stableJson(read), stableJson({ dh: "none", id: "none", column: "none", other: "shown" }), "{each element's display: none or shown}");
+    }],
+
+    ["R6104 - the sheets name no Font Awesome older than the one Foundry v14 ships: no `Font Awesome 6`, `Font Awesome 5` or bare `FontAwesome` in a declaration of any served sheet, and the pixel font's icon exceptions still name `--fa-style-family` (E55; the audit's S12-72, LIVE-E55-03)", async () => {
+        /*
+         * E55, 14.11.2026. Read: every sheet of module.json with its comments out (moduleStyles). Red before the change:
+         * two `font-family` lists in danganronpa.css, "Font Awesome 6 Pro", "Font Awesome 5 Pro", FontAwesome.
+         */
+        const css = await moduleStyles();
+        const old = [...css.matchAll(/font-family:[^;}]*(?:Font Awesome [56]|\bFontAwesome\b)[^;}]*/g)].map(m => m[0].replace(/\s+/g, " "));
+        equal(stableJson(old), "[]", "a font-family still names an older Font Awesome");
+        ok(/font-family: var\(--fa-style-family, "Font Awesome 7 Pro"\) !important/.test(css.replace(/\s+/g, " ")), "the icon exceptions no longer name --fa-style-family with Font Awesome 7");
+    }],
+
     ["R1312 - the themes' text meets AA where Node resolves it (E44 C1c; E44-03, D29 = 2): WCAG's ratio reads 21 for black on white and 1 for a colour on itself, the contrast tool's own fixture reads ok, low, known, stale and unmeasured as written, and every pair of tools/contrast-pairs.json, in its theme with the tokens the served sheets declare on :root and the theme's body class, is AA (4.5 small, 3 large) or written known at the ratio it reads - none low, none stale, at least one measured in each theme", async () => {
         /*
          * E44 C1c, 04.11.2026. The arithmetic is tests-css.mjs's, the same `node tools/check.mjs contrast` runs on the
@@ -40917,22 +40985,26 @@ const INVARIANTS = [
            there, read `:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk))` now, so a Spectator's switch takes
            the same room - the same rules, the same values, another selector - 2:ac4af798 -> 2:ce15ad40, re-measured
            headless; the pressed switch's rules match nothing this test draws. Every other print, `left` and the @media
-           rules as they were. */
+           rules as they were.
+           Foundry tools' window frame's three Stained Glass prints since E55 (14.11.2026): its rim's `border` reads
+           `var(--drpg-glass-accent)` without the fallback `@property` never let apply (components.css; the audit's S12-71),
+           the same rule and the same value, another text - curtain and desk 2:1900e75b -> 2:6fa9ceed, stacked 2:8b75b7bd ->
+           2:2fe7a47f, re-measured headless; Legacy's, every other print, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:6fa9ceed", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
-            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:19e941be",
+            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:6fa9ceed", "desk|stained-glass|gm-launcher": "1:19e941be",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
-            "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:2fe7a47f",
             "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
