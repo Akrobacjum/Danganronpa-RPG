@@ -96309,7 +96309,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "the open window's Tool row [disabled, its line] and Take [disabled, tooltip]: as drawn beside the body; after the taker walked to another room; back");
     }],
 
-    ["two body tiles of one death (E95 C3; risk 4, STATUS E95 Open 7): the loot gate reads the one laid first by its `at`, whichever was made first, both wear the caption, and a revive removes both", async () => {
+    ["two body tiles of one death (E95 C3; risk 4, STATUS E95 Open 7): the loot gate reads the one laid first by its `at`, whichever was made first, neither draws a caption (since 13.11.2026 the corpse's token wears it), and a revive removes both", async () => {
         /*
          * E95 C3, 10.11.2026; STAGE E95 risk 4 ("Two GMs making one Monocub at once can lay two tiles; readers take the
          * earliest; revive and reset remove all"), untested until now. The fixture of the C1 tests (`withBodyTile`: a
@@ -96318,8 +96318,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * `bodyTileOf` is the earliest, the body's room (`bodyRoomOf`), and the loot gate (inventory.mjs
          * `transferRefusal`, mode "loot", for a player who owns neither) with the taker beside the token and beside the
          * fixture's tile. What C3 draws: the mark of each tile (body-tile.mjs `drawBodyMark` on a stand-in placeable
-         * holding the tile's document; Foundry's draw hook is not in the harness) - both captioned, as each tile is a
-         * flagged tile; which of the two is the body is the gate's and not the drawing's. Then chapter.mjs
+         * holding the tile's document; Foundry's draw hook is not in the harness) - neither captioned since the owner's
+         * report of 13.11.2026 (a body tile draws nothing; the caption is the corpse's token's, tier 1 R3144, R5871); which
+         * of the two is the body is the gate's and not the drawing's. Then chapter.mjs
          * `reviveCharacter`: the tiles left. Red at E95 C2: there is no `drawBodyMark` (the gate and the revive were
          * C0-C2's and read the same then).
          */
@@ -96369,11 +96370,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if (second && scene.tiles.has(second.id)) await second.delete();
                 await settle();
             }
-            const words = [game.i18n.format("DRPG.Body.tile", { name: body.name })];
             equal(stableJson(read), stableJson({
                 secondLater: [true, tileRoom, "notThere", "ok"],
                 secondEarlier: [true, room, "ok", "notThere"],
-                drawn: [words, words],
+                drawn: [[], []],
                 revived: [false, false, 0]
             }), "per case [the body is the earliest tile, the body's room, the gate beside the token, beside the fixture's tile]: the second tile laid later, then earlier; "
                 + "the captions drawn on [the fixture's tile, the second]; after the revive [the fixture's tile there, the second there, the body tiles left]");

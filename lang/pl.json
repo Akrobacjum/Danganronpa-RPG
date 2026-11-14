@@ -7812,11 +7812,11 @@
         },
         "death": {
           "label": "Uczeń ginie",
-          "hint": "Słyszą GM-owie i każdy, czyja postać brała udział w incydencie. Nikt inny nie dowiaduje się o śmierci w ten sposób."
+          "hint": "Słyszą GM-owie i każdy, czyja postać brała udział w incydencie, poza graczem zmarłego ucznia, który słyszy Gaśnięcie. Nikt inny nie dowiaduje się o śmierci w ten sposób. Egzekucja gra zamiast tego własny dźwięk."
         },
         "deathFade": {
           "label": "Gaśnięcie",
-          "hint": "Słyszy tylko gracz zmarłego ucznia, gdy jego ekran gaśnie w chwili śmierci. Puste: gra dźwięk śmierci. Nigdy przy poprawce GM-a."
+          "hint": "Słyszy tylko gracz zmarłego ucznia, gdy jego ekran gaśnie w chwili śmierci. Puste: gra dźwięk śmierci. Nigdy przy poprawce GM-a ani egzekucji."
         },
         "bodyFound": {
           "label": "Znaleziono ciało",

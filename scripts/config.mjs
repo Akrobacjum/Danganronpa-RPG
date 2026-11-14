@@ -5277,12 +5277,12 @@ export const SFX_EVENTS = {
     /* ---- Incident ------------------------------------------------------- */
     death: {
         label: "A student dies",
-        hint: "Heard by the GMs and by everyone whose character was part of the incident. Nobody else learns of a death this way.",
+        hint: "Heard by the GMs and by everyone whose character was part of the incident, but the dead student's player, who hears the Death fade. Nobody else learns of a death this way. An execution plays its own sound instead.",
         category: "incident"
     },
     deathFade: {
         label: "Death fade",
-        hint: "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction.",
+        hint: "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction or an execution.",
         category: "incident",
         fallsBackTo: "death"
     },
