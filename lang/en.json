@@ -2762,7 +2762,7 @@
       "filterChapter": "Chapter",
       "filterEveryChapter": "Every chapter",
       "chapterN": "Chapter {n}",
-      "neverOnePerson": "A Remnant names nobody: a Key Remnant narrows the suspects to at most half the cast, any other to 2-4.",
+      "neverOnePerson": "A Remnant names nobody: together the Key Remnants narrow the suspects to {min}-{max} people.",
       "filterCount": "Showing {shown} of {total}.",
       "noneMatch": "No Remnant matches this filter.",
       "plannerIntro": { "one": "{n} clue for chapter {chapter}. It should narrow the suspects to {min}-{max} people.", "other": "{n} clues for chapter {chapter}. Together they should narrow the suspects to {min}-{max} people." },

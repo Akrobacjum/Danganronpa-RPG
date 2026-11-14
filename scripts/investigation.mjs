@@ -767,7 +767,8 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
     return `
         ${caseTraceFilters(traces, shown, reading)}
         <p class="notes drpg-clue-rule">${
-            game.i18n.localize("DRPG.Investigation.neverOnePerson")}</p>
+            /* The Key Remnants' rule as config holds it (E59 on the 1.2.115 line, CHAINS.md B-M7; R7171). */
+            game.i18n.format("DRPG.Investigation.neverOnePerson", { min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1] })}</p>
         ${shown.length ? caseTraceTable(shown, finders)
             : `<p class="notes">${game.i18n.localize(traces.length
                 ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}`;

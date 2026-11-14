@@ -2926,7 +2926,7 @@
       "filterChapter": "Rozdział",
       "filterEveryChapter": "Wszystkie rozdziały",
       "chapterN": "Rozdział {n}",
-      "neverOnePerson": "Remnant nigdy nie wskazuje nikogo wprost: Key Remnant zawęża krąg podejrzanych najwyżej do połowy obsady, każdy inny do 2-4 osób.",
+      "neverOnePerson": "Remnant nigdy nie wskazuje nikogo wprost: Key Remnanty razem zawężają krąg podejrzanych do {min}-{max} osób.",
       "filterCount": "Pokazano {shown} z {total}.",
       "noneMatch": "Żaden Remnant nie pasuje do tego filtra.",
       "plannerIntro": {
@@ -8099,7 +8099,7 @@
         },
         "yourTurn": {
           "label": "Twoja tura",
-          "hint": "W incydencie słyszy gracz ucznia, który jest na ruchu, nigdy GM. W Testimony, Panic Round albo Closing Argument słyszy gracz mówcy, raz na turę."
+          "hint": "W incydencie słyszy gracz ucznia, który jest na ruchu, nigdy GM. W Testimony, Panic Round, Closing Argument albo turze Scrum Debate słyszy gracz mówcy, raz na turę."
         },
         "truthBullet": {
           "label": "Znaleziono Truth Bullet",
@@ -8131,7 +8131,7 @@
         },
         "debateOpen": {
           "label": "Nonstop Debate się otwiera",
-          "hint": "Słyszy cały stół, gdy otwiera się Nonstop Debate, chyba że otwiera ją Closing Argument."
+          "hint": "Słyszy cały stół, gdy otwiera się Nonstop Debate."
         },
         "objection": {
           "label": "Objection",

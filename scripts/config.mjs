@@ -5336,7 +5336,7 @@ export const SFX_EVENTS = {
     },
     yourTurn: {
         label: "Your turn",
-        hint: "A student's turn comes up in an incident, a Testimony, a Panic Round, or a Closing Argument. Heard by their player.",
+        hint: "A student's turn comes up in an incident, a Testimony, a Panic Round, a Closing Argument, or a Scrum Debate. Heard by their player.",
         category: "incident"
     },
     truthBullet: {

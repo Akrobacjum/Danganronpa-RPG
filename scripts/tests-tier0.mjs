@@ -25559,6 +25559,17 @@ const REGRESSIONS = [
         equal(JSON.stringify(found), "[]", "stale words about the voice in the handbooks or the texts");
         equal(JSON.stringify(quotes), JSON.stringify({ en: true, pl: true }), "{whether each GM handbook quotes the Monocub tile's listening line as its lang has it}");
     }],
+    ["R7171 - the Traces tab's rule says the Key Remnants' rule as config and the handbooks hold it (E59 C-115, CHAINS.md B-M7): `DRPG.Investigation.neverOnePerson` said a Key Remnant narrows the suspects \"to at most half the cast, any other to 2-4\"; config.mjs `KEY_REMNANTS.suspectRange` and GM 14.4 say the Key Remnants together narrow them to 2-4; the line takes {min} and {max} in both languages, investigation.mjs formats it from `suspectRange`, and neither language speaks of half the cast", async () => {
+        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        ok(/DRPG\.Investigation\.neverOnePerson"\s*,\s*\{[^}]*suspectRange/.test(fnSource(inv, "caseTracesPanel")), "caseTracesPanel does not format the rule from KEY_REMNANTS.suspectRange");
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const line = String(foundry.utils.getProperty(text, "DRPG.Investigation.neverOnePerson") ?? "");
+            read[lang] = { min: line.includes("{min}"), max: line.includes("{max}"), half: /half|połow/i.test(line) };
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: { min: true, max: true, half: false }, pl: { min: true, max: true, half: false } }), "{per language: the rule line's {min}, {max}, and whether it speaks of half the cast}");
+    }],
 ];
 
 
