@@ -327,3 +327,29 @@ while it reads green. Read by a person: a pick conflict other than the registry 
 was config.mjs's import line), a repoint or sweep refusal (a line the manifest or a table does not know on the new
 base), a rows.mjs count a base moved (the prose round it), and the results and logs before a push.
 
+
+## E54 landed on the 1.2.113 assembly (1463f22b), 14.11.2026
+
+claude/e54-land-113 at 123f8242, 39 commits on 1463f22b: the 13 picks, the seven cuts' split, repoint and sweep (21),
+three comment-budget commits (sheet, key-remnants, chapter), code.md's rows, and the census guard's planted case.
+
+| Proof, on the final tree 2e46cdac | Read |
+| --- | --- |
+| moved-only, each split | 8 parts green, all seven |
+| quick | green (83 s) |
+| tier 1 | 1595 passed, 1 failed, 16 skipped, 0 red (487 s); the failure R2001, the base's (1463f22b re-planned the ledger, not its quotes; the coordinator's, fixed after the split) |
+| golden | SAME, 924348 bytes |
+| glass-sweep | SWEEP GREEN, 46 with glass, 0 failing (2797 s) |
+| messages | 39, 0 problems |
+| merge-tree against 1463f22b, and main ceb9e9c8 | clean |
+
+What the base asked, each read by hand, the coordinator told (and confirming the two pick resolutions):
+- Pick 3 (W5): audit/style-sweep.mjs's `--tabs` and W5's `--frame` passes, both kept.
+- Pick 13: tools/tooltip-census.mjs compare(), da276909 composed with 600cb4f0 (the allowance keyed by
+  `mainIdentity`); the guard's planted cases for a moved held row, green, and of another kind, red; two mutants caught.
+- The manifests: sheet (`paintHopeGlyphs` to sheet-repaint, `longestTileWord`), key-remnants (`PLANNED_GLYPH`),
+  chapter (R5740's 13 declarations to body.mjs).
+- Three sweep verdicts; the comment budget moved with the comments (tools/e54/budget.mjs); code.md's rows re-read
+  (tools/e54/rows.mjs, 17 rows, 0 problems).
+- R4420 failed once, after the glass cut, on its `release` field alone; it passed alone 3/3, in that cut's rerun and in
+  the closing tier 1 - read as timing under load.
