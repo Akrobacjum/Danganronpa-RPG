@@ -2,7 +2,7 @@
  * 94-dead-spectator: a dead student watches as a Spectator, from the death to the revive (E62 C3b, 13.11.2026;
  * docs/dev/e62/STORYBOARD-C3.md on the e62-c3 line, e64968c6, the owner's answers to Q-C3b-1..6).
  *
- * The GM and three players; p3's Chie is killed as the GMs keep a death (chapter.mjs `killCharacter`, `secret: true`), in
+ * The GM and three players; p3's Chie is killed as the GMs keep a death (death.mjs `killCharacter`, chapter.mjs `secret: true`), in
  * play (not silent), and read on the browsers that each part is about:
  *   secret   p1's world data before and after the kill: what is new is one actor (the watcher: E92's flag, no link) and
  *            one token, and nothing of Chie's own or of any module world setting changed (the owner's accepted

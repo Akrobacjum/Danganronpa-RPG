@@ -1182,7 +1182,7 @@ function ownListenRoom(user = game.user) {
 /**
  * What `deathVoiceGone` reads, read once for a pass (E19 C3): the running incident (`murderState`, null when none
  * runs), whether this browser holds the GMs' cast (`castStore`), who is in it (`participantIds`) and the reader of a
- * body's discovery (chapter.mjs `deathAnnounced`). Imported here, as `locateActor` is in `voiceTargets`. Since E19
+ * body's discovery (body.mjs `deathAnnounced`). Imported here, as `locateActor` is in `voiceTargets`. Since E19
  * fix r2-G1 also the clock's chapter and season (`getClock`, `seasonEpoch`) and the reader of a death's record
  * (`deathRecordFor`: the flag, else the GMs' row), which tell a death older than the running incident without the cast.
  */
@@ -1197,7 +1197,7 @@ export async function deathFacts() {
 /**
  * Whether a death's `record` is of another chapter or season than the clock's (`chapter`, `epoch`), so no death of
  * the incident running now (E19 fix r2-G1, 19.10.2026; the review's E19-FIX1-1). A record with no chapter or no season
- * is taken as this chapter's and this season's, as chapter.mjs `bodiesToDiscover` takes it; no record, or no clock
+ * is taken as this chapter's and this season's, as body.mjs `bodiesToDiscover` takes it; no record, or no clock
  * handed in, is no answer (false). Pure.
  *
  * @param {object|null} record  `deathRecordFor`'s answer
@@ -1713,7 +1713,7 @@ export async function settleTrialVoices({ release = false } = {}) {
 
 /**
  * Ask the primary GM to settle the trial's voices (the GMs' row "trial.enter"), or settle them here on the primary:
- * the shape investigation.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.
+ * the shape key-remnants.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.
  */
 export async function askTrialVoices() {
     if (!game.user?.isGM) return null;

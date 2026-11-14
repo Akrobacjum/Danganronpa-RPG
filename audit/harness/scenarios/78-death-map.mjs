@@ -16,7 +16,7 @@
  * `bodyRoomOf`, read through the tile), and the caption on her token as p1's browser draws it (`drawCorpseCaption` on a
  * stand-in placeable holding the token's document: the harness has no canvas and no draw hooks). Then she is revived
  * and the map is what it was. The roads:
- *   kill       the Students window's Kill, a death public at once (chapter.mjs `killCharacter`, `secret: false`);
+ *   kill       the Students window's Kill, a death public at once (death.mjs `killCharacter`, chapter.mjs `secret: false`);
  *   kept       a death the GMs keep (`secret: true`): the corpse and the Spectator, no tile; then `publishDeath`;
  *   execution  the sentence's road (trial-progress.mjs `carryOutSentence` -> `killCharacter`, phase "classTrial", cause
  *              "executed");

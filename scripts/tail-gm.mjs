@@ -22,7 +22,7 @@
  * the Mastermind or a GM's lock let through a seal is one more crossing: the card never says how they passed (DA42).
  *
  * THE ENDS. With a card: the tailer neither in the room the target left nor in the one it reached (lost, the range), a
- * new day, a body announced (chapter.mjs `BODY_ANNOUNCED_HOOK`, before the gather), a Dash of the target above the
+ * new day, a body announced (body.mjs `BODY_ANNOUNCED_HOOK`, before the gather), a Dash of the target above the
  * tail's total - a critical tail only to a critical Dash. Silent: the tailer or the target dead, an incident running -
  * nothing is sent later for a tail ended so. A new tail of the same tailer replaces the old one.
  */

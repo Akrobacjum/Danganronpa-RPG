@@ -731,7 +731,7 @@ export async function handleAuditDecide(payload, sender) {
     return { reply: await decideWrite(payload.rowId, payload.keep, sender.id) };
 }
 
-/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (investigation.mjs `chargeForUnfoundKeys`), what was paid or null. */
+/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (key-remnants.mjs `chargeForUnfoundKeys`), what was paid or null. */
 export async function handleKeysCharge() {
     const { chargeForUnfoundKeys } = await import("./investigation.mjs");
     return { reply: await chargeForUnfoundKeys() };
@@ -894,7 +894,7 @@ export async function handleTrialPresent(payload) {
     return { reply: out?.reply ?? null };
 }
 
-/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
+/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup-reshape.mjs `ruleReshape`), recorded as the asking GM's. */
 export async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
     return { reply: await ruleReshape({ actorId: payload.actorId, tokenId: payload.tokenId, attempt: payload.attempt,
