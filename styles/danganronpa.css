@@ -7356,6 +7356,7 @@ body.drpg-reduced-motion #drpg-hud .drpg-hud-time.is-objection { animation: none
 body.drpg-pixel-font .drpg-safeword-button {
     font-family: var(--drpg-font-pixel);
     letter-spacing: 0;
+    font-size: var(--drpg-text-xs);
 }
 
 /* THE RAIL REACHES THE STOP'S ROW (E24-C5 fix, 09.11.2026; the orchestrator, on C5's crops: under Legacy the Stop's
@@ -7576,9 +7577,6 @@ body.drpg-pixel-font .drpg-safeword-button {
     padding: 6px 12px;
 }
 
-body.drpg-pixel-font .drpg-safeword-button {
-    font-size: var(--drpg-text-xs);
-}
 
 /* ==========================================================================
    STATE ICONS BELOW THE PLAYER STRIP, NOT ABOVE IT
