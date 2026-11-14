@@ -414,7 +414,9 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
                 flags: { [MODULE_ID]: {
                     [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: false, [TRIAL_FLAGS.presenter]: actor.name,
                     [TRIAL_FLAGS.item]: item.id, [TRIAL_FLAGS.target]: null, [TRIAL_FLAGS.targetName]: null,
-                    [TRIAL_FLAGS.topic]: floor?.topic ?? null, [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+                    [TRIAL_FLAGS.topic]: floor?.topic ?? null, [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none",
+                    // Its sound for the whole table (E110 part 3, 14.11.2026): `present`; a copy's `truthBullet` yields to it.
+                    sfx: { key: "present", gm: true }
                 } }
             });
         } catch (err) {
@@ -1270,22 +1272,32 @@ function withWho(html, name, targetName) {
 }
 
 /**
- * The run of `floor.repoint` (gm-bridge.mjs) on the primary GM: the running Objection aimed at `targetId` instead,
- * a living student the floor lets its objector aim at - one of the trial's participants since E51 C6 (`mayObjectTo`). The floor's target alone changes (trial-floor.mjs
- * `repointObjection`), then the card's line and its target flags.
+ * The run of `floor.repoint` (gm-bridge.mjs) on the primary GM: the running Objection, or since E110 C1 its Rebuttal,
+ * aimed at `targetId` instead. Everything is the floor's step (trial-floor.mjs `repointObjection`, `repointRefusal`):
+ * the floor, the public card, and the Objection's card, flags and receipt (`repointCopies`), so this road and the GMs'
+ * "trial.gm" op `repoint` write the same once.
  *
  * @param {{targetId: string}} request
  */
 export async function repointOnPrimary({ targetId }) {
-    const { trialFloor, mayObjectTo, repointObjection, FLOOR_MODES } = await import("./trial-floor.mjs");
+    const { trialFloor, repointObjection, FLOOR_MODES } = await import("./trial-floor.mjs");
     const floor = trialFloor();
-    if (floor?.mode !== FLOOR_MODES.objection) return { refused: "the floor holds no objection to re-point" };
-    const { livingStudentsForGm } = await import("./chapter.mjs");
-    const target = livingStudentsForGm().find(student => student.id === targetId) ?? null;
-    if (!target || !mayObjectTo(floor.holderId, target.id, floor) || !(await repointObjection(target.id))) {
-        return { refused: "the student named may not be objected to now" };
-    }
-    const message = floor.messageId ? (game.messages.get(floor.messageId) ?? null) : null;
+    if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return { refused: "the floor holds no objection to re-point" };
+    if (!(await repointObjection(targetId))) return { refused: "the student named may not be objected to now" };
+    return { reply: { target: game.actors.get(targetId ?? "")?.name ?? null } };
+}
+
+/**
+ * EVERY COPY OF A REDIRECTED OBJECTION'S TARGET (E110 C1, 14.11.2026), in the floor's step after the floor is written
+ * (trial-floor.mjs `repointObjectionInStep`): the card - found by the stack's newest entry, which names it on the GM's
+ * card road too, where `floor.messageId` is null (`seizeFloor` opens it with its evidence), and by `floor.messageId`
+ * for a pending one - its who line and its target flags; and the receipt the Overrule reads
+ * (`trialProgress().objections[card].targetId`). A card or receipt that is not there is left as it is.
+ */
+export async function repointCopies(floor, target) {
+    const stack = Array.isArray(floor?.before) ? floor.before : [];
+    const cardId = stack.at(-1)?.messageId ?? floor?.messageId ?? null;
+    const message = cardId ? (game.messages.get(cardId) ?? null) : null;
     if (message) {
         try {
             await message.update({
@@ -1296,7 +1308,14 @@ export async function repointOnPrimary({ targetId }) {
             error("Could not re-point the Objection's card", err);
         }
     }
-    return { reply: { target: target.name } };
+    if (!cardId) return;
+    const { setTrialProgress, trialProgress } = await import("./vote.mjs");
+    if (!trialProgress().objections?.[cardId]) return;
+    await setTrialProgress(record => {
+        const objections = { ...(record.objections ?? {}) };
+        if (objections[cardId]) objections[cardId] = { ...objections[cardId], targetId: target.id };
+        return { objections };
+    });
 }
 
 /**
@@ -1496,16 +1515,20 @@ export async function objectionButtonState(actor) {
     return { text: `${line} ${priceLine(actor, quote)}`, held: false };
 }
 
-/** The trial console's Re-point (trial-floor-ui.mjs): a living participant, not the objector, asked of the primary GM. */
+/**
+ * The trial console's Re-point (trial-floor-ui.mjs): a living participant, not the objector, asked of the primary GM.
+ * In the Objection's minute and, since E110 C1, its Rebuttal; only participants whose player is here (Q-E110-1), as the
+ * primary's `repointRefusal` holds them.
+ */
 export async function repointDialog() {
     if (!game.user.isGM) return null;
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
     const floor = trialFloor();
-    if (floor?.mode !== FLOOR_MODES.objection) return null;
+    if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return null;
     const { livingStudentsForGm } = await import("./chapter.mjs");
-    // Only the trial's participants (E51 C6; E51-40), as the primary's `repointOnPrimary` holds them (`mayObjectTo`).
+    // Only the trial's participants (E51 C6; E51-40) whose player is connected (E110 C1).
     const { trialParticipants } = await import("./vote.mjs");
-    const taking = new Set(trialParticipants({ connected: false }).map(p => p.actor.id));
+    const taking = new Set(trialParticipants({ connected: true }).map(p => p.actor.id));
     const choices = livingStudentsForGm()
         .filter(student => student.id !== floor.holderId && taking.has(student.id))
         .sort((a, b) => a.name.localeCompare(b.name));

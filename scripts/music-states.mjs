@@ -50,12 +50,67 @@ export const TRIAL_MODE_MUSIC = Object.freeze({
     [FLOOR_MODES.scrum]: "trial.debate"
 });
 
-/** The trial's music state for `floor` in `phase` (a clock's phase), or null outside a Class Trial with no floor. */
-export function trialMusicState(floor, phase) {
+/*
+ * EACH MODE ITS OWN PLAYLIST, WHEN THE GM GIVES IT ONE (E110, 14.11.2026; the owner's D-E110-B "Kazda minigra w class
+ * trial niech ma wlasna playliste w muzyce" and D-E110-C "Scrum trzy playlisty niech ma"). A mode's own state plays only
+ * once a playlist is mapped to it; until then the mode plays what `TRIAL_MODE_MUSIC` gives it, so a world sounds as
+ * before until its GM sets one. The Nonstop Debate and the Objection already had theirs (`trial.debate`,
+ * `trial.objection`); the Rebuttal is its own state now, which reverses the 28.08 reading below ("REBUTTAL HAS NO
+ * STATE OF ITS OWN") only for a GM who maps it - unmapped it keeps the Objection's music, as that reading wanted. A
+ * Scrum Debate's three phases are three states. The switch is the engine's, on the primary alone (music-play.mjs
+ * `enabled`), at every write of the floor. R7105.
+ */
+export const TRIAL_MODE_OWN_MUSIC = Object.freeze({
+    [FLOOR_MODES.rebuttal]: "trial.rebuttal",
+    [FLOOR_MODES.testimony]: "trial.testimony",
+    [FLOOR_MODES.panic]: "trial.panic",
+    [FLOOR_MODES.closing]: "trial.closing",
+    [FLOOR_MODES.straw]: "trial.straw",
+    [FLOOR_MODES.dive]: "trial.dive"
+});
+
+/** A Scrum Debate's phases and their states (D-E110-C): Sides, Camps confer, the turns. */
+export const SCRUM_PHASE_MUSIC = Object.freeze({ setup: "trial.scrumSides", confer: "trial.scrumConfer", speak: "trial.scrumSpeak" });
+
+/** The state `floor`'s mode has of its own, mapped or not, or null. */
+export function ownModeState(floor) {
     const mode = floor?.mode ?? null;
+    if (mode === FLOOR_MODES.scrum) return SCRUM_PHASE_MUSIC[floor?.zone?.phase] ?? null;
+    return mode ? (TRIAL_MODE_OWN_MUSIC[mode] ?? null) : null;
+}
+
+/**
+ * The trial's music state for `floor` in `phase` (a clock's phase), or null outside a Class Trial with no floor: the
+ * mode's own state when `mapped(key)` says it has a playlist (the world's map by default), else `TRIAL_MODE_MUSIC`'s.
+ */
+export function trialMusicState(floor, phase, { mapped = key => Boolean(playlistFor(key)) } = {}) {
+    const mode = floor?.mode ?? null;
+    const own = ownModeState(floor);
+    if (own && mapped(own)) return own;
     if (mode && TRIAL_MODE_MUSIC[mode]) return TRIAL_MODE_MUSIC[mode];
     return phase === "classTrial" ? "trial.discussion" : null;
 }
+
+/**
+ * Whether the vote's own music plays (E110 part 3): a Class Trial, this chapter's record with its vote opened and no
+ * verdict yet, and a playlist mapped to `trial.vote` (`mapped`, the world's map by default). Pure over what is handed in.
+ */
+export function voteMusicPlays(record, clock, { mapped = key => Boolean(playlistFor(key)) } = {}) {
+    if (clock?.phase !== "classTrial" || !record || record.chapter !== clock.chapter || record.verdictApplied) return false;
+    const opened = Boolean(record.vote?.open || record.voteClosed || record.voteOpenedAt != null);
+    return opened && mapped("trial.vote");
+}
+
+/** The rows of `MUSIC_STATES` for the modes' own states: each applies while `trialMusicState` answers it. */
+const OWN_LABELS = Object.freeze({
+    "trial.rebuttal": "trialRebuttal", "trial.testimony": "trialTestimony", "trial.panic": "trialPanic", "trial.closing": "trialClosing",
+    "trial.straw": "trialStraw", "trial.dive": "trialDive", "trial.scrumSides": "trialScrumSides", "trial.scrumConfer": "trialScrumConfer",
+    "trial.scrumSpeak": "trialScrumSpeak"
+});
+const ownStateRows = () => Object.entries(OWN_LABELS).map(([key, label]) => ({
+    key, labelKey: `DRPG.Music.state.${label}`, randomTrack: true,
+    test: () => trialMusicState(trialFloor(), getClock().phase) === key
+}));
 
 /**
  * Every state that can own the music, most important first.
@@ -105,6 +160,9 @@ export const MUSIC_STATES = [
      * an Objection played whatever the debate had been playing. Both are the
      * trial's loudest moments arriving with no change in the room.
      *
+     * (E110, 14.11.2026: the owner's D-E110-B gives the Rebuttal a state of its own, `trial.rebuttal`, which plays only
+     * once a GM maps it; unmapped, what follows still holds - see `TRIAL_MODE_OWN_MUSIC` above.)
+     *
      * REBUTTAL HAS NO STATE OF ITS OWN, and it belongs to the OBJECTION rather
      * than to the debate. It used to fall in with the debate, on the reading
      * that "on a rebuttal the debate plays again". Dawid, 28.08: it should not
@@ -127,6 +185,17 @@ export const MUSIC_STATES = [
      * `classTrial`, so an unordered version of this would never reach the
      * other two.
      */
+    // Each mode's own playlist first (E110; D-E110-B, D-E110-C): a row applies only while its playlist is mapped.
+    ...ownStateRows(),
+    /*
+     * THE VOTE (E110 part 3, 14.11.2026; the coordinator's survey): from the vote's opening to the verdict, a playlist of
+     * its own - only once one is mapped; unmapped, the trial's music plays on as before. The vote ends every floor
+     * (trial-floor.mjs `endFloorForVoteInStep`), so no mode's row competes with it. R7107.
+     */
+    {
+        key: "trial.vote", labelKey: "DRPG.Music.state.trialVote", randomTrack: true,
+        test: () => voteMusicPlays(getSetting(SETTINGS.trialProgress), getClock())
+    },
     {
         key: "trial.objection", labelKey: "DRPG.Music.state.trialObjection",
         randomTrack: true,

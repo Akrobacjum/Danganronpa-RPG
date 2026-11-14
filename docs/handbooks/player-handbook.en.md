@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.113, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.114, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides". How the module does what it does, for the curious, is in section 17.
 
@@ -842,7 +842,7 @@ Once the body is announced, everyone is called to the scene, and each screen mov
 
 Until somebody finds the body, the GMs keep the death to themselves: the table is not told, and nothing on the body says so. Those who were in the incident know. If you come upon a body with nobody else in the room, you are told privately what you found, and your screen alone shows it as a body; nobody else is told, because one witness is not a discovery. With somebody else there you are told the same, and that nothing is announced until the GM says so.
 
-Whenever your character walks into a room where a body lies, you hear the discovery sound, once for each body, alone or not and announced or not, on your own screen and nobody else's. You may then go through its pockets, as those who were in the incident may (section 11). The Truth Bullet of the body, which says whose body it was, comes when the death is made known.
+Whenever your character walks into a room where a body lies, you hear the discovery sound (when the GM has given it a file), once for each body, alone or not and announced or not, on your own screen and nobody else's. You may then go through its pockets, as those who were in the incident may (section 11). The Truth Bullet of the body, which says whose body it was, comes when the death is made known.
 
 ---
 
@@ -869,7 +869,7 @@ Everyone is in one room, and nobody leaves it. You start the trial with your act
 
 When the GM has set up a trial hall, opening the trial takes your screen to it, and ending it takes you back to the school: the living who took part go to a room the GM picks. The GM chooses who takes part, and your character's token is placed in the hall for the trial and removed afterwards.
 
-Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**: the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends. It does so for a death nobody has found too, so a microphone gone silent tells the table that somebody has died. Your voice tile says why. A Monocub speaks only in open discussion, while no mode runs, and listens in every mode, from the vote on, and through a trial about its own death; the tile says which. A student the verdict sentences speaks until the trial ends. The module silences only the dead: who speaks in each mode is kept by the table.
+Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**: the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends. It does so for a death nobody has found too, so a microphone gone silent tells the table that somebody has died. Your voice tile says why. A Monocub speaks only in open discussion, while no mode runs, and listens in every mode, from the vote on, and through a trial about its own death; the tile says which. Since 1.2.114 a mode that gives the floor to somebody turns a Monocub's microphone off too, as everyone else's. A student the verdict sentences speaks until the trial ends. The module silences only the dead: who speaks in each mode is kept by the table.
 
 The trial opens as an **open discussion**: everybody talks, nobody objects, and a Truth Bullet can be **Presented** from your inventory for free. It goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card: tick **Show it with my Analyze result** to show what your Analyze read; unticked, the card shows it as never analyzed, with no reading and no type it turned out to be. Everyone else taking part gets a copy on their sheet, as it was shown, for free and once, and you are told when it has gone on the table. In a Class Trial a Truth Bullet has no Share: Present is how evidence changes hands. A dead student neither presents evidence nor objects.
 
@@ -891,6 +891,8 @@ The GM can re-point a running Objection at somebody else. The GM can also **Over
 The GM can also open three modes in which one person speaks at a time. In **Testimony** and a **Panic Round** everyone taking part speaks in turn: on your turn a window says *Your turn (n s)*, with **Done** to end your turn and **Pass** to give it to the next speaker, and the screens name who speaks and who is next. If you are not connected when your turn comes, it passes. While somebody else speaks, you listen. After an Objection in Testimony the round goes on at the next speaker. Only the speaker presents evidence (*Only name can present right now.*).
 
 In the **Closing Argument** you are first asked whether you will sum up the case: **I'll sum up** or **Someone else**, with 30 seconds to say so. One of the volunteers is drawn, and the GM confirms them or picks someone else; the speaker has 300 seconds. If you are the speaker, **Pass** in your first 30 seconds hands the choice back to the GM, and after that it ends the Closing Argument, as **Done** does. When somebody objects at the speaker, only the two of that exchange present evidence until it is over (*Only name and name can present right now.*). After the exchange the GM decides who continues: the speaker, with the time they had left, or one who objected, with a new 300 seconds. A Closing comes once a trial and ends before the vote, and speaking last in it earns no Hope.
+
+**When the floor is not yours** (since 1.2.114). While somebody holds the floor - an Objection, its Rebuttal, a turn in Testimony, a Panic Round, the Closing Argument or a Scrum Debate - your microphone is turned off, and the voice tile or the HUD says *The floor is name's*. It comes back as soon as you get the floor or the mode ends. In the Nonstop Debate, a Straw Poll and a Logic Dive everyone may speak. The GM may also redirect a running Objection at somebody else; a card tells the table, and the new target answers in the Rebuttal.
 
 ### The vote
 
@@ -930,7 +932,7 @@ In a **Straw Poll**, a **Logic Dive**, or a **Scrum Debate** you answer by where
 |---|---|---|
 | Straw Poll | two thirds of the class on one side is a **Finding**: *The class thinks: ...* | everybody |
 | Logic Dive | the majority answers each question; a wrong answer or a tie ends the set, and the right answer is not shown; a set answered right to its end is solved, and can give a Finding | everybody |
-| Scrum Debate | three phases: **Sides** (pick your zone), **Camps confer** (your camp talks in a voice room of its own and hears nobody else; the HUD says which camp you confer with), and the debate, back in the trial's room, where the camps speak in turn and anyone may cross at any time; a camp that empties ends it, and the other camp's answer is a Finding; after the last turn the camps are told, and no Finding is made | the speaker |
+| Scrum Debate | three phases: **Sides** (pick your zone), **Camps confer** (your camp talks in a voice room of its own and hears nobody else; the HUD says which camp you confer with), and the debate, back in the trial's room, where the camps speak in turn and anyone may cross at any time - on your turn **Done** and **Pass** end or hand it on, and **Post thesis** puts one short line for your zone on the table; a camp that empties ends it, and the other camp's answer is a Finding; after the last turn the camps are told, and no Finding is made | the speaker |
 
 A Finding is what the class concluded: the trial keeps a list of them, the GM may add, change, or remove one on a card everyone sees, and the card that opens the vote lists them.
 
@@ -1016,7 +1018,7 @@ The messenger also has a **Note** tab: your plans for the session, for the GMs t
 
 Bottom-left of your character sheet is a button with a word on it: **Safe Word** unless your table chose its own. Press it, or a key your table can bind in Foundry's Controls, and a window asks *Stop the scene?*: **Stop the scene**, which Enter also presses, stops the scene, and **Cancel** sends nothing.
 
-The game pauses, every GM is told who pressed it and, when the game knows where your character stands, from which room, and everybody sees the same card: the scene is stopped, a GM will pick this up, and play resumes from a point everyone agrees on. No player's name is on the card. While the game stays paused, the Event panel says the scene is stopped. A second press within a minute puts up no second card: the first one stands. Everybody also hears the safeword sound, whatever their **Sound** slider says; the card is what everybody is sure to see.
+The game pauses, every GM is told who pressed it and, when the game knows where your character stands, from which room, and everybody sees the same card: the scene is stopped, a GM will pick this up, and play resumes from a point everyone agrees on. No player's name is on the card. While the game stays paused, the Event panel says the scene is stopped. A second press within a minute puts up no second card: the first one stands. Everybody also hears the safeword sound, once the GM has given it a file, whatever their **Sound** slider says; the card is what everybody is sure to see.
 
 If no GM is online, nothing can pause the game, and the card goes up from your own screen. The same happens when no GM answers in time; then your own card adds "No GM answered in time, so your screen posted the card itself. The GMs may not know it was you, and the game may not have paused. Tag a GM in the text channel." In both cases tag a GM in your table's text channel outside the game: the GMs may not know it was you, and a GM may have to pause the game by hand. A card that went up from your screen shows no name either, but another player who looks into the game's records can find out that you pressed it.
 

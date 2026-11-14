@@ -41,6 +41,11 @@
  *     4c58d5a7+edits: hud 1 on each of the four, sheets 0, the console's region 2 in 1.5 s, the sheet's renders 0. The
  *     two counts - the HUD drawn once on each browser, no sheet rendered through the clock's pass - are 81-render-budget
  *     part F's since E37 C5 (E37-23), on sheets that register where the pass looks; M still records them in its log.
+ *   V (E110 C1, C2, the owner's 14.11.2026): Aiko objects at Chie; on the primary Botan's and Chie's players' BROADCAST_AUDIO
+ *     is off, Aiko's on, and p2 and p3 read "The floor is Aiko's" (voice.mjs `trialVoiceLine`). The GM redirects the
+ *     Objection at Botan: every player reads the floor aimed at Botan and the public card. The Rebuttal gives Botan's
+ *     player the microphone back and keeps Chie's (the pair's line). End this mode gives every microphone back and the
+ *     GMs' store keeps no row. Whether avclient-livekit stops sending when the permission flips is LIVE-E70-04's.
  * The canary's player scan runs after every phase (`canary.scan`) on a GM's Key Remnant plan planted at the start.
  *
  * What it cannot see: a round at a table of 14-15 people (LIVE-E70-07), a step over on a real server's latency
@@ -471,6 +476,42 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return ${J(mItem)} !== null;`, { timeout: 60000 });
     await settle(600);
     await canary.scan({ phase: "M" });
+
+    /* ------------------------------ V. The floor's microphones and the GM's redirect ------------------------------ */
+    begin("V", "an Objection mutes who may not speak, the GM redirects it, its Rebuttal opens the pair, the end gives back");
+    const perms = () => gm.eval(`return ${J([IDS.p1, IDS.p2, IDS.p3])}.map(id => { const own = (game.users.get(id)._source ?? {}).permissions ?? {};
+        return own.BROADCAST_AUDIO === false ? "off" : "on"; });`);
+    const vFloor = client => client.eval(`${F} const f = F.trialFloor(); return f ? [f.mode, f.holderId, f.targetId] : null;`);
+    const vLine = client => client.eval(`const V = await import("${repoUrl}/scripts/voice.mjs"); return V.trialVoiceLine()?.reason ?? null;`);
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
+        if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        ${F} if (F.trialFloor()) await F.endFloor(); await F.startFloor({});
+        await F.openObjection("${IDS.aiko}", "${IDS.chie}", {});
+        return true;`, { timeout: 60000 });
+    await settle(2000);
+    const vObjection = { perms: await perms(), floor: await vFloor(p2), lines: [await vLine(p1), await vLine(p2), await vLine(p3)] };
+    verdict("Aiko's Objection blocks Botan's and Chie's players' microphones, not Aiko's, and p2 and p3 read why",
+        J(vObjection.perms) === J(["on", "off", "off"]) && vObjection.floor?.[0] === "objection"
+            && J(vObjection.lines) === J([null, "floorHeld", "floorHeld"]), J(vObjection));
+    for (const c of [p1, p2, p3]) await mark(c);
+    const vRedirect = await gm.eval(`${F} return Boolean(await F.repointObjection("${IDS.botan}"));`, { timeout: 30000 });
+    await settle(1500);
+    const vSeen = [];
+    for (const c of [p1, p2, p3]) vSeen.push([await vFloor(c), await c.eval(`const line = game.i18n.format("DRPG.Floor.repointed", { name: game.actors.get("${IDS.aiko}").name, target: game.actors.get("${IDS.botan}").name });
+        return game.messages.filter(m => !globalThis.__s67m.has(m.id)).some(m => String(m.content ?? "").includes(line));`)]);
+    verdict("the GM's redirect at Botan: every player reads the floor aimed at Botan and the public card naming both",
+        vRedirect && vSeen.every(([f, card]) => f?.[2] === IDS.botan && card === true), J({ vRedirect, vSeen }));
+    await gm.eval(`${F} await F.openRebuttal(); return true;`, { timeout: 30000 });
+    await settle(2000);
+    const vRebuttal = { perms: await perms(), line: await vLine(p3) };
+    verdict("the Rebuttal gives Botan's player the microphone back and keeps Chie's held (\"floorHeldPair\")",
+        J(vRebuttal.perms) === J(["on", "on", "off"]) && vRebuttal.line === "floorHeldPair", J(vRebuttal));
+    await gm.eval(`await game.drpg.endMode(); return true;`, { timeout: 30000 });
+    await settle(2000);
+    const vEnd = { perms: await perms(), rows: await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return Object.keys(S.trialMuteStore.entries()).length;`) };
+    verdict("the floor's end gives every microphone back and leaves no row in the GMs' store",
+        J(vEnd.perms) === J(["on", "on", "on"]) && vEnd.rows === 0, J(vEnd));
+    await canary.scan({ phase: "V" });
 
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
         if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });

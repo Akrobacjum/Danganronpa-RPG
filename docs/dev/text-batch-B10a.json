@@ -9914,7 +9914,7 @@
     {
      "fact": "The vote's opening ends a Closing Argument still on the floor.",
      "file": "scripts/trial-modes.mjs",
-     "fn": "endClosingForVote",
+     "fn": "endFloorForVote",
      "note": null
     }
    ],

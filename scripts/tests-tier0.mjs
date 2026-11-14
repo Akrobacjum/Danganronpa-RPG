@@ -8701,7 +8701,7 @@ const REGRESSIONS = [
             ["tables-editor.mjs", "createPoolFrom", "RollTable", "a new pool table"],
             ["trial.mjs", "objectOnPrimary", "message", "an Objection's own card, taken back when the floor did not move (E79 C16; a bridge run, on the primary GM)"],
             ["trial.mjs", "evidenceOnPrimary", "message", "an Objection's card, filled with its Truth Bullet (E79 C16; a bridge run, on the primary GM)"],
-            ["trial.mjs", "repointOnPrimary", "message", "an Objection's card, its target's line rewritten (E79 C16; a bridge run, on the primary GM)"],
+            ["trial.mjs", "repointCopies", "message", "an Objection's card, its target's line rewritten (E79 C16; since E110 C1 in the floor's step on the primary GM, both GM roads)"],
             ["utils.mjs", "privately", "ChatMessage", "a whispered chat card"]
             // vault.mjs applyRoomRows's "region" row went with E12 C2a: Room Setup writes a room's flags
             // through `updateRoom`, which is gated on a GM's client.
@@ -9113,7 +9113,7 @@ const REGRESSIONS = [
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs `receiveOffers`) [F7]"],
             ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when a GM authored it - every Present and Objection card is the primary's since E70 C10 (E70 fix p2-G2; before, an author owning the speaker who held the item was enough); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]. Since E79 C16 a player-authored objection card raises no popup and goes to `refusePlayersCard`; a GM's pending card waits for `objectOnPrimary`'s floor, and its redraw (`updateChatMessage`) follows a GM's card only"],
             ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16; a Present card too since E70 fix p2-G2): the primary marks a player-authored objection or Present card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
-            ["CHAT trial.mjs#repointOnPrimary", "judged (E79 C16): `floor.repoint` is gmOnly; the target a living student as the GMs hold it (`livingStudentsForGm`) that `mayObjectTo` allows; the card's presenter flag is read only to redraw its line, the GMs' own card"],
+            ["CHAT trial.mjs#repointCopies", "judged (E79 C16; E110 C1): `floor.repoint` and `trial.gm` are gmOnly; run in the floor's step after trial-floor.mjs `repointRefusal` (not the objector, a participant, present) and a living student as the GMs hold it (`livingStudentsForGm`); the card's presenter flag is read only to redraw its line, the GMs' own card"],
             ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16, fix r4-G2): a GM's write of the GMs' own pending card when its floor is replaced (trial-floor.mjs `withdrawReplaced`: the lapse, Back to debate, a closed floor, the trial's end, the objector's `trial.withdraw`) or its fill failed (`unfill`); its flags are the ones `objectOnPrimary` wrote"],
             ["CHAT trial.mjs#markOverruled", "judged (E70 C2): called only from trial-floor.mjs `overruleInStep`, the primary's step of `SEIZE_KEY` in a Class Trial that judged the Overrule (`overruleTarget`) from the floor and the record as the step finds them; a GM's write of the GMs' own Objection card (its `objectionOverruled` mark, display only - the receipt is the record) and a public card of the GM's, no packet field read (R1028)"],
             ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudents` (the table's living) with `mayObjectTo`, and a press naming nobody answered `needName` with nothing paid (fix r4-G1); the packet's `targetId` read only then [1b.2, F4]"],
@@ -9126,7 +9126,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.evidence#comment", "judged (E79 C16): `as.text`, refused past a player's words (`noteTooLong`), escaped on the card"],
             ["PACKET gm-bridge.mjs#trial.withdraw#actorId", "judged (E79 fix r4-G2): knownSender + owns(actorId); the floor must be that character's pending Objection (`withdrawObjection`, `pendingFor`)"],
             ["PACKET gm-bridge.mjs#trial.withdraw#messageId", "judged (E79 fix r4-G2): the card of the objector's own Objection on the floor the primary holds, still pending (`pendingFor`); any other changes nothing"],
-            ["PACKET gm-bridge.mjs#floor.repoint#targetId", "judged (E79 C16): gmOnly; a living student as the GMs hold it whom `mayObjectTo` allows (`repointOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#floor.repoint#targetId", "judged (E79 C16): gmOnly; a living student as the GMs hold it whom trial-floor.mjs `repointRefusal` allows (`repointObjectionInStep`, E110 C1)"],
             ["PACKET gm-bridge.mjs#trial.gm#op", "judged (E70 C0): gmOnly; one of trial-floor.mjs `FLOOR_OP_NAMES` (`as.oneOf`), else nothing is run (`floorOnPrimary`)"],
             ["PACKET gm-bridge.mjs#trial.gm#seconds", "judged (E70 C0): gmOnly; `as.num`, a count of 0 or less read as the op's default (`FLOOR_OPS`)"],
             ["PACKET gm-bridge.mjs#trial.gm#actorId", "judged (E70 C0): gmOnly; the objector, held by `floorRefusal`/`targetRefusal` (`openObjectionInStep`) or by `pendingFor` (a fill, a withdrawal) to the floor the primary holds"],
@@ -17988,7 +17988,7 @@ const REGRESSIONS = [
         const files = Object.fromEntries(await Promise.all(["trial-floor-ui.mjs", "trial-progress.mjs", "sfx.mjs", "hud.mjs"].map(async f => [f, await read(f)])));
         must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
         const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
-        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("trial-progress.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "onFloorChanged");
+        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("trial-progress.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "floorSounds"); // E110 part 3: the floor's sounds moved there, pure - changed on purpose
         const time = fn("hud.mjs", "buildTimeRow"), bar = fn("trial-floor-ui.mjs", "trialBar"), console_ = fn("trial-floor-ui.mjs", "manageClassTrial");
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -17999,7 +17999,7 @@ const REGRESSIONS = [
             // (the same flag, played as an ordinary trial's card plays it), not a sound alone: one
             // road, read as a card with "execution" and no branch for the Final. Changed on purpose.
             final: /sfx: \{ key: "execution", gm: true \}/.test(card) && !/\bfinal\b/.test(card),
-            rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) playSfx\("rebuttal"\)/.test(floor),
+            rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) play\.push\("rebuttal"\)/.test(floor),
             hud: /\btrialVoiceLine\(\)/.test(time) && /drpg-voice-tile/.test(time),
             bar: /data-drpg-target/.test(bar) && /overruleTargetId\(floor\)/.test(bar) && /drpgTarget/.test(console_),
             words: moved.map(t => t.length > 20 && !/primary|główn/i.test(t))

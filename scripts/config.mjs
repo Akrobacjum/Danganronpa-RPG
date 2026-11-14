@@ -4957,9 +4957,9 @@ export const SFX_CATEGORIES = {
  *
  * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
  * lot for anything with a pitch and nothing at all for a click - which is what
- * the eleven events that bend actually are. A GM who maps a tonal sting to one
+ * the thirteen events that bend (counted on 14.11.2026, E110; eleven when this was written) actually are. A GM who maps a tonal sting to one
  * of them will hear it wander against the music; the answer then is to leave
- * that event out of the bending list, not to flatten the eleven.
+ * that event out of the bending list, not to flatten the rest.
  *
  * WHAT CAME BEFORE (the note that stood here first, at 0.08; the numbers above replaced it):
  *
@@ -4976,7 +4976,7 @@ export const SFX_CATEGORIES = {
  * from five to three because ±5% is "most of a semitone" and would read as out
  * of tune against a playlist. The reasoning was sound and the conclusion was
  * not, because it optimised for the sound the module does NOT have: these
- * eleven events are dry interface clicks - a window, a button, a door, a
+ * events that bend are dry interface clicks - a window, a button, a door, a
  * refusal - with no pitch to be out of tune WITH. Tuning the default so that
  * the worst imaginable file is safe made every real file identical, which is
  * the thing variation exists to prevent. Dawid, 28.08: it is either too weak or
@@ -5031,7 +5031,7 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  * plan missed is that a consequence nobody is looking at is exactly the
  * consequence that needs announcing - a locked Truth Bullet, a broken tool, a
  * trace left by an attempt that achieved nothing. The rule for a sixth is the
- * same rule that keeps Rest and Listen silent below: not "did something
+ * same rule that keeps Rest and Listen silent (neither has a row: E110 read the catalogue on 14.11.2026): not "did something
  * happen", but "would the player otherwise find out too late, or not at all".
  *
  * A ROW IN THE PANEL IS A PROMISE. Map a file here and you will hear it. An
@@ -5066,7 +5066,7 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  *   vary          optional. Bend the rate a little on every play, so the same
  *                 file stops being the same event. OPT-IN, and the opting is
  *                 not a matter of taste: repetition fatigue is a function of
- *                 HOW OFTEN a thing is heard, so the ten events below that fire
+ *                 HOW OFTEN a thing is heard, so the events below that fire
  *                 constantly carry it and the thirty that fire once or twice a
  *                 session do not. A verdict never wears out, and it is exactly
  *                 the moment you want THE sound rather than a version of it.
@@ -5161,7 +5161,10 @@ export const SFX_EVENTS = {
     despairCall: {
         label: "Despair Call",
         hint: "A Monokuma spends a Despair Call. Heard by the whole table.",
-        category: "chat"
+        category: "chat",
+        // E110 part 3 (14.11.2026): a Motive, a New Rule and a Public Announcement play their own card's sound - one
+        // sound for one moment (sfx.mjs rule 3), the more specific one.
+        yieldsTo: ["newRule", "motive", "publicAnnouncement"]
     },
     newRule: {
         label: "A new rule",
@@ -5196,6 +5199,18 @@ export const SFX_EVENTS = {
         hint: "A wall, a locked door, a sealed room, or a rule sends a token back. Heard by whoever moved it, also when a GM sends it back.",
         category: "world",
         vary: true
+    },
+    // E110 part 3 (14.11.2026): a Find Stash that finds one, as Find Passage's find; a miss plays `searchNothing`.
+    stashFound: {
+        label: "A hidden stash found",
+        hint: "A Find Stash finds somebody's stash. Heard by the searcher and the GMs.",
+        category: "world"
+    },
+    // E110 part 3: the owner of a bedroom told it was entered - its lock picked, forced or breached, or mended.
+    bedroomEntered: {
+        label: "Your bedroom was entered",
+        hint: "Your bedroom's lock was picked, forced or breached, or mended. Heard by you alone.",
+        category: "world"
     },
     passageFound: {
         label: "A secret passage opens to you",
@@ -5327,7 +5342,9 @@ export const SFX_EVENTS = {
     truthBullet: {
         label: "Truth Bullet found",
         hint: "A new Truth Bullet lands in a student's inventory. Heard by their player.",
-        category: "incident"
+        category: "incident",
+        // E110 part 3: a copy Monokuma's Reveal or a Present hands out plays that moment's sound, one sound for one moment.
+        yieldsTo: ["keyReveal", "present"]
     },
     analyzeHit: {
         label: "Evidence identified",
@@ -5389,6 +5406,12 @@ export const SFX_EVENTS = {
     keyReveal: {
         label: "Monokuma's Reveal",
         hint: "Monokuma reveals a Key Remnant nobody found. Heard by every player in the trial who gets its Truth Bullet.",
+        category: "incident"
+    },
+    // E110 part 3 (14.11.2026): a Truth Bullet presented in the trial, its card's sound; a copy's `truthBullet` yields to it.
+    present: {
+        label: "Truth Bullet presented",
+        hint: "A Truth Bullet is presented in the Class Trial. Heard by the whole table.",
         category: "incident"
     },
     /* The zone modes (E73 C2-C4; the owner's 11.10: every new event a Sound row or a written reason). */

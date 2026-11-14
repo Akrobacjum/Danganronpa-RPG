@@ -24,7 +24,8 @@
  *      and a player's own Done (A18). Since E37 C7 also every road of the Despair pools and the Overflow from the
  *      Assistant GM, written on the primary (A19). Since E72 C6 also a dead student's player's yes to the GMs'
  *      invitation to become a Monocub, from the window with the Rule (A20), and a Bribe offered from one player's browser
- *      and accepted in its window on the other's (A21).
+ *      and accepted in its window on the other's (A21). Since E110 C1 also the GM's redirect of a running Objection from
+ *      the Assistant GM, by the console's road and the GMs' row, written once on the primary (A23).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -1694,6 +1695,54 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await RG.trustedWrite(b, { "system.resources.hope.value": was?.bHope ?? 0 }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     await settle(500);
+
+    /* A23. THE GM'S REDIRECT FROM A SECOND GM (E110 C1, 14.11.2026; the owner's "dajmy opcje przekierowania objection
+       gmowi"). In a Class Trial, the primary opens Aiko's Objection at Chie on the GM's card road's shape (no card); the
+       Assistant GM, not the primary, redirects it at Botan by the console's road ("floor.repoint") and, in the Rebuttal,
+       back at Chie by the GMs' row ("trial.gm" op repoint). On the primary: one floor write and one public card each, the
+       target as asked, the Rebuttal's clock not restarted, nothing refused or logged. */
+    const rd22Seen = await gm.eval(`const { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");
+        await setClock({ ...getClock(), phase: "classTrial" });
+        const F = await import("${repoUrl}/scripts/trial-floor.mjs"), T = await import("${repoUrl}/scripts/trial.mjs"), U = ${utils};
+        await game.settings.set("danganronpa-rpg", "trialQueue", {});
+        await F.startFloor({});
+        await U.serialWrite(T.SEIZE_KEY, () => F.openObjectionInStep("${IDS.aiko}", "${IDS.chie}", { cardId: null }));
+        globalThis.__a22 = { writes: 0, ids: new Set(game.messages.map(m => m.id)) };
+        globalThis.__a22Hook = Hooks.on("updateSetting", s => { if (s?.key === "danganronpa-rpg.trialQueue") globalThis.__a22.writes++; });
+        return F.trialFloor()?.mode ?? null;`, { timeout: 60000 });
+    await settle(800);
+    const rd22Read = () => gm.eval(`const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const f = F.trialFloor();
+        const line = game.i18n.localize("DRPG.Floor.repointed").slice(0, 12);
+        return { mode: f?.mode ?? null, target: f?.targetId ?? null, startedAt: f?.startedAt ?? null, writes: globalThis.__a22.writes,
+            cards: game.messages.filter(m => !globalThis.__a22.ids.has(m.id) && String(m.content).includes(line)).length };`);
+    const rd22Logged0 = (await refusalsLogged(gm, "floor.repoint")).length + (await refusalsLogged(gm, "trial.gm")).length;
+    const rd22First = await ag.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); const r = await B.requestRepoint("${IDS.botan}");
+        return { ok: r.ok, primary: ${utils}.isPrimaryGm() };`, { timeout: 30000 });
+    await settle(800);
+    const rd22Minute = await rd22Read();
+    await gm.eval(`const F = await import("${repoUrl}/scripts/trial-floor.mjs"), T = await import("${repoUrl}/scripts/trial.mjs"), U = ${utils};
+        await U.serialWrite(T.SEIZE_KEY, () => F.openRebuttalInStep()); return true;`);
+    await settle(800);
+    const rd22Before = await rd22Read();
+    const rd22Second = await ag.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); const r = await B.requestTrialGm("repoint", { targetId: "${IDS.chie}" });
+        return { ok: r.ok };`, { timeout: 30000 });
+    await settle(800);
+    const rd22Rebuttal = await rd22Read();
+    const rd22Logged = (await refusalsLogged(gm, "floor.repoint")).length + (await refusalsLogged(gm, "trial.gm")).length - rd22Logged0;
+    await gm.eval(`Hooks.off("updateSetting", globalThis.__a22Hook); delete globalThis.__a22Hook;
+        for (const m of game.messages.filter(m => !globalThis.__a22.ids.has(m.id))) await m.delete(); delete globalThis.__a22;
+        await game.settings.set("danganronpa-rpg", "trialQueue", {});
+        const { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");
+        await setClock({ ...getClock(), phase: "dailyLife" });
+        return true;`, { timeout: 60000 });
+    await settle(800);
+    const rd22 = { rd22Seen, rd22First, rd22Minute, rd22Before, rd22Second, rd22Rebuttal, rd22Logged };
+    check("A23: the Assistant GM redirects Aiko's Objection at Botan (floor.repoint) and, in the Rebuttal, at Chie (trial.gm op repoint) - on the primary one floor write and one public card each, the target as asked, the Rebuttal's clock as it was, nothing refused (E110 C1)",
+        rd22Seen === "objection" && rd22First.ok === true && rd22First.primary === false
+            && rd22Minute.mode === "objection" && rd22Minute.target === IDS.botan && rd22Minute.writes === 1 && rd22Minute.cards === 1
+            && rd22Before.mode === "rebuttal" && rd22Second.ok === true && rd22Rebuttal.target === IDS.chie
+            && rd22Rebuttal.writes === rd22Before.writes + 1 && rd22Rebuttal.cards === 2 && rd22Rebuttal.startedAt === rd22Before.startedAt && rd22Logged === 0,
+        JSON.stringify(rd22), { flow: "class-trial" });
 
     /* The Mastermind's door (E91 C4, C5; D038, 12.11.2026): Chie (p3's) made the Mastermind with the Gym as the lair, a
        tunnel cut from the Gym to Storage; p3's own browser asks `mastermind.lairLock` and `passage.lairSeal` as the sheet's

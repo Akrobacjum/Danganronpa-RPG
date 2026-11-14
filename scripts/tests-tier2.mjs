@@ -101507,6 +101507,362 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the window's boxes for the student; [the sheet after every box but the second Health pick: Health max, its marks, Sanity max, its marks]; "
             + "[the offer's picks, what it is limited to]; [the owner's copy as sent, as kept, the options its picker draws]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
     }],
+    ["E110-T1 - the GM redirects a running Objection on the GM's card road, in its minute and in its Rebuttal, by both GM roads: the floor's target, the card's line and flags (found by the stack, the floor naming no card), the receipt and one public card each, once; the clock is not restarted; a second press at the same target, the objector and a debate write nothing (E110 C1)", async () => {
+        /*
+         * E110 C1, 14.11.2026 (the owner: "dajmy opcje przekierowania objection gmowi"). The Objection opened as seizeFloor
+         * opens it - `openObjectionInStep` with the card as `cardId`, so the floor's own `messageId` is null - and its receipt
+         * written as `keepReceipt` writes it. Then: (1) in the minute, the GMs' "trial.gm" op `repoint` as another GM's request
+         * runs it on this primary (bridge-runs-records.mjs `handleTrialGm`); (2) again at the same target by "floor.repoint"'s
+         * run (`repointOnPrimary`): refused; (3) in the Rebuttal, back at B by `repointOnPrimary`; (4) at the objector; (5) in a
+         * debate. Each: the answer, the floor's target and start, the card's flags and who line, the receipt's target, the
+         * public cards posted. Red at 6dd02975: the Rebuttal refused, the card stale (it is found only by `floor.messageId`),
+         * the receipt unmoved, no public card.
+         */
+        needs(env.primaryGm(), "the floor is written on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "an objector, a target and a second target, each with a player here");
+        const T = await import("./trial.mjs");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const R = await import("./bridge-runs-records.mjs");
+        const { TRIAL_FLAGS, SEIZE_KEY } = T;
+        const { serialWrite } = await import("./utils.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        let card = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            const people = V.trialParticipants({ connected: true }).map(p => p.actor);
+            must(people.length >= 3, `three participants with a player here, found ${people.length} - the probe above counts students, not participants`);
+            const [O, B, X] = people;
+            if (F.trialFloor()) await F.endFloor();
+            await F.startFloor({});
+            card = await ChatMessage.create({ content: `<div class="drpg-evidence-who">${O.name} objects to ${B.name}</div>`,
+                flags: { [MODULE_ID]: { [TRIAL_FLAGS.presenter]: O.name, [TRIAL_FLAGS.target]: B.id, [TRIAL_FLAGS.targetName]: B.name } } });
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O.id, B.id, { cardId: card.id }));
+            await V.setTrialProgress(record => ({ objections: { ...(record.objections ?? {}), [card.id]: { objectorId: O.id, targetId: B.id, overruled: false } } }));
+            await settle();
+            must(F.trialFloor()?.mode === "objection" && F.trialFloor()?.messageId === null && F.trialFloor()?.before?.at(-1)?.messageId === card.id,
+                "the fixture's Objection is not the GM's card road's (a floor naming no card, its stack naming it) - this would measure nothing");
+            const publics = () => game.messages.filter(m => !seen.has(m.id) && m.id !== card.id && String(m.content).includes(game.i18n.format("DRPG.Floor.repointed", { name: O.name, target: "" }).slice(0, 12)));
+            const look = (who, was) => {
+                const m = game.messages.get(card.id);
+                const box = document.createElement("template");
+                box.innerHTML = String(m?.content ?? "");
+                const line = box.content.querySelector(".drpg-evidence-who")?.textContent ?? "";
+                return [F.trialFloor()?.targetId === who.id, m?.getFlag(MODULE_ID, TRIAL_FLAGS.target) === who.id, m?.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) === who.name,
+                    line.includes(who.name) && !line.includes(was.name), V.trialProgress().objections?.[card.id]?.targetId === who.id];
+            };
+            const press = async (label, run) => {
+                const start = F.trialFloor()?.startedAt, cards = publics().length;
+                const out = await run();
+                await settle();
+                return [label, Boolean(out?.reply ?? (out && !out.refused)), F.trialFloor()?.startedAt === start, publics().length - cards];
+            };
+            read.minute = [await press("trial.gm", () => R.handleTrialGm({ op: "repoint", targetId: X.id })), look(X, B)];
+            read.again = await press("floor.repoint", () => T.repointOnPrimary({ targetId: X.id }));
+            await serialWrite(SEIZE_KEY, () => F.openRebuttalInStep());
+            await settle();
+            must(F.trialFloor()?.mode === "rebuttal", "the Rebuttal did not open - this would measure nothing");
+            read.rebuttal = [await press("floor.repoint", () => T.repointOnPrimary({ targetId: B.id })), look(B, X), F.trialFloor()?.mode];
+            read.objector = await press("objector", () => T.repointOnPrimary({ targetId: O.id }));
+            const last = publics().at(-1);
+            read.words = String(last?.content ?? "").includes(O.name) && String(last?.content ?? "").includes(B.name) && !last?.whisper?.length;
+            await F.endFloor();
+            await F.startFloor({});
+            read.debate = await press("debate", () => T.repointOnPrimary({ targetId: B.id }));
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* gone */ } }
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            minute: [["trial.gm", true, true, 1], [true, true, true, true, true]],
+            again: ["floor.repoint", false, true, 0],
+            rebuttal: [["floor.repoint", true, true, 1], [true, true, true, true, true], "rebuttal"],
+            objector: ["objector", false, true, 0],
+            words: true,
+            debate: ["debate", false, true, 0]
+        }), "[road, answered, the clock as it was, public cards] per press; [the floor's target, the card's target id and name, its who line, the receipt's target]; the last card names both and is public");
+    }],
+    ["E110-T2 - the modes mute who may not speak and give back exactly what they took (E110 C2): an Objection blocks every player but the objector's, its Rebuttal gives the target back, a Panic Round writes only the speaker who stops and the one who starts, the floor's end gives everything back; a GM's hand block and a Monocub are never touched; a block left standing after a crash is given back at the primary's next settle, and by the season reset's release (E110-05 to E110-09)", async () => {
+        /*
+         * E110 C2, 14.11.2026. Read on this primary, the clock written raw and the trial's voices settled by hand as the
+         * entry and the primary's hooks settle them (voice.mjs `settleTrialVoices`, E70-T8's shape). Four players whose
+         * only voice is a living student: O objects to B; H's player is blocked by a GM by hand before the trial; M is a
+         * Monocub. Each step reads every player's BROADCAST_AUDIO ([had, value]), the store's rows and the user writes of
+         * the step (updateUser with permissions). The Panic Round's turn passes by its speaker's Done (trial-modes.mjs
+         * `turnOnPrimary`). The crash: a floor's block stands, the floor is ended raw (no settle), and the next settle -
+         * the one `drpgPrimaryReady` asks of a primary after a reload - gives it back. Red at 6dd02975: nobody blocked by a mode.
+         */
+        needs(env.primaryGm(), "the trial's voices are settled on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three students whose players are here");
+        const voice = await import("./voice.mjs");
+        const V = await import("./vote.mjs");
+        const F = await import("./trial-floor.mjs");
+        const TM = await import("./trial-modes.mjs");
+        const { SEIZE_KEY } = await import("./trial.mjs");
+        const { serialWrite } = await import("./utils.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { setMonocub, isMonocub } = await import("./monocub.mjs");
+        const { studentActors, isMonokuma } = await import("./monokuma.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const voiceOf = u => game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.testUserPermission(u, "OWNER"))
+            .sort((x, y) => (x.id < y.id ? -1 : 1))[0] ?? null;
+        const picked = [];
+        for (const a of studentActors()) {
+            const u = ownerOf(a);
+            if (!isDeadForGm(a) && u && voiceOf(u)?.id === a.id && !picked.some(p => p.user.id === u.id)) picked.push({ actor: a, user: u });
+        }
+        must(picked.length >= 3, `three living students who are their players' only voice, found ${picked.length}`);
+        const [O, B, H, M] = picked;
+        const all = picked.slice(0, 4);
+        const perm = user => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = Object.fromEntries(all.map(p => [p.user.id, perm(p.user)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const store = stores.trialMuteStore;
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        let writes = 0;
+        // Every user write that names the permissions, as Foundry hands the hook the change (a removal included).
+        const hook = Hooks.on("updateUser", (_u, changes) => { if (foundry.utils.hasProperty(changes ?? {}, "permissions")) writes++; });
+        const settleNow = async () => { await voice.settleTrialVoices(); await settle(); };
+        const step = async run => { await settleNow(); const w = writes; await run(); await settleNow(); return writes - w; };
+        const state = () => all.map(p => perm(p.user)[1] === false && Boolean(store.get(p.user.id)?.wrote) ? "blocked" : perm(p.user)[1] === false ? "gm" : "open");
+        const read = {};
+        try {
+            await H.user.update({ "permissions.BROADCAST_AUDIO": false });
+            for (const p of [O, B, ...(M ? [M] : [])]) if (perm(p.user)[0]) await p.user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
+            if (M) { await killCharacter(M.actor, { secret: false, keepBullets: true }); await setMonocub(M.actor, true); }
+            await settle();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter });
+            await rawClock({ phase: "classTrial", eclipse: false });
+            await settleNow();
+            read.entry = state();
+            await F.startFloor({});
+            read.objection = [await step(() => serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O.actor.id, B.actor.id, { cardId: null }))), state(), F.trialFloor()?.mode];
+            read.line = voice.floorHold(B.actor, { clock: getClock(), floor: getSetting(SETTINGS.trialQueue), record: getSetting(SETTINGS.trialProgress), epoch: 0 })?.reason ?? null;
+            read.rebuttal = [await step(() => serialWrite(SEIZE_KEY, () => F.openRebuttalInStep())), state()];
+            read.end = [await step(() => F.endFloor()), state(), Object.keys(store.entries()).length];
+            /* A Monocub is muted by the mode as a student is (D-E110-A, the owner's 14.11 over P6 and Q-E110-5's default): H's
+               own block lifted, H a Monocub, an Objection again - B and H blocked; then H alive again and blocked by the GM's
+               hand as before. */
+            await H.user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
+            await killCharacter(H.actor, { secret: false, keepBullets: true });
+            await setMonocub(H.actor, true);
+            await settleNow();
+            await F.startFloor({});
+            read.monocub = [await step(() => serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O.actor.id, B.actor.id, { cardId: null }))), state(), isMonocub(H.actor)];
+            await F.endFloor();
+            await settleNow();
+            await setMonocub(H.actor, false);
+            await reviveCharacter(H.actor, { quiet: true });
+            await H.user.update({ "permissions.BROADCAST_AUDIO": false });
+            await settleNow();
+            // A Panic Round of the two (or more) players who may speak (H's own block and M stand aside as above).
+            const order = [O.actor.id, B.actor.id];
+            read.panic = [await step(() => F.floorOnPrimary("panic", { seconds: 15, order: order.join(",") })), state(), F.trialFloor()?.holderId === O.actor.id];
+            const turn = await step(async () => TM.turnOnPrimary({ actorId: O.actor.id, kind: "done", step: F.trialFloor()?.round?.step }));
+            read.turn = [turn, state(), F.trialFloor()?.holderId === B.actor.id];
+            // A crash: the floor ended raw, no settle; then the settle a reload's ready asks.
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            read.crashed = state();
+            await settleNow();
+            read.ready = [state(), Object.keys(store.entries()).length];
+            // The season's reset gives back whatever stands: a floor's block written, then released.
+            await F.startFloor({});
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O.actor.id, B.actor.id, { cardId: null }));
+            await settleNow();
+            await voice.settleTrialVoices({ release: true });
+            await settle();
+            read.release = state();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await rawClock({ phase: "dailyLife" });
+            await settleNow();
+            read.exit = [state(), Object.keys(store.entries()).length];
+        } finally {
+            Hooks.off("updateUser", hook);
+            if (M && isMonocub(M.actor)) await setMonocub(M.actor, false);
+            for (const p of all) if (isDeadForGm(p.actor)) await reviveCharacter(p.actor, { quiet: true });
+            for (const key of Object.keys(store.entries())) await store.drop(key);
+            for (const p of all) {
+                const [had, value] = before[p.user.id];
+                if (JSON.stringify(perm(p.user)) !== JSON.stringify(before[p.user.id])) await p.user.update({ "permissions.BROADCAST_AUDIO": had ? value : forcedDeletion() });
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        const m = M ? ["open"] : [];
+        equal(stableJson(read), stableJson({
+            entry: ["open", "open", "gm", ...m],
+            objection: [1, ["open", "blocked", "gm", ...m], "objection"],
+            line: "floorHeld",
+            rebuttal: [1, ["open", "open", "gm", ...m]],
+            end: [0, ["open", "open", "gm", ...m], 0],
+            // D-E110-A (the owner, 14.11.2026: "W tych trybach monocuby tez maja byc wyciszane"): a Monocub is muted by the mode too.
+            monocub: [2, ["open", "blocked", "blocked", ...m], true],
+            panic: [1, ["open", "blocked", "gm", ...m], true],
+            turn: [2, ["blocked", "open", "gm", ...m], true],
+            crashed: ["blocked", "open", "gm", ...m],
+            ready: [["open", "open", "gm", ...m], 0],
+            release: ["open", "open", "gm", ...m],
+            exit: [["open", "open", "gm", ...m], 0]
+        }), "per step [user writes, each player's microphone (O, B, H with a GM's block, M a Monocub): blocked by the trial, a GM's block, open, the floor's mode or holder]");
+    }],
+    ["E110-T3 - the review's gaps on the primary (E110 C3): the vote's opening ends a Panic Round and a Scrum Debate as it ends a Closing; a mode opened takes back a Straw Poll's split, so the console's next step is no longer Scrum Debate; a Scrum speaker's Done (trial.turn's run) hands the turn to the other camp and a stale or another's Pass moves nothing", async () => {
+        /*
+         * E110 C3, 14.11.2026. On this primary in a Class Trial written raw. (1) A Panic Round of two participants opened
+         * by the GMs' op, then the vote's end of the floor (trial-modes.mjs `endFloorForVote`, which vote.mjs `openRound`
+         * asks); (2) a Scrum Debate's turn written raw (the camps by their picks: no hall token stands in a zone here),
+         * the end again; (3) the record's Straw Poll split, then a debate opened: the split and the next step; (4) the
+         * Scrum turn again, the speaker's Done by `turnOnPrimary` (the run of "trial.turn"), a Pass at a stale step and
+         * another's Pass. Red at 6dd02975: the vote left both floors, the split stood after the debate, and a Scrum turn
+         * had no Done ("no round holds the floor now").
+         */
+        needs(env.primaryGm(), "the floor is written on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three participants with a player here");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const TM = await import("./trial-modes.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial", eclipse: false });
+            await settle();
+            const people = V.trialParticipants({ connected: true }).map(p => p.actor.id);
+            must(people.length >= 3, `three participants, found ${people.length}`);
+            const [O, B, X] = people;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await F.floorOnPrimary("panic", { seconds: 15, order: [O, B].join(",") });
+            must(F.trialFloor()?.mode === "panic", "the Panic Round did not open - this would measure nothing");
+            await TM.endFloorForVote?.();
+            await settle();
+            read.panic = F.trialFloor()?.mode ?? null;
+            const now = Date.now();
+            const scrum = { active: true, mode: "scrum", holderId: O, targetId: null, seconds: 40, startedAt: now, pending: false, messageId: null, before: [], gmNote: null,
+                zone: { phase: "speak", question: "SUITE E110 Q", answers: { a: "A", b: "B" }, picks: { [O]: "a", [X]: "a", [B]: "b" }, stands: {}, openedAt: now, step: 5,
+                    turns: 4, turnSeconds: 40, first: "a", turn: 1, side: "a", spoke: { a: 1, b: 0 } } };
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, scrum);
+            await TM.endFloorForVote?.();
+            await settle();
+            read.scrum = F.trialFloor()?.mode ?? null;
+            await V.setTrialProgress({ strawPoll: { split: true, a: 2, b: 2, question: "SUITE E110 Q" } });
+            const stepBefore = F.trialNextStep(F.trialStepView());
+            await F.floorOnPrimary("start", { seconds: 60 });
+            await F.floorOnPrimary("end", {});
+            read.split = [stepBefore, V.trialProgress().strawPoll?.split ?? null, F.trialNextStep(F.trialStepView())];
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...scrum, startedAt: Date.now() });
+            const turn = async (actorId, kind, step) => (await TM.turnOnPrimary({ actorId, kind, step }, null))?.refused ?? "moved";
+            read.turn = [await turn(O, "pass", 4), await turn(X, "pass", 5), await turn(O, "done", 5), F.trialFloor()?.holderId === B, F.trialFloor()?.zone?.side ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* gone */ } }
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ panic: null, scrum: null, split: ["scrum", false, "openDebate"],
+            turn: ["the round has moved on since that turn", "it is not that character's turn", "moved", true, "b"] }),
+            "{the floor after the vote's end of a Panic Round, of a Scrum turn; [the next step with a split, the split after a debate opened and closed, the next step]; [a stale Pass, another's Pass, the speaker's Done, the turn the other camp's, its side]}");
+    }],
+    ["E110-T4 - each mode's own playlist follows the floor on this primary (D-E110-B, D-E110-C): unmapped, Testimony plays the Discussion and a Rebuttal the Objection's as before; mapped, the music state is Testimony's, the Rebuttal's, and a Scrum Debate's Sides, Camps confer and turns, one state each, and the floor's end gives the Discussion back; the engine that plays a state runs on the primary alone", async () => {
+        /*
+         * E110, 14.11.2026. In a Class Trial written raw, the game running, three fixture playlists mapped into the music
+         * map (and taken out after): `currentState()` read after each floor write, as music-play.mjs `apply` reads it on
+         * the primary (its `enabled` is `isPrimaryGm()` and the setting; the audio itself is LIVE-E110-04). Red at 19991c24:
+         * no own state - Testimony read "trial.discussion" mapped or not.
+         */
+        needs(env.primaryGm(), "the music follows the state on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three participants with a player here");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        const { SEIZE_KEY } = await import("./trial.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const wasPaused = game.paused;
+        const seen = new Set(game.messages.map(m => m.id));
+        const made = [];
+        const read = {};
+        try {
+            if (wasPaused) await game.togglePause(false);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial", eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const people = V.trialParticipants({ connected: true }).map(p => p.actor.id);
+            must(people.length >= 3, `three participants, found ${people.length}`);
+            const [O, B, X] = people;
+            await F.floorOnPrimary("testimony", { seconds: 60, order: [O, B].join(",") });
+            read.unmapped = [M.currentState()];
+            await F.floorOnPrimary("end", {});
+            await F.startFloor({});
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O, B, { cardId: null }));
+            await serialWrite(SEIZE_KEY, () => F.openRebuttalInStep());
+            read.unmapped.push(M.currentState());
+            await F.floorOnPrimary("end", {});
+            for (const name of ["Suite E110-T4 A", "Suite E110-T4 B", "Suite E110-T4 C"]) made.push(await Playlist.create({ name }));
+            must(made.every(Boolean), "the fixture playlists were not made");
+            await setSetting(SETTINGS.musicMap, { ...mapBefore, "trial.testimony": made[0].id, "trial.rebuttal": made[1].id,
+                "trial.scrumSides": made[0].id, "trial.scrumConfer": made[1].id, "trial.scrumSpeak": made[2].id });
+            await F.floorOnPrimary("testimony", { seconds: 60, order: [O, B].join(",") });
+            read.mapped = [M.currentState()];
+            await F.floorOnPrimary("end", {});
+            await F.startFloor({});
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O, B, { cardId: null }));
+            read.mapped.push(M.currentState());
+            await serialWrite(SEIZE_KEY, () => F.openRebuttalInStep());
+            read.mapped.push(M.currentState());
+            await F.floorOnPrimary("end", {});
+            const now = Date.now();
+            const scrum = phase => ({ active: true, mode: "scrum", holderId: phase === "speak" ? O : null, targetId: null, seconds: 45, startedAt: now,
+                pending: false, messageId: null, before: [], gmNote: null,
+                zone: { phase, question: "SUITE E110-T4", answers: { a: "A", b: "B" }, picks: { [O]: "a", [X]: "a", [B]: "b" }, stands: {}, openedAt: now, step: 1 } });
+            for (const phase of ["setup", "confer", "speak"]) {
+                await game.settings.set(MODULE_ID, SETTINGS.trialQueue, scrum(phase));
+                read.mapped.push(M.currentState());
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            read.mapped.push(M.currentState());
+            read.primary = [isPrimaryGm(), M.musicStatus().enabled === (isPrimaryGm() && getSetting(SETTINGS.musicEnabled) === true)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            for (const p of made) { try { await p?.delete(); } catch { /* gone */ } }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* gone */ } }
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (wasPaused && !game.paused) await game.togglePause(true);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            unmapped: ["trial.discussion", "trial.objection"],
+            mapped: ["trial.testimony", "trial.objection", "trial.rebuttal", "trial.scrumSides", "trial.scrumConfer", "trial.scrumSpeak", "trial.discussion"],
+            primary: [true, true]
+        }), "{unmapped: [Testimony, a Rebuttal]; mapped: [Testimony, the Objection's minute, its Rebuttal, Scrum's Sides, Camps confer, turns, no floor]; primary: [this GM the primary, the engine's gate]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

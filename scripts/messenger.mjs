@@ -377,8 +377,9 @@ async function onCreateChatMessage(message) {
     // Was a hard-coded chime. It is a mapped event now, and NOT a mapped event
     // by default: this module ships no audio and assigns none, so a world that
     // has not been through the Sound panel hears nothing here. That is the
-    // bargain the playlists already make, and Season setup carries the row that
-    // says so. `playSfx` swallows its own failures; there is nothing to guard.
+    // bargain the playlists already make. (Season setup's row that said so was
+    // taken out on purpose, season-setup.mjs; the Sound window's Effects tab and
+    // the handbooks say it now.) `playSfx` swallows its own failures.
     if (messengerSoundOn()) playSfx("chatReceive");
 }
 

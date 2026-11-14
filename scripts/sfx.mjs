@@ -136,8 +136,19 @@ async function onCreateChatMessage(message) {
     if (!asked) return;
     const { key, forGm } = asked;
     if (game.user.isGM && whisper.length && !forGm) return;
+    // The Messenger sounds switch covers a card's messenger sound too (E110 part 3): a GM's ask from a card no player
+    // owns rang through it until 1.2.114, though the switch's hint says it covers every question for the GM.
+    if (messengerMuted(key, getSetting(SETTINGS.messengerSound) !== false)) return;
 
     playSfx(key);
+}
+
+/** The three sounds the Messenger sounds switch turns off on this browser (`chatSend`, `chatReceive`, `gmAsk`). */
+export const MESSENGER_SOUNDS = Object.freeze(["chatSend", "chatReceive", "gmAsk"]);
+
+/** Whether `key` stays silent here: a messenger sound while the switch (`on`) is off. Pure; R7108. */
+export function messengerMuted(key, on) {
+    return !on && MESSENGER_SOUNDS.includes(key);
 }
 
 /**
@@ -248,40 +259,47 @@ async function onWorldSettingChanged(setting) {
  * whole table hears it, as it hears the Objection.
  */
 async function onFloorChanged() {
-    const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
-    const floor = trialFloor();
+    const floor = (await import("./trial-floor.mjs")).trialFloor();
+    const { play, was } = floorSounds(worldWas, floor, { mine: id => playerOwns(game.actors.get(id ?? "")) });
+    for (const key of play) playSfx(key);
+    Object.assign(worldWas, was);
+}
 
+/**
+ * WHAT A WRITE OF THE FLOOR SOUNDS LIKE ON THIS BROWSER, PURE (E110 part 3, 14.11.2026; the coordinator's survey of
+ * 1.2.113): the keys to play and what to remember, from what this browser remembered (`was`) and the floor now. `mine`
+ * answers whether a speaker is this player's own character. Nothing plays before the first read (`was.known`).
+ *   debateOpen   only when a floor opens and it is a debate (until E110 any floor's opening but the Closing's played it,
+ *                so a Testimony, a zone mode and a Panic Round - with `panicStart` beside it - announced a debate);
+ *   objection, rebuttal (not one an Overrule brings back), panicStart: the mode becoming it;
+ *   closingStart once a Closing, by its volunteers' stamp;
+ *   yourTurn     for the speaker's player at each turn of a round, a stretch of the Closing and, since E110, a Scrum
+ *                Debate's turn (its `speak` phase, zone-machine.mjs `scrumTurn` naming the holder).
+ * R7106.
+ */
+export function floorSounds(was, floor, { mine = () => false } = {}) {
+    const play = [];
     const open = Boolean(floor);
     const mode = floor?.mode ?? null;
-
-    // The Closing's start has its own sound (E70 C8, below), not the debate's.
-    const closingOpens = mode === FLOOR_MODES.closing && floor?.closing?.phase === "volunteer";
-    if (worldWas.known && open && !worldWas.floorOpen && !closingOpens) playSfx("debateOpen");
-    const into = target => mode === target && worldWas.floorMode !== target;
-    if (worldWas.known && into(FLOOR_MODES.objection)) playSfx("objection");
+    const known = was?.known === true;
+    if (known && open && !was.floorOpen && mode === "debate") play.push("debateOpen");
+    const into = target => mode === target && was?.floorMode !== target;
+    if (known && into("objection")) play.push("objection");
     // A rebuttal an Overrule brings back is no rebuttal starting: the Overrule's card carries its own sound (E70 C2).
     const overruled = floor?.gmNote?.key === "DRPG.Floor.gmNoteOverrule";
-    if (worldWas.known && into(FLOOR_MODES.rebuttal) && !overruled) playSfx("rebuttal");
-    /* A ROUND (E70 C7; E70-45, amend 0): a Panic Round's start for the whole table, and `yourTurn` for the speaker's
-       player alone, once a turn - a GM owns every student, so the question is whose character it is (`playerOwns`:
-       any of its owners since E91 C6). */
-    if (worldWas.known && into(FLOOR_MODES.panic)) playSfx("panicStart");
-    /* THE CLOSING ARGUMENT (E70 C8; amend 0): its start for the whole table, once a Closing (its volunteers' window, by
-       its stamp - the Closing's mode stands through its phases, so `into` would sound again after every exchange), and
-       `yourTurn` for its speaker's player at each stretch. */
-    const closingAt = mode === FLOOR_MODES.closing && floor?.closing?.phase === "volunteer" ? (floor.closing.openedAt ?? null) : null;
-    if (worldWas.known && closingAt !== null && worldWas.closingAt !== closingAt) playSfx("closingStart");
-    if (closingAt !== null) worldWas.closingAt = closingAt;
-    const closingTurn = mode === FLOOR_MODES.closing && floor?.closing?.phase === "speak" && floor?.holderId
+    if (known && into("rebuttal") && !overruled) play.push("rebuttal");
+    if (known && into("panic")) play.push("panicStart");
+    const closingAt = mode === "closing" && floor?.closing?.phase === "volunteer" ? (floor.closing.openedAt ?? null) : null;
+    if (known && closingAt !== null && was?.closingAt !== closingAt) play.push("closingStart");
+    const closingTurn = mode === "closing" && floor?.closing?.phase === "speak" && floor?.holderId
         ? `closing|${floor.closing.openedAt ?? "-"}|${floor.closing.step ?? "-"}` : null;
-    const roundTurn = (mode === FLOOR_MODES.testimony || mode === FLOOR_MODES.panic) && floor?.holderId
-        ? `${floor.round?.openedAt ?? "-"}|${floor.round?.step ?? "-"}` : closingTurn;
-    const mineNow = Boolean(roundTurn) && playerOwns(game.actors.get(floor.holderId));
-    if (worldWas.known && mineNow && worldWas.turnStep !== roundTurn) playSfx("yourTurn");
-    worldWas.turnStep = roundTurn;
-
-    worldWas.floorOpen = open;
-    worldWas.floorMode = mode;
+    const scrumTurn = mode === "scrum" && floor?.zone?.phase === "speak" && floor?.holderId
+        ? `scrum|${floor.zone.openedAt ?? "-"}|${floor.zone.step ?? "-"}` : null;
+    const roundTurn = (mode === "testimony" || mode === "panic") && floor?.holderId
+        ? `${floor.round?.openedAt ?? "-"}|${floor.round?.step ?? "-"}` : (closingTurn ?? scrumTurn);
+    const mineNow = Boolean(roundTurn) && mine(floor.holderId);
+    if (known && mineNow && was?.turnStep !== roundTurn) play.push("yourTurn");
+    return { play, was: { floorOpen: open, floorMode: mode, turnStep: roundTurn, closingAt: closingAt ?? was?.closingAt ?? null } };
 }
 
 /**
@@ -618,7 +636,9 @@ function effectRow(key) {
     ].join("");
     return {
         key,
-        event: `<strong>${esc(event.label)}</strong>${chips}<br><span class="drpg-help">${esc(event.hint)}</span>`,
+        // The safeword's row says so when it has no file (E110 part 3): the card reaches everybody, the sound only with a file.
+        event: `<strong>${esc(event.label)}</strong>${chips}<br><span class="drpg-help">${esc(event.hint)}</span>${
+            key === "safeword" && !soundFor(key) ? `<br><span class="drpg-help drpg-warn" data-drpg-sfx-nofile>${esc(L("DRPG.Sound.safewordNoFile"))}</span>` : ""}`,
         file: `<div class="drpg-sound-file"><input type="text" name="sfx:${key}" value="${esc(soundFor(key) ?? "")}"
             title="${esc(L("DRPG.Sound.severalHint"))}" placeholder="${esc(L("DRPG.Sound.notAssigned"))}" />${
             iconButton({ icon: "fa-solid fa-folder-open", label: L("DRPG.Sound.choose"), attrs: { "data-drpg-sfx-pick": true } })}</div>`,

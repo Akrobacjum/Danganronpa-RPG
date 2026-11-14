@@ -392,6 +392,21 @@ export function zoneStep(floor, event = {}, ctx = {}) {
             if (zone.picks?.[event.actorId] === event.side) return { refused: "DRPG.Zones.samePick" };
             return { floor: { ...floor, zone: { ...zone, picks: { ...(zone.picks ?? {}), [event.actorId]: event.side } } }, cards: [] };
         }
+        case "done":
+        case "pass":
+        case "gone": {
+            /*
+             * A SCRUM SPEAKER'S DONE AND PASS, AND A SPEAKER GONE (E110 C3, 14.11.2026; the review's gap: a Scrum turn had
+             * neither, and a disconnected speaker was not passed). As a round's (floor-machine.mjs): Done and Pass are the
+             * speaker's own and name the turn's step; a speaker gone (the primary's `speakerGone`) passes whatever the step.
+             * The next turn is the camps' rotation as the clock's end gives it; Pass and gone are told ("{name} passes.").
+             */
+            if (floor.mode !== ZONE_MODES.scrum || zone.phase !== "speak") return { refused: "DRPG.Floor.round.noTurn" };
+            if (event.actorId !== floor.holderId) return { refused: "DRPG.Floor.round.notSpeaker" };
+            if (type !== "gone" && Number(event.step) !== Number(zone.step)) return { refused: "DRPG.Floor.round.stale" };
+            const told = type === "done" ? [] : [{ key: "DRPG.Floor.round.passes", actorId: floor.holderId, title: `DRPG.Floor.mode.${floor.mode}` }];
+            return scrumTurn(floor, c, now, told);
+        }
         case "thesis": {
             if (floor.mode !== ZONE_MODES.scrum || zone.phase !== "speak") return { refused: "DRPG.Zones.noThesis" };
             if (event.actorId !== floor.holderId) return { refused: "DRPG.Floor.round.notSpeaker" };

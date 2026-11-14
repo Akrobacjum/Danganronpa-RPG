@@ -424,7 +424,7 @@
       },
       "musicEnabled": {
         "name": "Muzyka podąża za stanem gry",
-        "hint": "Zmienia playlistę razem z grą: Eclipse, Class Trial, Investigation, pora dnia, pauza. Najpierw przypisz playlisty w oknie Dźwięk."
+        "hint": "Zmienia playlistę razem z grą: Eclipse, Class Trial i jego tryby, znalezione ciało, Investigation, pora dnia, pauza. Najpierw przypisz playlisty w oknie Dźwięk."
       },
       "voiceEnabled": {
         "name": "Głos osobno w każdym pokoju",
@@ -1708,6 +1708,7 @@
         "noTime": "Debacie nie zostało już czasu do odjęcia.",
         "inDebate": "Debata już trwa.",
         "noObjection": "Tylko w trakcie Objection.",
+        "noExchange": "Tylko gdy trwa Objection albo jego Rebuttal.",
         "noAdjust": "Ten etap nie ma zegara do przesunięcia.",
         "noOverrule": "Nie ma Objection do oddalenia.",
         "inRound": "Runda nie ma debaty, do której można wrócić. Żeby ją zakończyć, naciśnij Zakończ ten tryb.",
@@ -1756,6 +1757,9 @@
         }
       },
       "repointTo": "Wymierz Objection w",
+      "repointed": "GM przekierowuje Objection, które wnosi {name}. Odpowiada teraz: {target}.",
+      "repointSame": "Objection jest już wymierzone w tego ucznia.",
+      "repointAbsent": "Gracza tego ucznia nie ma, więc nie odpowie.",
       "holdingRebuttal": "Rebuttal: jeszcze przez {seconds} s mówią tylko {who} i {target}. Potem kończy się sam: Class Trial wraca do dyskusji, w rundzie przychodzi kolej następnego mówcy, a w Closing Argument decydujesz, kto mówi dalej.",
       "modeNote": "To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje {step} s albo wraca od razu do otwartej debaty.",
       "startBusy": "Debata nie może się zacząć, gdy głos ma runda, Closing Argument albo tryb stref. Najpierw zakończ ten tryb.",
@@ -2041,6 +2045,8 @@
         "rightAnswerZoneATooltip": "Strona, po której musi stanąć większość klasy, by przejść dalej; inaczej zestaw się kończy",
         "findingWhenSolvedTooltip": "Gdy klasa dobrze odpowie na każde pytanie, trafia do stołu jako Finding",
         "thesisTooltip": "Widoczna pod pytaniem, gdy obozy się spierają",
+        "thesisLineTooltip": "Jedno krótkie zdanie za twoją strefą, widoczne dla całego stołu",
+        "thesisPostTooltip": "Kładzie twoją tezę na stół jako kartę; twoja tura trwa dalej",
         "setTooltip": "Zestaw Logic Dive do zagrania. Liczba to liczba jego pytań.",
         "editTooltip": "Zmienia treść. Stół dostaje wiadomość, co było i co jest teraz.",
         "deleteTooltip": "Od razu usuwa Finding z listy i mówi o tym stołowi",
@@ -2231,6 +2237,7 @@
         "other": "{n} plików"
       },
       "varies": "zmienny",
+      "safewordNoFile": "Brak pliku: safeword nie gra dźwięku, dopóki go nie wybierzesz. Jego karta i tak trafia do wszystkich.",
       "variesHint": "Każde odtworzenie ma trochę inne tempo i głośność.",
       "varyLabel": "Różnicuj dźwięki, które słychać często",
       "varyHint": "Częste dźwięki brzmią za każdym razem trochę inaczej.",
@@ -2418,7 +2425,7 @@
       "intro": "Wybierz playlistę dla każdego stanu.",
       "howOrder": "Jak działa kolejność",
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie używa playlist Eclipse.",
-      "trialNote": "Wyższy wiersz ma pierwszeństwo. Podczas Rebuttal nadal słychać muzykę Objection.",
+      "trialNote": "Wyższy wiersz ma pierwszeństwo. Tryb bez własnej playlisty gra jak dotąd: Rebuttal muzykę Objection, tryb stref muzykę Debaty, Testimony, Panic Round i Closing Argument muzykę Dyskusji.",
       "incidentNote": "Morderstwo słyszą tylko jego uczestnicy i GM-owie.",
       "fadeNote": "Wyciszenie ustawiasz w Fade Duration playlisty. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
       "when": "Kiedy",
@@ -2431,6 +2438,16 @@
         "trialObjection": "Objection",
         "trialDebate": "Debata",
         "trialDiscussion": "Dyskusja",
+        "trialRebuttal": "Rebuttal",
+        "trialTestimony": "Testimony",
+        "trialPanic": "Panic Round",
+        "trialClosing": "Closing Argument",
+        "trialStraw": "Straw Poll",
+        "trialDive": "Logic Dive",
+        "trialScrumSides": "Scrum Debate: Strony",
+        "trialScrumConfer": "Scrum Debate: Narada obozów",
+        "trialScrumSpeak": "Scrum Debate: tury",
+        "trialVote": "Głosowanie (do werdyktu)",
         "bodyFound": "Znaleziono ciało (cisza, o ile nie przypisano)",
         "search": "Investigation"
       },
@@ -3515,6 +3532,10 @@
         "done": "Gotowe",
         "pass": "Pasuję",
         "keep": "Mówię dalej",
+        "thesis": "Wystaw tezę",
+        "thesisTitle": "Twoja teza",
+        "thesisLabel": "Jedno krótkie zdanie za twoją strefą",
+        "thesisPost": "Wystaw tezę",
         "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
         "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe."
       },
@@ -6023,6 +6044,8 @@
         "connecting": "Trwa dołączanie do kanału głosowego.",
         "connected": "Połączono z kanałem głosowym.",
         "deadMuted": "Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.",
+        "floorHeld": "Głos ma {name}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
+        "floorHeldPair": "Głos mają {name} i {target}: twój mikrofon pozostaje wyłączony, dopóki nie dostaniesz głosu albo tryb się nie skończy.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
         "masked": "Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
@@ -7974,6 +7997,14 @@
           "label": "Przejście odrzucone",
           "hint": "Ściana, zamknięte drzwi, zapieczętowany pokój albo reguła cofają token. Słyszy ten, kto go przesunął, także gdy cofa go GM."
         },
+        "stashFound": {
+          "label": "Znaleziona ukryta skrytka",
+          "hint": "Find Stash znajduje czyjąś skrytkę. Słyszy go szukający i GM-owie."
+        },
+        "bedroomEntered": {
+          "label": "Ktoś wszedł do twojej sypialni",
+          "hint": "Zamek twojej sypialni ktoś otworzył wytrychem, wyważył albo przebił, albo naprawił. Słyszysz tylko ty."
+        },
         "passageFound": {
           "label": "Poznajesz tajne przejście",
           "hint": "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."
@@ -8153,6 +8184,10 @@
         "keyReveal": {
           "label": "Ujawnienie Monokumy",
           "hint": "Każdy uczestnik rozprawy, który nie ma Key Truth Bulletu, dostaje go od Monokumy. Słyszy gracz każdego z nich."
+        },
+        "present": {
+          "label": "Przedstawiony Truth Bullet",
+          "hint": "Ktoś przedstawia Truth Bullet w Class Trial. Słyszy go cały stół."
         },
         "strawPollResult": {
           "label": "Wynik Straw Poll",

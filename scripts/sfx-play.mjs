@@ -472,6 +472,10 @@ export function playSfx(key, { force = false } = {}) {
         // silence is still a wait, and it would make the panel's own test
         // button feel broken on an empty world.
         if (!soundFor(key)) return false;
+        /* EITHER ORDER (E110 part 3, 14.11.2026): a winner that played in the last `YIELD_MS` silences this one too, not
+           only a winner that comes after it - a card's flag and a socket's sound reach a browser in either order. */
+        const now = Date.now();
+        if (event.yieldsTo.some(winner => now - (lastPlayed.get(winner) ?? -Infinity) < YIELD_MS)) return false;
 
         clearTimeout(holding.get(key));
         holding.set(key, setTimeout(() => {

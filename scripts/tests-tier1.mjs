@@ -10115,7 +10115,7 @@ const INVARIANTS = [
         const box = document.createElement("div");
         box.innerHTML = html;
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vote.mjs`).then(r => (r.ok ? lfText(r) : "")));
-        const none = "DRPG.Floor.bar.noOverrule", back = "DRPG.Floor.bar.noMode", rep = "DRPG.Floor.bar.noObjection";
+        const none = "DRPG.Floor.bar.noOverrule", back = "DRPG.Floor.bar.noMode", rep = "DRPG.Floor.bar.noExchange";
         const base = { skip: null, minus: null, plus: null, overrule: none, endMode: null, back, repoint: rep };
         equal(stableJson({ read, fns, items: [...box.querySelectorAll("li")].map(li => li.textContent.replace(/\s+/g, " ").trim()), bold: box.querySelectorAll("b").length,
             card: /findingsHtml\(progress\?\.findings\)/.test(fnSource(src, "openRound")) }), stableJson({
@@ -26958,10 +26958,13 @@ const INVARIANTS = [
         const atReady = /Hooks\.once\("ready",[^\n]{0,80}?snapshotWorld\(/.test(register);
         const snapshot = topLevelFunction(sfx, "snapshotWorld") ?? "";
         const reads = /onFloorChanged\(/.test(snapshot) && /onIncidentChanged\(/.test(snapshot) && /worldWas\.known = true/.test(snapshot);
-        const quiet = ["onFloorChanged", "onIncidentChanged"].map(name => {
-            const body = topLevelFunction(sfx, name) ?? "";
-            const plays = [...body.matchAll(/playSfx\(/g)].map(m => lineAround(body, m.index));
-            return [name, plays.length > 0 && plays.every(line => /worldWas\.known &&/.test(line))];
+        // E110 part 3 (14.11.2026): the floor's sounds are decided in sfx.mjs `floorSounds`, pure, from the `was` it is
+        // handed (`worldWas`, its `known` among them) - read there, each push behind `known &&`; changed on purpose.
+        const quiet = [["onFloorChanged", "floorSounds", /play\.push\(/g, /known &&/], ["onIncidentChanged", "onIncidentChanged", /playSfx\(/g, /worldWas\.known &&/]].map(([name, where, call, guard]) => {
+            const body = topLevelFunction(sfx, where) ?? "";
+            const plays = [...body.matchAll(call)].map(m => lineAround(body, m.index));
+            const handed = where === name || /floorSounds\(worldWas,/.test(topLevelFunction(sfx, name) ?? "");
+            return [name, handed && plays.length > 0 && plays.every(line => guard.test(line))];
         });
         const initRegisters = /\bregisterSfx\b/.test(bodyOf(boot, 'Hooks.once("init"', { until: "\nHooks." }));
         equal(stableJson([["registerSfx runs at init", initRegisters], ["every reader call is on a hook's line", calls.length > 0 && calls.every(line => /Hooks\.on(?:ce)?\(/.test(line))],
@@ -27385,7 +27388,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 36 keys (34 until E110 C3) under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
@@ -27421,7 +27424,10 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.whichRemnantTooltip","cleanup.mjs","openCleanupDialog"],
             ["DRPG.Tips.Trial.scrubAtItTooltip","cleanup.mjs","openCleanupDialog"],
             ["DRPG.Tips.Trial.carryItThereTooltip","cleanup.mjs","openMoveBodyDialog"],
-            ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"]
+            ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"],
+            // E110 C3 (14.11.2026): the Scrum speaker's thesis window - the family grew by two, on purpose.
+            ["DRPG.Tips.Trial.thesisLineTooltip","trial-prompt.mjs","promptThesis"],
+            ["DRPG.Tips.Trial.thesisPostTooltip","trial-prompt.mjs","promptThesis"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -27429,7 +27435,7 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Trial");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 36, "lang/en.json has not the family's 36 keys under DRPG.Tips.Trial");
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const P = await import("./tests-tips.mjs");
         must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
@@ -32031,16 +32037,17 @@ const INVARIANTS = [
             order: OPS,
             outside: all("DRPG.Floor.bar.notTrial"),
             none: { ...all("DRPG.Floor.bar.noMode"), overrule: none },
-            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
-            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            // E110 C1 (14.11.2026): Re-point in the Rebuttal too, its greying "noExchange" elsewhere - changed on purpose.
+            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noExchange" },
+            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noExchange" },
             pending: open,
             objection: open,
-            rebuttal: { ...open, repoint: "DRPG.Floor.bar.noObjection" },
+            rebuttal: open,
             after: { ...all("DRPG.Floor.bar.noMode"), overrule: null }
         }), "the bar's order, or a button's greying on a state, is not what the GM was promised (per state: each op's reason, null where it may be pressed)");
         const lang = {};
         for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.bar ?? {});
-        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noAdjust", "noOverrule", "skip", "minus", "plus", "overrule", "endMode", "label"];
+        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noExchange", "noAdjust", "noOverrule", "skip", "minus", "plus", "overrule", "endMode", "label"];
         equal(JSON.stringify(reasons.filter(k => !lang.en[k] || !lang.pl[k])), "[]", "a reason or a label of the bar has no words in English or Polish");
     }],
 
@@ -32934,7 +32941,8 @@ const INVARIANTS = [
         /* Since E21 C4 the window is the kit's (`drpgWindow`) with the footer `turnFooter` builds, whose default is the kit's
            (ui-kit.mjs `footerButtons`: the primary); a `buttons` list before. */
         const P = await import("./trial-prompt.mjs"), K = await import("./ui-kit.mjs");
-        read.window = typeof P.turnFooter === "function" && /footer:\s*turnFooter\(\)/.test(prompt)
+        // E110 C3 (14.11.2026): the footer takes `{ thesis }` in a Scrum turn - changed on purpose; its default unchanged.
+        read.window = typeof P.turnFooter === "function" && /footer:\s*turnFooter\(/.test(prompt)
             ? ["done", "pass", "keep"].map(action => K.footerButtons(P.turnFooter()).find(b => b.action === action)?.default ?? null)
             : ["done", "pass", "keep"].map(action => {
                 const button = new RegExp(`\\{\\s*action:\\s*"${action}"[^}]*\\}`).exec(prompt)?.[0] ?? null;
@@ -43682,7 +43690,8 @@ const INVARIANTS = [
         const prompt = stripComments(src.get("trial-prompt.mjs") ?? "");
         const trial = stripComments(src.get("trial.mjs") ?? "");
         const opened = {
-            turn: /drpgWindow\(\{[\s\S]*footer:\s*turnFooter\(\)/.test(fnSource(prompt, "promptTurn")),
+            // E110 C3: `turnFooter({ thesis })` in a Scrum turn - changed on purpose.
+            turn: /drpgWindow\(\{[\s\S]*footer:\s*turnFooter\(/.test(fnSource(prompt, "promptTurn")),
             claim: /drpgWindow\(\{[\s\S]*footer:\s*claimFooter\(\)/.test(fnSource(prompt, "promptClaim")),
             objection: /drpgWindow\(\{[\s\S]*footer:\s*objectionFooter\(/.test(fnSource(trial, "pickObjectionEvidence"))
         };
@@ -60540,12 +60549,14 @@ const INVARIANTS = [
          * What a player's browser draws when it walks in is not measured headless here: the harness's player opens no
          * sheet window (a live check, FINDINGS E43-F8). Red at 736e55eb: [false,false,true,true,"string","undefined"] -
          * neither store nor the hook in the watch, and the copy's handle carried no `spec` for live.mjs to hear it by.
+         * The list may hold more stores after the two (14.11.2026: 4a8d9c0c adds `projectSightCopy`, R7110's, and this
+         * read, which wanted the two alone, went red on it in tier 1 on bcdb7e02).
          */
         const S = await import("./gm-stores.mjs");
         const source = stripComments((await moduleSources()).get("projects-map.mjs") ?? "");
         const body = fnSource(source, "showProjectCard");
         const watch = bodyOf(body, "watch:", { until: "\n" });
-        equal(stableJson([/stores:\s*\[\s*discoveryStore,\s*fogCopy\s*\]/.test(watch), /hooks:\s*\[[^\]]*"drpgSecretStored"[^\]]*"drpgRouteSettled"/.test(watch),
+        equal(stableJson([/stores:\s*\[\s*discoveryStore,\s*fogCopy\s*[,\]]/.test(watch), /hooks:\s*\[[^\]]*"drpgSecretStored"[^\]]*"drpgRouteSettled"/.test(watch),
             /settings:\s*\["projectMeta"\]/.test(watch), /settingKeys:\s*\[COUNTDOWNS_KEY\]/.test(watch),
             typeof S.discoveryStore?.spec?.key, typeof S.fogCopy?.spec?.key]),
             stableJson([true, true, true, true, "string", "string"]),
@@ -60969,6 +60980,272 @@ const INVARIANTS = [
         const manifest = JSON.parse(await lfText(res));
         must((manifest.relationships?.systems ?? []).length > 0, "module.json names no system");
         equal(stableJson(faults(manifest)), "[]", "module.json's compatibility (D1)");
+    }],
+    ["R7100 - the GM redirects an Objection in its minute and in its Rebuttal (E110 C1, 14.11.2026; the owner: \"dajmy opcje przekierowania objection gmowi, tzn zmiany celu trwajacego objection\"): floor-machine.mjs `repoint` moves the target alone - mode, holder, start, seconds and the stack as they were - and hands the table one public card naming the objector and the new target; it refuses a debate, a round and no floor, the objector, an empty id and the target the floor already has", async () => {
+        /* Pure, at a fixed `now`. Red at 6dd02975: the Rebuttal was moved (no refusal) and no card was handed. */
+        const M = await import("./floor-machine.mjs");
+        const NOW = 1_000_000;
+        const debate = M.nextFloor(null, { type: "start", seconds: 300 }, { now: NOW - 60_000 }).floor;
+        must(debate?.mode === "debate", "the fixture's debate did not open");
+        const objection = M.nextFloor(debate, { type: "objection", holderId: "O", targetId: "B", cardId: "card1" }, { now: NOW - 20_000 }).floor;
+        const rebuttal = M.nextFloor(objection, { type: "rebuttal" }, { now: NOW - 10_000 }).floor;
+        must(objection?.mode === "objection" && rebuttal?.mode === "rebuttal", "the fixture's exchange did not open");
+        const kept = f => [f.mode, f.holderId, f.startedAt, f.seconds, JSON.stringify(f.before)];
+        const read = {};
+        for (const [name, floor] of [["objection", objection], ["rebuttal", rebuttal]]) {
+            const out = M.nextFloor(floor, { type: "repoint", targetId: "T" }, { now: NOW });
+            read[name] = { target: out.floor?.targetId ?? null, kept: out.floor ? JSON.stringify(kept(out.floor)) === JSON.stringify(kept(floor)) : false,
+                cards: (out.cards ?? []).map(c => [c.key, c.actorId, c.targetId]) };
+        }
+        read.refused = [
+            M.nextFloor(debate, { type: "repoint", targetId: "T" }, { now: NOW }).refused ?? null,
+            M.nextFloor(objection, { type: "repoint", targetId: "O" }, { now: NOW }).refused ?? null,
+            M.nextFloor(objection, { type: "repoint", targetId: "" }, { now: NOW }).refused ?? null,
+            M.nextFloor(rebuttal, { type: "repoint", targetId: "B" }, { now: NOW }).refused ?? null,
+            M.nextFloor(null, { type: "repoint", targetId: "T" }, { now: NOW }).refused ?? null
+        ];
+        const card = [["DRPG.Floor.repointed", "O", "T"]];
+        equal(stableJson(read), stableJson({
+            objection: { target: "T", kept: true, cards: card }, rebuttal: { target: "T", kept: true, cards: card },
+            refused: ["DRPG.Floor.bar.noExchange", "DRPG.Trial.objectionSelf", "DRPG.Trial.objectionSelf", "DRPG.Floor.repointSame", "DRPG.Floor.bar.noMode"]
+        }), "{objection, rebuttal: the new target, the rest kept, the card [key, objector, target]; refused: a debate, the objector, an empty id, the same target, no floor}");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        equal(JSON.stringify(["repointed", "repointSame", "repointAbsent"].filter(k => !lang.en[k] || !lang.pl[k] || !String(lang.en.repointed).includes("{target}"))), "[]",
+            "a redirect's words are missing in English or Polish, or its card names no target");
+    }],
+    ["R7101 - who a running Objection may be redirected at (E110 C1; Q-E110-1): trial-floor.mjs `repointRefusal` answers, on an Objection and on its Rebuttal alike, the same as for a fresh Objection's target - not the objector, a participant of the trial - and the target present (a player connected); the target it already has and a floor with no exchange are refused; the bar's Re-point is open in the Rebuttal", async () => {
+        /* Pure but for the localised words `targetRefusal` builds, at a fixed floor. Red at 6dd02975: no repointRefusal, and the bar greyed Re-point in the Rebuttal. */
+        const F = await import("./trial-floor.mjs");
+        must(typeof F.repointRefusal === "function", "trial-floor.mjs has no repointRefusal");
+        const objection = { active: true, mode: "objection", holderId: "O", targetId: "B", startedAt: 0, seconds: 60, before: [] };
+        const rebuttal = { ...objection, mode: "rebuttal" };
+        const ask = (floor, id) => F.repointRefusal(floor, id, { taking: ["O", "B", "T", "A"], absent: ["A"] });
+        const read = [objection, rebuttal].map(floor => [ask(floor, "T"), ask(floor, "O"), ask(floor, "X"), ask(floor, "A"), ask(floor, "B")]);
+        read.push([ask({ ...objection, mode: "debate" }, "T"), ask(null, "T")]);
+        read.push([F.barRefusal("repoint", rebuttal, { running: true, now: 0, record: { objections: {} } }),
+            F.barRefusal("repoint", { ...objection, mode: "debate" }, { running: true, now: 0, record: { objections: {} } })]);
+        const np = "DRPG.Trial.objectionNotParticipant";
+        const row = [null, "DRPG.Trial.objectionSelf", np, "DRPG.Floor.repointAbsent", "DRPG.Floor.repointSame"];
+        equal(stableJson(read), stableJson([row, row, ["DRPG.Floor.bar.noExchange", "DRPG.Floor.bar.noExchange"], [null, "DRPG.Floor.bar.noExchange"]]),
+            "[objection, rebuttal: at T, the objector, a non-participant, an absent player's, the same target], [a debate, no floor], [the bar's Re-point in a Rebuttal, in a debate]");
+    }],
+    ["R7102 - who holds the floor, for the microphones (E110 C2, 14.11.2026; the owner: \"Tryby class trial ... niech wycisza automatycznie graczy, ktorych nie dopuszczaja do glosu\"): floor-machine.mjs `floorSpeakers` names the objector in an Objection (pending too), the pair in a Rebuttal, the speaker in Testimony, a Panic Round, the Closing's speech and a Scrum turn - each the ids trial-floor.mjs `modeAllows(floor, \"speak\")` lets speak - and null where all speak (Debate, Straw Poll, Logic Dive), in every phase with no speaker (the Closing's volunteers, choice and decision; a Scrum's Sides and Confer), on an ended floor and with none", async () => {
+        /* Pure. Red at 6dd02975: no floorSpeakers. */
+        const M = await import("./floor-machine.mjs");
+        const F = await import("./trial-floor.mjs");
+        must(typeof M.floorSpeakers === "function", "floor-machine.mjs has no floorSpeakers");
+        const ids = ["O", "B", "T", "X"];
+        const base = { active: true, startedAt: 0, seconds: 60, before: [], holderId: "O", targetId: "B" };
+        const closing = phase => ({ ...base, mode: "closing", holderId: phase === "speak" ? "O" : null, targetId: null, closing: { phase, step: 1 } });
+        const zone = (mode, phase, holderId = null) => ({ ...base, mode, holderId, targetId: null, zone: { phase, question: "Q", answers: { a: "A", b: "B" }, step: 1 } });
+        const floors = {
+            debate: { ...base, mode: "debate", holderId: null, targetId: null }, objection: { ...base, mode: "objection" },
+            pending: { ...base, mode: "objection", pending: true, messageId: "m" }, rebuttal: { ...base, mode: "rebuttal" },
+            testimony: { ...base, mode: "testimony", targetId: null, round: { mode: "testimony", order: ids, index: 0, step: 1 } },
+            panic: { ...base, mode: "panic", targetId: null, round: { mode: "panic", order: ids, index: 0, step: 1 } },
+            closingVolunteer: closing("volunteer"), closingChoice: closing("choice"), closingDecide: closing("decide"), closingSpeak: closing("speak"),
+            straw: zone("straw", "vote"), dive: zone("dive", "vote"), scrumSides: zone("scrum", "setup"), scrumConfer: zone("scrum", "confer"),
+            scrumSpeak: zone("scrum", "speak", "T"), ended: { ...base, mode: "objection", active: false }, none: null
+        };
+        const read = {}, agree = [];
+        for (const [name, floor] of Object.entries(floors)) {
+            const got = M.floorSpeakers(floor);
+            read[name] = got;
+            if (got) {
+                const allowed = ids.filter(id => F.modeAllows(floor, "speak", id));
+                if (JSON.stringify([...got].sort()) !== JSON.stringify(allowed.sort())) agree.push(name);
+            }
+        }
+        equal(stableJson(read), stableJson({ debate: null, objection: ["O"], pending: ["O"], rebuttal: ["O", "B"], testimony: ["O"], panic: ["O"],
+            closingVolunteer: null, closingChoice: null, closingDecide: null, closingSpeak: ["O"], straw: null, dive: null, scrumSides: null,
+            scrumConfer: null, scrumSpeak: ["T"], ended: null, none: null }), "each floor's speakers for the microphones");
+        equal(JSON.stringify(agree), "[]", "a floor whose speakers are not the ones modeAllows lets speak");
+    }],
+    ["R7103 - the HUD and the voice line say why the microphone is held (E110 C2): voice.mjs `floorHold` answers \"floorHeld\" with the holder's name to a voice character the floor's speakers leave out, \"floorHeldPair\" with both names in a Rebuttal, and nothing to a speaker, on a floor with no speaker, outside the trial or before a road entered it (no list in the record); both lines are in English and Polish with their names; voice.mjs settles the voices on every write of the floor", async () => {
+        /* Pure over the facts handed in, then the words and the trigger read. Red at 6dd02975: no floorHold, no line, no trigger. */
+        const V = await import("./voice.mjs");
+        must(typeof V.floorHold === "function", "voice.mjs has no floorHold");
+        const clock = { phase: "classTrial", chapter: 1 };
+        const record = { chapter: 1, mutedDead: [] };
+        const objection = { active: true, mode: "objection", holderId: "O", targetId: "B", startedAt: 0, seconds: 60 };
+        const facts = (floor, over = {}) => ({ clock, floor, record, epoch: 0, ...over });
+        const a = id => ({ id });
+        const pick = r => (r ? [r.reason, r.held, Object.keys(r.data ?? {}).sort()] : null);
+        const read = [
+            pick(V.floorHold(a("X"), facts(objection))), pick(V.floorHold(a("O"), facts(objection))),
+            pick(V.floorHold(a("X"), facts({ ...objection, mode: "rebuttal" }))), pick(V.floorHold(a("B"), facts({ ...objection, mode: "rebuttal" }))),
+            pick(V.floorHold(a("X"), facts({ ...objection, mode: "debate", holderId: null }))),
+            pick(V.floorHold(a("X"), facts(objection, { clock: { phase: "dailyLife", chapter: 1 } }))),
+            pick(V.floorHold(a("X"), facts(objection, { record: { chapter: 1 } })))
+        ];
+        equal(stableJson(read), stableJson([["floorHeld", true, ["name"]], null, ["floorHeldPair", true, ["name", "target"]], null, null, null, null]),
+            "[a listener in an Objection, its objector, a listener in a Rebuttal, its target, a debate, outside the trial, no list yet]");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Voice?.held ?? {});
+        const words = code => [String(lang[code].floorHeld ?? "").includes("{name}"), String(lang[code].floorHeldPair ?? "").includes("{target}")];
+        equal(stableJson([words("en"), words("pl")]), stableJson([[true, true], [true, true]]), "the two lines in [English, Polish]: [the holder named, the pair named]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        ok(/SETTINGS\.trialQueue/.test(fnSource(src, "registerTrialVoices")), "voice.mjs does not settle the voices on a write of the floor (registerTrialVoices names no trialQueue)");
+    }],
+    ["R7104 - the review's gaps in the trial's modes (E110 C3, 14.11.2026): a Scrum Debate speaker's Done and Pass (their own, at their turn's step) and a speaker gone hand the turn on as the clock's end does, Pass and gone told; the Event panel's \"Next\" skips a player who is not here, as the machine passes them; the ops that open a mode take back a Straw Poll's split; the vote's opening ends any floor; the speaker's window offers a Scrum turn's thesis", async () => {
+        /* Pure but for two source reads. Red at 6dd02975: no Done, Pass or gone row in a Scrum, no roundNextId, no MODE_OPENS, no endFloorForVote, no thesis button. */
+        const Z = await import("./zone-machine.mjs");
+        const F = await import("./trial-floor.mjs");
+        const E = await import("./events.mjs");
+        const P = await import("./trial-prompt.mjs");
+        const start = Z.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "A", b: "B" } }, { now: 0 }).floor;
+        const speak = { ...start, holderId: "O", seconds: 40, startedAt: 0,
+            zone: { ...start.zone, phase: "speak", turns: 4, turnSeconds: 40, first: "a", turn: 1, side: "a", spoke: { a: 1, b: 0 }, step: 5 } };
+        const ctx = { now: 10_000, sides: { a: ["O", "X"], b: ["B"] } };
+        const step = event => { const out = Z.zoneStep(speak, event, ctx); return out.refused ?? [out.floor?.holderId ?? null, (out.cards ?? []).map(c => c.key)]; };
+        const read = {
+            done: step({ type: "done", actorId: "O", step: 5 }), pass: step({ type: "pass", actorId: "O", step: 5 }), gone: step({ type: "gone", actorId: "O" }),
+            stale: step({ type: "done", actorId: "O", step: 4 }), other: step({ type: "pass", actorId: "X", step: 5 }),
+            sides: Z.zoneStep({ ...speak, zone: { ...speak.zone, phase: "setup" } }, { type: "done", actorId: "O", step: 5 }, ctx).refused ?? null
+        };
+        const round = { mode: "testimony", round: { mode: "testimony", order: ["A", "B", "C", "D"], index: 0, step: 1 } };
+        read.next = [E.roundNextId(round, id => id !== "B"), E.roundNextId(round, () => true), E.roundNextId(round, id => id === "A"),
+            E.roundNextId({ ...round, round: { ...round.round, index: 3 } }, () => true)];
+        read.opens = Array.isArray(F.MODE_OPENS) ? F.MODE_OPENS.filter(op => !F.FLOOR_OP_NAMES.includes(op)) : "none";
+        const footer = (P.turnFooter({ thesis: true }).secondary ?? []).map(b => b.action);
+        read.footer = [footer, (P.turnFooter().secondary ?? []).map(b => b.action)];
+        const vote = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vote.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        read.vote = /endFloorForVote\(\)/.test(fnSource(vote, "openRound")) && typeof F.endFloorForVoteInStep === "function";
+        equal(stableJson(read), stableJson({
+            done: ["B", []], pass: ["B", ["DRPG.Floor.round.passes"]], gone: ["B", ["DRPG.Floor.round.passes"]],
+            stale: "DRPG.Floor.round.stale", other: "DRPG.Floor.round.notSpeaker", sides: "DRPG.Floor.round.noTurn",
+            next: ["C", "B", null, null], opens: [], footer: [["done", "pass", "thesis"], ["done", "pass"]], vote: true
+        }), "{a Scrum turn's Done, Pass, gone: [next speaker, cards]; a stale step, another's Pass, Done in Sides; next: [B away, all here, only A here, the last turn]; opens: ops not in FLOOR_OP_NAMES; footer: [a Scrum turn, a round]; vote: openRound ends the floor}");
+    }],
+    ["R7105 - each Class Trial mode plays its own playlist (D-E110-B, D-E110-C; the owner, 14.11.2026: \"Kazda minigra w class trial niech ma wlasna playliste w muzyce\", \"Scrum trzy playlisty niech ma\"): music-states.mjs `trialMusicState` answers a mode's own state - the Rebuttal's, Testimony's, the Panic Round's, the Closing Argument's, the Straw Poll's, the Logic Dive's, and a Scrum Debate's Sides, Camps confer and turns, each its own - when that state has a playlist, and what it answered before (`TRIAL_MODE_MUSIC`) when it has none; every own state is a row of `MUSIC_STATES` with its words in English and Polish", async () => {
+        /* Pure over the floor and a `mapped` handed in; then the table and the words read. Red at 19991c24: no own states. */
+        const Mu = await import("./music-states.mjs");
+        const floor = (mode, extra = {}) => ({ active: true, mode, holderId: "O", ...extra });
+        const scrum = phase => floor("scrum", { zone: { phase } });
+        const floors = { debate: floor("debate"), objection: floor("objection"), rebuttal: floor("rebuttal"), testimony: floor("testimony"),
+            panic: floor("panic"), closing: floor("closing"), straw: floor("straw"), dive: floor("dive"),
+            sides: scrum("setup"), confer: scrum("confer"), speak: scrum("speak") };
+        const ask = mapped => Object.fromEntries(Object.entries(floors).map(([k, f]) => [k, Mu.trialMusicState(f, "classTrial", { mapped })]));
+        const read = { all: ask(() => true), none: ask(() => false) };
+        const own = Object.values(read.all);
+        const keys = new Set(Mu.MUSIC_STATES.map(s => s.key));
+        read.rows = own.filter(k => !keys.has(k));
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = (code, key) => key.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), lang[code]);
+        read.words = Mu.MUSIC_STATES.filter(s => own.includes(s.key)).filter(s => !s.labelKey || !words("en", s.labelKey) || !words("pl", s.labelKey)).map(s => s.key);
+        equal(stableJson(read), stableJson({
+            all: { debate: "trial.debate", objection: "trial.objection", rebuttal: "trial.rebuttal", testimony: "trial.testimony", panic: "trial.panic",
+                closing: "trial.closing", straw: "trial.straw", dive: "trial.dive", sides: "trial.scrumSides", confer: "trial.scrumConfer", speak: "trial.scrumSpeak" },
+            none: { debate: "trial.debate", objection: "trial.objection", rebuttal: "trial.objection", testimony: "trial.discussion", panic: "trial.discussion",
+                closing: "trial.discussion", straw: "trial.debate", dive: "trial.debate", sides: "trial.debate", confer: "trial.debate", speak: "trial.debate" },
+            rows: [], words: []
+        }), "{all: each floor's state with every own state mapped; none: with none mapped (as before); rows: own states with no MUSIC_STATES row; words: rows with no English or Polish label}");
+    }],
+    ["R7106 - the trial's sounds, one for one moment (E110 part 3, 14.11.2026; the coordinator's survey of 1.2.113): sfx.mjs `floorSounds` plays \"Nonstop Debate opens\" only when the floor that opens is a debate - not a Testimony, a Panic Round (its own start alone), a zone mode or the Closing - and \"your turn\" for a Scrum Debate speaker's player at each turn as for a round's; a Truth Bullet copy yields to Monokuma's Reveal and to a Present, and a Despair Call's sound to the Motive's, the New Rule's and the Public Announcement's", async () => {
+        /* Pure over frames of the floor, then the catalogue read. Red at 98f60442: no floorSounds, no yields. */
+        const S = await import("./sfx.mjs");
+        must(typeof S.floorSounds === "function", "sfx.mjs has no floorSounds");
+        const { SFX_EVENTS } = await import("./config.mjs");
+        const none = { known: true, floorOpen: false, floorMode: null, turnStep: null, closingAt: null };
+        const open = (floor, mine = () => false) => S.floorSounds(none, floor, { mine }).play;
+        const round = mode => ({ active: true, mode, holderId: "O", round: { mode, order: ["O"], index: 0, step: 1, openedAt: 5 } });
+        const zone = (mode, phase, holderId = null) => ({ active: true, mode, holderId, zone: { phase, step: 3, openedAt: 7 } });
+        const read = {
+            debate: open({ active: true, mode: "debate" }), testimony: open(round("testimony")), panic: open(round("panic")),
+            straw: open(zone("straw", "vote")), dive: open(zone("dive", "vote")), scrum: open(zone("scrum", "setup")),
+            closing: open({ active: true, mode: "closing", holderId: null, closing: { phase: "volunteer", openedAt: 9, step: 1 } })
+        };
+        const turn = zone("scrum", "speak", "O");
+        const first = S.floorSounds({ ...none, floorOpen: true, floorMode: "scrum" }, turn, { mine: id => id === "O" });
+        const again = S.floorSounds({ ...none, ...first.was, known: true }, turn, { mine: id => id === "O" });
+        const next = S.floorSounds({ ...none, ...first.was, known: true }, { ...turn, zone: { ...turn.zone, step: 4 } }, { mine: id => id === "O" });
+        read.scrumTurn = [first.play, again.play, next.play, S.floorSounds({ ...none, floorOpen: true, floorMode: "scrum" }, turn, { mine: () => false }).play];
+        read.yields = [SFX_EVENTS.truthBullet?.yieldsTo ?? null, SFX_EVENTS.despairCall?.yieldsTo ?? null];
+        equal(stableJson(read), stableJson({
+            debate: ["debateOpen"], testimony: [], panic: ["panicStart"], straw: [], dive: [], scrum: [], closing: ["closingStart"],
+            scrumTurn: [["yourTurn"], [], ["yourTurn"], []],
+            yields: [["keyReveal", "present"], ["newRule", "motive", "publicAnnouncement"]]
+        }), "{each floor opening's sounds; scrumTurn: [a Scrum turn of mine, the same again, the next of mine, another's]; yields: [truthBullet, despairCall]}");
+    }],
+    ["R7107 - the sounds and the music the survey found missing (E110 part 3, 14.11.2026): three new effects in the catalogue with their words in English and Polish - \"present\" (the Present's card, the whole table), \"stashFound\" (a Find Stash's find, the searcher and the GMs) and \"bedroomEntered\" (the bedroom's owner alone) - each on its card's flag, a Find Stash's miss playing \"searchNothing\"; and the vote's own music (music-states.mjs `voteMusicPlays`) from the vote's opening to the verdict, only with a playlist mapped", async () => {
+        /* Pure but for the catalogue and three sources read. Red at 98f60442: no such keys, no voteMusicPlays. */
+        const { SFX_EVENTS } = await import("./config.mjs");
+        const Mu = await import("./music-states.mjs");
+        must(typeof Mu.voteMusicPlays === "function", "music-states.mjs has no voteMusicPlays");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const keys = ["present", "stashFound", "bedroomEntered"];
+        const read = {
+            catalogue: keys.map(k => [k, SFX_EVENTS[k]?.category ?? null, Boolean(SFX_EVENTS[k]?.label && SFX_EVENTS[k]?.hint),
+                Boolean(pl.DRPG?.Config?.SFX_EVENTS?.[k]?.label && pl.DRPG?.Config?.SFX_EVENTS?.[k]?.hint)])
+        };
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const trial = await src("trial.mjs"), stash = await src("stash-reach.mjs"), doors = await src("doors-gm.mjs");
+        read.flags = [/key:\s*"present"/.test(fnSource(trial, "presentOnPrimary")), /key:\s*"stashFound"/.test(stash),
+            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), (doors.match(/BEDROOM_SOUND\)/g) ?? []).length, /sfx:\s*"bedroomEntered"/.test(doors)];
+        const clock = { phase: "classTrial", chapter: 2 };
+        const yes = () => true;
+        read.vote = [
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: true } }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: false }, voteClosed: true }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, voteClosed: true, verdictApplied: true }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2 }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: true } }, clock, { mapped: () => false }),
+            Mu.voteMusicPlays({ chapter: 1, vote: { open: true } }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: true } }, { phase: "dailyLife", chapter: 2 }, { mapped: yes }),
+            Mu.MUSIC_STATES.some(s => s.key === "trial.vote")
+        ];
+        equal(stableJson(read), stableJson({
+            catalogue: [["present", "incident", true, true], ["stashFound", "world", true, true], ["bedroomEntered", "world", true, true]],
+            flags: [true, true, 3, true, 2, true],
+            vote: [true, true, false, false, false, false, false, true]
+        }), "{catalogue: [key, group, English words, Polish words]; flags: [the Present's card, a find, the misses, the miss's key, the bedroom's two cards, its key]; vote: [open, counted, verdict given, not opened, unmapped, another chapter, outside the trial, a row]}");
+    }],
+    ["R7108 - the Messenger sounds switch holds a card's messenger sound too, and the Effects tab says when the safeword has no file (E110 part 3, 14.11.2026): sfx.mjs `messengerMuted` silences \"chatSend\", \"chatReceive\" and \"gmAsk\" while the switch is off and nothing else, the card's road asks it; the safeword's row in `soundEffectsHtml` carries its no-file line, in English and Polish, while no file is chosen", async () => {
+        /* Pure, then the tab's markup as this world maps it. Red at 98f60442: no messengerMuted, no line. */
+        const S = await import("./sfx.mjs");
+        must(typeof S.messengerMuted === "function", "sfx.mjs has no messengerMuted");
+        const { soundFor } = await import("./sfx-play.mjs");
+        const read = { off: ["chatSend", "chatReceive", "gmAsk", "despairCall", "safeword"].map(k => S.messengerMuted(k, false)),
+            on: ["chatSend", "gmAsk"].map(k => S.messengerMuted(k, true)) };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sfx.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        read.road = /messengerMuted\(key,/.test(src);
+        const box = document.createElement("div");
+        box.innerHTML = S.soundEffectsHtml();
+        const row = box.querySelector('[data-drpg-sfx="safeword"]');
+        read.line = soundFor("safeword") ? "a file is mapped here" : Boolean(row?.querySelector("[data-drpg-sfx-nofile]"));
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        read.words = [game.i18n.has("DRPG.Sound.safewordNoFile"), Boolean(pl.DRPG?.Sound?.safewordNoFile)];
+        equal(stableJson(read), stableJson({ off: [true, true, true, false, false], on: [false, false], road: true, line: true, words: [true, true] }),
+            "{off: muted with the switch off [chatSend, chatReceive, gmAsk, despairCall, safeword]; on: with it on; road: the card's road asks it; line: the safeword's row says it has no file; words: [English, Polish]}");
+    }],
+    ["R7109 - in the Class Trial the floor decides who speaks, not a murder's mask (Q-E110-16, the coordinator's 14.11.2026 with its default): voice.mjs `masksInForce` hands `placeVoices` no killer behind a \"?\" in the trial and every one outside it, `micHold` gives a masked player's own browser no \"masked\" line in the trial, and the settle's mask block (`settleTrialVoices`) stands outside the trial alone", async () => {
+        /* Pure, then one source read. Red at e7a4fece: no masksInForce; the masked line and block stood in the trial (the
+           comment on `maskedRow` said otherwise). */
+        const V = await import("./voice.mjs");
+        must(typeof V.masksInForce === "function", "voice.mjs has no masksInForce");
+        const entries = { K1: { userIds: ["u1"] }, K2: { userIds: ["u2"] } };
+        const user = { id: "u1", isGM: false };
+        const trial = { clock: { phase: "classTrial", chapter: 1 }, floor: null, record: {}, epoch: 0 };
+        const hold = facts => V.micHold({ user, room: "x", external: false, connected: true, canBroadcastAudio: true, actors: [], listening: null, masked: true, trial: facts })?.reason ?? null;
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const read = {
+            masks: [[...V.masksInForce(entries, { trial: false })].sort(), [...V.masksInForce(entries, { trial: true })]],
+            line: [hold(null), hold(trial)],
+            settle: /const masked = !release && !inTrial && mask\.maskMutedIds\(\)\.has\(user\.id\)/.test(fnSource(src, "settleTrialVoices"))
+        };
+        equal(stableJson(read), stableJson({ masks: [["K1", "K2"], []], line: ["masked", null], settle: true }),
+            "{masks: [outside the trial, in it]; line: a masked player's own line [outside the trial, in it]; settle: the mask's block outside the trial alone}");
+    }],
+    ["R7110 - an open project card follows every road a secret project's description reaches a player's browser by (E110, 14.11.2026; scenario 30's one red in five at 52f19e2a): projects.mjs `descriptionOf` reads the player's copy of the GMs' sight (`projectSightCopy`) before the private card's words, so projects-map.mjs `showProjectCard`'s live region watches that copy as well as `drpgSecretStored` - a card whose words landed before the copy redrew the old words and nothing drew it again", async () => {
+        /* Two source reads. Red at 52f19e2a: the card's watch named no projectSightCopy. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const projects = await src("projects.mjs"), map = await src("projects-map.mjs");
+        const reads = /projectSightCopy\.read\(\)/.test(fnSource(projects, "descriptionOf"));
+        const watch = fnSource(map, "showProjectCard").match(/watch:\s*\{[^}]*\}/)?.[0] ?? "";
+        equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
+            "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
     }],
 ];
 

@@ -138,6 +138,27 @@ export function closingOf(floor) {
     return closing && typeof closing === "object" && typeof closing.phase === "string" ? closing : null;
 }
 
+/**
+ * WHO HOLDS THE FLOOR, FOR THE MICROPHONES (E110 C2, 14.11.2026; the owner: "Tryby class trial (objection i rebuttal, a
+ * takze inne jesli to potrzebne) niech wycisza automatycznie graczy, ktorych nie dopuszczaja do glosu"). The actor ids
+ * a mode gives the floor to, or null when the mode mutes nobody: the objector in an Objection (a pending one too,
+ * Q-E110-4), the pair in a Rebuttal, the speaker in Testimony, a Panic Round, the Closing's speech and a Scrum Debate's
+ * turn. Null for every mode where all speak (Debate, Straw Poll, Logic Dive) and for every phase with no speaker - the
+ * Closing's volunteers, choice and decision, a Scrum's Sides and Confer (Confer stays open: the owner's 13.11) - and for
+ * no floor. Pure; voice.mjs `settleTrialVoices` blocks by it on the primary, and `micHold` says it on a player's
+ * browser. Tier 1 R7102 holds it to trial-floor.mjs `modeAllows(floor, "speak")` on every mode.
+ */
+export function floorSpeakers(floor) {
+    if (!floor || floor.active === false || typeof floor.holderId !== "string" || !floor.holderId) return null;
+    switch (floor.mode) {
+        case MODES.objection: return [floor.holderId];
+        case MODES.rebuttal: return [floor.holderId, floor.targetId].filter(id => typeof id === "string" && id);
+        case MODES.closing: return closingOf(floor)?.phase === "speak" ? [floor.holderId] : null;
+        case ZONE_MODES.scrum: return floor.zone?.phase === "speak" ? [floor.holderId] : null;
+        default: return isRoundMode(floor.mode) ? [floor.holderId] : null;
+    }
+}
+
 /** Whether `floor` is the Closing in a phase with a clock - the volunteers' 30 s, a speaker's time. */
 export function closingTimed(floor) {
     const phase = floor?.mode === MODES.closing ? closingOf(floor)?.phase : null;
@@ -547,9 +568,21 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         }
         case "fill":
             return { floor: { ...floor, pending: false, startedAt: now, gmNote: null }, cards: [] };
-        case "repoint":
-            // The entry stays: the Objection is the same one, aimed elsewhere.
-            return { floor: { ...floor, targetId: event.targetId }, cards: [] };
+        case "repoint": {
+            /*
+             * THE GM REDIRECTS THE OBJECTION (E79 C16; E110 C1, 14.11.2026, the owner: "dajmy opcje przekierowania
+             * objection gmowi, tzn zmiany celu trwajacego objection"): in its minute and since E110 in its Rebuttal too,
+             * the target alone, the clock as it runs (Q-E110-2). The stack's entries stay: the newest is this Objection's
+             * card and the floor it interrupted, whose own target is that floor's, not a copy of this one (Q-E110-3).
+             * Refused outside the exchange, at the objector and at the target it already has, so a second GM's press of
+             * the same redirect writes nothing twice. Told to the table (TR21, TR28: every GM intervention is public).
+             */
+            if (floor.mode !== MODES.objection && floor.mode !== MODES.rebuttal) return { refused: "DRPG.Floor.bar.noExchange" };
+            if (typeof event.targetId !== "string" || !event.targetId || event.targetId === floor.holderId) return { refused: "DRPG.Trial.objectionSelf" };
+            if (event.targetId === floor.targetId) return { refused: "DRPG.Floor.repointSame" };
+            return { floor: { ...floor, targetId: event.targetId },
+                cards: [{ key: "DRPG.Floor.repointed", actorId: floor.holderId, targetId: event.targetId, mode: floor.mode }] };
+        }
         case "rebuttal":
             return { floor: { ...floor, mode: MODES.rebuttal, startedAt: now, pending: false, gmNote: null }, cards: [] };
         case "due":

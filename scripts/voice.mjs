@@ -55,6 +55,8 @@ import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocal
 import { isPrimaryGm, debug, warn, error, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
 // A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
 import { conferCamps } from "./zone-machine.mjs";
+// Who holds the floor, for the microphones (E110 C2): floor-machine.mjs is pure and imports config.mjs and zone-machine.mjs alone.
+import { floorSpeakers } from "./floor-machine.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 
@@ -902,8 +904,9 @@ export async function voiceTargets() {
     const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
     // Listen's eavesdrops that stand (E69 C6; eavesdrop-gm.mjs, which ends on the primary the ones that do not).
     const listens = eclipse || trial ? new Map() : await (await import("./eavesdrop-gm.mjs")).listensInForce();
-    // The killers behind a "?" (E69 C8; mask-gm.mjs): each in a silent room of their own while the mask stands.
-    const masks = new Set(Object.keys(maskStore.entries() ?? {}));
+    // The killers behind a "?" (E69 C8; mask-gm.mjs): each in a silent room of their own while the mask stands - outside
+    // the trial (Q-E110-16): there the floor says who speaks.
+    const masks = masksInForce(maskStore.entries() ?? {}, { trial });
     const { rows, byUser, claims, waits, held } = await placeVoices({
         listens, masks,
         actors: game.actors.filter(a => a.type === "character" && !watchesForTheDead(a)), eclipse, trial,
@@ -1132,14 +1135,26 @@ export function listeningRow(row, listens = new Map()) {
  * THE KILLER BEHIND A "?", THE RULE (E69 C8, 13.11.2026; the coordinator's answer of 13.11: a name in the victim's voice
  * list would defeat the mask). An account whose voice character is a killer the GMs hold masked (`masks`, killer actor
  * ids) is sent to a silent room of its own (voice-client.mjs `silentRoomFor`, the word its browser leaves voice on, as
- * in an Eclipse): it neither speaks to the room nor hears it, and no list in the room names it. Outside an Eclipse and
- * the trial only (`placeVoices` is not asked them there); the account goes back to its token's room when the mask
- * ends. Pure (R6032).
+ * in an Eclipse): it neither speaks to the room nor hears it, and no list in the room names it. The account goes back
+ * to its token's room when the mask ends. Pure (R6032).
+ *
+ * NOT IN THE CLASS TRIAL (E110, 14.11.2026; Q-E110-16, the coordinator's default). This comment said "outside an Eclipse
+ * and the trial only (`placeVoices` is not asked them there)", and the code asked it in both: `voiceTargets` handed the
+ * masks to `placeVoices` in the trial too. A mask ends at the next time of day, so at a table it rarely reaches a trial;
+ * the harness reaches it (01-runtests A2 changes the phase and not the time of day). In the trial the floor decides who
+ * speaks (`settleTrialVoices`, floor-machine.mjs `floorSpeakers`), so `masksInForce` hands no mask there, the settle's
+ * mask block stands outside the trial alone, and `micHold` says no "masked" line in it. In an Eclipse the mask's silent
+ * room stands as before: an Eclipse holds every player out of voice either way (R7109).
  */
 export function maskedRow(row, masks = new Set()) {
     if (!row?.actor || !row.user || row.user.isGM || !masks.has(row.actor.id)) return row;
     return { ...row, room: null, target: silentRoomFor(row.user.id), claim: CLAIM.inRoom, masked: true, kept: false, keep: false,
         why: voiceText("DRPG.Voice.plan.why.masked") };
+}
+
+/** The killers behind a "?" whose silent room stands (the GMs' rows `entries`, keyed by killer): none in the trial (Q-E110-16). Pure. */
+export function masksInForce(entries = {}, { trial = false } = {}) {
+    return trial ? new Set() : new Set(Object.keys(entries ?? {}));
 }
 
 /** On a GM: the accounts whose character stands behind a "?" now, from the GMs' rows (E69 C8). */
@@ -1299,7 +1314,9 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  *     `isMutedDead`), named before a GM's block, which the trial's own block is beside it (`settleTrialVoices`);
  *   - "cubSpeak", "cubListen", "cubVote", "ownCase": a Monocub in the Class Trial (E70 C5; DC4, DC28, DC29, DC41) - it
  *     speaks in the discussion and listens in a mode (`data.mode` names it) and from the vote on, and listens through a
- *     trial about its own death: lines of information, never held (the design's P6), so the microphone stays its own.
+ *     trial about its own death: lines of information, never held (the design's P6), so the microphone stays its own -
+ *     but in a mode whose floor is somebody else's, where since D-E110-A (the owner, 14.11.2026) it is "floorHeld" (held);
+ *   - "floorHeld", "floorHeldPair": HELD - in the Class Trial a mode gives the floor to others (E110 C2, `floorHold`).
  *
  * From this browser's own facts only - the room the primary GM sent it (`desiredRoom`), its own A/V state, its own
  * characters and the flags on them - and never from GmStore: on a player `isDeadForGm` and `pendingDeath` read the
@@ -1320,7 +1337,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     if (spectatorAccount(user, { actors })) return room === SPECTATOR_ROOM ? { reason: "spectatorTalk", held: false } : { reason: "spectator", held: true };
     // Behind a "?" after a murder's opening (E69 C8): HELD - out of voice in a silent room of its own, named before the
     // Eclipse's reading of that same silent room, until the reveal or the end of the time of day.
-    if (masked) return { reason: "masked", held: true };
+    // Not in the Class Trial, where the floor decides (Q-E110-16): `trial` is the trial's facts there, null outside it.
+    if (masked && !trial) return { reason: "masked", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
     // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
     if (!connected && !eclipse) return { reason: "offline", held: false };
@@ -1338,6 +1356,10 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
     // browser in the room it listens into.
     if (listening && room === listening) return { reason: "listening", held: true };
+    // The floor is somebody else's (E110 C2): HELD, named before the block the trial's settle wrote for it - a Monocub's
+    // too since D-E110-A (the owner, 14.11.2026), the one exception to the design's P6.
+    const floorLine = speaker && !spectatorAccount(user, { actors }) ? floorHold(speaker, trial) : null;
+    if (floorLine) return floorLine;
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
@@ -1365,7 +1387,7 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     dead = isDeadForGm, listening = listeningIds(), masked = maskedIds() } = {}) {
     if (!game.user?.isGM || !user) return null;
     // Behind a "?" (E69 C8): the mask's block, which the GM's own is not offered over either.
-    if (masked.has(user.id)) return { reason: "masked", held: true };
+    if (masked.has(user.id) && !trial) return { reason: "masked", held: true };
     // Listening at a door (E69 C6): the eavesdrop's block, which the GM's own is not offered over.
     if (listening.has(user.id)) return { reason: "listening", held: true };
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
@@ -1374,6 +1396,8 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     // nor while it talks in the Spectators' room (E92 C6), where the block is lifted.
     if (spectatorAccount(user, { actors })) return { reason: spectatorTalks(user, { actors }) ? "spectatorTalk" : "spectator", held: true };
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
+    // The floor's block (E110 C2): the trial's to put back, so the GM's own is not offered over it.
+    if (actor && !row.monokuma && trial && floorHold(actor, trialFacts())) return { reason: "floorHeld", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
 }
@@ -1512,7 +1536,27 @@ export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() 
     const speaker = accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null;
     if (!speaker) return null;
     if (isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
+    // The floor's hold first, a Monocub's included (D-E110-A); the Monocub's own line where the floor holds nobody.
+    const held = spectatorAccount(user, { actors }) ? null : floorHold(speaker, trial);
+    if (held) return held;
     return isMonocub(speaker) ? cubLine(speaker, trial) : null;
+}
+
+/**
+ * THE FLOOR IS SOMEBODY ELSE'S (E110 C2, 14.11.2026): `{ reason: "floorHeld" | "floorHeldPair", held: true, data }` when
+ * the floor the trial's facts hold (`trialFacts`) gives the floor to others and not to `actor` (floor-machine.mjs
+ * `floorSpeakers`), else null. Only once a road entered the trial - the record holds the trial's list (`mutedDead`), as
+ * `settleTrialVoices` blocks only then (Q-E110-7) - so the line never says a microphone is held that nothing holds.
+ * `data` names who has the floor: `name`, and `target` for a Rebuttal's pair. Pure over the facts handed in (R7103).
+ */
+export function floorHold(actor, trial) {
+    if (!actor || trial?.clock?.phase !== "classTrial" || !Object.hasOwn(trial?.record ?? {}, "mutedDead")) return null;
+    const speakers = floorSpeakers(trial.floor);
+    if (!speakers?.length || speakers.includes(actor.id)) return null;
+    const nameOf = id => game.actors?.get?.(id ?? "")?.name ?? "-";
+    return speakers.length > 1
+        ? { reason: "floorHeldPair", held: true, data: { name: nameOf(speakers[0]), target: nameOf(speakers[1]) } }
+        : { reason: "floorHeld", held: true, data: { name: nameOf(speakers[0]) } };
 }
 
 /** `micHold`'s line for a Monocub in the trial: information only, never held. */
@@ -1689,18 +1733,31 @@ export async function settleTrialVoices({ release = false } = {}) {
             await vote.writeTrialProgressInStep({ mutedDead: undefined }, { chapter: stored.chapter ?? null });
         }
         const listed = new Set(list ?? []);
+        /* THE FLOOR'S SPEAKERS (E110 C2, 14.11.2026): while a floor with a speaker stands in a trial a road entered, every
+           player whose voice character the mode does not give the floor is blocked by the same write and the same row, and
+           given back when the floor, the turn or the trial moves on. Never a GM (skipped below) or a Spectator's account (its
+           talk switch decides, `watching`). A Monocub is held like a student: the design's P6 (A9, E78: never held by the
+           module) has one exception since the owner's D-E110-A of 14.11.2026, "W tych trybach monocuby tez maja byc
+           wyciszane" - a trial mode that does not give it the floor. A GM's own block is left alone by
+           `blockForTrial`. Only a user whose answer changes is written (`row?.wrote`), so a Panic turn writes the speaker who
+           stops and the one who starts. */
+        const queue = getSetting(SETTINGS.trialQueue) ?? {};
+        const speakers = inTrial ? floorSpeakers(queue.active ? queue : null) : null;
         const out = { list, blocked: [], restored: [] };
         for (const user of game.users) {
             if (user.isGM) continue;
-            const voice = listed.size ? trialVoiceActorOf(user, game.actors, list) : null;
+            const voice = listed.size || speakers ? trialVoiceActorOf(user, game.actors, list ?? []) : null;
             const row = trialMuteStore.get(user.id);
             // A Spectator's account is blocked in every phase, by the same write and the same row (E92 C2), so the
             // trial's exit and a role given back put back exactly what the block found; `release` gives it back too.
             // While it talks in the Spectators' room the block is lifted (E92 C6), and written again when it leaves.
             const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
-            const masked = !release && mask.maskMutedIds().has(user.id);
-            if (watching || listening || masked || (voice && listed.has(voice.id))) {
+            // The mask's block outside the trial alone (Q-E110-16): in the trial the floor's speakers decide.
+            const masked = !release && !inTrial && mask.maskMutedIds().has(user.id);
+            const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !speakers.includes(voice.id)
+                && !spectatorAccount(user, { held: flagsHeldNow }));
+            if (watching || listening || masked || floorHeld || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }
@@ -1750,7 +1807,8 @@ function registerTrialVoices() {
         if (changes?.flags?.[MODULE_ID] || "ownership" in (changes ?? {})) scheduleTrialVoices();
     });
     Hooks.on("updateSetting", setting => {
-        if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) scheduleTrialVoices();
+        // And every write of the floor (E110 C2): a mode opened, a turn passed, a redirect, the floor's end.
+        if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}` || setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) scheduleTrialVoices();
     });
     Hooks.on("drpgPrimaryReady", () => scheduleTrialVoices());
     // Listen's eavesdrop (E69 C6): its block written and lifted by the same settle, whatever else is pending.
