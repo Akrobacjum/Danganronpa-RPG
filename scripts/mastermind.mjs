@@ -36,13 +36,12 @@ import { studentActors } from "./monokuma.mjs";
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
 import { announce, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
-import { stepper, emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { stepper, emptyOption, drpgWindow, drpgConfirm, tipAttr, tipText } from "./ui-kit.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's, on the ordinary verdict's lock, list, card and summary;
 // re-exported here for every importer (the Mastermind window's own button went on 12.11.2026: the Class Trial console
 // opens it). verdict.mjs reads this file by `import()` alone, so the static graph has no cycle (R161).
@@ -644,7 +643,7 @@ export async function openMastermindDialog() {
         body: `<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>
             <label>${game.i18n.localize("DRPG.Mastermind.whoIs")}
-                <select name="who">
+                <select name="who"${tipAttr("DRPG.Tips.Sweep.Trial.mastermindWhoTooltip")}>
                     <option value="">${game.i18n.localize("DRPG.Mastermind.nobody")}</option>
                     ${options}
                 </select></label>

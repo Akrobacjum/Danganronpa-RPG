@@ -50,9 +50,8 @@ import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
-import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
+import { drpgWindow, formGrid, helpText, box, tipAttr, tipText } from "./ui-kit.mjs";
 
-import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * PROJECTS
@@ -151,12 +150,12 @@ export async function performProject(actor, def, options) {
         extra: `${here.length
             ? `<label class="drpg-specific-note" data-drpg-when="work">
                 <span>${game.i18n.localize("DRPG.Project.whichWork")}</span>
-                <select name="project">${projectOptionsHtml(here)}</select>
+                <select name="project"${tipAttr("DRPG.Tips.Sweep.Actions.workWhichTooltip")}>${projectOptionsHtml(here)}</select>
             </label>`
             : ""}${breakable.length
             ? `<label class="drpg-specific-note" data-drpg-when="sabotage">
                 <span>${game.i18n.localize("DRPG.Project.whichSabotage")}</span>
-                <select name="sabotage">${projectOptionsHtml(breakable)}</select>
+                <select name="sabotage"${tipAttr("DRPG.Tips.Sweep.Actions.sabotageWhichTooltip")}>${projectOptionsHtml(breakable)}</select>
             </label>`
             : ""}`
     });
@@ -240,7 +239,6 @@ export async function startProject(actor) {
     const lockable = here?.room ? [here.room, ...neighbouringRooms(here.scene, here.room)].filter(room => roomBroken(here.scene, room)) : [];
     const kinds = [...(offer ? ["secretPassage", "breach"] : []), ...(owned.seal.length ? ["sealPassage"] : []),
         ...(owned.breaches.length ? ["closeBreach"] : []), ...(mendable.length ? ["repairItem"] : []), ...(lockable.length ? ["repairLock"] : [])];
-    const esc1 = text => foundry.utils.escapeHTML(String(text ?? ""));
     /* ON THE KIT'S `formGrid` (E47-C6, 09.11.2026; card M19, approved by the owner on 09.11 with one change): a field with
        a caption is a row of the grid - the caption, then the field with its notes in the kit's fine print - and the rest
        lines across both, in the order they had (D31). The change: "Say what you are actually doing" takes the form's
@@ -249,7 +247,7 @@ export async function startProject(actor) {
     const uid = foundry.utils.randomID(6);
     const idOf = name => `drpg-propose-${name}-${uid}`;
     const choose = (name, label, options, note) => ({ label: game.i18n.localize(label), id: idOf(name),
-        field: `<select name="${name}" id="${idOf(name)}">${options.map((text, i) => `<option value="${i}">${esc1(text)}</option>`).join("")}</select>
+        field: `<select name="${name}" id="${idOf(name)}">${options.map((text, i) => `<option value="${i}">${esc(text)}</option>`).join("")}</select>
                 ${note.map(key => helpText(key)).join("")}` });
     const presetRows = kinds.length ? [
         { label: game.i18n.localize("DRPG.Project.kind"), id: idOf("preset"),
@@ -272,7 +270,7 @@ export async function startProject(actor) {
             { full: box("warning", game.i18n.localize("DRPG.Project.agreedWarning")) },
             ...presetRows,
             { label: game.i18n.localize("DRPG.Project.name"), id: idOf("name"),
-                field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus />` },
+                field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Actions.proposeNameTooltip")} autofocus />` },
             descriptionField(""),
             { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${scaleOptions}</select>` },
             { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.roomTooltip")}>${roomOptions}</select>` },
@@ -430,7 +428,7 @@ export async function startProject(actor) {
                 label: game.i18n.localize("DRPG.Project.approveButton"),
                 // Lowercase keys only: `data-*` attributes arrive through
                 // `dataset`, which lowercases everything, so `killerId` would
-                // come back as `killerid` and quietly read undefined.
+                // come back as `dataset.killerid` and quietly read undefined.
                 data: {
                     by: actor.id,
                     pname: result.name,
@@ -901,7 +899,7 @@ async function proposeProjectTrait(actor, project, listed) {
         body: `<form><p><strong>${esc(project.name ?? "?")}</strong></p>
             <p>${game.i18n.localize("DRPG.TraitRuling.projectBody")}</p>${traitFieldHtml(actor, listed, { propose: true })}</form>`,
         footer: {
-            gmRoute: [{ action: "propose", label: game.i18n.localize("DRPG.TraitRuling.propose"),
+            gmRoute: [{ action: "propose", label: game.i18n.localize("DRPG.TraitRuling.propose"), tooltip: tipText("DRPG.Tips.Sweep.Actions.proposeTraitTooltip"),
                 callback: (event, button, dialog) => readProposal(dialog.element.querySelector("form"), listed) }],
             close: "cancel"
         },
@@ -938,7 +936,7 @@ async function chooseProject(list, promptKey, actor, def, { disableComplete = fa
         brief: def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : "",
         ask: `<form>
             <label>${game.i18n.localize(promptKey)}
-                <select name="project">${projectOptions}</select></label>
+                <select name="project"${tipAttr(def === ACTIONS.sabotage ? "DRPG.Tips.Sweep.Actions.sabotageWhichTooltip" : "DRPG.Tips.Sweep.Actions.workWhichTooltip")}>${projectOptions}</select></label>
         </form>`,
         footer: {
             primary: {

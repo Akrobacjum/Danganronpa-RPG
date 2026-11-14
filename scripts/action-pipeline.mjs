@@ -353,8 +353,9 @@ function traitRolled(result, fallback) {
  *
  * The retired setting is unregistered, and its value is taken out of this browser's
  * client storage once (`forgetRollBookmarks`), where Foundry keeps a client setting
- * under `<namespace>.<key>` - read in Foundry's `ClientSettings`, not measured at a
- * real table; the harness keeps no client storage, so there it does nothing.
+ * under `<namespace>.<key>` - read in Foundry's `foundry.helpers.ClientSettings`, not
+ * measured at a real table; the harness keeps no client storage, so there it does
+ * nothing.
  */
 const rollsInHand = new Map();
 

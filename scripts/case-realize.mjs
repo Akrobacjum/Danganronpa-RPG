@@ -23,7 +23,7 @@
  */
 import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
 import { bodiesFoundIn } from "./settings.mjs";
-import { drpgWindow, tipText } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, autopsiesDue, bodiesInOrder } from "./case-schema.mjs";
 import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyCount } from "./investigation.mjs";
 import { remnantById, dropRemnantSecret } from "./remnants.mjs";
@@ -56,7 +56,7 @@ export function madeOf(chapter) {
 function previewHtml(lines, plan = null) {
     /* Named by its column and its slot (E97 fix, 12.11.2026): a select in a table cell has no label of its own, and
        tier 2's "every control ... has a name to be read out" read it nameless once the preview had been opened. */
-    const room = slot => `<select name="room:${slot}" aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: plan?.entries?.[slot]?.room || null, sceneId: plan?.entries?.[slot]?.scene || null })}</select>`;
+    const room = slot => `<select name="room:${slot}"${tipAttr("DRPG.Tips.Sweep.Case.realizeRoomTooltip")} aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: plan?.entries?.[slot]?.room || null, sceneId: plan?.entries?.[slot]?.scene || null })}</select>`;
     const rows = lines.map(l => `<tr data-drpg-line="${l.action}"><td>${esc(L(`DRPG.CaseRealize.action.${l.action}`))}</td>`
         + `<td>${esc(F("DRPG.CaseMap.slotNumber", { n: l.slot + 1 }))}</td><td>${esc(l.name || L("DRPG.CaseMap.noName"))}</td>`
         + `<td>${l.action === "create" ? room(l.slot) : ""}</td></tr>`).join("");

@@ -25,7 +25,7 @@ import {
  * TIER 0 - MODULE-WIDE REGRESSION
  * ========================================================================== */
 
-/**
+/*
  * WHY A THIRD TIER, AND WHY IT READS SOURCE INSTEAD OF CALLING FUNCTIONS.
  *
  * Look at which defects in this update surfaced LAST. Not one of them was bad
@@ -590,6 +590,53 @@ const REGRESSIONS = [
         must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
         must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
+    }],
+
+    ["R7150 - a docblock after a docblock is an error: tools/comment-budget.json, which `node tools/check.mjs comments` holds equal to the comments lint's counts of every module file of scripts/, allows no doubled JSDoc in any file - the budget has no row whose `doubledJsdoc` is above 0, and every row it holds names a module file of scripts/ (E56 part 2)", async () => {
+        /*
+         * E56 part 2, 14.11.2026 (the plan's guard "a docblock after a docblock is an error"). The lint itself needs espree
+         * and reads files in Node (tools/comments-lint.mjs); here the suite reads the budget it is held to, so a budget that
+         * lets one doubled block back in is red at the table as in `npm run quick`. Red before this line's fix: "doubled
+         * JSDoc allowed in 3 file(s): scripts/enforced.mjs 1, scripts/gm-items.mjs 1, scripts/death.mjs 1" (the budget at
+         * 9e7e3d78). death.mjs and gm-items.mjs held a block left over its function's neighbour; enforced.mjs's was a
+         * `@typedef` followed by the `@type` of ENFORCED, which the lint since reads as no doubled block.
+         */
+        needs(env.tools(), "tools/comment-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/comment-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.files === "object", "tools/comment-budget.json is missing or holds no files");
+        if (!budget) return;
+        const rows = Object.entries(budget.files);
+        must(rows.every(([file]) => /^scripts\/[\w-]+\.mjs$/.test(file)), "the budget holds a row that names no module file of scripts/");
+        const doubled = rows.filter(([, row]) => Number(row?.doubledJsdoc) > 0).map(([file, row]) => `${file} ${row.doubledJsdoc}`);
+        equal(doubled.length ? `doubled JSDoc allowed in ${doubled.length} file(s): ${doubled.join(", ")}` : "", "", "the comment budget lets a docblock stand after a docblock");
+    }],
+
+    ["R7151 - a name in backticks exists: tools/comment-budget.json, held by `node tools/check.mjs comments` to the comments lint's counts, allows no module file of scripts/ a comment citation of a name nothing in the repository holds - no row's `citations` above 0 - and every name its `known` keeps, read and left (a history record, another module's or a browser's name), carries its reason (E56 part 2)", async () => {
+        /*
+         * E56 part 2, 14.11.2026 (the plan's guard "an identifier in a comment must exist in the source"). Read as R7150
+         * reads the budget. Red first, on the budget at 512f74d5 (the sweep's comments in, the budget not yet lowered):
+         * "citations allowed in 77 file(s): scripts/a11y.mjs 1, ..."; green on the budget written after it. The sweep: 141
+         * citations in 77 files on 9e7e3d78, 0 after; `known` from 28 names to 93, each with its reason, and to 119 once the
+         * lint read the suite's own files as well (49 citations and 8 doubled blocks there, the same day).
+         */
+        needs(env.tools(), "tools/comment-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/comment-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.files === "object" && typeof budget.known === "object", "tools/comment-budget.json is missing, or holds no files or no known");
+        if (!budget) return;
+        const cited = Object.entries(budget.files).filter(([, row]) => Number(row?.citations) > 0);
+        equal(cited.length ? `citations allowed in ${cited.length} file(s): ${cited.slice(0, 6).map(([file, row]) => `${file} ${row.citations}`).join(", ")}` : "", "", "the comment budget lets a comment name what nothing holds");
+        const known = Object.entries(budget.known ?? {});
+        must(known.length > 0, "the budget keeps no known name - this half would hold nothing");
+        const bare = known.filter(([, why]) => typeof why !== "string" || why.trim().length < 10).map(([name]) => name);
+        ok(!bare.length, `known names with no reason: ${bare.join(", ")}`);
     }],
 
     ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection, nor `--drpg-critical` outside a critical; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it, and `--drpg-critical` is the critical's light red, read by the flat roll's critical line (E48 K1, K2b; Q6)", async () => {
@@ -8306,9 +8353,9 @@ const REGRESSIONS = [
             // The secrets one account is in on, read for the observer's first owner.
             "observe.mjs": 1,
             // The Mastermind (actsAsMastermind, the door's row, roomNamerFor's reading of it): one player on purpose.
-            "passages-gm.mjs": 3,
-            // A character's sound to the one connected owner.
-            "sfx-play.mjs": 1
+            "passages-gm.mjs": 3
+            // sfx-play.mjs's character's sound to the one connected owner left the census at E59 on the 1.2.115 line
+            // (CHAINS.md B-S4, R7167): it reaches every owner, as its card does.
         };
         const sources = await moduleSources();
         const found = {};
@@ -8810,7 +8857,7 @@ const REGRESSIONS = [
          * `sweepTruthBullets` and `confirmSweepBullets` (both read through chapter.mjs `sweepPlan` now, which
          * names no field) and added `sparedBySweep`, where the planned `sweepPlan` row's field read is: 78
          * rows, 21 ITEM (read live 08.10.2026, none without a row). E09 C2 struck `propagateCrimeTie`,
-         * `propagateCrimeTieMany` and `propagateRealType` (folded into `propagateVerdicts`, the planned row it
+         * `propagateCrimeTieMany` and `propagateRealType` (gone since, folded into `propagateVerdicts`, the planned row it
          * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). E09 C7 added
          * `keyFeeOf`, the fee's count, where its planned row said: 77 rows, 20 ITEM (read live
          * 08.10.2026, none without a row). E09 C8 struck `revealAllBulletTypes` and
@@ -8891,7 +8938,6 @@ const REGRESSIONS = [
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
             ["ITEM investigation.mjs#autopsyIssued", "judged (E11 fix r1-G4; moved from gm-panel.mjs on 13.11.2026, unchanged): the answer key (secretOf, the GMs' store) names the autopsy and its chapter (and its season since fix r2-H2, `sameSeason`), over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
-            ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
             ["ITEM handover.mjs#mintCopy", "judged (E70 C10, Share's core moved out of shareBullet, which names no field now): the copy is built from bulletAsHeld (E29), the answer key's fields from secretOf, one copy per trace by copiedRemnants; Share's road (shareBullet after verify) and Present's (presentOnPrimary), on a GM"],
@@ -9033,7 +9079,7 @@ const REGRESSIONS = [
          * coming back is a place without a row. Measured on the harness on 09.10.2026 with C1
          * in the tree: 37 places against 37 rows - 7 PACKET, 6 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
          * E10 C2 (1.2.71) added `vote.cast`'s two PACKET rows, `vote.ask`'s one and the `round` the
-         * ballot's packet carries now, struck `onBallotCast` (the raw `vote.ballot`) and the
+         * ballot's packet carries now, struck `onBallotCast` (since removed; the raw `vote.ballot`) and the
          * `voterActorId` nothing read, and rewrote the verdicts the bridge's ballot changes. Measured
          * on the harness on 09.10.2026 with C2 in the tree: 39 places against 39 rows - 10 PACKET,
          * 5 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
@@ -9172,6 +9218,7 @@ const REGRESSIONS = [
             ["SHEET trial-progress.mjs#trialSizeNow", "held (E70 fix p1-G2): the trial's size N, a count - `flagsHeldNow(actor)` once per student in one synchronous pass, the Monocub and the death as the GMs hold them, and the trial's list handed in; it writes nothing itself (the reset's step and the primary's settle write it) [1b.2]"],
             ["SHEET vote.mjs#trialParticipants", "judged (C2; `eligibleVoters` until E70 C5): `isDeceased(flagsHeldNow(actor))`, and since E70 C5 the trial's list of the dead (`isMutedDead`, the primary's after its deaths store hydrated) and no Monocub, in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET verdict.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
+            ["SHEET verdict.mjs#aliveAsTableKnows", "judged (E59 on the 1.2.115 line, CHAINS.md B-T3; R7160): the roster less the table's dead, read off the flags the GMs hold (`flagsHeldNow`), as `verdictHeld` read its survivors before; both verdicts' Level Ups read it"],
             ["SHEET verdict.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
             ["SHEET trial-progress.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
             ["SHEET trial-progress.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
@@ -9200,7 +9247,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
             ["STORE gm-stores.mjs#verdictStore", "not a source (fix r1-G1): a GM store (`gmVerdict`) `applyVerdict` writes - the verdict's `at` and the Blackened its GM named - and `finishVerdict` reads; never sent to a player"],
-            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjection`, the lapse) and read by OBJECTION! and the console as a display"]
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjectionInStep`, the lapse) and read by OBJECTION! and the console as a display"]
         ];
         // E56 C5 (13.11.2026): a reason names the function, never `file.mjs:N` - 45 such line numbers had drifted off what they named.
         ok(!TRIAL_CENSUS.some(([, why]) => /\b[\w-]+\.mjs:\d/.test(String(why ?? ""))), "a census row's reason cites a line (file.mjs:N): name the function it means instead");
@@ -10301,7 +10348,7 @@ const REGRESSIONS = [
          * 3 DELETE, 7 HOOK, 5 STORE: the five more are `askReroll`'s second and third refusal, the messenger hook's
          * second card and the two `updateNotice` calls; nothing else stands twice in a declaration.
          * Merged into the main line (12.10.2026), the body's `updateNotice` row is keyed by C9's `watchCard`, the
-         * declaration that took over `watchNotice`'s call (read in popup.mjs; the fix line was cut before C9).
+         * declaration that took over `watchNotice`'s call (since removed; read in popup.mjs; the fix line was cut before C9).
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, a second `recordNotice` and an
          * `updateNotice` in one declaration, both deletions and a
@@ -10608,6 +10655,8 @@ const REGRESSIONS = [
             ["WRITER api.mjs#DrpgApi -> src", "`image` passes the spread to `setVaultRoom`, which writes for a GM only, through `safeRoomImage`; a refused path is not written and the GM is told (`imageRefused`)"],
             ["WRITER room-setup.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
             ["WRITER room-setup.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
+            ["WRITER tables-editor.mjs#repointRooms -> text", "a renamed room table's rooms (1.2.115): `setVaultRoom` is handed `table` alone, the new name of a RollTable a GM renamed in the Item tables window, and writes for a GM only; no description reaches it"],
+            ["WRITER tables-editor.mjs#repointRooms -> src", "a renamed room table's rooms (1.2.115): `table` alone is handed to `setVaultRoom`, never `image`, so no picture path is written by this road"],
             // E79 C11: the trial hall's name, picture and words, a flag of the hall scene (trial-scene.mjs `HALL_ROOM_FLAG`; R583)
             ["WRITER trial-scene.mjs#applyScenesTab -> text", "the Scenes tab's Apply, a GM's (`if (!game.user?.isGM || !read) return null`), and `setHallRoom` writes for a GM only: the name and the words as trimmed strings, drawn later as text only (R583)"],
             ["WRITER trial-scene.mjs#applyScenesTab -> src", "`setHallRoom` writes the picture only as `safeRoomImage` gives it; a refused path is not written, the old one stays and the GM is told (`imageRefused`; R583)"],
@@ -19700,7 +19749,10 @@ const REGRESSIONS = [
             ].map(key => [key, "P"]),
             /* T: a count before „razy”, which every count of 2 and more takes (2, 5, 12, 22 razy) - E71 B10b, line C,
                14.11.2026: level-up.mjs reads Advance.introMany only when its picks are not 1 (introOne is the one). */
-            ...["Advance.introMany"].map(key => [key, "T"])
+            ...["Advance.introMany"].map(key => [key, "T"]),
+            /* G: a range after „do”, which takes the genitive plural for every range („do 2-4 osób”) - E59 on the 1.2.115
+               line, CHAINS.md B-M7: the Traces tab's rule names config's `suspectRange` as {min}-{max}. */
+            ...["Investigation.neverOnePerson"].map(key => [key, "G"])
         ].map(([key, why]) => [`DRPG.${key}`, why]));
         const lang = {};
         for (const code of ["en", "pl"]) {
@@ -19714,7 +19766,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -22267,7 +22319,7 @@ const REGRESSIONS = [
            declaration (a function, a const or let); the imports before the first are not read. Red on E24's tip: 46 lines
            in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none.
            E24 fix G2B (general m1): `testUserPermission?.(` and `<name>?.isGM` were not read; read now, red on 52955be4 at
-           sheet.mjs `mayEditReserve`'s two lines and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
+           sheet.mjs `mayEditReserve`'s two lines (since removed: the mode's `reserveField` gates it) and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
         const sources = await moduleSources();
         const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\??\.?\(|\.isOwner\b|\b\w+\??\.isGM\b|\bisEditable\b/;
         const AUDIT_ROLE = "the audit's role: which browser judges, relays or decides a write (the GMs', D2), not a view's gate";
@@ -25439,6 +25491,136 @@ const REGRESSIONS = [
         const stale = r.stale.map(k => String(k.match));
         equal(JSON.stringify(stale), "[]", "a RED_KEPT row names no red read any longer - take it off (and its line of GAPS.md)");
         equal(JSON.stringify(r.found), "[]", `red on a window's button off the GM's road, of ${r.read.length} rule(s) read`);
+    }],
+
+    /*
+     * THE MODULE AS ONE CHAIN (E59 on the 1.2.115 line, 14.11.2026; the owner's word of the same day: code, handbooks
+     * and texts agree, and the mechanics mesh). docs/dev/e59/CHAINS.md is the map and its breaks; each test below holds
+     * one break closed, or a class of them, where the source can be read without a Foundry.
+     */
+    ["R7160 - both verdicts advance the class alive as the table knows it (E59 C-115, CHAINS.md B-T3; E05 fix r2-G1's rule A): the ordinary verdict's survivors and the Final Trial's batch read one helper, `aliveAsTableKnows`, the roster less the table's dead (`isDeceased` of the flags the GMs hold), and verdict.mjs reads `livingStudentsForGm` nowhere - the Final Trial's batch read it, so a Reinforced Level Up waiting for a student whose body nobody had found was given at an ordinary right verdict and lapsed at the Final one", async () => {
+        const code = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
+        must(code.length > 10000, "verdict.mjs was not read");
+        const helper = fnSource(code, "aliveAsTableKnows");
+        ok(/studentActors\(\)/.test(helper) && /isDeceased\(flagsHeldNow\(/.test(helper), `aliveAsTableKnows is not the roster less the table's dead: ${helper.slice(0, 200)}`);
+        const reads = {
+            verdictHeld: /\baliveAsTableKnows\(/.test(fnSource(code, "verdictHeld")),
+            finalVerdictLevelUps: /\baliveAsTableKnows\(/.test(fnSource(code, "finalVerdictLevelUps"))
+        };
+        equal(JSON.stringify(reads), JSON.stringify({ verdictHeld: true, finalVerdictLevelUps: true }), "{the verdict's survivors and the Final Trial's batch: whether each reads aliveAsTableKnows}");
+        equal((code.match(/\blivingStudentsForGm\b/g) ?? []).length, 0, "verdict.mjs still reads the GMs' list of the living somewhere");
+    }],
+    ["R7161 - the music follows every world setting a state of it reads (E59 C-115, CHAINS.md B-S1): each `test` of music-states.mjs's states reads world settings - `getSetting(SETTINGS.x)`, the clock through `getClock`, the floor through `trialFloor`, the body's hold through `bodyDiscoveryFresh` - and each one so read is a key music-play.mjs `registerMusic`'s `updateSetting` watch names; the vote's state (E110 part 3) read `trialProgress`, which the watch did not name, so a vote opened with no floor standing kept the Discussion's music and the verdict did not end the vote's", async () => {
+        const sources = new Map(await otherSources());
+        const states = stripComments(sources.get("music-states.mjs") ?? "");
+        const watch = fnSource(stripComments(sources.get("music-play.mjs") ?? ""), "registerMusic");
+        const GETTERS = { getClock: "clock", trialFloor: "trialQueue", bodyDiscoveryFresh: "bodyFound" };
+        const tests = [...states.matchAll(/\btest:\s*\(\)\s*=>\s*([^\n]+)/g)].map(m => m[1]);
+        must(tests.length >= 10 && watch.length > 500, `only ${tests.length} state test(s) and ${watch.length} characters of the watch read - this would measure too little`);
+        const read = new Set();
+        for (const t of tests) {
+            for (const m of t.matchAll(/\bSETTINGS\.(\w+)/g)) read.add(m[1]);
+            for (const [fn, key] of Object.entries(GETTERS)) if (new RegExp(`\\b${fn}\\(`).test(t)) read.add(key);
+        }
+        ok(read.has("clock") && read.has("trialQueue") && read.has("trialProgress"), `the states' reads were not found: ${[...read].join(", ")}`);
+        const unwatched = [...read].filter(key => !new RegExp(`\\bSETTINGS\\.${key}\\b`).test(watch)).sort();
+        equal(JSON.stringify(unwatched), "[]", "settings a music state reads that the music's updateSetting watch does not follow");
+    }],
+    ["R7162 - a player's copy of the GMs' sight of the secret projects redraws what reads it (E59 C-115, CHAINS.md B-R1; the 14.11 kind: a surface that did not hear one of the copies it reads): projects-secrecy.mjs `canSee` reads the copy (`toldSight`), the room tile's project line and the sheets' Projects tile read `canSee`, and since E101 R2 a share or a revoke writes the copy alone; projects.mjs `registerProjectChanges` answers `drpgProjectSightChanged` with the projects' whole sync kind (`applyKind(SYNC.projects)`: the tray, the sheets, the HUD and the tokens), not the tray and the tokens alone", async () => {
+        const sources = new Map(await otherSources());
+        const secrecy = stripComments(sources.get("projects-secrecy.mjs") ?? "");
+        ok(/\btoldSight\b/.test(fnSource(secrecy, "canSee")), "canSee no longer reads the player's copy of the sight - this test reads the wrong road");
+        const sync = stripComments(sources.get("sync.mjs") ?? "");
+        const row = bodyOf(sync, "[SYNC.projects]: Object.freeze(", { until: "]" });
+        ok(/"sheets"/.test(row) && /"hud"/.test(row) && /"projects"/.test(row), `the projects' sync kind no longer redraws the tray, the sheets and the HUD: ${row}`);
+        const listener = fnSource(stripComments(sources.get("projects.mjs") ?? ""), "registerProjectChanges");
+        const body = bodyOf(listener, 'Hooks.on("drpgProjectSightChanged"', { until: "});" });
+        ok(/applyKind\(\s*\w+\.SYNC\.projects\s*\)|applyKind\(\s*SYNC\.projects\s*\)/.test(body), `the sight's change redraws only part of what reads it: ${body.replace(/\s+/g, " ").slice(0, 300)}`);
+    }],
+    ["R7163 - who is in a room is one answer, for every card a room's people are sent (E59 C-115, CHAINS.md B-R7): movement.mjs `countsAsPresent` (no Monokuma, no Spectator, nobody dead as the GMs hold it, no hidden token) is exported and is the filter of doors-gm.mjs `tellRooms` (the barricade's, the banging's, the forced and picked door's cards) and of passages-gm.mjs `tellBreach` (a breach's cards and its `wallBreached`); neither reads the Monokuma or the Spectator flag on its own - the door cards reached a Spectator (\"nobody counts you anywhere\", PH 1) and the breach's the dead and the Spectators", async () => {
+        const sources = new Map(await otherSources());
+        const movement = stripComments(sources.get("movement.mjs") ?? "");
+        ok(/^export function countsAsPresent\(/m.test(movement), "movement.mjs does not export countsAsPresent");
+        const present = fnSource(movement, "countsAsPresent");
+        ok(/FLAGS\.monokuma/.test(present) && /FLAGS\.spectator/.test(present) && /isDeadForGm\(/.test(present) && /\.hidden/.test(present), "countsAsPresent no longer leaves out the Monokumas, the Spectators, the dead and the hidden");
+        const readers = {
+            tellRooms: fnSource(stripComments(sources.get("doors-gm.mjs") ?? ""), "tellRooms"),
+            tellBreach: fnSource(stripComments(sources.get("passages-gm.mjs") ?? ""), "tellBreach")
+        };
+        const shape = Object.fromEntries(Object.entries(readers).map(([name, body]) => [name, {
+            present: /\bcountsAsPresent\(/.test(body),
+            ownFilter: /FLAGS\.(?:monokuma|spectator)\b|\bisMonokuma\(/.test(body)
+        }]));
+        equal(JSON.stringify(shape), JSON.stringify({ tellRooms: { present: true, ownFilter: false }, tellBreach: { present: true, ownFilter: false } }),
+            "{each room's audience: whether it asks countsAsPresent, whether it keeps a filter of its own}");
+    }],
+    ["R7164 - a forced door's banging names the room as each listener knows it (E59 C-115, CHAINS.md B-R6): the rooms next to a forced door hear it, and a room a listener has not found is \"Unexplored room n\" to them, as a breach's crash and Listen name it (passages-gm.mjs `roomNamerFor`); doors-gm.mjs `forceDoor` formats `DRPG.Infiltrate.force.banging` per listener through `roomNamerFor`, and `tellRooms` takes a text built for each student it tells", async () => {
+        const doors = stripComments(new Map(await otherSources()).get("doors-gm.mjs") ?? "");
+        const force = fnSource(doors, "forceDoor");
+        const banging = bodyOf(force, "DRPG.Infiltrate.force.banging", { back: 400 }) + bodyOf(force, "DRPG.Infiltrate.force.banging", { length: 200 });
+        ok(/\broomNamerFor\(/.test(banging), `forceDoor names the banging's room by its real name: ${banging.replace(/\s+/g, " ").slice(-450)}`);
+        ok(/typeof text === "function"/.test(fnSource(doors, "tellRooms")), "tellRooms takes one text for every student it tells");
+    }],
+    ["R7165 - every clean-up roll that misses sounds the same (E59 C-115, CHAINS.md B-M5): `cleanupFailed` (\"a Tamper, Erase a Trace, or Reshape a Trace roll misses\") is on the roller's card of an Erase or a Reshape (cleanup.mjs `report`) and of Stage Six's other two rolls, the Misleading Trail and Move the Body (`resolveStageSix`), on a miss alone - the trail, the Tamper tile's one road in Stage Six, missed in silence", async () => {
+        const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
+        const MISS = /success\s*\?\s*\{\s*\}\s*:\s*\{\s*flags:\s*\{\s*\[MODULE_ID\]:\s*\{\s*sfx:\s*"cleanupFailed"/;
+        const shape = Object.fromEntries(["report", "resolveStageSix"].map(name => [name, MISS.test(fnSource(cleanup, name))]));
+        equal(JSON.stringify(shape), JSON.stringify({ report: true, resolveStageSix: true }), "{each clean-up result card: whether its miss carries cleanupFailed}");
+    }],
+    ["R7167 - a student's own sound goes to the players its card goes to (E59 C-115, CHAINS.md B-S4): utils.mjs `whisperToOwner` whispers every player owner (`ownerIdsOf`), and sfx-play.mjs `playSfxFor` (the Truth Bullet's and the Level Up's sounds) sent the sound to the first owner alone (`ownerOf`), while \"your turn\" and a Monocub's sound reach every owner; `playSfxFor` reads `ownerIdsOf` and sends through `playSfxForUsers`", async () => {
+        const sources = new Map(await otherSources());
+        const card = fnSource(stripComments(sources.get("utils.mjs") ?? ""), "whisperToOwner");
+        ok(/\bownerIdsOf\(/.test(card), "whisperToOwner no longer whispers every owner - this test reads the wrong card");
+        const sound = fnSource(stripComments(sources.get("sfx-play.mjs") ?? ""), "playSfxFor");
+        equal(JSON.stringify({ every: /\bownerIdsOf\(/.test(sound), first: /\bownerOf\(/.test(sound), users: /\bplaySfxForUsers\(/.test(sound) }),
+            JSON.stringify({ every: true, first: false, users: true }), "{playSfxFor: whether it reads every owner, the first alone, and sends through playSfxForUsers}");
+    }],
+    ["R7168 - an account no longer a Spectator's leaves its talk switch behind (E59 C-115, CHAINS.md B-S6): the switch is the player's User flag (spectator.mjs `SPECTATOR_TALK_FLAG`), honoured for a Spectator's account alone, and nothing took it off - a player marked a Spectator again started in the Spectators' room with the microphone open, without a press; monokuma.mjs `setSpectator`, unmarking, unsets it for every account that stopped being a Spectator's (the users of `spectatorUserIds` before and not after)", async () => {
+        const body = fnSource(stripComments(new Map(await otherSources()).get("monokuma.mjs") ?? ""), "setSpectator");
+        ok(/\bbefore\b[\s\S]*\bnow\b/.test(body), "setSpectator no longer reads the Spectators' accounts before and after - this test reads the wrong road");
+        ok(/unsetFlag\(\s*MODULE_ID\s*,\s*SPECTATOR_TALK_FLAG\s*\)/.test(body), "setSpectator leaves the talk switch of an account that stopped being a Spectator's");
+    }],
+    ["R7169 - the Sound window's Test plays what the event plays (E59 C-115, CHAINS.md B-S12): an event left empty that names another to fall back to (`fallsBackTo`: \"Death fade\" plays the death's file) is played by sfx-play.mjs `pickSound` through `soundsFor`, which follows the fallback; `testSfx` asked `soundFor`, the event's own file, and said \"no file yet\" where the live sound plays; it asks `soundsFor` and never `soundFor`", async () => {
+        const sfx = stripComments(new Map(await otherSources()).get("sfx-play.mjs") ?? "");
+        ok(/\bsoundsFor\(/.test(fnSource(sfx, "pickSound")) && /fallsBackTo/.test(fnSource(sfx, "soundsFor")), "the live road no longer follows the fallback through soundsFor - this test reads the wrong road");
+        const test = fnSource(sfx, "testSfx");
+        equal(JSON.stringify({ follows: /\bsoundsFor\(/.test(test), own: /\bsoundFor\(/.test(test) }), JSON.stringify({ follows: true, own: false }), "{testSfx: whether it reads soundsFor, whether it reads the own file alone}");
+    }],
+    ["R7170 - the handbooks and the texts say what the voice does (E59 C-115, CHAINS.md B-S2, B-S8, B-S9, B-T5): since E62 C3b the dead talk in the Spectators' room (voice.mjs `SPECTATOR_ROOM`), and since E110 the floor holds a Monocub's microphone as everyone else's (`floorHold`); no handbook and no lang value says \"the dead channel\" (\"kanał zmarłych\"), that the module blocks no Monocub or silences only the dead in the modes; and the GM handbook quotes the Monocub tile's line as each language's lang has it (`DRPG.Voice.held.cubListen`, {mode} as \"name\" / \"nazwa\")", async () => {
+        const voice = stripComments(new Map(await otherSources()).get("voice.mjs") ?? "");
+        ok(/\bSPECTATOR_ROOM\b/.test(fnSource(voice, "voiceTargets")) || /\bSPECTATOR_ROOM\b/.test(voice), "voice.mjs no longer names the Spectators' room - this test reads the wrong code");
+        ok(/\bfloorHold\(/.test(fnSource(voice, "moduleHoldsMic")), "the floor no longer holds a microphone in moduleHoldsMic - this test reads the wrong code");
+        const STALE = [/dead channel/i, /channel of the dead/i, /kana(?:ł|łu|łem|le) zmarłych/i, /blocks no Monocub/i, /never holds a Monocub/i,
+            /nie blokuje żadnego Monocuba/i, /nigdy nie trzyma mikrofonu Monocuba/i, /silences only the dead:/i, /wycisza tylko zmarłych, a tego, kto mówi w danym trybie/i];
+        const found = [];
+        const books = {};
+        for (const name of ["gm-handbook.en", "gm-handbook.pl", "player-handbook.en", "player-handbook.pl", "player-brochure.en", "player-brochure.pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
+            must(res.ok, `docs/handbooks/${name}.md did not load`);
+            books[name] = await lfText(res);
+            for (const re of STALE) if (re.test(books[name])) found.push(`${name}: ${re}`);
+        }
+        const quotes = {};
+        for (const [lang, word] of [["en", "name"], ["pl", "nazwa"]]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            for (const [key, value] of flatLang(text)) for (const re of STALE) if (re.test(String(value))) found.push(`${lang}.json ${key}: ${re}`);
+            const line = foundry.utils.getProperty(text, "DRPG.Voice.held.cubListen");
+            must(typeof line === "string" && line.includes("{mode}"), `${lang}.json has no DRPG.Voice.held.cubListen with {mode}`);
+            quotes[lang] = books[`gm-handbook.${lang}`].includes(`*${line.replace("{mode}", word)}*`);
+        }
+        equal(JSON.stringify(found), "[]", "stale words about the voice in the handbooks or the texts");
+        equal(JSON.stringify(quotes), JSON.stringify({ en: true, pl: true }), "{whether each GM handbook quotes the Monocub tile's listening line as its lang has it}");
+    }],
+    ["R7171 - the Traces tab's rule says the Key Remnants' rule as config and the handbooks hold it (E59 C-115, CHAINS.md B-M7): `DRPG.Investigation.neverOnePerson` said a Key Remnant narrows the suspects \"to at most half the cast, any other to 2-4\"; config.mjs `KEY_REMNANTS.suspectRange` and GM 14.4 say the Key Remnants together narrow them to 2-4; the line takes {min} and {max} in both languages, investigation.mjs formats it from `suspectRange`, and neither language speaks of half the cast", async () => {
+        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        ok(/DRPG\.Investigation\.neverOnePerson"\s*,\s*\{[^}]*suspectRange/.test(fnSource(inv, "caseTracesPanel")), "caseTracesPanel does not format the rule from KEY_REMNANTS.suspectRange");
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const line = String(foundry.utils.getProperty(text, "DRPG.Investigation.neverOnePerson") ?? "");
+            read[lang] = { min: line.includes("{min}"), max: line.includes("{max}"), half: /half|połow/i.test(line) };
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: { min: true, max: true, half: false }, pl: { min: true, max: true, half: false } }), "{per language: the rule line's {min}, {max}, and whether it speaks of half the cast}");
     }],
 ];
 

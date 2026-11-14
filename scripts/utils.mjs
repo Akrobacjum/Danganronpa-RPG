@@ -1272,7 +1272,7 @@ export function injectSelectPickerSkin() {
  * Wire a portrait picker to the dialog's real, mounted DOM.
  *
  * `content` is handed to `DialogV2.wait` as a detached `<div>`, but DialogV2's
- * own `_initializeApplicationOptions` immediately reads `content.innerHTML`
+ * own `DialogV2#_initializeApplicationOptions` immediately reads `content.innerHTML`
  * and throws the element itself away - the dialog is rebuilt from that string,
  * so a click listener attached to the original element is attached to a node
  * that never joins the page. This is documented in Foundry's own dialog.mjs:

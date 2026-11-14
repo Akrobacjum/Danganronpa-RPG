@@ -33,11 +33,10 @@
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE } from "./config.mjs";
 import { esc, wholeNumber, proseOf } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 import { choiceRowHtml } from "./ui-columns.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 
 /* ==========================================================================
@@ -157,9 +156,10 @@ export function callPriceShort(call, kind) {
 /**
  * WHICH CALL OF A TILE'S TWO (E72, 12.11.2026; the owner: "chcemy zachowac te sama liczbe kafli"). A tile whose row
  * lists `choices` (Fuel a Monocub's: Fuel, or a secret Bounty) asks which first, under the tile's header, one row a
- * Call with its own price; nothing is paid or picked here. Moved from sheet.mjs `callChoice`, a window of buttons in
- * the kit's plain frame, to the action's layout (R3818). A tile whose two Calls a GM rules (Talent) asks its choice
- * in the confirmation itself (calls.mjs `confirmCall`'s `choices`). Answers the chosen key, or null for Cancel.
+ * Call with its own price; nothing is paid or picked here. Moved from sheet.mjs `callChoice` (gone since E72), a window
+ * of buttons in the kit's plain frame, to the action's layout (R3818). A tile whose two Calls a GM rules (Talent) asks
+ * its choice in the confirmation itself (calls.mjs `confirmCall`'s `choices`). Answers the chosen key, or null for
+ * Cancel.
  */
 export async function pickChoice(call, kind) {
     const table = kind === "hope" ? HOPE_CALLS : DESPAIR_CALLS;

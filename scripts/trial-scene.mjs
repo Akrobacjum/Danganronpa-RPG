@@ -15,7 +15,7 @@
  * a flag of its own or an option of the write (`stagePlan`). Until DZ6 the module
  * created, moved and deleted no token in the hall (D7) and named the students the
  * hall had no token for; the design before D7 placed and cleared seats (A5's
- * `ensureTrialTokens`, `clearTrialTokens`).
+ * `ensureTrialTokens`, `clearTrialTokens`, both gone by 1.2.70, the oldest tree git holds here).
  *
  * THE CAST is the hall's tokens whose actor is a "character" - a student,
  * Monokuma among them. An NPC token, a prop, a token with no actor, is never the
@@ -144,10 +144,9 @@ import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { gatherEveryone, carryAcross, clearCarriedFrom, CARRIED_FROM } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
-import { formGrid, dataTable, toggle, box } from "./ui-kit.mjs";
+import { formGrid, dataTable, toggle, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { storedZones, zoneCandidates, zoneWarnings } from "./zone-geometry.mjs";
 
-import { tipAttr } from "./ui-kit.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
 export const TRIAL_RETURN_FLAG = "trialReturnTo";
@@ -677,7 +676,7 @@ export function leaveDestination({ school = null, returnTo = null, hall = null }
 /**
  * The cast actors the module will not make a token for and the hall holds none of: Monokuma, ticked as
  * the GMs' choice has him (else `defaultReveal`), with no token there - the Scenes tab's `handPlaced` row
- * (E81 DZ6; until then `studentsWithoutHallToken`, every student a player plays with no hall token).
+ * (E81 DZ6, which removed `studentsWithoutHallToken`: every student a player plays with no hall token).
  */
 export function handPlacedActors(hall) {
     if (!hall?.tokens) return [];
@@ -1418,7 +1417,7 @@ function hallRoomFields(hall) {
             <p class="hint">${esc(word("hint"))}</p>
             ${formGrid([
         { label: word("name"), id: name, field: `<input type="text" id="${name}" name="scenes:hallName" value="${esc(facts.name)}"${off} />` },
-        { label: word("picture"), id: picture, field: `<input type="text" id="${picture}" name="scenes:hallPicture" value="${esc(facts.picture ?? "")}"${off} />
+        { label: word("picture"), id: picture, field: `<input type="text" id="${picture}" name="scenes:hallPicture" value="${esc(facts.picture ?? "")}"${off}${tipAttr("DRPG.Tips.Sweep.Trial.hallPictureTooltip", null, { title: true })} />
                 <button type="button" class="drpg-mini-button" data-drpg-hall-picture title="${pick}" aria-label="${pick}"${off}><i class="fa-solid fa-image" aria-hidden="true"></i></button>` },
         { label: word("words"), id: words, field: `<textarea id="${words}" name="scenes:hallWords" rows="3"${off}>${esc(facts.words)}</textarea>` }
     ])}`;
@@ -1470,7 +1469,10 @@ export function scenesTabRows(roles = sceneRoles()) {
     const [school, hall] = [drawn.school, drawn.trial].map(id => (id ? game.scenes.get(id) : null) ?? null);
     const prepare = ["prepare", "preparePlaylist", ...(game.modules?.get?.(PROXIMITY_VOICE)?.active ? ["prepareVoice"] : [])]
         // "Prepare the hall on Save" since E101 item 5: the part stands in Season setup, whose button is Save, not Apply.
-        .map(key => toggle({ name: `scenes:${key}`, label: game.i18n.localize(key === "prepare" ? "DRPG.TrialScene.prepareOnSave" : `DRPG.TrialScene.${key}`) })).join("");
+        .map(key => toggle({ name: `scenes:${key}`, label: game.i18n.localize(key === "prepare" ? "DRPG.TrialScene.prepareOnSave" : `DRPG.TrialScene.${key}`),
+            attrs: { "data-tooltip": (key === "prepare" ? tipText("DRPG.Tips.Sweep.Trial.prepareHallTooltip")
+                : key === "preparePlaylist" ? tipText("DRPG.Tips.Sweep.Trial.prepareHallPlaylistTooltip")
+                : tipText("DRPG.Tips.Sweep.Trial.prepareHallVoiceTooltip")) || null } })).join("");
     return [
         { label: game.i18n.localize("DRPG.TrialScene.school"), id: ids.school, field: select("school") },
         { label: game.i18n.localize("DRPG.TrialScene.hall"), id: ids.trial, field: select("trial") },

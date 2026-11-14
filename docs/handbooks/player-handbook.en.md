@@ -107,7 +107,7 @@ At your death the glass on your screen fades to gray, with the Death fade sound;
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move, and each room's Search Tokens. When Night ends, the day turns over.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day restocks each room's Search Tokens, and its Eclipse refills your two actions and your Free Move (the GM refills them when a time of day goes by without one). When Night ends, the day turns over.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season, a shorter one the GM may choose instead, runs a single chapter.
 
@@ -172,6 +172,7 @@ You are turned back by:
 | a room that is **not connected** to yours | the refusal names only the neighboring rooms you have already been in |
 | a **floor** the stairs do not lead to from your room | on a map with stairs, only they take you up or down |
 | a **locked door** | the GM locked the room |
+| a **barricaded door** | somebody shut the door from inside (Shut the Door); a secret passage or a breach still goes through |
 | a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
 | being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
 | **somebody else's bedroom** | when you hold no key to it |
@@ -226,12 +227,12 @@ Two buttons sit on the tile. **The microphone** mutes and unmutes your own micro
 |---|---|
 | struck through | muted, by you |
 | struck through, with a small lock | muted by the GM (**The GM blocked your microphone.**) |
-| gray and struck through | the game holds it during an Eclipse, with the reason under it; a click then changes nothing and tells you why |
+| gray and struck through | the game holds it - during an Eclipse, while you listen at a door, in a Class Trial while the floor is somebody else's or you are on the trial's list of the dead, and as a Spectator - with the reason under it; a click then changes nothing and tells you why |
 | with a small dot | you are not connected to voice, or voice runs in its own window |
 | lit | your microphone carries your voice |
 | wearing **PTT** | push to talk: hold your key to speak |
 
-A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the channel of the dead the microphone stays yours to mute and unmute, with a line under it saying where you are.
+A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back. In the Spectators' room the microphone stays yours to mute and unmute, with a line under it saying where you are.
 
 **The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone: nobody else hears the difference. Escape or a click outside closes the list.
 
@@ -427,7 +428,7 @@ Barricade the room you stand in, from inside; your Body roll is the barricade's 
 
 ### Force the Door - Body, 1 action
 
-At a door from your room to the next: one Body roll against everything that holds it at once, and the door gives only when the roll beats all of it. A barricade needs more than its strength (a tie holds); a lock (a GM's or a bedroom's) and a seal need 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it (Repair the Lock, under Projects); a forced seal is gone for the rest of its time of day. The people in your own room always see who it was, whatever the roll. A forced door, and a miss with Despair, is loud: the rooms next to either room hear *A banging from: room* without a name, and the people in the room beyond see who it was. Each attempt on a door that something holds leaves a Remnant, Evident when it was loud and Subtle otherwise. A bedroom's owner who did not see it is told their door was forced when they next walk into that bedroom, or at once if they are in it. Not during a Class Trial, and not while you are Chained.
+At a door from your room to the next: one Body roll against everything that holds it at once, and the door gives only when the roll beats all of it. A barricade needs more than its strength (a tie holds); a lock (a GM's or a bedroom's) and a seal need 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it (Repair the Lock, under Projects); a forced seal is gone for the rest of its time of day. The people in your own room always see who it was, whatever the roll. A forced door, and a miss with Despair, is loud: the rooms next to either room hear *A loud banging comes from room.* without a name (a room they have not found is *Unexplored room n* to them), and the people in the room beyond see who it was. Each attempt on a door that something holds leaves a Remnant, Evident when it was loud and Subtle otherwise. A bedroom's owner who did not see it is told their door was forced when they next walk into that bedroom, or at once if they are in it. Not during a Class Trial, and not while you are Chained.
 
 ### Pick the Lock - Shadow, then Hand, 1 action
 
@@ -869,7 +870,7 @@ Everyone is in one room, and nobody leaves it. You start the trial with your act
 
 When the GM has set up a trial hall, opening the trial takes your screen to it, and ending it takes you back to the school: the living who took part go to a room the GM picks. The GM chooses who takes part, and your character's token is placed in the hall for the trial and removed afterwards.
 
-Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**: the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends. It does so for a death nobody has found too, so a microphone gone silent tells the table that somebody has died. Your voice tile says why. A Monocub speaks only in open discussion, while no mode runs, and listens in every mode, from the vote on, and through a trial about its own death; the tile says which. Since 1.2.114 a mode that gives the floor to somebody turns a Monocub's microphone off too, as everyone else's. A student the verdict sentences speaks until the trial ends. The module silences only the dead: who speaks in each mode is kept by the table.
+Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**: the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends. It does so for a death nobody has found too, so a microphone gone silent tells the table that somebody has died. Your voice tile says why. A Monocub speaks only in open discussion, while no mode runs, and listens in every mode, from the vote on, and through a trial about its own death; the tile says which. Since 1.2.114 a mode that gives the floor to somebody turns a Monocub's microphone off too, as everyone else's. A student the verdict sentences speaks until the trial ends. In open discussion, while no mode runs, the module silences only the dead and the Spectators, and who speaks is kept by the table.
 
 The trial opens as an **open discussion**: everybody talks, nobody objects, and a Truth Bullet can be **Presented** from your inventory for free. It goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card: tick **Show it with my Analyze result** to show what your Analyze read; unticked, the card shows it as never analyzed, with no reading and no type it turned out to be. Everyone else taking part gets a copy on their sheet, as it was shown, for free and once, and you are told when it has gone on the table. In a Class Trial a Truth Bullet has no Share: Present is how evidence changes hands. A dead student neither presents evidence nor objects.
 
@@ -1169,7 +1170,7 @@ The opening roll's window opens at most `TIMING.openingAttempts` times (3) when 
 
 **Actions in the trial.** The trial refills everyone's actions without ending the time of day, so banked Sprints and Bursts stay. Wounded takes its action in Daily Life and the Investigation only (since 1.2.110), so the trial's actions are the full budget for a Wounded student too; the Panic darkening still takes one.
 
-**The microphones.** When the trial opens, the primary GM's browser lists every dead student, a death nobody has found among them and no Monocub, and takes each listed player's Broadcast Audio permission in Foundry; it gives each one back when the trial ends. A Monocub's lines on the voice tile (open discussion, a mode, from the vote on, its own case) are information only: the module never holds a Monocub's microphone.
+**The microphones.** When the trial opens, the primary GM's browser lists every dead student, a death nobody has found among them and no Monocub, and takes each listed player's Broadcast Audio permission in Foundry; it gives each one back when the trial ends. A Monocub's lines on the voice tile (open discussion, a mode, from the vote on, its own case) tell what the table expects of it; since 1.2.114 a mode that gives the floor to somebody takes the Broadcast Audio permission of every player who has not got it, a Monocub's included, and gives it back when the floor moves on.
 
 **The vote.** A vote goes to the GMs' browsers alone. While no GM is connected, the player's browser keeps it and sends it when a GM connects ("No GM has your vote yet. It goes out as soon as a GM connects."). A player who connects while the vote is open is handed a ballot as their browser loads.
 

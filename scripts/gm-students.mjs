@@ -27,14 +27,13 @@
 
 import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
-import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
+import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 import { roomPhrase } from "./rooms.mjs";
 import { isDeadWatcher } from "./spectator-dead.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /**
  * WHO IS ALIVE - three windows, one table.
@@ -106,7 +105,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}"${tipAttr("DRPG.Tips.Gm.giveTooltip")}>
                     ${L("DRPG.Monocub.give")}</button>` : "-",
             silenced: cub
-                ? `<input type="checkbox" name="silenced:${a.id}" ${isCrimeSilenced(a) ? "checked" : ""} />`
+                ? `<input type="checkbox" name="silenced:${a.id}" ${isCrimeSilenced(a) ? "checked" : ""}${tipAttr("DRPG.Tips.Sweep.Gm.silencedRowTooltip")} />`
                 : none
         };
 
@@ -193,7 +192,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
             role: isDeadWatcher(a) ? `<span data-drpg-role-fixed="${a.id}">${L("DRPG.Spectator.deadWatcher")}</span>`
                 : `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}"${tipAttr("DRPG.Tips.Gm.roleTooltip")}>${
                     ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
-            levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
+            levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button",
+                attrs: { "data-drpg-levelup": a.id, "data-tooltip": tipText("DRPG.Tips.Sweep.Gm.levelUpRowTooltip") },
                 label: n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip") })
         };
     };

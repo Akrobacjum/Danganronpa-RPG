@@ -451,9 +451,10 @@ export function registerFog() {
     Hooks.once("ready", () => step("regionNames", () => primeRegionNames()));
     Hooks.on("createScene", scene => step("regionNames", () => primeRegionNames([scene])));
 
-    // Leaving a scene does not tear this layer down - `RenderedCanvasGroup`
-    // sets `tearDownChildren = false` - so the texture would otherwise sit on
-    // the GPU for a scene nobody is looking at until the next repaint.
+    // Leaving a scene does not tear this layer down -
+    // `foundry.canvas.groups.RenderedCanvasGroup` sets
+    // `tearDownChildren = false` - so the texture would otherwise sit on the GPU
+    // for a scene nobody is looking at until the next repaint.
     Hooks.on("canvasTearDown", () => {
         try {
             // A dissolve still running would put the raster back on the scene being left (E17 C9).
@@ -1921,7 +1922,7 @@ function isMine(token, gm = game.user.isGM) {
  *
  * So the model is inverted, and subtraction is done the way Foundry does its
  * own - `PIXI.BLEND_MODES.ERASE` into a render texture, exactly as
- * `CanvasVisibility` builds its vision mask:
+ * `foundry.canvas.groups.CanvasVisibility` builds its vision mask:
  *
  *   1. the whole padded scene rect goes under full fog, margin included;
  *   2. rooms this player has VISITED erase half of it, leaving the veil;

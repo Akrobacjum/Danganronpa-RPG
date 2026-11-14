@@ -33,7 +33,7 @@ import { chatCard, cardWarn } from "./chat-card.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
-import { isDeceased, isDeadForGm, livingStudentsForGm } from "./chapter.mjs";
+import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -638,13 +638,25 @@ async function verdictReading(context) {
  * Blackened's does (`verdictOffers`). Measured on the harness (tier 2, "a wrong verdict on a Blackened
  * whose body nobody has found asks their rule ..."): at 474fa87 no rule window, no waiting Level Up.
  */
+/*
+ * ALIVE AS THE TABLE KNOWS IT, ONE ANSWER FOR BOTH VERDICTS (E59 on the 1.2.115 line, 14.11.2026; CHAINS.md B-T3). The
+ * roster less the table's dead, read off the flags the GMs hold, less `excluded`: the ordinary verdict's survivors
+ * (`verdictHeld`) and the Final Trial's batch (`finalVerdictLevelUps`). The Final's batch read the GMs' list
+ * (`livingStudentsForGm`), so a Reinforced Level Up waiting for a student whose body nobody had found was given at an
+ * ordinary right verdict and lapsed at the Final one. R7160.
+ */
+function aliveAsTableKnows(excluded = []) {
+    const out = new Set(excluded);
+    return studentActors().filter(actor => !out.has(actor.id) && !isDeceased(flagsHeldNow(actor)));
+}
+
 function verdictHeld(record, blackenedIds) {
     const named = new Set(record.executedIds);
     const actors = ids => ids.map(id => game.actors.get(id)).filter(Boolean);
     const killers = actors(blackenedIds).filter(actor => !named.has(actor.id) && !isDeceased(flagsHeldNow(actor)));
     return {
         sentenced: actors(record.executedIds).filter(actor => !isDeceased(flagsHeldNow(actor))).map(actor => actor.id),
-        survivors: studentActors().filter(actor => !named.has(actor.id) && !isDeceased(flagsHeldNow(actor))),
+        survivors: aliveAsTableKnows(named),
         killers,
         unfound: killers.filter(actor => isDeadForGm(flagsHeldNow(actor)))
     };
@@ -1360,7 +1372,7 @@ async function finalVerdictLevelUps(context) {
         const kept = verdictStore.record()?.finalGiven;
         return kept?.at === at && Array.isArray(kept.ids) ? kept.ids : [];
     };
-    const done = await promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null, {
+    const done = await promptAdvancements(aliveAsTableKnows(executed && mastermind ? [mastermind.id] : []), null, {
         given: givenOf(),
         giving: givingOf(at),
         onGiving: (actor, counts) => keepGiving(at, actor, counts),

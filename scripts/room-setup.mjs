@@ -37,9 +37,8 @@ import {
     dialogContent, plural, workingScene, localeFormat,
     forcedDeletion, wirePortraitPickers, listOf
 } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import { roomActions } from "./facilities.mjs";
 import {
@@ -48,7 +47,7 @@ import {
 } from "./rooms.mjs";
 import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
-    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom, writeRoomLock
+    startLocked, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom, writeRoomLock
 } from "./vault-store.mjs";
 
 /* ==========================================================================
@@ -277,8 +276,12 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const named = key => COLUMN[key]
             ? ` aria-label="${foundry.utils.escapeHTML(game.i18n.localize(COLUMN[key]))}: ${escRoom}"` : "";
         // A cell's markup for the kit's `dataTable` (E46-C2a); a hint is the cell's `title` (`{ html, title }`), centred by its column's rule.
+        /* The tooltip of a box whose column carries no hint in its cell (the tooltip sweep, 1.2.115): what ticking it does on
+           Apply. A column with a hint (`title`) keeps that hint alone: its key here is "", which draws nothing. */
         const check = (name, on, title = "") => {
-            const html = `<input type="checkbox" name="${name}:${escRoom}"${named(name)}
+            const html = `<input type="checkbox" name="${name}:${escRoom}"${named(name)}${tipAttr({
+                short: "DRPG.Tips.Sweep.Setup.shortRestCellTooltip", long: "DRPG.Tips.Sweep.Setup.longRestCellTooltip",
+                locked: "DRPG.Tips.Sweep.Setup.lockedCellTooltip", nosearch: "DRPG.Tips.Sweep.Setup.noSearchCellTooltip" }[name] ?? "")}
                 ${on ? "checked" : ""} />`;
             return title ? { html, title } : html;
         };
@@ -298,7 +301,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
 
         return {
             name: `<strong>${escRoom}</strong>`,
-            owner: `<select name="owner:${escRoom}"${named("owner")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select>`,
+            owner: `<select name="owner:${escRoom}"${named("owner")}${tipAttr("DRPG.Tips.Sweep.Setup.bedroomOwnerTooltip")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select>`,
             /* The kit's switch (E46-C2a; E46's goal, "the 'This is a room' switch"): `toggle` draws the input and its
                words, and the column's name and the room are its accessible name, as every control here says both;
                `data-drpg-undecided` rides the input as it did, for `wireRoomRatio`. Both through the switch's `attrs`
@@ -308,7 +311,6 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                     attrs: { "aria-label": `${game.i18n.localize(COLUMN.isroom)}: ${room}`, "data-drpg-undecided": possible && !decided } }),
                 title: game.i18n.localize("DRPG.Vault.isRoomHint")
             },
-            concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
             /* THE ROOM'S ACTIONS (E93 C2): how many, and the button that opens their editor (facility-editor.mjs
                `editRoomActions`), which writes at once on its Save, as the search token buttons write at once; Apply reads
@@ -342,10 +344,11 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                (probe/summary.txt). The field has no name: Apply never reads it (the count acts at once). */
             tokens: `<span class="drpg-token-step">${stepper({ value: SearchTokens.left(room, scene), min: 0, max: maxTokens, compact: true,
                 words: { down: game.i18n.localize("DRPG.SearchTokens.spendOne"), up: game.i18n.localize("DRPG.SearchTokens.giveOne") },
-                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}` } })}<span
+                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}`,
+                    "data-tooltip": tipText("DRPG.Tips.Sweep.Setup.searchTokensStepTooltip") } })}<span
                 class="drpg-token-max">/ ${maxTokens}</span>${iconButton({ icon: "fa-solid fa-rotate-left",
                 label: game.i18n.localize("DRPG.SearchTokens.refillRoom"), attrs: { "data-drpg-token-refill": room } })}</span>`,
-            table: `<select name="table:${escRoom}"${named("table")}>
+            table: `<select name="table:${escRoom}"${named("table")}${tipAttr("DRPG.Tips.Sweep.Setup.roomTableTooltip")}>
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
                 ${tableOptions}</select>`,
             place: `<span class="drpg-place-switches">${placeSwitches}</span>`,
@@ -353,7 +356,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             // the wrapping-cell rule the rest of this table lives under - see
             // the `:has(input[type="text"], textarea)` exception in the
             // stylesheet - so the prose wraps instead of stretching the window.
-            description: `<textarea name="desc:${escRoom}" rows="5"${named("desc")}${room === firstEmpty
+            description: `<textarea name="desc:${escRoom}" rows="5"${named("desc")}${tipAttr("DRPG.Tips.Sweep.Setup.roomDescriptionTooltip")}${room === firstEmpty
                 ? ` placeholder="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.descriptionPlaceholder"))}"` : ""}
                 >${foundry.utils.escapeHTML(words.get(room))}</textarea>`,
             /* The picture (E77 C1): `wirePortraitPickers`' thumbnail and hidden field, keyed by the room's name
@@ -506,9 +509,9 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             ${uncovered > 0 ? box("warning", `<p>${game.i18n.format("DRPG.Vault.fogUncovered",
                 { pct: uncovered })}</p>`) : ""}
             <div class="drpg-fog-bulk">
-                <button type="button" class="drpg-mini-button" data-drpg-fog-all="discover">${
+                <button type="button" class="drpg-mini-button" data-drpg-fog-all="discover"${tipAttr("DRPG.Tips.Sweep.Setup.fogDiscoverAllTooltip")}>${
                     game.i18n.localize("DRPG.Vault.discoverAll")}</button>
-                <button type="button" class="drpg-mini-button" data-drpg-fog-all="hide">${
+                <button type="button" class="drpg-mini-button" data-drpg-fog-all="hide"${tipAttr("DRPG.Tips.Sweep.Setup.fogHideAllTooltip")}>${
                     game.i18n.localize("DRPG.Vault.hideAll")}</button>
             </div>
             ${matrix(fogRows)}

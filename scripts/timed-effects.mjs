@@ -156,9 +156,6 @@ export async function boostUltimate(actor) {
     return true;
 }
 
-/** The kinds this file keeps. */
-export const TIMED_KINDS = Object.freeze(Object.keys(KINDS));
-
 /** This GM's rows of `actorId`, oldest first, each with its `id` (the store holds a character's whole list, `effects`). */
 export function timedEffectsOf(actorId) {
     const list = timedEffectStore.get(actorId)?.effects;

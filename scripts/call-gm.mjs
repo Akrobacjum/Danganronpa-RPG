@@ -35,7 +35,7 @@ import {
 import { forgetCallYes, sayNotDone, gmOnline, noteCallYes } from "./bridge-guards.mjs";
 import { contentOf, cardFlag, cardMeta } from "./secret.mjs";
 import { SOCKET_EVENT, ACTION_DONE } from "./bridge-wire.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr } from "./ui-kit.mjs";
 
 /** The request a call on the GM names when its caller names none (`DRPG.Bridge.what.gm.call`). */
 export const CALL_GM_WHAT = "gm.call";
@@ -1204,7 +1204,7 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
     const { actionWindow } = columns ? await import("./action-menus.mjs") : {};
     const form = `<form>
                     <p>${prompt}</p>
-                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                    <textarea name="request" rows="3"${tipAttr(required ? "DRPG.Tips.Sweep.Actions.requestRequiredTooltip" : "DRPG.Tips.Sweep.Actions.requestTooltip")} placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
                     ${extra}
                   </form>`;
     for (;;) {

@@ -7844,7 +7844,7 @@ const INVARIANTS = [
         const verdictCode = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
         const table = bodyOf(verdictCode, "const FINAL_VERDICT_STEPS = ", { until: ";" });
         const sentence = fnSource(verdictCode, "finalVerdictSentence").indexOf("finalSentenced: [mastermind.id]"),
-            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind?.id)), null,");
+            batch = fnSource(verdictCode, "finalVerdictLevelUps").indexOf("promptAdvancements(aliveAsTableKnows(executed && mastermind ? [mastermind.id] : []), null,");
         ok(sentence > 0 && batch > 0 && table.indexOf('"finalLevelUps"') > table.indexOf('"finalSentence"') && table.indexOf('"finalSentence"') > 0,
             "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
@@ -9199,7 +9199,7 @@ const INVARIANTS = [
          * E99 C5, 12.11.2026. A planted state, and the sources read. It takes the place of R3676 (the window, drawn) and
          * R3677 (the window's button and a player's open), removed with the window (the owner's 13:15). Red at fd3c07d:
          * the footer's `caseSchema`, TRIAL_ACTIONS' and case-trial.mjs `openTrialSchema` stood, and the drawing without
-         * `inConsole` was the window's list of tick boxes.
+         * its then option `inConsole` (since removed with the window, f02ec551) was the window's list of tick boxes.
          */
         const T = await import("./case-trial.mjs");
         const UI = await import("./trial-floor-ui.mjs");
@@ -18476,7 +18476,7 @@ const INVARIANTS = [
          * closed one, a one-way wall, one that does not restrict movement, one upstairs only - and rooms for the scene to
          * be a place; the passages are rows of the suite's own in the copy's shape (`known`). Every act is a recorder
          * the test hands in (`warn`, `sendBack`, `socket`, `whisper`), so nothing is written, sent or logged. Foundry's
-         * own reading of a one-way wall (`orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
+         * own reading of a one-way wall (`foundry.utils.orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
          * drives the audit through the harness on four clients.
          * E79 fix r1-G1, 15.10.2026 (review r1: SEC S1, S6, goal F1, F2, F3, F6, cor F3), each red at e6e3349: a route
          * through a point exactly on a wall's line, in one move's waypoints or in two moves, judged clear; the spot the
@@ -19914,7 +19914,7 @@ const INVARIANTS = [
         /*
          * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
          * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
-         * look.mjs at 54493dbf (`lookFieldset`, sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
+         * look.mjs at 54493dbf (`lookFieldset`, since removed; sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
          * line, glassPulse, hudTicker, glassBlur, reducedMotion, highContrast (with the system's line where it asks), the
          * note "Everything in this window is this browser's own"; the volumes' fieldset: the two sliders, their line,
          * messengerSound, and for a GM sfxVary (the game's tab now, R3531); the Voice section (R586). Two stand-in users,
@@ -20966,7 +20966,7 @@ const INVARIANTS = [
          * panel's sections as `buildSections` draws them (`panelUnder`, nothing written), game.drpg's four calls compared
          * with the openers by identity, and Season setup's tiles (12.11.2026: the panel's tiles, each with the icon it
          * wore in Between sessions at ecba3f21). Red at ecba3f21: the four tiles in Between sessions, no row; at 5e0f8d76:
-         * the row `SEASON_WINDOWS`, no tiles.
+         * the row `SEASON_WINDOWS` (gone since E49 A1e round 2, af0aea09), no tiles.
          */
         const tiles = await panelUnder({}, root => [...root.querySelectorAll(".drpg-gmp-section")].map(s => [s.dataset.drpgKey, [...s.querySelectorAll("[data-drpg-run]")].map(t => t.dataset.drpgRun)]));
         must(tiles.length >= 4, `the panel drew ${tiles.length} section(s) - this would measure nothing`);
@@ -27896,6 +27896,7 @@ const INVARIANTS = [
         const files = ["anonymity.mjs", "messenger-app.mjs", "popup.mjs", "room-tile.mjs", "voice-panel.mjs", "voice-tile.mjs"];
         const src = Object.fromEntries(await Promise.all(files.map(async f => [f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")))])));
         must(files.every(f => src[f].length > 500), "a script read as nothing - this would measure nothing");
+        // voice-tile.mjs's second: the voice list's Mute everybody for you (the tooltip sweep, 1.2.115), in the file's text form.
         const uses = f => [...src[f].matchAll(/\bsetTip\(\s*\w+,\s*"DRPG\.Tips\.[^"]+"(?:,\s*null)?(,\s*\{\s*text:\s*true\s*\})?\)/g)].map(m => (m[1] ? "text" : "html"));
         equal(stableJson({
             drawn: [a.dataset.tooltip === words && !("tooltipText" in a.dataset), b.dataset.tooltipText === words && !("tooltip" in b.dataset), c.hasAttribute("data-tooltip") || c.hasAttribute("data-tooltip-text")],
@@ -27903,8 +27904,48 @@ const INVARIANTS = [
             sites: Object.fromEntries(files.map(f => [f, uses(f)]))
         }), stableJson({
             drawn: [true, true, false], byHand: [],
-            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text"] }
+            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text", "text"] }
         }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
+    }],
+    ["R7301 - Room setup draws every cell it builds: each key of the row `roomCells` builds but the room's own name is a column of one of the window's tabs (`roomSetupContent`'s `tableFor([...])`), so no control is built for a table that never shows it (the tooltip sweep's finding, 1.2.115: a `concealed` cell, the room's old hiding-place box, was built for every room and placed in no tab; a stash's concealment is the Stashes tab's, per stash, since ITEM-02)", async () => {
+        /* Red at 071a3c19: "concealed" was built and drawn nowhere. */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(src.length > 500, "room-setup.mjs read as nothing - this would measure nothing");
+        const cells = fnSource(src, "roomCells"), content = fnSource(src, "roomSetupContent");
+        // The row's own object, the last `return {` at the function's first indent; a names map above holds keys at the same depth.
+        const returned = [...cells.matchAll(/^ {8}return \{\n([\s\S]*?)^ {8}\};/gm)].at(-1)?.[1] ?? "";
+        const built = [...returned.matchAll(/^ {12}([a-z]+):/gm)].map(m => m[1]).filter(k => k !== "name");
+        const tabled = new Set([...content.matchAll(/tableFor\(\[([^\]]*)\]\)/g)].flatMap(m => [...m[1].matchAll(/"([a-z]+)"/g)].map(x => x[1])));
+        must(built.length >= 10 && tabled.size >= 10, `read ${built.length} built cell(s) and ${tabled.size} tabled column(s) - this would measure nothing`);
+        equal(built.filter(k => !tabled.has(k)).join(", "), "", "{the cells roomCells builds that no tab's table draws}");
+    }],
+    ["R7300 - every control the module draws has a tooltip, a hint, or a row that says why it needs none, and \"none needed\" is no longer a reason (the tooltip sweep, 1.2.115; Q-E57-8, the owner's \"Robic teraz\" of 14.11.2026): tools/tooltip-census.json, the baseline `node tools/check.mjs tooltips` holds every site with no tooltip and no hint line to, keeps only rows of six reasons - \"label is enough: ...\" (the label and its options say it all), \"hint: ...\" and \"help in code: ...\" (help the census cannot see near the control, each with a held { fn, pattern } found in that function of its file), \"not met: ...\" (no reader meets it as a control), \"conditional: ...\" (a tooltip drawn under a named condition), or a stage's commit that gives one; E102's \"none needed\" rows, an agent's judgement the owner never saw, are each a tooltip now or one of those", async () => {
+        /* Red at 9e7e3d78 (1.2.114): 224 rows read "none needed: ...", and no row "hint: ..." existed. The gate (tools/tooltip-census.mjs `compare`)
+           matches every drawn site to a row; this holds what a row may say, and that the help a hint row points at is still in its function. */
+        needs(env.tools(), "tools/tooltip-census.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let base = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/tooltip-census.json`, { cache: "no-cache" });
+            if (res.ok) base = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        must(Array.isArray(base?.rows) && base.rows.length > 10, "tools/tooltip-census.json holds no rows - this would measure nothing");
+        const REASON = /^(label is enough|hint|help in code|not met|conditional): .{20,}$|^E\d{2,3} C\d+[a-z]?: .+$/s;
+        const reasonOf = r => String(r.why ?? "").match(/^(label is enough|hint|help in code|not met|conditional|none needed|E\d{2,3} C\d+[a-z]?)(?=:)/)?.[1] ?? "(none)";
+        const src = new Map();
+        for (const f of new Set(base.rows.filter(r => r.held?.fn).map(r => r.file))) src.set(f, await fetch(`/modules/${MODULE_ID}/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const bad = [];
+        for (const r of base.rows) {
+            const id = `${r.file} ${r.unit ?? "(top level)"} ${r.kind} ${r.key ?? "(no key)"}`;
+            if (!REASON.test(String(r.why ?? ""))) { bad.push(`${id}: "${reasonOf(r)}" is not a reason a row may give`); continue; }
+            if (!/^(hint|help in code): /.test(r.why)) continue;
+            if (!r.held?.fn || !r.held?.pattern) { bad.push(`${id}: its help is named, with no held { fn, pattern }`); continue; }
+            const body = topLevelFunction(src.get(r.file) ?? "", r.held.fn);
+            if (body === null) bad.push(`${id}: ${r.file} declares no top-level ${r.held.fn}()`);
+            else if (!new RegExp(r.held.pattern).test(body)) bad.push(`${id}: ${r.held.fn}() no longer holds ${r.held.pattern}`);
+        }
+        const by = {};
+        for (const r of base.rows) by[reasonOf(r)] = (by[reasonOf(r)] ?? 0) + (r.count ?? 1);
+        equal(bad.length ? `${bad.length} row(s): ${bad.slice(0, 12).join("; ")}${bad.length > 12 ? "; ..." : ""}` : "", "", `{the rows whose reason is not one of the six, or whose help is gone from its function; sites by reason now: ${stableJson(by)}}`);
     }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
@@ -47098,7 +47139,7 @@ const INVARIANTS = [
         // `studentActors(` with or without the GMs' `held` (E24 fix G1: the vote's candidates read the flags as the GMs hold them, R1494).
         const reads = (file, fn) => { const body = cut(file, fn); return body.length > 40 && /\bstudentActors\((?:\)|\{ held: flagsHeldNow \}\))/.test(body) && !/\bgame\.actors\b(?!\.get\()/.test(body); };
         // The Calls' picker since E24 fix G1 (the owner, 09.11: "wylacz takie npc"; the general review's m7).
-        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "verdictHeld"),
+        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "aliveAsTableKnows") && /\baliveAsTableKnows\(/.test(cut("verdict.mjs", "verdictHeld")),
             finalList: reads("verdict.mjs", "openFinalVerdictDialog"), calls: reads("call-pickers.mjs", "pickPlayer") };
         const flags = f => (scope, key) => (scope === MODULE_ID ? f[key] : undefined);
         const player = { id: "R1453player", isGM: false }, gm = { id: "R1453gm", isGM: true };
@@ -47236,7 +47277,7 @@ const INVARIANTS = [
         const builders = Object.fromEntries(["addUseButton", "addEquipButton", "addDiscardButton", "addStashButton", "addHandoverButton"].map(fn => [fn, first(fn)]));
         // The gate, none of the three buttons before it, all three after it.
         builders.buildBulletRow = /^(?:(?!addHandoverButton\(|addPresentButton\(|drpg-tb-analyze)[\s\S])*?if \(!rowGate\(app\)\) return;[\s\S]*addHandoverButton\([\s\S]*addPresentButton\([\s\S]*drpg-tb-analyze/.test(bullet);
-        /* A pip's tooltip is read for the GM: this GM with `isGM` off reads as a viewer to sheet.mjs `viewerOf`, whose pips
+        /* A pip's tooltip is read for the GM: this GM with `isGM` off reads as a viewer to sheet-mode.mjs `sheetMode`, whose pips
            carry none whatever the header's state. A Monocub's grid is its two tiles; a Monokuma's, its Despair Calls. */
         const want = {};
         for (const role of ["gm", "owner"]) {
@@ -47880,7 +47921,7 @@ const INVARIANTS = [
     }],
     ["R1497 - the reserve's field is the mode's (sheet-mode.mjs `sheetMode(...).reserveField`, sheet-sidebar.mjs `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*
-         * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`
+         * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` (gone in this fix) asked `user?.isGM` and `testUserPermission?.(`
          * beside the mode, so the field was drawn on the dead's sheet (a GM's always, the owner's with the lock off), on
          * a Monokuma's and on a sheet whose app is not editable. Stand-ins as R1445's (`reserveActor`: Health 1 of 4
          * marked, Sanity 2 of 7), the flags answered by an own `getFlag`, the lock answered in memory (`game.settings.get`
@@ -48473,7 +48514,7 @@ const INVARIANTS = [
          * owner's and a GM's Breakdown, everybody's Wounded, drawn.
          *
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
-         * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
+         * module/canvas/placeables/token.mjs `Token#_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
          * effect) drew the icon on every client's canvas: it told another player what the Sanity bar no longer does. A
          * view change on this browser (the status still sits on the actor every client holds): the icon of a
          * `drpgBreakdown` effect is not drawn for a user `reserveView` does not show the student's Sanity to. Read on a
@@ -56797,7 +56838,7 @@ const INVARIANTS = [
     ["R6053 - a rebuild that recuts sets what the cut seats riding the turn, and the turn's end ends it (scripts/glass.mjs `followTurn`, `rebuildAll`; E62 C6): the riders are the room tile beside the notices (under the clock the clock's column lays it) and its picture with it, the voice tile and its portrait, the notice tile and its plate, each on its own pane's tone; `rebuildAll` calls `followTurn` after the seats (`seatRoomArt`, `seatVoiceArt`, `seatNoteFrame`) and only for a turn that recuts; the riders' animations join the turn's (`posed`/`anims`, which the turn's end and its cancel end) on its move's length, linear over the sampled curve; and the counter is documented", async () => {
         /*
          * fix-113p, 13.11.2026. Red at ceb9e9c8: no `FOLLOWERS`, no `followTurn`. Read off the source: the riders' frames are
-         * R6052's, and the glass harness's per-frame reading in Chromium (`drpgFollowCheck`) is the browser's half.
+         * R6052's, and the glass harness's per-frame reading in Chromium (glass-sweep.mjs `--follow`) is the browser's half.
          */
         const G = await import("./glass.mjs");
         const sources = await moduleSources();
@@ -58211,10 +58252,11 @@ const INVARIANTS = [
          * window's roster of the dead went with it, E72 C6), classified in CENSUS.md. Merged with E93, E69 and E74 (1.2.111,
          * 13.11.2026): action-tail.mjs 1 (Tail Someone's targets, after `othersInRoom`) and facilities-gm.mjs 1 (a room
          * action's "for those present", after `occupantsOf`), classified in CENSUS.md. Merged with r112 (1.2.112,
-         * 13.11.2026): gm-team-dialog.mjs 2 (E101's `despairFlowMarkup`), classified in CENSUS.md.
+         * 13.11.2026): gm-team-dialog.mjs 2 (E101's `despairFlowMarkup`), classified in CENSUS.md. E56 part 2 (14.11.2026):
+         * monokuma.mjs 9 -> 8, E92 C1's `ownSpectator` removed (nothing called it); its CENSUS.md row says so.
          */
         const CENSUS = { "action-tail.mjs": 1, "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1, "facilities-gm.mjs": 1,
-            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
+            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 8,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
             "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 2, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
@@ -60163,7 +60205,7 @@ const INVARIANTS = [
     ["R4552 - the Death fade Sound row: in the incident group, played by default with the death's own file, its own file when one is set (E62 C3b, the storyboard's 9)", async () => {
         /*
          * E62 C3b, 13.11.2026. config.mjs `SFX_EVENTS.deathFade` and sfx-play.mjs `soundsFor`, read with the Sound map
-         * handed in through the setting's own reader on this browser (`withSetting`). Red at 9a74628: no row.
+         * handed in through the setting's own reader on this browser (`game.settings.get` stood in for the Sound map's key alone). Red at 9a74628: no row.
          */
         const { SFX_EVENTS } = await import("./config.mjs");
         const P = await import("./sfx-play.mjs");
@@ -60589,8 +60631,11 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
-    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of equal columns", async () => {
+    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of six equal columns, in one row (the owner, 14.11.2026: \"koniecznie w 1 rzedzie\"), three only on the row the fit gave up on (`data-drpg-trait-fit=\"wrap\"`, sheet-header.mjs `fitTraitRow`)", async () => {
         /*
+         * Red at 21973f06 (1.2.115's assembly) for the one row: the grid was `repeat(auto-fill, ...)`, six columns only where
+         * six fit at the widest name's full width and three elsewhere - 3 over 3 on the default 850 px sheet in both themes
+         * (Chromium, 14.11.2026), which the owner's photo of 1.2.114 showed.
          * Red at ceb9e9c8 (1.2.112). Daggerheart's name is `flex: 1` (a 0 basis) with `word-break: break-word`
          * (header.less:44-53 at 2.12.8, unchanged since 2.6.5), so beside the name row's buttons it shrinks to one glyph's
          * width: the captioned Level Up and Give / take (sheet-header.mjs `headerButton`, 1.2.105) stand `flex: 0 0 auto` and,
@@ -60625,12 +60670,15 @@ const INVARIANTS = [
             trait.dataset.attribute = "presence";
             const plate = trait.appendChild(Object.assign(document.createElement("div"), { className: "trait-name drpg-stat-named" }));
             const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const columns = v(traits, "grid-template-columns");
+            traits.dataset.drpgTraitFit = "wrap";
+            const wrapped = v(traits, "grid-template-columns");
             return [v(row, "flex-wrap"), v(name, ["flex", "flex-basis"]), v(name, "word-break"), v(name, "overflow-wrap"),
-                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"])];
+                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"]), columns, wrapped];
         };
-        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center"];
+        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center", "repeat(6, minmax(0, 1fr))", "repeat(3, minmax(0, 1fr))"];
         equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
-            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column]");
+            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column; the row's columns; the columns of a row the fit gave up on]");
     }],
     ["R5761 - a disabled field in Foundry's and other modules' windows reads as disabled in both themes and an enabled one is left as it was (the owner, 13.11.2026, on Dice So Nice's colour fields, which it disables itself unless the colorset is custom - module/ui/DiceConfig.js `toggleCustomColors`, 6.4.5): read through the module's cascade on Dice So Nice's markup (partial-appearance.hbs: a text field and its `input[type=color]` twin) in its ApplicationV2 frame, a disabled text field, colour field and select take the not-allowed cursor and a lowered opacity, the colour field greyed (`grayscale`), Legacy's disabled text its dim ink; the enabled ones take none of it", async () => {
         /*
@@ -61170,6 +61218,21 @@ const INVARIANTS = [
             yields: [["keyReveal", "present"], ["newRule", "motive", "publicAnnouncement"]]
         }), "{each floor opening's sounds; scrumTurn: [a Scrum turn of mine, the same again, the next of mine, another's]; yields: [truthBullet, despairCall]}");
     }],
+    ["R7166 - a Panic Round's first speaker hears the *your turn* sound alone (E59 C-115, CHAINS.md B-T8; GM 15, \"The speaker ... hears the your turn sound alone\"): sfx.mjs `floorSounds` plays \"Panic Round starts\" on every other browser as the round opens, and on the browser of the speaker whose turn opens it only \"Your turn\" - the two played in one pass there; a Closing's start and its first turn are two writes, and stay two sounds", async () => {
+        const S = await import("./sfx.mjs");
+        const none = { known: true, floorOpen: false, floorMode: null, turnStep: null, closingAt: null };
+        const panic = { active: true, mode: "panic", holderId: "O", round: { mode: "panic", order: ["O", "P"], index: 0, step: 1, openedAt: 5 } };
+        const first = S.floorSounds(none, panic, { mine: id => id === "O" });
+        const next = S.floorSounds({ ...first.was, known: true }, { ...panic, holderId: "P", round: { ...panic.round, index: 1, step: 2 } }, { mine: id => id === "P" });
+        const read = {
+            speaker: first.play,
+            other: S.floorSounds(none, panic, { mine: () => false }).play,
+            nextSpeaker: next.play,
+            testimony: S.floorSounds(none, { ...panic, mode: "testimony", round: { ...panic.round, mode: "testimony" } }, { mine: id => id === "O" }).play
+        };
+        equal(stableJson(read), stableJson({ speaker: ["yourTurn"], other: ["panicStart"], nextSpeaker: ["yourTurn"], testimony: ["yourTurn"] }),
+            "{the sounds as a Panic Round opens: its first speaker's, another's; the next speaker's; a Testimony's first speaker's}");
+    }],
     ["R7107 - the sounds and the music the survey found missing (E110 part 3, 14.11.2026): three new effects in the catalogue with their words in English and Polish - \"present\" (the Present's card, the whole table), \"stashFound\" (a Find Stash's find, the searcher and the GMs) and \"bedroomEntered\" (the bedroom's owner alone) - each on its card's flag, a Find Stash's miss playing \"searchNothing\"; and the vote's own music (music-states.mjs `voteMusicPlays`) from the vote's opening to the verdict, only with a playlist mapped", async () => {
         /* Pure but for the catalogue and three sources read. Red at 98f60442: no such keys, no voteMusicPlays. */
         const { SFX_EVENTS } = await import("./config.mjs");
@@ -61431,6 +61494,28 @@ const INVARIANTS = [
             /wireChargeHeld/.test(bridge), typeof flats.en["DRPG.Case.chargeAgain"] === "string" && names("en"), typeof flats.pl["DRPG.Case.chargeAgain"] === "string" && names("pl")]),
         stableJson([true, true, true, true, true, true, true]),
             "[the held card carries the button, its flag, the button asks the primary's charge, it is wired by the card's flag, a GM's browser wires it, every English form names the button, every Polish form]");
+    }],
+    ["R7330 - the six statistics' row gives way in the owner's order and stops at the first step that fits (sheet-header.mjs `traitFitStep`; the owner, 14.11.2026, \"koniecznie w 1 rzedzie\"): the gap, then the plate's padding, then the names' letter-spacing, then the mark above the name; three columns only where none of them fits. Fed the widths Chromium measured on Daggerheart 2.12.8's stylesheet with the module's sheets (14.11.2026): Legacy at 850 px moves the mark above, Legacy at 667 px fits nothing, the glass at 850 px stops at the letter-spacing and at 667 px at the mark above, and every sheet wider than six full-width names keeps its row as drawn", async () => {
+        /*
+         * Red at 21973f06: no `traitFitStep` - the row wrapped to 3 over 3 wherever six full-width names did not fit.
+         * Pure: a step is judged from the widths a measure answers for it (the widest statistic, the column gap, the mark's
+         * overhang beside the name, the row's width), the numbers below those Chromium read for each step. Nothing drawn.
+         */
+        const H = await import("./sheet-header.mjs");
+        const pick = typeof H.traitFitStep === "function" ? H.traitFitStep : () => "none";
+        /* [need with the mark beside, need with its padding cut, need at letter-spacing 0, need with the mark above] for
+           "Shadow": Legacy 86.2/84.2/84.2/72 (66 px of text at 11 px, which is its floor), glass 89/87/74.4/58.4
+           (63 px tracked, 50.4 untracked, VT323 at its 21 px floor); a row of 362 px at 667, 545 at 850, 815 at 1120 (the header less its 15 px padding each side). */
+        const sheet = (beside, cut, untracked, above) => row => step => {
+            const need = step.includes("above") ? above : step.includes("track") ? untracked : step.includes("pad") ? cut : beside;
+            const gap = step.includes("above") ? 2 : step.includes("gap") ? 9 : 16;
+            return { need, gap, overhang: step.includes("above") ? 0 : 8, width: row };
+        };
+        const legacy = sheet(86.2, 84.2, 84.2, 72), glass = sheet(89, 87, 74.4, 58.4);
+        const got = [pick(legacy(362)), pick(legacy(545)), pick(legacy(815)), pick(glass(362)), pick(glass(545)), pick(glass(815))];
+        equal(stableJson([got, H.TRAIT_FIT_STEPS?.map(tokens => tokens.join(" ")) ?? null]), stableJson([["wrap", "above track", "", "above track", "gap pad track", ""],
+            ["", "gap", "gap pad", "gap pad track", "above track"]]),
+            "[the step chosen: Legacy at 667, 850 and 1120 px, the glass at the same; the steps in their order]");
     }],
 ];
 

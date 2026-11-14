@@ -249,7 +249,7 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null,
                 action: "keyRemnantHere",
                 label: game.i18n.localize("DRPG.Bridge.keyRemnantHere"),
                 // Lowercase key: `dataset` lowercases everything, so `sceneId`
-                // would come back as `sceneid` and read undefined.
+                // would come back as `dataset.sceneid` and read undefined.
                 data: { by: actor.id, room: room ?? "", want: request ?? "",
                         scene: sceneId ?? "" }
             },

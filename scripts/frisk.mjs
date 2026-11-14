@@ -21,11 +21,10 @@ import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /**
  * The asks this primary GM holds, by ask id (`askToFrisk` writes them): who asks whom, where (`sceneId`, `level`,
@@ -1127,7 +1126,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
             body: text,
             rejectClose: false,
             footer: {
-                primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse") },
+                primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse"), tooltip: tipText("DRPG.Tips.Sweep.Actions.refuseFriskTooltip") },
                 secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow"), tooltip: tipText("DRPG.Tips.Actions.letThemLookTooltip") }]
             },
             render: (event, dialog) => {
@@ -1165,7 +1164,7 @@ async function askToForce(def, forceMs) {
             rejectClose: false,
             footer: {
                 primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), tooltip: tipText("DRPG.Tips.Actions.leaveItTooltip") },
-                secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force") }]
+                secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force"), tooltip: tipText("DRPG.Tips.Sweep.Actions.forceFriskTooltip") }]
             },
             render: (event, dialog) => {
                 timer = setTimeout(() => { if (dialog.rendered) dialog.close(); }, forceMs);

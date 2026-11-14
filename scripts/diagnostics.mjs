@@ -23,12 +23,11 @@ import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures, sessionFailuresDropped } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
@@ -400,7 +399,7 @@ export function warnAboutPageTinting() {
  *
  * For the case where a colour is plainly wrong and the token behind it is plainly
  * right: the declaration exists, resolves, and still loses. Only another rule can
- * do that, and the browser will not tell you which - `getMatchedCSSRules` was
+ * do that, and the browser will not tell you which - `window.getMatchedCSSRules` was
  * removed years ago. So walk every stylesheet, test every selector against the
  * element, and report the ones that declare the property, with the file and the
  * cascade layer they came from. The last one that applies is the winner.
@@ -2211,7 +2210,7 @@ export async function openReport(text, { wait = config => drpgWindow(config),
             </div>`,
             footer: {
                 secondary: [
-                    { action: "copy", label: localize("DRPG.Diagnose.copy") },
+                    { action: "copy", label: localize("DRPG.Diagnose.copy"), tooltip: tipText("DRPG.Tips.Sweep.Gm.copyReportTooltip") },
                     ...left.map(s => {
                         const named = { warning: s.label };
                         return { action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain"),

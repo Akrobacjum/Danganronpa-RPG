@@ -152,7 +152,7 @@ const OUTCOME_TOKEN = {
  *
  * This used to read the element's classes, and it has never once worked.
  * Daggerheart puts `duality`, `hope`, `fear` and `critical` on the message
- * element inside `enrichChatMessage()`, and it calls that from its own
+ * element inside `ChatMessage#enrichChatMessage()`, and it calls that from its own
  * `renderHTML()` - AFTER `super.renderHTML()`, which is the call that fires the
  * hook this module listens on. Every duality card reaching `paintChatCard` is
  * still wearing nothing but `chat-message message flexcol dh-chat-message
@@ -1411,7 +1411,7 @@ function subjectReported(messageId, ms) {
  * of them asked this module. Dice So Nice decides on every client whether a new
  * roll message animates there; with its world setting "Hide 3D dice on secret
  * rolls" off it animated a whisper, with its real faces, on every screen
- * (main.js `shouldInterceptMessage`, :458-516, read in 6.3.1). A Reroll threw its
+ * (`main.js#shouldInterceptMessage`, :458-516, read in 6.3.1). A Reroll threw its
  * new dice to every screen (reroll.mjs). And the incident's participants saw each
  * other's dice by being on the roll's whisper list, which named them all to every
  * console until C5b emptied it - so from C5b on they saw none.

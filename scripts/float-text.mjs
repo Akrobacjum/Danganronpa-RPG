@@ -318,12 +318,12 @@ function onInput(event) {
  * once and keeps the focus: it floats again only once it has lost the focus and been given it back (`dismissed`), so a
  * keyboard or screen reader user stays in the window they were writing in. The key itself goes on to the field and what
  * stands around it: a window's own Escape - the case map's, which shuts its open node and stops the key there
- * (case-map.mjs) - runs as it did before this file. Only what reaches `document` is stopped (`stopEscapeAtDocument`, in
- * the bubbling phase, before `window`'s listeners), so the same press does not close the window through Foundry's
- * own Escape. The default is prevented in the capture phase, here, because foundry-windows.mjs's and sequence.mjs's
- * capture listeners on `window` each take an Escape whose default is not prevented and stop it (both return on
- * `defaultPrevented`): registered after this one (module.mjs: this at init, they at ready), they let it pass. The next
- * Escape, with the field no longer floating, is Foundry's and the window's again.
+ * (case-map.mjs) - runs as it did before this file. Only what reaches `document` is stopped (`onKeyDown`'s one-shot
+ * `stop`, in the bubbling phase, before `window`'s listeners), so the same press does not close the window through
+ * Foundry's own Escape. The default is prevented in the capture phase, here, because foundry-windows.mjs's and
+ * sequence.mjs's capture listeners on `window` each take an Escape whose default is not prevented and stop it (both
+ * return on `defaultPrevented`): registered after this one (module.mjs: this at init, they at ready), they let it pass.
+ * The next Escape, with the field no longer floating, is Foundry's and the window's again.
  */
 let dismissed = null;
 function onKeyDown(event) {

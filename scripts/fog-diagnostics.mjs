@@ -46,7 +46,8 @@ import {
 } from "./fog-doorways.mjs";
 import { roomOutline, HALO_NAMES } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
-import { plural, localeFormat } from "./utils.mjs";
+import { plural, localeFormat, esc } from "./utils.mjs";
+import { tipAttr } from "./ui-kit.mjs";
 // From vault-store.mjs, which reaches this file by no static import; not from its facade vault.mjs (E41 C6), which
 // reaches it through palm.mjs and fog.mjs, so that import would close a static cycle (R161).
 import { VAULT_FLAGS } from "./vault-store.mjs";
@@ -577,7 +578,7 @@ export function checkRegions(scene = canvas?.scene) {
      * `canvas.dimensions.sceneX` is NOT it: on this project's own scene it is
      * 641 against a grid of 20, so measuring from there puts every corner four
      * pixels out and the check fires on all eighteen rooms - a check that has
-     * learnt to cry wolf is worse than no check. `getSnappedPoint` is no help
+     * learnt to cry wolf is worse than no check. `BaseGrid#getSnappedPoint` is no help
      * either; asked about a dirty coordinate it hands the same one back.
      *
      * The honest question is not "where does Foundry think the grid starts" but
@@ -688,7 +689,6 @@ export function roomCheckProblems(findings) {
  * finding's row names its floor under the room, and its button carries the floor (`data-drpg-level`).
  */
 export function roomCheckHtml(findings, sceneId = null) {
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     const legend = new Map();
     for (const f of findings ?? []) if (f.kind && f.why && !legend.has(f.kind)) legend.set(f.kind, f);
     const marks = { error: "✕", warning: "!", info: "·" };
@@ -700,7 +700,7 @@ export function roomCheckHtml(findings, sceneId = null) {
             <td>${esc(f.room)}${f.floor ? `<br><small>${esc(f.floor)}</small>` : ""}</td>
             <td><strong>${esc(f.problem)}</strong>${f.detail ? `<br><small>${esc(f.detail)}</small>` : ""}</td>
             <td>${f.at ? `<button type="button" class="drpg-mini-button" data-drpg-show-at="${Math.round(f.at.x)},${Math.round(f.at.y)}"${
-                sceneId ? ` data-drpg-scene="${esc(sceneId)}"` : ""}${f.floorId ? ` data-drpg-level="${esc(f.floorId)}"` : ""}>${show}</button>` : ""}</td>
+                sceneId ? ` data-drpg-scene="${esc(sceneId)}"` : ""}${f.floorId ? ` data-drpg-level="${esc(f.floorId)}"` : ""}${tipAttr("DRPG.Tips.Sweep.Gm.showOnMapTooltip")}>${show}</button>` : ""}</td>
         </tr>`).join("");
     return `${head}<table class="drpg-vault-table drpg-room-check-table"><tbody>${rows}</tbody></table>`;
 }

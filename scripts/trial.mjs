@@ -51,7 +51,7 @@ import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanal
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, isPrimaryGm, log, error,
     whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -63,7 +63,6 @@ import { contentOf } from "./secret.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** Flags that make a chat message a presentation. */
 export const TRIAL_FLAGS = {
@@ -1444,7 +1443,7 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
         body: `<form>
             <p>${game.i18n.format("DRPG.Trial.objectionPickIntro", { target: foundry.utils.escapeHTML(String(target ?? "-")) })}</p>
             <label>${game.i18n.localize("DRPG.Trial.objectionPickLabel")}
-                <select name="item">${bullets.map(item =>
+                <select name="item"${tipAttr("DRPG.Tips.Sweep.Trial.objectionBulletTooltip")}>${bullets.map(item =>
                     `<option value="${item.id}">${foundry.utils.escapeHTML(item.name)}</option>`).join("")}</select></label>
             ${analysisChoice(offer)}
             <label>${game.i18n.localize("DRPG.Trial.comment")}
@@ -1541,7 +1540,7 @@ export async function repointDialog() {
         classes: ["drpg-panel"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Floor.repointTo")}
-                <select name="target">${choices.map(student => `<option value="${student.id}"${
+                <select name="target"${tipAttr("DRPG.Tips.Sweep.Trial.repointTargetTooltip")}>${choices.map(student => `<option value="${student.id}"${
                     student.id === floor.targetId ? " selected" : ""}>${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
         </form>`,
         footer: {

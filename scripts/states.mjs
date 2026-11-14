@@ -195,7 +195,7 @@ export async function suppressSystemAutomation({ actors = game.actors } = {}) {
     }
 }
 
-/* Daggerheart's own initial values of the two fields (2.6.5's Automation.mjs `defineSchema`, as the harness copies
+/* Daggerheart's own initial values of the two fields (2.6.5's Automation.mjs `DhAutomation.defineSchema`, as the harness copies
    it in lib/daggerheart.mjs `AUTOMATION_DEFAULT`; 2.10.x's not read here). Given back where nothing was kept: a world
    whose automations an earlier version switched off. */
 const AUTOMATION_DEFAULTS = { vulnerableAutomation: true, defeated: true };
@@ -465,14 +465,14 @@ export async function syncAll() {
  * attribute is not editable) - a number typed there would be written to the marks as
  * if it were the reserve. A GM edits on the sheet. Sanity answers null to a user
  * `reserveView` does not show it to: Foundry draws no bar for null. Read on Foundry's
- * v13 behaviour as recalled (no v14 source on this machine): the HUD and `drawBars`
+ * v13 behaviour as recalled (no v14 source on this machine): the HUD and `Token#drawBars`
  * both ask `getBarAttribute`, and `Actor#modifyTokenAttribute` reads the system data
  * itself. A table's check (E24's live row of the token bars, AUDIT 9.2).
  *
  * THE STATE ICONS ARE NOT ON THE TOKEN (E95 C5, 10.11.2026; the owner's "ikony breakdown i
  * wounded nie wyswietlaly sie na tokenie na mapie wcale - TYLKO na karcie postaci").
  * `syncOnce` puts Breakdown and Wounded on with `toggleStatusEffect`, and Daggerheart's
- * `_drawEffects` draws each status's icon on every client's token. Its
+ * `Token#_drawEffects` draws each status's icon on every client's token. Its
  * `_drawEffect(src, tint, effect)` is wrapped (row `state-icons-off-token`, an override
  * of Daggerheart's): the icon of a `drpgBreakdown` or `drpgWounded` effect is drawn for
  * nobody - a GM, the owner, another player, an Observer - on any character. From E24 C1b
@@ -553,7 +553,7 @@ export function effectIconShown(actor, effect, user = game.user) {
 /**
  * Wrap `proto._drawEffect(src, tint, effect)` (Daggerheart 2.10.5's token hands it each icon's effect): an icon
  * `effectIconShown` refuses is not drawn, answered as a draw with nothing to draw (a settled null, which its
- * `_drawEffects` and `_drawOverlay` read as no icon). An effect it is not handed is matched by its image, Breakdown's
+ * `Token#_drawEffects` and `Token#_drawOverlay` read as no icon). An effect it is not handed is matched by its image, Breakdown's
  * or Wounded's, on an actor that holds that status. Marked so a second call stacks nothing. Exported for R1485.
  */
 export function wrapEffectIcons(proto) {

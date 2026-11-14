@@ -141,7 +141,7 @@ const REFRESH_TYPES = new Set([
 
 /* Written as strings, not regex literals: the suite's name check (R22) reads
    `handleSocketEvent(` in a literal as a call to a function this file lacks. */
-/** Daggerheart's listener by name; rollup renames a clashing function `name$1`. */
+/** Daggerheart's listener by name; rollup suffixes a clashing function's name with `$` and a number. */
 const LISTENER_NAME = new RegExp("^handleSocketEvent(?:\\$\\d+)?$");
 /** One `case socketEvent.X:` of that listener's switch. */
 const CASE_LINE = new RegExp("case\\s+socketEvent(?:\\$\\d+)?\\.(\\w+)", "g");
@@ -228,7 +228,7 @@ function ensureWrapped() {
             }
             return;
         }
-        // Rollup renames a clashing function `name$1`; the name is still there.
+        // Rollup suffixes a clashing function's name with `$` and a number; the name is still there.
         const named = loose.filter(fn => LISTENER_NAME.test(fn.name ?? ""));
         const taken = named.length ? named : loose;
         for (const fn of taken) sock.off(channel, fn);
@@ -824,7 +824,7 @@ function judgeSave(data, sender, world) {
     }
     // Two shapes (E76 C2, 12.11.2026; R3600). Up to 2.12.4 the total came as
     // `result.roll.total`; from 2.12.5 as `saveTotal` and `isCritical` beside the
-    // message (chatMessage.mjs `onRollSave`, 2.12.8:274-290), and socket.mjs's case
+    // message (`chatMessage.mjs#onRollSave`, 2.12.8:274-290), and socket.mjs's case
     // reads those two. A packet with a `saveTotal` key is read as 2.12.5's alone,
     // whatever else it carries: a null there is dropped, as that build's
     // `updateSaveMessage` marks nothing for it. A save whose dialog was closed: up

@@ -21,12 +21,11 @@
 import { MODULE_ID, TRAITS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { esc } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
 import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 import { holdRowLines } from "./ui-hold.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
@@ -515,7 +514,7 @@ export async function promptForNote(actor, { title, prompt, placeholder, traits 
     const propose = (traits ?? []).length > 1;
     const form = `<form>
             <p>${prompt}</p>
-            <textarea name="note" rows="3" placeholder="${
+            <textarea name="note" rows="3"${tipAttr("DRPG.Tips.Sweep.Actions.murderNoteTooltip")} placeholder="${
                 foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
             ${propose ? `<div class="${TRAIT_SLOT}">${traitFieldHtml(actor, traits, { propose: true, how: false })}</div>` : ""}
         </form>`;

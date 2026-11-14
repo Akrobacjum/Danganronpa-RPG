@@ -43,8 +43,14 @@
  *
  * THE GATE (`check`): every site that needs help today is matched against a baseline row of the same file, unit, kind
  * and key; a site with no row left is a control drawn with no tooltip (red: give it one, or a row with its reason); a
- * row with no site left is help given and the row kept (red: cut the row). Each row needs a `why`: "none needed: <a
- * reason of 20 characters or more>" or "E<stage> C<n>: <what that commit gives it>". And no identity may count more
+ * row with no site left is help given and the row kept (red: cut the row). Each row needs a `why`, one of six (the
+ * tooltip sweep of 1.2.115, Q-E57-8: E102's "none needed" rows were an agent's judgement the owner never saw, and each
+ * became a tooltip or one of these, with a reason of 20 characters or more): "label is enough: ..." (the label and its
+ * options say it all; kept short), "hint: ..." (a hint line drawn at the control that the proximity rule cannot see)
+ * and "help in code: ..." (a tooltip written where the census cannot follow), both with a held { fn, pattern } read
+ * in that function, "not met: ..." (no reader meets it as a control: hidden, clicked by code), "conditional: ..." (a
+ * tooltip drawn under a named condition), or "E<stage> C<n>: <what that commit gives it>". R7300 holds the same six
+ * in the suite. And no identity may count more
  * than origin/main's copy of the baseline holds (read by `git show origin/main:tools/tooltip-census.json`; when that
  * copy cannot be read, the gate says so and holds the rows alone): a row added by hand is red there. One identity is a
  * count of file, unit, kind and key, so giving one site a tooltip and adding a bare one of the same kind and key in the
@@ -71,7 +77,9 @@ const KIT_ONE = ["toggle", "stepper", "iconButton", "chip", "roleButton", "launc
 const KIT_EACH = ["kitTabs", "kitTabBar", "modeBar", "chips"];
 const ALWAYS = new Set(["iconButton", "launcher"]);
 /** A row's reason: no help needed, a conditional tooltip with its condition named, or a stage's commit that gives one. */
-export const WHY = /^(none needed: .{20,}|conditional: .{20,}|help in code: .{20,}|E\d{2,3} C\d+[a-z]?: .+)$/s;
+export const WHY = /^(label is enough: .{20,}|not met: .{20,}|hint: .{20,}|conditional: .{20,}|help in code: .{20,}|E\d{2,3} C\d+[a-z]?: .+)$/s;
+/** The rows whose help the gate reads in their function: a tooltip written where the census cannot follow, or a hint line it cannot see near. */
+const HELD_WHY = /^(help in code|hint): /;
 /** What a kit builder other than a tab bar draws a tooltip from: its `attrs` (REVIEW-E102-code C9). */
 const KIT_TIP = /data-tooltip|aria-describedby/;
 
@@ -250,11 +258,11 @@ export function scan(file, raw, es = espree()) {
                 let at = open + 1;
                 while (/\s/.test(s[at])) at++;
                 const items = s[at] === "[" ? arrayObjects(s, at) : [];
-                // a tab draws its section's `tooltip` (tabNav); a mode draws only its label; a chip only its attrs (C9)
+                // a tab draws its section's `tooltip` (tabNav), and a mode its own since 1.2.115 (modeBar); a chip only its attrs (C9)
                 if (items.length) {
                     for (const [x, y] of items) {
                         const text = s.slice(x, y);
-                        push(`kit:${own}-item`, x, y, own === "modeBar" ? { tip: "none" } : own === "chips" ? { tip: KIT_TIP.test(text) ? "always" : "none" } : {});
+                        push(`kit:${own}-item`, x, y, own === "chips" ? { tip: KIT_TIP.test(text) ? "always" : "none" } : {});
                     }
                     continue;
                 }
@@ -316,7 +324,7 @@ const mainIdentity = s => (s.unit ? `${s.unit}|${s.kind}|${s.key ?? ""}` : ident
 /** Today's sites that need help against the baseline's rows (and main's copy, when given; `verified`, the held rows heldCheck found in their code): the problems, one line each. */
 export function compare(sites, rows, mainRows = null, verified = null) {
     const left = countOf(rows), problems = [];
-    for (const r of rows) if (!WHY.test(String(r.why ?? ""))) problems.push(`${BASELINE}: the row ${identity(r).replace(/\|/g, " ")} has no reason ("none needed: ..." of 20 characters or more, or "E<stage> C<n>: ...")`);
+    for (const r of rows) if (!WHY.test(String(r.why ?? ""))) problems.push(`${BASELINE}: the row ${identity(r).replace(/\|/g, " ")} has no reason a row may give ("label is enough: ...", "hint: ...", "help in code: ...", "not met: ..." or "conditional: ..." of 20 characters or more, or "E<stage> C<n>: ..."; "none needed" is retired since the 1.2.115 sweep)`);
     for (const s of sites.filter(x => x.needs)) {
         const id = identity(s), n = left.get(id) ?? 0;
         if (n > 0) left.set(id, n - 1);
@@ -351,7 +359,7 @@ export function compare(sites, rows, mainRows = null, verified = null) {
  * With E54's count against main (`mainIdentity`, above) the rows are keyed as there: a row with a unit by its unit, kind
  * and key, so "the same file, unit and kind" is the same unit and kind for it, and a top-level row keeps its file.
  */
-const isHeldRow = r => /^help in code: /.test(String(r.why ?? "")) && Boolean(r.held?.fn && r.held?.pattern);
+const isHeldRow = r => HELD_WHY.test(String(r.why ?? "")) && Boolean(r.held?.fn && r.held?.pattern);
 function heldSpare(mainRows, main, ours, key = identity) {
     const heldOf = new Map(), spare = new Map();
     for (const r of mainRows.filter(isHeldRow)) heldOf.set(key(r), (heldOf.get(key(r)) ?? 0) + (r.count ?? 1));
@@ -370,13 +378,14 @@ function verifiedCount(rows, verified, id, key = identity) {
  * HELP IN CODE (REVIEW-E102-code C3): a row "help in code: ..." is a control whose tooltip is written where the census
  * cannot follow (a paint function, a helper, a state change), and it carries `held: { fn, pattern }` - the function of
  * its file that writes the help and a pattern of that line. The gate reads the function (a top-level declaration, to
- * the next one) and wants the pattern there, so losing that help is red, where a "none needed" row would have hidden it.
+ * the next one) and wants the pattern there, so losing that help is red, where a row with no help named would have hidden it.
+ * A "hint: ..." row is read the same way (1.2.115): its pattern names the hint line the control is drawn beside.
  */
 export function heldProblems(rows, repo = REPO) { return heldCheck(rows, repo).problems; }
 /** heldProblems' reading, with the rows whose pattern it found (a Set of the row objects) for compare's guard on main. */
 export function heldCheck(rows, repo = REPO) {
     const out = [], verified = new Set();
-    for (const r of rows.filter(x => /^help in code: /.test(String(x.why ?? "")))) {
+    for (const r of rows.filter(x => HELD_WHY.test(String(x.why ?? "")))) {
         const where = `${BASELINE}: ${identity(r).replace(/\|/g, " ")}`;
         if (!r.held?.fn || !r.held?.pattern) { out.push(`${where} says its help is in code and names no held { fn, pattern }`); continue; }
         let src = "";
@@ -424,7 +433,7 @@ export const PLANTS = [
     ["d3", 'export function d3(x) { return document.createElement(x ? "button" : "span"); }', [["d3", "dom:button", true]]],
     ["d5", 'export function d5() { const b = document.createElement("button"); b.dataset.tooltipText = "x"; return b; }', [["d5", "dom:button", false]]],
     ["d6", 'export function d6() { const b = document.createElement("button"); setTip(b, "DRPG.Tips.X.bTooltip"); return b; }', [["d6", "dom:button", false]]],
-    ["c4", 'export function c4() { return toggle({ name: "t", label: "T", title: "x" }) + modeBar([{ key: "a", label: "A", tooltip: "x" }]); }', [["c4", "kit:toggle", true], ["c4", "kit:modeBar-item", true]]],
+    ["c4", 'export function c4() { return toggle({ name: "t", label: "T", title: "x" }) + modeBar([{ key: "a", label: "A", tooltip: "x" }, { key: "b", label: "B" }]); }', [["c4", "kit:toggle", true], ["c4", "kit:modeBar-item", false], ["c4", "kit:modeBar-item", true]]],
     ["a7", 'export function a7() { return `<select name="s"${tipAttr("DRPG.Tips.X.sTooltip") ? "" : ""}></select>`; }', [["a7", "select", true]]],
     ["d4", 'function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }\nexport function d4() { const go = el("button", "go"); return go; }', [["d4", "dom:button", true]]]
 ];
@@ -454,7 +463,7 @@ export function selfCheck(es = espree()) {
 const GUARD_PLANTS = (() => {
     const why = "help in code: a planted control's help, written in its function", held = { fn: "g", pattern: "x" };
     const at = (key, extra = {}) => ({ file: "scripts/plant.mjs", unit: "g", kind: "dom:button", key, why, held, ...extra });
-    const none = { why: "none needed: a planted control that needs no words of its own", held: undefined };
+    const none = { why: "label is enough: a planted control that needs no words of its own", held: undefined };
     return [
         ["a re-keyed held row, verified (callButton's shape)", [at(null)], [at("DRPG.X.near")], true, false],
         ["a re-keyed held row, not verified", [at(null)], [at("DRPG.X.near")], false, true],
@@ -478,7 +487,15 @@ export function guardSelfCheck() {
         if (other) misses.push(`guard self-check: ${name} read a problem other than main's copy (${other})`);
         if (onMain !== red) misses.push(`guard self-check: ${name} should be ${red ? "red" : "green"} against main's copy and is ${onMain ? "red" : "green"}`);
     }
-    return { misses, planted: GUARD_PLANTS.length };
+    /* The reasons (1.2.115): a row of each of the six reasons is green, a retired "none needed" row and a bare one are red. */
+    const site = { file: "scripts/plant.mjs", unit: "g", kind: "select", key: null, needs: true, line: 1 };
+    const REASONS = [["label is enough: a planted select whose options say it all", false], ["hint: a planted hint line drawn at the control", false],
+        ["not met: a planted input nobody points at", false], ["none needed: a planted control that needs no words of its own", true], ["", true]];
+    for (const [why, red] of REASONS) {
+        const got = compare([site], [{ ...site, count: 1, why }]).some(p => p.includes("has no reason a row may give"));
+        if (got !== red) misses.push(`guard self-check: a row "${why.split(":")[0] || "(no why)"}" should be ${red ? "red" : "green"} and is ${got ? "red" : "green"}`);
+    }
+    return { misses, planted: GUARD_PLANTS.length + REASONS.length };
 }
 
 /** origin/main's baseline rows, or null with the reason when that copy cannot be read. */
@@ -517,15 +534,17 @@ export function check(log = console.log, repo = REPO) {
     const heldRead = heldCheck(rows, repo);
     const problems = [...compare(sites, rows, main.rows, heldRead.verified), ...keys.bad, ...shippedRows(rows, repo), ...heldRead.problems];
     const need = sites.filter(s => s.needs).length, kept = rows.reduce((a, r) => a + (r.count ?? 1), 0);
-    const reasons = rows.filter(r => /^(none needed|conditional|help in code): /.test(String(r.why ?? ""))).reduce((a, r) => a + (r.count ?? 1), 0);
-    const held = rows.filter(r => /^help in code: /.test(String(r.why ?? ""))).length;
+    const reasons = rows.filter(r => WHY.test(String(r.why ?? "")) && !/^E\d/.test(String(r.why))).reduce((a, r) => a + (r.count ?? 1), 0);
+    const held = rows.filter(r => HELD_WHY.test(String(r.why ?? ""))).length;
+    const byReason = {};
+    for (const r of rows) { const k = String(r.why ?? "").split(":")[0]; byReason[k] = (byReason[k] ?? 0) + (r.count ?? 1); }
     log(`tooltips: ${sites.filter(s => !s.closing).length} control site(s) in ${new Set(sites.map(s => s.file)).size} file(s), `
         + `${need} with no tooltip and no hint; baseline ${kept} (${reasons} with a reason, ${kept - reasons} still to give one); `
         + (main.rows ? `main's copy ${main.rows.reduce((a, r) => a + (r.count ?? 1), 0)} row count(s) held; `
             // Loud on purpose (REVIEW-E102-code C2): CI's checkouts have no origin/main (.github/workflows/ci.yml fetches only
             // the commit, and changing that is the owner's call), so there the growth guard does not run; this says so.
             : `MAIN'S COPY NOT READ, so the guard on rows added by hand DID NOT RUN (${main.why}); `)
-        + `${held} row(s) of help in code read where they say; ${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - siteMisses.length}/${planted} planted site(s) read, guard ${guard.planted - guard.misses.length}/${guard.planted} planted case(s); `
+        + `by reason ${Object.entries(byReason).map(([k, n]) => `${k} ${n}`).join(", ")}; ${held} row(s) of help in code or a hint read where they say; ${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - siteMisses.length}/${planted} planted site(s) read, guard ${guard.planted - guard.misses.length}/${guard.planted} planted case(s); `
         + `${problems.length + misses.length} problem(s)`);
     return [...misses, ...problems];
 }

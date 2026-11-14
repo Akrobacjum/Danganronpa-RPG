@@ -3033,7 +3033,7 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
 body .application.dialog.drpg-ui.drpg-window-gmteam .dialog-content .drpg-form-field > p.drpg-help { text-align: start; margin: 4px 0 0; }
 
 /* ---- Season setup and Pre-season checks (E46-C5b, 09.11.2026; card M4: one checklist of the kit, red only for a blocking row) ----
-   The rows are ui-kit.mjs `checkList`'s (season-setup.mjs `setupRows`, `markedChecks`); these rules place what a row holds.
+   The rows are ui-kit.mjs `checkList`'s (season-setup.mjs `setupRows`; `markedChecks` until E56 part 2); these rules place what a row holds.
    Season setup: a row's hint, the line of what it waits on and its extra (the room guide, Check rooms) each a block of the
    row's detail, the line in the row's state - the blocking red beside a cross, the warning's ink beside "!", the fine print
    otherwise; the row's button beside its text on one line (`.drpg-setup-do` before). The scrollbar's gutter kept on the body
@@ -3059,7 +3059,6 @@ body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-k
    as the end of Edit campaign's block; its own height (`.drpg-kit-pinned`), so the body above scrolls and the row stays. */
 body .application.drpg-window-season .drpg-kit-pinned { padding: 10px 0 2px; border-top: 1px solid var(--drpg-line-strong); }
 body .application.drpg-window-season .drpg-season-tiles .drpg-gmp-grid { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
-body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
 body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-title { overflow-wrap: anywhere; }
 body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > summary { cursor: pointer; }
 body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > div { color: var(--drpg-kit-help-ink); padding-left: 1em; }
@@ -3070,7 +3069,7 @@ body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report)
    the fix lines a line height of their own (the marks' face is the kit's since E47-KFa: danganronpa.css's exception to
    the pixel face, beside the icon fonts', reaches every checklist). Pre-season's fine print (the cast's header, "no scene has rooms") from the
    start, where the dialog's paragraph rule centred it. */
-body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-foundry-report) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-title { line-height: 1.4; }
 body .application.dialog:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
 
 /* ---- the Class Trial console and the vote (E47 C1, 09.11.2026; M6, the owner's q-console; S12-51, S18-89) ----

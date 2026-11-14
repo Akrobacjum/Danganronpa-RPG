@@ -28,7 +28,7 @@ import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./
 import { cardWarn } from "./chat-card.mjs";
 import { whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen, RAISED } from "./live.mjs";
 import { showRoomGroup } from "./ui-hold.mjs";
@@ -38,7 +38,6 @@ import {
     tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName
 } from "./tables-pools.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**
@@ -324,7 +323,7 @@ function tableRowHtml(table, r, { home = null, tier = NaN, badge = "" } = {}) {
             ? `<span class="drpg-table-item-roles"${rolesAllowed ? "" : ` data-tooltip="${
                     esc(game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER }))}"`
               }>${offerable.map(key =>
-                `<label class="drpg-check${rolesAllowed ? "" : " drpg-locked"}"><input type="checkbox"
+                `<label class="drpg-check${rolesAllowed ? "" : " drpg-locked"}"><input type="checkbox"${tipAttr("DRPG.Tips.Sweep.Setup.itemRowRoleTooltip", null, { title: true })}
                     data-drpg-role="${key}"${roles.includes(key) ? " checked" : ""}${
                     rolesAllowed ? "" : " disabled"} />${
                     esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}</span>`
@@ -812,7 +811,7 @@ function itemPictureGrid(current) {
     return `<div class="drpg-tables-picture">
                     <span class="drpg-tables-picture-label">${esc(label)}</span>
                     <details class="drpg-glyph-picker drpg-item-picture-picker"${current ? " open" : ""}>
-                        <summary data-drpg-picture-summary>${esc(pictureName(current))}</summary>
+                        <summary data-drpg-picture-summary${tipAttr("DRPG.Tips.Sweep.Setup.itemPictureTooltip")}>${esc(pictureName(current))}</summary>
                         <div class="drpg-glyph-grid drpg-item-picture-grid" role="radiogroup" aria-label="${esc(label)}"
                              data-drpg-item-pictures>${cells.join("")}</div>
                     </details>
@@ -907,7 +906,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
      * use than one redundant box.
      */
     const roleChecks = EQUIPPABLE.map(key =>
-        `<label class="drpg-check"><input type="checkbox" name="role:${key}" />
+        `<label class="drpg-check"><input type="checkbox" name="role:${key}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemRoleTooltip", { tier: MULTI_ROLE_TIER }, { title: true })} />
             ${foundry.utils.escapeHTML(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("");
 
     /*
@@ -943,7 +942,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
         game.i18n.format("DRPG.Items.tierN", { n: t })}</option>`).join("");
 
     const roomChecks = roomTablesList.map(t => `<label class="drpg-inline-check">
-        <input type="checkbox" name="target:${t.id}"${
+        <input type="checkbox" name="target:${t.id}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemRoomTableTooltip")}${
             presetTargets.has(t.id) ? " checked" : ""} /> ${esc(t.name)}</label>`).join(" ");
 
     return `
@@ -954,12 +953,12 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
                          class="drpg-tables-preview" />
                     <input type="hidden" name="img.new" value="${esc(preset?.img || "")}" />
                     <label>${game.i18n.localize("DRPG.Items.name")}
-                        <input type="text" name="newName" value="${esc(preset?.name ?? "")}"
+                        <input type="text" name="newName" value="${esc(preset?.name ?? "")}"${tipAttr("DRPG.Tips.Sweep.Setup.newItemNameTooltip")}
                                placeholder="${esc(game.i18n.localize("DRPG.Items.namePlaceholder"))}" /></label>
                 </div>
                 ${itemPictureGrid(preset?.img || "")}
                 <label>${game.i18n.localize("DRPG.Items.description")}
-                    <textarea name="newText" rows="2"
+                    <textarea name="newText" rows="2"${tipAttr("DRPG.Tips.Sweep.Setup.newItemDescriptionTooltip")}
                         placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}"></textarea></label>
                 <label>${game.i18n.localize("DRPG.Items.category")}
                     <select name="newCategory"${tipAttr("DRPG.Tips.Setup.categoryTooltip")}>${categories}</select></label>
@@ -1056,7 +1055,7 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
             <div class="drpg-tables-right">
                 <div class="drpg-table-heading">
                     <h4 data-drpg-table-name title="${esc(first?.name ?? "")}">${esc(shortPoolName(first?.name))}</h4>
-                    <span class="drpg-table-actions" role="group">${tiers ? "" : `<button type="button" class="drpg-mini-button" data-drpg-rename-table>${
+                    <span class="drpg-table-actions" role="group">${tiers ? "" : `<button type="button" class="drpg-mini-button" data-drpg-rename-table${tipAttr("DRPG.Tips.Sweep.Setup.renameTableTooltip")}>${
                         esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>`}<button type="button" class="drpg-mini-button" data-drpg-delete-table${tipAttr("DRPG.Tips.Setup.deleteTableTooltip")}>${
                         esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button></span>
                 </div>
@@ -1192,6 +1191,27 @@ function wireNewItemForm(root) {
  * left Room Setup's list. `poolNameRefusal` is the one check, for the pane's
  * family, and the prompt keeps the typed name with the refusal under it.
  */
+/*
+ * THE ROOMS FOLLOW A RENAMED TABLE (1.2.115; the tooltip sweep's finding, the coordinator's word of 14.11.2026). A room
+ * stores the NAME of the table it draws from (its regions' `drpgItemTable`, Room setup's Draws from), and a Search finds
+ * the table by that name (tables-pools.mjs `tableForRoom`, `roomTableNames`), so a Rename left every room that named the
+ * table on a name no table had, drawing from the global pool from then on. Each room of every scene that named the old
+ * name is pointed at the new one through `setVaultRoom`, which writes every piece of the room. Not when another table
+ * still carries the old name: those rooms then name a table that exists, and which of the two they meant is not known.
+ * Answers the rooms repointed. The tier-2 "a room table renamed in the Item tables window ..." holds it.
+ */
+async function repointRooms(from, to) {
+    if (!from || !to || from === to || game.tables?.getName?.(from)) return [];
+    const { setVaultRoom, VAULT_FLAGS } = await import("./vault.mjs");
+    const done = [];
+    for (const scene of game.scenes ?? []) {
+        const rooms = new Set(Array.from(scene.regions ?? []).filter(r => r.getFlag?.(MODULE_ID, VAULT_FLAGS.table) === from).map(r => r.name));
+        for (const room of rooms) if (await setVaultRoom(room, { table: to, scene })) done.push(room);
+    }
+    if (done.length) log(`Item table "${from}" renamed "${to}": ${done.length} room(s) repointed (${done.join(", ")}).`);
+    return done;
+}
+
 function wirePaneHeading(pane, root, { current, show, nameEl }) {
     /* ITS OWN TWO BUTTONS, LOOKED UP HERE (22.09). When this was split out of
        `wirePoolPane` (1.2.44) the listeners came with it and the two lookups stayed
@@ -1213,7 +1233,9 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
         if (name === null || name === current().name) return;
 
         try {
+            const was = current().name;
             await current().update({ name });
+            await repointRooms(was, name);
             showPoolName(nameEl, name);
             const button = root.querySelector(`[data-drpg-table="${CSS.escape(current().id)}"]`);
             const entry = button?.querySelector("span");
@@ -1645,9 +1667,9 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
         body: `<form>${kitTabs([
             { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"), tooltip: tipText("DRPG.Tips.Setup.tabsTierPoolsRoomTooltip"),
               html: poolPaneHtml("tiers", tierTables, selected, poolError?.family === "tiers" ? poolError : null) },
-            { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"),
+            { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"), tooltip: tipText("DRPG.Tips.Sweep.Setup.tabRoomPoolsTooltip"),
               html: poolPaneHtml("rooms", roomTablesList, selected, poolError?.family === "rooms" ? poolError : null) },
-            { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"),
+            { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"), tooltip: tipText("DRPG.Tips.Sweep.Setup.tabNewItemTooltip"),
               html: newItemPaneHtml(preset, presetTargets, roomTablesList) }
         ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : preset ? "newItem" : null })}</form>`,
         /* THE FOOTER BY ROLE (E21 C2b, E22): Add an item the primary; Create table secondary; Install / reinstall

@@ -24,13 +24,11 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 
 /**
@@ -174,9 +172,11 @@ export function campaignRows(clock, { extra = [], autofocus = false } = {}) {
           field: stepper({ name: "chapter", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), step: 1, id: ids.chapter,
                          attrs: { "data-tooltip": tipText("DRPG.Tips.Gm.chapterTooltip") } }) },
         { label: L("DRPG.Clock.phase"), id: ids.phase, field: `<select name="phase" id="${ids.phase}"${tipAttr("DRPG.Tips.Gm.phaseTooltip")}>${phases}</select>` },
-        { label: L("DRPG.Clock.day"), id: ids.day, field: stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day }) },
-        { label: L("DRPG.Clock.session"), id: ids.session, field: stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session }) },
-        { label: L("DRPG.Clock.timeOfDay"), id: ids.time, field: `<select name="timeOfDay" id="${ids.time}">${times}</select>` },
+        { label: L("DRPG.Clock.day"), id: ids.day, field: stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day,
+                         attrs: { "data-tooltip": tipText("DRPG.Tips.Sweep.Gm.dayTooltip") } }) },
+        { label: L("DRPG.Clock.session"), id: ids.session, field: stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session,
+                         attrs: { "data-tooltip": tipText("DRPG.Tips.Sweep.Gm.sessionTooltip") } }) },
+        { label: L("DRPG.Clock.timeOfDay"), id: ids.time, field: `<select name="timeOfDay" id="${ids.time}"${tipAttr("DRPG.Tips.Sweep.Gm.timeOfDayTooltip")}>${times}</select>` },
         ...extra,
         { full: "<hr />" },
         { full: `<label class="drpg-checkbox">

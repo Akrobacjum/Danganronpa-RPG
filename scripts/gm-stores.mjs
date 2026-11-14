@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
-import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
+import { emptyOption, drpgWindow, drpgConfirm, box, checkList, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -33,9 +33,7 @@ import { WORLD_SECRET_RULES } from "./world-secrets.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
-import { tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
-import { WINDOW_HELP } from "./ui-kit.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -1193,11 +1191,11 @@ export const tailStore = defineGmStore({
  * or null while nothing was seen spent), `eclipse` the Eclipse it was counted in, `via` "tunnel" for a 'Go through',
  * `mark` the time of day it was made in. Written by the primary alone, from what it saw (movement.mjs `noteCrossing`,
  * `noteCrossingPrice`) or did (passages-gm.mjs `crossTunnel`), in a step of the character's `crossingKey`; given back
- * once (`refundLastCrossing`). The audit's fix named a player flag `lastCrossing`, which the player's own console could
- * write to set the price a GM gives back: the GMs' memory instead (the stage's design note 8). Synced, so that a second
- * GM's window shows the button; not backed up: a row is worth one crossing, and a restore that lost one loses a refund,
- * never gives one. Cut by the reset's "actions" group with the budgets its prices come out of. No player copy and no old
- * key.
+ * once (`refundLastCrossing`). The audit's fix named a player flag `lastCrossing` (never built), which the player's own
+ * console could write to set the price a GM gives back: the GMs' memory instead (the stage's design note 8). Synced, so
+ * that a second GM's window shows the button; not backed up: a row is worth one crossing, and a restore that lost one
+ * loses a refund, never gives one. Cut by the reset's "actions" group with the budgets its prices come out of. No
+ * player copy and no old key.
  */
 export const crossingStore = defineGmStore({
     name: "crossings", key: SETTINGS.gmCrossings,
@@ -2445,12 +2443,6 @@ function allBullets() {
     return out;
 }
 
-/** Bullets in the world whose answer key this browser lacks or holds with no real type (S05-01's damage included). */
-export function bulletsWithoutAnswer() {
-    if (!game.user?.isGM) return 0;
-    return allBullets().filter(item => !bulletStore.get(item.uuid)?.realType).length;
-}
-
 /**
  * What a bullet with no real type here can take from its trace: the bullet's row names
  * the trace it was copied from (`sceneId` and `remnantId`), and the trace's row says what
@@ -2714,9 +2706,9 @@ export async function runHealthCheck() {
                     : { action: "continue", label: game.i18n.localize("DRPG.Case.continue") },
                 secondary: [
                     ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }] : []),
-                    ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
+                    ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces"), tooltip: tipText("DRPG.Tips.Sweep.Gm.moveRemnantKeysTooltip") }] : []),
                     ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
-                    ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : [])
+                    ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast"), tooltip: tipText("DRPG.Tips.Sweep.Gm.enterCastTooltip") }] : [])
                 ],
                 destructive: decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind"), tooltip: tipText("DRPG.Tips.Gm.clearTheMastermindTooltip") }] : []
             },
@@ -2837,7 +2829,8 @@ export async function enterCastByHand() {
     const students = (game.actors?.contents ?? []).filter(a => a.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.spectator));
     const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
-    const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;
+    const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}"${tipAttr({ killerId: "DRPG.Tips.Sweep.Gm.castKillerTooltip",
+        victimId: "DRPG.Tips.Sweep.Gm.castVictimTooltip", thirdId: "DRPG.Tips.Sweep.Gm.castThirdTooltip" }[name])}>${options}</select></label>`;
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Case.castTitle"),
         classes: ["drpg-panel", "drpg-window-enter-cast"],

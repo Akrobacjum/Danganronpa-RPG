@@ -145,7 +145,7 @@ export function registerRemnantRings() {
        frame key stands, drawn where it changed, hidden where its row is gone); after `sightRefresh`, only a Remnant or
        a project token that is visible and has no visible ring drawn - not `ringKept`, which a light left live beside a
        renderer never satisfies and which would draw those again on every frame of a slide (fog-reveal.mjs). A trace
-       whose row this browser does not hold is passed over until the ledger changes (`noFrameFor`), so a slide does not
+       whose row this browser does not hold is passed over until the ledger changes (`token.drpgRingNoFrame`), so a slide does not
        read its row on each frame. Tier 2 E90-T3; scenario 86's counters. */
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) { ledgerGen++; ringPassNextFrame("ledger"); }
