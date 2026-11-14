@@ -9199,7 +9199,7 @@ const INVARIANTS = [
          * E99 C5, 12.11.2026. A planted state, and the sources read. It takes the place of R3676 (the window, drawn) and
          * R3677 (the window's button and a player's open), removed with the window (the owner's 13:15). Red at fd3c07d:
          * the footer's `caseSchema`, TRIAL_ACTIONS' and case-trial.mjs `openTrialSchema` stood, and the drawing without
-         * `inConsole` was the window's list of tick boxes.
+         * its then option `inConsole` (since removed with the window, f02ec551) was the window's list of tick boxes.
          */
         const T = await import("./case-trial.mjs");
         const UI = await import("./trial-floor-ui.mjs");
@@ -18476,7 +18476,7 @@ const INVARIANTS = [
          * closed one, a one-way wall, one that does not restrict movement, one upstairs only - and rooms for the scene to
          * be a place; the passages are rows of the suite's own in the copy's shape (`known`). Every act is a recorder
          * the test hands in (`warn`, `sendBack`, `socket`, `whisper`), so nothing is written, sent or logged. Foundry's
-         * own reading of a one-way wall (`orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
+         * own reading of a one-way wall (`foundry.utils.orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
          * drives the audit through the harness on four clients.
          * E79 fix r1-G1, 15.10.2026 (review r1: SEC S1, S6, goal F1, F2, F3, F6, cor F3), each red at e6e3349: a route
          * through a point exactly on a wall's line, in one move's waypoints or in two moves, judged clear; the spot the
@@ -19914,7 +19914,7 @@ const INVARIANTS = [
         /*
          * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
          * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
-         * look.mjs at 54493dbf (`lookFieldset`, sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
+         * look.mjs at 54493dbf (`lookFieldset`, since removed; sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
          * line, glassPulse, hudTicker, glassBlur, reducedMotion, highContrast (with the system's line where it asks), the
          * note "Everything in this window is this browser's own"; the volumes' fieldset: the two sliders, their line,
          * messengerSound, and for a GM sfxVary (the game's tab now, R3531); the Voice section (R586). Two stand-in users,
@@ -20966,7 +20966,7 @@ const INVARIANTS = [
          * panel's sections as `buildSections` draws them (`panelUnder`, nothing written), game.drpg's four calls compared
          * with the openers by identity, and Season setup's tiles (12.11.2026: the panel's tiles, each with the icon it
          * wore in Between sessions at ecba3f21). Red at ecba3f21: the four tiles in Between sessions, no row; at 5e0f8d76:
-         * the row `SEASON_WINDOWS`, no tiles.
+         * the row `SEASON_WINDOWS` (gone since E49 A1e round 2, af0aea09), no tiles.
          */
         const tiles = await panelUnder({}, root => [...root.querySelectorAll(".drpg-gmp-section")].map(s => [s.dataset.drpgKey, [...s.querySelectorAll("[data-drpg-run]")].map(t => t.dataset.drpgRun)]));
         must(tiles.length >= 4, `the panel drew ${tiles.length} section(s) - this would measure nothing`);
@@ -47235,7 +47235,7 @@ const INVARIANTS = [
         const builders = Object.fromEntries(["addUseButton", "addEquipButton", "addDiscardButton", "addStashButton", "addHandoverButton"].map(fn => [fn, first(fn)]));
         // The gate, none of the three buttons before it, all three after it.
         builders.buildBulletRow = /^(?:(?!addHandoverButton\(|addPresentButton\(|drpg-tb-analyze)[\s\S])*?if \(!rowGate\(app\)\) return;[\s\S]*addHandoverButton\([\s\S]*addPresentButton\([\s\S]*drpg-tb-analyze/.test(bullet);
-        /* A pip's tooltip is read for the GM: this GM with `isGM` off reads as a viewer to sheet.mjs `viewerOf`, whose pips
+        /* A pip's tooltip is read for the GM: this GM with `isGM` off reads as a viewer to sheet-mode.mjs `sheetMode`, whose pips
            carry none whatever the header's state. A Monocub's grid is its two tiles; a Monokuma's, its Despair Calls. */
         const want = {};
         for (const role of ["gm", "owner"]) {
@@ -47879,7 +47879,7 @@ const INVARIANTS = [
     }],
     ["R1497 - the reserve's field is the mode's (sheet-mode.mjs `sheetMode(...).reserveField`, sheet-sidebar.mjs `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*
-         * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`
+         * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` (gone in this fix) asked `user?.isGM` and `testUserPermission?.(`
          * beside the mode, so the field was drawn on the dead's sheet (a GM's always, the owner's with the lock off), on
          * a Monokuma's and on a sheet whose app is not editable. Stand-ins as R1445's (`reserveActor`: Health 1 of 4
          * marked, Sanity 2 of 7), the flags answered by an own `getFlag`, the lock answered in memory (`game.settings.get`
@@ -48472,7 +48472,7 @@ const INVARIANTS = [
          * owner's and a GM's Breakdown, everybody's Wounded, drawn.
          *
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
-         * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
+         * module/canvas/placeables/token.mjs `Token#_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
          * effect) drew the icon on every client's canvas: it told another player what the Sanity bar no longer does. A
          * view change on this browser (the status still sits on the actor every client holds): the icon of a
          * `drpgBreakdown` effect is not drawn for a user `reserveView` does not show the student's Sanity to. Read on a
@@ -56796,7 +56796,7 @@ const INVARIANTS = [
     ["R6053 - a rebuild that recuts sets what the cut seats riding the turn, and the turn's end ends it (scripts/glass.mjs `followTurn`, `rebuildAll`; E62 C6): the riders are the room tile beside the notices (under the clock the clock's column lays it) and its picture with it, the voice tile and its portrait, the notice tile and its plate, each on its own pane's tone; `rebuildAll` calls `followTurn` after the seats (`seatRoomArt`, `seatVoiceArt`, `seatNoteFrame`) and only for a turn that recuts; the riders' animations join the turn's (`posed`/`anims`, which the turn's end and its cancel end) on its move's length, linear over the sampled curve; and the counter is documented", async () => {
         /*
          * fix-113p, 13.11.2026. Red at ceb9e9c8: no `FOLLOWERS`, no `followTurn`. Read off the source: the riders' frames are
-         * R6052's, and the glass harness's per-frame reading in Chromium (`drpgFollowCheck`) is the browser's half.
+         * R6052's, and the glass harness's per-frame reading in Chromium (glass-sweep.mjs `--follow`) is the browser's half.
          */
         const G = await import("./glass.mjs");
         const sources = await moduleSources();
@@ -60162,7 +60162,7 @@ const INVARIANTS = [
     ["R4552 - the Death fade Sound row: in the incident group, played by default with the death's own file, its own file when one is set (E62 C3b, the storyboard's 9)", async () => {
         /*
          * E62 C3b, 13.11.2026. config.mjs `SFX_EVENTS.deathFade` and sfx-play.mjs `soundsFor`, read with the Sound map
-         * handed in through the setting's own reader on this browser (`withSetting`). Red at 9a74628: no row.
+         * handed in through the setting's own reader on this browser (`game.settings.get` stood in for the Sound map's key alone). Red at 9a74628: no row.
          */
         const { SFX_EVENTS } = await import("./config.mjs");
         const P = await import("./sfx-play.mjs");
