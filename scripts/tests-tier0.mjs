@@ -25679,6 +25679,12 @@ const REGRESSIONS = [
         const missing = [...acts].sort().filter(a => !iconList.includes(`"${a}"`) || !glyphList.includes(`"${a}"`));
         equal(JSON.stringify(missing), "[]", `trace actions with no map icon or no card glyph (of ${[...acts].sort().join(", ")})`);
     }],
+    ["R7179 - the GM's diagnostics do not call a neutral trace the module leaves on purpose a mistake (E59 C-115, CHAINS.md B-R4): the door actions (\"infiltrate\", doors-gm.mjs), the facilities (\"facility\", config.mjs `FACILITIES.trace`) and a body's looting (\"loot\", handover.mjs) leave Neutral Remnants by design, and diagnostics.mjs counted every Neutral Remnant under \"give each a real category\"; the count passes over the actions of `NEUTRAL_BY_DESIGN`, which names those three", async () => {
+        const diag = stripComments(new Map(await otherSources()).get("diagnostics.mjs") ?? "");
+        const list = bodyOf(diag, "const NEUTRAL_BY_DESIGN = ", { until: ";" });
+        equal(JSON.stringify(["infiltrate", "facility", "loot"].filter(a => !list.includes(`"${a}"`))), "[]", "actions that leave a Neutral Remnant by design and are not exempted");
+        ok(/NEUTRAL_BY_DESIGN\.has\(/.test(bodyOf(diag, "const neutral = [];", { until: "if (neutral.length)" })), "the Neutral count does not pass over the actions that leave one by design");
+    }],
 ];
 
 
