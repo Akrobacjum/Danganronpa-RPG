@@ -37403,7 +37403,8 @@ const INVARIANTS = [
         }), stableJson({
             same: [true, true, true], frozen: true,
             // E66 fix r1 F12: the documents' setting offers its empty default, "not written yet", beside the languages (R1164).
-            choices: [stableJson(S.LANGUAGES), stableJson({ "": "-", ...S.LANGUAGES })],
+            // E57 C3: the documents' empty choice is named (DRPG.Help.documentLanguageUnset) since the setting is drawn.
+            choices: [stableJson(S.LANGUAGES), stableJson({ "": "DRPG.Help.documentLanguageUnset", ...S.LANGUAGES })],
             reload: true,
             written: ["settings.mjs"],
             told: other,
@@ -37617,7 +37618,7 @@ const INVARIANTS = [
             `[on a page built in "${page}": lang on the module's window (its content, or the element where it has no frame) and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"; the builders of the other roots that mark nothing; the Foundry window's frame marked whole; of the ${drawn.length} roots this page has drawn (${drawn.join(", ")}), those whose lang is not the page's; the Foundry windows' frames with a lang of their own or a header without the page's; a module window with Foundry's frame: the element's lang, the language its header inherits, the title's and the content's; of the ${dialogs} DialogV2 calls in the module's source, those that name no drpg- class, and the confirms that leave Foundry's Yes or No]`);
     }],
 
-    ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in the settings window, empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
+    ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in Foundry's settings window (in the game's settings window since E57 C3), empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
         /*
          * E66 C1, 01.11.2026; decision 38 = D34 option 1 ("Nowe ustawienie świata 'Język dokumentów', domyślnie język
          * primary GM-a przy pierwszym starcie; UI dalej w języku klienta"), E66-09. The setting's registration is read;
@@ -37670,7 +37671,9 @@ const INVARIANTS = [
             setting: def && { scope: def.scope, config: def.config === true, type: def.type?.name ?? null, choices: stableJson(def.choices), default: def.default },
             writes, ...read
         }), stableJson({
-            setting: { scope: "world", config: false, type: "String", choices: stableJson({ "": "-", ...S.LANGUAGES }), default: "" },
+            /* E57 C3: still `config: false` - Foundry's own list does not show it - and drawn by the game's settings window
+               (R3420, R6603), so its empty choice is named. */
+            setting: { scope: "world", config: false, type: "String", choices: stableJson({ "": "DRPG.Help.documentLanguageUnset", ...S.LANGUAGES }), default: "" },
             writes: primary ? [["documentLanguage", page]] : [],
             seeded: [primary, false],
             read: "pl",
