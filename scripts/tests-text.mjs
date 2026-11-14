@@ -2091,6 +2091,33 @@ function reasonPatternsOf(lx, text) {
     });
 }
 
+/* The argument spans, `[open, close]`, of the calls a file makes to its own functions in a place only the console reads
+   (E57 rest, 14.11.2026): a parameter of a `function` declared in the file, a plain name, read in the body and every
+   time inside one of `logs` (the LOG_CALL spans) - module.mjs's `safely(label, fn)`, whose label reaches only
+   `error(...)`, gave 124 of T13's findings. A parameter read once anywhere else (handed on, shown, returned) keeps its
+   arguments text. Read on blanked code, so a template's `${label}` is read as the code it is. */
+function consoleOnlyArgs(lx, blank, logs) {
+    const inLog = at => logs.some(([a, b]) => at > a && at < b);
+    const spans = [];
+    for (const m of blank.matchAll(/(?<![\w$.])function\s+([\w$]+)\s*\(/g)) {
+        const name = m[1], body = bodyOf(lx, blank, name);
+        if (!body || blank.search(new RegExp(`(?<![\\w$.])function\\s+${name.replace(/\$/g, "\\$")}\\s*\\(`)) !== m.index) continue;
+        const { args } = lx.callArgs(blank, m.index + m[0].length - 1);
+        const quiet = args.map(a => blank.slice(a.start, a.end).trim()).map(p => {
+            if (!/^[A-Za-z_$][\w$]*$/.test(p)) return false;
+            const reads = [...blank.slice(body[0], body[1]).matchAll(new RegExp(`(?<![\\w$.])${p.replace(/\$/g, "\\$")}(?![\\w$])`, "g"))];
+            return reads.length > 0 && reads.every(r => inLog(body[0] + r.index));
+        });
+        if (!quiet.some(Boolean)) continue;
+        for (const c of blank.matchAll(new RegExp(`(?<![\\w$.])${name.replace(/\$/g, "\\$")}\\s*\\(`, "g"))) {
+            if (/\bfunction\s+$/.test(blank.slice(Math.max(0, c.index - 12), c.index))) continue;
+            const { args: given } = lx.callArgs(blank, c.index + c[0].length - 1);
+            given.forEach((a, i) => { if (quiet[i]) spans.push([a.start - 1, a.end]); });
+        }
+    }
+    return spans;
+}
+
 /* Each call's argument span, `[open, close]`, for a pattern whose match ends at the call's "(". */
 function callSpans(lx, blank, re) {
     return [...blank.matchAll(re)].map(m => { const open = m.index + m[0].length - 1; return [open, lx.callArgs(blank, open).close]; });
@@ -2101,8 +2128,9 @@ function callSpans(lx, blank, re) {
  * script that draws UI (UI_FILE) - a string or a template piece whose shown text
  * (shownOf) holds two or more English words (so never a key, which has no
  * space) - that is not a class list, a selector or CSS, nor only a URL, path or icon, and not console
- * text: an argument of a LOG_CALL, or anything in diagnostics.mjs (DB12: its console
- * report, counted apart). Counted apart, not findings: a refusal's reason
+ * text: an argument of a LOG_CALL, an argument in a place a function of the file reads
+ * only inside one (consoleOnlyArgs, `consoleArg`: module.mjs's `safely` labels, E57 rest),
+ * or anything in diagnostics.mjs (DB12: its console report, counted apart). Counted apart, not findings: a refusal's reason
  * (REASON_PROPERTY and the guards; the GM's record, the asker told a code), a
  * literal compared with `===`/`!==` or a `case` (a data value, an id), and a
  * literal after `game.i18n.has(` in the same expression (`fallback`: English that
@@ -2114,7 +2142,7 @@ function callSpans(lx, blank, re) {
 export function uiLiterals(bag = {}) {
     const lx = lexerOf(bag, "uiLiterals");
     const S = asMap(bag.scripts);
-    const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0 };
+    const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0, consoleArg: 0 };
     const guardFile = S.get("scripts/bridge-guards.mjs");
     const guards = guardFile === undefined ? [] : [...lx.blankComments(String(guardFile)).matchAll(/^export function (\w+)\s*\(([^)]*)\)/gm)]
         .filter(m => /(?<![\w$])why(?![\w$])/.test(m[2])).map(m => m[1]);
@@ -2125,6 +2153,7 @@ export function uiLiterals(bag = {}) {
         if (!UI_FILE.test(blank)) { counts.quiet++; continue; }
         counts.files++;
         const logs = callSpans(lx, blank, LOG_CALL), reasons = callSpans(lx, blank, REASON_CALL);
+        const quietArgs = consoleOnlyArgs(lx, blank, logs);
         const inside = (spans, s) => spans.some(([a, b]) => s.start > a && s.end <= b);
         const has = [...blank.matchAll(/\bgame\s*\??\.\s*i18n\s*\??\.\s*has\s*(?:\?\.\s*)?\(/g)].map(m => m.index);
         for (const s of literalSpans(code, blank)) {
@@ -2134,6 +2163,7 @@ export function uiLiterals(bag = {}) {
             counts.literals++;
             if (file === "scripts/diagnostics.mjs") { counts.diagnostics++; continue; }
             if (inside(logs, s)) { counts.log++; continue; }
+            if (inside(quietArgs, s)) { counts.consoleArg++; continue; }
             const before = blank.slice(Math.max(0, s.start - 40), s.start), after = blank.slice(s.end, s.end + 6);
             if (REASON_PROPERTY.test(before) || inside(reasons, s) || closedList.some(p => p.test(raw))) { counts.reasons++; continue; }
             if (/(?:[!=]==?|\bcase)\s*$/.test(before) || /^\s*[!=]==?/.test(after)) { counts.compared++; continue; }
@@ -3310,7 +3340,7 @@ export const FIXTURES = Object.freeze({
     },
     uiLiterals: {
         flags: ["scripts/fx-text.mjs:1 string", "scripts/fx-ui.mjs:1 string", "scripts/fx-ui.mjs:2 template", "scripts/fx-ui.mjs:15 template",
-            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string"],
+            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string", "scripts/fx-ui.mjs:27 string"],
         input: {
             scripts: {
                 "scripts/fx-ui.mjs": [
@@ -3336,7 +3366,11 @@ export const FIXTURES = Object.freeze({
                     "const why = \"that roll is too old to settle anything\";",                                       // the closed list takes it whole: passes
                     "const near = \"that roll is too old to settle anything else\";",                                  // the list takes it not whole: flagged
                     "warn(\"A warning only the console reads\");",                                                    // console text: passes
-                    "el.innerHTML = `<p>{{#if open}}{{name}} {{else}}{{who}}</p>`;"                                      // Handlebars only: passes
+                    "el.innerHTML = `<p>{{#if open}}{{name}} {{else}}{{who}}</p>`;",                                     // Handlebars only: passes
+                    "function safely(label, fn) { try { fn(); } catch (err) { error(`Could not register ${label}; the rest goes on.`, err); } }", // console text: passes
+                    "safely(\"the trial floor watch\", registerFloor);",                                                // a console-only parameter's argument: passes
+                    "function shout(label) { log(label); ui.notifications.info(label); }",                            // the parameter reaches a screen too
+                    "shout(\"the vote is open now\");"                                                                // so its argument is text: flagged
                 ].join("\n"),
                 "scripts/fx-text.mjs": "el.textContent = \"Nobody is here yet\";",                                     // textContent makes a UI file: flagged
                 "scripts/fx-data.mjs": "export const LINE = \"An English line no screen of this file draws\";",        // no UI in the file: not read
