@@ -37596,6 +37596,33 @@ const INVARIANTS = [
             "[the GMs' reason keys judgePendingMurders does not read; per language, the GMs' reasons missing or speaking to the killer, and the witness forms without {n}]");
     }],
 
+    ["R6402 - the GMs' night note on an opened murder follows the opening's own night rule (scripts/murder-rules.mjs `nightNoteKey`; config.mjs `MURDER_OPENING`; E71 line A, 14.11.2026): at Night the side that rolls gets `Murder.nightNoteDirect` or `nightNoteIndirect` only while its entry gives advantage or disadvantage, and `Murder.nightNoteNone` when it gives neither, as the victim's has since E64", async () => {
+        /*
+         * E71 line A, B03's code faults (the coordinator, 14.11.2026). Red at 876878f5: `nightNoteKey` answered
+         * `nightNoteIndirect` ("the victim's opening roll has disadvantage") for every trap at Night, while E64 set
+         * `MURDER_OPENING.victim.nightDisadvantage` false and the rolls (murder-rules.mjs, roll-draw.mjs) stopped giving it.
+         * Read from source and config: the note is posted when a murder opens, which tier 2 drives.
+         */
+        const sources = new Map(await otherSources());
+        const rules = stripComments(sources.get("murder-rules.mjs") ?? "");
+        must(rules.length > 1000, "murder-rules.mjs did not load - this reads nothing");
+        const body = bodyOf(rules, "function nightNoteKey", { until: "\n}" });
+        must(body.includes("atNight"), "nightNoteKey is gone - this reads nothing");
+        const { MURDER_OPENING } = await import("./config.mjs");
+        const read = {
+            flags: ["nightAdvantage", "nightDisadvantage", "MURDER_OPENING"].filter(w => !body.includes(w)),
+            none: body.includes('"DRPG.Murder.nightNoteNone"'),
+            victimNow: [MURDER_OPENING.victim.nightAdvantage ?? false, MURDER_OPENING.victim.nightDisadvantage ?? false]
+        };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const w = file?.DRPG?.Murder?.nightNoteNone;
+            read[lang] = typeof w === "string" && !(lang === "en" ? /advantage/i : /przewag|utrudnien/i).test(w);
+        }
+        equal(stableJson(read), stableJson({ flags: [], none: true, victimNow: [false, false], en: true, pl: true }),
+            "[what nightNoteKey does not read of the opening's night rule; whether it has the note for a night that changes nothing; the victim's flags now; the note in each language, naming no advantage]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

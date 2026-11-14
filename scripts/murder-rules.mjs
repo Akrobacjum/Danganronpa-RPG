@@ -347,7 +347,12 @@ export function availableCrisisActions(actor, state = murderState()) {
  */
 function nightNoteKey(indirect) {
     if (!atNight()) return "DRPG.Murder.dayNote";
-    return indirect ? "DRPG.Murder.nightNoteIndirect" : "DRPG.Murder.nightNoteDirect";
+    // The roll's own night rule, as the throw reads it (`MURDER_OPENING`'s flags; E64 took the victim's away): a note
+    // that names a modifier the roll does not get misleads the GM (E71 line A).
+    const def = MURDER_OPENING[indirect ? "victim" : "killer"] ?? {};
+    if (indirect && def.nightDisadvantage) return "DRPG.Murder.nightNoteIndirect";
+    if (!indirect && def.nightAdvantage) return "DRPG.Murder.nightNoteDirect";
+    return "DRPG.Murder.nightNoteNone";
 }
 
 /** Is it night? Whichever side rolls Stage 4 is modified by the answer - and the GM's draw expects it (roll-draw.mjs `expectedFor`). */

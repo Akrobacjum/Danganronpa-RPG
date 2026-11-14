@@ -2791,6 +2791,7 @@
         "other": "Role się odwróciły, a {n} Key Remnantów zaplanowano wokół dawnego zabójcy, który jest teraz ofiarą. Liczba z rzutu otwarcia zostaje: napisz {n} nowych Key Remnantów przed Investigation."
       },
       "nightNoteDirect": "Jest noc: rzut otwarcia zabójcy ma przewagę.",
+      "nightNoteNone": "Jest noc, ale pora dnia nie zmienia tego rzutu otwarcia.",
       "nightNoteIndirect": "Jest noc: rzut otwarcia ofiary ma utrudnienie.",
       "betrayalNote": "Do końca dnia {third} może zwrócić się przeciw postaci {killer}, jeśli {killer} wciąż żyje. Poza Eclipse to jedyne zabójstwo, którego nie trzeba wcześniej zgłaszać; podczas Eclipse zdradę tylko się zgłasza, a zaczyna się, gdy Eclipse się skończy.",
       "betrayalButton": "{third} zwraca się przeciw zabójcy",

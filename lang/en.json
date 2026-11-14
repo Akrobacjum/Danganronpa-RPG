@@ -2628,6 +2628,7 @@
       },
       "keyRemnantsStale": { "one": "The roles reversed, so the Key Remnant was planned around a killer who is now the victim. Write a new one before the Investigation; the opening roll set the count at {n}, and it stays.", "other": "The roles reversed, so the {n} Key Remnants were planned around a killer who is now the victim. Write {n} new ones before the Investigation; the opening roll set the count, and it stays." },
       "nightNoteDirect": "It is night: the killer's opening roll has advantage.",
+      "nightNoteNone": "It is night, but night does not change this opening roll.",
       "nightNoteIndirect": "It is night: the victim's opening roll has disadvantage.",
       "betrayalNote": "{third} walked in on this and is still standing, and may turn on {killer} until the day ends. Outside an Eclipse it is the one killing that needs no declaration in advance; during one it is declared and opens when the Eclipse ends.",
       "betrayalButton": "{third} turns on the killer",
