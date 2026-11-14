@@ -49,8 +49,8 @@ B01a alone; line B owns that change (the coordinator, 14.11.2026). Until it land
 | B10a | not started | |
 | B10b | not started | |
 | B11 | not started | |
-| B12 | not started | |
-| B13 | rewritten, reviewed (EN, cold EN, PL), folded, landed: 35 texts, 144 families kept (docs/dev/e71/kept-C.json) | this commit |
+| B12 | rewritten, reviewed (EN, cold EN, PL), folded, landed: 197 texts, 157 families kept | see git log |
+| B13 | rewritten, reviewed (EN, cold EN, PL), folded, landed: 35 texts, 144 families kept (docs/dev/e71/kept-C.json) | 968a0a27 |
 
 ## Questions, with the default taken
 

@@ -597,6 +597,667 @@
     "S19: DRPG.Rules.manageIntro and DRPG.Rules.emptyKept name the Delete box by DRPG.Project.delete (\"Delete\" / \"Usuń\"), the manager's column head; the texts say \"revoke\" for what the box does, as the GM handbook does.",
     "S19: DRPG.Notices.filter.notDone: only the English changes; the Polish already calls the filter and the tag „Niewykonane”."
    ]
+  },
+  "B12": {
+   "kept": [
+    {
+     "key": "DRPG.Bridge.refuseAttempt",
+     "why": "A verb with its object on a GM's button (O11), and the Polish is the glossary's „Odmów” (refuse, M8); it gives the price back (action-pipeline.mjs declineAction)."
+    },
+    {
+     "key": "DRPG.Bridge.what.project.progress",
+     "why": "A noun phrase that names the request (progress on a project a player works on) and reads whole in both hosts of DRPG.Bridge.notDone."
+    },
+    {
+     "key": "DRPG.Bridge.what.project.share",
+     "why": "Names the player's own request, a verb with its object in English and a verbal noun in Polish, as the host needs."
+    },
+    {
+     "key": "DRPG.Bridge.what.project.unsabotage",
+     "why": "A GM's own request (gmOnly): one word that names the repair, in both languages."
+    },
+    {
+     "key": "DRPG.Bridge.what.project.change",
+     "why": "A GM's change asked of the primary (gmOnly); plain and short in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.eclipse.move",
+     "why": "Names a crossing counted during an Eclipse (handleEclipseMove); Eclipse stays a name in Polish, and both read whole in the host."
+    },
+    {
+     "key": "DRPG.Bridge.what.note.save",
+     "why": "The name of the player's pre-session note (handleNoteSave), short and plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.token.refundCrossing",
+     "why": "A GM's request (gmOnly) that says exactly what is given back; clear in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.action.plant",
+     "why": "One word for the Palm's plant, the Polish the dice line DRPG.Action.dcPalm uses („Podłożenie”)."
+    },
+    {
+     "key": "DRPG.Bridge.what.action.friskUnseen",
+     "why": "Frisk stays English (glossary frisk) with a plain Polish qualifier; reads whole in the host."
+    },
+    {
+     "key": "DRPG.Bridge.what.action.friskAnswer",
+     "why": "Second person to the one who answers, a noun phrase the host takes in both languages."
+    },
+    {
+     "key": "DRPG.Bridge.what.action.friskFollow",
+     "why": "Names the searcher's step after the answer; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.murder.openingResult",
+     "why": "The name of the incident's opening roll, plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.murder.cleanup",
+     "why": "One word for Stage 6's clean-up, plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.daggerheart",
+     "why": "Told with DRPG.Bridge.why.relay when the relay refuses a change Daggerheart asked; plain and short, and names no mechanism."
+    },
+    {
+     "key": "DRPG.Bridge.what.observe.target",
+     "why": "Observe stays English (PL-k); a verbal noun in Polish, a verb with its object in English."
+    },
+    {
+     "key": "DRPG.Bridge.what.advancement.offer",
+     "why": "A GM's request (gmOnly); Level Up stays a name, and both are short."
+    },
+    {
+     "key": "DRPG.Bridge.what.advancement.ask",
+     "why": "Quiet (answer none): no screen shows it; the text names the request plainly."
+    },
+    {
+     "key": "DRPG.Bridge.what.call.approve",
+     "why": "Names the player's ask for a GM's yes to a Hope Call; Hope Call stays English, plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.call.yes",
+     "why": "A GM's own request (gmOnly), plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.ruling.expired",
+     "why": "Quiet (answer none): never shown; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.ruling.received",
+     "why": "Quiet (answer none): never shown; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.trait.ruling",
+     "why": "Names the GM's pick of a statistic the player asked for (handleTraitRuling); plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.trap.event",
+     "why": "Quiet (answer none): never shown; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.roll.subject",
+     "why": "Quiet (answer none): never shown; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.roll.bookmark",
+     "why": "Quiet (answer none): never shown; Reroll is the glossary's name in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.keys.charge",
+     "why": "A GM's request (gmOnly); Key Remnanty inflects as the glossary has it and Class Trial stays indeclinable."
+    },
+    {
+     "key": "DRPG.Bridge.what.reroll.ask",
+     "why": "The Call's name, the same in both (glossary reroll)."
+    },
+    {
+     "key": "DRPG.Bridge.what.card.claim",
+     "why": "A GM's request (gmOnly); says which card in both, and „karta” is the chat card (PL-d)."
+    },
+    {
+     "key": "DRPG.Bridge.what.searchTokens.takePlant",
+     "why": "Asked quiet (search-tokens.mjs, quiet: true): never shown; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.searchTokens.returnPlant",
+     "why": "Quiet (answer none): never shown; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.vote.cast",
+     "why": "A verb with its object in English, a verbal noun in Polish; the host takes both."
+    },
+    {
+     "key": "DRPG.Bridge.what.vote.ask",
+     "why": "Asked quiet: never shown; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.trial.object",
+     "why": "Objection stays English and indeclinable (PL-b); plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.floor.repoint",
+     "why": "A GM's request (gmOnly), a verb with its object; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.advancement.offers",
+     "why": "A GM-to-player packet's name, never asked of the bridge (R836 holds its label); plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.murder.openingAsk",
+     "why": "A GM-to-player packet's name, never asked of the bridge; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.murder.openingCancel",
+     "why": "A GM-to-player packet's name, never asked of the bridge; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.bridge.done",
+     "why": "A GM-to-player packet's name, never asked of the bridge; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.bridge.gmReady",
+     "why": "A GM-to-player packet's name, never asked of the bridge; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.gm.call",
+     "why": "Named by callGm and promptForRequest when no GM is connected; plain in both, and „Prośba „Pytanie do GM-a”” reads naturally."
+    },
+    {
+     "key": "DRPG.Bridge.what.bridge.refused",
+     "why": "A GM-to-player packet's name, never asked of the bridge; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.bridge.ack",
+     "why": "A GM-to-player packet's name, never asked of the bridge; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.trial.turn",
+     "why": "Second person to the speaker whose turn it is; plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.what.trial.claim",
+     "why": "Closing Argument stays English (PL-c); a verbal noun in both."
+    },
+    {
+     "key": "DRPG.Bridge.notDone",
+     "why": "Result first (O1), the label quoted, and the reason after; the Polish „Prośba „{what}”” takes every label as a nominative noun phrase, which the labels are written to."
+    },
+    {
+     "key": "DRPG.Bridge.nothingSpent",
+     "why": "The early pass's O8 form, approved 12.11 (STATUS.md, X1/O8): says what the reader keeps; sayNotDone adds it only where the caller refused before any price."
+    },
+    {
+     "key": "DRPG.Bridge.why.notYours",
+     "why": "Plain and true for every pattern of the code (sender does not own, not their character, another's Observe); Polish „postaci, którą nie grasz” is correct (grać kim/czym)."
+    },
+    {
+     "key": "DRPG.Bridge.why.gmOnly",
+     "why": "Plain and true for every gmOnly guard; second person is implied and nothing is overexplained."
+    },
+    {
+     "key": "DRPG.Bridge.why.cannotSee",
+     "why": "Second person, plain, and true for canSeeProject's refusals in both languages."
+    },
+    {
+     "key": "DRPG.Bridge.why.outOfRange",
+     "why": "Short, plain and true for every reason it takes (an amount, difficulty or delta out of range, REASON_PATTERNS outOfRange); 'it' is the request the notDone frame names just before."
+    },
+    {
+     "key": "DRPG.Bridge.why.notOffered",
+     "why": "Plain, true to handleAdvancement's two refusals (no Level Up on offer, or none under that name), PL natural."
+    },
+    {
+     "key": "DRPG.Bridge.why.traceOutOfReach",
+     "why": "Plain and true for each of removalRefusal's reasons (a GM wrote on it or set its band, a Reroll put it back, it was found, too old); says Remnant (EN15/PL-r) and PL inflects Remnantu."
+    },
+    {
+     "key": "DRPG.Bridge.why.notInIncident",
+     "why": "True to crisisRefusal's first refusal (no incident at its incident stage for that character); plain in both languages."
+    },
+    {
+     "key": "DRPG.Bridge.why.notYourTurn",
+     "why": "True for the incident's turn (crisisRefusal) and a trial round's (turnOnPrimary); shortest natural form."
+    },
+    {
+     "key": "DRPG.Bridge.why.actionLocked",
+     "why": "True for a crisis action locked until another lands (crisisRefusal lockedBy) and a passage show during an Eclipse or a Class Trial (shareRefusal world.locked); plain."
+    },
+    {
+     "key": "DRPG.Bridge.why.nothingLeft",
+     "why": "True for each of its reasons (a resolution with no Sanity and no Health, no crossings left this Eclipse, nothing left to pay for an Objection); plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.why.notWhereItStood",
+     "why": "True to sendBackRefusal (a send-back to a place the token did not stand in the last moment, off the map or with no elevation); plain in both."
+    },
+    {
+     "key": "DRPG.Bridge.why.sameTwice",
+     "why": "True to ballotRefusal (a ballot that names somebody twice); short; PL „karta do głosowania” is the ballot card."
+    },
+    {
+     "key": "DRPG.Bridge.why.wrongCount",
+     "why": "True to ballotRefusal (the ballot names another number than the vote's picks); keeps the number out of the text (O5)."
+    },
+    {
+     "key": "DRPG.Bridge.why.notKnown",
+     "why": "True to shareRefusal and the tunnel veto (a passage the character does not know, closed or missing told alike); plain; secret passage in lower case (glossary secret-passage-word)."
+    },
+    {
+     "key": "DRPG.Bridge.why.notAtPassage",
+     "why": "Says what to do (O7) and is true to tunnelVerdict (the token's centre on the end's square or one of the eight around it, TUNNEL_REACH); also the veto's own text on the player's browser."
+    },
+    {
+     "key": "DRPG.Bridge.settledGone",
+     "why": "The GMs' own note on an expired ask's card (endExpired gmNote, drpg-gm-only); plain, third person with the role, PL natural."
+    },
+    {
+     "key": "DRPG.Bridge.alreadySettled",
+     "why": "claimCard's line for a card already settled; plain in both, nobody hidden."
+    },
+    {
+     "key": "DRPG.Bridge.reply",
+     "why": "A button, a verb (O11, E100's one word per button kind); 'Odpowiedz' natural."
+    },
+    {
+     "key": "DRPG.Bridge.sendRuling",
+     "why": "A button, a verb with its object (O11); PL natural."
+    },
+    {
+     "key": "DRPG.Bridge.nothingThere",
+     "why": "The GM's answer in the button's words and in the thread (ruleSearchMiss, ruleObserveMiss); short and plain."
+    },
+    {
+     "key": "DRPG.Bridge.nothingMore",
+     "why": "The GM's answer to a free card in the thread (ruleDecline with words \"more\"); short and plain."
+    },
+    {
+     "key": "DRPG.Bridge.createItem",
+     "why": "A button, a verb with its object (O11), within the button limit."
+    },
+    {
+     "key": "DRPG.Bridge.giveItem",
+     "why": "A button, a verb with its object (O11), within the button limit."
+    },
+    {
+     "key": "DRPG.Bridge.keyRemnantHere",
+     "why": "A button, a verb with its object (O11); Key Remnant in English (EN18, PL-r)."
+    },
+    {
+     "key": "DRPG.Reroll.lastRoll",
+     "why": "A short line in the Reroll's window naming the roll in hand; plain, placeholders only, both languages natural."
+    },
+    {
+     "key": "DRPG.Reroll.lastRollPlain",
+     "why": "As lastRoll: one plain line with the roll's total and outcome word."
+    },
+    {
+     "key": "DRPG.Reroll.title",
+     "why": "The Call's name, Reroll, in both languages (glossary `reroll`)."
+    },
+    {
+     "key": "DRPG.Reroll.messageGone",
+     "why": "Result first, the cause, and what the reader keeps (O1, O8); no forbidden shape."
+    },
+    {
+     "key": "DRPG.Reroll.interruptedPaying",
+     "why": "A GM card that says what happened, what stands and what to check (V3); within the GM card's limit."
+    },
+    {
+     "key": "DRPG.Reroll.interruptedGivingBack",
+     "why": "A GM card that says what happened, what stands and what to check (V3); within the GM card's limit."
+    },
+    {
+     "key": "DRPG.Reroll.observeBusy",
+     "why": "Says what is happening, what to do next, and what the reader keeps (O7, O8); within the toast's target."
+    },
+    {
+     "key": "DRPG.Reroll.diceChanged",
+     "why": "States the refusal, when to try again, and what the reader keeps (O7, O8); within the toast's limit, no forbidden shape."
+    },
+    {
+     "key": "DRPG.Reroll.authorsCopyBack",
+     "why": "One plain sentence matching settleCleanup's takeBackAuthorsCopy; Remnantu inflected (PL-a)."
+    },
+    {
+     "key": "DRPG.Reroll.itemDrawn",
+     "why": "Result first, the item in quotes (EN17, PL-g), its tier from a placeholder."
+    },
+    {
+     "key": "DRPG.Reroll.searchNothing",
+     "why": "The result in four words, both languages."
+    },
+    {
+     "key": "DRPG.Reroll.remnantLeft",
+     "why": "The result in one plain sentence; Remnant in both languages."
+    },
+    {
+     "key": "DRPG.Reroll.sabotageNowFails",
+     "why": "The result and its effect, active, in one sentence; true to settleSabotage."
+    },
+    {
+     "key": "DRPG.Relay.unreadable",
+     "why": "A fragment for {cases} in DRPG.Relay.unreviewed; reads in its host in both languages, and its case (accusative plural) is the host's."
+    },
+    {
+     "key": "DRPG.Secret.speaker",
+     "why": "A speaker alias, the name Monokuma."
+    },
+    {
+     "key": "DRPG.Audit.field.traits",
+     "why": "A field label for the audit's lists; the module's word."
+    },
+    {
+     "key": "DRPG.Audit.field.experience",
+     "why": "A field label; the module's word."
+    },
+    {
+     "key": "DRPG.Audit.field.max",
+     "why": "A field label; reads in the list and in the refusal's request name."
+    },
+    {
+     "key": "DRPG.Audit.field.rules",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.bonuses",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.levelData",
+     "why": "A field label; Level Up as a name (glossary `level-up`)."
+    },
+    {
+     "key": "DRPG.Audit.field.scars",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.flag",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.effect",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.hope",
+     "why": "A resource name, Hope."
+    },
+    {
+     "key": "DRPG.Audit.field.actions",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.hitPoints",
+     "why": "The module's name, Health."
+    },
+    {
+     "key": "DRPG.Audit.field.stress",
+     "why": "The module's name, Sanity."
+    },
+    {
+     "key": "DRPG.Audit.field.grant",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.itemFlag",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.itemQuantity",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.itemLocation",
+     "why": "A field label."
+    },
+    {
+     "key": "DRPG.Audit.field.pendingCall",
+     "why": "A field label; Calle inflected (PL-a)."
+    },
+    {
+     "key": "DRPG.Audit.credit",
+     "why": "A console column's line: what a refund took back, one colon before the list."
+    },
+    {
+     "key": "DRPG.Audit.undo",
+     "why": "A button, one verb (Undo / Cofnij)."
+    },
+    {
+     "key": "DRPG.Audit.keep",
+     "why": "A button, one verb (Keep / Zostaw)."
+    },
+    {
+     "key": "DRPG.Audit.undoAll",
+     "why": "A button, a verb with its object."
+    },
+    {
+     "key": "DRPG.Audit.verdict.rewrite",
+     "why": "A console column's line; plain and true to the rewrite trace."
+    },
+    {
+     "key": "DRPG.Messenger.launcherTooltip",
+     "why": "The launcher button's hover name (messenger-app.mjs launcherTooltip), one noun naming the control; a tooltip may be a name."
+    },
+    {
+     "key": "DRPG.Messenger.playerWindowTitle",
+     "why": "A player's thread window title and the title of a reply's popup on the player (DrpgMessengerApp title, showPopup); a noun for the window's subject, GM-em hyphenated (PL-i)."
+    },
+    {
+     "key": "DRPG.Messenger.gmActionTitle",
+     "why": "The popup title a GM gets for a thread card stamped gmAsk (messenger-app.mjs, showPopup with MESSENGER_FLAGS.gmAsk): a short title, second person to the one GM reading it, no sentence-end shape to fix."
+    },
+    {
+     "key": "DRPG.Messenger.gmWindowTitle",
+     "why": "A GM's thread window title (DrpgMessengerApp title, game.i18n.format with {player}). T5 reads its dash as X4, but it separates the window's subject from its name in a title, with no aside or moral; the Polish alternatives with a preposition before {player} need a case the name cannot take (X12), so the title stays."
+    },
+    {
+     "key": "DRPG.Messenger.rosterTitle",
+     "why": "The heading of the GM's roster panel (buildRoster): the feature's name, as the launcher's tooltip."
+    },
+    {
+     "key": "DRPG.Messenger.rosterEmpty",
+     "why": "Shown in the GM's roster when threadUsers is empty (buildRoster): true, a whole sentence, natural in both languages."
+    },
+    {
+     "key": "DRPG.Messenger.rosterNoMessages",
+     "why": "The preview line of a roster row with no last message (rosterRow): a short status line, true, in the roster's preview style."
+    },
+    {
+     "key": "DRPG.Messenger.placeholder",
+     "why": "The thread's textarea placeholder (DrpgMessengerApp._renderHTML): an imperative with its object."
+    },
+    {
+     "key": "DRPG.Messenger.send",
+     "why": "The aria-label of the thread's send button (DrpgMessengerApp._renderHTML): one verb, as the module's other send buttons."
+    },
+    {
+     "key": "DRPG.Messenger.openChat",
+     "why": "The GM's entry in the Players sidebar's context menu, shown only for a thread user (registerMessengerUi, getUserContextOptions): a verb with its object, naming the window by its title, GM Chat."
+    },
+    {
+     "key": "DRPG.Messenger.onlyOwnThread",
+     "why": "The warning a player gets from openMessenger when asking for another user's thread: the result first, second person, true against openMessenger."
+    },
+    {
+     "key": "DRPG.Note.tab",
+     "why": "The Note tab's label in the thread window (DrpgMessengerApp._buildTabs): a noun for what the tab holds."
+    },
+    {
+     "key": "DRPG.Note.placeholder",
+     "why": "The Note textarea's placeholder (DrpgMessengerApp._buildNote), and the words DRPG.Note.intro tells the player to write; must stay as the intro quotes it."
+    },
+    {
+     "key": "DRPG.Note.useTemplate",
+     "why": "The button that fills the empty note with the seven questions (DrpgMessengerApp._buildNote, noteTemplate): a verb with its object (O11)."
+    },
+    {
+     "key": "DRPG.Note.save",
+     "why": "The Note tab's Save button (DrpgMessengerApp._buildNote): one verb, the label the other note texts name."
+    },
+    {
+     "key": "DRPG.Note.saved",
+     "why": "The status line after a GM's write lands (DrpgMessengerApp._buildNote, saveNote answering true): the result, one word."
+    },
+    {
+     "key": "DRPG.Note.sentToGms",
+     "why": "The status line after a player's note reaches the GMs (saveNote, sendDraft answering \"sent\"): the result first; Polish feminine for notatka."
+    },
+    {
+     "key": "DRPG.Note.statusEmpty",
+     "why": "noteStatus's line when nothing is written, read in the roster and the Note tab: a short status, true."
+    },
+    {
+     "key": "DRPG.Note.statusWritten",
+     "why": "noteStatus's line when the note is written and its date is unknown: one word, true; Polish feminine for notatka."
+    },
+    {
+     "key": "DRPG.Note.statusToday",
+     "why": "noteStatus's line when the note was written less than a day ago (days <= 0): a short status, true."
+    },
+    {
+     "key": "DRPG.Note.statusDays",
+     "why": "noteStatus's plural for n >= 1 days (plural, Math.floor of the age in days): every form is grammatical in both languages, Polish one/few/many/other correct („1 dzień”, „2 dni”, „5 dni”)."
+    },
+    {
+     "key": "DRPG.Note.q3",
+     "why": "One line of the note's template (pre-session-note.mjs noteTemplate, prefixed with a box): the player's own question in the first person, a whole question, as the player handbook's checklist (section 8)."
+    },
+    {
+     "key": "DRPG.Note.q4",
+     "why": "One line of the note's template (pre-session-note.mjs noteTemplate, prefixed with a box): the player's own question in the first person, a whole question, as the handbook's checklist."
+    },
+    {
+     "key": "DRPG.Note.q5",
+     "why": "One line of the note's template (pre-session-note.mjs noteTemplate, prefixed with a box): a whole first-person question; „triggery” is the word the table uses, as the handbook's checklist."
+    },
+    {
+     "key": "DRPG.Note.q6",
+     "why": "One line of the note's template (pre-session-note.mjs noteTemplate, prefixed with a box): two short first-person questions, as the handbook's checklist."
+    },
+    {
+     "key": "DRPG.Note.q7",
+     "why": "One line of the note's template (pre-session-note.mjs noteTemplate, prefixed with a box): a template line the player completes after the colon; the bracket says what kind of plan it asks for, as the handbook's checklist (game-changing projects)."
+    },
+    {
+     "key": "DRPG.Bridge.what.observe.resolve",
+     "why": "The action's name (PL-k, D33a), as the label of DRPG.Bridge.notDone; nothing to change."
+    },
+    {
+     "key": "DRPG.Bridge.what.analyze.resolve",
+     "why": "The action's name (PL-k, D33a), American spelling (EN1); nothing to change."
+    },
+    {
+     "key": "DRPG.Bridge.what.handover.item",
+     "why": "A verb phrase in English and a nominative noun phrase in Polish, as the notDone host takes them; true to handover.mjs's give."
+    },
+    {
+     "key": "DRPG.Bridge.what.passage.share",
+     "why": "Says the request (passages-gm.mjs shareRefusal's show); the glossary's „tajne przejście”, nominative after „Prośba”."
+    },
+    {
+     "key": "DRPG.Bridge.what.action.steal",
+     "why": "The action's name, Palm, in both languages (PL-k)."
+    },
+    {
+     "key": "DRPG.Bridge.what.murder.betrayal",
+     "why": "The same word as the window's title DRPG.Murder.betrayalTitle in both languages."
+    },
+    {
+     "key": "DRPG.Bridge.what.murder.park",
+     "why": "The action's name, Direct Murder, in both languages (PL-k)."
+    },
+    {
+     "key": "DRPG.Bridge.what.monocub.ability",
+     "why": "Written by E72 to the guide: names the request, Monocub English (DB38), genitive „Monocuba” in Polish."
+    },
+    {
+     "key": "DRPG.Bridge.what.advancement.apply",
+     "why": "The glossary's name, Level Up, in both languages."
+    },
+    {
+     "key": "DRPG.Bridge.what.call.arm",
+     "why": "Written by E72 to the guide: a noun phrase for a Call bought for a roll on the primary GM (bridge-table.mjs call.arm); Call in English (DB4)."
+    },
+    {
+     "key": "DRPG.Bridge.why.noGm",
+     "why": "O19's one exception: the refusal at that moment may say no GM is connected; short and true (bridge-guards.mjs createWaiter's noGm)."
+    },
+    {
+     "key": "DRPG.Bridge.why.doorLocked",
+     "why": "The door's veto's own words, DRPG.Move.locked, which R597 holds the tunnel's lock to; plain and true."
+    },
+    {
+     "key": "DRPG.Bridge.why.chained",
+     "why": "The same words as DRPG.Calls.chainedBlocked, the door's veto; second person, true to call-world.mjs isChained (a restriction lasts one time of day)."
+    },
+    {
+     "key": "DRPG.Bridge.why.trialLocked",
+     "why": "The same words as DRPG.Trial.moveLocked; Class Trial indeclinable in Polish (PL-a); true to movement.mjs's classTrial phase check."
+    },
+    {
+     "key": "DRPG.Bridge.awaitingRuling",
+     "why": "Short, true and read on a card by the player and the GMs; call-gm.mjs settleCall also finds cards posted before its marker class by this exact text, so a change would leave those cards' line in place (N8)."
+    },
+    {
+     "key": "DRPG.Bridge.openUntil",
+     "why": "Written by E18 C2: one short sentence; „Otwarta” agrees with „karta”, the time from utils.mjs localeFormat (T20)."
+    },
+    {
+     "key": "DRPG.Messenger.tabChat",
+     "why": "A tab's noun (surface tab), in both languages."
+    },
+    {
+     "key": "DRPG.Enforced.lost.player",
+     "why": "A Foundry role's name, a fragment of {lost} in DRPG.Enforced.filesFirstHold (enforced.mjs LOST_ROLES)."
+    },
+    {
+     "key": "DRPG.Enforced.lost.trusted",
+     "why": "A Foundry role's name, a fragment of {lost} (enforced.mjs LOST_ROLES)."
+    },
+    {
+     "key": "DRPG.Enforced.lost.browse",
+     "why": "A permission as a fragment of {lost}: an infinitive phrase in English, a nominative noun in Polish (enforced.mjs LOST_PERMISSIONS)."
+    },
+    {
+     "key": "DRPG.Enforced.lost.upload",
+     "why": "A permission as a fragment of {lost} (enforced.mjs LOST_PERMISSIONS)."
+    },
+    {
+     "key": "DRPG.Users.match.same",
+     "why": "Says what was found (two accounts named alike, user-match.mjs matchPlan's plan.same) and the two things a GM can do; no passive, no colon chain."
+    }
+   ],
+   "notes": [
+    "S09: Bridge.what.* are fragments: the host is DRPG.Bridge.notDone, Polish „Prośba „{what}” nie została wykonana.”, so every Polish label is a nominative noun phrase and none begins with „Prośba”. The second-half writer's labels should hold to the same (e.g. what.ready.answer, what.trial.present are already so).",
+    "S09: Terms used here for the second half: “refuse”/„odmowa, odmówić” for a GM's no (glossary refuse; DRPG.Bridge.declined/declinedGm/settledDeclined still say “turned down”/„odrzucono”), „Search Tokenu” and „tokenu” in the genitive, “Overflow” capitalized, „arkusz” for a sheet, „Decyzja GM-a”, and no “primary GM” in a label (T29).",
+    "S09: Quiet declarations (advancement.ask, ruling.expired, ruling.received, roll.bookmark, roll.subject, trap.event, vote.ask, trial.withdraw, searchTokens.takePlant/returnPlant/returnToken) and the GM-to-player packet names (bridge.done, bridge.gmReady, bridge.refused, bridge.ack, advancement.offers, murder.openingAsk, murder.openingCancel) reach no screen today; they were left as they are unless a glossary form was wrong.",
+    "S09: DRPG.Overflow.clear's button („Wyczyść overflow”) and DRPG.Overflow.cleared („Despair overflow”) are outside this slice and still write overflow in lower case; the label here capitalizes it (EN13).",
+    "S09: DRPG.Bridge.why.unknownSender's English is kept as it was; it is in `texts` for its Polish only.",
+    "S10: Every DRPG.Bridge.why.* sentence is written to follow DRPG.Bridge.notDone (“{what}” was not carried out.) in one toast, sometimes with DRPG.Bridge.nothingSpent after it; it also stands alone in the notice history and as a greyed Take row's reason (anonymity.mjs lootReading). notDone, nothingSpent and the why codes before outOfRange are the other writer's.",
+    "S10: O8 was added only where every road that tells the code refuses before the price is taken and none passes nothingSpent: hopeBarred and alreadyHeld (\"You keep your Hope.\"). capReached and capDay (other half) say \"You keep your action and Hope.\" while nothingSpent says \"your action and your Hope\": one form would be better.",
+    "S10: Kept \"character\"/\"postać\" for the reader's own character in the refusals, as the first half's notYours does; EN12/PL-s would say student. Default: keep \"character\" for consistency; the coordinator may swap both halves together.",
+    "S10: Code comments quote the old cannotNow sentence \"That cannot be done now.\": bridge-guards.mjs REASON_PATTERNS (the E80 part 2 C1 and H81 fix r1 comments) and passages-gm.mjs crossingWhy and the comment near its line 2285. They go stale when the text lands (house style); a comment-only edit, no code change.",
+    "S10: Several codes are wider than their old sentences said (movedOn, floorClosed, notEligible, noBullet, busy, actionBlocked); each such text is rewritten to be true for every reason its pattern takes, with the old claim in disagreements.",
+    "S10: DRPG.Bridge.what.* keys named in the batch description are not in this slice's input; none was written here.",
+    "S11: The Reroll's refusal keys with a `say` (busy, nothingToReroll, notARoll, deathStands, failed, messageGone, observeBusy, diceChanged) reach only a GM's own Reroll: calls.mjs askReroll shows `say` from a local answer, while a player's ask comes back through bridge-runs-records.mjs handleReroll with `refused` alone and is said by its DRPG.Bridge reason code. So their readers are the GM; \"you keep your Hope\" there speaks of the character's Hope, as messageGone already did.",
+    "S11: Polish „karta postaci” for the character sheet (PL-d, glossary character-sheet) was in four Audit keys of this slice and is now „arkusz”; lang/pl.json still has 16 values outside the slice with „karty/karcie/kartach/kartę postaci” for a coordinator to route.",
+    "S11: DRPG.Audit.field.* labels are also the request name in DRPG.Bridge.notDone for a write the audit put back (bridge-guards.mjs requestLabel), so a player can read “A maximum” was not carried out. The labels were kept, since they read right in the GMs' lists; a request label of its own per field would need code (outside this slice's keys).",
+    "S11: Outside the slice, the same files show keys this batch did not get: DRPG.Reroll.traceKept (a dash aside and the console's reasons on a GM card), noReplay, rulingVoid, replayFailed, observeReplayed, progressAdjusted, critHopeGained, critHopeReturned, lootStands, lastRollGmRow, noRollHere, lastRollReload.",
+    "S11: Surfaces: Relay.unguarded and Relay.unknownSender are both a toast and a GM card (relay-guard.mjs announce, unknownSender); they are classed toast and held to its limit of 30. Audit.listTitle is a console heading (sheetWrites), classed gm-diagnostics, though its key name ends in Title; it is kept within a title's limit anyway. Secret.storeFull is a GM's permanent error toast, classed toast and cut to 28 words; the warning not to clear the site's data stays (O10, safety).",
+    "S11: The tier-2 tests read these texts through their keys (game.i18n.format), not as literals, as far as a grep of tests-tier2.mjs for Reroll.failed, busy, interrupted, interruptedGm, interruptedPaying and cardReplaced shows; no test pinning an old English or Polish literal of this slice was found by a grep of a few old phrases.",
+    "S12: Scope per the coordinator's message: DRPG.Sheet.*, DRPG.Character.*, DRPG.Reserve.* and DRPG.States.* (32 of the slice's 72 texts) are left out entirely; no DRPG.SheetNotes.* or DRPG.Class.* key was in the slice. 40 texts covered: 15 Messenger, 23 Note, 2 Redacted.",
+    "S12: DRPG.Messenger.gmWindowTitle stays \"{player} - GM Chat\" though T5 reads its dash as X4: in a window title the dash separates name and subject. If the coordinator wants T5 clean, an X4 allow row for this key is the default proposal, or \"GM Chat: {player}\" / „Czat z GM-em: {player}” if the owner accepts a colon in a title.",
+    "S12: DRPG.Note.intro now names the first four questions as boundaries; the count is fixed in pre-session-note.mjs noteTemplate (q1-q4), so S01-25's worry that it depends on the template does not hold on this tree. If the template ever becomes editable, the four would need a placeholder.",
+    "S12: DRPG.Note.saveFailed drops \"Tell the GM\" because a GM reads it too; if the owner wants players told to report it, a second key for the player's branch is a code change (needsCode not written: the current text is true for both readers).",
+    "S12: The player handbook (section 8, line 892) still says \"The first four are boundaries, not a dare\" / „granice, nie wyzwanie”; the UI no longer repeats the antithesis. Handbook text is E57's.",
+    "S12: DRPG.Redacted.tabLocked is read as a tooltip and as the emptied pane's line (anonymity.mjs redactTabs, lockedPlaceholder); the key rule in text-budgets.json reads it as a tab (target 5, limit 8); the after has 6 words in English and Polish.",
+    "S18: DRPG.Bridge.why.*: the reason sentences of the door's vetoes (doorLocked, chained, trialLocked, roomSealed, oneWay) are also what the sheet's 'Go through' says (movement.mjs tunnelRefusalText; R614 compares them to the keys by localize, so a text change keeps it green). roomSealed's Polish changes here; DRPG.Calls.sealedBlocked's Polish „{room} zapieczętowany na tę porę dnia” (outside the slice) has the same telegraph shape and wants the same edit.",
+    "S18: DRPG.Bridge.why.refused: default \"The game did not allow it.\" / „Gra na to nie pozwoliła.” - the code is the fallback for a refusal no pattern names and for a run that carried out nothing, so it names no person. If the owner prefers the GM named (\"The GM's side refused it.\", as badRequest and failed say \"the GM's side\"), that is the alternative.",
+    "S18: DRPG.Bridge.what.* siblings outside the slice still carry T29 shapes in a player's toast: trial.record, floor.now, vote.run, trial.gm (\"run on the primary GM\"), and bullet.give's Polish „Dowód prawdy” for Truth Bullet (O14); the Polish trial.withdraw „Twojego” has a capital inside the phrase.",
+    "S18: The Reroll's lines are composed on the GM's client in the GM's language (reroll.mjs replayAction pushes localized strings; calls.mjs askReroll posts them), so a Polish player at an English GM's table reads them in English. A code question, not a text one."
+   ]
   }
  }
 }
