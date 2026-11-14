@@ -1976,7 +1976,15 @@ async function plantVoiceNone() {
     const style = document.createElement("style");
     style.textContent = "body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: 76px !important; }";
     document.head.append(style);
-    const c = await window.drpgVoiceCheck({ cuts: false });
+    let c = await window.drpgVoiceCheck({ cuts: false });
+    /* At a slider under 100 % (`?scale=`) the word is set smaller and 69 px holds it - at 25 % under Legacy the tile
+       stays 163 px and the widest word needs far less (14.11.2026) - so the stand is narrowed further by what the band
+       held over the word, plus 8 px: the same fault, a band narrower than its widest word, at the scale's own size.
+       At 100 % the first stand already fails and nothing more is planted. */
+    if (c.ok && c.still?.[1] > 0) {
+        style.textContent = `body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: ${76 + c.still[0] - c.still[1] + 8}px !important; }`;
+        c = await window.drpgVoiceCheck({ cuts: false });
+    }
     style.remove();
     res.cramped = { ok: c.ok, why: c.why, pass: !c.ok && /standing still the state word's band holds/.test(c.why) };
     return res;
@@ -2023,6 +2031,11 @@ async function plantFill() {
         wall: ["body #drpg-popups .drpg-popup { margin-left: -60px !important; }", /line boxes of the card's words outside/],
         edgeless: ["body #drpg-popups .drpg-popup { border-left-width: 0 !important; }", /with two short cards the left edges read/]
     };
+    /* Where the tile holds one short card only - a slider of 25 %, whose 90 px tile two cards of fixed-size title bars
+       and corner room do not fit, so the second parks (14.11.2026) - two cards with no edge cannot be drawn, and the
+       check's other half is planted instead: the one card shown keeping an edge of its own. */
+    const clean = await window.drpgNoticeCheck();
+    if (clean?.fill?.edges?.length === 1) FAULTS.edgeless[0] = "body #drpg-popups .drpg-popup { border-left: 3px solid red !important; }";
     for (const [k, [rule, re]] of Object.entries(FAULTS)) {
         const style = document.createElement("style");
         style.textContent = rule;

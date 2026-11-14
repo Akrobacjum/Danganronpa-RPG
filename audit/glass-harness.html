@@ -525,7 +525,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       {
         const cards = shown(), gap = px(getComputedStyle(host).rowGap);
         const slivers = cards.length < 2 ? [] : cards.filter(c => c.offsetHeight < c.scrollHeight - line(c.querySelector(".drpg-popup-body") ?? c) - 0.5);
-        const used = cards.reduce((sum, c) => sum + c.offsetHeight, gap * Math.max(0, cards.length - 1));
+        /* the cards' drawn heights, not `offsetHeight`, which rounds each to a whole pixel: at a slider of 0.8 under Legacy
+           four cards that fit their 457 px tile summed to 459 (14.11.2026) */
+        const used = cards.reduce((sum, c) => sum + c.getBoundingClientRect().height, gap * Math.max(0, cards.length - 1));
         out.stack = { shown: cards.length, parked: host.querySelectorAll(".drpg-popup-parked:not(.leaving)").length,
           slivers: slivers.map(c => `${c.offsetHeight}/${c.scrollHeight}`), used: Math.round(used), room: host.clientHeight };
         if (!cards.length) out.why.push("no card shown of eight");

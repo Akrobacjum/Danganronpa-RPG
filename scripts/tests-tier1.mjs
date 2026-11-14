@@ -55446,6 +55446,32 @@ const INVARIANTS = [
             stableJson([11, 11, 11, 11, 11.2]),
             "[--drpg-text-xs, --font-size-11 .. 14] at a 16 px root and the slider at 0.8, in px - a small rung under Legacy must not fall under 11 px");
     }],
+    ["R7334 - at an Interface scale of 25 % the compact glass voice tile keeps its buttons inside it and the sheet's left column does not scroll sideways (14.11.2026): components.css makes the compact wall tile an inline-size container, and under 110 px of it stands its controls in a column of 24 px buttons with the face's padding and the state word's band left at 30 px; danganronpa.css floors the rail at 12rem times `--drpg-floor-scale` and zooms the Equipped rows by it", async () => {
+        /*
+         * Measured in Chromium before (4a2beafb): the glass harness at ?scale=0.25, 1366x768 - the microphone at x -7 of a
+         * 65 px tile and the name 0 of 72 px; audit/sheet-column.mjs --scale 0.25 - 144 of 144 readings not right, at 0.5
+         * 32. After (704a1472): the buttons at x 43-74 of the 77 px box, the name 30 px; 0 of 144 at 0.25, 0.5, 0.8, 1 and
+         * 1.4. Here, that the rules which did it are the ones served.
+         */
+        const read = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(lfText).then(stripComments);
+        const [kit, main] = await Promise.all([read("components.css"), read("danganronpa.css")]);
+        const tile = 'body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]';
+        const esc = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const inner = kit.match(/@container drpg-voice-tile \(width < 110px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+        const body = sel => inner.match(new RegExp(`${esc(sel)}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+        const rail = main.match(/(?:^|\})\s*\.application\.sheet\.actor \.character-sidebar-sheet\s*\{([^}]*)\}/)?.[1] ?? "";
+        const rows = main.match(/\.application\.sheet\.actor \.character-sidebar-sheet \.equipment-section \.items-sidebar-list\s*\{([^}]*)\}/)?.[1] ?? "";
+        equal(stableJson({
+            container: new RegExp(`${esc(tile)}\\s*\\{\\s*container:\\s*drpg-voice-tile / inline-size;`).test(kit),
+            column: /flex-direction:\s*column/.test(body(`${tile} .drpg-voice-tile-controls`)),
+            button: (body(`${tile} .drpg-voice-tile-controls > *`).match(/(?:min-)?(?:width|height):\s*24px/g) ?? []).length,
+            face: /padding:\s*3px 30px 2px 3px/.test(inner),
+            band: /right:\s*30px/.test(inner),
+            rail: /min-width:\s*calc\(12rem \* var\(--drpg-floor-scale, 1\)\)\s*!important/.test(rail),
+            zoom: /zoom:\s*var\(--drpg-floor-scale, 1\)/.test(rows)
+        }), stableJson({ container: true, column: true, button: 4, face: true, band: true, rail: true, zoom: true }),
+        "the compact voice tile's container rule and the sheet rail's floor and zoom, as served");
+    }],
     ["R3501 - Monokuma Legacy's sheet tab and its red grounds are readable (styles/danganronpa.css, tools/contrast-pairs.json; E48 K6, S12-25, S03-20, Q13): the active tab is Bone on Ink with the attention edge, the other Bone-on-Eye grounds the Eye's dark step, the theme's red lifted, and tools/contrast-pairs.json writes no Legacy pair `known` below AA", async () => {
         /*
          * E48 K6, 11.11.2026. S12-25: "the sheet's active tab Bone on Eye at 11 px, 3.63:1". The owner's Q13 ("tak"):
