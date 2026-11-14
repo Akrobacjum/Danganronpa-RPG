@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy, glassText, glassFetch, glassBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1885,7 +1885,7 @@ const INVARIANTS = [
          * status strip stood on each other below 1224. Each fix is held by its source here;
          * the partition at this window's own size is "the curtain cuts a clean partition".
          */
-        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+        const glass = stripComments(await glassFetch());
         ok(/cols\.find\(c => overOf\(c, b\) > 0\)\s*\?\?/.test(glass),
             "a block joins the first column near it again, not the one it stacks under");
         ok(/b\.w > W \* 0\.5 \|\| inStack\(b\)/.test(glass), "a narrow block in the stack is cut as a loose box again");
@@ -2135,7 +2135,7 @@ const INVARIANTS = [
         ok(/function fitNameColumn\(/.test(src("despair.mjs")), "the Despair name column is a guess again");
 
         // The left rail, where one still stands in the column: it starts under the clock (RAIL_SLOT since E77 C6); every control fits its strip.
-        const glass = src("glass.mjs");
+        const glass = glassBy(src);
         ok(/RAIL_SLOT/.test(glass), "a rail still in the column starts on the clock's glass again");
         /* And its value (E77 fix r2-H3, the round-2 question Q6): the name alone passed with any number behind it.
            The six terms are the comment's over the constant - the clock's margin, the column's gap, the old GM
@@ -2692,7 +2692,7 @@ const INVARIANTS = [
          */
         const G = await import("./glass.mjs");
         ok(typeof G.gaugeFoot === "function", "glass.mjs gives a test no road to the gauge's foot");
-        const glass = await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText);
+        const glass = await glassFetch();
         equal(stableJson(/\bgaugeFoot\(H, s\)/.test(fnSource(glass, "fitNoteTile"))), "true", "[fitNoteTile takes its foot from gaugeFoot]");
         let gauge = document.getElementById("players");
         const made = !gauge;
@@ -2924,7 +2924,7 @@ const INVARIANTS = [
             return [!/\broomNotesH\b/.test(bodyOf(place, "if (hud) {", { until: "\n  }" })), /h = roomNotesH\(h0, foot, low, lift\)/.test(place),
                 /x: Math\.round\(16 \+ noteW \+ 32 \+ h0 \* ROOM_TAN\)/.test(place), /y: Math\.round\(H - lift - h\)/.test(place), !/\broomNotesH\b/.test(fnSource(src, "flatPlacement"))];
         };
-        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        const glass = stripComments(glassText(new Map(await otherSources())));
         must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
         equal(JSON.stringify([reader(glass), reader(glass.replace("32 + h0 * ROOM_TAN", "32 + h * ROOM_TAN").replace("H - lift - h", "H - foot - h"))]),
             "[[true,true,true,true,true],[true,true,false,false,true]]",
@@ -30398,7 +30398,7 @@ const INVARIANTS = [
             `a picture does not lean with its pane or leaves its outline: ${JSON.stringify(read)}`);
         const flat = G.paneLayer([[10, 20], [110, 30], [100, 220], [0, 200]], 0);
         equal(JSON.stringify([flat.left, flat.top, flat.width, flat.height, flat.transform]), JSON.stringify([0, 20, 110, 200, "none"]), "[the upright layer's box and its turn] - the pane's own box, as before H83");
-        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        const glass = stripComments(glassText(new Map(await otherSources())));
         const seat = (name, sel) => { const f = fnSource(glass, name); return [new RegExp(`paneLayer\\(pane\\.poly, tileTurn\\("${sel}"\\)\\)`).test(f), /"transform", "transform-origin"/.test(f)]; };
         equal(JSON.stringify([seat("seatRoomArt", "#drpg-room-tile"), seat("seatVoiceArt", "#drpg-voice-tile")]), "[[true,true],[true,true]]",
             "[[the room's picture laid by paneLayer at its tile's turn, its turn taken off when it goes back], [the same for the voice tile's portrait]]");
@@ -41464,8 +41464,8 @@ const INVARIANTS = [
         }
         const sources = new Map(await moduleSources());
         const src = file => stripComments(sources.get(file) ?? "");
-        must(src("glass.mjs").length > 10000 && settingsBy(src).length > 10000, "glass.mjs or settings.mjs read nothing - this test would read nothing");
-        const schedule = lineAround(src("glass.mjs"), src("glass.mjs").indexOf("const schedule = "));
+        must(glassBy(src).length > 10000 && settingsBy(src).length > 10000, "glass.mjs or settings.mjs read nothing - this test would read nothing");
+        const schedule = lineAround(glassBy(src), glassBy(src).indexOf("const schedule = "));
         const auto = S.autoScale();
         equal(stableJson({ steps, schedule: /keyboardUp\(\)/.test(schedule), overlay: /virtualKeyboard;\s*if \(vk\) vk\.overlaysContent = true/.test(fnSource(settingsBy(src), "watchScreen")) }), stableJson({
             steps: [["desk", false, false, false, 0.7], ["typing, 460 high", false, false, true, 0.7], ["typing, back", false, false, false, 0.7],
@@ -41523,7 +41523,7 @@ const INVARIANTS = [
             await new Promise(r => setTimeout(r, 400));
         }
         const sources = new Map(await moduleSources());
-        const glass = stripComments(sources.get("glass.mjs") ?? "");
+        const glass = stripComments(glassText(sources));
         must(glass.length > 10000, "glass.mjs read nothing - this test would read nothing");
         equal(stableJson({ steps, hooked, glass: /Hooks\.on\("drpgLayoutHeight",/.test(glass) }), stableJson({
             steps: [["desk", false, false], ["desk, typing, 460 high", true, false], ["desk again", false, false],
@@ -44767,7 +44767,7 @@ const INVARIANTS = [
          * Red at 2b866dde: no `turnPlan`; `morph` writes the clip path in its frame.
          */
         const G = await import("./glass.mjs");
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+        const src = stripComments(await glassFetch());
         const writes = src.split("\n").filter(line => /\.clipPath\s*=(?!=)/.test(line)).map(line => line.trim());
         const allowed = writes.filter(line => /el\.style\.clipPath = "path\('" \+ d \+ "'\)"/.test(line) || /frost\.style\.clipPath = /.test(line));
         equal(JSON.stringify(writes.filter(line => !allowed.includes(line)).map(line => line.slice(0, 120))), "[]",
@@ -44844,7 +44844,7 @@ const INVARIANTS = [
          * Red at 2b866dde: one flash canvas for every pane (`flashSeams`), no `FLASH`.
          */
         const G = await import("./glass.mjs");
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+        const src = stripComments(await glassFetch());
         const W = 400, H = 300;
         const polys = [[[0, 0], [200, 0], [0, 150]], [[200, 0], [400, 0], [400, 150], [0, 150]], [[0, 150], [400, 150], [200, 300]], [[0, 150], [200, 300], [0, 300]]];
         const panes = () => polys.map(poly => ({ poly, content: false, tone: null }));
@@ -44956,7 +44956,7 @@ const INVARIANTS = [
         const pane = poly => ({ poly, content: false, tone: null });
         const still = G.turnPlan([pane([[0, 0], [200, 0], [0, 150]])], [pane([[0, 0], [260, 0], [0, 190]])], { W: 400, H: 300, fromAcc: "#ffd38f", acc: "#ff3d8b", dur: 1200, reduced: true });
         equal(JSON.stringify([still.none, still.moves.length, still.batches.length, still.flashes.length]), JSON.stringify([true, 0, 0, 0]), "reduced motion: [no turn, moves, batches, flashes]");
-        ok(/reduced:\s*REDUCED\(\)/.test(fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText)), "glassTurn")), "`glassTurn` hands the plan the reader's reduced motion");
+        ok(/reduced:\s*REDUCED\(\)/.test(fnSource(stripComments(await glassFetch()), "glassTurn")), "`glassTurn` hands the plan the reader's reduced motion");
     }],
     ["R1411 - the turn's new look carries the pulse (glass.mjs `glassTurn`, E23 fix G1; the end review's correctness M1, E23-04): on a stand-in curtain whose pulse layer stands cleared, as `curtainPaint` leaves it, a recut that keeps its colour takes the new look with the pulse's frame drawn - the layer of the panes that stand and every move's way back carry its darkening, the same fill the curtain's pulse layer holds when the curtain steps back in", async () => {
         /*
@@ -44997,7 +44997,7 @@ const INVARIANTS = [
          */
         needs(env.motion());
         const G = await import("./glass.mjs");
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+        const src = stripComments(await glassFetch());
         const rig = turnRig(G);
         let read = null, a = null, b = null;
         try {
@@ -45378,7 +45378,7 @@ const INVARIANTS = [
             "sheet-audit.mjs LEDGER": "the GMs' audit's ledger of what a write may move",
             "sheet-actions.mjs tamperBlock": "a threshold: no Sanity left and watched dims the Tamper tile"
         };
-        const CURTAIN = ["glass.mjs", "player-status.mjs", "hud.mjs", "room-tile.mjs"];
+        const CURTAIN = ["glass.mjs", "glass-geometry.mjs", "glass-blocks.mjs", "player-status.mjs", "hud.mjs", "room-tile.mjs"];
         const READS = [/resources\??\.(?:hitPoints|stress)\b/g, /\bresourceValue\([^)]*["'](?:hitPoints|stress)["']/g,
             /(?<!function )\bmarksOf\(/g, /resources-section/g];
         const sources = await otherSources();
@@ -54355,7 +54355,7 @@ const INVARIANTS = [
             if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
         }
         const sources = await moduleSources();
-        const sync = stripComments(sources.get("sync.mjs") ?? ""), seq = stripComments(sources.get("sequence.mjs") ?? ""), glass = stripComments(sources.get("glass.mjs") ?? "");
+        const sync = stripComments(sources.get("sync.mjs") ?? ""), seq = stripComments(sources.get("sequence.mjs") ?? ""), glass = stripComments(glassText(sources));
         must(sync.length > 2000 && seq.length > 2000 && glass.length > 20000, "a source was not read - the source half reads nothing");
         read.row = /onlyWhen\("phaseHook", "phase"\)/.test(sync) && /Hooks\.callAll\("drpgPhaseChanged"/.test(sync);
         read.heard = /Hooks\.on\("drpgPhaseChanged", onPhaseChanged\)/.test(seq);
@@ -54988,7 +54988,7 @@ const INVARIANTS = [
          * opening's first frame, at 1366x768 and 1920x1080, the entry and the exit; at ceb9e9c8 34 of 39 panes off).
          */
         const S = await import("./sequence.mjs"), K = await import("./glass-close.mjs");
-        const glass = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        const glass = stripComments(glassText(await moduleSources()));
         must(glass.length > 20000, "glass.mjs was not read - the source half reads nothing");
         const cut = bodyOf(glass, "export function entryPieces(", { until: "\nexport function exitPieces(" });
         must(cut.length > 500, "entryPieces was not found");
@@ -55758,7 +55758,7 @@ const INVARIANTS = [
         const rows = plan => plan.order.filter(i => plan.batchOf[i] === 0).map(i => Math.floor(i / 6));
         /* the turn's layers take each batch's onset from the plan, not `gap` apart: read against a uniform gap they asked
            Chromium for a negative duration at the Investigation's onsets (recorded on the glass harness, 12.11.2026) */
-        const src = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        const src = stripComments(glassText(await moduleSources()));
         must(src.length > 20000, "glass.mjs was not read");
         const turnSrc = bodyOf(src, "export function glassTurn(", { until: "\nfunction " });
         equal(stableJson({

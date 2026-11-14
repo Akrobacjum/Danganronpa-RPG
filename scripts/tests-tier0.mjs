@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, panelText, HUD_FAMILY, hudText, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy, chapterText, chapterBy
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy, chapterText, chapterBy, GLASS_FAMILY, glassText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -11018,8 +11018,8 @@ const REGRESSIONS = [
                 if (file === "voice-client.mjs") {
                     for (const m of blank.matchAll(new RegExp(String.raw`(?<![\w$.])(?<!\b(?:let|const|var)\s+)desired${ASSIGN}`, "g"))) add("SOCKET", file, declAt(m.index), null);
                 }
-                const paints = decl => PAINT_FILES.test(file) || (file === "glass.mjs" && /Voice/.test(decl));
-                if (PAINT_FILES.test(file) || file === "glass.mjs") {
+                const paints = decl => PAINT_FILES.test(file) || (GLASS_FAMILY.includes(file) && /Voice/.test(decl));
+                if (PAINT_FILES.test(file) || GLASS_FAMILY.includes(file)) {
                     for (const m of blank.matchAll(/\.\s*(src|backgroundImage)\s*[+]?=(?![=>])/g)) if (paints(declAt(m.index))) add("SRC", file, declAt(m.index), m[1]);
                     for (const m of blank.matchAll(/\bsetProperty\s*\(/g)) {
                         if (!paints(declAt(m.index))) continue;
@@ -12160,15 +12160,15 @@ const REGRESSIONS = [
             + "drawn as markup eleven ways, or the clock's room rows put back");
         const VARS = /--drpg-room-(?:h|w|x|y|min-h|max-h)\b/;
         const formula = (scripts, sheets) => [
-            /\bexport function roomPlacement\(/.test(scripts.get("glass.mjs") ?? "") && /"--drpg-room-h"/.test(scripts.get("glass.mjs") ?? ""),
-            [...scripts].filter(([file, text]) => file !== "glass.mjs" && (VARS.test(text) || /\bfunction (?:roomPlacement|roomSizes)\b/.test(text))).map(([file]) => file),
+            /\bexport function roomPlacement\(/.test(glassText(scripts)) && /"--drpg-room-h"/.test(glassText(scripts)),
+            [...scripts].filter(([file, text]) => !GLASS_FAMILY.includes(file) && (VARS.test(text) || /\bfunction (?:roomPlacement|roomSizes)\b/.test(text))).map(([file]) => file),
             [...sheets].filter(([, text]) => new RegExp(VARS.source + "\\s*:").test(text)).map(([file]) => file)
         ];
         const GLASS = "export function roomPlacement(W, H) {\n  return { place: \"notes\" };\n}\nfunction seatRoomTile(tile, p) {\n"
             + "  document.body.style.setProperty(\"--drpg-room-h\", p.h + \"px\");\n}\n";
         const TILE = "export function paintRoomTile(tile, view) {\n    tile.replaceChildren();\n}\n";
         const SHEET = "#drpg-room-tile {\n    height: var(--drpg-room-h, 250px);\n}\n";
-        const scriptsOf = (glass, tile) => new Map([["glass.mjs", glass], ["room-tile.mjs", tile]]);
+        const scriptsOf = (glass, tile) => new Map([["glass.mjs", glass], ["glass-geometry.mjs", "// the cut: no part of the room tile's box\n"], ["glass-blocks.mjs", "// no part of the room tile's box\n"], ["room-tile.mjs", tile]]);
         equal(JSON.stringify([formula(scriptsOf(GLASS, TILE), new Map([["danganronpa.css", SHEET]])),
             formula(scriptsOf(GLASS.replace("export function roomPlacement", "function roomPlacement"), TILE), new Map([["danganronpa.css", SHEET]])),
             formula(scriptsOf(GLASS, TILE.replace("tile.replaceChildren();", "tile.style.setProperty(\"--drpg-room-h\", tile.scrollHeight + \"px\");")), new Map([["danganronpa.css", SHEET]])),
@@ -14649,7 +14649,7 @@ const REGRESSIONS = [
          * the one list is open to an attribute rather than to a fourth and fifth id. Read in the source, with the
          * comments out: neither reading can be driven headless, where the glass is not drawn.
          */
-        const glass = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        const glass = stripComments(glassText(await moduleSources()));
         ok(glass.length > 0, "glass.mjs was not read - this test measured nothing");
         const list = (/\bconst LAUNCHERS = "([^"]*)";/.exec(glass)?.[1] ?? "").split(",").map(sel => sel.trim());
         equal(JSON.stringify(list), JSON.stringify(["#drpg-messenger-launcher", "#drpg-sound-launcher", "#drpg-book-launcher", "[data-drpg-cluster]"]),
@@ -14960,7 +14960,7 @@ const REGRESSIONS = [
             reader(planted("Math.min(maxH, roomCapH(H, roomSizes(w).need))", "maxH"))]),
         JSON.stringify([[true, true, true, true], [false, true, true, true], [true, false, true, true], [true, true, false, true], [true, true, true, false]]),
         "the reader does not read its fixture whole, or does not see the cap put in Stained Glass's 'clock' branch or taken out of the 'notes' height or either of Legacy's");
-        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        const glass = stripComments(glassText(new Map(await otherSources())));
         must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
         equal(JSON.stringify(reader(glass)), JSON.stringify([true, true, true, true]),
             "[Stained Glass's 'clock' branch free of the cap; the cap in the 'notes' height; in Legacy's 'clock' return; in Legacy's 'notes' return]");
@@ -25263,16 +25263,15 @@ const REGRESSIONS = [
          * and settles the voice tile against PIN, curtainShapes reads `narrowLayout()` (G4). Green since G4: the callers measure
          * (`stackPage`, `deskPage`, `curtainPage`) and write (`writeCut`).
          */
-        const raw = new Map(await otherSources()).get("glass.mjs");
+        const raw = glassText(new Map(await otherSources()));
         must(typeof raw === "string", "glass.mjs was not read");
-        const span = stripStrings(stripComments(bodyOf(raw, "/* ---- the glass ----", { until: "/* ---- painting ----" })));
+        // Since the E54 cut the span is glass-geometry.mjs and glass-blocks.mjs whole; railBox and resolveAcc stayed in glass.mjs.
+        const span = stripStrings(stripComments(glassText(new Map(await otherSources()), ["glass-geometry.mjs", "glass-blocks.mjs"])));
         const STATE = ["PIN", "VOICE", "ROT", "OPEN_AREAS", "CHECKS", "LAST", "narrowLayout", "avLift", "columnRail", "tileButtons", "railBox", "document", "getComputedStyle", "innerWidth", "innerHeight"];
         const MEMBERS = ["querySelector", "getBoundingClientRect"];
-        const LISTED = {
-            resolveAcc: "the accent's colour, read off the page for the paint (paintGlass), not for the cut",
-            railBox: "the rails' measure: the callers take it (stackPage, deskPage) and hand the cut its bands",
-        };
-        const decls = [...span.matchAll(/^ {0,2}(?:export )?(?:function ([\w$]+)|(?:const|let) ([\w$]+)\b)/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));
+        const LISTED = {};   // resolveAcc and railBox read the page: since the E54 cut they stand in glass.mjs, which this does not read
+        // `export   const x`: the cut promoted a declaration indented two spaces by putting `export ` before its line (split.mjs)
+        const decls = [...span.matchAll(/^ {0,2}(?:export +)?(?:function ([\w$]+)|(?:const|let) ([\w$]+)\b)/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));
         must(decls.length >= 40, `only ${decls.length} declaration(s) read in the span - this would measure nothing`);
         const reads = {}, found = new Set();
         decls.forEach((d, i) => {
