@@ -19792,10 +19792,10 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 broken: [],
-                armed: ["Aiko may now use advantage on their next roll.", "Aiko may now use a flat bonus or penalty on their next roll."],
+                armed: ["Aiko's next roll gets advantage.", "Aiko's next roll gets a flat bonus or penalty."],
                 forYou: "Another student spent Hope on you: your next roll gets advantage. It is already switched on in your roll window.",
-                pending: "Waiting on your next roll: a flat bonus or penalty. Spent the moment you roll.",
-                waits: "Armed after this window opened: advantage and a flat bonus or penalty. It is not part of this roll - it waits for your next one.",
+                pending: "Waiting for your next roll: a flat bonus or penalty. That roll uses it up, but a Loaded Die waits for an action roll.",
+                waits: "Your next roll gets what was armed after this window opened: advantage and a flat bonus or penalty.",
                 price: ["You get 2 actions back.", true, true],
                 reserves: "You lose 1 Health and 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). Press the button beside your name on your sheet and choose - you have 3 picks.",
@@ -19805,10 +19805,10 @@ const REGRESSIONS = [
             },
             pl: {
                 broken: [],
-                armed: ["Aiko może teraz użyć przewagi przy następnym rzucie.", "Aiko może teraz użyć stałej premii albo kary przy następnym rzucie."],
+                armed: ["Przy następnym rzucie postaci Aiko zadziała efekt przewagi.", "Przy następnym rzucie postaci Aiko zadziała efekt stałej premii albo kary."],
                 forYou: "Inny uczeń wydaje na ciebie Hope: twój następny rzut ma przewagę. Okno rzutu ma to już włączone.",
-                pending: "Czeka na twój następny rzut: stała premia albo kara. Zużyte w chwili rzutu.",
-                waits: "Nałożone po otwarciu tego okna: przewaga i stała premia albo kara. Nie wchodzi do tego rzutu - czeka na twój następny.",
+                pending: "Czeka na twój następny rzut: stała premia albo kara. Efekt znika po tym rzucie, ale Loaded Die czeka na rzut akcji.",
+                waits: "Na twój następny rzut czeka też to, co doszło po otwarciu tego okna: przewaga i stała premia albo kara.",
                 price: ["Odzyskujesz: 2 akcje.", true, true],
                 reserves: "Tracisz 1 Health i 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - masz 3 wybory.",
