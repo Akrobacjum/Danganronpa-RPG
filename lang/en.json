@@ -2053,6 +2053,7 @@
         "moveUpMoveDownTooltip": "Moves this node one place in its column; the order becomes By hand",
         "checkConsistencyTooltip": "Lists what in the case does not hold together",
         "addDeductionCounterSolutionTooltip": "Adds it to the case at once, with no need to Save",
+        "notNowTooltip": "Not asked again this chapter. The Investigation window's Realization preview opens it any time",
         "showPreviewTooltip": "Opens the realization's preview. Nothing is placed until you press Run realization there",
         "sendToEveryoneTooltip": "Posts this summary in the chat for the whole table, once per Class Trial",
         "difficultyTooltip": "How hard it is to spot with Observe, to analyze and to clean up with Tamper",

@@ -238,14 +238,6 @@
    "why": "none needed: The window's intro says each slot is placed in the room picked and one left on '- leave it -' stays as it is."
   },
   {
-   "file": "scripts/case-realize.mjs",
-   "unit": "askAtBody",
-   "kind": "footer",
-   "key": "DRPG.CaseRealize.notNow",
-   "count": 1,
-   "why": "none needed: the kit draws this closing word as Close, with neither its label Not now nor a tooltip (ui-kit.mjs footerButtons builds the closing word from BUTTON_ROLES alone); a closing word needs none"
-  },
-  {
    "file": "scripts/chapter.mjs",
    "unit": "openDeathDialog",
    "kind": "select",

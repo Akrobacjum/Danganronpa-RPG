@@ -850,6 +850,14 @@
    "sites": [
     "case-realize:askAtBody"
    ]
+  },
+  "notNowTooltip": {
+   "key": "DRPG.Tips.Case.notNowTooltip",
+   "en": "Not asked again this chapter. The Investigation window's Realization preview opens it any time",
+   "pl": "W tym rozdziale pytanie nie wróci. Podgląd realizacji w oknie Investigation otworzysz w każdej chwili",
+   "sites": [
+    "case-realize:askAtBody"
+   ]
   }
  },
  "Gm": {

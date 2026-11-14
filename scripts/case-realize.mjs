@@ -231,7 +231,7 @@ export async function askAtBody(chapter) {
         title: L("DRPG.CaseRealize.askTitle"),
         classes: ["drpg-panel", "drpg-window-case-ask"],
         body: `<p>${esc(L("DRPG.CaseRealize.askBody"))}</p>`,
-        footer: { close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow") },
+        footer: { close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow"), tooltip: tipText("DRPG.Tips.Case.notNowTooltip") },
             secondary: [{ action: "preview", label: L("DRPG.CaseRealize.showPreview"), tooltip: tipText("DRPG.Tips.Case.showPreviewTooltip") }], default: "later" },
         rejectClose: false
     });

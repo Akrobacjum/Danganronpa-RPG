@@ -27123,7 +27123,7 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 10 keys under DRPG.Tips.Case has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
+    ["R4755 - the Investigation and the case draw their tooltips (E102 C6, 14.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 11 keys under DRPG.Tips.Case has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's `tooltip`, or through a named local helper that writes it); the Map's node face and its fold only where the graph is the Map's (`editors` given), since the Class Trial console draws the same graph read only and its press opens and folds nothing (case-trial.mjs `liveSchema`)", async () => {
         /* Red at 1463f22b with this test in place and the family's scripts as they were: lang/*.json had no DRPG.Tips.Case block and no function read one of its keys. */
         const TIPS = [
             ["DRPG.Tips.Case.nodeOnTheMapTooltip","case-map.mjs","nodeButton"],
@@ -27132,6 +27132,7 @@ const INVARIANTS = [
             ["DRPG.Tips.Case.moveUpMoveDownTooltip","case-map.mjs","nodeEditHtml"],
             ["DRPG.Tips.Case.checkConsistencyTooltip","case-map.mjs","caseOverviewHtml"],
             ["DRPG.Tips.Case.addDeductionCounterSolutionTooltip","case-map.mjs","caseToolsHtml"],
+            ["DRPG.Tips.Case.notNowTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.showPreviewTooltip","case-realize.mjs","askAtBody"],
             ["DRPG.Tips.Case.sendToEveryoneTooltip","case-summary.mjs","showCaseSummary"],
             ["DRPG.Tips.Case.difficultyTooltip","remnant-ring.mjs","gmRemnantCard"],
@@ -41601,6 +41602,44 @@ const INVARIANTS = [
             closeCallback: "close", cancelActionClose: "close", closeOtherAction: false, closeBare: false, cancelCallback: false,
             confirm: [[["close", "none"]], [["cancel", false]]]
         }), "[footerButtons on: a close with a callback, a cancel whose action is close with one, a close of another action with one, a bare close, a cancel of action no with one ('close': it threw for that reason; false: it did not); drpgConfirm's no as asked (action, what its callback answers)]");
+    }],
+    ["R6350 - a closing word given its own word draws that word (E102 C6, 14.11.2026; the coordinator's word: the owner chose \"Not yet\" as the default of the discovery's prompt, body-113): ui-kit.mjs `footerButtons` keeps a closing button's `label` and `tooltip` when the caller gives them, and the role's word (Close, Cancel) with no tooltip when it gives none; drawn, `footerMarkup`'s button reads that word and carries that title; and the three callers that name one - case-realize.mjs `askAtBody` and investigation.mjs `offerFinalOnClose` (\"Not now\"), chapter.mjs `promptPendingBodies` (\"Not yet\", which its window's note names) - still pass it", async () => {
+        /* Red at c1a01382: the closing word read "Close" whatever the caller wrote (E21 C2a's rule, "Not now" goes), so
+           the discovery's window told the GM "Not yet keeps it waiting" over a button that said Close. */
+        const K = await import("./ui-kit.mjs");
+        const L = k => game.i18n.localize(k);
+        const drawn = footer => {
+            const box = document.createElement("div");
+            box.innerHTML = K.footerMarkup(footer);
+            const b = box.querySelector(`[data-drpg-role="close"], [data-drpg-role="cancel"]`);
+            return b ? [b.textContent.trim(), b.getAttribute("title")] : null;
+        };
+        const close = L("DRPG.Kit.close");
+        must(close && close !== "DRPG.Kit.close", "no word for Close in this language - this would measure nothing");
+        const built = K.footerButtons({ close: { role: "close", action: "later", label: "Not now", tooltip: "Asked again later" } })[0];
+        const sources = new Map(await moduleSources());
+        const passes = [["case-realize.mjs", "askAtBody", "DRPG.CaseRealize.notNow"], ["investigation.mjs", "offerFinalOnClose", "DRPG.CaseRealize.notNow"],
+            ["chapter.mjs", "promptPendingBodies", "DRPG.Chapter.pendingNotYet"]]
+            .filter(([f, fn, key]) => !new RegExp(`close:\\s*\\{[^}]*label:\\s*(?:L|game\\.i18n\\.localize)\\(\\s*"${key.replace(/\./g, "\\.")}"`).test(fnSource(stripComments(sources.get(f) ?? ""), fn)))
+            .map(([f, fn]) => `${f} ${fn}`);
+        must([...sources.keys()].length > 100, "the module's sources read as nothing - this would measure nothing");
+        equal(stableJson({
+            built: [built.role, built.label, built.tooltip ?? null],
+            labelled: drawn({ close: { role: "close", action: "later", label: "Not now", tooltip: "Asked again later" } }),
+            bare: drawn({ close: "close" }),
+            bareObject: drawn({ close: { role: "close", action: "later" } }),
+            cancel: drawn({ close: { role: "cancel", action: "no", label: "Keep it", callback: () => false } }),
+            emptyLabel: drawn({ close: { role: "close", action: "later", label: "" } }),
+            callersNotPassing: passes
+        }), stableJson({
+            built: ["close", "Not now", "Asked again later"],
+            labelled: ["Not now", "Asked again later"],
+            bare: [close, null],
+            bareObject: [close, null],
+            cancel: ["Keep it", null],
+            emptyLabel: [close, null],
+            callersNotPassing: []
+        }), "[footerButtons's closing word: role, label, tooltip; drawn (text, title): labelled, bare, bare object, a cancel with its own word, an empty label; the callers that no longer pass their word]");
     }],
     ["R1358 - the GM's tools on the kit (E21 C2; E21-01, E21-07, E21-16, E22-01, E22-04): each window C2 moves calls ui-kit.mjs `drpgWindow` with footer slots, never `buttons`; opened on this GM (DialogV2.wait stood in for), each has a `drpg-ui` root, every footer button a role of BUTTON_ROLES, the role this test names for its action, its closing word the role's own (Close where nothing is left to answer, Cancel where a question is withdrawn) and no `drpg-gm-route` on a GM's screen; a window as wide as its table carries the kit's `fit`; and C2b's: the GM's tools and their questions on the kit, on the destructive role what cannot be undone (Reset, Kill, Delete table, remove a pool, clear the overflow, Clear the Mastermind, Delete and rebuild, Install / reinstall, Revoke and Delete a passage), and the GM panel's Next named by its step", async () => {
         /*
