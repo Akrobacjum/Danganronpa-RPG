@@ -216,6 +216,26 @@
       "line": "// glass.mjs's cut (`cutStrips`) moves to glass-geometry.mjs in E54's cut: either file may hold the branch, and",
       "verdict": "true",
       "why": "history: it says where `cutStrips` stood before E54 cut it out (bf036b2a), which stays so after the cut"
+    },
+    {
+      "file": "scripts/chapter.mjs",
+      "line": "* Assistant GM is here, and opens on the full Gamemaster who becomes the primary. Pure but for the user list it is handed.",
+      "verdict": "true",
+      "why": "\"here\" is the Assistant GM connected, not the file: answersBodyPrompt's prompt waits for a full Gamemaster"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* READ AT EACH FIT, NOT AT IMPORT (E56 C12, 13.11.2026; R5471). It was worked out once when this file was imported,",
+      "verdict": "false",
+      "why": "the const was worked out when sheet.mjs was imported; in sheet-fit.mjs \"this file\" would name a file that did not hold it",
+      "from": "It was worked out once when this file was imported",
+      "to": "It was worked out once when sheet.mjs was imported"
+    },
+    {
+      "file": "tools/e56/lines.mjs",
+      "line": "* characters of the citation (`config.mjs:1128 OBSERVE_DC`, `settings.mjs:3362 \\`isDeceased\\``): the citation holds",
+      "verdict": "true",
+      "why": "an example of the citation form in the finder's header, not a claim about a line of today's settings.mjs"
     }
   ]
 }

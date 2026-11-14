@@ -51,7 +51,7 @@ const sheet = rowOf("sheet.mjs")?.match(/(\d+) names of its own, (\d+) re-export
 const sheetRe = FAMILIES["sheet.mjs"].reduce((s, k) => s + reexported("sheet.mjs", `${k}.mjs`).length, 0);
 if (!sheet) problems.push("sheet.mjs: its row states no count in the form this reads");
 else { rows++; if (Number(sheet[1]) !== own("sheet.mjs").length || Number(sheet[2]) !== sheetRe) problems.push(`sheet.mjs: the row says ${sheet[1]} of its own, ${sheet[2]} re-exported; the file: ${own("sheet.mjs").length}, ${sheetRe}`); }
-const wave = md.match(/Wave 3 \(E54[^)]*\)[\s\S]*?(\d+) new files, (\d+) module files in `scripts\/`/);
+const wave = md.match(/Wave 3 \(E54[^)]*\)[\s\S]*?(\d+)\s+new\s+files,\s+(\d+)\s+module\s+files\s+in\s+`scripts\/`/);
 const modules = fs.readdirSync(path.join(REPO, "scripts")).filter(f => f.endsWith(".mjs")).length;
 const fresh = Object.values(FAMILIES).flat().length;
 if (!wave) problems.push("the Wave 3 paragraph's counts are not in the form this reads");
