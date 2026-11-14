@@ -1,0 +1,2932 @@
+{
+  "$comment": [
+    "B02, a batch of stage E71 (line A, claude/e71-a), with E25's content part: each text written from the facts of the functions that run its rule (O6, M1), the English by one agent, the Polish by another from the facts, the code and the old Polish without the new English (DB26), then read by the EN, cold EN, PL and (rules batches) mechanics reviewers and revised once; `reviews` holds what each reviewer still holds open after that revision, `owner` is null (no owner's page yet). Written on claude/e71-a 14.11.2026; the afters are the text of lang/ and config.mjs from the commit that adds this file."
+  ],
+  "batch": "B02",
+  "stage": "E71",
+  "texts": [
+    {
+      "key": "DRPG.Config.SFX_EVENTS.safeword.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The safeword card is posted with no whisper list and the flag { key: \"safeword\", gm: true }, so every browser, GMs included, plays it.",
+          "file": "scripts/safeword.mjs",
+          "fn": "safewordCard",
+          "note": null
+        },
+        {
+          "fact": "The safeword's event has ignoresVolume: it plays at volume 1 whatever the Sound slider says, still on Foundry's interface channel.",
+          "file": "scripts/sfx-play.mjs",
+          "fn": "playSfx",
+          "note": null
+        },
+        {
+          "fact": "A browser that has not been clicked since it loaded drops every sound, the safeword's too; the card is what everybody is sure to get (owner Q1, E19).",
+          "file": "scripts/sfx.mjs",
+          "fn": "registerSfx",
+          "note": null
+        },
+        {
+          "fact": "R-test of the safeword's hint asks the English to name the Interface volume and the first click and to promise no full volume.",
+          "file": null,
+          "fn": null,
+          "note": "scripts/tests-tier1.mjs: the test reads config.mjs's literal hint; its name is the R number's row, not a function"
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Somebody stopped the scene. Heard by everyone whatever the Sound slider says, at Foundry's Interface volume, from their first click on the page after it loads; the card shows on every screen either way. Make it sound like nothing else in the game.",
+        "after": "Somebody stopped the scene. Everyone hears it whatever the Sound slider says, at Foundry's Interface volume, after their first click on the page. Everyone sees the card regardless. Give it a file unlike any other."
+      },
+      "pl": {
+        "before": "Ktoś zatrzymał scenę. Słyszą wszyscy niezależnie od suwaka Dźwięk, przy głośności interfejsu Foundry, od pierwszego kliknięcia w stronę po jej wczytaniu; kartę i tak widać na każdym ekranie. Niech brzmi jak nic innego w grze.",
+        "after": "Ktoś zatrzymał scenę. Słyszą wszyscy niezależnie od suwaka Dźwięk, przy głośności interfejsu Foundry, od pierwszego kliknięcia w stronę po jej wczytaniu. Kartę i tak widzi każdy. Daj temu dźwiękowi plik niepodobny do żadnego innego."
+      },
+      "removed": [
+        "The clause \"the card shows on every screen either way\" became its own short sentence; nothing left the text."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity: the English after ends with the advice to give the sound a file unlike any other, which the Polish after drops (the before had „Niech brzmi jak nic innego w grze”); both languages should carry it or neither (proposed: Ktoś zatrzymał scenę. Słyszą wszyscy, także GM-owie, niezależnie od suwaka Dźwięk, z głośnością interfejsu Foundry, gdy tylko klikną w stronę po jej wczytaniu. Kartę i tak widzi każdy. Daj mu plik niepodobny do żadnego innego.) - executor: Taken in part: the closing advice is back („Daj temu dźwiękowi plik niepodobny do żadnego innego”, the sound named, so „mu” points at nothing else); „z głośnością” was not taken, since tier-1 R828 reads „głośności interfejsu” in the Polish, and „także GM-owie” went to keep the text under the limit of 38, „wszyscy” already holding them as the English „Everyone” does.",
+            "O2: „od pierwszego kliknięcia w stronę po jej wczytaniu” closes a chain of three comma phrases after „Słyszą wszyscy”; „gdy tylko klikną w stronę po jej wczytaniu” reads as speech, with the subject the reader already has. - executor: Kept: „od pierwszego kliknięcia” stays, because tier-1 R828 asks the Polish hint to name the first click (/pierwsz\\w* klikni/); „gdy tylko klikną w stronę” would turn that test red. The chain is one phrase shorter with „także GM-owie” gone."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.windowOpen.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The window sound plays on the first render of any window GAME_WINDOWS matches: the module's own windows, actor sheets and item sheets; Foundry's configuration windows are left out.",
+          "file": "scripts/motion.mjs",
+          "fn": "animateWindowIn",
+          "note": null
+        },
+        {
+          "fact": "It plays under reduced motion too, before the animation.",
+          "file": "scripts/motion.mjs",
+          "fn": "animateWindowIn",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Any window this module draws, and a character sheet. Heard by whoever opened it.",
+        "after": "One of this module's windows, a character sheet, or an item sheet opens. Heard by whoever opened it."
+      },
+      "pl": {
+        "before": "Każde okno rysowane przez ten moduł i karta postaci. Słyszy ten, kto je otworzył.",
+        "after": "Otwiera się okno modułu, arkusz postaci albo arkusz przedmiotu. Słyszy ten, kto je otwiera."
+      },
+      "removed": [
+        "„Okna konfiguracji Foundry milczą” left the Polish: the list says which windows play, and the English does not carry it (parity)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint named the module's windows and the character sheet and left out item sheets (Truth Bullets among them), which GAME_WINDOWS also matches; the after names them."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity: the English after says who hears it (whoever opened the window), the Polish after drops it (the before had „Słyszy ten, kto je otworzył”), while it adds that Foundry's configuration windows stay silent, which the English lacks (proposed: Otwiera się okno modułu, arkusz postaci albo arkusz przedmiotu. Słyszy ten, kto je otwiera. Okna konfiguracji Foundry milczą.) - executor: Taken in part: the hearer is back („Słyszy ten, kto je otwiera”); „Okna konfiguracji Foundry milczą” left the Polish instead of going into the English, since the list already names the windows that play and the text keeps to the target."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.windowButton.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "One click listener plays sheetButton inside an actor sheet and windowButton in any other game window; disabled controls, the window header and the Sound window's Test button stay silent.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onDocumentClick",
+          "note": null
+        },
+        {
+          "fact": "windowButton yields to windowOpen and windowClose: when either fires within the yield wait, the button's sound is dropped.",
+          "file": "scripts/sfx-play.mjs",
+          "fn": "playSfx",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A button pressed anywhere except a character sheet. Stays quiet when the press opens or closes a window - you hear the window instead.",
+        "after": "A button pressed in any window but a character sheet; disabled buttons, header buttons, and the Sound window's Test stay silent. A press that opens or closes a window plays the window's sound instead."
+      },
+      "pl": {
+        "before": "Przycisk wciśnięty gdziekolwiek poza kartą postaci. Milczy, gdy wciśnięcie otwiera albo zamyka okno - wtedy słychać okno.",
+        "after": "Przycisk wciśnięty w oknie gry, poza arkuszem postaci. Milczą przyciski nieaktywne, przyciski w nagłówku okna i przycisk Test w oknie Dźwięk. Gdy wciśnięcie otwiera albo zamyka okno, słychać tylko okno."
+      },
+      "removed": [
+        "The dash aside \"- you hear the window instead\" became the sentence's own end (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.sheetButton.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A button inside an actor sheet plays sheetButton rather than windowButton.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onDocumentClick",
+          "note": null
+        },
+        {
+          "fact": "sheetButton yields to windowOpen and windowClose, as windowButton does.",
+          "file": "scripts/sfx-play.mjs",
+          "fn": "playSfx",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The sheet's own controls - actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.",
+        "after": "A press on a character sheet's own controls, such as its actions, items, and pips. A press that opens or closes a window plays the window's sound instead."
+      },
+      "pl": {
+        "before": "Własne kontrolki karty - akcje, ekwipunek, pola. Osobno od innych przycisków, bo karta też jest oknem, a jeden klucz nie odróżniłby ich.",
+        "after": "Wciśnięcie własnej kontrolki arkusza postaci, na przykład akcji, przedmiotu albo pola. Gdy wciśnięcie otwiera albo zamyka okno, słychać tylko okno."
+      },
+      "removed": [
+        "\"Separate from the other buttons because a sheet is a window too, and one key could not tell them apart\" is why the module has two keys (O9, T29); it stays in sfx.mjs's comment on onDocumentClick.",
+        "„gra ten dźwięk zamiast przycisku w oknie” left the Polish: the row „Przycisk w oknie” says it plays outside a character sheet (O3), and the English does not repeat it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 2: „gra ten dźwięk zamiast przycisku w oknie” reads as „instead of the button in the window”; the thing replaced is the sound named „Przycisk w oknie”, so name it in quotes (proposed: Przycisk wciśnięty na arkuszu postaci, na przykład akcja, przedmiot albo pole. Gra zamiast dźwięku „Przycisk w oknie”. Gdy wciśnięcie otwiera albo zamyka okno, słychać tylko okno.) - executor: Taken in part: the thing replaced is no longer named as a button; rather than quote „Przycisk w oknie”, the sentence left, since that row's own hint says it plays outside a character sheet (O3) and the English carries no such sentence.",
+            "Parity: the English names the examples (an action, an item, a pip), the Polish does not; the proposal carries them. - executor: Taken: the examples are in, as the controls themselves („kontrolki ... akcji, przedmiotu albo pola”), so an item and a pip are not called buttons (the en reviewer's point on the English).",
+            "PL-d, outside this batch: the label of this row, DRPG.Config.SFX_EVENTS.sheetButton.label, still says „Przycisk na karcie postaci”; it should read „Przycisk na arkuszu postaci”, as this hint does. - executor: Taken: DRPG.Config.SFX_EVENTS.sheetButton.label is in this batch now, „Przycisk na arkuszu postaci”."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.sheetButton.label",
+      "group": "config",
+      "surface": "tab",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "One click listener plays sheetButton for a button inside an actor sheet and windowButton in any other game window.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onDocumentClick",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Button on a character sheet",
+        "after": "Button on a character sheet"
+      },
+      "pl": {
+        "before": "Przycisk na karcie postaci",
+        "after": "Przycisk na arkuszu postaci"
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The Polish said „karta postaci” for the sheet, a word PL-d keeps for a chat card (glossary character-sheet forbids it); now „arkusz postaci”, as the row's hint says. The English stays as it is."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.chatSend.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "chatSend plays on the browser that creates a messenger message, and only when that browser's Messenger sounds setting is on; it is not carried on the message.",
+          "file": "scripts/messenger.mjs",
+          "fn": "createThreadMessage",
+          "note": null
+        },
+        {
+          "fact": "The sound map itself is a world setting a GM fills (SETTINGS.sfxMap, scope world), so these hints are not a client setting's hint and none ends \"Only affects this browser.\" (the early pass's note on the Polish \"tylko ta przeglądarka\" does not apply: no SFX_EVENTS hint in pl.json says it).",
+          "file": "scripts/sfx-play.mjs",
+          "fn": "soundFor",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the sender, on the browser that sent it.",
+        "after": "A messenger message is sent. Heard by the sender alone, unless their Messenger sounds are off."
+      },
+      "pl": {
+        "before": "Słyszy nadawca, na przeglądarce, z której wysłano.",
+        "after": "Ktoś wysyła wiadomość w komunikatorze. Słyszy tylko nadawca, jeśli ma włączone ustawienie „Dźwięki komunikatora”."
+      },
+      "removed": [
+        "\"on the browser that sent it\" says how the module plays it (T29); \"the sender alone\" keeps who hears it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.chatReceive.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "chatReceive plays for the thread's player and every GM as the message arrives, not for its writer, and only with that browser's Messenger sounds on.",
+          "file": "scripts/messenger.mjs",
+          "fn": "onCreateChatMessage",
+          "note": null
+        },
+        {
+          "fact": "On a GM's browser a card flagged gmAsk plays gmAsk instead of chatReceive.",
+          "file": "scripts/messenger.mjs",
+          "fn": "onCreateChatMessage",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by everyone the thread belongs to - its player and every GM - and never by the sender.",
+        "after": "A message lands in a player's thread. Heard by that player and every GM, never by the sender, and not with Messenger sounds off."
+      },
+      "pl": {
+        "before": "Słyszą wszyscy, do których należy wątek - jego gracz i każdy GM - i nigdy nadawca.",
+        "after": "Do wątku gracza przychodzi wiadomość. Słyszą ją ten gracz i każdy GM, nigdy jej autor, o ile mają włączone ustawienie „Dźwięki komunikatora”."
+      },
+      "removed": [
+        "The dash aside \"- its player and every GM -\" became the sentence (X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.gmAsk.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A ruling card callGm posts to the GMs carries { key: \"gmAsk\", gm: true }, so every GM hears it.",
+          "file": "scripts/call-gm.mjs",
+          "fn": "callGm",
+          "note": null
+        },
+        {
+          "fact": "A thread card flagged gmAsk plays gmAsk on a GM's browser and returns before chatReceive, so it replaces the general sound; bridge cards posted from the primary GM's own session ring that GM too.",
+          "file": "scripts/messenger.mjs",
+          "fn": "onCreateChatMessage",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by the GMs. The request lands in a thread, and a thread is easy to miss in the middle of a busy time of day.",
+        "after": "A card asks the GMs for a ruling or an answer. Heard by the GMs instead of the Message arrives sound."
+      },
+      "pl": {
+        "before": "Słyszą GM-owie. Prośba ląduje w wątku, a wątek łatwo przegapić w środku ruchliwej pory dnia.",
+        "after": "Gracz prosi GM-ów o decyzję albo odpowiedź. Słyszy każdy GM; ten dźwięk zastępuje wtedy „Wiadomość przychodzi”."
+      },
+      "removed": [
+        "\"The request lands in a thread, and a thread is easy to miss in the middle of a busy time of day\" is the reason for the sound (O9, T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.despairCall.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Every Despair Call that holds is announced on a public card (no whisper list) with { key: \"despairCall\", gm: true }: \"THE TABLE IS ALWAYS TOLD\".",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "A Call whose effect failed is refunded and posts no card, so no sound.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendDespairCallFor",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A Monokuma spends one. Heard by whoever it lands on, and by the whole table when it is announced publicly.",
+        "after": "A Monokuma spends a Despair Call. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Monokuma wydaje jeden. Słyszy ten, na kogo spada, i cały stół, gdy jest ogłaszany publicznie.",
+        "after": "Despair Call Monokumy działa i zostaje ogłoszony na publicznej karcie. Słyszy cały stół."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint said the sound is heard by whoever the Call lands on and by the table only when it is announced publicly; the code announces every Despair Call publicly, so the whole table hears every one. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.newRule.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The New Rule Despair Call records the rule on the standing list every character sheet shows and announces it on a public card with sfx newRule.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "newRuleEffect",
+          "note": null
+        },
+        {
+          "fact": "After a trial the Blackened walked out of, the GM types the Blackened's rule; it is recorded and announced with the same sound, naming nobody.",
+          "file": "scripts/verdict.mjs",
+          "fn": "askBlackenedRule",
+          "note": null
+        },
+        {
+          "fact": "The sheet's list is titled \"Monokuma's rules\" (DRPG.Rules.sheetTitle).",
+          "file": null,
+          "fn": null,
+          "note": "lang/en.json, a key, not a function"
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "A Monokuma adds one to the handbook. Heard by the whole table.",
+        "after": "A rule joins Monokuma's rules, from a Monokuma's New Rule Call or from a Blackened who got away with it at a trial. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Monokuma dopisuje jedną do regulaminu. Słyszy cały stół.",
+        "after": "Nowa zasada trafia na listę „Zasady Monokumy” na arkuszach postaci. Pochodzi z Calla New Rule Monokumy albo od Blackened, który uszedł z rozprawy cało. Słyszy cały stół."
+      },
+      "removed": [
+        "„bez jego imienia” left the Polish: it is the card's wording, not the sound's, and the English does not carry it (parity, T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint said only a Monokuma adds a rule, and that it goes \"to the handbook\"; the rule lands on Monokuma's rules on every character sheet, and the Blackened's rule after a trial plays the same sound. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 2: „bez jego imienia” at the end of the clause attaches to the Blackened's walk-out rather than to the card, and „wychodzi z rozprawy cało” in the present stands for something already past (proposed: Nowa zasada trafia na listę „Zasady Monokumy” na arkuszach postaci. Pochodzi z Calla New Rule albo od Blackened, który uszedł z rozprawy cało; karta go wtedy nie wymienia. Słyszy cały stół.) - executor: Taken in part: the past „uszedł z rozprawy cało” and the second sentence are in; „karta go wtedy nie wymienia” is left out of both languages, since whether the card names the Blackened is the card's matter, not the sound's (T29), and the English does not say it."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.motive.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Motive Despair Call's setMotive announces the motive on a public card with { key: \"motive\", gm: true }.",
+          "file": "scripts/rules.mjs",
+          "fn": "setMotive",
+          "note": null
+        },
+        {
+          "fact": "The due card, posted when the deadline comes (or after an incident it came due in), carries the same sound.",
+          "file": "scripts/rules.mjs",
+          "fn": "dueCard",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A Monokuma announces one, and again when its deadline arrives. Heard by the whole table - a motive nobody heard is not a motive.",
+        "after": "A Monokuma announces a motive, and again when its deadline comes. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Monokuma ogłasza Motive i znów, gdy mija termin. Słyszy cały stół - Motive, którego nikt nie słyszał, nie jest Motive.",
+        "after": "Monokuma ogłasza Motive i drugi raz, gdy mija termin. Słyszy cały stół."
+      },
+      "removed": [
+        "\"- a motive nobody heard is not a motive\" is a reason (O9, X4).",
+        "The incident's delay („po incydencie, w którym minął”) left the Polish: the deadline's card still comes, only later, and the English says only \"again when its deadline comes\" (parity, T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 2: „ogłasza Motive, a potem termin, gdy nadchodzi albo po incydencie, w którym minął” makes „termin” the thing announced and leaves „albo po incydencie” with no verb of its own (proposed: Monokuma ogłasza Motive i drugi raz, gdy mija termin; jeśli termin minął w czasie incydentu, ogłoszenie przychodzi po nim. Słyszy cały stół.) - executor: Taken in part: „termin” is no longer the thing announced; the second clause about an incident left the Polish rather than getting a verb of its own, since the English carries only \"again when its deadline comes\" and the card still comes once the incident is over."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.publicAnnouncement.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The assembly's order, its cancellation and its running each post a public card with { key: \"publicAnnouncement\", gm: true }.",
+          "file": "scripts/call-world.mjs",
+          "fn": "scheduleGather",
+          "note": null
+        },
+        {
+          "fact": "The cancellation card.",
+          "file": "scripts/call-world.mjs",
+          "fn": "cancelGather",
+          "note": null
+        },
+        {
+          "fact": "The card when the assembly is held and everyone is moved.",
+          "file": "scripts/call-world.mjs",
+          "fn": "runPendingGather",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Everyone is summoned to one room for the next time of day, the order is called off, or the assembly is held. Heard by the whole table.",
+        "after": "An assembly in one room is called for the next time of day, called off, or held. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Wszyscy wezwani do jednego pokoju na następną porę dnia, rozkaz odwołany albo zgromadzenie się odbywa. Słyszy cały stół.",
+        "after": "Zgromadzenie zostaje zwołane, odwołane albo się odbywa. Słyszy cały stół."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.roomDiscovered.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The discovery sound plays on the browser of the player whose student walked into a room it had not seen (a GM's browser always counts a room as seen).",
+          "file": "scripts/fog.mjs",
+          "fn": "playDiscoveryAnimation",
+          "note": null
+        },
+        {
+          "fact": "On a GM's browser a room that newly joins the class's discovery ledger plays the discovery too.",
+          "file": "scripts/fog.mjs",
+          "fn": "fogSets",
+          "note": null
+        },
+        {
+          "fact": "With the room fog setting off (SETTINGS.regionFog, \"Rooms decide what players can see\") no discovery or room sound plays.",
+          "file": "scripts/fog.mjs",
+          "fn": "fogEnabled",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "A room entered for the first time. Heard by the student who walked in.",
+        "after": "A student walks into a room for the first time. Heard by their player, and by the GMs when the class first finds it. Silent with the room fog off."
+      },
+      "pl": {
+        "before": "Pokój, do którego wchodzi się po raz pierwszy. Słyszy uczeń, który wszedł.",
+        "after": "Uczeń wchodzi do pokoju, którego jeszcze nie widział: słyszy jego gracz. GM-owie słyszą ten dźwięk, gdy klasa po raz pierwszy odkrywa pokój. Milczy przy wyłączonym ustawieniu „Pokoje decydują, co widzą gracze”."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint named the student who walked in as the only hearer; GMs hear it too when the class first finds the room, and nothing plays with the room fog off. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.roomEntered.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The room sound plays on the browser that leads the token: a player's own student, or a GM's own Monokuma.",
+          "file": "scripts/fog.mjs",
+          "fn": "leadsHere",
+          "note": null
+        },
+        {
+          "fact": "announceRoom plays roomEntered unless the room fog is off or the outline is only drawn again (quiet).",
+          "file": "scripts/fog.mjs",
+          "fn": "announceRoom",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A room already on the map. Heard by whoever crossed the border.",
+        "after": "A character walks into a room they already know. Heard by whoever plays that character. Silent with the room fog off."
+      },
+      "pl": {
+        "before": "Pokój już na mapie. Słyszy ten, kto przekroczył granicę.",
+        "after": "Postać wchodzi do pokoju, który już zna. Słyszy ten, kto ją prowadzi: gracz swojego ucznia, GM swojego Monokumę. Milczy przy wyłączonym ustawieniu „Pokoje decydują, co widzą gracze”."
+      },
+      "removed": [
+        "„gdy obrys pokoju jest tylko rysowany od nowa” left the Polish: a redraw the GM cannot see (O19), as the English already had it."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint did not say that the room fog switched off silences it; added (M4)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Parity and O1: the Polish never says what plays it, a room the student already knows, which separates it from „Odkryto nowy pokój”; the English after says it (proposed: Uczeń wchodzi do pokoju, który już zna. Słyszy ten, kto prowadzi token: gracz swojego ucznia, GM swojego Monokumę. Milczy przy wyłączonym ustawieniu „Pokoje decydują, co widzą gracze”.) - executor: Taken in part: the room the student already knows is said; the subject is „Postać”, not „Uczeń”, since the same sentence then names a GM's Monokuma, as the English says \"A character\"."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.refused.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A refused move puts the token back and plays refused on the browser that tried it; the GMs' audit's send-back plays nothing on the GM's browser.",
+          "file": "scripts/movement.mjs",
+          "fn": "sendBack",
+          "note": null
+        },
+        {
+          "fact": "A player whose token the primary GM sent back for a wall or a rule hears refused on their own browser.",
+          "file": "scripts/movement-audit.mjs",
+          "fn": "onSentBack",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried - the one mistake a player makes regularly.",
+        "after": "A wall, a locked door, a sealed room, or a rule sends a token back. Heard by whoever moved it, also when a GM sends it back."
+      },
+      "pl": {
+        "before": "Ściana, zamknięte drzwi albo zapieczętowany pokój zawracają kogoś. Słyszy ten, kto próbował - jedyny błąd, który gracz popełnia regularnie.",
+        "after": "Ściana, zamknięte drzwi, zapieczętowany pokój albo reguła cofają token. Słyszy ten, kto go przesunął, także gdy cofa go GM."
+      },
+      "removed": [
+        "\"- the one mistake a player makes regularly\" is a reason (O9, X4)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint named walls, locked doors and sealed rooms; a rule's send-back (the bridge's codes) plays it too. Added."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "Step 2: „gdy token cofa GM” is object-verb-subject, and reads first as the token reversing the GM; „Odrzucony ruch cofa token” mirrors the English „a refused move puts the token back” (T22) (proposed: Ściana, zamknięte drzwi, zapieczętowany pokój albo reguła cofają token. Słyszy ten, kto go przesunął, także gdy cofa go GM; GM-owie tego nie słyszą.) - executor: Taken in part: the order is the proposal's; „GM-owie tego nie słyszą” is left out, since „Słyszy ten, kto go przesunął” already says who hears it, and a GM who moves their own Monokuma does hear a refusal. The English now says the GM's send-back too."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.wallBreached.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "tellBreach whispers a card with sfx wallBreached to the owner of every student other than the builder who stands in either room or in a room beside them.",
+          "file": "scripts/passages-gm.mjs",
+          "fn": "tellBreach",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A Breach the Wall is finished. Heard by the students in the two rooms it joins and in the rooms beside them.",
+        "after": "A Breach the Wall is finished. Heard by the players of the students in the two rooms it joins and in the rooms beside them, except the builder's."
+      },
+      "pl": {
+        "before": "Ktoś kończy Breach the Wall. Słyszą go uczniowie w obu pokojach, które łączy wyłom, i w pokojach obok.",
+        "after": "Ktoś kończy Breach the Wall. Słyszą gracze uczniów w obu pokojach, które łączy wyłom, i w pokojach obok, poza graczem ucznia, który go zrobił."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint did not leave out the builder, who gets no such card. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.projectDone.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "announceProjectDone returns before any card for a repair and for an indirect murder (a trap).",
+          "file": "scripts/projects.mjs",
+          "fn": "announceProjectDone",
+          "note": null
+        },
+        {
+          "fact": "The card goes to the founder's owner by whisperToOwner, else to whoever filled the bar with the GMs, with the plain sfx flag: a GM named in the whisper does not hear it.",
+          "file": "scripts/projects.mjs",
+          "fn": "announceProjectDone",
+          "note": null
+        },
+        {
+          "fact": "A sound carried on a whispered card plays only for the users it names, and a GM named in the whisper hears it only when the flag says gm: true; a card with no whisper list plays for everyone.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onCreateChatMessage",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The bar filled. Heard by whoever proposed it and by the GMs, never publicly, because a project can be secret - a repair and an armed trap have louder announcements of their own.",
+        "after": "A project's bar fills. Heard by the player who proposed it, or else by whoever filled it. Not for a repair or a trap, which have cards of their own."
+      },
+      "pl": {
+        "before": "Pasek się zapełnił. Słyszy ten, kto go zaproponował, i GM-owie, nigdy publicznie, bo projekt może być tajny - naprawa i uzbrojona pułapka mają własne, głośniejsze ogłoszenia.",
+        "after": "Pasek projektu się zapełnia. Słyszy gracz ucznia, który zaproponował projekt, a gdy go nie ma, ten, kto zapełnił pasek. GM-owie dostają kartę bez dźwięku. Naprawa i pułapka mają własne ogłoszenia."
+      },
+      "removed": [
+        "\"never publicly, because a project can be secret\" is a reason (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint said the GMs hear it; the flag is the plain string form on a whisper, and onCreateChatMessage keeps a GM out of a whisper that does not ask for them, so no GM hears it. Made true; for the owner if the GMs should hear it."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.critical.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "report() plays critical on the roller's browser when the action roll is a critical, as the action's card is posted.",
+          "file": "scripts/action-report.mjs",
+          "fn": "report",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Plays when a roll is a critical, as its notice cuts in. Heard by whoever rolled it.",
+        "after": "Plays when an action roll is a critical, as its notice cuts in. Heard by whoever rolled it."
+      },
+      "pl": {
+        "before": "Gra przy krytyku, gdy powiadomienie wjeżdża cięciem. Słyszy ten, kto go wyrzucił.",
+        "after": "Słyszy ten, kto wyrzucił krytyk w rzucie akcji, gdy powiadomienie wjeżdża cięciem."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"a roll\" was wider than the code: only an action's report plays it. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.searchNothing.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Search below the first threshold plays searchNothing on the searcher's browser; a critical or a specific request sent to a GM does not.",
+          "file": "scripts/action-search.mjs",
+          "fn": "searchNothing",
+          "note": null
+        },
+        {
+          "fact": "A Find Passage with nothing to find whispers its owners with the plain searchNothing flag (the GMs named in it do not hear it).",
+          "file": "scripts/passages-gm.mjs",
+          "fn": "resolvePassageSearch",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by the searcher. The only common failure in the game that is otherwise completely silent.",
+        "after": "A Search roll misses, or a Find Passage finds no passage. Heard by the player who searched."
+      },
+      "pl": {
+        "before": "Słyszy szukający. Jedyna częsta porażka w grze, która poza tym jest zupełnie cicha.",
+        "after": "Search nie dochodzi do pierwszego progu albo Find Passage nic nie znajduje. Słyszy gracz, który szukał."
+      },
+      "removed": [
+        "\"The only common failure in the game that is otherwise completely silent\" is a reason (O9).",
+        "The Polish's exceptions left: a critical is not a miss and a specific request waits on a GM (action-search.mjs searchNothing), so \"nie dochodzi do pierwszego progu\" already leaves them out, as the English does; „GM-owie tego nie słyszą” is in „Słyszy gracz, który szukał”."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint did not say that an empty Find Passage plays it too. Added."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "PL23: „ale wtedy GM-owie go nie słyszą” has no noun for „go” to point back to except Find Passage, the last masculine one named (proposed: Search nie dochodzi do pierwszego progu: słyszy szukający, chyba że to krytyk albo konkretna prośba do GM-a. Gra też, gdy Find Passage nic nie znajduje; GM-owie tego nie słyszą.) - executor: Taken in part: the pronoun is gone with the sentence it stood in; the two cases are one sentence and the hearer is the player (PL-s).",
+            "Parity: the exceptions of a critical and a request to a GM (kept fact 0) are in the Polish only; the English after lacks them. - executor: Kept out of both languages: a critical is not a failure and a specific request is waiting on a GM (action-search.mjs searchNothing's comment), so a Search that misses already excludes both."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.observeFail.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A failed Observe whispers the observer's owner a card with the plain sfx observeFail.",
+          "file": "scripts/observe.mjs",
+          "fn": "chargeObserveMiss",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the observer. It costs Sanity and looks exactly like a success until the card is read.",
+        "after": "An Observe misses. Heard by the observer's player."
+      },
+      "pl": {
+        "before": "Słyszy obserwujący. Kosztuje Sanity i wygląda dokładnie jak sukces, dopóki nie przeczyta się karty.",
+        "after": "Observe się nie udaje. Słyszy tylko gracz obserwującego ucznia."
+      },
+      "removed": [
+        "\"It costs Sanity and looks exactly like a success until the card is read\" explains the Observe, not the sound (T29); Observe's own texts say its price."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.projectFound.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Only the Look past the obvious declaration (DECLARATIONS.nonObvious) can find a hidden secret project in the room.",
+          "file": "scripts/observe.mjs",
+          "fn": "hiddenProjectsFor",
+          "note": null
+        },
+        {
+          "fact": "The finder is let in on the project and whispered a card with the plain sfx projectFound: the GMs named in the whisper do not hear it.",
+          "file": "scripts/observe.mjs",
+          "fn": "shareFoundProject",
+          "note": null
+        },
+        {
+          "fact": "A sound carried on a whispered card plays only for the users it names, and a GM named in the whisper hears it only when the flag says gm: true; a card with no whisper list plays for everyone.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onCreateChatMessage",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by the student who spotted it and by the GMs. A non-obvious Observe found something in the room that somebody had been keeping to themselves - a rarer event than a trace, and one the table should hear land.",
+        "after": "An Observe that looks past the obvious uncovers a secret project in the room. Heard by the observer's player."
+      },
+      "pl": {
+        "before": "Słyszy student, który go wypatrzył, oraz GM-owie. Observe deklarowane jako \"coś nie na miejscu\" znalazło w pokoju rzecz, którą ktoś trzymał dla siebie - zdarza się to rzadziej niż znalezienie tropu i stół powinien usłyszeć, że padło.",
+        "after": "Observe z deklaracją „Spójrz poza oczywiste” odkrywa w pokoju tajny projekt. Słyszy tylko gracz znalazcy; GM-owie dostają kartę bez dźwięku."
+      },
+      "removed": [
+        "\"a rarer event than a trace, and one the table should hear land\" is a reason (O9), and said trace (EN15).",
+        "„który zostaje dopuszczony do projektu” left the Polish: it is the find's effect, not the sound's, and its „który” could point at the player (T29, PL23)."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint said the GMs hear it; the plain flag on a whisperToOwner card plays for the observer's player alone. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "PL-s: „Słyszy tylko znalazca” makes the student hear a sound; the batch says the player hears („gracz znalazcy”). - executor: Taken in part: „gracz znalazcy”; the clause on being let in on the project left, since „który” then read as the player's and the English does not carry it."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.sabotageFailed.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Sabotage that failed and was not revealed plays sabotageFailed on the saboteur's browser; a revealed one plays sabotageSeen alone.",
+          "file": "scripts/action-project.mjs",
+          "fn": "soundSabotage",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the saboteur, and only when nobody saw - a failed sabotage still leaves its trace, so this is evidence bought for no gain rather than nothing happening.",
+        "after": "A Sabotage misses. Heard by the saboteur's player, unless Sabotage witnessed plays instead."
+      },
+      "pl": {
+        "before": "Słyszy sabotażysta, i tylko gdy nikt nie widział - nieudany sabotaż wciąż zostawia ślad, więc to dowód kupiony za nic, a nie brak zdarzenia.",
+        "after": "Sabotage się nie udaje i nikt tego nie widzi: słyszy tylko gracz sabotażysty. Gdy ktoś to zauważy, gra sam dźwięk „Sabotaż zauważony”."
+      },
+      "removed": [
+        "\"a failed sabotage still leaves its trace, so this is evidence bought for no gain\" is a reason (O9) and said trace (EN15); Sabotage's own hint says it leaves a Remnant."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.sabotageSeen.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A Sabotage is revealed when it rolls with Despair and somebody else is in the room (revealed: withFear and witnesses).",
+          "file": "scripts/action-project.mjs",
+          "fn": "performSabotage",
+          "note": null
+        },
+        {
+          "fact": "The reveal card is whispered to roomAudience - the GMs, the saboteur's player and the players of everyone in the room - with the plain sfx flag, so the GMs do not hear it.",
+          "file": "scripts/action-project.mjs",
+          "fn": "soundSabotage",
+          "note": null
+        },
+        {
+          "fact": "roomAudience is the GMs, the actor's own player and the players of everyone in the same room.",
+          "file": "scripts/action-pipeline.mjs",
+          "fn": "roomAudience",
+          "note": null
+        },
+        {
+          "fact": "A sound carried on a whispered card plays only for the users it names, and a GM named in the whisper hears it only when the flag says gm: true; a card with no whisper list plays for everyone.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onCreateChatMessage",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Despair with somebody else in the room. Heard by the whole table, because the whole table is told.",
+        "after": "A Sabotage rolls with Despair while somebody else is in the room. Heard by the players of everyone in that room."
+      },
+      "pl": {
+        "before": "Despair z kimś innym w pokoju. Słyszy cały stół, bo cały stół zostaje powiadomiony.",
+        "after": "Sabotage kończy się z Despair, a w pokoju jest ktoś jeszcze. Słyszą gracz sabotażysty i gracze wszystkich obecnych w pokoju; GM-owie dostają kartę bez dźwięku."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint said the whole table hears it because the whole table is told; the card goes to the room (D6) and the sound to the players in it. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.toolBroke.label",
+      "group": "config",
+      "surface": "tab",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "breakOnDespair plays toolBroke when a Despair costs the tool a point of durability, when it breaks, and when a single-use thing is used up.",
+          "file": "scripts/use-items.mjs",
+          "fn": "breakOnDespair",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A tool breaks",
+        "after": "A tool wears or breaks"
+      },
+      "pl": {
+        "before": "Narzędzie się psuje",
+        "after": "Narzędzie się zużywa albo psuje"
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The label said only that a tool breaks; the same sound plays when a Despair wears a point off a tool that does not break yet. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.toolBroke.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "breakOnDespair whispers the owner \"loses durability\", \"did not survive that\" or \"is used up\", each with sfx toolBroke.",
+          "file": "scripts/use-items.mjs",
+          "fn": "breakOnDespair",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by its owner. It changes the next roll, so it has to be noticed at the moment it happens.",
+        "after": "A Despair wears down or breaks the tool a roll used, or a single-use thing is used up. Heard by its owner's player."
+      },
+      "pl": {
+        "before": "Słyszy właściciel. Zmienia następny rzut, więc musi zostać zauważone w chwili, gdy się dzieje.",
+        "after": "Despair odbija się na narzędziu: traci wytrzymałość, psuje się albo, jeśli jest jednorazowe, zużywa się. Słyszy gracz właściciela."
+      },
+      "removed": [
+        "\"It changes the next roll, so it has to be noticed at the moment it happens\" is a reason (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.stolen.label",
+      "group": "config",
+      "surface": "tab",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The same sound plays for a Frisk the victim caught, which takes nothing, for a Palm noticed, and for a stash its owner finds disturbed.",
+          "file": "scripts/frisk.mjs",
+          "fn": "friskPerson",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Something was stolen from you",
+        "after": "A student's things were gone through"
+      },
+      "pl": {
+        "before": "Coś ci ukradziono",
+        "after": "Ktoś ruszał cudze rzeczy"
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"Something was stolen from you\" was not true of a Frisk, which takes nothing, and spoke to \"you\" in a GM's list. Made true."
+      ],
+      "reviews": {
+        "en": {
+          "verdict": "change",
+          "points": [
+            "X19/O4: \"A victim notices\" leaves the row's label without an object - notices what - and the hint has to supply it; the three senders (a Frisk caught, a Palm noticed, a stash found gone through) are each a theft or an attempt noticed (proposed: A theft is noticed) - executor: Taken in part: the label now names what is noticed, but not as a theft: a Frisk the victim caught takes nothing (frisk.mjs friskPerson), so \"theft\" would be untrue of one of the three senders."
+          ]
+        },
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "As a name in a list, \"A victim notices\" leaves out what is noticed; a GM scanning the window would not know it is about theft or a Frisk until reading the hint (proposed: Theft noticed) - executor: Taken in part: the label says what happened to the student's things; \"Theft\" is not used, since a caught Frisk takes nothing."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.stolen.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A noticed Frisk whispers the target's owner a veiled card with sfx stolen.",
+          "file": "scripts/frisk.mjs",
+          "fn": "friskPerson",
+          "note": null
+        },
+        {
+          "fact": "A noticed Palm tells its victim with sfx stolen.",
+          "file": "scripts/palm.mjs",
+          "fn": "tellPalmVictim",
+          "note": null
+        },
+        {
+          "fact": "A stash owner is told it was disturbed with sfx stolen.",
+          "file": "scripts/stash-reach.mjs",
+          "fn": "tellStashDisturbedNow",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1,
+        2
+      ],
+      "en": {
+        "before": "Heard by the victim, and only when the thief was clumsy enough to be noticed.",
+        "after": "A student notices a Palm or a Frisk on them, or finds their stash disturbed. Heard by their player."
+      },
+      "pl": {
+        "before": "Słyszy ofiara, i tylko gdy złodziej był dość niezdarny, by go zauważono.",
+        "after": "Uczeń przyłapuje kogoś na Frisk lub Palm albo odkrywa, że ktoś ruszał jego skrytkę. Słyszy gracz tego ucznia."
+      },
+      "removed": [
+        "\"only when the thief was clumsy enough to be noticed\" is in \"notices\"."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.despairOverflow.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "announceOverflow posts a public card with { key: \"despairOverflow\", gm: true } naming the effect drawn.",
+          "file": "scripts/overflow.mjs",
+          "fn": "announceOverflow",
+          "note": null
+        },
+        {
+          "fact": "A darkening lasts a time of day (waiting for the next one in a Class Trial), while Rot and Earthquake happen at once.",
+          "file": "scripts/overflow.mjs",
+          "fn": "announceOverflow",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the whole table, when the spilled Despair reaches its threshold and the world gets worse for one time of day.",
+        "after": "The spilled Despair reaches the Overflow threshold and draws an effect. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Słyszy cały stół, gdy rozlany Despair sięga progu i świat robi się gorszy na jedną porę dnia.",
+        "after": "Despair się przelewa: publiczna karta podaje wylosowany efekt. Słyszy cały stół."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"the world gets worse for one time of day\" was not true of every effect (Rot and Earthquake happen at once, a darkening in a trial waits). Made true by naming the draw."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.death.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The death card goes to the GMs and, in an incident, to incidentAudienceIds, with { key: \"death\", gm: true } and the faded players left out (not); a death the GMs keep is played to the same audience by address.",
+          "file": "scripts/chapter.mjs",
+          "fn": "killCharacter",
+          "note": null
+        },
+        {
+          "fact": "A death with the cause executed plays no death sound: the execution card has its own.",
+          "file": "scripts/chapter.mjs",
+          "fn": "killCharacter",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by the GMs and by everyone whose character was part of the incident, but the dead student's player, who hears the Death fade. Nobody else learns of a death this way. An execution plays its own sound instead.",
+        "after": "Heard by the GMs and the players in the incident, also when the GMs keep the death secret. The dead student's player hears Death fade instead, when it plays for them. An execution has its own sound."
+      },
+      "pl": {
+        "before": "Słyszą GM-owie i każdy, czyja postać brała udział w incydencie, poza graczem zmarłego ucznia, który słyszy Gaśnięcie. Nikt inny nie dowiaduje się o śmierci w ten sposób. Egzekucja gra zamiast tego własny dźwięk.",
+        "after": "Słyszą GM-owie, a w incydencie także gracze jego uczestników, poza graczem zmarłego ucznia, jeśli ten słyszy Gaśnięcie. Tak samo, gdy GM-owie trzymają śmierć w tajemnicy. Przy egzekucji gra jej własny dźwięk."
+      },
+      "removed": [
+        "\"Nobody else learns of a death this way\" restates the audience."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.deathFade.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "playMoment plays deathFade on the dead student's player's browser at the fade, unless the moment is silent.",
+          "file": "scripts/spectator-dead.mjs",
+          "fn": "playMoment",
+          "note": null
+        },
+        {
+          "fact": "deathFade falls back to death's files when it has none (fallsBackTo).",
+          "file": "scripts/sfx-play.mjs",
+          "fn": "soundsFor",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction or an execution.",
+        "after": "Heard only by the dead student's player, as their screen fades out. With no file of its own it plays the sound of A student dies. Not for a GM's correction or an execution."
+      },
+      "pl": {
+        "before": "Słyszy tylko gracz zmarłego ucznia, gdy jego ekran gaśnie w chwili śmierci. Puste: gra dźwięk śmierci. Nigdy przy poprawce GM-a ani egzekucji.",
+        "after": "Słyszy tylko gracz zmarłego ucznia, gdy gaśnie mu ekran; nie przy poprawce GM-a ani przy egzekucji. Bez własnego pliku gra dźwięk „Uczeń ginie”."
+      },
+      "removed": [
+        "\"Empty: the death's sound plays\" is written as the sentence zoneEntered uses for the same fallback."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "\"the death's sound\" reads as the sound belonging to a particular death, not the Death event's sound (proposed: With no file of its own it plays the Death sound.) - executor: Taken in part: the sound is named by its row's label, A student dies, since the Sound window has no row called Death."
+          ]
+        },
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.bodyFound.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The discovery card is public with { key: \"bodyFound\", gm: true }.",
+          "file": "scripts/body.mjs",
+          "fn": "runDiscovery",
+          "note": null
+        },
+        {
+          "fact": "checkBodySound plays bodyFound to a walking student's connected players, once per body and death, not in an Eclipse and not for a body whose death they were part of.",
+          "file": "scripts/body.mjs",
+          "fn": "checkBodySound",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by the whole table when the GM announces the discovery: the moment the chapter changes genre. Also heard by a student's player alone, once a body, when their character walks into a room where a body lies.",
+        "after": "Heard by the whole table when the GM announces a body. Also by a student's player alone, once per body, when the student walks in on it outside an Eclipse and had no part in that death."
+      },
+      "pl": {
+        "before": "Słyszy cały stół, gdy GM ogłasza znalezienie: moment, w którym rozdział zmienia gatunek. Słyszy go też sam gracz ucznia, raz przy każdym ciele, gdy jego postać wchodzi do pokoju, w którym leży ciało.",
+        "after": "Słyszy cały stół, gdy GM ogłasza znalezienie ciała. Słyszy też sam gracz ucznia, gdy uczeń wchodzi do pokoju z ciałem: raz na ciało, nie w czasie Eclipse i nie przy śmierci, w której brał udział."
+      },
+      "removed": [
+        "\"the moment the chapter changes genre\" is a reason (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.cleanupFailed.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The clean-up report whispers the roller's owner; on a miss it carries the plain sfx cleanupFailed.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "report",
+          "note": null
+        },
+        {
+          "fact": "Both failure bands leave a Tamper Remnant (D8).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "leaveTamperTrace",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the killer. The price is spent either way, and a failure leaves a Tamper Remnant of its own beside the one they were scrubbing.",
+        "after": "A Tamper, Erase a Trace, or Reshape a Trace roll misses. Heard by the player who rolled it."
+      },
+      "pl": {
+        "before": "Słyszy zabójca. Sanity wydane tak czy inaczej, a porażka zostawia własny Tamper Remnant obok tego, który szorowali.",
+        "after": "Rzut Tamper, Erase a Trace albo Reshape a Trace kończy się pudłem. Słyszy tylko gracz, który rzucał."
+      },
+      "removed": [
+        "\"The price is spent either way, and a failure leaves a Tamper Remnant of its own\" is the rule of the roll, not of the sound (T29); the clean-up's own texts say it."
+      ],
+      "needsCode": [],
+      "disagreements": [
+        "\"Heard by the killer\" was narrower than the code: Tamper's door, any afternoon, reports through the same card. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.meddle.label",
+      "group": "config",
+      "surface": "tab",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Monocub tile is Confusion (config CONFUSION = \"meddle\"; glossary confusion).",
+          "file": null,
+          "fn": null,
+          "note": "scripts/call-effects.mjs: CONFUSION is a constant, not a function"
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A Monocub interferes",
+        "after": "Confusion"
+      },
+      "pl": {
+        "before": "Monocub się wtrąca",
+        "after": "Confusion"
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"A Monocub interferes\" was a second name for Confusion (O14); the GM handbook's catalog already says Confusion."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.meddle.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Only a hit posts the two veiled cards, to the Monocub's owner and the target's, each with sfx meddle; the target's card does not name the Monocub.",
+          "file": "scripts/monocub.mjs",
+          "fn": "scoreMeddle",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the Monocub and by whoever they landed it on, and it says nothing about WHICH Monocub. The only thing that changes your next roll without you having done anything, which is why the target needs telling.",
+        "after": "A Monocub's Confusion takes hold. Heard by the Monocub's player and the target's; the target is not told which Monocub."
+      },
+      "pl": {
+        "before": "Słyszy Monocub i ten, na kogo to spadło, i nie mówi nic o tym, KTÓRY Monocub. Jedyna rzecz, która zmienia twój następny rzut bez twojego udziału, dlatego cel trzeba powiadomić.",
+        "after": "Gra tylko przy trafieniu Confusion. Słyszą gracz Monocuba i gracz celu; karta celu nie zdradza, który Monocub to zrobił."
+      },
+      "removed": [
+        "\"The only thing that changes your next roll without you having done anything, which is why the target needs telling\" is a reason (O9) and spoke to \"you\" (P2).",
+        "\"WHICH\" in capitals (X16)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.yourTurn.label",
+      "group": "config",
+      "surface": "tab",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "yourTurn plays in an incident and in a trial round: a Testimony, a Panic Round or a Closing Argument's stretch.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onFloorChanged",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Your turn in an incident",
+        "after": "Your turn"
+      },
+      "pl": {
+        "before": "Twoja tura w incydencie",
+        "after": "Twoja tura"
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"Your turn in an incident\" left out the trial's rounds, which play it too (the GM handbook's catalog says so). Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.yourTurn.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "In an incident, the player whose character's turn it becomes hears it (playerOwns, not a GM).",
+          "file": "scripts/sfx.mjs",
+          "fn": "onIncidentChanged",
+          "note": null
+        },
+        {
+          "fact": "In a Testimony, a Panic Round or a Closing Argument, the speaker's player hears it once a turn.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onFloorChanged",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by whoever is up. An incident is turn-based and the only other signal is a redrawn HUD.",
+        "after": "A student's turn comes up in an incident, a Testimony, a Panic Round, or a Closing Argument. Heard by their player."
+      },
+      "pl": {
+        "before": "Słyszy ten, kto jest na ruchu. Incydent toczy się na tury, a jedynym innym sygnałem jest przerysowany HUD.",
+        "after": "W incydencie słyszy gracz ucznia, który jest na ruchu, nigdy GM. W Testimony, Panic Round albo Closing Argument słyszy gracz mówcy, raz na turę."
+      },
+      "removed": [
+        "\"An incident is turn-based and the only other signal is a redrawn HUD\" is a reason (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.truthBullet.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "createTruthBullet runs on a GM's browser and sends truthBullet to the owner by playSfxFor once the bullet is filed.",
+          "file": "scripts/truth-bullets.mjs",
+          "fn": "createTruthBullet",
+          "note": null
+        },
+        {
+          "fact": "playSfxFor plays on the owner's browser alone.",
+          "file": "scripts/sfx-play.mjs",
+          "fn": "playSfxFor",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "Heard by whoever found it.",
+        "after": "A new Truth Bullet lands in a student's inventory. Heard by their player."
+      },
+      "pl": {
+        "before": "Słyszy ten, kto go znalazł.",
+        "after": "Słyszy tylko gracz ucznia, który dostaje nowy Truth Bullet."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.analyzeHit.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "identify whispers the analyzer's owner the identified card with the plain sfx analyzeHit.",
+          "file": "scripts/analyze.mjs",
+          "fn": "identify",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A successful Analyze. Heard by the student who ran it.",
+        "after": "An Analyze identifies a Truth Bullet. Heard by the player who ran it."
+      },
+      "pl": {
+        "before": "Udane Analyze. Słyszy uczeń, który je wykonał.",
+        "after": "Analyze się udaje: słyszy tylko gracz ucznia, który analizował."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.analyzeMiss.label",
+      "group": "config",
+      "surface": "tab",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The action is Analyze (ACTIONS.analyze.label); its pair Observe fails is named by the action.",
+          "file": null,
+          "fn": null,
+          "note": "scripts/config.mjs: ACTIONS is a table, not a function"
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Analysis fails",
+        "after": "Analyze fails"
+      },
+      "pl": {
+        "before": "Analiza nie udaje się",
+        "after": "Analyze nie udaje się"
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"Analysis fails\" was a second name for Analyze (O14) beside \"Observe fails\"."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.analyzeMiss.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "lockOut stamps the bullet with this chapter and whispers its owner with sfx analyzeMiss; the stamp clears in a later chapter.",
+          "file": "scripts/analyze.mjs",
+          "fn": "lockOut",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the student who ran it. The bullet is locked until the next chapter, the longest-lasting consequence any failed roll in this game has.",
+        "after": "An Analyze misses, and that Truth Bullet cannot be analyzed again this chapter. Heard by the player who ran it."
+      },
+      "pl": {
+        "before": "Słyszy uczeń, który ją wykonał. Bullet zablokowany do następnego rozdziału - najdłużej trwająca konsekwencja jakiegokolwiek nieudanego rzutu w tej grze.",
+        "after": "Analyze się nie udaje i tego Truth Bulletu nie da się analizować aż do następnego rozdziału. Słyszy gracz ucznia, który analizował."
+      },
+      "removed": [
+        "\"the longest-lasting consequence any failed roll in this game has\" is a reason (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.dayStart.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The board and its sound play on every connected browser; with Full-screen sequences off the board is not played at all, so it is silent.",
+          "file": "scripts/sequence.mjs",
+          "fn": "playDayStart",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The start-of-day board rises. Heard by the whole table, not with the sequences off.",
+        "after": "The start-of-day board rises. Heard by the whole table, but not with Full-screen sequences off."
+      },
+      "pl": {
+        "before": "Wznosi się plansza początku dnia. Słyszy cały stół, nie przy wyłączonych sekwencjach.",
+        "after": "Pojawia się plansza początku dnia. Słyszy cały stół, chyba że ustawienie „Sekwencje na cały ekran” jest wyłączone: wtedy nie ma ani planszy, ani dźwięku."
+      },
+      "removed": [
+        "\"the sequences\" is now the setting's name, Full-screen sequences (glossary setting-sequences)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.dayEnd.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The end-of-day board and its sound play on every connected browser, and not with Full-screen sequences off.",
+          "file": "scripts/sequence.mjs",
+          "fn": "playDayEnd",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The end-of-day board rises. Heard by the whole table, not with the sequences off.",
+        "after": "The end-of-day board rises. Heard by the whole table, but not with Full-screen sequences off."
+      },
+      "pl": {
+        "before": "Wznosi się plansza końca dnia. Słyszy cały stół, nie przy wyłączonych sekwencjach.",
+        "after": "Pojawia się plansza końca dnia. Słyszy cały stół, chyba że ustawienie „Sekwencje na cały ekran” jest wyłączone: wtedy nie ma ani planszy, ani dźwięku."
+      },
+      "removed": [
+        "\"the sequences\" is now the setting's name, Full-screen sequences."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.paneFlash.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Each of the entry's flashes plays paneFlash; none plays with Full-screen sequences off or under reduced motion.",
+          "file": "scripts/transitions.mjs",
+          "fn": "playFlashSound",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The panes flash as the Investigation begins. Heard by the whole table.",
+        "after": "The panes flash as the Investigation begins. Heard by the whole table, but not with Full-screen sequences off or under reduced motion."
+      },
+      "pl": {
+        "before": "Błyski szyb na początku Investigation. Słyszy cały stół.",
+        "after": "Gra przy każdym błysku szyb na początku Investigation. Słyszy cały stół, ale nie przy wyłączonym ustawieniu „Sekwencje na cały ekran” ani przy włączonym „Ograniczone animacje”."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The old hint did not say the flash is silent with Full-screen sequences off and under reduced motion (the GM handbook does). Added (M4)."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.trialStart.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "playSequence plays the sound even when the sequences are off.",
+          "file": "scripts/sequence.mjs",
+          "fn": "playSequence",
+          "note": null
+        },
+        {
+          "fact": "The trial's entry plays trialStart at the title's frame on each browser.",
+          "file": "scripts/sequence.mjs",
+          "fn": "playTrialEntry",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0,
+        1
+      ],
+      "en": {
+        "before": "The Class Trial's title lands. Heard by the whole table, also with the sequences off.",
+        "after": "The Class Trial's title lands. Heard by the whole table, even with Full-screen sequences off."
+      },
+      "pl": {
+        "before": "Pojawia się tytuł Class Trial. Słyszy cały stół, także przy wyłączonych sekwencjach.",
+        "after": "Pojawia się tytuł Class Trial. Słyszy cały stół, także przy wyłączonym ustawieniu „Sekwencje na cały ekran”."
+      },
+      "removed": [
+        "\"the sequences\" is now the setting's name, Full-screen sequences."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.debateOpen.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "debateOpen plays on every browser when the floor goes from closed to open, except when a Closing Argument opens it.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onFloorChanged",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the whole table. It changes what everyone's Truth Bullet button does.",
+        "after": "The trial floor opens for a Nonstop Debate. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Słyszy cały stół. Zmienia to, co robi przycisk Truth Bullet u każdego.",
+        "after": "Słyszy cały stół, gdy otwiera się Nonstop Debate, chyba że otwiera ją Closing Argument."
+      },
+      "removed": [
+        "\"It changes what everyone's Truth Bullet button does\" explains the debate, not the sound (T29)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.closingStart.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "closingStart plays once a Closing, when its volunteers' window opens.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onFloorChanged",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The Closing Argument opens: who will sum up the case? Heard by the whole table.",
+        "after": "The Closing Argument opens and waits for someone to sum up the case. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Zaczyna się Closing Argument: kto podsumuje sprawę? Słyszy cały stół.",
+        "after": "Gra raz na Closing Argument, gdy otwiera się okno zgłoszeń ochotników. Słyszy cały stół."
+      },
+      "removed": [
+        "The rhetorical question \"who will sum up the case?\" (X21) became the sentence."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.panicStart.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "panicStart plays on every browser when the floor's mode becomes panic.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onFloorChanged",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "A Panic Round starts: everyone in turn, a few seconds each. Heard by the whole table.",
+        "after": "A Panic Round starts. Heard by the whole table."
+      },
+      "pl": {
+        "before": "Zaczyna się Panic Round: wszyscy po kolei, po kilka sekund. Słyszy cały stół.",
+        "after": "Zaczyna się Panic Round. Słyszy cały stół."
+      },
+      "removed": [
+        "\"everyone in turn, a few seconds each\" explains the round (T29); the trial's texts say it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.keyReveal.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "revealInStep gives every trial participant who does not hold one a Key Truth Bullet and whispers each owner a card with sfx keyReveal.",
+          "file": "scripts/trial-modes.mjs",
+          "fn": "revealInStep",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Monokuma reveals a Key Remnant nobody found. Heard by everyone taking part in the trial.",
+        "after": "Monokuma reveals a Key Remnant nobody found. Heard by every player in the trial who gets its Truth Bullet."
+      },
+      "pl": {
+        "before": "Monokuma ujawnia Key Remnant, którego nikt nie znalazł. Słyszy każdy uczestnik rozprawy.",
+        "after": "Każdy uczestnik rozprawy, który nie ma Key Truth Bulletu, dostaje go od Monokumy. Słyszy gracz każdego z nich."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "\"everyone taking part in the trial\" left out that a participant already holding a copy gets no card and no sound. Made true."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.zoneEntered.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "onZoneEntered plays on the student's owner's browser (never a GM's), zoneEntered when it has a file, else roomEntered.",
+          "file": "scripts/trial-zones-ui.mjs",
+          "fn": "onZoneEntered",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Your token enters Zone A or Zone B during a Straw Poll, Logic Dive or Scrum Debate. Heard by whoever crossed. With no file of its own it plays the Room entered sound.",
+        "after": "A student enters Zone A or Zone B during a Straw Poll, Logic Dive, or Scrum Debate. Heard by their player. With no file of its own it plays the Room entered sound."
+      },
+      "pl": {
+        "before": "Twój token wchodzi do Strefy A albo Strefy B w trakcie Straw Poll, Logic Dive albo Scrum Debate. Słyszy ten, kto przeszedł. Bez własnego pliku gra dźwięk wejścia do pokoju.",
+        "after": "Uczeń wchodzi do Strefy A albo Strefy B w czasie Straw Poll, Logic Dive albo Scrum Debate. Słyszy jego gracz, nigdy GM. Bez własnego pliku gra dźwięk „Wejście do pokoju”."
+      },
+      "removed": [
+        "\"Your token\" spoke to the GM reading the list; \"A student\" and \"their player\" say whose."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.rebuttal.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "rebuttal plays when the floor's mode becomes rebuttal, except when an Overrule brings one back.",
+          "file": "scripts/sfx.mjs",
+          "fn": "onFloorChanged",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.",
+        "after": "A Rebuttal starts. Heard by the whole table. When an Overrule brings one back, the Overrule's sound plays instead."
+      },
+      "pl": {
+        "before": "Zaczyna się Rebuttal: mówią tylko autor Objection i osoba, którą wskazał, dopóki głos nie wróci do wszystkich. Słyszy cały stół.",
+        "after": "Zaczyna się Rebuttal. Słyszy cały stół. Gdy Rebuttal wraca po Oddaleniu, gra tylko dźwięk „Oddalenie”."
+      },
+      "removed": [
+        "\"the one who objected and the one they named, and nobody else, until the floor opens again\" explains the Rebuttal (T29); the trial's texts say it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "PL23: „Milczy” has no subject a reader can find, the last noun being „Rebuttal”; and the English after says the whole table hears it, the Polish does not (proposed: Zaczyna się Rebuttal. Słyszy cały stół, chyba że Rebuttal wraca po Oddaleniu.) - executor: Taken in part: the whole table is said, and the exception has its own subject; it names the sound that plays instead („Oddalenie”), as the English now does, rather than „chyba że Rebuttal wraca”."
+          ]
+        },
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.overrule.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "markOverruled posts a public card with { key: \"overrule\", gm: true }.",
+          "file": "scripts/trial.mjs",
+          "fn": "markOverruled",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The GM overrules an Objection: the trial goes back to where it was, the price stays. Heard by the whole table.",
+        "after": "The GM overrules an Objection and the trial goes back to where it was. Heard by the whole table."
+      },
+      "pl": {
+        "before": "GM oddala Objection: rozprawa wraca tam, gdzie była, koszt zostaje. Słyszy cały stół.",
+        "after": "GM oddala Objection i rozprawa wraca tam, gdzie była. Słyszy cały stół."
+      },
+      "removed": [
+        "\"the price stays\" is the Overrule's rule, not the sound's (T29); the glossary's overrule entry and the floor's texts say it."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.verdict.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "closeRound posts the count's public card with { key: \"verdict\", gm: true }.",
+          "file": "scripts/vote.mjs",
+          "fn": "closeRound",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the whole table when the vote is counted. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        "after": "Heard by the whole table when the vote is counted."
+      },
+      "pl": {
+        "before": "Słyszy cały stół, gdy głosy są policzone. Najbardziej uroczysty moment rozdziału i ostatni, który powinien być cichy.",
+        "after": "Słyszy cały stół, gdy głosy zostają policzone."
+      },
+      "removed": [
+        "\"The most ceremonial moment of a chapter, and the last one that should be silent\" is a reason (O9)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.verdictCut.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "playVerdictCut plays verdictCut through playSequence, which plays the sound with the sequences off too.",
+          "file": "scripts/sequence.mjs",
+          "fn": "playVerdictCut",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "The verdict's stamp lands. Heard by the whole table, also with the sequences off.",
+        "after": "The verdict's stamp lands. Heard by the whole table, even with Full-screen sequences off."
+      },
+      "pl": {
+        "before": "Stempel werdyktu. Słyszy cały stół, także przy wyłączonych sekwencjach.",
+        "after": "Pojawia się stempel werdyktu. Słyszy cały stół, także przy wyłączonym ustawieniu „Sekwencje na cały ekran”."
+      },
+      "removed": [
+        "\"the sequences\" is now the setting's name, Full-screen sequences."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.SFX_EVENTS.levelUp.hint",
+      "group": "config",
+      "surface": "settings-hint",
+      "screen": "file:scripts/sfx.mjs",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "tellPlayer posts a veiled card to the owner and plays levelUp to the owner alone by playSfxFor.",
+          "file": "scripts/level-up.mjs",
+          "fn": "tellPlayer",
+          "note": null
+        },
+        {
+          "fact": "The Effects tab of the Sound window (GM only) draws one row per event: the label in bold, then the hint as fine print under it, cut after two lines with the whole text in the cell's title.",
+          "file": "scripts/sfx.mjs",
+          "fn": "effectRow",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Heard by the survivor it happened to. The only reward in the whole game.",
+        "after": "A student gets a Level Up. Heard by their player."
+      },
+      "pl": {
+        "before": "Słyszy ocalały, któremu się przytrafił. Jedyna nagroda w całej grze.",
+        "after": "Słyszy tylko gracz ucznia, który dostaje Level Up."
+      },
+      "removed": [
+        "\"The only reward in the whole game\" is a reason (O9).",
+        "\"the survivor\" became \"a student\" and \"their player\" (EN12)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    }
+  ]
+}
