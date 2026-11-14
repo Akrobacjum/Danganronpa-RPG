@@ -12329,6 +12329,8 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
     height: 4.5rem;
     flex: 0 0 auto;
     object-fit: cover;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 2px;
 }
 
 .drpg-item-sheet .item-sheet-header .item-info {
@@ -13894,10 +13896,6 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     margin-bottom: 6px;
 }
 
-.drpg-item-sheet .item-sheet-header img.profile {
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: 2px;
-}
 
 /* Prose keeps the reading face even when the interface is pixels - the same
    exception the rest of the module makes for anything longer than a label. */
