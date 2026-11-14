@@ -44,11 +44,23 @@ look as the baseline, which is what C0's two freezes had already been accepted a
 
 ## Not the line's
 
-- audit/radio-sweep.mjs reads RED 16 at b6618a1a and here, the same output line for line: the glass settings window's
-  voice-mode radios "checked, no dot drawn". Told to the coordinator; not bisected.
-- R2001 fails at b78b0377 and here: 53 stale quotes of a stage's planned version (scripts/utils.mjs E57, handover.mjs
-  E38, ...), from the assembly's tools/stages.json (1463f22b, "the rest planned 1.2.114"). No file of this line is in
-  its list.
+- R2001 failed at b78b0377 and on this line until the merge of 6dd02975 (d115df6f): 53 stale quotes of a stage's
+  planned version, from the assembly's tools/stages.json; the coordinator's ledger fix came with that merge, and tier 1
+  is 1607 passed, 0 failed there.
+
+## The merge of E54 (6dd02975) and the radio sweep
+
+- d115df6f: origin/claude/fervent-sagan-gme4vt at 6dd02975 merged (not rebased); conflicts in tests-tier1.mjs's kit import
+  and R-REGISTRY.md (regenerated); styles/ merged clean (the assembly's 37 lines in, 25 out). On the merge: css-lint as
+  before, look-freeze 0, style-sweep 628 readings 0, style-freeze 1304 readings 0, tier 1 1607 passed 0 failed 16
+  skipped 0 red, quick green.
+- 34c11c6d: audit/radio-sweep.mjs reads a radio hidden behind a label that is its face (E101's voice-mode buttons,
+  R4062) through that label, with a planted fault each window reading; red 16 before on the merge, green after (the
+  plant seen 8 of 8; the whole sweep, 21 windows, 736 radio readings, green). Also on the merge with it:
+  glass-golden SAME byte for byte as 6dd02975 (276 cuts over 23 sizes, the boxes captured on 6dd02975), glass-sweep
+  SWEEP GREEN (2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing), sheet-column 144 cases 0 not right, scenario
+  74-room-tile 46/46. The coordinator's bisect: red from 12090776 (gaps-111 into the 1.2.112 tree) on, a sweep older
+  than E101's rule, not a fault of the module.
 
 ## Step 3 in numbers
 
@@ -64,7 +76,8 @@ classes, narrow.css's `body.drpg-stacked`), and the ones the merger's check refu
 
 - Step 3 beyond identical selectors: a surface's colour or size stated by different selectors in several places (the
   theme-scoped restatements) is not merged by text; each needs the cascade on the surface's markup.
-- Step 4's split (Q-E55-9).
+- Step 4's split by moves: Q-E55-9's default accepted by the owner (14.11): the index stands; the moves wait for a
+  stand-in of Daggerheart's whole sheet (estimate 4-6 h, not in 1.2.113).
 - L1's near-miss darks: did not fall out of step 3; left (stained-glass.css's 63 literals are mostly inks at an alpha
   used once, and the grounds near the ink).
 - The room and voice tiles' brush in components.css (Q-E55-8).
