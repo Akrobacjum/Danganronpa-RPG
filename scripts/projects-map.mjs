@@ -45,6 +45,7 @@ import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from "./utils.mjs";
 // The card a project token opens stays true while it is open (E44 C9). live.mjs imports config.mjs and utils.mjs alone (R161).
 import { keepLive } from "./live.mjs";
+import { tipAttr } from "./ui-kit.mjs";
 // What a player saw last (PV): the card's bar as its reader last saw it. It does not import this file.
 import { asSeen } from "./projects-seen.mjs";
 import { discoveryStore, fogCopy, projectSecretStore, projectSightCopy } from "./gm-stores.mjs";
@@ -900,7 +901,7 @@ export function projectCard(project) {
                 esc(project.condition || t("DRPG.Project.cardNoCondition"))]);
         }
         actions = `<footer class="drpg-project-card-actions">
-            <button type="button" data-drpg-project-manager>${esc(t("DRPG.Project.cardOpenManager"))}</button>
+            <button type="button" data-drpg-project-manager${tipAttr("DRPG.Tips.Sweep.Actions.openManagerTooltip")}>${esc(t("DRPG.Project.cardOpenManager"))}</button>
         </footer>`;
     }
 

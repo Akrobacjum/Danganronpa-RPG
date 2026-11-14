@@ -25,7 +25,7 @@ import { whisperToOwner, cardHead, esc, proseOf } from "./utils.mjs";
 import { abort, canAfford } from "./action-pipeline.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, promptForNote, traitFieldHtml, readProposal } from "./action-menus.mjs";
-import { drpgConfirm } from "./ui-kit.mjs";
+import { drpgConfirm, tipText } from "./ui-kit.mjs";
 
 /**
  * The incident's own actions, behind the Direct Murder tile - which a fight draws as
@@ -260,7 +260,9 @@ export async function performBetrayal(actor, partner, def, options = {}) {
         ask: `<form>${dark ? `<p>${game.i18n.localize("DRPG.Murder.betrayalConfirmEclipse")}</p>` : ""}
             <div class="drpg-action-trait">${traitFieldHtml(actor, listed, { propose: true, how: !dark })}</div></form>`,
         footer: {
-            primary: { action: "yes", label: game.i18n.localize("DRPG.Dialog.yes"), callback: (e, b, d) => readProposal(d.element, listed) },
+            primary: { action: "yes", label: game.i18n.localize("DRPG.Dialog.yes"),
+                tooltip: tipText(dark ? "DRPG.Tips.Sweep.Actions.betrayalEclipseTooltip" : "DRPG.Tips.Sweep.Actions.betrayalNowTooltip"),
+                callback: (e, b, d) => readProposal(d.element, listed) },
             close: "cancel"
         },
         rejectClose: false

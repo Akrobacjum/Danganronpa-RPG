@@ -901,8 +901,8 @@ async function askCriticalTarget(def) {
         body: `<p>${game.i18n.localize("DRPG.Murder.criticalChoiceIntro")}</p>`,
         // Two answers and no closing word: Health the default, as before.
         footer: {
-            primary: { action: "hp", label: game.i18n.localize("DRPG.Murder.criticalChoiceHp") },
-            secondary: [{ action: "stress", label: game.i18n.localize("DRPG.Murder.criticalChoiceStress") }]
+            primary: { action: "hp", label: game.i18n.localize("DRPG.Murder.criticalChoiceHp"), tooltip: tipText("DRPG.Tips.Sweep.Trial.critHealthTooltip") },
+            secondary: [{ action: "stress", label: game.i18n.localize("DRPG.Murder.criticalChoiceStress"), tooltip: tipText("DRPG.Tips.Sweep.Trial.critSanityTooltip") }]
         },
         rejectClose: false
     });

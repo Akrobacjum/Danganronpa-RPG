@@ -33,7 +33,7 @@
 
 import { plural } from "./utils.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
-import { DrpgApp, chips, drpgConfirm, emptyState, footerMarkup, kitNode, scrollNote } from "./ui-kit.mjs";
+import { DrpgApp, chips, drpgConfirm, emptyState, footerMarkup, kitNode, scrollNote, setTip, tipText } from "./ui-kit.mjs";
 import { clockSummary, clockAfter } from "./clock.mjs";
 import { openMessenger } from "./messenger-app.mjs";
 import {
@@ -202,11 +202,14 @@ class NoticeHistoryApp extends DrpgApp() {
         const root = element("div", "drpg-notices-body drpg-kit-content");
 
         // The kit's chips, one a filter, single choice; `syncChrome` writes each count and which one is pressed.
-        const filters = kitNode(chips(ON_TOP.map(id => FILTER_BY_ID.get(id)).map(filter => ({ label: localize(filter.label), pressed: filter.id === this.filter, count: 0, value: filter.id })), { label: localize("DRPG.Notices.title") }));
+        const filters = kitNode(chips(ON_TOP.map(id => FILTER_BY_ID.get(id)).map(filter => ({ label: localize(filter.label), pressed: filter.id === this.filter, count: 0, value: filter.id,
+            attrs: { "data-tooltip": tipText(filter.id === "forYou" ? "DRPG.Tips.Sweep.More.filterForYouTooltip"
+                : filter.id === "notDone" ? "DRPG.Tips.Sweep.More.filterNotDoneTooltip" : "DRPG.Tips.Sweep.More.filterAllTooltip") || null } })), { label: localize("DRPG.Notices.title") }));
         filters.classList.add("drpg-notices-chips");
         // The other filters in one menu, in the chips' row (E100 item 4); its options' words and counts are `syncChrome`'s.
         const more = element("select", "drpg-notices-more");
         more.setAttribute("aria-label", localize("DRPG.Notices.filter.moreLabel"));
+        setTip(more, "DRPG.Tips.Sweep.More.moreFiltersTooltip");
         more.append(element("option", "", localize("DRPG.Notices.filter.more")));
         more.options[0].value = "";
         for (const id of IN_MENU) {
@@ -229,11 +232,13 @@ class NoticeHistoryApp extends DrpgApp() {
         const read = element("button", "", localize("DRPG.Notices.markRead"));
         read.type = "button";
         read.dataset.drpgDo = "markRead";
+        setTip(read, "DRPG.Tips.Sweep.More.markAllReadTooltip");
         banner.append(read);
 
         const pill = element("button", "drpg-notices-new", localize("DRPG.Notices.newPill"));
         pill.type = "button";
         pill.dataset.drpgDo = "showNew";
+        setTip(pill, "DRPG.Tips.Sweep.More.showNewNoticesTooltip");
         pill.hidden = true;
 
         /* THE FOOT HOLDS CLEAR, AND A LINE ONLY WHEN SAVING STOPPED (E77 fix r2-H4, 13.10.2026; the owner's screenshot
@@ -443,7 +448,9 @@ class NoticeHistoryApp extends DrpgApp() {
                 const count = shown.filter(other => other.clock.chapter === chapter).length;
                 into = element("details", "drpg-notices-fold");
                 into.dataset.drpgKey = `chapter-${chapter}`;
-                into.append(element("summary", "", game.i18n.format("DRPG.Notices.chapterFold", { chapter, n: count })));
+                const fold = element("summary", "", game.i18n.format("DRPG.Notices.chapterFold", { chapter, n: count }));
+                setTip(fold, "DRPG.Tips.Sweep.More.chapterFoldTooltip");
+                into.append(fold);
                 list.append(into);
                 group = null;
             }
@@ -522,6 +529,7 @@ class NoticeHistoryApp extends DrpgApp() {
         details.dataset.drpgKey = entry.id;
 
         const summary = element("summary");
+        setTip(summary, "DRPG.Tips.Sweep.More.noticeLineTooltip");
         const glyph = element("span", "drpg-notice-glyph");
         glyph.setAttribute("role", "img");
         glyph.setAttribute("aria-label", localize(SOURCE_LABELS[entry.source]));
@@ -577,6 +585,7 @@ class NoticeHistoryApp extends DrpgApp() {
             const open = element("button", "drpg-notice-conversation", localize("DRPG.Notices.openConversation"));
             open.type = "button";
             open.dataset.drpgDo = "conversation";
+            setTip(open, "DRPG.Tips.Sweep.More.openConversationTooltip");
             more.append(open);
         }
         details.append(more);

@@ -81,7 +81,7 @@ import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS, INFILTRATE } 
 import { pendingCalls } from "./call-effects.mjs";
 import { allProjects } from "./projects.mjs";
 import { esc, warn } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 
 /**
  * The actions action-rolls.mjs `performAction` hands to a performer of their own, which
@@ -335,7 +335,7 @@ async function rollChanged(actor, proposed, trait, { kind = null, key = null, va
         body: `<p><strong>${esc(actor?.name ?? "?")}</strong></p>
             <p>${esc(game.i18n.format("DRPG.TraitRuling.changedBody", { proposed: stat(proposed), stat: stat(trait) }))}</p>`,
         footer: { primary: { action: "roll", label: game.i18n.format("DRPG.TraitRuling.rollIt", { stat: stat(trait) }) },
-            secondary: [{ action: "pass", label: game.i18n.localize("DRPG.TraitRuling.pass") }], close: "pass" },
+            secondary: [{ action: "pass", label: game.i18n.localize("DRPG.TraitRuling.pass"), tooltip: tipText("DRPG.Tips.Sweep.Actions.passRollTooltip") }], close: "pass" },
         rejectClose: false
     });
     if (chosen === "roll") return true;

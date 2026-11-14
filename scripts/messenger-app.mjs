@@ -35,7 +35,7 @@ import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
 
-import { tipText, setTip } from "./ui-kit.mjs";
+import { tipText, setTip, tipAttr } from "./ui-kit.mjs";
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
@@ -256,9 +256,9 @@ export class DrpgMessengerApp extends DrpgApp() {
         const form = document.createElement("form");
         form.className = "drpg-messenger-input";
         form.innerHTML = `
-            <textarea name="text" rows="1"
+            <textarea name="text" rows="1"${tipAttr("DRPG.Tips.Sweep.More.messageBoxTooltip")}
                 placeholder="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Messenger.placeholder"))}"></textarea>
-            <button type="submit" aria-label="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Messenger.send"))}">
+            <button type="submit"${tipAttr("DRPG.Tips.Sweep.More.sendMessageTooltip")} aria-label="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Messenger.send"))}">
                 <i class="fa-solid fa-paper-plane"></i>
             </button>`;
         root.append(form);
@@ -270,7 +270,7 @@ export class DrpgMessengerApp extends DrpgApp() {
     _buildTabs(context) {
         const made = document.createElement("template");
         made.innerHTML = kitTabBar([
-            { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat") },
+            { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat"), tooltip: tipText("DRPG.Tips.Sweep.More.chatTabTooltip") },
             { key: "note", label: game.i18n.localize("DRPG.Note.tab"), tooltip: tipText("DRPG.Tips.Setup.chatNoteTabsTooltip") }
         ], { active: this.tab });
         const bar = made.content.firstElementChild;
@@ -307,6 +307,8 @@ export class DrpgMessengerApp extends DrpgApp() {
         area.value = context.note;
         this.noteShown = context.note;
         area.placeholder = game.i18n.localize("DRPG.Note.placeholder");
+        setTip(area, game.user.isGM && game.user.id !== this.playerUserId
+            ? "DRPG.Tips.Sweep.More.noteReadersGmTooltip" : "DRPG.Tips.Sweep.More.noteReadersTooltip");
         wrap.append(area);
 
         const row = document.createElement("div");
@@ -331,6 +333,8 @@ export class DrpgMessengerApp extends DrpgApp() {
         const save = document.createElement("button");
         save.type = "button";
         save.className = "drpg-messenger-note-save";
+        setTip(save, game.user.isGM && game.user.id !== this.playerUserId
+            ? "DRPG.Tips.Sweep.More.saveNoteGmTooltip" : "DRPG.Tips.Sweep.More.saveNoteTooltip");
         save.textContent = game.i18n.localize("DRPG.Note.save");
         save.addEventListener("click", async () => {
             save.disabled = true;
@@ -808,7 +812,7 @@ function settled(key) {
 /** What a Tier 0 item turned out to do: up to three numbers and a tick. */
 async function askItemEffect(item) {
     const field = (name, key) => { const id = stepperId(); return `<label for="${id}">${game.i18n.localize(key)}
-        ${stepper({ name, value: 0, min: 0, max: 12, step: 1, id })}</label>`; };
+        ${stepper({ name, value: 0, min: 0, max: 12, step: 1, id, attrs: { "data-tooltip": tipText("DRPG.Tips.Sweep.More.itemGivesBackTooltip") } })}</label>`; };
     // On the kit (E21 C6a): Works on the right, the default; Cancel on the left. DialogV2 answers a button's callback or,
     // when that is null, its action, so Cancel answers "cancel" (callback null) and a closed window null: the `.then`
     // below reads both as no effect (E21 fix G2; the end review's correctness m3: this said Cancel answered null).
@@ -819,7 +823,7 @@ async function askItemEffect(item) {
             ${field("hitPoints", "DRPG.Items.effectHealth")}
             ${field("stress", "DRPG.Items.effectSanity")}
             ${field("hope", "DRPG.Items.effectHope")}
-            <label><input type="checkbox" name="consume" checked> ${
+            <label><input type="checkbox" name="consume" checked${tipAttr("DRPG.Tips.Sweep.More.useItemUpTooltip")}> ${
                 game.i18n.localize("DRPG.Items.effectConsume")}</label>
         </form>`,
         footer: {

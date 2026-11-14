@@ -37,7 +37,7 @@ import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
 import { judgedFor } from "./sheet-audit.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
 /**
  * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
@@ -142,11 +142,11 @@ export async function choosePalm(actor, def, targets, mine) {
         ],
         extra: `<label class="drpg-specific-note">
                 <span>${game.i18n.localize("DRPG.Steal.whoPrompt")}</span>
-                <select name="who">${targets.map(a =>
+                <select name="who"${tipAttr("DRPG.Tips.Sweep.Actions.palmWhoTooltip")}>${targets.map(a =>
                     `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
             </label>${mine.length ? `<label class="drpg-specific-note" data-drpg-when="plant">
                 <span>${game.i18n.localize("DRPG.Steal.whatToPlant")}</span>
-                <select name="what">${mine.map(i =>
+                <select name="what"${tipAttr("DRPG.Tips.Sweep.Actions.plantWhatTooltip")}>${mine.map(i =>
                     `<option value="${i.id}">${esc(describeItem(i))}</option>`).join("")}</select>
             </label>` : ""}`
     });
@@ -481,12 +481,12 @@ async function chooseStolenItem(victim, pool) {
         body: `<form>
             <p>${game.i18n.format("DRPG.Steal.chooseIntro", { name: esc(victim.name) })}</p>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
-                <select name="item">${pool.map(i =>
+                <select name="item"${tipAttr("DRPG.Tips.Sweep.Actions.stealWhichTooltip")}>${pool.map(i =>
                     `<option value="${i.id}">${describe(i)}</option>`).join("")}</select></label>
         </form>`,
         footer: {
             primary: {
-                action: "take", label: game.i18n.localize("DRPG.Vault.take"),
+                action: "take", label: game.i18n.localize("DRPG.Vault.take"), tooltip: tipText("DRPG.Tips.Sweep.Actions.takeChosenTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=item]").value
             },
             close: "cancel"

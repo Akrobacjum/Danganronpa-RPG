@@ -20,6 +20,7 @@ import { locateActor, roomOfActor, neighbouringRooms, roomsKnownToMe } from "./m
 import { listenLabels } from "./action-listen.mjs";
 import { actionWindow } from "./action-menus.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** Shut the Door: the action, the Body roll, the ask. Answers `{ room, roll }` or null. */
 export async function performShut(actor, options = {}) {
@@ -70,10 +71,10 @@ export async function performForce(actor, options = {}) {
         ask: `<form>
             <p>${esc(game.i18n.format("DRPG.Infiltrate.force.prompt", { room: here ?? "-", n: rule.lockDc }))}</p>
             <label>${esc(game.i18n.localize("DRPG.Infiltrate.force.which"))}
-                <select name="room">${doors.map((r, i) => `<option value="${i}">${esc(labelOf.get(r))}</option>`).join("")}</select></label>
+                <select name="room"${tipAttr("DRPG.Tips.Sweep.Actions.forceDoorTooltip")}>${doors.map((r, i) => `<option value="${i}">${esc(labelOf.get(r))}</option>`).join("")}</select></label>
         </form>`,
         footer: {
-            primary: { action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Action.roll"), tooltip: tipText("DRPG.Tips.Sweep.Actions.forceRollTooltip"),
                 callback: (e, b, d) => doors[Number(d.element.querySelector("[name=room]").value)] ?? null },
             close: "cancel"
         },
@@ -126,10 +127,10 @@ export async function performPick(actor, options = {}) {
         ask: `<form>
             <p>${esc(game.i18n.format("DRPG.Infiltrate.pick.prompt", { room: here ?? "-", n: rule.dc, clean: rule.clean, cover: rule.cover.threshold }))}</p>
             <label>${esc(game.i18n.localize("DRPG.Infiltrate.force.which"))}
-                <select name="room">${doors.map((r, i) => `<option value="${i}">${esc(labelOf.get(r))}</option>`).join("")}</select></label>
+                <select name="room"${tipAttr("DRPG.Tips.Sweep.Actions.pickDoorTooltip")}>${doors.map((r, i) => `<option value="${i}">${esc(labelOf.get(r))}</option>`).join("")}</select></label>
         </form>`,
         footer: {
-            primary: { action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Action.roll"), tooltip: tipText("DRPG.Tips.Sweep.Actions.pickRollTooltip"),
                 callback: (e, b, d) => doors[Number(d.element.querySelector("[name=room]").value)] ?? null },
             close: "cancel"
         },

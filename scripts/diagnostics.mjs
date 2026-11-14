@@ -2210,7 +2210,7 @@ export async function openReport(text, { wait = config => drpgWindow(config),
             </div>`,
             footer: {
                 secondary: [
-                    { action: "copy", label: localize("DRPG.Diagnose.copy") },
+                    { action: "copy", label: localize("DRPG.Diagnose.copy"), tooltip: tipText("DRPG.Tips.Sweep.Gm.copyReportTooltip") },
                     ...left.map(s => {
                         const named = { warning: s.label };
                         return { action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain"),

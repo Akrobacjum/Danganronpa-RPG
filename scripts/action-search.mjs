@@ -38,6 +38,7 @@ import {
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { chooseVariant, traitFieldHtml, readProposal } from "./action-menus.mjs";
+import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * SEARCH
@@ -675,7 +676,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         })),
         extra: `<label class="drpg-specific-note" data-drpg-when="specific">
                 <span>${game.i18n.localize("DRPG.Action.goalSpecificPrompt")}</span>
-                <textarea name="request" rows="2"
+                <textarea name="request" rows="2"${tipAttr("DRPG.Tips.Sweep.Actions.searchSpecificTooltip")}
                     placeholder="${game.i18n.localize("DRPG.Action.goalSpecificPlaceholder")}"></textarea>
             </label>${traitFieldHtml(actor, def.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch" })}`
     });

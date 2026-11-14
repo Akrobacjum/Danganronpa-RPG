@@ -497,7 +497,7 @@ export async function openInvitation(actor) {
             <ol class="drpg-cub-rule-steps"><li>${L("DRPG.Monocub.ruleStep1")}</li><li>${L("DRPG.Monocub.ruleStep2")}</li><li>${L("DRPG.Monocub.ruleStep3")}</li></ol>
         </div>`,
         footer: {
-            primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.inviteAccept"), callback: () => "accept" },
+            primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.inviteAccept"), tooltip: tipText("DRPG.Tips.Sweep.Gm.acceptRuleTooltip"), callback: () => "accept" },
             secondary: [{ action: "decline", label: game.i18n.localize("DRPG.Monocub.inviteDecline"), tooltip: tipText("DRPG.Tips.Gm.notNowInviteTooltip"), callback: () => "decline" }]
         },
         rejectClose: false

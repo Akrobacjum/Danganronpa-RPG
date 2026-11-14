@@ -132,6 +132,8 @@ export async function voiceFieldset({ client = game.webrtc?.client, settings = g
         const row = node("label", "drpg-voice-panel-radio");
         const radio = document.createElement("input");
         Object.assign(radio, { type: "radio", name: "voice:mode", value, defaultChecked: value === current, checked: value === current });
+        setTip(radio, value === "ptt" ? "DRPG.Tips.Sweep.More.pushToTalkTooltip" : "DRPG.Tips.Sweep.More.alwaysOnTooltip");
+        setTip(row, value === "ptt" ? "DRPG.Tips.Sweep.More.pushToTalkTooltip" : "DRPG.Tips.Sweep.More.alwaysOnTooltip");
         row.append(radio, node("span", "", label));
         mode.append(row);
     }

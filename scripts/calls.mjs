@@ -861,7 +861,7 @@ export async function askHopeCallApproval(payload = {}) {
         // M14's card (E21 C5a): It applies the primary, Not this time - the GM's no, an answer - a secondary on the left.
         footer: {
             primary: { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes"), tooltip: tipText("DRPG.Tips.Actions.itAppliesTooltip") },
-            secondary: [{ action: "no", label: game.i18n.localize("DRPG.Calls.approveNo") }]
+            secondary: [{ action: "no", label: game.i18n.localize("DRPG.Calls.approveNo"), tooltip: tipText("DRPG.Tips.Sweep.Actions.refuseCallTooltip") }]
         },
         once: APPROVAL_CLASS
     });
