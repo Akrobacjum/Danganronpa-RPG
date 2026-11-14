@@ -462,6 +462,11 @@ const GUARD_PLANTS = (() => {
         ["a held row on main, a row of another reason here", [at(null, none)], [at("DRPG.X.near")], false, true],
         ["a verified held row beyond main's count", [at(null, { count: 2 })], [at("DRPG.X.near")], true, true],
         ["a verified held row main holds no held row for", [at(null)], [at("DRPG.X.near", none)], true, true],
+        /* E54's cuts move a function to another file of its family, and its rows with it: 600cb4f0's allowance and
+           da276909's count against main composed (1.2.113 assembly, 14.11.2026) read such a row by its unit and kind,
+           so it stands for main's held row in the file it left - and the same row of another kind does not. */
+        ["a verified held row moved to another file (an E54 cut)", [at(null, { file: "scripts/plant-moved.mjs" })], [at("DRPG.X.near")], true, false],
+        ["a verified held row moved to another file, of another kind", [at(null, { file: "scripts/plant-moved.mjs", kind: "dom:a" })], [at("DRPG.X.near")], true, true],
     ];
 })();
 export function guardSelfCheck() {
