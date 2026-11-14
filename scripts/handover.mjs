@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG, LOOT, REMNANT_VISIBILITY } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
-import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms } from "./utils.mjs";
+import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
 import { getClock } from "./settings.mjs";
@@ -656,6 +656,11 @@ function plainer(next, now) {
     return a >= 0 && (b < 0 || a < b);
 }
 
+/** Item names as a sentence names them: each in its own quotes (`Loot.itemQuoted`, EN17), the list in the page's language (EN2; R6900). */
+function quotedList(names) {
+    return listOf(names.map(item => game.i18n.format("DRPG.Loot.itemQuoted", { item })));
+}
+
 /**
  * THE COVER, ONLY WITH A STUDENT WATCHING (E68 C10; DA16, DA17, DA40). Counted here, on the primary GM, when it judges
  * the Take: the students who see the body's room as the GMs read them (frisk.mjs `roomWitnessesOnGm`, the taker and the
@@ -680,7 +685,7 @@ async function lootCover(taker, body, names, cover) {
     const { isDeceased } = await import("./chapter.mjs");
     const withItems = rolled && !cover.withHope && !cover.isCritical;
     const line = `<p><em>${game.i18n.format(withItems ? "DRPG.Loot.seenTaking" : "DRPG.Loot.seenAtBody", {
-        actor: esc(taker.name), body: esc(body.name), items: esc(names.join(", "))
+        actor: esc(taker.name), body: esc(body.name), items: esc(quotedList(names))
     })}</em></p>`;
     if (!isDeceased(body)) {
         await whisperToGms(line);
@@ -736,7 +741,7 @@ async function markBodyDisturbed(body, itemNames, visibility = "subtle") {
     if (existing) {
         // The same trace, saying that one more thing has gone.
         const row = await setRemnantSecretById(record.sceneId, record.tokenId, {
-            note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") })
+            note: game.i18n.format("DRPG.Loot.traceNote", { items: quotedList(taken) })
         });
         /* ONLY UP (E68 C10; the owner's Q8 and Q9): a later Take's roll makes the trace plainer or leaves it, never
            fainter, and it stays where it was laid - a trace does not move by itself. */
@@ -765,7 +770,7 @@ async function markBodyDisturbed(body, itemNames, visibility = "subtle") {
         chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay,
         type: "neutral",
         visibility,
-        note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") }),
+        note: game.i18n.format("DRPG.Loot.traceNote", { items: quotedList(taken) }),
         action: "loot",
         subject: body.name,
         // About the body, so it survives the chapter-end sweep.

@@ -44,7 +44,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf, listOf } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
     isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -1892,7 +1892,7 @@ export function notConnectedText(from, to, connected, known = roomsKnownToMe()) 
     if (known && !known.has(to)) return game.i18n.format("DRPG.Move.cannotReach", { from });
     const shown = known ? connected.filter(r => known.has(r)) : connected;
     return shown.length
-        ? game.i18n.format("DRPG.Move.notConnected", { from, to, rooms: shown.join(", ") })
+        ? game.i18n.format("DRPG.Move.notConnected", { from, to, rooms: listOf(shown) })
         : game.i18n.format("DRPG.Move.notConnectedShort", { from, to });
 }
 

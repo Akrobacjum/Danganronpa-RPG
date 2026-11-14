@@ -35,7 +35,7 @@ import { SEARCH_FLAGS, SearchTokens } from "./search-tokens.mjs";
 import { roomStockTables } from "./tables.mjs";
 import {
     dialogContent, plural, workingScene,
-    forcedDeletion, wirePortraitPickers
+    forcedDeletion, wirePortraitPickers, listOf
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
@@ -1092,7 +1092,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             const unknown = (row.neighbours ?? "").split(", ").filter(name => name && !roomsAfter.has(name));
             if (unknown.length) {
                 ui.notifications.warn(game.i18n.format("DRPG.Vault.neighboursUnknown",
-                    { room: row.room, names: unknown.join(", ") }));
+                    { room: row.room, names: listOf(unknown) }));
             }
         }
 

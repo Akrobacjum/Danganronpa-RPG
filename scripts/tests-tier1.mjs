@@ -29745,7 +29745,8 @@ const INVARIANTS = [
         // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone was read.
         const dialog = fnSource(stripComments(vaultText(await otherSources())), "rifleStashDialog");
         must(dialog, "the stash's family has no rifleStashDialog - this reads nothing");
-        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(stocked\.map\(entry => entry\.owner\.name\)\.join\(", "\)\),\s*room: esc\(room\)/.test(dialog);
+        // The owners' list through utils.mjs `listOf` since the needsCode line (R6900, EN2), not joined with ", ".
+        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(listOf\(stocked\.map\(entry => entry\.owner\.name\)\)\),\s*room: esc\(room\)/.test(dialog);
         equal(stableJson(read), stableJson({ en: [true, true, [], true], pl: [true, true, [], true], enSheet: [true, []], plSheet: [true, []], dialog: true }),
             "the rifle's window or the sheet's note does not say what a reach takes (per language: [both placeholders, once each time of day, the old "
             + "words still there, a hidden stash not found]; per language, the sheet's note: [once each time of day, the old words still there]; and "
@@ -30217,7 +30218,7 @@ const INVARIANTS = [
         equal(stableJson([roads, warned]), stableJson([
             [[GOOD, 2, [REFUSED, "true", "R976 refused it"]], [null, 2, [REFUSED, "true", "R976 refused it"]], ["R976 Old name", 1, null]],
             [say("DRPG.Vault.notHere", { room: "R976 Library" }),
-                rooms.length ? say("DRPG.Vault.notHere", { room: rooms.join(", ") }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
+                rooms.length ? say("DRPG.Vault.notHere", { room: (await import("./utils.mjs")).listOf(rooms, { type: "disjunction" }) }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
         ]), "a rename handed back a refused name, asked again without the typed name and its refusal, or asked when nothing changed; or a stash "
             + "out of reach was not named [the rename: refused then good, refused then closed, unchanged - each its answer, the prompts asked, "
             + "the second prompt's field: value, aria-invalid, the sentence; the warnings: a stash in R976 Library, the student's own as found]");
@@ -37660,6 +37661,41 @@ const INVARIANTS = [
             read[lang] = DEAD.filter(k => Object.hasOwn(file.DRPG.Murder, k));
         }
         equal(stableJson(read), stableJson({ scripts: [], en: [], pl: [] }), "[the dead keys a script names; the dead keys each file still holds]");
+    }],
+
+    ["R6900 - the lists group B's texts name are joined by utils.mjs `listOf`, and a taken item's name stands in its own quotes (needsCode, 14.11.2026; EN2, EN17, DB31, DB35): stash-reach.mjs `tellNotHere` (`Vault.notHere`, an \"or\" list), `rifleStashDialog` (`Vault.stashEmpty`, `rifleIntro`), `tellStashDisturbedNow` (`Vault.gmTold`), vault-store.mjs `keyCopiesAfterOwnerLeft` (`Vault.keyCopiesTakenGm`) and `clearSplitPiece` (`Rooms.renameJoined`, `pieceSplit`), room-setup.mjs `applyRoomRows` (`Vault.neighboursUnknown`), anonymity.mjs `takeFromBody` (`Loot.took`, `tookUnfound`), handover.mjs `lootCover` (`Loot.seenTaking`) and `markBodyDisturbed` (`Loot.traceNote`), through `quotedList`, passages-tab.mjs `rowHtml` (`Passage.tab.shared`, `pending`), movement.mjs `notConnectedText` (`Move.notConnected`); what is left joined by hand is the console's English log; the four Loot texts quote no placeholder, `Loot.itemQuoted` does, per language", async () => {
+        /*
+         * The needsCode line (claude/needscode-113), from group B's batches B08 and B09 (docs/dev/e71/NEEDSCODE.md #40-#48,
+         * #54, S3, S4). Red at a6aee63b: every site joined its names with ", " - \"A, B, C\" in English (no \"and\") and in
+         * Polish (no „i”) - and the Loot texts wrapped several names in one pair of quotes. Read from source: the cards come
+         * from a theft, a rifle, a Take and a rename, which tier 2 drives. `joins` is what stays joined by hand in the
+         * function: its `log(...)` lines, English for the console.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["stash-reach.mjs", "tellNotHere", ["DRPG.Vault.notHere"], 0],
+            ["stash-reach.mjs", "rifleStashDialog", ["DRPG.Vault.stashEmpty", "DRPG.Vault.rifleIntro"], 0],
+            ["stash-reach.mjs", "tellStashDisturbedNow", ["DRPG.Vault.gmTold"], 0],
+            ["vault-store.mjs", "keyCopiesAfterOwnerLeft", ["DRPG.Vault.keyCopiesTakenGm"], 1],
+            ["vault-store.mjs", "clearSplitPiece", ["DRPG.Rooms.renameJoined", "DRPG.Rooms.pieceSplit"], 1],
+            ["room-setup.mjs", "applyRoomRows", ["DRPG.Vault.neighboursUnknown"], 0],
+            ["anonymity.mjs", "takeFromBody", ["DRPG.Loot.took", "DRPG.Loot.tookUnfound", "DRPG.Loot.itemQuoted"], 0],
+            ["handover.mjs", "lootCover", ["DRPG.Loot.seenTaking"], 0],
+            ["handover.mjs", "markBodyDisturbed", ["DRPG.Loot.traceNote"], 0],
+            ["handover.mjs", "quotedList", ["DRPG.Loot.itemQuoted"], 0],
+            ["passages-tab.mjs", "rowHtml", ["DRPG.Passage.tab.shared", "DRPG.Passage.tab.pending"], 0],
+            ["movement.mjs", "notConnectedText", ["DRPG.Move.notConnected"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(`"${key}"`)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\b(?:listOf|quotedList)\(/.test(bodies[i])]);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const quoted = [en, pl].map(file => ["took", "tookUnfound", "traceNote", "seenTaking"].filter(k => /[“„”]\{/.test(String(file?.DRPG?.Loot?.[k] ?? ""))));
+        equal(stableJson({ read, quoted, itemQuoted: [en?.DRPG?.Loot?.itemQuoted, pl?.DRPG?.Loot?.itemQuoted] }),
+            stableJson({ read: SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true]), quoted: [[], []], itemQuoted: ["“{item}”", "„{item}”"] }),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf; the Loot texts that quote a placeholder, EN and PL; Loot.itemQuoted EN and PL]");
     }],
 
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {

@@ -66,7 +66,7 @@ import { ROOM_FLAGS, roomBroken } from "./movement.mjs";
 import { isDeceased, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import {
-    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce
+    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce, listOf
 } from "./utils.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import {
@@ -563,7 +563,7 @@ async function keyCopiesAfterOwnerLeft(room, old, owner) {
     }
     if (holders.length) {
         log(`Copies of the key to ${room} went with the room: taken from ${holders.join(", ")}.`);
-        ui.notifications.info(game.i18n.format("DRPG.Vault.keyCopiesTakenGm", { room, holders: holders.join(", ") }));
+        ui.notifications.info(game.i18n.format("DRPG.Vault.keyCopiesTakenGm", { room, holders: listOf(holders) }));
     }
     return holders;
 }
@@ -1545,7 +1545,7 @@ export function clearSplitPiece(region, changes, userId) {
     const keys = carried.map(([key]) => key);
     log(`"${was}" on "${scene?.name}" renamed "${now}" ${joins ? "joined a room of that name" : "was one piece of several"}: `
         + `it no longer carries ${keys.join(", ") || "anything"}.`);
-    const labels = [...new Set(carried.map(([, label]) => game.i18n.localize(label)))].join(", ")
+    const labels = listOf([...new Set(carried.map(([, label]) => game.i18n.localize(label)))])
         || game.i18n.localize("DRPG.Rooms.carriedNothing");
     whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format(joins ? "DRPG.Rooms.renameJoined" : "DRPG.Rooms.pieceSplit", {
         name: now, room: was, scene: scene?.name ?? "", carried: labels
