@@ -54782,8 +54782,9 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({
             glass: {
                 mode: "motion",
-                start: { kids: two, hidden: hid, curtain: ["drpg-seq-glass.is-close", "drpg-seq-closed", "drpg-seq-glass.is-open"], top: [], titleInCurtain: false, band: null },
-                titled: { kids: two, hidden: hid, curtain: ["drpg-seq-closed", "drpg-seq-glass.is-open"], top: ["drpg-seq-title"], titleInCurtain: false, band: entry },
+                // since fix-113r no closed canvas is swapped in while it is closed: the closing layer stands until the opening (R6092)
+                start: { kids: two, hidden: hid, curtain: ["drpg-seq-glass.is-close", "drpg-seq-glass.is-open"], top: [], titleInCurtain: false, band: null },
+                titled: { kids: two, hidden: hid, curtain: ["drpg-seq-glass.is-close", "drpg-seq-glass.is-open"], top: ["drpg-seq-title"], titleInCurtain: false, band: entry },
                 fadeIn: ["drpg-seq-curtain"], fadeOut: ["drpg-seq-curtain"]
             },
             lids: {
@@ -54795,6 +54796,299 @@ const INVARIANTS = [
             exit: { mode: "still", kids: two, hidden: hid, curtain: lids, top: ["drpg-seq-title"], titleInCurtain: false, band: exit },
             one: ["drpg-seq-day"]
         }), "[the entry with the glass in motion: what played; at its start and once titled - the host's children, their aria-hidden, the curtain layer's children, the title layer's, a title in the curtain layer, the band's words; the fades in and out over handIn and hand; the lids in motion the same; still; the exit (still: reduced motion stays on); a day's board's host children]");
+    }],
+    ["R6090 - the trial's closed curtain opens only once this browser has drawn the next scene (scripts/sequence.mjs `playSequence`'s gate, `playTrialEntry`, `playTrialExit`, `sequenceGate`, `whenTrialExitEnds`; fix-113r, the owner at a table on 1.2.112, 13.11.2026: \"the closed curtain should last until the next scene has switched\"): with the scene held back, the entry on the curtain's stand-in is still closed past its 3.4 s - playing, its gate waiting, the title on, the tiles covered, the live curtain not handed back - and once the scene is drawn it opens and the rest of its frames follow from then, the hand-back `end - hand - titleOut` after it and the end `end - titleOut` after it; the lids wait the same; under reduced motion the still frame stands past its 1.5 s until the scene; the exit waits too, and whoever waits on it (the day's boards) waits with it; Escape still ends a closed curtain that waits, and lets its wait go", async () => {
+        /*
+         * fix-113r, 13.11.2026. Red at ceb9e9c8: `playTrialEntry` and `playTrialExit` took no scene and opened at `titleOut`
+         * (2500 ms) on a timer, whatever this browser had drawn; sequence.mjs had no `sequenceGate`. The stand-in for the
+         * scene is a promise the test settles (`scene`, as the stand-in for the curtain is `pieces`); what the real one
+         * waits on - `canvasReady` on the scene the crossing moves the table to - is R6091's.
+         */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const T = S.SEQUENCE_TIMES.trialEntry, read = {};
+        const stand = () => {
+            const calls = [], t0 = performance.now();
+            const at = () => Math.round(performance.now() - t0);
+            return { calls, at, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]), release: () => calls.push(["release", null, at()]) };
+        };
+        const held = () => { let open = null; const p = new Promise(r => { open = r; }); return { p, open }; };
+        const near = (got, want, slack = 300) => Number.isFinite(got) && got >= want - 20 && got <= want + slack;
+        const clock = (k, extra = {}) => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6090${k}:${Date.now()}`, trialCut: true, ...extra });
+        const host = () => document.getElementById(S.SEQUENCE_HOST_ID);
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            // the entry on the curtain's stand-in
+            const m = stand(), g = held();
+            read.motion = await S.playTrialEntry(clock("m"), { pieces: m, scene: g.p });
+            await wait(T.end + 300);
+            read.closed = {
+                playing: S.sequenceNow()?.kind ?? null, gate: S.sequenceGate?.() ?? "no gate", title: Boolean(host()?.querySelector(".drpg-seq-top .drpg-seq-title")),
+                cover: body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`), calls: m.calls.map(x => x[0])
+            };
+            const opened = m.at();
+            g.open("drawn");
+            await wait(60);
+            read.gateOpen = S.sequenceGate?.() ?? "no gate";
+            await until(() => !host(), T.end + 1500);
+            const back = m.calls.find(x => x[0] === "handBack"), rel = m.calls.find(x => x[0] === "release");
+            read.after = { back: near(back?.[2] - opened, T.end - T.hand - T.titleOut), end: near(rel?.[2] - opened, T.end - T.titleOut), calls: m.calls.map(x => x[0]) };
+            // the lids, no curtain
+            body.classList.remove("drpg-theme-stained-glass");
+            const l = held();
+            read.lids = await S.playTrialEntry(clock("l"), { scene: l.p });
+            await wait(T.end + 300);
+            read.lidsClosed = S.sequenceNow()?.kind ?? null;
+            l.open("drawn");
+            await until(() => !host(), T.end + 1500);
+            read.lidsEnded = S.sequenceNow();
+            // still: the frame stands past its hold until the scene
+            body.classList.add("drpg-reduced-motion");
+            const st = held();
+            read.still = await S.playTrialEntry(clock("s"), { scene: st.p });
+            await wait(T.still + 300);
+            read.stillClosed = S.sequenceNow()?.mode ?? null;
+            st.open("drawn");
+            await until(() => !host(), 1000);
+            read.stillEnded = S.sequenceNow();
+            body.classList.remove("drpg-reduced-motion");
+            // the exit, and whoever waits on it
+            const x = held();
+            let boards = null;
+            read.exit = await S.playTrialExit(clock("x", { phase: "dailyLife", trialEndedAt: `R6090x:${Date.now()}` }), { on: true, scene: x.p });
+            S.whenTrialExitEnds().then(why => { boards = why; });
+            await wait(T.end + 300);
+            read.exitClosed = { playing: S.sequenceNow()?.kind ?? null, boards };
+            x.open("drawn");
+            await until(() => boards !== null, T.end + 1500);
+            read.exitEnded = boards;
+            // Escape while the curtain waits ends it, and lets the wait go
+            let cancelled = 0;
+            const never = new Promise(() => null);
+            never.cancel = () => { cancelled++; };
+            await S.playTrialEntry(clock("e"), { scene: never });
+            await wait(T.end + 100);
+            const esc = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+            window.dispatchEvent(esc);
+            read.escape = { ended: esc.defaultPrevented && S.sequenceNow() === null && !host(), cancelled };
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({
+            motion: "motion",
+            closed: { playing: "trialEntry", gate: { waiting: true, why: null }, title: true, cover: true, calls: ["hold"] },
+            gateOpen: { waiting: false, why: "drawn" },
+            after: { back: true, end: true, calls: ["hold", "handBack", "release"] },
+            lids: "motion", lidsClosed: "trialEntry", lidsEnded: null,
+            still: "still", stillClosed: "still", stillEnded: null,
+            exit: "motion", exitClosed: { playing: "trialExit", boards: null }, exitEnded: "ended",
+            escape: { ended: true, cancelled: 1 }
+        }), "[the entry on the stand-in: what played; past its 3.4 s with the scene held back - playing, its gate, the title, the cover, the stand-in's calls; the gate once the scene is drawn; after it - the hand-back and the end timed from the scene, the calls; the lids: played, still closed past 3.4 s, ended after the scene; still: played, still standing past 1.5 s, ended after the scene; the exit: played, still closed past 3.4 s with the boards waiting, the boards' wait once it ended; Escape ends a curtain that waits and lets its wait go once]");
+    }],
+    ["R6091 - the scene a closed curtain waits for is the one the crossing moves the table to, drawn on this browser, and 15 s at most (scripts/sequence.mjs `sceneTargetOf`, `whenSceneDrawn`, `SCENE_WAIT_MS`, `sceneGateFor`; fix-113r, 13.11.2026): into the trial the linked hall, out of it any scene but the hall, nothing with no hall linked or no canvas; the wait settles at once when the canvas already shows such a scene, drawn, at the first `canvasReady` on one and not on another, and past its time with a warning, which opens the curtain then - a gate of 3 s on the entry holds it closed at 2.9 s and opens it after; the default is 15 s; the trial's entry and exit ask their own scene's gate when the suite hands them none", async () => {
+        /*
+         * fix-113r, 13.11.2026. Red at ceb9e9c8: sequence.mjs had none of these names. The hook and the canvas are
+         * stand-ins (`listen`, `view`): tiers 0-1 fire no `canvasReady`, which every drawing listener of the module
+         * hears. Scenarios 41 and 63 cross the edge with the harness's own activation and `canvasReady`.
+         */
+        const S = await import("./sequence.mjs"), C = await import("./perf-counters.mjs");
+        const read = {};
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const hall = { id: "hall" }, school = { id: "school" };
+        const ownWarn = console.warn, warned = [];
+        try {
+            if (typeof S.sceneTargetOf !== "function" || typeof S.whenSceneDrawn !== "function") throw new Error("sequence.mjs has no sceneTargetOf or whenSceneDrawn");
+            const entry = S.sceneTargetOf("trialEntry", { hall }), exit = S.sceneTargetOf("trialExit", { hall });
+            read.targets = {
+                entry: [entry?.(hall), entry?.(school), entry?.(null)], exit: [exit?.(hall), exit?.(school), exit?.(null)],
+                noHall: S.sceneTargetOf("trialEntry", { hall: null }), noCanvas: S.sceneTargetOf("trialExit", { hall, noCanvas: true }), other: S.sceneTargetOf("dayStart", { hall })
+            };
+            read.ms = S.SCENE_WAIT_MS;
+            console.warn = (...a) => warned.push(String(a[0]));
+            // at once: no target, and a canvas already on the scene
+            read.none = await S.whenSceneDrawn(null);
+            read.already = await S.whenSceneDrawn(entry, { view: () => ({ ready: true, scene: hall }), listen: () => () => null });
+            // a hook: another scene is not it, the hall is; the listener is taken off
+            let fire = null, off = 0, settled = null;
+            const w = S.whenSceneDrawn(entry, { ms: 5000, view: () => ({ ready: true, scene: school }), listen: fn => { fire = fn; return () => { off++; }; } });
+            w.then(why => { settled = why; });
+            fire({ ready: true, scene: school });
+            await settle();
+            read.other = settled;
+            fire({ ready: true, scene: hall });
+            await settle();
+            read.hook = { settled, off };
+            // past its time: a warning and the counter
+            const before = C.snapshot()["sequence.sceneTimeout"] ?? 0;
+            read.timeout = await S.whenSceneDrawn(entry, { ms: 50, view: () => null, listen: () => () => null });
+            read.warned = warned.length === 1 && /next scene/.test(warned[0]);
+            read.counted = (C.snapshot()["sequence.sceneTimeout"] ?? 0) - before;
+            // let go before its time: no warning
+            const c = S.whenSceneDrawn(entry, { ms: 80, view: () => null, listen: () => () => null });
+            c.cancel();
+            read.cancelled = await c;
+            await wait(120);
+            read.quietAfter = warned.length === 1;
+            // the timeout opens the curtain: a gate of 3 s on the entry (the lids), closed at 2.9 s, open after
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            const T = S.SEQUENCE_TIMES.trialEntry, t0 = performance.now();
+            const gate = S.whenSceneDrawn(entry, { ms: 3000, view: () => null, listen: () => () => null });
+            await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6091:${Date.now()}`, trialCut: true }, { scene: gate });
+            await wait(Math.max(0, 2900 - (performance.now() - t0)));
+            read.closedAt = S.sequenceGate();
+            await until(() => S.sequenceNow() === null, T.end + 1500);
+            const ended = performance.now() - t0;
+            read.openedByTime = ended >= 3000 + (T.end - T.titleOut) - 20 && ended <= 3000 + (T.end - T.titleOut) + 400;
+        } finally {
+            console.warn = ownWarn;
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        const seq = stripComments((await moduleSources()).get("sequence.mjs") ?? "");
+        must(seq.length > 2000, "sequence.mjs was not read - the source half reads nothing");
+        const gateOf = bodyOf(seq, "function sceneGateFor(", { until: "\n}" });
+        read.wired = {
+            entry: /scene === undefined \? \(\) => sceneGateFor\("trialEntry"\) : scene/.test(fnSource(seq, "playTrialEntry")),
+            exit: /scene === undefined \? \(\) => sceneGateFor\("trialExit"\) : scene/.test(fnSource(seq, "playTrialExit")),
+            gate: /trialScene/.test(gateOf) && /whenSceneDrawn\(sceneTargetOf\(kind/.test(gateOf),
+            hook: /Hooks\.on\("canvasReady"/.test(bodyOf(seq, "function listenCanvasReady(", { until: "\n}" }))
+        };
+        equal(stableJson(read), stableJson({
+            targets: { entry: [true, false, false], exit: [false, true, false], noHall: null, noCanvas: null, other: null },
+            ms: 15000, none: "none", already: "drawn", other: null, hook: { settled: "drawn", off: 1 },
+            timeout: "timeout", warned: true, counted: 1, cancelled: "cancelled", quietAfter: true,
+            closedAt: { waiting: true, why: null }, openedByTime: true,
+            wired: { entry: true, exit: true, gate: true, hook: true }
+        }), "[the targets: into the trial the hall (hall, school, none), out of it any but the hall, no hall, no canvas, another sequence; the default wait; no target; a canvas already on it; another scene's hook; the hall's hook and the listener taken off; past its time; one warning; counted; let go; no warning after; a 3 s gate: closed at 2.9 s; opened by its time; the entry and exit ask their scene's gate, which reads the hall and waits on it, on canvasReady]");
+    }],
+    ["R6092 - the curtain that closes is the curtain that opens (scripts/glass.mjs `entryPieces`; scripts/sequence.mjs `drawTrialEntry`; fix-113r, the owner at a table on 1.2.112, 13.11.2026: \"between covering the screen and uncovering it, the curtain's layout changes\"): the pieces are cut once - one fill of the hole the standing panes leave, one paint of them as the closed curtain - and the close, the closed curtain and the opening are cut from that one cut and paint; in motion nothing is swapped in while it is closed: the closing layer stays, its new panes drawn at their places from 900 ms, and at the opening its first frame draws them at the same places, from the same plan", async () => {
+        /*
+         * fix-113r, 13.11.2026. Red at ceb9e9c8: `entryPieces` filled the hole twice (the panes on screen, then the cut
+         * `rebuildAll` had just made) and painted two closed curtains, and the closed curtain and the opening were the
+         * second; the sequence swapped the closing layer for a closed canvas at 900 ms and that for the opening at 2500.
+         * jsdom draws no curtain, so the glass half is read in its source and the sequence half on a stand-in with a real
+         * slide plan (glass-close.mjs `slidePlan`); the drawn layout and its pixels are measured in Chromium by
+         * `node audit/glass-sweep.mjs --trial-layout` (0 panes off, 0 pixels changed from the held curtain to the
+         * opening's first frame, at 1366x768 and 1920x1080, the entry and the exit; at ceb9e9c8 34 of 39 panes off).
+         */
+        const S = await import("./sequence.mjs"), K = await import("./glass-close.mjs");
+        const glass = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        must(glass.length > 20000, "glass.mjs was not read - the source half reads nothing");
+        const cut = bodyOf(glass, "export function entryPieces(", { until: "\nexport function exitPieces(" });
+        must(cut.length > 500, "entryPieces was not found");
+        const read = {};
+        read.glass = {
+            fills: (cut.match(/fillHole\(/g) ?? []).length,
+            paints: (cut.match(/snapshotLook\(j, true/g) ?? []).length,
+            closed: /closed: lookA,/.test(cut),
+            close: /close: \{ panes: oldPanes\.map\(\(p, i\) => piece\(p\.poly, lookA, oldLook/.test(cut) && /close: \{[^}]*\bfill,/.test(cut),
+            open: /open: \{ panes: oldPanes\.map\(p => piece\(p\.poly, lookA\)\), fill \}/.test(cut)
+        };
+        // the sequence half: two standing panes and one new one in the hole, as glass.mjs would hand them
+        const sq = (x0, x1) => [[x0, 0], [x1, 0], [x1, 30], [x0, 30]];
+        const canvasOf = () => document.createElement("canvas");
+        const pane = poly => ({ poly, box: { x0: poly[0][0], y0: 0, x1: poly[1][0], y1: 30 }, batch: 0, canvas: canvasOf(), old: null });
+        const fill = K.slidePlan([{ poly: sq(0, 10) }, { poly: sq(30, 40) }], [{ poly: sq(10, 30) }], 40, 30).map(p => ({ ...p, box: { x0: 10, y0: 0, x1: 30, y1: 30 }, canvas: canvasOf() }));
+        const pieces = { W: 40, H: 30, acc: "#ffffff", closed: canvasOf(), hold() {}, handBack() {}, release() {},
+            close: { panes: [pane(sq(0, 10)), pane(sq(30, 40))], fill, batchOf: [0, 0] }, open: { panes: [pane(sq(0, 10)), pane(sq(30, 40))], fill } };
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const T = S.SEQUENCE_TIMES.trialEntry;
+        const layers = () => [...(document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-curtain`)?.children ?? [])].map(el => `${[...el.classList].find(c => c.startsWith("drpg-seq-"))}${el.classList.contains("is-close") ? ".is-close" : el.classList.contains("is-open") ? ".is-open" : ""}${el.hidden ? " hidden" : ""}`);
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            let open = null;
+            const scene = new Promise(r => { open = r; });
+            read.mode = await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R6092:${Date.now()}`, trialCut: true }, { pieces, scene });
+            const e = document.getElementById(S.SEQUENCE_HOST_ID)?.drpgEntry;
+            read.start = layers();
+            await wait(T.closed + 150);
+            read.held = { layers: layers(), offsets: e?.growIn?.offsets ?? null };
+            const firsts = [];
+            if (e?.growOut) { const draw = e.growOut.draw; e.growOut.draw = offs => { firsts.push(offs.map(o => (o ? [o[0], o[1]] : null))); return draw(offs); }; }
+            open("drawn");
+            await wait(T.titleOut - T.closed + 100);
+            read.open = { layers: layers(), first: firsts[0] ?? null, samePlan: e?.fill?.[0] === e?.fill?.[1] };
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson(read), stableJson({
+            glass: { fills: 1, paints: 1, closed: true, close: true, open: true },
+            mode: "motion",
+            start: ["drpg-seq-glass.is-close", "drpg-seq-glass.is-open hidden"],
+            held: { layers: ["drpg-seq-glass.is-close", "drpg-seq-glass.is-open hidden"], offsets: [[0, 0]] },
+            open: { layers: ["drpg-seq-glass.is-open"], first: [[0, 0]], samePlan: true }
+        }), "[entryPieces: the hole filled once; the closed curtain painted once; the closed curtain that paint; the close's panes cut from it over the old look with the one fill; the opening the same panes from the same paint with the same fill; in motion: what played; the curtain's layers at the start; held from 900 ms - the layers, the new panes' offsets drawn; at the opening - the layers, its first frame's offsets, the one plan]");
+    }],
+    ["R6093 - an exit that switches no scene does not hold the closed curtain (scripts/clock.mjs `setClock`; scripts/trial-scene.mjs `exitDestination`, `exitSwitchesScene`, `leaveTrialScene`; scripts/sequence.mjs `playTrialExit`; fix-113r, the coordinator's change of 13.11.2026): the GM's write out of the trial stamps on the clock whether `followPhase` will activate a scene (`trialExitScene`), read from the one destination `leaveTrialScene` takes (the GM's choice, the school, the scene the trial left) and true when it cannot be read; a clock put back keeps its own stamp or none; with the stamp false the exit's closed curtain waits for no scene - a scene that never comes leaves it opening at its own time, 3.4 s, still at 1.5 s - and with it true, or absent, it waits for the scene as before; with no hall, or nowhere to go, nothing switches", async () => {
+        /*
+         * fix-113r, 13.11.2026. Red at bb1df8de: an exit with no school and no scene to return to - the table stays in the
+         * hall, `leaveTrialScene` activates nothing - held every browser's closed curtain for the 15 s safety, since the
+         * exit's gate waited for any scene but the hall and none came. The stand-in for the scene never settles here, as
+         * none comes at that table; the clock's own stamp is what lets the curtain go.
+         */
+        const S = await import("./sequence.mjs"), TS = await import("./trial-scene.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const T = S.SEQUENCE_TIMES.trialExit, read = {};
+        const never = () => new Promise(() => null);
+        const clock = (k, extra = {}) => ({ ...getClock(), phase: "dailyLife", chapter: 2, trialEndedAt: `R6093${k}:${Date.now()}`, trialCut: true, ...extra });
+        const ended = async ms => { const t0 = performance.now(); await until(() => S.sequenceNow() === null, ms); return Math.round(performance.now() - t0); };
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            read.none = await S.playTrialExit(clock("n", { trialExitScene: false }), { on: true, scene: never() });
+            const tn = await ended(T.end + 1500);
+            read.noneEnds = tn >= T.end - 100 && tn <= T.end + 400 && S.sequenceNow() === null;
+            body.classList.add("drpg-reduced-motion");
+            read.still = await S.playTrialExit(clock("s", { trialExitScene: false }), { on: true, scene: never() });
+            const ts = await ended(T.still + 1500);
+            read.stillEnds = ts >= T.still - 100 && ts <= T.still + 400 && S.sequenceNow() === null;
+            body.classList.remove("drpg-reduced-motion");
+            // stamped true, and not stamped: the curtain waits for the scene, as R6090's
+            for (const [k, extra] of [["t", { trialExitScene: true }], ["a", {}]]) {
+                await S.playTrialExit(clock(k, extra), { on: true, scene: never() });
+                await wait(T.end + 300);
+                read[k === "t" ? "stampedTrue" : "unstamped"] = S.sequenceGate?.() ?? null;
+                S.endSequence("cut");
+            }
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        // the destination's reads: no hall, nothing; an active destination switches nothing
+        read.reads = {
+            noHall: typeof TS.exitDestination === "function" ? TS.exitDestination(null) : "missing",
+            noHallSwitch: typeof TS.exitSwitchesScene === "function" ? TS.exitSwitchesScene(null) : "missing"
+        };
+        const sources = await moduleSources();
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), sceneSrc = stripComments(sources.get("trial-scene.mjs") ?? "");
+        must(clockSrc.length > 5000 && sceneSrc.length > 5000, "a source was not read - the source half reads nothing");
+        const set = bodyOf(clockSrc, "export async function setClock(", { until: "\nexport " });
+        read.wired = {
+            stamped: /before\.phase === "classTrial" && patch\.trialExitScene === undefined\)[\s\S]{0,200}exitSwitchesScene\(\) !== false; \} catch \{ next\.trialExitScene = true; \}/.test(set),
+            putBack: /Object\.hasOwn\(patch, "writtenAt"\) && !Object\.hasOwn\(patch, "trialExitScene"\)\) delete next\.trialExitScene/.test(set),
+            leave: /const destination = exitDestination\(hall, exit\);/.test(bodyOf(sceneSrc, "export async function leaveTrialScene(", { until: "\n}" })),
+            active: sceneSrc.includes("export function exitSwitchesScene(") && /Boolean\(destination\) && !destination\.active/.test(bodyOf(sceneSrc, "export function exitSwitchesScene(", { until: "\n}" }))
+        };
+        equal(stableJson(read), stableJson({
+            none: "motion", noneEnds: true, still: "still", stillEnds: true,
+            stampedTrue: { waiting: true, why: null }, unstamped: { waiting: true, why: null },
+            reads: { noHall: null, noHallSwitch: false },
+            wired: { stamped: true, putBack: true, leave: true, active: true }
+        }), "[stamped false: played; ended at its own 3.4 s with no scene; still: played; ended at its 1.5 s; stamped true: waiting past 3.4 s; not stamped: waiting; no hall: no destination, no switch; setClock stamps the crossing out from exitSwitchesScene, true when unreadable; a put-back clock keeps its own; leaveTrialScene goes where exitDestination says; a destination already active switches nothing]");
     }],
     ["R5382 - over the windows the title's grounds are whole (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026, \"napis i jego tlo na otwartych oknach\"; the stage's shots of 13.11.2026): read through the module's cascade in both themes, in the title layer of the trial's edges the band's ground and the chapter line's dark shard are opaque - neither mixes with transparent - so a window's words under them do not read through; outside the trial's edges (the verdict's cut-in, a host with no look) the band keeps the sequences' band token", async () => {
         /*

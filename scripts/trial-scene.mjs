@@ -715,6 +715,26 @@ export async function enterTrialScene(hall = trialScene()) {
 }
 
 /**
+ * The scene `leaveTrialScene` would take the table to, read now and taking nothing: the one the GM chose at End the
+ * trial (`exit`, this client's `setTrialExit`), else `leaveDestination`'s; null with no hall or nowhere to go.
+ */
+export function exitDestination(hall = trialScene(), exit = trialExit) {
+    if (!hall) return null;
+    const chosen = exit && exit.sceneId !== hall.id ? game.scenes?.get?.(exit.sceneId) ?? null : null;
+    return chosen ?? leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall });
+}
+
+/**
+ * Whether leaving the trial now activates a scene (fix-113r, 13.11.2026): a destination that is not active already.
+ * clock.mjs `setClock` stamps it on the clock as it crosses out (`trialExitScene`), so every browser's closed curtain
+ * knows whether to wait for a scene (sequence.mjs `playTrialExit`) - a table that stays in the hall waits for none.
+ */
+export function exitSwitchesScene(hall = trialScene(), exit = trialExit) {
+    const destination = exitDestination(hall, exit);
+    return Boolean(destination) && !destination.active;
+}
+
+/**
  * Out of the trial, on a GM: activate the scene the GM chose at End the trial (`setTrialExit`,
  * taken once - on the first line, so a close that returns early leaves nothing held either), else
  * the one `leaveDestination` names, then clear the hall (`stageHall`: the module's tokens saved and
@@ -727,7 +747,7 @@ export async function leaveTrialScene(hall = trialScene()) {
     trialExit = null;
     if (!game.user?.isGM || !hall) return null;
     const chosen = exit && exit.sceneId !== hall.id ? game.scenes?.get?.(exit.sceneId) ?? null : null;
-    const destination = chosen ?? leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall });
+    const destination = exitDestination(hall, exit);
     if (!destination) {
         await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.noSchool")}</p>`);
         return null;
