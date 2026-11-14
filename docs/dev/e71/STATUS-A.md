@@ -207,9 +207,11 @@ X3, X5, X7, X8, X14-X18, X20, X21, N4, N6-N8, V3, and the button, window-title, 
 | 1 | `Action.murderCancelled`'s {reason} on the GMs' card was the killer's own line ("try again") | 155556fa, R6401 | Fixed: `Action.murderNobodyGm`, `murderWitnessGm` (en, pl); tier 2's three tests and 66-rooms read them (77/77) |
 | 2 | `nightNoteKey` sent `nightNoteIndirect` (night disadvantage) though E64 turned it off | 5ce68aec, R6402 | Fixed: the note reads the rolling side's `MURDER_OPENING` flags; `Murder.nightNoteNone` for a night that changes nothing |
 | 3 | `tellOpeningRoller` sends both seats' lines to one audience | 2004efb6 (no test) | Not a defect: at the `openingRoll` stage the audience is the roller alone (tier 2 holds it); the third-person rewrite of a0073b19 was taken back |
-| 4 | Lists joined with ", " instead of `listOf` | 4acd3f5b, R6403 | Fixed in murder-rules.mjs `applyUnlocks`, tail-gm.mjs `onTailCrossing`, watch-gm.mjs `startWatches`, action-briefing.mjs `tamperThresholdFacts`; `Cleanup.toolsBroken` (cleanup.mjs) waits for E54 |
+| 4 | Lists joined with ", " instead of `listOf` | 4acd3f5b, R6403 | Fixed in murder-rules.mjs `applyUnlocks`, tail-gm.mjs `onTailCrossing`, watch-gm.mjs `startWatches`, action-briefing.mjs `tamperThresholdFacts`; cleanup.mjs's with item 6 |
 | 5 | Dead keys `Murder.addThird`, `whoWalkedIn`, `nobodyElse`, `noStressLeft`, `betrayalConfirm` | 1f142e5e, R6404 | Deleted in both files (no reader in scripts, tests, scenarios, tools or docs but the 1.2.42 findings list) |
-| 6 | cleanup.mjs `report` prints `Cleanup.stressSpent` on the free attempt | - | Waits for E54 (cleanup.mjs is split there), with `Cleanup.toolsBroken`'s `listOf` |
+| 6 | cleanup.mjs `report` prints `Cleanup.stressSpent` on the free attempt | after the merge of E54 (123f8242), R6405 | Fixed: `report` takes `free` (both calls and `resolveTransformRoad` pass it) and prints no price line where `Cleanup.freeAttempt` already says it cost nothing; `destroyTools` joins `Cleanup.toolsBroken`'s {items} with `listOf` (the names' quotes still want a key: English and Polish quote differently) |
+
+`DRPG.Overflow.silenced`'s English now follows its Polish model (PL-e): "Silence. Nobody can use a Hope Call this time of day." (the coordinator, after group B's review).
 
 Also found, not on the list: secret.mjs `dropOldGmLines` matches `DRPG.Action.observeGm`'s current sentence to hide it
 on old cards, so that text cannot change until the matcher does (kept word for word); tier 2 E66-T1 run alone leaves the
