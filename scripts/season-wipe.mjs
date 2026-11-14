@@ -777,6 +777,22 @@ async function wipeSeason(plan) {
      * and when it cannot be written nothing is wiped, or a GM who was away would open
      * the world alone holding last season, and act on it.
      */
+    /* THE MASKS ENDED BEFORE THE CUT (t2-rest, 14.11.2026; E69 C8). The `actions` group cuts the GMs' store `masks`, the
+       only record of what a masked killer's tokens looked like and of whose microphone the mask blocks (mask-gm.mjs).
+       Cut first, the tokens stayed a "?" with no row left to give them back: measured by tier 2's "a season reset while
+       a mask stands ...", 1 token of the killer's still masked and no row after a reset with `actions` alone ticked
+       (6dd02975 and 4a0e8fe3). Each is ended by the module's own road while its row still holds the look, before the
+       trial's microphones and the clock below - the order tier 2's `restore` takes for the same reason. */
+    if (plan.groups?.has?.("actions")) {
+        try {
+            const { maskStore } = await import("./gm-stores.mjs");
+            const { endMask } = await import("./mask-gm.mjs");
+            await maskStore.whenHydrated();
+            for (const killerId of Object.keys(maskStore.entries() ?? {})) await endMask(killerId, "reset");
+        } catch (err) {
+            error("Season reset: could not end the masks standing", err);
+        }
+    }
     /* THE TRIAL'S MICROPHONES GIVEN BACK FIRST (E70 C5): the cut empties the store of what the trial's mute found
        (gm-stores.mjs `trialMuteStore`, the trial's group), and a block nobody remembers is never put back. */
     try {
