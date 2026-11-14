@@ -10761,6 +10761,48 @@
     "mechanics": null
    },
    "owner": null
+  },
+  {
+   "key": "DRPG.Facility.applied.overflowDown",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "file:scripts/facilities-gm.mjs",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A room action's line on the GM's card: the Despair it took off the Overflow, {n} the count takeOverflow answered.",
+     "file": "scripts/facilities-gm.mjs",
+     "fn": "applyEffects",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Despair overflow: -{n}",
+    "after": "Overflow: -{n} Despair"
+   },
+   "pl": {
+    "before": "Despair overflow: -{n}",
+    "after": "Overflow: -{n} Despair"
+   },
+   "removed": [
+    "\"overflow\" -> \"Overflow\": the glossary's name, capitalized (line A's reading, the coordinator's round of 14.11); the unit after the number, as the Overflow holds Despair"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
   }
  ]
 }
