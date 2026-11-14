@@ -31,30 +31,43 @@ out); 34 in one `run-all.mjs scenarios` run, the last four (89, 91, 92, 93) alon
 
 | C7 | (this commit) | Open 96; R5204 red at 736e55eb `[false,false,true,true,"string","undefined"]`, green after; tiers 0-1 whole, scenarios 65, 61, 62 and two GM-store tier-2 tests green |
 
-## State: final for this round (13.11.2026)
+## The line claude/e39-43-113 (14.11.2026, base 1463f22b, R block R6200-R6299)
+
+| Commit | What | Tests |
+| --- | --- | --- |
+| 59d1c3c1 | **Open 103** (E43-F9): a secret project's description rides the insider's sight copy (projects.mjs `sightFor`, `receiveSight`, `descriptionOf`), and `tellDescription` sends each reader their sight again | 72's new check red at 1463f22b, green after; 93-spectator 18/18; tier 2 by name (sight, description, secret project) 60 passed, 0 failed, 1 skipped |
+| ad22a09f | **The whole-season canary**: 72 after the trial ends the chapter (`openChapterEndDialog`, nothing revealed), plays a second chapter with secrets of its own (a Key plan, a hidden trace, a bullet's GM note, a secret project nobody is in on, p1's note), and resets the season with every group ticked; after each, every marker of the run on every player, p1's and p2's world data for Chie's id, their chat. lib/canary.mjs `scan` takes `gone`, the seeds a step takes off the GM too, held both ways. It found **E43-F10** (FINDINGS): the Mask's end card named the killer on every browser; both Mask cards are veiled now (mask-gm.mjs) | 72 156/159 (3 expected red, Foundry limits); 13-murder-signals 87/87; tier 2 E69-T7 |
+| (docs) | LIVE-E43-01, LIVE-E43-02, LIVE-E43-03 (E43-F8) and LIVE-E40-01 written into audit/AUDIT-1.2.42.md 9.2 as items 529-532; `node tools/check.mjs live` 0 problems | - |
+
+Not walked by 72's season: a second incident and trial in chapter two (10-murder's, 63's and 65's ground), and a second GM
+across the reset (61's).
+
+## State: final for the round of 13.11.2026
 
 E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress. Next stage: none named.
 
 ## Not built, each with its reason
 
-- **The LIVE rows** (LIVE-E43-01, the fuzz on a v14 sandbox; LIVE-E43-02, a bystander's Countdowns on v14; and E43-F8,
-  a player's open project card turning on a walk-in at a table): not yet items of audit/AUDIT-1.2.42.md 9.2; default,
-  written there by the coordinator at the release that carries E43, owner to confirm.
-- **The whole-season canary** (the plan: 72-canary walks a whole season). Scenario 72 already scans every surface a
-  player's browser holds (the wire, documents, settings, localStorage, sessionStorage, the page, notifications,
-  dialogs, the console) through one chapter, and 67/68 plant the closing volunteers and the Logic Dive sets. A second
-  chapter and the season's end are a large extension of scenario 72, which the coordinator's rules do not list among
-  this line's scenarios (30, 33, 83). Proposal: a stage that owns scenario 72 walks it on through the next chapter;
-  default, carried to E58 (final verification), owner to confirm.
-- **Open 103**: waits for E93 (FINDINGS E43-F9).
+- **The LIVE rows**: written on 14.11.2026 (items 529-531, and LIVE-E40-01 as 532; above).
+- **The whole-season canary**: built on 14.11.2026 (ad22a09f, above).
+- **Open 103**: built on 14.11.2026 (59d1c3c1, above); E93 and E101 R2 are in the base.
 
 ## Proposals for the coordinator (with defaults)
 
 - **The README chapter**: place docs/dev/e43/README-CHAPTER.md's text after the root README.md's Privacy paragraph.
   Default: placed by the coordinator at the release that carries E43, with S17-31's line as its sources table says.
 - **E43-F7, the GM's session log drops new rows once it holds 60** (utils.mjs `SESSION_LOG_CAP`): keep the newest
-  instead (drop the oldest row, count what was dropped). Default: not changed in E43 - utils.mjs is every stage's, and
-  the change moves what `diagnose()` shows; a stage that owns the diagnostics takes it.
+  instead (drop the oldest row, count what was dropped). Every version of that fix changes what `diagnose()` and the GM
+  panel list (`sessionFailures()`), and no test can hold the drop without reading that list, so it is Q-E43-6 below.
+
+## Needs a local Foundry
+
+- **LIVE-E43-01**: scenario 30's fuzz against the sandbox at :30099 - a Foundry v14 server, a GM and three players in
+  separate browsers; read whether v14's server drops any junk shape before the GM sees it (the shim does not model it).
+- **LIVE-E43-02**: a bystander's Countdowns window on v14 with Daggerheart, a secret project made by the GM.
+- **LIVE-E43-03** (E43-F8): a player's open project card on a v14 table, turning when their token walks in.
+- The Mask's two cards (E43-F10) on a v14 table: that the veiled card reaches the killer's player and nobody else's chat
+  log names them (LIVE-E69-05, the Mask at a table, is the row to read it in).
 
 ## Waits for another stage
 
@@ -74,6 +87,7 @@ E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress
 | Q-E43-2 | S17-31 to the line now? | Already done on the E93 branch; not redone. Default taken, owner to confirm |
 | Q-E43-3 | Open 96 and 103 stay here? | Yes, read for this stage; see FINDINGS. Default taken, owner to confirm |
 | Q-E43-4 (this line's) | No new scenario number: where do 31-fuzz and 32-case-security go? | 31-fuzz is scenario 30's last part, the matrix (32's "the packet was delivered, then its effect") scenario 33's; both under the ci layer. Default taken, owner to confirm |
+| Q-E43-6 (14.11.2026) | E43-F7: should the GM's session log keep the newest 60 wordings (a ring, with a count of the dropped ones shown by `diagnose()`) instead of the first 60? | Unchanged in 1.2.113: the first 60 kept, as today; the owner decides, and the stage that takes it changes `diagnose()`'s text with it. Default taken, owner to confirm |
 | Q-E43-5 (this line's) | SECRET_FIELDS "in gm-store.mjs": the engine imports config.mjs alone (R161) | A registry each owning file registers its list in, at import; gm-store.mjs exports it. Default taken, owner to confirm |
 
 ## Test results
