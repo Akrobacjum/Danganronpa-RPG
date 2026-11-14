@@ -1491,6 +1491,7 @@
         "skipped": "GM pomija pytanie {n}.",
         "replay": "Ten zestaw już był grany: skończył się {when} ({outcome}). Gracze mogą go pamiętać.",
         "replayStopped": "Ten zestaw już był grany: zatrzymał się na pytaniu {n}, {when} ({outcome}). Po wybraniu zacznie się od tego pytania.",
+        "replayUnfinished": "Ten zestaw zaczęto grać {when}, ale go nie dokończono. Gracze mogą go pamiętać.",
         "outcome": {
           "played": "zagrany",
           "solved": "rozwiązany",

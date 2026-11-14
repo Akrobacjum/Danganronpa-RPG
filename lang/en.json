@@ -1444,6 +1444,7 @@
         "skipped": "The GM skips question {n}.",
         "replay": "This set was played before: it ended {when} ({outcome}). Players may remember it.",
         "replayStopped": "This set was played before: it stopped at question {n}, {when} ({outcome}). It starts again from that question.",
+        "replayUnfinished": "This set was started {when} and never finished. Players may remember it.",
         "outcome": {
           "played": "played",
           "solved": "solved",

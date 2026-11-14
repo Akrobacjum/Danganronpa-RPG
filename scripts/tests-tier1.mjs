@@ -37886,6 +37886,44 @@ const INVARIANTS = [
             "[grantItemEffect joins with \" - \"; coverTitle: localized bare, formatted with the threshold, {n} in en, in pl; showCaseSummary tells the GM]");
     }],
 
+    ["R6909 - a zone mode that cannot start says why to the GM who pressed it (needsCode, 14.11.2026): trial-zones.mjs `zoneArgsRefusal` reads the start as zone-machine.mjs `zoneStart` will - a Straw Poll or a Scrum with an answer blank is `Zones.noAnswers`, a Logic Dive with no set `Zones.noSet`, a set's blank question `Zones.noQuestion` - and `startZone` warns that reason before it asks the primary; `Zones.notStarted` is left for what only the primary finds", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #134-#137. Red at 99d1541c: trial-floor.mjs
+         * `zoneStartInStep` answers null on the machine's refusal, so startZone could only say notStarted, which lists
+         * every reason; noAnswers, noQuestion and noSet never reached a GM. Asked here of the pure reading, nothing written.
+         */
+        let Z = null;
+        try { Z = await import("./trial-zones.mjs"); } catch { Z = null; }
+        must(Z, "trial-zones.mjs did not load - this reads nothing");
+        const ask = async (op, args) => (typeof Z.zoneArgsRefusal === "function" ? await Z.zoneArgsRefusal(op, args) : "no zoneArgsRefusal");
+        const read = [await ask("straw", { text: "Q?", a: "Yes", b: "" }), await ask("scrum", { text: "Q?", a: "", b: "No", thesis: "" }),
+            await ask("dive", { set: "", from: 0 }), await ask("straw", { text: "Q?", a: "Yes", b: "No" })];
+        const start = fnSource(stripComments((await otherSources()).find(([name]) => name === "trial-zones.mjs")?.[1] ?? ""), "startZone") ?? "";
+        must(start, "startZone is gone - this reads nothing");
+        equal(stableJson({ read, asksFirst: /zoneArgsRefusal\(op, args\)[\s\S]*floorStep\(op, args\)/.test(start) }),
+            stableJson({ read: ["DRPG.Zones.noAnswers", "DRPG.Zones.noAnswers", "DRPG.Zones.noSet", null], asksFirst: true }),
+            "[the reason for: a Straw Poll with no B, a Scrum with no A, a Logic Dive with no set, a whole Straw Poll; startZone asks it before the primary]");
+    }],
+
+    ["R6910 - a Logic Dive set started and never ended is not said to have ended (needsCode, 14.11.2026): trial-zones-ui.mjs `replayWarning` gives a set with `usedAt` and no `endedAt` nor a stopping place `Zones.dive.replayUnfinished` (\"started {when} and not finished\"), an ended set `Zones.dive.replay` with its outcome as before, a stopped one `replayStopped`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #139. Red at the R6909 commit: an unfinished
+         * set read \"it ended {when} (played)\" - `outcome` null put \"played\" in replay's \"it ended\". Pure: asked of
+         * three made-up sets, nothing written.
+         */
+        let U = null;
+        try { U = await import("./trial-zones-ui.mjs"); } catch { U = null; }
+        must(typeof U?.replayWarning === "function", "trial-zones-ui.mjs has no replayWarning - this reads nothing");
+        const { localeFormat } = await import("./utils.mjs");
+        const at = 1700000000000, when = localeFormat("dateTime", at);
+        const F = (key, data) => game.i18n.format(key, data);
+        equal(stableJson([U.replayWarning({ usedAt: at }), U.replayWarning({ usedAt: at - 5, endedAt: at, outcome: "solved" }),
+            U.replayWarning({ usedAt: at, stoppedAt: 1, outcome: "stopped" }), game.i18n.has("DRPG.Zones.dive.replayUnfinished")]),
+            stableJson([F("DRPG.Zones.dive.replayUnfinished", { when }), F("DRPG.Zones.dive.replay", { when, outcome: game.i18n.localize("DRPG.Zones.dive.outcome.solved") }),
+                F("DRPG.Zones.dive.replayStopped", { when, n: 2, outcome: game.i18n.localize("DRPG.Zones.dive.outcome.stopped") }), true]),
+            "[a set started, not ended; one ended solved; one stopped at question 2; the key exists]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

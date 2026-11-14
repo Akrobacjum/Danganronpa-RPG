@@ -29,7 +29,7 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
 import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
-import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf } from "./zone-machine.mjs";
+import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf, zoneStart } from "./zone-machine.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
 import { isPrimaryGm, serialWrite, serverNow, error, esc } from "./utils.mjs";
@@ -237,12 +237,36 @@ export function zoneStartRefusal(floor = storedFloor(), { inTrial = game.setting
     return null;
 }
 
+/**
+ * WHY THIS START WOULD BE REFUSED, read as the primary's machine will read it (the needsCode line, 14.11.2026; R6909):
+ * zone-machine.mjs `zoneStart` on the event the start makes - for a Logic Dive the set's question as `diveStartEvent`
+ * would take it, read without marking the set played. A key of the machine's (`Zones.noAnswers`, `noQuestion`,
+ * `noSet`), or null. The floor and the trial are `zoneStartRefusal`'s, and a set that is gone or empty the primary's:
+ * those stay `Zones.notStarted`. Until this, the machine's refusal came back as null and the GM read notStarted's list.
+ */
+export async function zoneArgsRefusal(op, args = {}) {
+    if (op === "dive") {
+        if (!String(args.set ?? "")) return "DRPG.Zones.noSet";
+        const event = await diveEventOf(args.set, Number(args.from) > 0 ? Math.round(Number(args.from)) - 1 : -1);
+        return event ? zoneStart(null, event, { zonesReady: true })?.refused ?? null : null;
+    }
+    const mode = op === "straw" ? ZONE_MODES.straw : op === "scrum" ? ZONE_MODES.scrum : null;
+    if (!mode) return null;
+    return zoneStart(null, { type: "zone", mode, question: args.text ?? "", answers: { a: args.a ?? "", b: args.b ?? "" }, thesis: args.thesis ?? "" },
+        { zonesReady: true })?.refused ?? null;
+}
+
 /** A zone mode started on whichever GM asks: refused here with the reason first, judged again on the primary. */
 async function startZone(op, args) {
     if (!game.user.isGM) return null;
     const refused = zoneStartRefusal();
     if (refused) {
         ui.notifications.warn(refused);
+        return null;
+    }
+    const why = await zoneArgsRefusal(op, args);
+    if (why) {
+        ui.notifications.warn(game.i18n.localize(why));
         return null;
     }
     const { floorStep } = await import("./trial-floor.mjs");
@@ -290,6 +314,14 @@ export async function skipQuestion() {
  * set, an empty one or an index past its end.
  */
 export async function diveStartEvent(setId, from = -1) {
+    const event = await diveEventOf(setId, from);
+    if (!event) return null;
+    await diveSetStore.patch(setId, { usedAt: Date.now() });
+    return event;
+}
+
+/** `diveStartEvent`'s reading alone, the set left unmarked (`zoneArgsRefusal` asks it on whichever GM pressed Start). */
+async function diveEventOf(setId, from = -1) {
     await diveSetStore.whenHydrated();
     const set = diveSetStore.get(String(setId ?? ""));
     const questions = Array.isArray(set?.questions) ? set.questions : [];
@@ -297,7 +329,6 @@ export async function diveStartEvent(setId, from = -1) {
     const index = Number(from) >= 0 ? Number(from) : Number.isInteger(set.stoppedAt) ? set.stoppedAt : 0;
     const q = questions[index];
     if (!q) return null;
-    await diveSetStore.patch(setId, { usedAt: Date.now() });
     return { type: "zone", mode: ZONE_MODES.dive, question: q.question, answers: { a: q.a, b: q.b }, set: { id: setId, index, total: questions.length } };
 }
 
