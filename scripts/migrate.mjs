@@ -1110,6 +1110,26 @@ const CLAUSES = [
         }
     },
     {
+        key: "liftSecretProjectMarks",
+        since: "1.2.113",
+        /*
+         * A SECRET PROJECT'S MURDER MARK AND ROOM OUT OF WORLD DATA (the 1.2.113 line leak-pm, 14.11.2026; E59's trace of
+         * GAPS.md's E43 row). Until 1.2.113 projectMeta, which every browser holds, carried each secret project's
+         * `indirectMurder` mark - an indirect murder is always secret, so any console read that a murder plan exists and
+         * which countdown it is - and its `room`, which no token tells where the project has none on the map. Once, on the
+         * primary, after the GM store's copies arrived, with the rules written on `liftSecretProjectMarks`: into the store
+         * weak and fill-only, and out of projectMeta only the fields the store reads back from storage (with the description
+         * and the room action a row from before E44 fix FG6 or E93 C1 may hold, the same list); then every player who sees a
+         * secret project is sent their sight again, which carries both since this build (projects.mjs `sightFor`).
+         */
+        run: async () => {
+            const { liftSecretProjectMarks, retellSights } = await import("./projects.mjs");
+            const report = await liftSecretProjectMarks();
+            if (report?.lifted) await retellSights();
+            return report?.notPrimary || report?.lifted ? report : null;
+        }
+    },
+    {
         key: "bodyTilesUnseen",
         since: "1.2.113",
         /*

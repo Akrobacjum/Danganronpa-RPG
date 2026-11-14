@@ -6632,8 +6632,8 @@
           "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
         },
         "projectSecrets": {
-          "one": "{n} indirect murder (of {of}) has no killer, condition or trigger on this browser: its trap cannot arm or fire.",
-          "other": "{n} indirect murders (of {of}) have no killer, condition or trigger on this browser: their traps cannot arm or fire."
+          "one": "{n} secret project (of {of}) has no record on this browser: its name, its room and who is in on it are missing here, and an indirect murder's trap cannot arm or fire.",
+          "other": "{n} secret projects (of {of}) have no record on this browser: their names, rooms and who is in on them are missing here, and an indirect murder's trap cannot arm or fire."
         },
         "notes": {
           "one": "{n} pre-session note is marked written, and this browser does not hold it, or holds an older one.",

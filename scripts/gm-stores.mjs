@@ -2546,10 +2546,18 @@ export async function gmStoreHealth() {
        `trapProjects` skips a trap with no trigger, so it never arms or fires. And a note a user's flag
        says is written that this browser does not hold (pre-session-note.mjs `notesMissing`). Both went
        unreported on a browser that lost its storage with no other GM to hand the rows back. */
+    /* SINCE LEAK-PM (14.11.2026) the secret projects, not the murders: a secret murder's `indirectMurder` mark is the GMs'
+       row's now (projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET`), so world data no longer says which countdown is a
+       murder, and a GM browser that lost its rows cannot count murders from it. What it still reads is which projects are
+       secret (projectMeta's `secret`, else the countdown's map: projects-secrecy.mjs `isSecret`): each secret project with
+       no row here is counted - its name, who is in on it, its room and, for a murder, its killer, condition and trigger.
+       The coordinator's default of 14.11.2026 (Q-PM-2). */
     const meta = getSetting(SETTINGS.projectMeta) ?? {};
-    const murders = Object.keys(meta).filter(id => meta[id]?.indirectMurder === true);
-    const noSecrets = murders.filter(id => !projectSecretStore.has(id));
-    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: murders.length });
+    const countdowns = game.settings.get("daggerheart", "Countdowns")?.countdowns ?? {};
+    const { isSecret } = await import("./projects.mjs");
+    const secrets = [...new Set([...Object.keys(meta), ...Object.keys(countdowns)])].filter(id => isSecret(id));
+    const noSecrets = secrets.filter(id => !projectSecretStore.has(id));
+    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: secrets.length });
     const { notesMissing } = await import("./pre-session-note.mjs");
     const lostNotes = notesMissing();
     if (lostNotes.length) add("notes", "missing", "DRPG.Case.row.notes", { n: lostNotes.length });
@@ -2613,7 +2621,7 @@ export async function gmStoreHealth() {
     const counts = {
         traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },
         bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length },
-        projectSecrets: { of: murders.length, missing: noSecrets.length },
+        projectSecrets: { of: secrets.length, missing: noSecrets.length },
         notes: { missing: lostNotes.length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };

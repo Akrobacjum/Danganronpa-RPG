@@ -70,7 +70,7 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelay
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
-import { allProjects, secretsOf, patchTrigger, standsAtProject, projectScene } from "./projects.mjs";
+import { allProjects, secretsOf, patchTrigger, standsAtProject, projectScene, isIndirectMurder, roomOf as projectRoomOf } from "./projects.mjs";
 // The projects' queue (E36 C2): a trap's fire and Rearm write its trigger in it, as every change of a project is made.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { newItemIdentity } from "./inventory.mjs";
@@ -199,7 +199,8 @@ function trapProjects() {
     const names = new Map(allProjects().map(p => [p.id, p.name]));
 
     for (const [id, entry] of Object.entries(meta)) {
-        if (!entry?.indirectMurder) continue;
+        // A secret murder's mark and room are the GMs' row's since leak-pm (14.11.2026): read through projects.mjs.
+        if (!entry || !isIndirectMurder(id)) continue;
         const secret = secretsOf(id);
         const trigger = secret.trigger;
         if (!trigger?.kind || !trigger.armed) continue;
@@ -214,7 +215,7 @@ function trapProjects() {
         out.push({
             id,
             name: names.get(id) ?? entry.name ?? "",
-            room: entry.room ?? null,
+            room: projectRoomOf(id),
             killer, trigger
         });
     }
@@ -631,7 +632,7 @@ export async function pruneTrapsFor(keep = null) {
 export async function openPlantDialog(projectId) {
     if (!game.user.isGM) return null;
 
-    const { metaFor, tokenRefOf } = await import("./projects.mjs");
+    const { tokenRefOf } = await import("./projects.mjs");
     const { sceneOfRoom } = await import("./rooms.mjs");
 
     /* THE ROOM'S OWN SCENE (E12 fix r1-G2, 11.10.2026; review round 1 CR1-2). Since E12 C3 the
@@ -641,9 +642,10 @@ export async function openPlantDialog(projectId) {
        the Search in Floor 1's room never found it. Every place scene's rooms are listed now, the
        project's room on the scene of its map token (else the school's room of the name, rooms.mjs
        `sceneOfRoom`) chosen, and the plant is keyed on the scene of the option picked. */
-    const meta = metaFor(projectId);
-    const roomOptions = placeRoomOptions({ room: meta.room,
-        sceneId: tokenRefOf(projectId)?.sceneId ?? sceneOfRoom(meta.room)?.id ?? null });
+    // The room through projects.mjs `roomOf`: a secret project's is the GMs' row's since leak-pm (14.11.2026).
+    const room = projectRoomOf(projectId);
+    const roomOptions = placeRoomOptions({ room,
+        sceneId: tokenRefOf(projectId)?.sceneId ?? sceneOfRoom(room)?.id ?? null });
 
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Trap.plantTitle"),

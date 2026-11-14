@@ -7042,7 +7042,8 @@ const INVARIANTS = [
         const KILLER = "R190KILLERACTOR1";
         const clean = () => ({
             settings: {
-                projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
+                // A secret project's row since the leak-pm line (1.2.113): its room and murder mark are the GMs' (whileSecret).
+                projectMeta: { R190PROJECT00001: { secret: true, trait: null, countsUp: true } },
                 clock: { chapter: 2, day: 3 },
                 murderState: { active: true, stage: "incident" },
                 overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
@@ -7074,8 +7075,9 @@ const INVARIANTS = [
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
             // E93 C1: a secret project's room action (its label and effects) as well.
-            ...["description", "facility"].map(f => [`projectMeta while secret: ${f}`,
-                s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
+            // The leak-pm line (1.2.113): whether it is an indirect murder, and its room.
+            ...["description", "facility", "indirectMurder", "room"].map(f => [`projectMeta while secret: ${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "indirectMurder" ? true : f === "room" ? "Gym" : "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
             // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).

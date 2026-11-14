@@ -69,7 +69,7 @@ export const COUNTDOWNS = "Countdowns";
  */
 export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;
 
-/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, scale, glyph } }. */
+/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, scale, glyph } } - a secret project's room and mark are the GMs' (`PROJECT_SECRET_WHILE_SECRET`). */
 export function projectMeta() {
     return game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {};
 }
@@ -134,10 +134,13 @@ export const HIDDEN_NAME = "???";
  * player, so a cleared chat log took the project out of the tray; the copy is the player's own client setting, which
  * no chat action touches, and is asked again at every load.
  */
-function toldSight(countdownId) {
+export function toldSight(countdownId) {
     const held = projectSightCopy.read()?.[countdownId];
     if (!held || typeof held !== "object") return null;
-    return { in: held.in === true, name: typeof held.name === "string" ? held.name : null };
+    /* `murder` and `room` since the leak-pm line (14.11.2026): what `PROJECT_SECRET_WHILE_SECRET` took out of projectMeta
+       for a secret project, sent to those who see it (projects.mjs `sightFor`). */
+    return { in: held.in === true, name: typeof held.name === "string" ? held.name : null,
+        murder: held.murder === true, room: typeof held.room === "string" && held.room ? held.room : null };
 }
 
 /**
@@ -167,8 +170,18 @@ export function shownName(countdownId, countdown = rawCountdown(countdownId)) {
  * `cleanFacility`) - a GM's words of what the project makes, as much the project's secret as its description. Read on a
  * GM through `secretsOf`; a player in on a secret project holds it from a GM's private card to its insiders alone
  * (projects.mjs `tellFacility`, facilities.mjs `toldFacility`; the owner's DRPG-D1 answer, 12.11.2026: "Dostaja").
+ *
+ * AND WHETHER IT IS AN INDIRECT MURDER, AND ITS ROOM (the 1.2.113 line leak-pm, 14.11.2026; E59's trace of GAPS.md's E43
+ * row). An indirect murder is always secret (projects.mjs `createProject`), so its `indirectMurder` mark in projectMeta told
+ * any console that a murder plan exists and which countdown it is (72-canary, red at 123f8242 on p1 and p2:
+ * `{"row":true,"murder":true}`); and a secret project's `room` told where it is built where no token on the map tells it
+ * - one the GM deleted from the map (`mapHidden`), or with no place scene holding its room (72-canary, red at 123f8242:
+ * `"room":"Storage","token":null`). Both are the GMs' row while the project is secret: read through projects.mjs
+ * `isIndirectMurder` and `roomOf` - the meta (a public project), else the GMs' row on a GM (`secretsOf`), else the
+ * player's sight of it (`toldSight`, `murder` and `room`), which the GMs send the players in on it and the Spectators
+ * (projects.mjs `sightFor`). A project revealed takes both back into projectMeta, as the description.
  */
-export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility"]);
+export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility", "indirectMurder", "room"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
@@ -213,6 +226,14 @@ export async function setProjectMeta(countdownId, data) {
         if (!Object.hasOwn(given, field) && !Object.hasOwn(given, "secret")) continue;
         const held = secretsOf(countdownId)[field];
         const value = Object.hasOwn(given, field) ? given[field] : (held ?? metaFor(countdownId)[field]);
+        /* A field cleared on a secret project (a room taken away: null; leak-pm, 14.11.2026): the GMs' row lets it go too,
+           or `roomOf` would read the room it held, and projectMeta keeps no key of it. */
+        if ((value === undefined || value === null) && hidden && Object.hasOwn(given, field)) {
+            delete open[field];
+            if (held !== undefined && held !== null) secret[field] = null;
+            taken.push(field);
+            continue;
+        }
         if (value === undefined || value === null) continue;
         if (hidden) {
             delete open[field];
@@ -587,5 +608,56 @@ export async function liftProjectSecrets() {
     // The armed map was built from the world's copy; the next event rebuilds it from the store.
     (await import("./traps.mjs")).forgetArmedTraps();
     if (left) throw new Error(`${left} project secret field(s) are still in projectMeta (${kept} the GM store did not read back); the next load tries again`);
+    return { lifted, kept, emptied: true };
+}
+
+/**
+ * A SECRET PROJECT'S MARK AND ROOM OUT OF WORLD DATA (the 1.2.113 line leak-pm, 14.11.2026). A world from before 1.2.113
+ * holds, on a secret project's projectMeta row, the fields `PROJECT_SECRET_WHILE_SECRET` keeps the GMs' while it is
+ * secret - `indirectMurder` and `room` since 1.2.113, the description and the room action since E44 fix FG6 and E93 C1,
+ * for a row written before them. The clause `liftSecretProjectMarks` (migrate.mjs) runs this once, on the primary, after
+ * the store holds the other GMs' copies, with the rules of `liftProjectSecrets` above: into the store weak and fill-only,
+ * and a field taken out of projectMeta only once the store reads it back from storage; projectMeta read again and written
+ * whole in a step of the projects' queue; a field left throws, so the world is not stamped and the next load tries again.
+ * A field whose value is null tells nothing and moves nothing. Idempotent: a world already through it has none to move.
+ * Its clause then sends every player who sees a secret project their sight again (projects.mjs `retellSights`; not
+ * here: this file does not import its facade), so the killer's browser reads the mark and the room off its copy.
+ *
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}
+ */
+export async function liftSecretProjectMarks() {
+    if (!isPrimaryGm()) return { notPrimary: true };
+    if (await projectSecretStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the project secrets did not arrive; the next load tries again");
+    }
+    const held = row => PROJECT_SECRET_WHILE_SECRET.filter(f => row && typeof row === "object" && Object.hasOwn(row, f) && row[f] !== null && row[f] !== undefined);
+    const rows = {};
+    for (const [id, entry] of Object.entries(projectMeta())) {
+        if (!isSecret(id)) continue;
+        const fields = Object.fromEntries(held(entry).map(f => [f, entry[f]]));
+        if (Object.keys(fields).length) rows[id] = fields;
+    }
+    if (!Object.keys(rows).length) return null;
+    await projectSecretStore.patchMany(rows, { weak: true, fillOnly: true });
+    await projectSecretStore.idle();
+    const { lifted, kept } = await serialWrite(COUNTDOWNS_KEY, async () => {
+        const next = foundry.utils.deepClone(projectMeta());
+        let moved = 0, left = 0;
+        for (const [id, fields] of Object.entries(rows)) {
+            const stored = projectSecretStore.persisted(id) ?? {};
+            for (const field of Object.keys(fields)) {
+                if (Object.hasOwn(stored, field) && stored[field] !== null && stored[field] !== undefined) {
+                    if (next[id] && typeof next[id] === "object") delete next[id][field];
+                    moved++;
+                } else left++;
+            }
+        }
+        if (moved) await game.settings.set(MODULE_ID, SETTINGS.projectMeta, next);
+        return { lifted: moved, kept: left };
+    });
+    const left = Object.entries(projectMeta()).reduce((n, [id, row]) => n + (isSecret(id) ? held(row).length : 0), 0);
+    if (lifted) log(`Lifted ${lifted} mark(s) and room(s) of secret projects out of world data; ${left} left.`);
+    (await import("./traps.mjs")).forgetArmedTraps();
+    if (left) throw new Error(`${left} field(s) of secret projects are still in projectMeta (${kept} the GM store did not read back); the next load tries again`);
     return { lifted, kept, emptied: true };
 }

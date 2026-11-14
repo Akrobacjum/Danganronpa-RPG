@@ -51,21 +51,34 @@ import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName
+    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, shownName, toldSight
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
-    liftProjectSecrets, viewersOf, builderIds, sealAudience, withoutLeak, isSecret, secretChange, revealChange, sightChange
+    liftProjectSecrets, liftSecretProjectMarks, viewersOf, builderIds, sealAudience, withoutLeak, isSecret, secretChange, revealChange,
+    sightChange
 } from "./projects-secrecy.mjs";
 
+/*
+ * A SECRET PROJECT'S ROOM AND MURDER MARK ARE THE GMS' (the 1.2.113 line leak-pm, 14.11.2026; projects-secrecy.mjs
+ * `PROJECT_SECRET_WHILE_SECRET`). Each is read where this browser may hold it: projectMeta's for a public project (and a
+ * secret one's a world from before 1.2.113 still holds there, until its clause `liftSecretProjectMarks` runs), else the
+ * GMs' row on a GM (`secretsOf`), else this player's sight of the project (`toldSight`: a player in on it - the killer
+ * among them - and a Spectator), else nothing: a bystander's browser no longer reads either.
+ */
 /** Which room a project belongs to, if any. */
 export function roomOf(countdownId) {
-    return metaFor(countdownId).room ?? null;
+    const room = metaFor(countdownId).room;
+    if (room) return room;
+    if (!isSecret(countdownId)) return room ?? null;
+    return (game.user?.isGM ? secretsOf(countdownId).room : toldSight(countdownId)?.room) ?? null;
 }
 
 /** Is this project an indirect murder? */
 export function isIndirectMurder(countdownId) {
-    return Boolean(metaFor(countdownId).indirectMurder);
+    if (metaFor(countdownId).indirectMurder) return true;
+    if (!isSecret(countdownId)) return false;
+    return game.user?.isGM ? Boolean(secretsOf(countdownId).indirectMurder) : toldSight(countdownId)?.murder === true;
 }
 
 /**
@@ -306,11 +319,15 @@ async function tellSight(countdownId) {
     const told = { ...(secretsOf(countdownId).sightTold ?? {}) };
     const inside = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM);
     const watchers = [...spectatorUserIds()].filter(id => game.users.get(id) && !game.users.get(id).isGM && !inside.includes(id));
-    const letIn = inside.filter(id => told[id] !== name);
-    const letWatch = watchers.filter(id => told[id] !== `watch:${name}`);
+    /* What was told is the name, and since leak-pm (14.11.2026) the murder mark and the room the sight carries
+       (`sightFor`): a change of either is told again. A plain project's mark is its name alone, as before. */
+    const { murder, room } = sightExtras(countdownId);
+    const mark = `${name}${murder ? "|murder" : ""}${room ? `|room:${room}` : ""}`;
+    const letIn = inside.filter(id => told[id] !== mark);
+    const letWatch = watchers.filter(id => told[id] !== `watch:${mark}`);
     const letOut = Object.keys(told).filter(id => told[id] !== false && !inside.includes(id) && !watchers.includes(id) && game.users.get(id));
-    for (const id of letIn) told[id] = name;
-    for (const id of letWatch) told[id] = `watch:${name}`;
+    for (const id of letIn) told[id] = mark;
+    for (const id of letWatch) told[id] = `watch:${mark}`;
     for (const id of letOut) told[id] = false;
     const users = [...letIn, ...letWatch, ...letOut];
     if (!users.length) return 0;
@@ -325,6 +342,17 @@ async function tellSight(countdownId) {
 /* THE SIGHT'S WIRE (E101 R2): the primary's answer to one player, and a player's ask, as the deaths' copy has them
    (incident-store.mjs `sendDeathsTo`, `askForDeaths`). */
 const SIGHT_MINE = "projects.sight";
+
+/**
+ * GM: what a sight row carries of a secret project beside its name (leak-pm, 14.11.2026): whether it is an indirect murder
+ * and its room, both the GMs' row's while it is secret (projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET`), so that the
+ * killer's browser and each insider's read them as they did off projectMeta. A Spectator's row carries both too (DRPG-D1
+ * gives a Spectator every secret project; the coordinator's default of 14.11.2026, Q-PM-1).
+ */
+function sightExtras(countdownId) {
+    const row = secretsOf(countdownId);
+    return { murder: isIndirectMurder(countdownId), room: typeof row.room === "string" && row.room ? row.room : roomOf(countdownId) };
+}
 const SIGHT_ASK = "projects.sightAsk";
 
 /**
@@ -346,7 +374,7 @@ function sightFor(userId, { also = [], held = [] } = {}) {
         if (typeof name !== "string" || !name) continue;
         const inside = insidersOf(project.id).includes(userId);
         if (!inside && !watching) continue;
-        sight[project.id] = { in: inside, name };
+        sight[project.id] = { in: inside, name, ...sightExtras(project.id) };
         stamps[project.id] = now;
     }
     for (const id of [...also, ...held]) if (typeof id === "string" && !(id in stamps)) stamps[id] = now;
@@ -390,7 +418,8 @@ async function receiveSight(sight, stamps) {
         own[id] = Number(s) || 0;
         const row = sight?.[id];
         if (!row || typeof row !== "object") continue;
-        mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null };
+        mine[id] = { in: row.in === true, name: typeof row.name === "string" ? row.name : null, murder: row.murder === true,
+            room: typeof row.room === "string" && row.room ? row.room : null };
     }
     const taken = await projectSightCopy.receive(mine, own);
     if (taken) noticeSight(before, projectSightCopy.read() ?? {});
@@ -987,7 +1016,8 @@ export const COMPLETION_EFFECTS = [
          * arming. A killer nobody can identify arms nothing, as before (`announceTrapReady` says so).
          */
         key: "trigger",
-        has: meta => Boolean(meta.indirectMurder),
+        // The step's row is both halves on the primary (`changeStep`); read through `isIndirectMurder` all the same (leak-pm).
+        has: (meta, id) => Boolean(meta.indirectMurder) || isIndirectMurder(id),
         onCrossed: ({ id, name, meta }) => {
             if (meta.trigger?.firedAt) return {};
             const killer = game.actors.get(meta.killerId ?? "") ?? game.actors.get(meta.by ?? "");
@@ -1613,7 +1643,7 @@ async function changeStep(countdownId, change, by) {
     const answers = [];
     if (crossed || uncrossed) {
         for (const row of COMPLETION_EFFECTS) {
-            const has = typeof row.has === "function" ? row.has(meta) : Boolean(meta[row.key]);
+            const has = typeof row.has === "function" ? row.has(meta, countdownId) : Boolean(meta[row.key]);
             const hook = crossed ? row.onCrossed : row.onUncrossed;
             if (has && typeof hook === "function") answers.push(await hook(ctx) ?? {});
         }
@@ -2209,6 +2239,7 @@ async function announceProjectDone(name, target, moverUserId, meta) {
     // the row (`changeStep`). Reading it fresh here would answer about a repair
     // that has already been deleted.
     if (meta.repairs) return null;
+    // `meta` is both halves (the step's snapshot): a secret murder's mark is the GMs' since leak-pm.
     if (meta.indirectMurder) return null;
 
     const founder = game.actors.get(meta.by ?? "");

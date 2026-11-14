@@ -47,7 +47,7 @@ import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from 
 import { keepLive } from "./live.mjs";
 // What a player saw last (PV): the card's bar as its reader last saw it. It does not import this file.
 import { asSeen } from "./projects-seen.mjs";
-import { discoveryStore, fogCopy } from "./gm-stores.mjs";
+import { discoveryStore, fogCopy, projectSecretStore } from "./gm-stores.mjs";
 
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
@@ -607,6 +607,9 @@ async function syncOneProjectToken(countdownId) {
     }
     const room = roomOf(countdownId);
     if (!room) {
+        /* A secret project's room is the GMs' row's since leak-pm (14.11.2026: projects.mjs `roomOf`): before the other
+           GMs' copies are here a row this browser lacks reads no room, which is not a project that lost one. */
+        if (live && isSecret(countdownId) && !projectSecretStore.isHydrated()) return touched;
         // It lost its room: it has no place, so it has no token.
         if (live) { await removeProjectToken(countdownId); touched++; }
         return touched;

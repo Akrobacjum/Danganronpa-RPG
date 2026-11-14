@@ -841,7 +841,7 @@ async function carryRename(scene, from, to, pieces) {
  * `sceneOfRoom`), so it stood here when no place scene before this one holds the old name.
  */
 async function carryRoomInWorld(scene, from, to) {
-    const [{ applyProjectChange }, secrecy, { carryPlant }, { carryGatherRoom, carrySealedRoom },
+    const [{ applyProjectChange, roomOf: projectRoomOf }, secrecy, { carryPlant }, { carryGatherRoom, carrySealedRoom },
         { carryBodyRooms }] = await Promise.all([import("./projects.mjs"), import("./projects-secrecy.mjs"), import("./traps.mjs"),
         import("./call-world.mjs"), import("./settings.mjs")]);
     const places = placeScenes(), at = places.indexOf(scene);
@@ -849,7 +849,8 @@ async function carryRoomInWorld(scene, from, to) {
     let projects = 0;
     const { projectMeta, rawCountdown, COUNTDOWNS_KEY } = secrecy;
     for (const [id, meta] of Object.entries(projectMeta())) {
-        if (meta?.room !== from) continue;
+        // Through projects.mjs `roomOf`: a secret project's room is the GMs' row's since leak-pm (14.11.2026).
+        if (!meta || typeof meta !== "object" || projectRoomOf(id) !== from) continue;
         if (meta.tokenId && meta.tokenScene ? meta.tokenScene !== scene.id : !firstHere) continue;
         // A project's room is a change of the one entry (E36 C2; audit S17-18), queued with every other change of it.
         // A row whose countdown is gone is no project the entry knows: carried as before, in a step of the same queue.

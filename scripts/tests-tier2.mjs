@@ -51305,6 +51305,86 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["leak-pm-T1 - a secret project's murder mark and room are lifted into the GM store, out of projectMeta once they read back, and a public project's stay (scripts/migrate.mjs clause liftSecretProjectMarks, projects-secrecy.mjs `liftSecretProjectMarks`)", async () => {
+        /*
+         * The 1.2.113 line leak-pm, 14.11.2026. A world from before 1.2.113 carries a secret project's `indirectMurder` and
+         * `room` in projectMeta, which every browser holds (72-canary, red at 123f8242). On fixture rows of old world data,
+         * in a world the stores have never opened (`withGmStoreWorld`): a secret murder's mark and room read back from the
+         * store's storage and leave its row, which keeps its other fields; a public project's row keeps both; projects.mjs
+         * `isIndirectMurder` and `roomOf` read the same on this GM before and after; a second run has nothing to do.
+         * Red before the lift: P.liftSecretProjectMarks is not a function. projectMeta is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./projects.mjs");
+        const ID = "SUITEPMLIFTPRJ01", OPEN = "SUITEPMLIFTPRJ02";
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const old = { room: "SUITE pm lifted room", indirectMurder: true, secret: true, countsUp: true, trait: null };
+        const pub = { room: "SUITE pm open room", indirectMurder: false, secret: false, countsUp: true };
+        const read = {};
+        try {
+            await E.withGmStoreWorld(`suite-pmlift-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...before, [ID]: old, [OPEN]: pub });
+                read.before = [P.isIndirectMurder(ID), P.roomOf(ID), P.isIndirectMurder(OPEN), P.roomOf(OPEN)];
+                const report = await P.liftSecretProjectMarks();
+                const row = S.projectSecretStore.persisted(ID) ?? {};
+                read.stored = [row.indirectMurder ?? null, row.room ?? null, S.projectSecretStore.persisted(OPEN) ?? null];
+                read.meta = [P.metaFor(ID), P.metaFor(OPEN)];
+                read.after = [P.isIndirectMurder(ID), P.roomOf(ID), P.isIndirectMurder(OPEN), P.roomOf(OPEN)];
+                read.report = [report?.lifted, report?.kept, report?.emptied];
+                read.again = await P.liftSecretProjectMarks();
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+        }
+        equal(stableJson(read), stableJson({
+            before: [true, "SUITE pm lifted room", false, "SUITE pm open room"],
+            stored: [true, "SUITE pm lifted room", null],
+            meta: [{ secret: true, countsUp: true, trait: null }, pub],
+            after: [true, "SUITE pm lifted room", false, "SUITE pm open room"],
+            report: [2, 0, true], again: null }),
+            "{before/after: [the murder's mark, its room, the public project's mark, its room] on this GM; stored: [the mark, the room read back from storage, the public project's row]; meta: [the secret row, the public row]; report: [lifted, kept, emptied]; again: a second run}");
+    }],
+
+    ["leak-pm-T2 - a secret project's murder mark and room stay in projectMeta when the store's rows do not read back, and the lift throws with the count", async () => {
+        /*
+         * The other half of leak-pm-T1, as "the project secrets' lift leaves projectMeta as it was" above does it: the
+         * store's save is swallowed - the rows stand in memory and not on disk, as after a failed save - and the world keeps
+         * both fields; the lift throws with the count, so the migration does not stamp the world and the next load tries
+         * again. In a world the stores have never opened; projectMeta is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./projects.mjs");
+        const ID = "SUITEPMLIFTPRJ03";
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const old = { room: "SUITE pm kept room", indirectMurder: true, secret: true, countsUp: true };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-pmkept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...before, [ID]: old });
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.projectSecretStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const threw = await thrown(() => P.liftSecretProjectMarks());
+                putBack();
+                ok(S.projectSecretStore.has(ID), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([/^2 field\(s\) of secret projects are still in projectMeta \(2 /.test(threw ?? ""), P.metaFor(ID)]), stableJson([true, old]),
+                    `projectMeta lost a field whose row is not on disk, or the lift did not throw with the count: ${threw}`);
+            });
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+        }
+    }],
+
     ["the declarations' lift moves the world's pendingMurders into the GM store, and empties the key once they read back", async () => {
         /*
          * E05 C3, 26.09.2026; audit S10-01. A world from before 1.2.64 carries each Direct
@@ -51713,7 +51793,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["the case health check names an indirect murder and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
+    ["the case health check names a secret project and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
         /*
          * E05 fix r1-G4, 27.09.2026; reviews M4 = S1-m5, M6 = S1-m6. A GM browser that lost its
          * storage with no other GM to hand the rows back lost every indirect murder's killer,
@@ -51741,15 +51821,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await setNoteFlag(two, { written: false });
                 const base = await S.gmStoreHealth();
                 const was = { murders: base.counts.projectSecrets?.of ?? 0, lost: base.counts.projectSecrets?.missing ?? 0, notes: base.counts.notes?.missing ?? 0 };
+                /* Since the leak-pm line (14.11.2026) the check counts the secret projects with no row, not the murders: a secret
+                   murder's mark is the GMs' row's, so world data says only that a project is secret (`secret`). */
                 await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...meta,
-                    SUITEG4LOSTPJ00: { room: null, indirectMurder: true }, SUITEG4KEPTPJ00: { room: null, indirectMurder: true } });
+                    SUITEG4LOSTPJ00: { secret: true }, SUITEG4KEPTPJ00: { secret: true } });
                 await S.projectSecretStore.patch("SUITEG4KEPTPJ00", { condition: "SUITE r1-G4 kept condition" });
                 await setNoteFlag(one, { updatedAt: 50, written: true });
                 await setNoteFlag(two, { updatedAt: 50, written: true });
                 await S.noteStore.patch(two.id, { text: "SUITE r1-G4 an older note", updatedAt: 40, byGm: false });
                 const report = await S.gmStoreHealth();
                 equal(counts(report), stableJson([{ of: was.murders + 2, missing: was.lost + 1 }, { missing: was.notes + 2 }]),
-                    "the indirect murder with no row, or the two notes this browser lacks or holds older, were not counted");
+                    "the secret project with no row, or the two notes this browser lacks or holds older, were not counted");
                 const lines = ["projectSecrets", "notes"].map(id => rowOf(report, id));
                 ok(lines.every(r => r?.level === "missing" && !S.healthLine(r).startsWith("DRPG.")),
                     `the report has no missing row with a text for them: ${stableJson(lines)}`);

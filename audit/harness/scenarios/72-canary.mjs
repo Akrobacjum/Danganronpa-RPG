@@ -260,13 +260,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        secret (projects.mjs `createProject`: `hidden = secret || indirectMurder`), so its `indirectMurder` mark in
        projectMeta, a world setting every browser holds, told any console that a murder plan exists, and which countdown
        it is. Read on the two browsers that are not the killer's player's; the row has to be there. Red at 123f8242 on
-       both: {"row":true,"murder":true}. */
+       both: {"row":true,"murder":true}; green since the mark is the GMs' row's while the project is secret
+       (projects-secrecy.mjs `PROJECT_SECRET_WHILE_SECRET`). */
     const markHolds = p => p.eval(`const row = (game.settings.get("${MOD}", "projectMeta") ?? {})["${made ?? "none"}"] ?? null;
         return { row: Boolean(row), murder: row && typeof row === "object" && Object.hasOwn(row, "indirectMurder") ? row.indirectMurder : "absent" };`);
     const markP1 = await markHolds(p1), markP2 = await markHolds(p2);
     check("p1 and p2: projectMeta's row of the secret project holds no indirectMurder mark",
-        Boolean(made) && [markP1, markP2].every(m => m.row && m.murder === "absent"), JSON.stringify({ p1: markP1, p2: markP2 }),
-        { expectedRed: { stage: "E54", why: "the leak-pm line's red first: the mark is still projectMeta's" }, measured: Boolean(made) });
+        Boolean(made) && [markP1, markP2].every(m => m.row && m.murder === "absent"), JSON.stringify({ p1: markP1, p2: markP2 }));
 
     /* A SECRET PROJECT'S NAME AND WHO IS IN ON IT ARE NOT IN DAGGERHEART'S COUNTDOWNS (known leak S17-31; the coordinator's
        task of 12.11.2026, stricter than the marker scan). Daggerheart's world setting Countdowns reaches every browser: on
@@ -405,7 +405,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         Boolean(made) && [roomP1, roomP2].every(toldByToken), JSON.stringify({ p1: roomP1, p2: roomP2 }));
     /* The case the E59 line did not measure: a secret project with a room and no token. A GM's deletion of its token keeps
        it off the map (projects-map.mjs `onProjectTokenDeleted`, `mapHidden`), so nothing on the map tells its room; the
-       meta alone would. A secret project of no murder, in Storage, its token deleted by the GM; read, then deleted. */
+       meta alone would. A secret project of no murder, in Storage, its token deleted by the GM; read, then deleted. Red at
+       123f8242: {"row":true,"room":"Storage","token":null} on both. */
     const offMap = await gm.eval(`${PROJ}
         const p = await P.createProject({ name: "Canary off-map probe", secret: true, room: "Storage" });
         if (!p?.id) return { id: null };
@@ -422,10 +423,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const offP1 = await roomHolds(p1, offMap.id), offP2 = await roomHolds(p2, offMap.id);
     check("p1 and p2: projectMeta names no room of a secret project kept off the map (no token)",
         Boolean(offMap.id) && offMap.hadToken && offMap.hidden && offMap.room === "Storage" && [offP1, offP2].every(m => m.row && m.token === null && m.room === null),
-        JSON.stringify({ offMap, p1: offP1, p2: offP2 }),
-        { expectedRed: { stage: "E54", why: "the leak-pm line's red first: a secret project's room is projectMeta's" },
-            measured: Boolean(offMap.id) && offMap.hadToken && offMap.hidden && offMap.room === "Storage" });
+        JSON.stringify({ offMap, p1: offP1, p2: offP2 }));
     await gm.eval(`${PROJ} if ("${offMap.id ?? ""}") await P.deleteProject("${offMap.id ?? ""}"); return true;`, { timeout: 60000 });
+    /* AND THE KILLER'S BROWSER READS BOTH AS BEFORE (leak-pm): p3, Chie's player, holds no GM store; the mark and the room
+       come to it on its sight of the project (projects.mjs `sightFor`, projects-secrecy.mjs `toldSight`), and every reader
+       of either on a player's browser asks `isIndirectMurder` or `roomOf` (the Work's concealment, a Hope Call's traces,
+       the sabotage line, `allProjects()`'s row and the lists built on it). Read beside them on p1, who
+       is not in on it: neither, where at 123f8242 projectMeta gave it both. */
+    const markSight = p => p.eval(`${PROJ} const row = P.allProjects().find(p => p.id === "${made ?? "none"}") ?? null;
+        return { murder: P.isIndirectMurder("${made ?? "none"}"), room: P.roomOf("${made ?? "none"}"),
+            row: row ? [row.indirectMurder, row.room] : null };`);
+    const killerSight = await settled("sight", async () => { const v = await markSight(p3); return v.murder && v.room ? v : null; }) ?? await markSight(p3);
+    const bystanderSight = await markSight(p1);
+    check("p3 (the killer's player) reads its plan as an indirect murder in Storage, off its sight; p1 reads neither",
+        killerSight.murder === true && killerSight.room === "Storage" && JSON.stringify(killerSight.row) === JSON.stringify([true, "Storage"])
+        && bystanderSight.murder === false && bystanderSight.room === null && (bystanderSight.row === null || JSON.stringify(bystanderSight.row) === JSON.stringify([false, null])),
+        JSON.stringify({ p3: killerSight, p1: bystanderSight }));
     await scanned("trap", KILLER_CHAT);
     /* The trap's receipt (E06 C8): a veiled thread card. Found on the GM in Chie's player's
        thread by its title, then read by id on p3 - listed in her own thread from the meta its

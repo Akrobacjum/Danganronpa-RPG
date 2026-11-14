@@ -7098,7 +7098,9 @@ const REGRESSIONS = [
             ["liftIncidentFight", "liftIncidentFight", "1.2.66"],
             // E72 C2: the crime witness's mark off its actor, into the GMs' Monocub record; since the version E72 ships in,
             // 1.2.110 (the coordinator's, 12.11.2026; the line planned 1.2.117).
-            ["liftCubWitness", "liftCubWitness", "1.2.110"]];
+            ["liftCubWitness", "liftCubWitness", "1.2.110"],
+            // The leak-pm line (1.2.113): a secret project's murder mark and room out of projectMeta, into the GMs' rows.
+            ["liftSecretProjectMarks", "liftSecretProjectMarks", "1.2.113"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.

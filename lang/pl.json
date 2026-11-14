@@ -8442,10 +8442,10 @@
           "other": "{n} uzbrojonej pułapki na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać."
         },
         "projectSecrets": {
-          "one": "{n} morderstwo pośrednie (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: jego pułapka nie może się uzbroić ani zadziałać.",
-          "few": "{n} morderstwa pośrednie (z {of}) nie mają w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.",
-          "many": "{n} morderstw pośrednich (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.",
-          "other": "{n} morderstwa pośredniego (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać."
+          "one": "{n} tajny projekt (z {of}) nie ma w tej przeglądarce zapisu: brak tu jego nazwy, pokoju i tego, kto o nim wie, a pułapka morderstwa pośredniego nie może się uzbroić ani zadziałać.",
+          "few": "{n} tajne projekty (z {of}) nie mają w tej przeglądarce zapisu: brak tu ich nazw, pokojów i tego, kto o nich wie, a pułapka morderstwa pośredniego nie może się uzbroić ani zadziałać.",
+          "many": "{n} tajnych projektów (z {of}) nie ma w tej przeglądarce zapisu: brak tu ich nazw, pokojów i tego, kto o nich wie, a pułapka morderstwa pośredniego nie może się uzbroić ani zadziałać.",
+          "other": "{n} tajnego projektu (z {of}) nie ma w tej przeglądarce zapisu: brak tu ich nazw, pokojów i tego, kto o nich wie, a pułapka morderstwa pośredniego nie może się uzbroić ani zadziałać."
         },
         "notes": {
           "one": "{n} notatka przed sesją jest oznaczona jako napisana, a ta przeglądarka jej nie ma albo ma starszą.",
