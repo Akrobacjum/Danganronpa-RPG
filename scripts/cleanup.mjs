@@ -83,7 +83,7 @@ import { copiedRemnants, bulletsOf, secretOf, dropSecret } from "./truth-bullets
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
-import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
+import { announce as announcePlain, whisperToGms, log, error, cardHead, isPrimaryGm, plural, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
@@ -912,7 +912,7 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         if (line) done.push(line);
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction, charged });
+    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free: Boolean(receipt?.free) });
     await keepAttempt(receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
@@ -1243,7 +1243,7 @@ export async function resolveCleanup({
         if (line) done.push(line);
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction, charged });
+    await report(actor, data, { band, success, total, dc, done, viaAction, charged, free });
     await keepAttempt(receipt);
     await keepAttemptFact(rolls, roll, actorId, receipt);
 
@@ -2558,7 +2558,9 @@ async function restoreStress(actor, amount = 1) {
 async function report(actor, data, {
     band, success, total, dc, done, viaAction = false,
     /** What the attempt paid, as a price receipt, or null when nothing said. */
-    charged = null
+    charged = null,
+    /** The free attempt (the receipt's `free`): it owes no Sanity, and `Cleanup.freeAttempt` in `done` says so. */
+    free = false
 }) {
     const summary = done.map(line => `<li>${line}</li>`).join("");
 
@@ -2582,7 +2584,9 @@ async function report(actor, data, {
             // pays Sanity from the tile, and an investigator in Stage 6's window
             // pays an action).
             ? `<p><small>${paidLine(charged)}</small></p>`
-            : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
+            // Not under the free attempt (the needsCode line, R6914): "each attempt costs 1 Sanity" stood beside
+            // Cleanup.freeAttempt there.
+            : free ? "" : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
                 n: RESOLUTION_STRESS_COST })}</small></p>`}`,
         success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });
 
@@ -2996,7 +3000,8 @@ async function destroyTools(actor, categories) {
 
     if (destroyed.length) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.toolsBroken", {
-            items: foundry.utils.escapeHTML(destroyed.join(", "))
+            // Each name in its quotes, the list in the page's language (EN17, EN2; the needsCode line, R6914).
+            items: foundry.utils.escapeHTML(listOf(destroyed.map(item => game.i18n.format("DRPG.Loot.itemQuoted", { item }))))
         })}</p>`);
         log(`Cleanup: ${destroyed.join(", ")} used by ${actor.name} is broken and still on them.`);
     }

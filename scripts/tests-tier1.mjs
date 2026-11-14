@@ -37985,6 +37985,24 @@ const INVARIANTS = [
             "[every call of the GM's picks gives the granted reason; the key exists]");
     }],
 
+    ["R6914 - a clean-up's report keeps to what was paid, and a broken tool's name stands in its quotes (needsCode, 14.11.2026, after E54; EN2, EN17): cleanup.mjs `report` takes `free` and says `Cleanup.stressSpent` only for an attempt that was not the free one, both its callers (`resolveCleanup`, `resolveTransformRoad`) passing it; `destroyTools` names each broken item through `Loot.itemQuoted`, the list joined by `listOf`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #28, #29, held for E54's split of
+         * cleanup.mjs. Red at 7a5be797: `report` printed \"Each clean-up attempt costs 1 Sanity\" under the free attempt
+         * (charged null, so the fallback line), beside `Cleanup.freeAttempt`; destroyTools wrote \"Knife, Rope\" with no
+         * quotes and no \"and\".
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "cleanup.mjs")?.[1] ?? "");
+        const rep = fnSource(src, "report") ?? "", tools = fnSource(src, "destroyTools") ?? "";
+        const roads = ["resolveCleanup", "resolveTransformRoad"].map(fn => fnSource(src, fn) ?? "");
+        must(rep.includes("DRPG.Cleanup.stressSpent") && tools.includes("DRPG.Cleanup.toolsBroken") && roads.every(Boolean), "a clean-up function is gone - this reads nothing");
+        equal(stableJson({ free: /\bfree = false\b/.test(rep) && /free \?/.test(rep),
+            callers: roads.map(body => /await report\([^)]*\bfree\b/.test(body)),
+            tools: [/destroyed\.join\(", "\)\s*\}\)/.test(tools) || /items: foundry\.utils\.escapeHTML\(destroyed\.join/.test(tools), /\blistOf\(/.test(tools), tools.includes("DRPG.Loot.itemQuoted")] }),
+            stableJson({ free: true, callers: [true, true], tools: [false, true, true] }),
+            "[report takes free and branches on it; each caller passes free; destroyTools: joined by hand, listOf, quoted]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
