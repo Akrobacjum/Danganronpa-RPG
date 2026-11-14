@@ -427,6 +427,11 @@ const clockOf = () => {
     const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
     return { chapter, day, session, timeOfDay, phase };
 };
+/* The time of day a mask stands in, as mask-gm.mjs keeps it (eavesdrop-gm.mjs `markNow`): chapter, day and time of day. */
+const maskMark = () => {
+    const { chapter, day, timeOfDay } = getClock() ?? {};
+    return `${chapter ?? 0}:${day ?? 0}:${timeOfDay ?? ""}`;
+};
 
 const offerDark = run => Boolean(run.model && run.model.stage !== "resolution") || run.phase === "classTrial";
 
@@ -485,6 +490,12 @@ const STEPS = {
         }
         const fail = band === "fail";
         await run.M.resolveKillerOpening({ total: fail ? 1 : 24, isCritical: band === "critical", withHope: band === "hope" || band === "critical" });
+        /* THE MASK, AS THE MODULE'S RULE GIVES IT (E69 C8, the owner's 10.11 (c); t2-restore, 14.11.2026): an opening the
+           rule says opens a mask (mask-gm.mjs `opensMask`, pure: a direct murder's, not self-inflicted, that succeeds on Hope
+           or a critical) hides its killer until the reveal (no step of the grid's) or the next time of day. The model keeps
+           the killer and the time of day the mask went up in; I2 reads that, not the GMs' store. */
+        const { opensMask } = await import("./mask-gm.mjs");
+        if (opensMask({ success: !fail, band, indirect: m.kind === "trap", selfInflicted: m.kind === "self" })) run.masks.set(m.killerId, maskMark());
         if (fail) closeIncident(run);
         else if (m.kind === "self") stageSix(run, { body: false });
         else m.stage = "incident";
@@ -1247,7 +1258,15 @@ async function assertIncidentInvariants(run) {
             continue;
         }
         const killerSide = killersOf(m).some(id => ownerOf(game.actors.get(id))?.id === user.id);
-        const killer = m.kind === "trap" && !killerSide ? null : m.killerId;
+        /* A seat that is not the killers' holds no killer while the killer's mask stands - the rule as mask-gm.mjs's header
+           writes it ("THE CAST. Every copy but the killers' holds `killerId` and `killerTurnId` null while the mask
+           stands"), built in incident-store.mjs `castCopyFor` (E69 C8) - as a trap's victim's holds none: the model's
+           mask, of this killer, in the time of day it went up in. The killers are the model's `killersOf`, the killer and
+           a third on their side, as `killerIds` names them; their copies still name the killer. Until 14.11.2026 this line
+           knew no mask, and 42 cases (on 6dd02975) read the null of the victim's copy, and of a third's before they chose,
+           against the model's name. */
+        const maskedHere = !killerSide && run.masks.get(m.killerId) === maskMark();
+        const killer = (m.kind === "trap" && !killerSide) || maskedHere ? null : m.killerId;
         if ((copy.killerId ?? null) !== killer) run.violate("I2", `${user.name}'s copy names the killer ${nameOf(copy.killerId)}, the model's ${nameOf(killer)}`);
         if ((copy.victimId ?? null) !== m.victimId) run.violate("I2", `${user.name}'s copy names the victim ${nameOf(copy.victimId)}, the model's ${nameOf(m.victimId)}`);
         if (!none(copy.lastCrisis) || "swung" in copy) run.violate("I2", `${user.name}'s copy holds the Reroll receipt or the swing memo`);
@@ -1577,6 +1596,9 @@ async function runCase(id) {
         swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: [],
         turnFloor: 0, fresh: false, undone: false, at: 0, stepStarted: 0, stopped: false, beforeAct: null, room: null, checklist: null, brink: false,
         closeOffers: 0, drawn: [], refusal: null, faults: [],
+        /* The masks the model holds standing (E69 C8; t2-restore, 14.11.2026): killer id -> the time of day it went up in
+           (`maskMark`), set by `opening` alone. */
+        masks: new Map(),
         /* One line per distinct violation, at the first step it was seen, and how many steps after it still saw it. */
         violate(inv, what, at = run.at) {
             const seen = found.find(f => f.inv === inv && f.what === what);

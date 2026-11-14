@@ -7976,6 +7976,11 @@ const SCENARIOS = [
          * murder-rules.mjs `tellVictimTheIncidentBegan`). A trap's victim is told the trap closed,
          * and nothing of its builder. Each murder is opened and its incident started with the
          * same two students; the words sent to the victim's player are read off the packets.
+         * E69 C8 (t2-restore, 14.11.2026): an opening on Hope or a critical now hides the killer behind a "?"
+         * (mask-gm.mjs; its header's rule: "the victim's first whisper says 'someone'"; murder-rules.mjs
+         * `tellVictimTheIncidentBegan`), and the victim is told "someone" (`victimSomeoneMoves`). This test opened on Hope and read
+         * the name, so it failed from ad89e657 on. The named whisper is read on an opening that succeeds on Fear (24,
+         * no Hope: no mask), and the masked one on Hope, last, with no name in it.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player to be told");
         const M = await import("./murder.mjs");
@@ -7986,7 +7991,7 @@ const SCENARIOS = [
         const toVictim = words => words.filter(w => w.to.includes(player(victim).id)).map(w => w.html);
         const direct = toVictim(await wordsSent(async () => {
             await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
-            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
             await settle();
         }));
         await M.endMurder({ reason: "test", followUp: false });
@@ -7996,12 +8001,22 @@ const SCENARIOS = [
             if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
         }));
+        await M.endMurder({ reason: "test", followUp: false });
+        await settle();
+        const masked = toVictim(await wordsSent(async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+        }));
         const attacked = game.i18n.format("DRPG.Murder.victimUnderAttackBy", { killer: name });
         const sprung = game.i18n.localize("DRPG.Murder.victimTrapSprung");
-        equal(stableJson([direct.some(h => h.includes(attacked)), trap.some(h => h.includes(sprung)), trap.some(h => h.includes(name))]),
-            stableJson([true, true, false]),
-            `the direct victim was not told the killer's name, or the trap's victim was not told it closed, or was told its builder's name: ${
-                stableJson({ direct: direct.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)), trap: trap.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)) })}`);
+        const someone = game.i18n.localize("DRPG.Murder.victimSomeoneMoves");
+        const plain = h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80);
+        equal(stableJson([direct.some(h => h.includes(attacked)), trap.some(h => h.includes(sprung)), trap.some(h => h.includes(name)),
+            masked.some(h => h.includes(someone)), masked.some(h => h.includes(name))]),
+            stableJson([true, true, false, true, false]),
+            `the direct victim on Fear was not told the killer's name, or the trap's victim was not told it closed, or was told its builder's name, or the masked killer's victim on Hope was not told "someone", or was told the name: ${
+                stableJson({ direct: direct.map(plain), trap: trap.map(plain), masked: masked.map(plain) })}`);
     }],
 
     ["a second killer in the same Eclipse is told only that the attempt is refused", async () => {
