@@ -18649,6 +18649,15 @@ body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g4) :is(#drpg-vo
 #drpg-sequence .drpg-seq-mood { display: grid; gap: calc(4 * var(--drpg-seq-u)); font: var(--drpg-seq-weight) calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font); text-transform: var(--drpg-seq-case); }
 #drpg-sequence .drpg-seq-mood small { font-size: 0.55em; letter-spacing: 0.12em; opacity: 0.8; }
 #drpg-sequence .drpg-seq-mood[data-drpg-mood="spilling"] { color: var(--drpg-seq-band); }
+/* THE CASE SUMMARY'S BOARD (fix-113p, 1.2.113; sequence.mjs `caseSummaryElement`; the owner's item 451 of 09.11.2026):
+   the day boards' frame and columns, the table's clicks let through as theirs (it goes by itself, Escape earlier). A case
+   has more words than a day: each entry's words are held to three lines and the board to the screen, so a long case
+   is cut at the board's foot rather than run off it - the chat card it plays from is the record and holds every word. */
+#drpg-sequence.drpg-sequence-caseSummary { pointer-events: none; }
+#drpg-sequence .drpg-seq-case { max-height: calc(100vh - 48px); overflow: hidden; }
+#drpg-sequence .drpg-seq-case .drpg-seq-row { display: grid; gap: calc(2 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-case .drpg-seq-row span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+#drpg-sequence .drpg-seq-case-links { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: calc(6 * var(--drpg-seq-u)) calc(18 * var(--drpg-seq-u)); font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) var(--drpg-seq-font); opacity: 0.85; }
 /* ==========================================================================
    E105 FT, BATCH 3 - FOUNDRY'S AND DAGGERHEART'S CHROME IN THE MODULE'S DRESS, BOTH THEMES
    --------------------------------------------------------------------------

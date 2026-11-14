@@ -85,6 +85,18 @@ all green. `node tools/check.mjs` 17/17, lint green.
 
 - C3 (death fade, Monocub return): the owner's 05.11 amend says these "get a storyboard and a mockup before E62 is built"; no such mockup exists in what I could read. Not started; owner's step.
 - C6 (the interface following a recut per frame): the plan's riskiest part; not started (below, 1.2.109).
+  Built in 1.2.113 (fix-113p, 13.11.2026; the owner's decision that every audit change goes in 1.2.113, A113-C5-8):
+  the blocks the cut seats - the room tile beside the notices with its picture, the voice tile and its portrait, the
+  notice tile and its plate - ride from the box they stood in to their new box on the turn's curve, clock and 700 ms,
+  by `translate` and `scale` (glass.mjs `FOLLOWERS`, `followFrames`, `followTurn`; R6052, R6053). Measured with
+  `node audit/glass-sweep.mjs --follow` (both roles, 1600x900 and 1920x1080, the phase recut and the layout turn): the
+  notice tile, the one rider these turns move, 0 px off its rest when the panes begin to move, against 14.2-46.9 px in
+  one frame at ceb9e9c8 (its top edge 92.9 px with the rides emptied, the control); a ride's clock 0 ms off its pane's.
+  `--turn` reads as at ceb9e9c8 on the two recuts (its two reds there, the layout turn at 1600x900 39 % and the phase
+  recut at 1920x1080 73 %, are the base's too). Not done of the plan's C6: the room tile under the clock and its picture
+  step at the recut as before (the clock's column lays the tile, and the picture riding alone read 51 % on `--turn`);
+  the interface scale and the narrow breakpoints are not touched (no recut turn changes them); per-frame screenshots
+  at 1366x768 and 1920x1080 in both themes were not taken.
 
 ## Defaults taken, owner to confirm
 

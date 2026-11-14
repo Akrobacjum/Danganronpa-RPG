@@ -3057,6 +3057,134 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   job.turn = h;
   return frame ? startTurn(h, frame) : startTurn(h);
 }
+/* ---- THE INTERFACE RIDES ITS PANE THROUGH A RECUT (E62 C6, 13.11.2026; the owner's 10.11 and LIVE-E62-01 on 1.2.103:
+   "textures and effects still change while the curtain animates", the colours and textures near the edge refreshing at
+   the move's start) -------------------------------------------------------------------------------------------------
+   A recut's glass travels to its new cut over the turn's 700 ms (`glassTurn`), but what the cut SEATS - the room tile
+   beside the notices and its picture, the voice tile and its portrait, the notice tile and its plate (`seatRoomTile`,
+   `seatRoomArt`, `seatVoiceTile`, `seatVoiceArt`, `fitNoteTile`, `seatNoteFrame`) - was written at the new cut in the
+   pass that made it, so it stood at its end while its pane was still at its start. Measured on the glass harness at
+   ceb9e9c8 (1.2.112, Chromium, GM, pulse off, every animation frame from the event): a phase recut at 1600x900 stepped
+   the room tile's picture 14.2 px in one frame; the layout turn (the room tile hidden) stepped the notice tile 46.9 px
+   in one frame (its height 92.9 px), at 1920x1080 19.1 px. Those are the pictures and plates whose edges and textures
+   changed while the glass beside them had not yet moved.
+   Now each of them, where its pane moves, rides from the box it stood in on the screen when the pass began (`rebuild`
+   reads it, ride and all, so a recut inside a turn hands on from where the block is seen) to the box the new cut gives
+   it, on the turn's curve, in its 700 ms, from the same start time as the pane's layers: at each of 21 samples it
+   wears the box between the two at the eased share - the share by which every point of a pane travels under its affine
+   map - by its `translate` and `scale` (the individual properties, so the rotation its rule writes stands under them),
+   the last sample the identity: no step at the start or the end. Position and size, not shear: a block's words are not
+   slanted. A first try rode the pane's own affine map and read 5.1 px off rest at the move's start for the room tile's
+   picture and 22.1 px for the notice tile (`--follow`, 13.11): a block's box is not its pane's image under that map.
+   Only transform properties move: no layout, no paint of a canvas, no clip path. A block whose pane stood, or one that
+   came or went with the recut, does nothing. A turn cancelled - a new recut, Escape (`skipTurn`), reduced motion
+   switched on - cancels these with it: the end state at once. Pure part `followFrames` (R6052); the measure is
+   glass-sweep.mjs `--follow`. NOT COVERED: the room tile under the clock and its picture. The clock's column lays that
+   tile and moves it at once when the clock changes height, and its picture, riding alone, stood apart from it (the
+   `--turn` texture reading below, `FOLLOWERS`); so there both step at the recut as they did, the picture 14.2 px at
+   1600x900 on the harness's phase recut. */
+export const FOLLOWERS = Object.freeze([
+  /* the room tile only where the cut seats it, beside the notices (`data-place="notes"`): under the clock it is laid by
+     the clock's column, which moves it when the clock changes height - before the recut (150 ms behind, `schedule`) -
+     and a ride would carry it back to where the clock no longer is (the glass harness at 1920x1080: 28.5 px up at the
+     event, then back down at the recut) */
+  Object.freeze({ sel: "#drpg-room-tile", tone: "room-block", place: "notes" }),
+  /* and its picture with it, never alone: riding under a tile the clock had already moved, the picture stood apart from
+     it for the move, and `--turn` read the phase recut's texture at 1600x900 at 51 % of rest in the square at 64,256
+     (95 % at ceb9e9c8, where the picture stepped once) */
+  Object.freeze({ sel: "#drpg-room-art", tone: "room-block", place: "notes", of: "#drpg-room-tile" }),
+  Object.freeze({ sel: "#drpg-voice-tile", tone: "voice-block" }),
+  Object.freeze({ sel: "#drpg-voice-art", tone: "voice-block" }),
+  Object.freeze({ sel: "#drpg-popups", tone: "note-block" }),
+  Object.freeze({ sel: "#drpg-note-frame", tone: "note-block" })
+]);
+/**
+ * The keyframes of a block riding its pane (E62 C6; pure, R6052): `from` the box it stood in, `to` its box at the new
+ * cut (each `{ x0, y0, x1, y1 }`, the screen's), `O` its transform-origin on the screen; `curve` the turn's, `steps` the
+ * samples. Each keyframe `{ offset, translate, scale }`, laid over the element standing at `to`: the first lays it on
+ * `from`, the last is "0px 0px" and "1 1". Null for an empty box.
+ */
+export function followFrames(from, to, O = [0, 0], { curve = ARRIVE, steps = 20 } = {}) {
+  const ok = b => b && b.x1 > b.x0 && b.y1 > b.y0;
+  if (!ok(from) || !ok(to)) return null;
+  const ease = curveOf(curve), w = to.x1 - to.x0, h = to.y1 - to.y0;
+  const frames = [];
+  for (let s = 0; s <= steps; s++) {
+    const u = s === steps ? 1 : ease(s / steps), v = 1 - u;
+    const b = { x0: v * from.x0 + u * to.x0, y0: v * from.y0 + u * to.y0, x1: v * from.x1 + u * to.x1, y1: v * from.y1 + u * to.y1 };
+    const sx = (b.x1 - b.x0) / w, sy = (b.y1 - b.y0) / h;
+    // the origin stands still under `scale`: x' = O + t + s (x - O), and the box's corner lands on the sample's
+    const tx = b.x0 - O[0] - sx * (to.x0 - O[0]), ty = b.y0 - O[1] - sy * (to.y0 - O[1]);
+    frames.push({ offset: s / steps, translate: num(tx, 2) + "px " + num(ty, 2) + "px", scale: num(sx, 5) + " " + num(sy, 5) });
+  }
+  return frames;
+}
+/* where an element's transform-origin stands on the screen: the origin is the one point its transform leaves in place,
+   so it is read off the box the transform draws (`getBoundingClientRect`) and the transform itself */
+function originOnScreen(el) {
+  const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+  const [ox, oy] = String(cs.transformOrigin || "0px 0px").split(" ").map(v => parseFloat(v) || 0);
+  let X = null;
+  try { X = cs.transform && cs.transform !== "none" && typeof globalThis.DOMMatrixReadOnly === "function" ? new globalThis.DOMMatrixReadOnly(cs.transform) : null; } catch { X = null; }
+  if (!X) return [r.left + ox, r.top + oy];
+  const w = el.offsetWidth || r.width, h = el.offsetHeight || r.height;
+  const q = [[0, 0], [w, 0], [w, h], [0, h]].map(([x, y]) => X.transformPoint({ x: x - ox, y: y - oy }));
+  return [r.left - Math.min(...q.map(p => p.x)), r.top - Math.min(...q.map(p => p.y))];
+}
+/* the blocks on the turn's moving panes set riding (`FOLLOWERS`), each on its pane's move; called by `rebuildAll` once
+   the new cut has seated them. Answers how many ride. Their animations join the turn's (`posed`, then `anims`), so
+   the turn's end and its cancel end them too. */
+const riding = new Set();
+/* each rider's box on the screen as the pass begins (`rebuild`), its ride included */
+const riderBoxes = new Map();
+function readRiders() {
+  riderBoxes.clear();
+  if (!curtains.length) return;
+  for (const f of FOLLOWERS) {
+    const el = document.querySelector(f.sel);
+    if (!el?.isConnected || !el.getClientRects().length) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width && r.height) riderBoxes.set(f.sel, { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom });
+  }
+}
+function followTurn(job, h) {
+  if (!h || h.ended || !h.plan?.recut || typeof Element.prototype.animate !== "function") return 0;
+  const to = job.panes ?? [];
+  let n = 0;
+  const mine = [];
+  for (const f of FOLLOWERS) {
+    const el = document.querySelector(f.sel);
+    if (!el?.isConnected || !el.getClientRects().length || (f.place && document.querySelector(f.of ?? f.sel)?.dataset.place !== f.place)) continue;
+    const i = to.findIndex(p => p.tone === f.tone);
+    // its pane travels in this turn, and the block stood somewhere before the pass
+    if (i < 0 || !h.plan.moves.some(x => x.to === i)) continue;
+    const was = riderBoxes.get(f.sel), r = el.getBoundingClientRect();
+    if (!was || !r.width || !r.height) continue;
+    const now = { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
+    if (Math.max(Math.abs(was.x0 - now.x0), Math.abs(was.y0 - now.y0), Math.abs(was.x1 - now.x1), Math.abs(was.y1 - now.y1)) <= TURN_MOVED) continue;
+    const frames = followFrames(was, now, originOnScreen(el), { curve: h.plan.move.curve });
+    if (!frames) continue;
+    let anim = null;
+    try { anim = el.animate(frames, { duration: h.plan.move.ms, easing: "linear" }); } catch { anim = null; }
+    if (!anim) continue;
+    h.posed?.push(anim);
+    if (h.anims && h.anims !== h.posed) h.anims.push(anim);
+    riding.add(anim);
+    anim.finished?.then(() => riding.delete(anim), () => riding.delete(anim));
+    mine.push(anim);
+    n++;
+  }
+  /* ONE CLOCK WITH THE PANES (measured, 13.11.2026). Made in the same task as the turn's layers, a ride still started
+     later than they did: on the glass harness at 1920x1080 (GM, a phase recut, frames of 150-450 ms in software) the
+     moving panes read 433 ms into their move in the frame the ride read 0, the ride a frame or two behind its pane for
+     the whole move. So the rides take the start time of the turn's first moving layer once the browser has given it
+     one (`ready`): a ride still pending is started there; one that started is set back onto it. */
+  const k = h.layers?.findIndex(l => l.move) ?? -1, ref = k >= 0 ? (h.anims ?? h.posed)?.[k] : null;
+  const align = () => { if (ref?.startTime == null || h.ended) return; for (const a of mine) if (a.playState !== "idle") a.startTime = ref.startTime; };
+  if (mine.length && ref) { if (ref.startTime != null) align(); else ref.ready?.then(align, () => null); }
+  if (n) count("glass.turn.follow", n);
+  return n;
+}
 /* ---- THE ENTRY'S CURTAIN (E61 C3; round 3, 12.11.2026, on the owner's review of round 2) ----
    Round 1 moved every pane to a closed plan by an affine map, and the panes overlapped; round 2 let the standing panes'
    fronts flood the hole, and the owner's word on it was that the new glass did not match the old in size, look or
@@ -3202,7 +3330,21 @@ export function exitPieces() {
   return entryPieces();
 }
 function rebuild() {
-  try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
+  /* A RIDER IS OFF ITS BLOCK WHILE THE PASS MEASURES (E62 C6). The pass reads the blocks as laid - the room tile's top
+     under the clock among them (`placeRoomTile`) - and a block riding a turn wears its ride's `translate` and `scale`,
+     which the measuring pass's rule does not take off as it takes the rotations. Measured on the glass harness at
+     1600x900 (13.11.2026): a second pass inside a phase recut's turn read the room tile where its ride stood, cut for
+     it, and the tile ended 55.9 px from its rest where the turn without riders ends it 14.5 px away. So each ride's
+     effect is taken off its element for the pass (`effect.target`, no frame drawn between) and put back after it; a
+     ride the pass cancelled (a new recut ends the turn) stays ended. Before that, the riders' boxes as seen
+     (`readRiders`): where a new ride starts from. */
+  readRiders();
+  const off = [];
+  for (const a of riding) { const e = a.effect; if (e?.target) { off.push([e, e.target]); e.target = null; } }
+  try { rebuildAll(); } finally {
+    if (document.body.hasAttribute("data-drpg-measuring")) measuring(false);
+    for (const [e, t] of off) if (!e.target) e.target = t;
+  }
 }
 function rebuildAll() {
   for (const j of curtains) {
@@ -3259,6 +3401,8 @@ function rebuildAll() {
           seatNoteFrame();
           globalThis.Hooks?.callAll?.("drpgGlassCut", { room: LAST.room ? { ...LAST.room } : null });
         }
+        // what the cut has just seated rides its pane through the turn (E62 C6, `followTurn`)
+        if (turn?.plan?.recut) followTurn(j, turn);
       } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }
     }
     if (fold) j.foldTurn = false;
