@@ -36,13 +36,14 @@ R block R6300-R6349.
 
 ## Left for the release (E26's own commits, not this line's)
 
-- Move release.yml's "Build the package" step onto `node tools/build-package.mjs` (or add its two `-c` flags to the
-  `git archive` line). Not done here: the build in release.yml is the release's. On the runner's default config the
-  plain command gives the same bytes as the pinned one (measured here with git 2.43.0, not on the runner).
+- release.yml's "Build the package" step: done on this line at the coordinator's ask (C6) - the two `-c` options added
+  to its `git archive`, held by `check package`; not switched to tools/build-package.mjs (the coordinator: a workflow
+  change is hard to test on the release path). Not run in a workflow here.
 - Paste the README blocks of docs/dev/e26/README-DRAFT.md once the owner says yes (Q-E26P-1).
 - The tag v1.3.0, the stamps (`node tools/check.mjs stamps --release v1.3.0`), `.github/release-notes/v1.3.0.md` with
   its "## Checked", `node tools/changelog.mjs --write`, `node tools/stages.mjs ship E26 ...`, the dispatch with
-  `prerelease`, then `promote` (plan C4, C6). The notes say the fonts' licences changed (Special Elite Apache 2.0; the
+  a full release (the owner's rule, through the coordinator 14.11.2026: never a prerelease, always a full release; this
+  replaces release.md step 8's prerelease-then-promote for this release, and the plan's Q-E26-4 default) (plan C4, C6). The notes say the fonts' licences changed (Special Elite Apache 2.0; the
   pixel face renamed DRPG Pixel in its name tables).
 - The plan's C6 checks after publishing: releases/latest, both download URLs 200, the manifest's 1.3.0, the zip without
   docs/dev, audit/ or .github/ (check package already holds the last at every commit).
@@ -66,7 +67,7 @@ R block R6300-R6349.
 | Q-E26P-2 | Section names beside each switch in the README list? | Kept |
 | Q-E26P-3 | The pixel face renamed "DRPG Pixel" inside the woff2 files (OFL condition 3), and the setting's hint no longer naming Press Start 2P? | Done; the credit to Press Start 2P stays in fonts/README.md and the draft |
 | Q-E26P-4 | A LIVE row for the renamed face at a table? | None added: the glyphs are byte-equal (fontTools) and the accents sweep is green |
-| Q-E26P-5 | The seven Polish "MG" where the glossary says "GM" | Not changed here (texts lines' files); reported |
+| Q-E26P-5 | The seven Polish "MG" where the glossary says "GM" | Not changed here; the coordinator passes them to the DRPG.Trial text line and the handbooks line |
 | Q-E26P-6 | tools/crlf-writers.mjs is a standalone tool (20 s), not in `npm run quick` or CI's CRLF dispatch | Standalone; the coordinator may add it to the CRLF dispatch |
 
 ## Done-check (14.11.2026, this machine, 4 cores)

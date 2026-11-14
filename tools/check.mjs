@@ -780,7 +780,8 @@ async function fontsPart() {
 
 /*
  * THE PACKAGE SHIPS WHAT A TABLE READS (E59 C5a, 13.11.2026; D47, E59 plan M6). release.yml builds module.zip with
- * `git archive --format=zip -o module.zip HEAD`, which leaves out what .gitattributes marks `export-ignore`. This
+ * `git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD` (the two options since E26 prep), which
+ * leaves out what .gitattributes marks `export-ignore`. This
  * part lists that archive the same way (`git archive --format=tar --worktree-attributes HEAD`: the committed files,
  * and the working tree's .gitattributes, so an export rule is judged before its commit) and holds it to three rules:
  *   - its top level is the module's: PACKAGE_TOP;
@@ -974,6 +975,37 @@ function packageReproducible() {
 }
 
 /*
+ * release.yml's own build pins the conversions (E26 prep, 14.11.2026; the coordinator's ask). Its runner is Ubuntu,
+ * where autocrlf is off, so the plain `git archive` builds LF today; the two `-c` options make that hold whatever the
+ * runner's git config becomes. Every `git ... archive` command in a `run:` line of the workflow must carry
+ * `-c core.autocrlf=false` and `-c core.eol=lf` before `archive`, and there must be one; after a planted pair: the old
+ * line (caught) and the pinned one (clean).
+ */
+function archivePinProblems(text) {
+    const lines = text.replace(/\r\n/g, "\n").split("\n");
+    const runs = lines.map((l, i) => [i + 1, l]).filter(([, l]) => /^\s*(?:-\s*)?run:\s*\|?\s*git\b.*\barchive\b/.test(l) || /^\s*git\b.*\barchive\b/.test(l));
+    const out = [];
+    for (const [n, l] of runs) {
+        const head = l.slice(0, l.search(/\barchive\b/));
+        if (!/-c\s+core\.autocrlf=false\b/.test(head) || !/-c\s+core\.eol=lf\b/.test(head)) out.push(`line ${n}: \`${l.trim()}\` lacks -c core.autocrlf=false -c core.eol=lf before archive`);
+    }
+    return { runs: runs.length, out };
+}
+function releaseBuildPinned() {
+    const problems = [];
+    const old = archivePinProblems("      - name: Build the package\n        run: git archive --format=zip -o module.zip HEAD\n");
+    const pinned = archivePinProblems("        run: git -c core.autocrlf=false -c core.eol=lf archive --format=zip -o module.zip HEAD\n");
+    if (old.out.length !== 1 || pinned.out.length !== 0 || pinned.runs !== 1) problems.push(`the release build's planted pair read ${JSON.stringify([old, pinned])}`);
+    let text = "";
+    try { text = fs.readFileSync(path.join(REPO, ".github", "workflows", "release.yml"), "utf8"); }
+    catch { return { problems: [...problems, ".github/workflows/release.yml could not be read"], line: "release build not read" }; }
+    const real = archivePinProblems(text);
+    if (!real.runs) problems.push(".github/workflows/release.yml runs no git archive - the build this part holds is gone or renamed");
+    problems.push(...real.out.map(p => `.github/workflows/release.yml ${p}`));
+    return { problems, line: `release.yml: ${real.runs} archive command(s), ${real.runs - real.out.length} pinned, after a planted pair` };
+}
+
+/*
  * No "DM" in what a player or a GM reads (E26 prep, 14.11.2026; the E26 plan: old Polish macros said "DM"). The
  * glossary's word is "GM" in both languages (docs/glossary.json, gm-a); macros/ left the repository on 13.11.2026, and
  * this holds every shipped language file and handbook to the word, after a planted line. "DM" in a script's comment
@@ -1035,11 +1067,13 @@ function pkg() {
     if (!files.length) problems.push("the archive listed no file - this part read nothing");
     const same = packageReproducible();
     problems.push(...same.problems);
+    const release = releaseBuildPinned();
+    problems.push(...release.problems);
     const words = packageWords(entries);
     problems.push(...words.problems);
     if (seen !== plantedCount || plantedGave !== plantedCount) problems.push(`the self-check's planted package gave ${JSON.stringify([...plant, ...missPlant])}`);
     console.log(`package: git archive HEAD (the working tree's .gitattributes): ${files.length} file(s), top level ${tops.join(" ")}; `
-        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; ${same.line}; ${words.line}; self-check ${seen}/${plantedCount} planted fault(s) seen, `
+        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; ${same.line}; ${release.line}; ${words.line}; self-check ${seen}/${plantedCount} planted fault(s) seen, `
         + `${plantedGave - seen} other(s); ${problems.length} problem(s)`);
     return problems;
 }
