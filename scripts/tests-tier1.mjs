@@ -55765,6 +55765,36 @@ const INVARIANTS = [
         }), stableJson({ batchDelay: [0, 360, 900, 1320, 1930, 2400], layersRead: true, top: [0], six: [0, 360, 900, 1320, 1930, 2400], plain: { batches: 8, gapOk: true, firstNearest: true } }),
             "[the plan's batch onsets; the turn's layers read them; top: the first batch's rows; six groups: the flashes' onsets; with no option: batches, the gap, the centre first]");
     }],
+    ["R6094 - a write watch leaves out the primary GM's beat and nothing else (scripts/tests-kit.mjs `watchWrites`; scripts/hud-elapsed.mjs `beatClock`, gm-stores.mjs `clockBeatStore`; fix-113s, 14.11.2026): the beat, written by itself every 60 s while the world runs, landing inside a test's watch is not that test's write, as the dump leaves it out (`DUMP_RULES`, the gmClockBeat row); any other write in the window still is", async () => {
+        /*
+         * fix-113s, 14.11.2026. Red at ceb9e9c8: `watchWrites` noted every setting write in its window, the beat's among
+         * them, under the running test's name. R3712's window is about 1.3 s, so the beat landed in it about once in 46
+         * full tier-1 runs (1.3 / 60) and failed it with `writes: ["setting danganronpa-rpg.gmClockBeat (during
+         * "R3712")"]`: red three times on 13.11.2026 on three lines, never alone. R3727 had met it first and filtered the
+         * beat out by hand (shard 1/8 at b67ceef7); R3712 and R3700 did not. Read here with the beat's own write (the
+         * store's patch `beatClock` makes, written straight so a paused world or a second GM writes it too) and, as the
+         * control, a client setting's change no module listener knows.
+         */
+        const { watchWrites } = await import("./tests-kit.mjs");
+        const { clockBeatStore } = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const beatKey = `${MODULE_ID}.gmClockBeat`, controlKey = `${MODULE_ID}.R6094-control`;
+        const heard = [];
+        const id = Hooks.on("clientSettingChanged", key => heard.push(key));
+        const w = watchWrites(() => "R6094");
+        try {
+            await clockBeatStore.patch(RECORD, { at: serverNow() });
+            await wait(50);
+            Hooks.callAll("clientSettingChanged", controlKey, 1);
+        } finally {
+            w.stop();
+            Hooks.off("clientSettingChanged", id);
+        }
+        must(heard.includes(beatKey), "the beat's write was not heard - this reads nothing");
+        equal(stableJson(w.seen.filter(s => s.includes("R6094"))), stableJson([`setting ${controlKey} (during "R6094")`]),
+            "[what the watch names as the test's writes: the control's alone, not the beat's]");
+    }],
     ["R3712 - a transition is the curtain's and nothing else's (scripts/transitions.mjs `onClockHeard`; E62 C1, C8): heard, it writes no setting and no document and hands the curtain its direction; under reduced motion or with the table's switch off it hands none and schedules no flash; the Class Trial's entry is left to E61; and a second hearing of the same clock plays nothing", async () => {
         /* E62 C1, C8, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
         const T = await import("./transitions.mjs");
@@ -55927,9 +55957,10 @@ const INVARIANTS = [
             body.classList.remove("drpg-flicker");
             T.onClockHeard(c("morning", "dailyLife"), { on: false, still: true });
         }
-        // Not the primary's beat, which ticks every 60 s whatever the test does (scenario 01's BEAT_LEAF, tests-kit.mjs
-        // DUMP_RULES): shard 1/8 at b67ceef7 caught "setting danganronpa-rpg.gmClockBeat" landing during this test.
-        read.writes = w.seen.filter(x => x.includes("R3727") && !x.includes(".gmClockBeat"));
+        // Not the primary's beat, which ticks every 60 s whatever the test does: shard 1/8 at b67ceef7 caught "setting
+        // danganronpa-rpg.gmClockBeat" landing during this test. Since fix-113s the watch leaves it out for every test
+        // (tests-kit.mjs `SELF_TICKING`, R6094).
+        read.writes = w.seen.filter(x => x.includes("R3727"));
         equal(stableJson(read), stableJson({ first: "investigation", second: "hour", hint: "top", lit: 1, escTaken: true, writes: [] }),
             "[the first heard; the second heard; the direction handed last; flickers lit; Escape taken while the second is held; the world written]");
     }],
