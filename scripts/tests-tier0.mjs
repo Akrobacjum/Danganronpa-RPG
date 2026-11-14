@@ -25474,6 +25474,17 @@ const REGRESSIONS = [
         const unwatched = [...read].filter(key => !new RegExp(`\\bSETTINGS\\.${key}\\b`).test(watch)).sort();
         equal(JSON.stringify(unwatched), "[]", "settings a music state reads that the music's updateSetting watch does not follow");
     }],
+    ["R7162 - a player's copy of the GMs' sight of the secret projects redraws what reads it (E59 C-115, CHAINS.md B-R1; the 14.11 kind: a surface that did not hear one of the copies it reads): projects-secrecy.mjs `canSee` reads the copy (`toldSight`), the room tile's project line and the sheets' Projects tile read `canSee`, and since E101 R2 a share or a revoke writes the copy alone; projects.mjs `registerProjectChanges` answers `drpgProjectSightChanged` with the projects' whole sync kind (`applyKind(SYNC.projects)`: the tray, the sheets, the HUD and the tokens), not the tray and the tokens alone", async () => {
+        const sources = new Map(await otherSources());
+        const secrecy = stripComments(sources.get("projects-secrecy.mjs") ?? "");
+        ok(/\btoldSight\b/.test(fnSource(secrecy, "canSee")), "canSee no longer reads the player's copy of the sight - this test reads the wrong road");
+        const sync = stripComments(sources.get("sync.mjs") ?? "");
+        const row = bodyOf(sync, "[SYNC.projects]: Object.freeze(", { until: "]" });
+        ok(/"sheets"/.test(row) && /"hud"/.test(row) && /"projects"/.test(row), `the projects' sync kind no longer redraws the tray, the sheets and the HUD: ${row}`);
+        const listener = fnSource(stripComments(sources.get("projects.mjs") ?? ""), "registerProjectChanges");
+        const body = bodyOf(listener, 'Hooks.on("drpgProjectSightChanged"', { until: "});" });
+        ok(/applyKind\(\s*\w+\.SYNC\.projects\s*\)|applyKind\(\s*SYNC\.projects\s*\)/.test(body), `the sight's change redraws only part of what reads it: ${body.replace(/\s+/g, " ").slice(0, 300)}`);
+    }],
 ];
 
 
