@@ -875,6 +875,7 @@ host with every fragment it takes, in English and Polish. Read on this tree on 0
 | `DRPG.Unit.actionGen` | genitive („1 akcji”, „2 akcji”, „5 akcji”) | `Explain.status.actionsWounded` {actions} (after „zamiast”), `Murder.indirectCost` {actions} (after „do”) | explain.mjs `actionsExplained`; murder-ui.mjs `indirectCostText` |
 | `DRPG.Unit.nextTurnAcc` | accusative with its adjective („najbliższą turę”, „najbliższe 2 tury”, „najbliższych 5 tur”) | `Config.CRISIS_ACTIONS.pin.hint`, `keepDistance.hint` (after „przez”) | utils.mjs `proseOf` (`PROSE_NUMBERS.turns`) |
 | `DRPG.Explain.phase.eclipseReach` | a whole phrase with its preposition („do 1 połączonego pokoju”, „do 2 połączonych pokoi”), so any host takes it | `Explain.phase.eclipse` {reach} | explain.mjs `eclipseExplanation` |
+| `DRPG.Action.reliefTool`, `DRPG.Action.reliefFresh` | a phrase opening with „o {n}” (by how much the number to beat is already lowered: „o 2 dzięki narzędziu do sprzątania w ręku”), after „obniżone”; several joined with „, ” (E71 B04, 14.11.2026) | `Action.dcTamperRelief` {what} | action-briefing.mjs `tamperThresholdFacts` |
 
 English writes `Calls.grantsGen` and `Calls.grantsNom` with the same words as `Calls.grants`. The `DRPG.Unit.*` rows (E66 C4) are the
 numbers config.mjs `PROSE_NUMBERS` and the builders put into a sentence: the unit names its case, English writes every

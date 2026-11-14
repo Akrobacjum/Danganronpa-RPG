@@ -1101,7 +1101,7 @@
         "after": "{killer} atakuje, ale {victim} przeżywa. Nie ma ciała i nikt nie zostaje Blackened, a Remnanty zostają tam, gdzie są."
       },
       "removed": [
-        "The Oxford comma added (EN2); the Blackened clause moved forward; \"survived the attack by\" becomes \"lived through the fight with\"."
+        "The Oxford comma added (EN2); the Blackened clause moved forward; the old verb phrase becomes \"lived through the fight with\"."
       ],
       "needsCode": [],
       "disagreements": [],
@@ -2198,13 +2198,13 @@
       "pilot": null,
       "facts": [
         {
-          "fact": "An unarmed Attack with a Weapon that lands gives the attacker an improvised Murder Weapon, Tier 2 with Hope, Tier 1 with Despair, readied at once.",
+          "fact": "An unarmed the weapon crisis action that lands gives the one who strikes an improvised Murder Weapon, Tier 2 with Hope, Tier 1 with Despair, readied at once.",
           "file": "scripts/murder-rules.mjs",
           "fn": "grantImprovisedWeapon",
           "note": null
         },
         {
-          "fact": "Only the killer's side takes Attack with a Weapon.",
+          "fact": "Only the killer's side takes the weapon crisis action.",
           "file": "scripts/config.mjs",
           "fn": "CRISIS_ACTIONS",
           "note": null

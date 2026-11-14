@@ -4770,6 +4770,90 @@
         "mechanics": null
       },
       "owner": null
+    },
+    {
+      "key": "DRPG.Despair.grantTo",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The label of the Despair Flow window's select that picks which GM or assistant is given a Despair pool; the buttons beside it are DRPG.Despair.addPool.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "buildContent",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Grant a pool to",
+        "after": "Grant a pool to"
+      },
+      "pl": {
+        "before": "Przyznaj pulę",
+        "after": "Komu przyznać pulę"
+      },
+      "removed": [
+        "The Polish label read the same as its button („Przyznaj pulę”, „Odbierz pulę”); as a select's label it now asks whom, as the English does (B01b's revision, note 3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Despair.revokeFrom",
+      "group": "window",
+      "surface": "tooltip",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The label of the Despair Flow window's select that picks which GM or assistant loses a Despair pool; the buttons beside it are DRPG.Despair.removePool.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "buildContent",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Revoke the pool from",
+        "after": "Revoke the pool from"
+      },
+      "pl": {
+        "before": "Odbierz pulę",
+        "after": "Komu odebrać pulę"
+      },
+      "removed": [
+        "The Polish label read the same as its button („Przyznaj pulę”, „Odbierz pulę”); as a select's label it now asks whom, as the English does (B01b's revision, note 3)."
+      ],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
     }
   ]
 }
