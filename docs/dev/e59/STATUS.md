@@ -51,4 +51,13 @@ windows (FLOOR_OUTSIDE); Monokuma Legacy's red "on" state and the GM panel's red
 
 ## Test numbers
 
-Filled at the final tip (the report to the coordinator).
+Measured here (4 cores, 14.11.2026), one harness at a time:
+
+- `node run-tests.mjs --tier 1` on d2f9c54b with the docs commits after it (code as at the tip): 1618 tests, 1602
+  passed, 1 failed, 16 skipped, 0 red, 509 s wall. The one failure is R2001, red at the base as the brief says (53 stale
+  quotes of 55, the same 53; this line adds none). The run on the final tip is in the report to the coordinator.
+- R6750-R6756 alone: 8 passed (the seven and the world check), 0 failed.
+- Scenarios the change touches: 14-quiet 8/8 (remnant-ring.mjs's repaint), 73-notice-history 32/32 (the evidence
+  lines' size), 95-tooltips-drawn 4/4 (drawn windows), each `node cluster.mjs scenarios/<n>.mjs`, exit 0.
+- `npm run quick` before each push: lint, check (21 parts) and gate green; `node tools/config-prose.mjs --check
+  lang/pl.json` missing 0, extra 0.
