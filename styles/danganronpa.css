@@ -11077,9 +11077,12 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    (14.11.2026). */
 
 /* The rail keeps its size while there is room and gives way when there is not.
-   12rem still fits the portrait, both resource chips and the safeword. */
+   12rem still fits the portrait, both resource chips and the safeword. Under 80 % of the Interface scale the floor
+   follows the slider down (14.11.2026, `--drpg-floor-scale`, settings.mjs `UI_SCALE`): a bare 12rem held the column at
+   181 px on a 25 % sheet whose rail is 69 (audit/sheet-column.mjs --scale 0.25, Chromium, 4a2beafb), and the sheet
+   scrolled sideways. From 80 % up it is 12rem, as before. */
 .application.sheet.actor .character-sidebar-sheet {
-    min-width: 12rem !important;
+    min-width: calc(12rem * var(--drpg-floor-scale, 1)) !important;
     width: auto !important;
 }
 

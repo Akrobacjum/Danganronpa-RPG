@@ -2431,6 +2431,42 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
     letter-spacing: 0.06em;
 }
 
+/* A COMPACT TILE NARROWER THAN ITS BUTTONS' ROW (14.11.2026; the Interface scale down to 25 %, settings.mjs `UI_SCALE`).
+   At 25 % the glass harness's compact tile is 65 x 94 px (Chromium, 4a2beafb, 1366x768) while its two 30 px buttons stood
+   in a 66 px row 6 px from its right - the microphone at x -7, outside the tile - and the face kept its 82 px right padding,
+   so the name showed 0 px of its 72. Under 110 px of tile (at 80 % the narrowest compact tile is 145) the buttons stand in a
+   column at the right, 24 px each (the hit floor of a window's header controls under 80 %), and the face's padding, the
+   state word's band and the plate leave them that column alone: the name keeps what is left and ellipsizes. The tile's
+   width is glass.mjs's own (`--drpg-voice-w`) on the wall, so its inline size is a container's without collapsing it. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] {
+    container: drpg-voice-tile / inline-size;
+}
+@container drpg-voice-tile (width < 110px) {
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-controls {
+        top: 3px;
+        right: 3px;
+        flex-direction: column;
+        gap: 3px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-controls > * {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        min-height: 24px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-face,
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-face {
+        padding: 3px 30px 2px 3px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-state,
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-state {
+        right: 30px;
+    }
+    body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
+        padding-inline: 2px;
+    }
+}
+
 /* A short name keeps the word's band on a stacked screen (H81 fix r1; danganronpa.css's rule of the same name): this
    theme's words are narrower - 59 px of text at most, "Disconnected", at the row's 11 px (Chromium, the glass
    harness's row, 20.10.2026) - so the portrait's 44 px, the word and its 6 px paddings: 115, and 9 to spare. The
