@@ -44,29 +44,29 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
   or Mastermind, an Objection lapse, Tinker, Ghost Bet, a Bribe, a Spectator move, a door forced told to the room), a
   separate Night Eclipse music state. No audio file is added to the repository.
 
-## Questions for the owner (each default taken)
+## Questions for the owner (each default taken; all answered 14.11, through the coordinator)
 
-- **Q-E110-1** Who may be the redirect's target: as a fresh Objection's (not the objector, a participant, alive) and
+- **Q-E110-1** *(answered by the owner 14.11: default)* Who may be the redirect's target: as a fresh Objection's (not the objector, a participant, alive) and
   present (a player connected). In the Rebuttal the pair rule for a third party's cut-in does not apply to the GM.
   Default: as written.
-- **Q-E110-2** The clock is not restarted by a redirect. Default: as written (the brief's).
-- **Q-E110-3** The brief lists the stack entry's `before[].before.targetId` as a copy of the target. It is not: it is
+- **Q-E110-2** *(answered by the owner 14.11: default - the owner: "yes (the clock is not restarted)")* The clock is not restarted by a redirect. Default: as written (the brief's).
+- **Q-E110-3** *(answered by the owner 14.11: default - the owner: "leave the stack entry as it is")* The brief lists the stack entry's `before[].before.targetId` as a copy of the target. It is not: it is
   the target of the floor the Objection interrupted (a Rebuttal's answerer, for an Objection inside a Rebuttal), which
   an Overrule restores. Changing it would hand a redirect's target a Rebuttal they never had. Default: left as it is.
-- **Q-E110-4** (C2) A pending Objection (the objector picking the Truth Bullet) mutes the others too: the floor is the
+- **Q-E110-4** *(answered by the owner 14.11: default)* (C2) A pending Objection (the objector picking the Truth Bullet) mutes the others too: the floor is the
   objector's from the press. Default: yes.
 - **Q-E110-5** Monocubs keep design P6: never held by the module, by mode either. Default was: keep P6. **Answered by
   the owner 14.11: Monocubs are muted by the modes too (D-E110-A).**
-- **Q-E110-6** (C2) A player whose voice character is a living student who is not a participant is held by mode like
+- **Q-E110-6** *(answered by the owner 14.11: default)* (C2) A player whose voice character is a living student who is not a participant is held by mode like
   a participant who does not have the floor. Default: yes.
-- **Q-E110-8** (C3) The vote's opening ends any floor, with no card of its own (the vote's card tells the table); a
+- **Q-E110-8** *(answered by the owner 14.11: default)* (C3) The vote's opening ends any floor, with no card of its own (the vote's card tells the table); a
   Logic Dive stopped by it keeps where it stopped. Default: as written.
-- **Q-E110-9** (C3) Any mode's start takes back a Straw Poll's split - a debate included. Default: as written.
-- **Q-E110-10** (C3) The Scrum thesis is posted from the speaker's turn window (Post thesis), during the turn only, as
+- **Q-E110-9** *(answered by the owner 14.11: default)* (C3) Any mode's start takes back a Straw Poll's split - a debate included. Default: as written.
+- **Q-E110-10** *(answered by the owner 14.11: default)* (C3) The Scrum thesis is posted from the speaker's turn window (Post thesis), during the turn only, as
   often as the primary accepts. Default: as written.
-- **Q-E110-11** Both GM roads are kept: the console's Re-point asks "floor.repoint", the API and another GM's
+- **Q-E110-11** *(answered by the owner 14.11: default - the owner: "keep both roads")* Both GM roads are kept: the console's Re-point asks "floor.repoint", the API and another GM's
   `floorStep` ask "trial.gm" op repoint; both run the one step. Default: keep both (the brief named "trial.gm").
-- **Q-E110-7** (C2) Muting by mode starts only once a road entered the trial (the trial's list written, E70's rule for
+- **Q-E110-7** *(answered by the owner 14.11: default)* (C2) Muting by mode starts only once a road entered the trial (the trial's list written, E70's rule for
   the dead): a clock written raw blocks nobody. Default: as E70.
 
 ## Progress
@@ -82,11 +82,11 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
 
 ## Part 3: questions and what was not done
 
-- **Q-E110-12** The yield works in either order now (a winner played in the last 120 ms silences the loser too); a
+- **Q-E110-12** *(answered by the owner 14.11: default)* The yield works in either order now (a winner played in the last 120 ms silences the loser too); a
   winner with no file mapped silences nothing. Default: as written.
-- **Q-E110-13** The Present's sound is heard by the whole table and the GMs; its copies' `truthBullet` yields to it.
-- **Q-E110-14** `trial.vote` runs from the vote's opening (or its count) to the verdict, only once mapped.
-- **Q-E110-15** The Messenger switch silences all three messenger sounds when they come on a card, not only `gmAsk`.
+- **Q-E110-13** *(answered by the owner 14.11: default)* The Present's sound is heard by the whole table and the GMs; its copies' `truthBullet` yields to it.
+- **Q-E110-14** *(answered by the owner 14.11: default)* `trial.vote` runs from the vote's opening (or its count) to the verdict, only once mapped.
+- **Q-E110-15** *(answered by the owner 14.11: default)* The Messenger switch silences all three messenger sounds when they come on a card, not only `gmAsk`.
 - **Not measured: eclipseStart with dayStart, eclipseEnd with dayEnd.** The harness plays no audio and counts a play only
   for a mapped file; no run here mapped files to both and drove an Eclipse's start and end, so whether they double is
   not known. Left as they are; it belongs to a table or a later harness run (LIVE-E110-05).
@@ -98,7 +98,7 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
   moments (the Final Trial or Mastermind, an Objection lapse, Tinker, Ghost Bet, a Bribe, a Spectator move, a door
   forced told to the room); a separate Night Eclipse music state. No audio file is added.
 
-- **Q-E110-16** (the coordinator's 14.11, numbered 16 here: 12 was taken) A murder's mask in the Class Trial: the trial's
+- **Q-E110-16** *(answered by the owner 14.11: default)* (the coordinator's 14.11, numbered 16 here: 12 was taken) A murder's mask in the Class Trial: the trial's
   own muting decides and the mask's silent room does not apply there (voice.mjs `masksInForce`, the settle's mask block
   and `micHold`'s "masked" line outside the trial alone; `maskedRow`'s comment fixed). In an Eclipse it stands as before.
   Default: as written. R7109.
