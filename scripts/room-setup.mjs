@@ -48,7 +48,7 @@ import {
 } from "./rooms.mjs";
 import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
-    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom, writeRoomLock
+    startLocked, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom, writeRoomLock
 } from "./vault-store.mjs";
 
 /* ==========================================================================
@@ -312,7 +312,6 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                     attrs: { "aria-label": `${game.i18n.localize(COLUMN.isroom)}: ${room}`, "data-drpg-undecided": possible && !decided } }),
                 title: game.i18n.localize("DRPG.Vault.isRoomHint")
             },
-            concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
             /* THE ROOM'S ACTIONS (E93 C2): how many, and the button that opens their editor (facility-editor.mjs
                `editRoomActions`), which writes at once on its Save, as the search token buttons write at once; Apply reads
