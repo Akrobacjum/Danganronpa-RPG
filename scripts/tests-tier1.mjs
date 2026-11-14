@@ -22,7 +22,8 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy, glassText, glassFetch, glassBy
+    worldDump, dumpDiff, lfText, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, vaultText, panelText, hudText, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, cleanupText, cleanupFetch, cleanupBy, chapterText, chapterBy, glassText, glassFetch, glassBy,
+    blankComments, blankLiterals, callArgs, TEXT_DETECTORS
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -10285,10 +10286,12 @@ const INVARIANTS = [
          * E68 fix round, 10.11.2026: the setting's hint told a GM "Resolve always asks a GM", but an armed Resolve asks
          * nobody (C7; the GM handbook's who-picks table). Read in both languages: the hint does not put Resolve among
          * what asks a GM, and says Resolve asks nobody. Red at a5ebfeaa: both hints listed Resolve with the fights.
+         * E71 group D (14.11.2026, text batch B14): the hints say it as "A Resolve never asks for one" (the approval
+         * the sentence before names) and "Resolve i tak nikogo nie pyta"; the same fact, read in those words.
          */
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
         const hints = [game.i18n.localize("DRPG.Settings.autoApproveTraits.hint"), pl?.DRPG?.Settings?.autoApproveTraits?.hint ?? ""];
-        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve nie pyta nikogo/ : /Resolve asks nobody/).test(h)])),
+        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve i tak nikogo nie pyta/ : /A Resolve never asks for one\./).test(h)])),
             JSON.stringify([[false, true], [false, true]]),
             "the valve's hint says Resolve asks a GM, or does not say it asks nobody (EN, PL: [asks a GM, asks nobody])");
     }],
@@ -26765,7 +26768,8 @@ const INVARIANTS = [
          * for a mapped Investigation resumed the afternoon (a fade in) and then stopped it; and the silent state, having
          * no playlist, was "nothing to take over with", so a GM's track played on through the announcement. Who gives
          * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs's family with comments blanked; the Sound
-         * window's note says it in both languages.
+         * window's note says it in both languages. E71 group D (14.11.2026, text batch B18): the English note says "a
+         * track you put on yourself stops too" where it said "your own track"; the same fact, read in those words.
          */
         const M = await import("./music.mjs");
         ok(typeof M.cueGivesWay === "function", "music.mjs exports no `cueGivesWay`, so who a GM's track gives way to cannot be driven");
@@ -26784,7 +26788,7 @@ const INVARIANTS = [
         const silenceOut = /if \(silenced\) \{[\s\S]{0,900}?if \(next\)[\s\S]{0,200}?clearHeld\([\s\S]{0,200}?else await resumeHeld\(held\)/.test(apply);
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
-        const note = [/body is found[^.]*your own track/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
+        const note = [/body is found[^.]*a track you put on yourself stops/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
         equal(stableJson([gives, ["apply asks it", asks], ["the takeover lets go", takeover], ["the crossfade lets go of its own", ownLetGo],
             ["out of the silence", silenceOut], ["the Sound window says so (en, pl)", note]]), stableJson([
             [["the same state", false], ["a mapped state", true], ["an unmapped state", false], ["the body's silence", true]],
@@ -32819,7 +32823,7 @@ const INVARIANTS = [
         const text = Dg.diagnoseCharacters({ toChat: false, roster, assigned });
         const lines = text.split("\n");
         const marks = roster.map(a => lines.find(l => l.includes(` ${a.name} - `))?.trim().slice(0, 1) ?? null);
-        const poolLine = lines.find(l => l.includes("Everybody is assigned to a Despair pool")) ?? "";
+        const poolLine = lines.find(l => l.includes("Everybody is assigned in Despair Flow")) ?? ""; // the row's words since E71 group D (B18, 14.11.2026)
         const listed = /^\s*✗ .* - \d+: (.*)$/.exec(poolLine)?.[1]?.split(", ") ?? [];
         const row = SS.steps({ roster, scenes: [], roomScene: null, assigned, lastChecks: new Map() }).find(r => r.key === "assignments");
         const sources = await K.moduleSources();
@@ -34081,7 +34085,9 @@ const INVARIANTS = [
             text: [text.textContent, text.querySelectorAll(".drpg-check-ok").length, text.querySelectorAll(".drpg-check-bad").length],
             attr: [attr.querySelector("button")?.getAttribute("title"), attr.querySelectorAll(".drpg-check-bad").length],
             looks: ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(look),
-            ready: game.i18n.localize("DRPG.Season.introReady").includes(game.i18n.localize("DRPG.Panel.seasonChecks")),
+            // E71 group D (B15, 14.11.2026): the further checks are in this window since E101, and the ready line names them
+            // "the further checks below" / "dalsze sprawdzenia poniżej" where it named the window "Pre-season checks".
+            ready: [game.i18n.localize("DRPG.Season.introReady")].map(t => /further checks below|dalsze sprawdzenia poniżej/.test(t) && !/green|zielon/i.test(t))[0],
             report: (fnSource(src, "preSessionReport").match(/checkMarks\(/g) ?? []).length
         }), stableJson({
             text: ["✓ R1530 <a>\n   ✗ R1530 b - ✓", 2, 1],
@@ -49551,7 +49557,8 @@ const INVARIANTS = [
         await settle();
         const after = said();
         const L = (k, d) => game.i18n.format(k, d);
-        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9.0" })}` });
+        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9" })}` });
+        // "9", not "9.0", since E71 group D (14.11.2026, R6552): the size goes through utils.mjs localeFormat, as Pre-season's checks.
         const facts = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 200, bytes: ROOM_IMAGE_LIMITS.bytes + 1 }) });
         const missing = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 404, bytes: null }) });
         const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "wirePictureWarnings")
@@ -59602,6 +59609,80 @@ const INVARIANTS = [
         ]), stableJson([true, true, false, true, true, true, true, true, true, true]),
             "[the walk writes the pending row, asks, runs no announcement; the sound first; to the walker's players; kept; "
             + "the announcement drops the row and notes the bodies heard before its gather; asked at the stores' opening and a GM's leaving; registered]");
+    }],
+
+    ["R6550 - the fog files and voice.mjs hold no English literal a screen shows: T13 (uiLiterals) finds nothing in scripts/fog*.mjs or scripts/voice.mjs (E71 C20, DB12, S18-46)", async () => {
+        /*
+         * E71 C20, 14.11.2026; the owner's DB12 and audit S18-46: the literals move with the stage that rewrites a file.
+         * T13 (scripts/tests-text.mjs `uiLiterals`) read on the module's own sources, as served, with the kit's lexer
+         * (tests-lint.mjs's, as R1058 hands it): the fog family's files and voice.mjs, each of them read (a file the
+         * crawl does not reach would make the count say nothing). Red at C20's parent: 53 findings in fog.mjs and 49 in
+         * voice.mjs - the registration steps' labels, the reasons the fog stands down, the fog diagnosis's lines and
+         * the voice plan's report. diagnostics.mjs's console is not read here: it stays English (DB12).
+         */
+        const files = ["fog.mjs", "fog-reveal.mjs", "fog-diagnostics.mjs", "fog-doorways.mjs", "fog-geometry.mjs", "voice.mjs"];
+        const all = await moduleSources();
+        // bridge-guards.mjs beside them, as tools/check.mjs reads every script: T13 takes the bridge's closed list of
+        // reasons from it ("unknown sender", fog.mjs `fogShareRefusal`), and its own findings are not this test's.
+        const read = files.filter(file => all.has(file));
+        const scripts = new Map([...read, "bridge-guards.mjs"].filter(file => all.has(file)).map(file => [`scripts/${file}`, all.get(file)]));
+        const r = TEXT_DETECTORS.uiLiterals({ scripts, lexer: { blankComments, blankLiterals, callArgs } });
+        const mine = r.found.filter(f => read.some(file => f.file === `scripts/${file}`));
+        equal(stableJson([read.length, scripts.has("scripts/bridge-guards.mjs"), r.counts.files > 0, mine.map(f => f.what)]),
+            stableJson([files.length, true, true, []]),
+            "[the six files read; bridge-guards.mjs beside them; at least one of them draws UI, so T13 reads it; T13's findings in the six]");
+    }],
+    ["R6551 - the Season checklist's Dice So Nice row is no optional one: module.json requires Dice So Nice, and the row's title says \"optional\" in neither language (scripts/season-setup.mjs `steps`; module.json `relationships.requires`; lang/en.json and lang/pl.json DRPG.Season step.diceSoNice; E71 group D, the coordinator's word of 14.11.2026: required, not a taste question)", async () => {
+        /*
+         * E71 group D, 14.11.2026. The module does not start without Dice So Nice (module.json requires it; the row's own
+         * hint says so since B15), so a checklist row titled "Dice So Nice (optional)" and drawn as advisory said the
+         * opposite of the manifest. The row's `optional` flag stays as R1132 holds the First session rows: it is done
+         * wherever the module runs. Red at e8a46890: its titles "Dice So Nice (optional)" and "Dice So Nice (opcjonalnie)".
+         */
+        const fetchJson = async path => { try { const res = await fetch(path, { cache: "no-cache" }); return res.ok ? await res.json() : null; } catch { return null; } };
+        const manifest = await fetchJson(`/modules/${MODULE_ID}/module.json?t=${Date.now()}`);
+        const files = { en: await fetchJson(`/modules/${MODULE_ID}/lang/en.json`), pl: await fetchJson(`/modules/${MODULE_ID}/lang/pl.json`) };
+        must(manifest && files.en && files.pl, "module.json or a language file did not load - this would measure nothing");
+        const S = await import("./season-setup.mjs");
+        must(typeof S.steps === "function", "season-setup.mjs exports no steps - this would measure nothing");
+        const row = S.steps({ roomScene: null }).find(step => step.key === "diceSoNice") ?? null;
+        must(row, "the checklist has no diceSoNice row - this would measure nothing");
+        // en.json spells the key flat ("step.diceSoNice"), pl.json nests it (step: { diceSoNice }): Foundry reads both.
+        const title = lang => foundry.utils.getProperty(foundry.utils.expandObject(files[lang] ?? {}), "DRPG.Season.step.diceSoNice") ?? null;
+        const required = (manifest.relationships?.requires ?? []).some(entry => entry.id === "dice-so-nice");
+        equal(stableJson([required, /optional/i.test(title("en") ?? "optional"), /opcjonaln/i.test(title("pl") ?? "opcjonalnie")]),
+            stableJson([true, false, false]),
+            "[module.json requires dice-so-nice; the row's English title says optional; its Polish title says so]");
+    }],
+    ["R6552 - a room picture's size reads the same in Room setup as in Pre-season's checks, in the page's number format (scripts/room-setup.mjs `pictureWarning`; scripts/season-setup.mjs, its `mb`; utils.mjs `localeFormat`; lang DRPG.Panel.checksImagesBytes; E71 group D, group B's review of 14.11.2026: `toFixed` wrote \"2.5\" on a Polish page, where the number is \"2,5\")", async () => {
+        /*
+         * E71 group D, 14.11.2026. Both windows fill DRPG.Panel.checksImagesBytes's {mb}; Pre-season's checks with
+         * localeFormat("number", ..., { maximumFractionDigits: 1 }), Room setup's with `toFixed(1)`, which ignores the page's
+         * language (a Polish page read "2.5 MB") and writes a whole number with a ".0". Measured on whole and half
+         * megabytes, so the English harness sees the difference too. Red at 7cfbf294: "3.0 MB" against "3 MB".
+         */
+        const R = await import("./room-setup.mjs"), U = await import("./utils.mjs");
+        must(typeof R.pictureWarning === "function" && typeof U.localeFormat === "function", "room-setup.mjs pictureWarning or utils.mjs localeFormat is missing - this would measure nothing");
+        const sizes = [3, 2.5].map(n => {
+            const said = R.pictureWarning({ heavy: true, bytes: n * 1048576 });
+            const want = game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: U.localeFormat("number", n, { maximumFractionDigits: 1 }) });
+            return [said.includes(want), /\d\.0\b/.test(said)];
+        });
+        equal(stableJson(sizes), stableJson([[true, false], [true, false]]),
+            "[3 MB: Room setup says Pre-season's size, and no \"N.0\"; 2.5 MB: the same]");
+    }],
+    ["R6553 - investigation.mjs holds no English literal a screen shows: T13 (uiLiterals) finds nothing in it, the case map's failures read from lang/ (DRPG.CaseMap.failed.*; E71 group D, after E54 split the file, 14.11.2026)", async () => {
+        /*
+         * E71 group D, 14.11.2026, the literals of the E54 files the batches cover. investigation.mjs's case map named
+         * what failed in English ("add a node", ...) inside "The case map could not ..." on the Debug log a GM reads.
+         * Red at c621e842: T13's five findings in investigation.mjs. The same reading as R6550's.
+         */
+        const all = await moduleSources();
+        must(all.has("investigation.mjs"), "investigation.mjs was not read - this would measure nothing");
+        const scripts = new Map(["investigation.mjs", "bridge-guards.mjs"].filter(file => all.has(file)).map(file => [`scripts/${file}`, all.get(file)]));
+        const r = TEXT_DETECTORS.uiLiterals({ scripts, lexer: { blankComments, blankLiterals, callArgs } });
+        equal(stableJson([r.counts.files > 0, r.found.filter(f => f.file === "scripts/investigation.mjs").map(f => f.what)]), stableJson([true, []]),
+            "[investigation.mjs draws UI, so T13 reads it; T13's findings in it]");
     }],
     ["R4801 - scaleWindow stands once on each of the two render hooks after init (E54 W2): registered by `registerWindows`, and a second call of it changes neither the hooks nor the readers", async () => {
         /*

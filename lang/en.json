@@ -269,9 +269,9 @@
       "reserves": "Health and Sanity",
       "maxHealth": "Max Health",
       "maxSanity": "Max Sanity",
-      "newExperience": "New Experience",
+      "newExperience": "Add Experience",
       "delete": "Delete",
-      "coreExperience": "A Level Up gave this experience; it cannot be removed here.",
+      "coreExperience": "A Level Up gave this Experience, so you cannot remove it here.",
       "name": "Name",
       "value": "Value",
       "description": "Description"
@@ -279,7 +279,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "Dice look for the table",
-        "hint": "With one look, players and Assistant GMs throw in one full Gamemaster's Dice So Nice look, fixed the first time the game runs with it on. The Daggerheart look adds Daggerheart's Hope and Despair colors.",
+        "hint": "With either Everyone choice, players and Assistant GMs roll in one full Gamemaster's Dice So Nice look, fixed the first time the game runs with it on. Everyone: Daggerheart gives Hope, Despair, advantage, and disadvantage dice Daggerheart's colors.",
         "choices": {
           "own": "Each player's own",
           "dsn": "Everyone: Dice So Nice",
@@ -288,7 +288,7 @@
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
-        "hint": "Every player roll is whispered to that player and the GMs, a GM's roll to the GMs. Only a GM's game.drpg.publicRoll macro is seen by all."
+        "hint": "Every player's roll is whispered to that player and the GMs, and a GM's roll to the GMs. Only a GM's game.drpg.publicRoll macro is seen by everyone."
       },
       "enforceAnonymity": {
         "name": "Keep character sheets anonymous",
@@ -300,27 +300,27 @@
       },
       "lockRollDialog": {
         "name": "Lock the roll window for players",
-        "hint": "Players cannot change the dice, statistic, advantage, experiences, or bonus in the roll window; those come from the action, a Hope Call or the GM. GMs are unaffected."
+        "hint": "Players cannot change the dice, statistic, advantage, Experiences, or bonus in the roll window; those come from the action, a Hope Call, or the GM. GMs are unaffected."
       },
       "roomVisibility": {
         "name": "Players only see who is in their room",
-        "hint": "Hides other characters unless they stand in the same room, through gaps in the walls too. GMs see everything."
+        "hint": "Hides characters in other rooms from players, even ones they could see through gaps in the walls. GMs see everything."
       },
       "isoTokenShield": {
         "name": "Guard token editing from Isometric Perspective",
-        "hint": "Keeps the isometric-perspective module out of the token configuration window, where it breaks editing. Turn it off to reach its Isometric tab."
+        "hint": "Keeps Isometric Perspective out of the token configuration window, where it breaks editing. Turn this off to reach its Isometric tab."
       },
       "regionFog": {
         "name": "Rooms decide what players can see",
-        "hint": "A player sees their own room; visited rooms show through, the rest is fogged."
+        "hint": "A player sees their own room clearly and rooms they have visited dimly; the rest is fogged."
       },
       "lockPlayerResources": {
         "name": "Lock players' resources on the sheet",
-        "hint": "Actions, Hope, Health, Sanity, and statistics change only through play. On, a player's own edits of them are put back or flagged to the GMs; off, they are only listed. Items and effects are checked either way. GMs are unaffected."
+        "hint": "A player's own edit of their Actions, Hope, Health, Sanity, or statistics is put back or flagged to the GMs; with this off, it is only listed. Items and effects are checked either way. GMs are unaffected."
       },
       "autoApproveTraits": {
-        "name": "Players' statistics without approval",
-        "hint": "A player's statistic for a Search or a project goes through without your click. Resolve asks nobody."
+        "name": "Players' statistics need no approval",
+        "hint": "A player's statistic for a Search or a project goes through without your approval. A Resolve never asks for one."
       },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",
@@ -332,18 +332,18 @@
       },
       "despairFromRolls": {
         "name": "Rolls grant Despair",
-        "hint": "A roll that lands with Despair feeds the pool of that student's Monokuma. Divide the students up in GM panel, Despair Flow."
+        "hint": "A roll that lands with Despair feeds the pool of that student's Monokuma. Assign each student a Monokuma in the GM panel's Despair Flow."
       },
       "hideSystemFear": {
         "name": "Replace the Daggerheart Fear tracker",
-        "hint": "Hides Daggerheart's single shared Fear bar and gives every Monokuma a Despair pool of their own. Turn off to go back to the system tracker."
+        "hint": "Hides Daggerheart's shared Fear bar. Each Monokuma keeps a Despair pool of their own either way. Turn it off to show the bar again."
       },
       "enforceIsoWelcome": {
         "name": "Keep Isometric Perspective's welcome window closed for everyone",
-        "hint": "Isometric Perspective's welcome window opens for nobody."
+        "hint": "Isometric Perspective's welcome window opens for nobody, the GM included."
       },
       "enforceDhWelcome": {
-        "name": "Keep Daggerheart's welcome window closed for everyone",
+        "name": "Keep Daggerheart's welcome journal closed for everyone",
         "hint": "Daggerheart's welcome journal opens for nobody, the GM included."
       },
       "enforcePlayerFiles": {
@@ -356,11 +356,11 @@
       },
       "pixelFont": {
         "name": "Pixel font",
-        "hint": "Monokuma Legacy only: Press Start 2P on the HUD, tabs, names, and labels. Long text keeps the normal face."
+        "hint": "Monokuma Legacy only: Press Start 2P on the HUD, tabs, names, and labels. Long text keeps the normal font. Only affects this browser."
       },
       "wideProjectWindows": {
         "name": "Wide project windows",
-        "hint": "Project windows open wider."
+        "hint": "Project windows open wider. Only affects this browser."
       },
       "language": {
         "name": "Language",
@@ -368,35 +368,35 @@
       },
       "documentLanguage": {
         "name": "Document language",
-        "hint": "The language of the documents the module writes into this world, one for everyone. Windows, cards, and the sheet stay in the Language each browser sets. Set by the primary GM's first start, to their language."
+        "hint": "The language of the documents the module writes into this world, one for everyone. Windows, cards, and the sheet follow each browser's Language. The first time the primary GM starts this world, it takes their language."
       },
       "moveAudit": {
-        "name": "A player's token moved through a wall",
-        "hint": "When someone moves a player's token through a wall.",
+        "name": "When a player's token moves through a wall",
+        "hint": "Choose what happens when someone moves a player's token through a wall.",
         "log": "Note it in the Debug log",
         "sendBack": "Send the token back"
       },
       "foundryToolWindows": {
         "name": "The module's windows for Foundry's sidebar and scene controls",
-        "hint": "The sidebar and map tools in two windows, from the button in the corner."
+        "hint": "Puts a GM's Foundry sidebar and map tools in two windows, Foundry tools and Map tools, opened from the button in the corner. Players' screens stay the same. Saving reloads every screen once you confirm."
       },
       "theme": {
         "name": "Theme",
-        "hint": "How the module looks.",
+        "hint": "How the module looks. Only affects this browser.",
         "stainedGlass": "Stained Glass",
         "monokumaLegacy": "Monokuma Legacy"
       },
       "glassPulse": {
         "name": "Glass pulse",
-        "hint": "The slow darkening that travels around the frame. Turn it off to keep the glass and stop it breathing. This client only."
+        "hint": "The slow darkening that travels around the frame. Turn it off to keep the glass and stop it breathing. Only affects this browser."
       },
       "highContrast": {
         "name": "High contrast",
-        "hint": "Brighter fine print, solid hairlines, opaque panels and no blur behind the chrome. Text sizes belong to the Interface scale rather than to this switch, and the map is left alone. On by itself when your system asks for more contrast. This client only."
+        "hint": "Brighter fine print, solid hairlines, and opaque panels with no blur behind them. If your system asks for more contrast, you get this look even with the setting off. Only affects this browser."
       },
       "sequences": {
         "name": "Full-screen sequences",
-        "hint": "The Class Trial's entry, the verdict, the clock's turns and flashes, and the day boards, on every screen. Off, only the trial's and the verdict's sounds play. Esc skips one."
+        "hint": "Plays the Class Trial's entry, the verdict, the clock's turns and flashes, and the day boards full screen for everyone. When off, only the trial's and the verdict's sounds play. Esc skips one."
       },
       "reducedMotion": {
         "name": "Reduced motion",
@@ -404,7 +404,7 @@
       },
       "hudTicker": {
         "name": "State name behind the clock",
-        "hint": "The time of day, faint, behind the clock."
+        "hint": "The time of day, faint, behind the clock. Only affects this browser."
       },
       "bulletSort": {
         "name": "How Truth Bullets are grouped",
@@ -412,15 +412,15 @@
       },
       "glassBlur": {
         "name": "Glass blurs the map",
-        "hint": "The glass frosts the map behind it. If the game stutters, turn this off first."
+        "hint": "The glass frosts the map behind it. If the game stutters, turn this off first. Only affects this browser."
       },
       "messengerSound": {
         "name": "Messenger sounds",
-        "hint": "The three sounds the messenger plays - sent, received, a question for the GM. Only affects this browser."
+        "hint": "Plays the messenger's sounds for a message sent, a message received, and a question for the GM. Only affects this browser."
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "The size of the module's windows and text, and with them Foundry's own and the sheet, 80% to 140%. The map is not scaled. Only affects this browser."
+        "hint": "Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 80% to 140%. The map keeps its size. Only affects this browser."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -428,7 +428,7 @@
       },
       "musicEnabled": {
         "name": "Music follows the game state",
-        "hint": "Changes the playlist with the game: an Eclipse, a trial, an investigation, the time of day, a pause. Map the playlists first in the Sound window."
+        "hint": "Changes the playlist with the game: an Eclipse, a trial, an investigation, the time of day, a pause. Assign the playlists first in the Sound window."
       },
       "voiceEnabled": {
         "name": "Separate voice in each room",
@@ -447,17 +447,17 @@
       "save": "Save changes",
       "scopeClient": "This browser only",
       "scopeWorld": "The whole table",
-      "uiScaleHint": "Makes this module's text and windows larger or smaller in this browser.",
+      "uiScaleHint": "Makes the module's text and windows, and Foundry's with them, larger or smaller in this browser.",
       "scaleNow": "On this screen: {total}%.",
       "glassOnly": "Stained Glass only: pick that theme to change it.",
       "legacyOnly": "Monokuma Legacy only: pick that theme to change it.",
       "gameTitle": "Game settings",
-      "mayNot": "Only a user Foundry lets change the world's settings can open the game's settings.",
+      "mayNot": "Only a user with permission to change world settings can open Game settings.",
       "gameNote": "These are the whole table's settings: a change here changes the game for everybody.",
-      "liveNote": "The volumes and the voice settings apply as you move them; the rest waits for Save.",
+      "liveNote": "The volumes and the voice settings apply as you move them; the rest waits for Save changes.",
       "sections": {
         "audio": "Voice",
-        "foundry": "Foundry and the system",
+        "foundry": "Foundry, Daggerheart, and other modules",
         "look": "Look",
         "effects": "Effects and accessibility",
         "sound": "Sound and voice",
@@ -470,20 +470,20 @@
     "SearchTokens": {
       "title": "Search Tokens",
       "allFull": { "one": "Every room still holds its {max} token.", "other": "Every room still holds all {max} tokens." },
-      "reset": "Search Tokens reset.",
+      "reset": "Search Tokens refilled in every room.",
       "exhausted": "This room has no Search Tokens left. Try again in the next time of day.",
-      "pickedClean": "Somebody got here first. The action is spent.",
-      "timeout": "The search was not counted.",
+      "pickedClean": "The room had no Search Token left by then. The action is spent.",
+      "timeout": "This search did not count. You keep your action.",
       "spendOne": "Spend one",
       "giveOne": "Give one back",
       "refillRoom": "Refill this room",
-      "roomSetupNote": "Search Tokens: {max} per room, refilled each time of day. - and + act at once.",
+      "roomSetupNote": "Search Tokens: {max} per room, refilled each time of day. The - and + buttons work at once.",
       "roomColumn": "Room",
       "tokensColumn": "Tokens",
-      "sealed": "This room cannot be searched. There is nothing in here to find, and no time of day changes that.",
-      "roomSetupLine": "Search Tokens per room: {max}, refilled every time of day. - and + change this room only.",
+      "sealed": "You cannot search this room. There is nothing in here to find, at any time of day.",
+      "roomSetupLine": "Search Tokens per room: {max}, refilled every time of day. A room's - and + buttons change that room alone.",
       "sealedColumn": "No search",
-      "sealedNote": "“No search” shuts the room to Search until you clear it."
+      "sealedNote": "“No search” shuts the room to Search until you untick it."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",
@@ -616,12 +616,12 @@
     "Assign": {
       "outside": "Outside every pool",
       "fallbackOption": "{name} (fallback)",
-      "intro": "A roll that lands with Despair feeds that student's Monokuma.",
+      "intro": "A roll that lands with Despair feeds the pool of that student's Monokuma.",
       "monokuma": "Monokuma",
       "save": "Save",
       "splitEvenly": "Split evenly",
       "splitDone": "Students split evenly between Monokumas.",
-      "failed": "The division could not be saved. See the console.",
+      "failed": "The division could not be saved. See the Debug log.",
       "noMonokumas": "Nobody holds a Despair pool: this world has no Gamemaster account. Give one the Gamemaster role, then open Despair Flow again.",
       "nobody": "- nobody -",
       "implicitHint": "Never assigned: this student feeds the first pool until you pick one.",
@@ -1430,30 +1430,30 @@
       "busy": "Another mode holds the floor. End it first, or close the debate.",
       "noZones": "The trial hall has no Zone A and Zone B. Pick them in Season setup.",
       "noAnswers": "Give both answers: one for Zone A and one for Zone B.",
-      "noQuestion": "A Logic Dive question has no words.",
+      "noQuestion": "A question in this Logic Dive set is blank.",
       "noSet": "Pick a Logic Dive set.",
-      "noCount": "Nothing to count now: the count is already in.",
-      "noQuestionHere": "Only in a Logic Dive.",
+      "noCount": "Nothing to count now: only a running vote can be counted.",
+      "noQuestionHere": "Skip question works only in a Logic Dive.",
       "noSide": "Pick Zone A or Zone B.",
-      "samePick": "That side is already picked.",
-      "noThesis": "Only the speaker, during their turn, with a few words.",
-      "notStarted": "The mode did not start. The console says why when the floor or the zones are not ready.",
+      "samePick": "You already picked that side.",
+      "noThesis": "You can give a thesis only during a Scrum Debate turn, and it needs a few words.",
+      "notStarted": "The mode did not start. Check that both answers are filled in and, for a Logic Dive, that a set is picked and each of its questions has words.",
       "straw": {
-        "opened": "{question} Stand in Zone A for {a}, or in Zone B for {b}. The count comes in {seconds} s.",
-        "openedBare": "Stand in Zone A for {a}, or in Zone B for {b}. The count comes in {seconds} s.",
-        "finding": "The class thinks: {answer}. (Zone A {a}, Zone B {b})",
-        "split": "The class is split: Zone A {a}, Zone B {b}. A Scrum Debate can settle it."
+        "opened": "{question} Students stand in Zone A for {a} or in Zone B for {b}. The count comes in {seconds} s.",
+        "openedBare": "Students stand in Zone A for {a} or in Zone B for {b}. The count comes in {seconds} s.",
+        "finding": "The class thinks: {answer}. The count was {a} in Zone A and {b} in Zone B.",
+        "split": "The class is split, {a} in Zone A and {b} in Zone B. A Scrum Debate can settle it."
       },
       "dive": {
-        "opened": "Question {n} of {total}: {question} Zone A: {a}. Zone B: {b}. {seconds} s to choose.",
-        "openedBare": "Question {n} of {total}. Zone A: {a}. Zone B: {b}. {seconds} s to choose.",
-        "right": "Right! Zone A {a}, Zone B {b}.",
-        "wrong": "Wrong. The Logic Dive ends here. (Zone A {a}, Zone B {b})",
-        "tie": "A tie counts as wrong. The Logic Dive ends here. (Zone A {a}, Zone B {b})",
+        "opened": "Question {n} of {total}: {question} Students stand in Zone A for {a} or in Zone B for {b}. The class has {seconds} s to choose.",
+        "openedBare": "Question {n} of {total}. Students stand in Zone A for {a} or in Zone B for {b}. The class has {seconds} s to choose.",
+        "right": "The class is right, with {a} in Zone A and {b} in Zone B.",
+        "wrong": "The class is wrong, with {a} in Zone A and {b} in Zone B. The Logic Dive ends here.",
+        "tie": "A tie, {a} in Zone A and {b} in Zone B, counts as wrong. The Logic Dive ends here.",
         "solved": "The Logic Dive is solved: {finding}",
         "skipped": "The GM skips question {n}.",
         "replay": "This set was played before: it ended {when} ({outcome}). Players may remember it.",
-        "replayStopped": "This set was played before: it stopped at question {n}, {when} ({outcome}). It starts there unless you pick another question.",
+        "replayStopped": "This set was played before: it stopped at question {n}, {when} ({outcome}). It starts again from that question.",
         "outcome": {
           "played": "played",
           "solved": "solved",
@@ -1461,7 +1461,7 @@
           "tie": "a tie",
           "stopped": "stopped by the GM",
           "skipped": "the last question skipped",
-          "broken": "a question with no words"
+          "broken": "a blank question or answer"
         },
         "editor": {
           "listTitle": "Logic Dive sets",
@@ -1477,7 +1477,7 @@
           "edit": "Edit",
           "delete": "Delete",
           "deleteTitle": "Delete a Logic Dive set",
-          "deleteBody": "Delete the set {name}? This cannot be undone.",
+          "deleteBody": "Delete the set “{name}”? This cannot be undone.",
           "noName": "Give the set a name.",
           "count": "A set holds 1 to {max} questions.",
           "blank": "Every question needs its words and both answers.",
@@ -1486,12 +1486,12 @@
         }
       },
       "scrum": {
-        "opened": "{question} Pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
-        "openedBare": "Pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
-        "confer": "The sides are set: Zone A {a}, Zone B {b}. Each camp confers apart for {seconds} s, then the debate.",
-        "noVoice": "The camps' voices are not split: regional voice is off or LiveKit is not active. The camps confer however the table does.",
-        "begins": "Zone {zone} speaks first; the camps take turns of {seconds} s until turn {turns}.",
-        "over": "The Scrum Debate is over: Zone A {a}, Zone B {b}.",
+        "opened": "{question} Students pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
+        "openedBare": "Students pick a side: Zone A for {a}, Zone B for {b}. The camps confer in {seconds} s.",
+        "confer": "The sides are set, {a} in Zone A and {b} in Zone B. Each camp confers apart for {seconds} s, then the debate begins.",
+        "noVoice": "The camps' voices are not split: “Separate voice in each room” is off or LiveKit is not active. The camps confer the way the table already talks.",
+        "begins": "Zone {zone} speaks first. The camps take turns of {seconds} s, {turns} turns in all.",
+        "over": "The Scrum Debate is over: {a} in Zone A, {b} in Zone B.",
         "empty": "Zone {zone} is empty. The class thinks: {answer}.",
         "thesis": "Zone {zone}'s thesis: {text}"
       },
@@ -1504,13 +1504,13 @@
           "vote": "{seconds} s to the count."
         },
         "dive": {
-          "vote": "Question {n} of {total} - {seconds} s to choose.",
-          "pause": "Question {n} of {total} is counted - the answer in {seconds} s."
+          "vote": "Question {n} of {total}: {seconds} s to choose.",
+          "pause": "Question {n} of {total} is counted. The answer comes in {seconds} s."
         },
         "scrum": {
-          "setup": "Sides: the camps form - {seconds} s.",
-          "confer": "Camps confer: each camp in its own voice room - {seconds} s.",
-          "speak": "Turn {turn} of {turns}: {who} speaks for Zone {zone} - {seconds} s."
+          "setup": "Sides: the camps form, {seconds} s left.",
+          "confer": "Camps confer: each camp talks in its own voice room, {seconds} s left.",
+          "speak": "Turn {turn} of {turns}: {who} speaks for Zone {zone}, {seconds} s left."
         }
       },
       "confer": {
@@ -1533,8 +1533,8 @@
         "editSets": "Logic Dive sets...",
         "start": "Start",
         "hint": {
-          "straw": "45 s for everyone to stand in a zone, then one count. Two thirds on one side is a Finding.",
-          "dive": "The set's questions one at a time, 60 s each. A majority goes on; a wrong answer or a tie ends the set.",
+          "straw": "Everyone has 45 s to stand in a zone, then one count. At least two thirds on one side make a Finding; anything less is a split, which a Scrum Debate can settle.",
+          "dive": "The set's questions come one at a time, 60 s each. A right majority goes on; a wrong answer or a tie ends the set.",
           "scrum": "45 s to pick sides, 120 s for each camp to confer apart, then the camps speak in turn, the smaller first."
         }
       },
@@ -1556,7 +1556,7 @@
         "text": "Finding",
         "save": "Save",
         "added": "The GM adds a Finding: {text}",
-        "edited": "The GM changes a Finding: {was} - now: {text}",
+        "edited": "The GM changes a Finding from “{was}” to “{text}”.",
         "deleted": "The GM takes a Finding off the list: {text}",
         "confirmed": "Monokuma confirms: {text}"
       }
@@ -2073,27 +2073,27 @@
       "tabMusic": "Music",
       "tabEffects": "Effects",
       "volumes": "Volume",
-      "volumeNote": "Both live in this browser only.",
+      "volumeNote": "Both volumes only affect this browser.",
       "effectsIntro": "This module ships no audio. Give an event a file of your own; an empty box means silence.",
       "assigned": { "one": "{n} of {total} events has a file.", "other": "{n} of {total} events have a file." },
       "event": "Event",
       "file": "File",
       "rowButtons": "Test or clear",
       "notAssigned": "not assigned yet",
-      "severalHint": "One file, or several split by | - one is picked, never twice running.",
+      "severalHint": "One file, or several separated by |. Each play picks one, never the same one twice in a row.",
       "fileCount": { "one": "{n} file", "other": "{n} files" },
       "varies": "varies",
-      "variesHint": "Heard constantly, so each play bends its speed very slightly.",
+      "variesHint": "Each play comes out a little different in speed and loudness.",
       "varyLabel": "Vary the sounds you hear often",
       "varyHint": "Frequent sounds come out a little different each time.",
       "choose": "Choose",
       "test": "Test",
       "clear": "Clear",
       "groupAssigned": "{n} of {total} assigned",
-      "autosave": "Saves at once.",
+      "autosave": "Changes save automatically.",
       "testFailed": "{label}: {why}",
       "why": {
-        "noEvent": "There is no event with that key. The events' keys are {keys}.",
+        "noEvent": "There is no event with that key. The event keys are {keys}.",
         "noFile": "This event has no file yet. Choose one in the File column.",
         "soundZero": "The Sound slider is at zero. Raise it, then test again.",
         "interfaceZero": "Foundry's own Interface volume is at zero. Raise it, then test again.",
@@ -2241,10 +2241,10 @@
       "notSet": "- not set -",
       "intro": "Pick a playlist for each state.",
       "howOrder": "How the order works",
-      "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.",
-      "trialNote": "The higher row wins. A rebuttal plays the Objection's music.",
-      "incidentNote": "Only the people in the murder and the GMs hear it.",
-      "fadeNote": "Set fades in the playlist's Fade Duration. When a body is found and nothing is mapped to it, the silence stops your own track too.",
+      "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during a trial uses the Eclipse's.",
+      "trialNote": "The higher row wins. A Rebuttal plays the Objection's music.",
+      "incidentNote": "Only the players taking part in the murder, and the GMs, hear it.",
+      "fadeNote": "Set the fade length in each playlist's Fade Duration. When a body is found and nothing is mapped to it, the music goes silent, and a track you put on yourself stops too.",
       "when": "When",
       "playlist": "Plays",
       "noPlaylists": "No playlists yet. Make them in the Playlists sidebar.",
@@ -2259,28 +2259,28 @@
         "search": "Investigation"
       },
       "playNow": "Put a track on now",
-      "playNowNote": "Plays a track from “{name}” on repeat. Stop it and the music before comes back.",
+      "playNowNote": "Plays a track from “{name}” on repeat. Stop it, and the music that was playing before comes back.",
       "track": "Track",
       "play": "Play",
       "reset": "Stop the track",
       "playing": "Playing “{track}”.",
-      "wasReset": "The track is off and whatever it interrupted is back where it left off.",
+      "wasReset": "The track stopped, and the music it interrupted picks up where it left off.",
       "noTrack": "Pick a track first.",
       "noTracks": "This playlist has no tracks",
       "playFailed": "That track would not play. See the console.",
       "noSituational": "No playlist called “{name}” yet.",
       "makeSituational": "Create the “{name}” playlist",
-      "situationalMade": "“{name}” exists now. Put your scene tracks in it from the Playlists sidebar - stings, reveals, the quiet bits - and they will appear here.",
+      "situationalMade": "“{name}” is ready. Add your scene tracks to it in the Playlists sidebar, and they appear here.",
       "makeFailed": "The playlist could not be created. See the console.",
       "saveState": {
         "saving": "Saving...",
         "saved": "Saved",
-        "failed": "Not saved - see the console"
+        "failed": "Not saved. See the console."
       },
       "diag": {
-        "enabled": "Setting \"music follows the game state\": {value}",
+        "enabled": "Setting \"Music follows the game state\": {value}",
         "on": "on",
-        "off": "OFF",
+        "off": "off",
         "yes": "yes",
         "no": "no",
         "drives": "This browser drives playback: {value}",
@@ -2289,21 +2289,21 @@
         "playlists": "Playlists in this world: {n}",
         "cue": "Cue playlist (\"{name}\"): {value}",
         "cueTracks": "tracks: {n}",
-        "cueMissing": "MISSING - the Play button has nothing to draw from",
+        "cueMissing": "missing, so the Play button has nothing to draw from",
         "cueRunning": "A cue is running: {value}",
-        "cueHolding": ", holding playlists: {n}",
+        "cueHolding": ", playlists on hold: {n}",
         "colState": "state",
         "colApplies": "applies",
         "colPlaylist": "playlist",
         "testError": "error: {message}",
         "playingHere": "playing here",
         "perClient": "per browser",
-        "missingPlaylist": "MAPPED TO A MISSING PLAYLIST",
-        "onCue": "{name} - the cue playlist, never played for a state",
-        "emptyPlaylist": "{name} - EMPTY, nothing to play",
+        "missingPlaylist": "mapped to a missing playlist",
+        "onCue": "{name}: the cue playlist, never played for a state",
+        "emptyPlaylist": "{name}: empty, nothing to play",
         "wins": " <- wins",
         "randomTrack": " (random track)",
-        "noState": "No state applies at all - nothing will play.",
+        "noState": "No state applies, so the music is left alone.",
         "unmapped": "\"{state}\" is the active state but has no playlist to play, so the music is left alone. Map one: GM panel, Sound, Music."
       }
     },
@@ -2679,8 +2679,8 @@
       "trackerScore": "{total} against {n}"
     },
     "Investigation": {
-      "finalAskTitle": "Place the Final Truth Remnant?",
-      "finalAskBody": "A room is picked for the Final Truth Remnant, but the window was closed without Save. Place it now?",
+      "finalAskTitle": "Place the Final Truth Remnant",
+      "finalAskBody": "You picked a room for the Final Truth Remnant and closed the window without saving. Place it now?",
       "finalAskPlace": "Place it",
       "plannedRoomGone": "The planned room “{room}” is not on this scene. Pick a room.",
       "plannedRoom": "Planned room",
@@ -2697,12 +2697,12 @@
       "filterChapter": "Chapter",
       "filterEveryChapter": "Every chapter",
       "chapterN": "Chapter {n}",
-      "neverOnePerson": "A trace never names anyone: a Key Remnant narrows it to at most half the cast, any other to 2-4.",
+      "neverOnePerson": "A Remnant names nobody: a Key Remnant narrows the suspects to at most half the cast, any other to 2-4.",
       "filterCount": "Showing {shown} of {total}.",
       "noneMatch": "No Remnant matches this filter.",
-      "plannerIntro": { "one": "{n} clue for chapter {chapter}. Together they should narrow the suspects to {min}-{max} people.", "other": "{n} clues for chapter {chapter}. Together they should narrow the suspects to {min}-{max} people." },
-      "notePlaceholder": "What they see",
-      "analysisPlaceholder": "What the lab adds",
+      "plannerIntro": { "one": "{n} clue for chapter {chapter}. It should narrow the suspects to {min}-{max} people.", "other": "{n} clues for chapter {chapter}. Together they should narrow the suspects to {min}-{max} people." },
+      "notePlaceholder": "What the finder sees",
+      "analysisPlaceholder": "What Analyze reveals",
       "difficulty": "Difficulty",
       "onMap": "Which Remnant",
       "notPlaced": "Not placed yet",
@@ -2715,41 +2715,41 @@
       "notFound": "Nobody has found it",
       "dashboardTitle": "Investigation",
       "keySummary": "{found} of {total} found, {placed} on the map.",
-      "keyOffPlan": { "one": "One more found Key Remnant is not on the plan and counts toward the threshold of {bar}: {names}.", "other": "{n} more found Key Remnants are not on the plan and count toward the threshold of {bar}: {names}." },
+      "keyOffPlan": { "one": "One found Key Remnant is not on the plan ({names}); it still counts toward the threshold of {bar}.", "other": "{n} found Key Remnants are not on the plan ({names}); they still count toward the threshold of {bar}." },
       "foundBy": "Found by",
       "deleteTrace": "Delete",
       "deleteTraceTitle": "Delete the Remnant",
-      "deleteTraceAsk": "Delete the Remnant “{name}”? Its token goes from the map and its row from the case.",
+      "deleteTraceAsk": "Delete the Remnant “{name}”? Its token is removed from the map and its row from the case.",
       "revealedByMonokuma": "Revealed by Monokuma",
-      "tooThin": { "one": "Only {found} Key Remnant has been found. The minimum is {min} - below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote.", "other": "Only {found} Key Remnants have been found. The minimum is {min} - below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote." },
-      "tooThinNone": "No Key Remnant has been found yet. The minimum is {min} - below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote.",
+      "tooThin": { "one": "Only {found} Key Remnant has been found, and the trial needs more than {min} to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.", "other": "Only {found} Key Remnants have been found, and the trial needs more than {min} to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens." },
+      "tooThinNone": "No Key Remnant has been found yet, and the trial needs more than {min} to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.",
       "whoHasWhat": "Who has what",
       "student": "Student",
-      "bullets": "Bullets",
+      "bullets": "Truth Bullets",
       "keysHeld": "Key",
       "unidentified": "Not analyzed",
-      "breakdown": "Really",
-      "breakdownTooltip": "What each Truth Bullet really is, by the GMs' answer key - not what its holder was shown.",
+      "breakdown": "Answer key",
+      "breakdownTooltip": "What each Truth Bullet is by the GMs' answer key, whatever its holder was shown.",
       "createHere": "Create on the map",
       "newTraceTitle": "New Remnant",
-      "newTraceIntro": "It lands at a random spot in the room; move the token if the spot matters.",
+      "newTraceIntro": "The Remnant lands at a random spot in the room; move its token if the spot matters.",
       "newTraceTied": "Part of this murder (survives the chapter-end sweep)",
-      "newTraceReinforced": "Reinforced (cannot be cleaned up)",
-      "newTraceNote": "The name and the description are what a student reads when they find it; what analysis reveals waits for their Analyze. Your note stays yours.",
+      "newTraceReinforced": "Reinforced (no cleanup removes it)",
+      "newTraceNote": "The name and the description are what a student reads when they find it; what analysis reveals waits until they Analyze it. Only GMs read your note.",
       "newTraceBadType": "That is not a kind of Remnant this module knows.",
-      "newTraceUnfindable": "Nothing can find a Remnant of that kind at that difficulty - Observe has no number for it.",
-      "newTraceDone": "A {type} is now in {room}.",
-      "noRooms": "This scene has no rooms on it yet, so there is nowhere to put a Remnant. Draw the regions first - Room setup explains how.",
+      "newTraceUnfindable": "Observe has no difficulty for that kind of Remnant at that visibility, so nobody can find it. Open New Remnant again with another kind or visibility.",
+      "newTraceDone": "{type} placed in {room}.",
+      "noRooms": "This scene has no rooms yet, so there is nowhere to put a Remnant. Draw the regions first; Room setup explains how.",
       "createNote": "Place puts a row's Key Remnant on the map at once, in the room you pick: reinforced, tied to the crime, somewhere inside the room, with the words typed on its row. A row already on the map has no Place button.",
-      "keyDcNote": "A Key Remnant is the easiest thing in a room to notice, and how easy depends on where you put it, not on the scale above: {list}. Ordinary evidence in the same band is three to six harder. The scale is how much a clue gives away.",
+      "keyDcNote": "A Key Remnant is the easiest thing in a room to notice. How easy depends on its visibility: {list}. The difficulty scale above does not change it. Ordinary evidence in the same band is three to six points harder to notice. The scale is how much a clue gives away.",
       "tabTraces": "Remnants",
       "tabKeyRemnants": "Key Remnants",
       "traceName": "Name",
       "traceText": "Player description",
       "traceType": "What it really is",
       "noTraces": "No Remnants anywhere yet.",
-      "keyLimitLine": "{used} of {limit} used this chapter - the minimum is {min}.",
-      "keyLimitOverride": "Create more than the opening roll allows",
+      "keyLimitLine": "{used} of {limit} Key Remnants used this chapter. The minimum is {min}.",
+      "keyLimitOverride": "Place more than the opening roll allows",
       "finalNotePlaceholder": "What it points at",
       "tracesSaved": {
         "one": "Updated {n} Remnant.",
@@ -2757,30 +2757,30 @@
       },
       "traceImage": "Image",
       "savedOver": {
-        "one": "One field had changed elsewhere while this window was open, and was not saved: {list}. Open Investigation again to see what it holds now; type yours again if it should stand.",
-        "other": "{n} fields had changed elsewhere while this window was open, and were not saved: {list}. Open Investigation again to see what they hold now; type yours again if they should stand."
+        "one": "One field changed elsewhere while you edited, so it was not saved: {list}. Reopen Investigation to see what it holds, and type yours again if it should stand.",
+        "other": "{n} fields changed elsewhere while you edited, so they were not saved: {list}. Reopen Investigation to see what they hold, and type yours again if they should stand."
       },
       "savedOverItem": "{field} of {row}: \"{value}\"",
-      "saveStopped": "The Save stopped part-way: {error}. What it wrote before that stands and the rest was not saved; Investigation is open again on what the world holds now - type the rest again.",
+      "saveStopped": "The Save stopped part-way: {error}. What it wrote before that stands, and Investigation is open again with it. Type the rest again.",
       "createHereTitle": "Create a Key Remnant here",
-      "createHereIntro": { "one": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on the {n} clue you planned.", "other": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on one of the {n} clues you planned." },
+      "createHereIntro": { "one": "A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to the {n} clue you planned, if it is not on the map yet.", "other": "A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the {n} clues you planned that is not on the map yet." },
       "whichSlot": "Which planned clue is this?",
-      "noSlot": "Not one of the {n}",
+      "noSlot": "None of the {n} planned clues",
       "createdHere": "Key Remnant placed in {room}.",
       "unfoundKeys": {
-        "one": "The investigation turned up {found} of {bar} Key Remnants - one short. {despair} Despair to each pool: {who}.",
-        "other": "The investigation turned up {found} of {bar} Key Remnants - {n} short. {despair} Despair to each pool: {who}."
+        "one": "The investigation turned up {found} of {bar} Key Remnants, one short. Each Monokuma's pool gains {despair} Despair: {who}.",
+        "other": "The investigation turned up {found} of {bar} Key Remnants, {n} short. Each Monokuma's pool gains {despair} Despair: {who}."
       },
       "keyNoteLabel": "Your note",
-      "keyNotePlaceholder": "Only you read this",
-      "keyPublicNote": "Name and Player description are what a finder holds the moment they pick it up; What analysis reveals waits for their Analyze. The same three fields the Remnants tab edits. Your note stays yours.",
+      "keyNotePlaceholder": "Only GMs read this",
+      "keyPublicNote": "“Name” and “Player description” are what a finder holds the moment they pick it up; “What analysis reveals” waits until they Analyze it. The Remnants tab edits the same three fields. Only GMs read your note.",
       "leftoverKeys": {
         "one": "{n} Key Remnant from an earlier chapter is still on the map. This chapter's plan cannot see it; clear it at the end of a chapter or attach it here.",
         "other": "{n} Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here."
       },
       "finalFoundBy": "Found by",
       "finalNobody": "Nobody has found it",
-      "chargeTooLate": "The clock has already moved to chapter {now}, and the last case was chapter {was}'s: this chapter has no case of its own to count unfound Key Remnants against, so nothing was charged.",
+      "chargeTooLate": "No Despair was charged for unfound Key Remnants: the clock is in chapter {now}, but the last case belongs to chapter {was}, so this chapter has no case to count.",
       "traceAnalysis": "What analysis reveals"
     },
     "Live": {
@@ -2924,7 +2924,7 @@
 
       "neighboursColumn": "Neighbors",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Left blank, its walls decide (the grayed names).",
-      "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
+      "neighboursNote": "“Neighbors” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbors are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbor has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
       "neighboursUnknown": "{room}: no room on this scene is named {names}. What was typed stays in its Neighbors and connects nothing until such a room exists.",
       "imageLarge": "This picture is large and slow to load for every player: {size}.",
       "imageBroken": "This picture does not load - pick the file again."
@@ -4658,7 +4658,7 @@
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",
       "allPresent": { "one": "{n} item table already exists in this world.", "other": "All {n} item tables already exist in this world." },
-      "rebuildNote": "Rebuilding deletes them and builds them again from the module's own lists. Anything you edited by hand is lost.",
+      "rebuildNote": "Rebuilding deletes the default item tables and builds them again from the module's own lists. Anything you edited by hand is lost.",
       "keep": "Keep mine",
       "recreate": "Delete and rebuild",
       "someFailed": {
@@ -4673,54 +4673,54 @@
       "noRoomPools": "No room pools yet. Name one below.",
       "newTierPool": "New tier pool",
       "newTierPoolPlaceholder": "e.g. DRPG Tools - Tier 2",
-      "newTierPoolNote": "A tier pool is named for its category and its tier, as “DRPG Tools - Tier 2” is. Usually you do not make one by hand: “Install / reinstall” below builds them all.",
-      "newTierPoolForms": "“{name}” is not a tier pool. Name it for a category and a tier, one of: {forms} - where N is a tier from {low} to {high}.",
+      "newTierPoolNote": "A tier pool's name gives its category and tier, such as “DRPG Tools - Tier 2”. You rarely need to make one by hand: “Install / reinstall” below builds them all.",
+      "newTierPoolForms": "“{name}” is not a tier pool's name. Use one of these, where N is a tier from {low} to {high}: {forms}.",
       "renameOtherPool": "“{name}” would name another pool. This one holds the items of “{pool}”: keep its category and tier in the name.",
       "tabNewItem": "New item",
-      "installTabNote": "“Install / reinstall” below builds the default set - one table per category and tier. If they already exist, you choose between keeping yours and rebuilding.",
+      "installTabNote": "“Install / reinstall” below builds the default set, one table per category and tier. If they already exist, you choose between keeping yours and rebuilding.",
       "editorIntro": "Everything a Search can turn up. Pick a table on the left.",
       "tableEmpty": "Nothing in this table yet.",
       "removeItem": "Remove from this table",
       "roomTotal": "Everything",
       "roomFilter": "Show",
-      "roomBreakdown": "Sorted by what the tier pools say each name is. A flat room table still answers whatever category a Search asks for - name a table \"Room - Murder Weapons\" to have that decided here instead.",
+      "roomBreakdown": "Grouped by the category the tier pools give each name. A room table with no category in its name can supply any category a Search asks for. Name a table after the room's table and a category, as “Kitchen - Murder Weapons”, and the names no pool holds count as that category.",
       "unfiled": "Not in any tier pool",
-      "unfiledNote": "No tier pool holds these names, so the module cannot say what they are or how good they are. In a flat room table they can come up for any category. Use the arrows on a row to put one in a tier pool.",
-      "placeTooltip": "Which pools hold this item",
-      "placeTitle": "Where does {name} live?",
-      "placeIntro": "Tick every pool this item should be in. Ticking a new one copies it there, unticking one takes it out, and unticking the pool you are looking at moves it.",
-      "placeRolesNote": "The description, the picture, and the roles travel with it. A tier pool below Tier 2 takes no roles, and no pool takes a role that is its own category.",
+      "unfiledNote": "No tier pool holds these names, so the module cannot tell what they are or how good they are. In a room table with no category in its name, they can come up for any category. Use the arrows on a row to put one in a tier pool.",
+      "placeTooltip": "Choose the pools that hold this item",
+      "placeTitle": "Pools for “{name}”",
+      "placeIntro": "Tick every pool this item should be in. Ticking a new pool copies it there, and unticking one takes it out. To move it, untick the pool you are viewing and tick another.",
+      "placeRolesNote": "The description, the picture, and the roles travel with it. A tier pool below Tier 2 takes no roles, and an item cannot take its pool's own category as a role.",
       "placeSave": "Save",
       "placeNone": "An item has to live in at least one pool. Use the row's ✕ to delete it outright.",
-      "placeUnchanged": "{name} is already in exactly those pools.",
-      "placeDone": "{name}: {added} added, {removed} removed.",
-      "noneYet": "No item tables yet - create the default set below.",
+      "placeUnchanged": "“{name}” is already in exactly those pools.",
+      "placeDone": "“{name}”: {added} added, {removed} removed.",
+      "noneYet": "No table to show yet.",
       "addItem": "Add an item",
       "picture": "Picture",
       "pictureOwn": "Category's own",
       "pictureFile": "Another file...",
       "tierTargetIs": "Goes into {table}. Worked out from the category and tier above.",
-      "tierTargetNone": "No such tier pool - the item turns up only in the rooms ticked. Install the pools on the Tier pools tab.",
+      "tierTargetNone": "There is no such tier pool, so the item goes only into the room tables ticked. Install the pools on the Tier pools tab.",
       "roomTargets": "Room tables it also appears in:",
-      "noRoomTables": "No room tables yet - create one on the Room pools tab.",
-      "rolesTierOnly": "Two jobs start at tier {tier} - an item this cheap does one.",
+      "noRoomTables": "No room tables yet. Create one on the Room pools tab.",
+      "rolesTierOnly": "Below Tier {tier}, an item takes no roles.",
       "rolesNote": "What else it can be. It still takes one slot.",
-      "addNote": "The finder gets the icon and the description.",
-      "needsName": "The item needs a name.",
-      "needsTable": "Pick a tier table or tick at least one room table.",
+      "addNote": "The finder gets the picture and the description.",
+      "needsName": "The name cannot be empty.",
+      "needsTable": "There is no tier pool for this category and tier. Tick at least one room table.",
       "itemAdded": {
         "one": "“{name}” added to {n} table.",
         "other": "“{name}” added to {n} tables."
       },
-      "changeIcon": "Change this item's icon",
+      "changeIcon": "Change this item's picture",
       "newPool": "New room table",
       "newPoolPlaceholder": "e.g. Kitchen",
-      "newPoolNote": "What a room stocks. Assign it in Room setup, the “Draws from” column.",
-      "newPoolTierName": "That name matches the tier-table pattern (“DRPG … - Tier N”) - a room table needs its own name.",
+      "newPoolNote": "What a room stocks. Assign it to a room in Room setup, in the “Draws from” column.",
+      "newPoolTierName": "That name looks like a tier pool's (“DRPG … - Tier N”). A room table needs a name of its own.",
       "newPoolExists": "A table called “{name}” already exists.",
-      "presetRoomNoTable": "{room} draws from no table of its own. Point it at one in Room setup to keep finds like this there.",
+      "presetRoomNoTable": "{room} draws from no table of its own. Point it at one in Room setup to keep finds like this in that table.",
       "presetRoomTier": "{room} has no table for this tier yet: make “{name}” on the Room pools tab to keep finds of this tier there.",
-      "tierPoolCreated": "\"{name}\" is ready, and the module recognized it: items in it are filed by its category and tier, so a usable drawn from it knows what it does.",
+      "tierPoolCreated": "“{name}” is ready as a tier pool: its items are filed by its category and tier.",
       "poolCreated": "Room table “{name}” created. Point a room at it in Room setup.",
       "renameTable": "Rename table",
       "deleteTable": "Delete table",
@@ -4732,9 +4732,9 @@
       },
       "createTable": "Create table",
       "installAction": "Install / reinstall",
-      "renameNote": "A tier pool keeps a name of its category and tier. A room table can take any other name.",
+      "renameNote": "A tier pool's name must keep its category and tier. A room table can take any other name.",
       "renamed": "Renamed to “{name}”.",
-      "deleteConfirm": { "one": "Delete “{name}” and the {n} entry in it? This cannot be undone.", "other": "Delete “{name}” and the {n} entries in it? This cannot be undone." },
+      "deleteConfirm": { "one": "Delete “{name}” and the {n} item in it? This cannot be undone.", "other": "Delete “{name}” and the {n} items in it? This cannot be undone." },
       "deleted": "Deleted “{name}”."
     },
     "Clock": {
@@ -4770,14 +4770,14 @@
     "Panel": {
       "settings": "Settings",
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
-      "title": "Danganronpa - GM Panel",
+      "title": "GM panel",
       "launcher": "Open the GM panel",
       "gmOnly": "Only a GM can do this.",
-      "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
-      "noActorNamed": "game.drpg.{fn} was given \"{value}\", which is no actor's id or name, so it had no actor to act on: check the spelling.",
+      "noSceneNamed": "game.drpg.{fn} did nothing: it was given no scene and could not find one. Pass it the scene.",
+      "noActorNamed": "game.drpg.{fn} found no actor with the id or name \"{value}\". Check the spelling.",
       "actorNameShared": {
-        "one": "game.drpg.{fn} was given \"{value}\", a name {n} actor has, and acted on the first of them: hand it the id of the one you mean.",
-        "other": "game.drpg.{fn} was given \"{value}\", a name {n} actors share, and acted on the first of them: hand it the id of the one you mean."
+        "one": "{n} actor is named \"{value}\", and game.drpg.{fn} acted on the first. Pass it the id of the one you mean.",
+        "other": "{n} actors are named \"{value}\", and game.drpg.{fn} acted on the first. Pass it the id of the one you mean."
       },
       "nextLabel": "Next",
       "goMurderButton": "Open the incident",
@@ -4792,7 +4792,7 @@
       "goBodyButton": "Announce the body",
       "goSeasonChecklistButton": "Season checklist",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
-      "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
+      "nextEclipse": "The Eclipse is running. End it once everyone has placed their token.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
       "nextKeysToPlace": {
         "one": "{n} Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.",
@@ -4800,22 +4800,22 @@
       },
       "nextAutopsy": "The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.",
       "nextBodyAsked": "Students found a body in {room}, and it waits for your word: announce it, or leave it for now.",
-      "nextBodyWaiting": "A body is waiting to be found in {room}. Two witnesses find it, or announce it yourself.",
-      "nextBodyWaitingNoRoom": "A body is waiting to be found. Two witnesses find it, or announce it yourself.",
+      "nextBodyWaiting": "A body is waiting to be found in {room}. It is found once two witnesses see it, or you can announce it yourself.",
+      "nextBodyWaitingNoRoom": "A body is waiting to be found. It is found once two witnesses see it, or you can announce it yourself.",
       "nextBodyWaitingUnseen": "A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.",
-      "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
+      "nextInvestigation": "The Investigation is running. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",
         "other": "{n} students still have actions to spend."
       },
-      "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
+      "nextAllDone": "Everyone has spent their actions. Start the Eclipse: it refills everyone's actions, and its end moves the clock on.",
       "nextSeasonSetup": "To set up: {step}.",
-      "nextSeasonSetupAside": "The Season checklist still waits on: {step}.",
+      "nextSeasonSetupAside": "Still to set up: {step}.",
       "advance": "Skip the Eclipse",
       "advanceTooltip": "No Eclipse. Refills actions and Search Tokens.",
       "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
       "advanceOffTrial": "A Class Trial is running: the chapter's end moves the clock on.",
-      "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
+      "advanceDuringEclipse": "An Eclipse is running, and its end moves the clock. End it from the clock's chevron.",
       "jump": "Edit campaign",
       "resetHint": "Gives everyone full actions. Leave it off for a plain correction.",
       "section": {
@@ -4827,20 +4827,20 @@
       "close": "Close",
       "apply": "Apply",
       "alsoReset": "Also refill actions and Search Tokens",
-      "refilled": "Actions and Search Tokens refilled. The motive, the seals, and the overflow were left alone, and no time-of-day card was posted.",
+      "refilled": "Actions and Search Tokens refilled. The motive, the Despair Calls in force, and the Overflow are unchanged, and no time-of-day card was posted.",
       "character": "Character",
       "freeMove": "Free Move",
-      "noCharacters": "No characters in this world yet.",
+      "noCharacters": "No living students in this world.",
       "installTables": "Create item tables",
       "despairFlow": "Despair Flow",
       "clearFaint": "Clear Faint Remnants",
       "sweepBullets": "Sweep Truth Bullets",
-      "sweepNone": "Nothing to sweep - every Truth Bullet in play is Faint or Final.",
+      "sweepNone": "Nothing to sweep: every Truth Bullet in play is Faint or Final.",
       "sweepConfirm": {
         "one": "Delete {n} Truth Bullet from the students' inventories?",
         "other": "Delete {n} Truth Bullets from the students' inventories?"
       },
-      "sweepConfirmNote": "Permanent. {kept} stay: the Faint ones, doubtful by definition, and the Final Truth, which points at the Mastermind across the whole season.",
+      "sweepConfirmNote": "This cannot be undone. {kept} stay: the Faint ones and the Final Truth.",
       "sweptBullets": {
         "one": "{n} Truth Bullet swept.",
         "other": "{n} Truth Bullets swept."
@@ -4858,8 +4858,8 @@
         "gmOnly": "Only a GM can make a public roll.",
         "badFormula": "\"{formula}\" is not a roll formula."
       },
-      "failed": "That did not work. See the console.",
-      "faintNone": "No Faint Remnants to clear - every Remnant on the map is reinforced or tied to the crime.",
+      "failed": "That did not work. The Debug log in Diagnostics says why.",
+      "faintNone": "No Faint Remnants to clear: every Faint Remnant left is Reinforced or tied to the crime.",
       "faintConfirm": {
         "one": "Delete {n} Faint Remnant, across every scene?",
         "other": "Delete {n} Faint Remnants, across every scene?"
@@ -4881,10 +4881,10 @@
       "checksAvOff": "A/V is off, so the voice tile does not work. Turn A/V on, or switch the tile off.",
       "checksAvVideoOnly": "This world is set to video only: nobody sends sound. Set the A/V mode to audio only.",
       "checksImages": "Room pictures",
-      "checksImagesMissing": "These room pictures do not load - pick the file again in Room setup: {rooms}",
-      "checksImagesLarge": "These room pictures are large and slow to load for every player - make them at most {side} px on a side and {mb} MB: {rooms}",
+      "checksImagesMissing": "These room pictures do not load: {rooms}. Pick the file again in Room setup.",
+      "checksImagesLarge": "These room pictures are large and slow to load for every player: {rooms}. Make each at most {side} px on a side and {mb} MB.",
       "checksImagesUnknown": "The file size of these room pictures could not be read: {rooms}",
-      "checksImagesLate": { "one": "These room pictures did not finish loading within {s} second, so their size in pixels was not checked - nothing says they are missing; run the checks again on a faster connection: {rooms}", "other": "These room pictures did not finish loading within {s} seconds, so their size in pixels was not checked - nothing says they are missing; run the checks again on a faster connection: {rooms}" },
+      "checksImagesLate": { "one": "These room pictures are on the server but did not finish loading within {s} second, so their size in pixels was not checked: {rooms}. Run the checks again on a faster connection.", "other": "These room pictures are on the server but did not finish loading within {s} seconds, so their size in pixels was not checked: {rooms}. Run the checks again on a faster connection." },
       "checksImagesWhere": "{room} ({scene})",
       "checksImagesSized": "{rooms}: {size}",
       "checksImagesPixels": "{width} x {height} px",
@@ -4892,13 +4892,13 @@
       "seasonChecks": "Pre-season checks",
       "foundryReport": "Foundry and modules",
       "whoIsAlive": "Students",
-      "whoIsAliveNote": "State only moves the flags, on Apply - the repair tool, for a mis-click. Role changes at once. The buttons run the real thing: a death destroys Truth Bullets. Monocub, by the button or the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
+      "whoIsAliveNote": "The State column fixes a mis-click: the change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.",
       "doColumn": "Do",
       "refundCrossing": "Refund last crossing",
       "refundCrossingNote": "{to} back to {from}",
       "nextChapterEndStopped": "The end of the chapter stopped before every step was done. Finish it in End the chapter.",
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
-      "nextReady": "The players have been asked before the clock moves. Open the question again.",
+      "nextReady": "The players are being asked whether they are done. Open the question again to see who has answered.",
       "roleColumn": "Role",
       "openSheet": "Open {name}'s sheet",
       "openColumn": "Open",
@@ -5106,20 +5106,20 @@
       }
     },
     "Anonymity": {
-      "aboveLimited": "Shared as Owner to everyone, so the redaction never runs and any player reads the whole sheet, inventory, and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",
-      "blocked": "Blocked: every player would own “{actor}”, and an owner is never redacted. Give Owner to their one player only.",
+      "aboveLimited": "Shared as Owner with every player, so any player can read the whole sheet, inventory and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",
+      "blocked": "Ownership not raised: every player would own “{actor}” and read the whole sheet. Give Owner only to the player whose character it is.",
       "audit": {
         "title": "Sheet Anonymity Audit",
         "clean": "No sheet is open in full to every player. Nothing to fix.",
-        "exposed": "Owned by every player, so nothing on these sheets is hidden and every player reads them whole - fix these:",
+        "exposed": "Owned by every player, so nothing on these sheets is hidden:",
         "fix": "Set them to Observer",
         "fixed": {"one": "{n} sheet set to Observer: every player can open it, its secrets hidden.", "other": "{n} sheets set to Observer: every player can open them, their secrets hidden."},
-        "fixedOpen": {"one": "{n} sheet set to Observer: every player can open it. 'Keep character sheets anonymous' is off, so they read it whole.", "other": "{n} sheets set to Observer: every player can open them. 'Keep character sheets anonymous' is off, so they read them whole."},
-        "switchOff": "'Keep character sheets anonymous' is off, so nothing on these Observer sheets is hidden and every player reads them whole - switch it on in the module's settings:",
-        "closed": "Closed to the other players. Nothing to fix, but nobody can open these sheets, so nobody can loot the body when the character dies:",
-        "assistants": "Owned by an Assistant GM. Assistants read every sheet in the world, which breaks anonymity - drop them to Player:",
+        "fixedOpen": {"one": "{n} sheet set to Observer: every player can open it and, with 'Keep character sheets anonymous' off, read it whole.", "other": "{n} sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole."},
+        "switchOff": "Turn on 'Keep character sheets anonymous' in the module's settings. While it is off, every player can read these Observer sheets whole:",
+        "closed": "Closed to the other players. Nothing to fix, but no other player can open these sheets, so nobody can Take from the Body when the character dies:",
+        "assistants": "Owned by an Assistant GM, who reads every sheet in the world. Change their role to Player:",
         "shared": "Owned by more than one player:",
-        "orphaned": "No player owner assigned - here is who does have access:",
+        "orphaned": "Owned by no player. Who has access to each:",
         "nobody": "nobody at all"
       },
       "everyone": {
@@ -5140,7 +5140,7 @@
         "gm": "(GM)",
         "assistant": "(Assistant GM)"
       },
-      "reverted": "“{actor}” was shared as Owner with every player, which lets all of them read the whole sheet. It is back to Observer. Give Owner to their one player only."
+      "reverted": "“{actor}” was shared as Owner with every player, which lets all of them read the whole sheet. It is back to Observer. Give Owner only to the player whose character it is."
     },
     "Errors": {
       "wrongSystem": "The Danganronpa RPG module needs the Daggerheart system (Foundryborne), but this world runs {found}.",
@@ -5149,8 +5149,8 @@
     "Requirements": {
       "title": "Danganronpa RPG is not running",
       "intro": {
-        "one": "Danganronpa RPG needs this module and has not started: nothing of it runs until the module is back. What it changed in Foundry while it ran before stays as it left it until it runs again and a GM presses Give back Foundry's settings.",
-        "other": "Danganronpa RPG needs these {n} modules and has not started: nothing of it runs until they are back. What it changed in Foundry while it ran before stays as it left it until it runs again and a GM presses Give back Foundry's settings."
+        "one": "Danganronpa RPG has not started: it needs this module. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.",
+        "other": "Danganronpa RPG has not started: it needs these {n} modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”."
       },
       "state": {
         "absent": "not installed",
@@ -5161,14 +5161,14 @@
         "isometric-perspective": "Maps drawn for isometric play will look wrong on a flat grid.",
         "avclient-livekit": "Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you."
       },
-      "how": "Install or switch on what is listed in Manage Modules (on the Forge, in the game's module list), then reload the world. That is the whole repair.",
+      "how": "Install or switch on what is listed in Manage Modules (on the Forge, in the game's module list), then reload the world.",
       "understood": "Understood",
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing.",
-      "newerSystemTitle": "{system} is newer than this module has been measured on",
-      "newerSystemIntro": "This world runs {system} {found}. Danganronpa RPG was verified on {verified}. It loads anyway, and most of it will not notice - but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own lean on how {system} is built inside, and a newer version can change that without a word. If something misbehaves, this is the first thing to mention when you report it.",
-      "newerSystemPatches": "These places in the system that the module changes or relies on were not found where they used to be, so what the module does there is not happening:",
-      "newerSystemAllPatches": "Every place in the system that the module changes or relies on was found where it expected it. That is a good sign, not a guarantee.",
-      "newerSystemSilence": "Do not mention {found} again on this computer",
+      "newerSystemTitle": "{system} is newer than the verified version",
+      "newerSystemIntro": "This world runs {system} {found}. Danganronpa RPG was verified on {verified}. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how {system} is built, which a newer version can change. If something goes wrong, mention this first when you report it.",
+      "newerSystemPatches": "The module could not find these places in the system that it changes or relies on, so what it does there is not happening:",
+      "newerSystemAllPatches": "The module found every place in the system that it changes or relies on. That makes trouble less likely, though it does not rule it out.",
+      "newerSystemSilence": "Do not mention {found} again on this browser",
       "newerSystemNotice": "{system} {found} is newer than {verified}, the version Danganronpa RPG was verified on. It loads, but some features may misbehave."
     },
     "Tamper": {
@@ -5486,16 +5486,16 @@
       "silenceNow": "Silence now",
       "silenceNowTip": "Moves this player's voice to the Spectators now, before the body is found.",
       "silenced": "Silenced",
-      "contested": "Voice: {name} owns characters in more than one place ({places}). A voice client can only be in one room, so {name} is being sent to \"{room}\" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.",
+      "contested": "Voice: {name} owns characters in more than one place ({places}), so {name} goes to \"{room}\" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.",
       "mainRoom": "the main room",
       "deadRoom": "the Spectators' channel",
-      "claimTrial": "the Class Trial - everybody in one room",
-      "trialMuteLeft": "{name}'s microphone is still blocked after the trial: lift the block from the voice tile's list.",
-      "needsAvclient": "Regional voice is on, but LiveKit AVClient is not active.",
-      "avDisabled": "Regional voice is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
+      "claimTrial": "the Class Trial, with everybody in one room",
+      "trialMuteLeft": "{name}'s microphone is still blocked after the trial. Unblock it in “Who you hear” on the voice tile.",
+      "needsAvclient": "'Separate voice in each room' is on, but LiveKit AVClient is not active. Turn it on in Manage Modules, then reload the world.",
+      "avDisabled": "'Separate voice in each room' is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
       "resetDone": {
-        "one": "Sent {n} person their voice room again.",
-        "other": "Sent {n} people their voice rooms again."
+        "one": "Voice room re-sent to {n} person.",
+        "other": "Voice rooms re-sent to {n} people."
       },
       "drop": {
         "title": "Voice disconnected",
@@ -5528,7 +5528,7 @@
         "mute": "Mute your microphone",
         "unmute": "Turn your microphone back on",
         "ptt": "Push to talk: hold {key} to speak",
-        "pttNoKey": "Push to talk: choose a key for it in Foundry's controls.",
+        "pttNoKey": "Push to talk: set a key for it in Configure Controls.",
         "pttBadge": "PTT",
         "keybinding": "Mute or unmute your microphone"
       },
@@ -5539,7 +5539,7 @@
         "spectator": "You're a Spectator: you hear the room you're in, and your microphone is off.",
         "spectatorTalk": "You're talking with the other Spectators.",
         "gmBlock": "The GM blocked your microphone.",
-        "external": "Voice is in its own window - use the controls there.",
+        "external": "Voice is in its own window: use the controls there.",
         "offline": "You are not connected to voice.",
         "connecting": "Joining your voice channel.",
         "connected": "Connected to your voice channel.",
@@ -5547,7 +5547,7 @@
         "listening": "Listening at a door: your microphone stays off until you stop.",
         "masked": "Hidden behind a \"?\": your microphone stays off until you reveal yourself.",
         "cubSpeak": "Discussion: you may speak.",
-        "cubListen": "Mode: {mode}. You listen.",
+        "cubListen": "{mode}: you listen.",
         "cubVote": "The vote: you listen.",
         "ownCase": "You listen: this trial is about your death."
       },
@@ -5558,17 +5558,17 @@
           "other": "You hear {n} people in your channel"
         },
         "alone": "Nobody else is in your channel.",
-        "muteAll": "Mute everybody for you",
+        "muteAll": "Mute everybody on your end",
         "volume": "Volume: {name}",
-        "muteFor": "Mute {name} for you",
+        "muteFor": "Mute {name} on your end",
         "unmuteFor": "Hear {name} again",
-        "hidden": "Hidden earlier in the camera dock: you do not hear them.",
+        "hidden": "You hid them in the camera dock, so you do not hear them.",
         "unhide": "Show and listen",
         "gmBlock": "Block {name}'s microphone for everyone",
         "gmUnblock": "Unblock {name}'s microphone",
         "gmHeld": "You cannot block this microphone now.",
         "gmSecretDead": "This death is still a secret: a block would give it away.",
-        "gmNoBlock": "This version of Foundry has no microphone permission, so no microphone can be blocked from here."
+        "gmNoBlock": "This version of Foundry has no microphone permission, so you cannot block a microphone from here."
       },
       "panel": {
         "legend": "Voice",
@@ -5581,7 +5581,70 @@
         "pttKey": "Push-to-talk key: {key}",
         "pttChange": "Change the key"
       },
-      "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
+      "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting that every player's browser receives. Anyone holding it can connect to any voice room. To keep the secret off every browser, use a server that issues its own access tokens, such as the Tavern.",
+      "plan": {
+        "why": {
+          "noPoolHolder": "no GM holds this Monokuma's Despair pool",
+          "noOwner": "no owner is connected",
+          "notConnected": "{name} is not connected",
+          "eclipseGm": "Eclipse: the GMs' own channel",
+          "eclipsePlayer": "Eclipse: in no voice channel",
+          "deadSecret": "dead, the death not public: the Spectators' room",
+          "deadPublic": "dead, and not back as a Monocub: the Spectators' room",
+          "kept": "(outside every room: the room it came from)",
+          "noRoom": "no room: the token is outside every region, or there is no token",
+          "scrumCamp": "Scrum Debate: Zone {zone} confers in its own room",
+          "spectatorTalks": "a Spectator, talking with the Spectators",
+          "noCharacterMain": "no character: the main room",
+          "listening": "listening at the door of {into}, from {from}",
+          "masked": "behind a \"?\" after a murder's opening: a silent room of its own"
+        },
+        "setting": "Regional voice setting: {state}",
+        "on": "on",
+        "settingOff": "off, so nothing is applied",
+        "avMode": "A/V mode: {mode}",
+        "avDisabled": "disabled, so nothing can connect",
+        "loop": "This client runs the assignment loop: {answer}",
+        "yes": "yes",
+        "no": "no",
+        "eclipse": {
+          "running": "An Eclipse is running. Nobody is placed by their token, and the rooms are not even read.",
+          "noPlayer": "No player is in any voice channel; the GMs share one.",
+          "ends": "It goes back to normal the moment it ends."
+        },
+        "eclipseGroup": "(Eclipse: no player in voice)",
+        "spectatorGroup": "(Spectators' room)",
+        "mainGroup": "(main room)",
+        "deadGroup": "(dead channel)",
+        "nowhere": "(sent nowhere)",
+        "ignored": "← ignored, {name} is sent with {actor}",
+        "itsAccount": "its account",
+        "anotherRow": "another row",
+        "seeConflicts": "(see CONFLICTS)",
+        "waiting": "← sent nothing until the cast arrives",
+        "nobody": "nobody",
+        "alone": "ACCOUNTS WITH NO CHARACTER",
+        "noCharacter": "no character",
+        "conflicts": "CONFLICTS: these accounts own characters in more than one place.",
+        "deadChannel": "the dead channel",
+        "applied": "(this one is applied)",
+        "oneRoom": "A voice client can only be in one room. Give the spare characters to another account, or leave their tokens off the map.",
+        "decision": "This is the decision only; it does not test the audio.",
+        "decisionHow": "Whether two of these rooms hear each other needs a second connected client: run game.drpg.diagnoseVoice() there and compare the room it reports with the one named above."
+      },
+      "warn": {
+        "proximity": "Proximity Voice Chat is also active.",
+        "proximityVolume": "It sets each participant's volume from token distance, on top of the room this module puts them in. Unconfigured, that volume is zero for everyone.",
+        "proximityGlobal": "Its \"global listen\" setting is on, so it is not muting anybody right now.",
+        "proximitySceneOff": "It is switched off on \"{scene}\", so it is not muting anybody there.",
+        "proximityFix": "Turn it off, or set \"global listen\", unless you use both on purpose.",
+        "others": "Other active modules that mention voice: {modules}.",
+        "othersHint": "Worth ruling out first if the rooms below are right and the audio is not.",
+        "noRooms": "\"{scene}\" has characters on it and no rooms, so everybody standing there shares the main room.",
+        "noRoomsFix": "Name the regions to split them up.",
+        "dupes": "\"{scene}\" has more than one region named {names}, and together they are one voice room.",
+        "dupesHint": "Intended for a corridor drawn in two pieces; a mistake otherwise."
+      }
     },
     "States": {
       "drpgBreakdown": {
@@ -5749,7 +5812,7 @@
       "hideTraces": "Hide the Traces"
     },
     "Diagnostics": {
-      "pageTinted": "{name} is repainting this page in colors that are not this module's. Foundry is already dark - turn the extension off for this site.",
+      "pageTinted": "{name} is repainting this page in colors that are not this module's. Foundry is already dark, so turn the extension off for this site.",
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
       "tracing": { "one": "Watching clicks for {seconds} second. Click the control that misbehaves.", "other": "Watching clicks for {seconds} seconds. Click the control that misbehaves." },
       "cast": {
@@ -5758,17 +5821,17 @@
         "noCast": "No students yet: create the cast first, then run these checks again.",
         "row": "Health max {hp}, Sanity max {stress}",
         "notSetUp": "not set up",
-        "pending": {"one": "{n} character still needs the starting resources.", "other": "{n} characters still need the starting resources."},
+        "pending": {"one": "{n} student still needs the starting resources.", "other": "{n} students still need the starting resources."},
         "fix": "To fix it: open the sheet and press the wand beside the name.",
         "pendingWhy": "Until they are given their starting resources, these students have a maximum Health and Sanity of zero, so they look the same as a student beaten unconscious.",
-        "allSet": "Every character has the starting resources.",
+        "allSet": "Every student has the starting resources.",
         "ultimate": "Everybody has an Ultimate",
         "ultimateFix": "Set it on the sheet, under the name.",
         "experiences": "Everybody has {n} experiences",
         "experiencesFix": "Each at +2, agreed at character creation.",
         "item": "Everybody carries their opening item",
-        "itemFix": "One Tier {tier} item tied to their Ultimate: hand it out from Give / take items.",
-        "pool": "Everybody is assigned to a Despair pool",
+        "itemFix": "One Tier {tier} item tied to their Ultimate: hand it out from “Give / take items”.",
+        "pool": "Everybody is assigned in Despair Flow",
         "poolFix": "Assign each of them a Monokuma by hand, or deliberately assign them none, in the GM panel under Despair Flow. Until then, Despair from their rolls goes to the pool named beside them; where none is named, it goes nowhere."
       },
       "title": {
@@ -5778,9 +5841,9 @@
       }
     },
     "Tests": {
-      "alreadyRunning": "The regression suite is already running on this client. Wait for it to finish - a second run would take its snapshot of a world the first one has fixtures standing in, and put that back as the baseline.",
+      "alreadyRunning": "The regression suite is already running in this browser. Wait for it to finish before you run it again.",
       "tier2Title": "Tier 2 writes to {title}",
-      "tier2What": "The scenarios build their own fixtures in this world and put them back: they open and close incidents, kill and revive students, write world settings and delete the chat they produce. After each scenario the whole world is read again, and anything left behind is reported as a failure.",
+      "tier2What": "The scenarios build their own fixtures in this world and put them back: they open and close incidents, kill and revive students, write world settings, and delete the chat they produce. After each scenario the whole world is read again, and anything left behind is reported as a failure.",
       "tier2Where": "World: {title} ({id})",
       "tier2Online": {
         "one": "{n} other person is connected to this world right now.",
@@ -5790,14 +5853,14 @@
       "tier2Run": "Run tier 2 on {title}",
       "cancel": "Cancel",
       "tier2Cancelled": "Nothing ran: tier 2 was not confirmed.",
-      "confirmedNotThisWorld": "runTests({ confirmed }) names {given}, but this world is {id}: asking instead."
+      "confirmedNotThisWorld": "The confirmed value given to runTests is {given}, but this world's id is {id}, so the confirmation window opens instead."
     },
     "Season": {
-      "missingPool": "no Despair pool yet (every full Gamemaster account holds one)",
-      "missingMonokumaActor": "no character is marked as Monokuma (Despair Flow, or the Actors list's right-click menu)",
+      "missingPool": "no Despair pool yet (every account with the Gamemaster role holds one)",
+      "missingMonokumaActor": "no character is marked as Monokuma (the Students window's Role list, or Mark as Monokuma on a sheet)",
       "title": "Season setup",
       "introOutstanding": "{n} still to do. The season can start without them.",
-      "introReady": "Every row this list needs is done. Pre-season checks look at more than this list - room pictures, voice, who can open the sheets - so run them before the first session.",
+      "introReady": "Every row this list needs is done. Read the further checks below before the first session.",
       "note": "Every row is something a season needs, in the order a season is built.",
       "resourcesButton": "Give the starting resources",
       "cursorButton": "Hide the GMs' cursor",
@@ -5808,16 +5871,16 @@
       },
       "convertDoors": "Convert to passages",
       "fixedSecretDoors": {
-        "one": "Converted {n} secret door. A door that stood between two rooms is a secret passage now, and nobody knows it until you give it to a student in the Passages tab.",
-        "other": "Converted {n} secret doors. Each door that stood between two rooms is a secret passage now, and nobody knows it until you give it to a student in the Passages tab."
+        "one": "Converted {n} secret door. Where it stood between two rooms, it is now a secret passage nobody knows; give it to a student in the Passages tab.",
+        "other": "Converted {n} secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab."
       },
       "secretDoorsPlain": {
-        "one": "{n} of them stood between no two rooms and is a plain wall now.",
-        "other": "{n} of them stood between no two rooms and are plain walls now."
+        "one": "{n} of them did not stand between two rooms and is now a plain wall.",
+        "other": "{n} of them did not stand between two rooms and are now plain walls."
       },
       "secretDoorsPutBack": {
-        "one": "{n} secret door changed with no GM watching was put back as a GM last left it: {scenes}.",
-        "other": "{n} secret doors changed with no GM watching were put back as a GM last left them: {scenes}."
+        "one": "{n} secret door was changed while no GM was online, and is back as a GM last left it: {scenes}.",
+        "other": "{n} secret doors were changed while no GM was online, and are back as a GM last left them: {scenes}."
       },
       "hideRulers": "Hide",
       "showRulers": "Show",
@@ -5830,24 +5893,24 @@
         "other": "The movement ruler is shown for {n} roles again."
       },
       "fixed": {
-        "one": "Set up {n} character with the starting resources.",
-        "other": "Set up {n} characters with the starting resources."
+        "one": "Gave {n} character the starting resources.",
+        "other": "Gave {n} characters the starting resources."
       },
       "step.name": "Name the campaign",
       "hint.name": "Shown at the top of everyone's screen, above the chapter and the clock.",
       "step.npcs": "Characters no player plays are marked",
       "hint.npcs": "A character no player owns is probably an NPC: mark it Not in the class on its sheet, or leave it as it is.",
       "roomsVision": "{scene}: Foundry's token vision or its fog is still on there, or its global light is off, so players may see black.",
-      "moreChecking": "Checking the room pictures, the voice, the dice and the sheets...",
-      "moreFailed": "The further checks could not be drawn. The debug log in the GM panel says why.",
-      "resetNote": "Wipes the season's play - projects, evidence, deaths, items, Level Ups - and keeps the cast. It asks first.",
+      "moreChecking": "Checking the room pictures, the voice, the dice, and the sheets...",
+      "moreFailed": "The further checks could not run. The Debug log in the GM panel says why.",
+      "resetNote": "Wipes the season's play, such as projects, evidence, deaths, items, and Level Ups, and keeps the cast. It asks first.",
       "scenesLine": "The school and the trial hall, linked once a season.",
       "scenesHint": "Season setup links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
       "step.cast": "The cast exists",
       "hint.cast": "One character per student. Monokumas are separate and do not count here.",
       "step.monokumas": "At least one Monokuma",
-      "hint.monokumas": "A Monokuma spends Despair from their sheet. With several GMs, split the students evenly.",
-      "step.resources": "Starting Health, Sanity and Hope",
+      "hint.monokumas": "A Monokuma spends Despair from their sheet. With several GMs, split the students evenly between the Monokumas.",
+      "step.resources": "Starting Health, Sanity, and Hope",
       "hint.resources": "Without them a character is Wounded and in Breakdown at once.",
       "step.ultimate": "Everybody has an Ultimate",
       "hint.ultimate": "Write it on the sheet.",
@@ -5856,40 +5919,40 @@
       "step.items": "Everybody carries something",
       "hint.items": "One starting item per student.",
       "step.despairSplit": "The students are split evenly between the pools",
-      "hint.despairSplit": "At most one student's difference between pools. Advice only.",
-      "step.overflow": "The overflow threshold suits the cast",
+      "hint.despairSplit": "Pools may differ by at most one living student. This is advice only.",
+      "step.overflow": "The Overflow threshold suits the cast",
       "hint.overflow": "Suggested: 12 + half the living students. Set the threshold in Despair Flow.",
       "overflowNow": "{line} Now {n}.",
       "step.assignments": "Every student has a Monokuma watching",
       "hint.assignments": "In Despair Flow, assign each student a Monokuma; Despair from their rolls goes to that Monokuma's pool. A student with no Monokuma assigned falls back to the first pool and is named here until assigned. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody. The step is done when every student is assigned by hand or set to “- nobody -”.",
       "step.nobodyPublic": "The Mastermind feeds a Despair pool",
-      "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. The division is world data every player's browser can read, and the one student left out stands out - give them a Monokuma like any other student.",
-      "step.liveKitSecret": "The voice server's secret is not in the world",
+      "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. Any player can find that out, and the one student left out stands out: give them a Monokuma like any other student.",
+      "step.liveKitSecret": "The voice server's secret key is not saved in the world",
       "step.sound": "Sound files",
-      "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
+      "hint.sound": "This module ships and assigns no audio: the files are yours. Map what you want in the Sound window; anything left blank stays silent.",
       "step.rooms": "The map has rooms",
-      "hint.rooms": "Rooms are Scene Regions a GM ticked “This is a room” in Room setup. Movement, Search, Listen and every incident are answered in terms of them.",
-      "step.roomsMarked": "Every named region is decided: a room or not",
-      "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room setup (the Doors tab). These named regions have not been decided yet.",
+      "hint.rooms": "Rooms are Scene Regions a GM ticked “This is a room” in Room setup. Movement, Search, Listen, and every incident work room by room.",
+      "step.roomsMarked": "Every named region is marked as a room or not",
+      "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room setup (the Rooms tab). These named regions have not been decided yet.",
       "step.scenes": "The school and the trial hall are linked",
       "hint.scenes": "Room setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
-      "step.cursor": "The GM's pointer is private (recommended)",
-      "hint.cursor": "Otherwise the players see where you look on the map.",
+      "step.cursor": "The GMs' cursor is private (recommended)",
+      "hint.cursor": "Otherwise the players see your cursor on the map.",
       "step.secretDoors": "No Foundry secret doors (recommended)",
       "hint.secretDoors": "Any player can open a Foundry secret door. Convert them to secret passages.",
       "step.rulers": "The players' movement ruler is hidden (optional)",
-      "hint.rulers": "Otherwise the table sees a player's route, through a secret passage too.",
+      "hint.rulers": "Otherwise the table sees a player's route, even through a secret passage.",
       "step.mastermind": "The Mastermind (optional)",
-      "hint.mastermind": "Who is hiding among the students, and what proves it. Optional.",
+      "hint.mastermind": "Who is hiding among the students, and what proves it.",
       "step.foundryHeld": "The module holds Foundry's settings (optional)",
-      "hint.foundryHeld": "Foundry's settings are given back. Hold them again, unless that is meant.",
+      "hint.foundryHeld": "Foundry's settings are given back. Unless your table wants that, hold them again.",
       "step.hallTokens": "The trial hall and its tokens (optional)",
-      "hint.hallTokens": "A trial hall linked, with no warnings on the Scenes tab. Optional.",
-      "step.diceSoNice": "Dice So Nice (optional)",
-      "hint.diceSoNice": "Dice So Nice shows the dice as they fall. Without it the rolls are the same and nobody sees the dice. The button opens Foundry's module list, where it is switched on.",
+      "hint.hallTokens": "A trial hall is linked, with no warnings on the Scenes tab. This is optional.",
+      "step.diceSoNice": "Dice So Nice is active",
+      "hint.diceSoNice": "Dice So Nice shows the dice as they fall. Danganronpa RPG does not start without it.",
       "resetTitle": "Reset the season",
       "resetWarning": "This cannot be undone, by this module or by anything else.",
-      "resetGoes": "This goes:",
+      "resetGoes": "What goes:",
       "resetProjects": {
         "one": "{n} project",
         "other": "{n} projects"
@@ -5932,8 +5995,8 @@
         "other": "{n} items the cast is carrying or has stowed"
       },
       "resetAdvances": {
-        "one": "{n} advancement, and the traits and rises it bought",
-        "other": "{n} advancements, and the traits and rises they bought"
+        "one": "{n} Level Up, and the traits and maxima it raised",
+        "other": "{n} Level Ups, and the traits and maxima they raised"
       },
       "resetCards": {
         "one": "{n} card this module wrote, and every messenger thread",
@@ -5944,42 +6007,42 @@
         "other": "{n} pre-session notes the GMs wrote"
       },
       "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
-      "resetKeeps": "This stays: the cast with their names, portraits, and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
+      "resetKeeps": "What stays: the cast with their names, portraits, and Ultimates, the maps, the rooms and who owns them, the Monokuma team, and the campaign name.",
       "resetGroupsTitle": "What goes, and what stays",
-      "resetGroupsNote": "Untick anything this reset should leave alone. The choice is remembered for the next reset, and comes back unticked - tick it again and it goes.",
+      "resetGroupsNote": "Untick anything this reset should leave alone. The next reset remembers it and opens with it unticked; tick it again to include it in the reset.",
       "resetCastTitle": "Where the cast's tokens go",
-      "resetCastNote": "A token moves only on the map its room is drawn on. A student with no bedroom, or with no token on the map of the room they are sent to, stays where they are, and the report names them. A body stays where it fell. Not remembered: every reset starts from the first choice.",
+      "resetCastNote": "A student with no bedroom, or with no token on the map of the room they are sent to, stays where they are, and the report names them. A body stays where it fell. Every reset opens on the first choice.",
       "resetCastStay": "They stay where they stand",
       "resetCastBedroom": "Each student to their own bedroom, as Room setup assigns it",
       "resetCastPoint": "Everyone to one room:",
       "resetCastNoRooms": "No map has a named room yet",
       "resetRemembered": {
-        "one": "1 exception is remembered from the last reset and is unticked below.",
+        "one": "One exception is remembered from the last reset and is unticked below.",
         "other": "{n} exceptions are remembered from the last reset and are unticked below."
       },
       "resetForgotten": {
-        "one": "1 remembered exception is no longer part of a reset and was dropped.",
+        "one": "One remembered exception is no longer part of a reset and was dropped.",
         "other": "{n} remembered exceptions are no longer part of a reset and were dropped."
       },
       "resetNothing": "Nothing is ticked, so there is nothing to reset.",
       "resetDoneKept": {
-        "one": "The season has been reset, with 1 exception left as it was.",
+        "one": "The season has been reset, with one exception left as it was.",
         "other": "The season has been reset, with {n} exceptions left as they were."
       },
-      "failed": "The reset did not finish: {groups}. Everything else went. Open the reset again: it opens with only what did not finish ticked.",
-      "failedCast": "The reset did not move every token of the cast where you chose. Move them by hand: a reset with nothing ticked does not run, so it cannot be run again for the tokens alone.",
-      "stoppedPrimary": "The reset stopped: this browser is no longer the primary GM's - {name} is - so these did not run: {groups}. What ran stays done; {name} can finish the rest with another reset.",
+      "failed": "The reset did not finish: {groups}. The other ticked groups were cleared. Reset again: the window ticks only the groups that did not finish.",
+      "failedCast": "The reset did not move all of the cast's tokens where you chose. Move them by hand: no reset moves only the tokens.",
+      "stoppedPrimary": "The reset stopped: {name} is now the primary GM, and these did not run: {groups}. What ran stays done; {name} can finish the rest with another reset.",
       "reportCard": {
         "title": "The season reset did not finish",
         "failed": "Not cleared: {groups}.",
         "done": "Cleared: {groups}.",
-        "kept": "Kept, as unticked: {groups}.",
+        "kept": "Kept (unticked): {groups}.",
         "notRun": "Not run, because the primary GM changed while the reset ran: {groups}.",
-        "cast": "The cast's tokens, as chosen - {where}.",
+        "cast": "The cast's tokens went as chosen ({where}).",
         "titleCast": "Where the cast went after the season reset",
         "stayed": "Stayed where they were: {names}.",
         "titleLeft": "What the season reset left on the sheets",
-        "experiences": "Experiences left on the sheets - their starting sheet was written before the module told a Level Up's experience from the GM's, and holds none: {list}."
+        "experiences": "Experiences left on the sheets, since there is no way to tell whether a Level Up or a GM added them: {list}."
       },
       "section": {
         "case": "The case",
@@ -5989,50 +6052,50 @@
         "world": "The world"
       },
       "state": {
-        "noticeHistory": "Each player's notice history - kept on their own browser, it starts again when the reset clears the clock, the incident, or the chat"
+        "noticeHistory": "Each player's notice history, which starts again on their own browser when the reset clears the clock, the incident, or the chat"
       },
       "group": {
         "remnants": "Remnants on the maps, and what each one really was",
         "bullets": "Truth Bullets in the cast's packs",
-        "incident": "The incident, the Blackened, a betrayal still on offer and any murder declared in the dark",
+        "incident": "The incident, the Blackened, a betrayal still on offer, and any murder declared in the dark",
         "trialFloor": "The trial floor",
         "trialProgress": "The trial's progress and its vote",
         "keyPlan": "The Key Remnant plan",
         "searchTokens": "Search Tokens spent in each room",
         "discovered": "Which rooms have been discovered",
-        "bodyFound": "The body waiting to be answered, and the record of which bodies were found",
-        "deaths": "Deaths and Monocubs - the dead come back, the bodies left on the map go, and every student's Health and Sanity whole again",
-        "items": "What the cast is carrying - each bedroom's key is handed back to its owner at once",
-        "advancement": "Advancement - traits and maxima back to the starting sheet, and the experiences a Level Up added",
-        "actions": "The action budget refilled, and each student's rests cleared",
+        "bodyFound": "The body waiting for a GM's word, and the record of which bodies were found",
+        "deaths": "Deaths and Monocubs, with the dead back, the bodies off the maps, and every student's Health and Sanity whole again",
+        "items": "What the cast is carrying, with each bedroom key handed back to its owner",
+        "advancement": "Level Ups, with traits and maxima back to the starting sheet and the experiences they added removed",
+        "actions": "The action budget refilled, each student's rests cleared, and every barricade taken down",
         "preNotes": "The GMs' pre-session notes",
         "stashesFound": "The stashes each student has already found, and every hidden stash open again",
         "projects": "Projects, repairs, and their countdowns",
         "mastermind": "The Mastermind",
-        "passages": "Who knows each secret passage, the passages projects made and their breaches (the GMs' passages stay, and whoever knew one at season start knows it again)",
+        "passages": "Who knows each secret passage, the passages projects made, and their breaches (the GMs' passages stay, and whoever knew one at season start knows it again)",
         "seals": "Despair Calls still in force, and every Call armed for a roll",
         "motive": "The motive",
         "rules": "Monokuma's standing rules",
         "doors": "Locked doors, back to how the season opened",
-        "eclipseMoves": "Eclipse placements",
+        "eclipseMoves": "Eclipse crossings already used",
         "assembly": "A called assembly that has not gathered yet",
         "cards": "This module's own cards and the messenger",
         "chatRest": "The rest of the chat log, which this module did not write",
         "despair": "Despair pools, and every Hope back to the start",
-        "assignments": "Despair Flow's division of the students between the Monokumas - every student back to the first pool",
-        "overflow": "The Despair overflow and its darkening",
+        "assignments": "Despair Flow's division of the students between the Monokumas, with every student back to the first pool",
+        "overflow": "The Overflow and its darkening",
         "clock": "The clock, back to Chapter 1, Day 1, Morning"
       },
       "resetType": "Type {word} to confirm",
       "resetWord": "RESET",
       "resetButton": "Reset the season",
-      "resetMistyped": "Not reset - you have to type {word} exactly.",
+      "resetMistyped": "The season was not reset. Open the reset again and type {word} exactly.",
       "resetDone": "The season has been reset. The cast and the maps are untouched.",
       "roomGuide": "Draw the walls, then a region for each room, and tick “This is a room” in Room setup.",
       "checkRooms": "Check the rooms on this scene",
-      "checkClean": "Nothing to report - the rooms on this scene are clean.",
+      "checkClean": "The room check found nothing to fix on this scene.",
       "step.roomCount": "Enough rooms for the cast",
-      "hint.roomCount": "About one and a half rooms per player, corridors and bedrooms aside.",
+      "hint.roomCount": "About one and a half rooms per living student, corridors and bedrooms aside.",
       "waitingForCast": "Waiting for the cast: create the students first.",
       "splitUneven": "Uneven: {counts}.",
       "fallsBackTo": "{name} (falls back to {pool})",
@@ -6042,19 +6105,19 @@
         "other": "The room check found {n} problems on {scene}: fix them and check again."
       },
       "roomsJudged": {
-        "one": "Judged on {scene}. {n} scene holds rooms.",
-        "other": "Judged on {scene}. {n} scenes hold rooms."
+        "one": "This row checks {scene}. {n} scene has rooms.",
+        "other": "This row checks {scene}. {n} scenes have rooms."
       },
       "noNamedRegions": "No scene has a named region yet: draw each room as a Scene Region first.",
       "noHall": "No trial hall is linked.",
       "firstSession": "First session",
       "firstSessionNote": "Set once, before the first session.",
       "safeword": "Safeword",
-      "safewordNote": "The word that stops the scene. It shows on every sheet. Blank - the default.",
+      "safewordNote": "This word stops the scene, and each student's sheet shows it. Leave it blank for the default.",
       "windows": "The season's windows",
       "checklistTitle": "Season checklist",
       "startHereTitle": "Where to start",
-      "startHereText": "Start here: GM panel > Season setup. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
+      "startHereText": "Open Season setup from the GM panel. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
       "state": {
@@ -6122,7 +6185,7 @@
       "title": "Diagnostics report",
       "intro": "Everything the module can check here, as one text. Copy it and send it to whoever is helping you.",
       "copy": "Copy report",
-      "copied": "Report copied - paste it (Ctrl+V) wherever it needs to go.",
+      "copied": "Report copied. Paste it (Ctrl+V) wherever it needs to go.",
       "gmOnly": "This part of the report can only run in a GM's browser. Open the report in a GM's browser to see it.",
       "silencesTitle": "Warnings you silenced",
       "showAgain": "Show again",
@@ -6132,12 +6195,12 @@
     },
     "Failures": {
       "title": "Debug log",
-      "intro": "Everything this browser has failed at since the page loaded. Reloading empties it - a failure from before a reload is not one you can still act on. Repeats are one row with a count.",
+      "intro": "Everything this browser has failed at since the page loaded; reloading the page empties it. Repeats show as one row with a count.",
       "none": "Nothing has gone wrong since this page loaded.",
       "clear": "Clear the log",
       "cleared": "The debug log on this browser is now empty.",
       "copy": "Copy to clipboard",
-      "copied": "Debug log copied - paste it (Ctrl+V) wherever it needs to go."
+      "copied": "Debug log copied. Paste it (Ctrl+V) wherever it needs to go."
     },
     "Fog": {
       "scenesPrepared": {
@@ -6149,7 +6212,7 @@
       "checksScenes": "Scenes and rooms",
       "floors": "Floors",
       "floorUnnamed": "Floor {n}",
-      "floorsHint": "The floors you can look at: the ones your character stands on and the ones holding a room you have found. A room you have never been in stays under the fog on every floor.",
+      "floorsHint": "The floor your character is on, and the floors with a room you have visited. Rooms you have not visited stay fogged.",
       "notRooms": {
         "one": "{n} named region is not a room",
         "other": "{n} named regions are not rooms"
@@ -6168,11 +6231,11 @@
       },
       "secretDoor": {
         "problem": "A Foundry secret door",
-        "detail": "Any player can open it. In Season setup, the No Foundry secret doors row's Convert to passages makes it a wall, and a secret passage where it stands between two rooms."
+        "detail": "Any player can open it. In Season setup, press “Convert to passages” on the “No Foundry secret doors” row: the door becomes a wall, and where it stands between two rooms, a secret passage too."
       },
       "notRoom": {
         "problem": "Named, but not a room",
-        "passage": "It carries a {type} behavior: a passage.",
+        "passage": "It has a {type} behavior, so it is a passage.",
         "player": "A player drew it.",
         "unmarked": "Not marked as a room (Room setup, the Doors tab, “This is a room”).",
         "why": "The fog draws no outline or reveal for a region that is not a room, and no doorway leads into it."
@@ -6218,27 +6281,82 @@
           "why": "A border drawn away from the wall it stands for turns that whole side of the room into a doorway: the wall is never found, so nothing closes it."
         },
         "sealed": {
-          "title": "No way out: walled all round",
+          "title": "No way out: walled in",
           "problem": "No way out",
           "fact": "Every stretch of the border is walled.",
-          "why": "Nothing glows as a doorway. If the room is sealed on purpose, leave it; if not, the door is missing."
+          "why": "Nothing glows as a doorway. If the room should have a way out, add the missing door."
         },
         "isolated": {
-          "title": "No way out: no room beside it",
+          "title": "No way out: no neighbor",
           "problem": "No way out",
           "fact": "No room within a square of the border.",
           "why": "The next room is more than a square away, so the two never meet at a doorway. Rooms should touch along the edge they share."
         },
         "lattice": {
-          "problem": "Corners off the map's own lattice",
+          "problem": "Corners off the map's grid",
           "fact": {"one": "{n} corner up to {px} px off.", "other": "{n} corners up to {px} px off."},
-          "why": "The rest of the map is drawn to a half-square lattice. Draw with snapping on: a corner a fraction of a square out cannot be seen by eye and is enough to make two rooms overlap or miss."
+          "why": "The rest of the map is drawn to a half-square grid. Draw with snapping on: a corner a fraction of a square out is too small to see, yet it can make two rooms overlap or miss."
         }
+      },
+      "step": {
+        "ledgerRoad": "the ledger's road",
+        "doorControls": "door controls by the rooms",
+        "tokenRuler": "the token ruler in the hour's color",
+        "sceneVision": "scene vision mode",
+        "discoveryMirror": "local discovery mirror",
+        "firstPaint": "first paint",
+        "floorSwitcher": "floor switcher",
+        "revealOnArrival": "reveal on arrival",
+        "rememberStart": "remember where we started",
+        "seedDiscovery": "seed discovery",
+        "repaint": "repaint",
+        "placedArrival": "arrival of a placed token",
+        "outlineDoor": "the outline by a door",
+        "outlineWallMade": "the outline by a wall made",
+        "outlineWallDeleted": "the outline by a wall deleted",
+        "outlineVeto": "the outline by a seal or a chain",
+        "whereIStand": "where this viewer stands",
+        "prepareScenes": "prepare scenes",
+        "heldRooms": "remember which scenes hold rooms",
+        "regionNames": "remember the regions' names",
+        "roomRenamed": "a room renamed",
+        "outlineRoomFlag": "the outline by a room's flag",
+        "outlineReshaped": "the outline of a room reshaped",
+        "oldFogRows": "take in this browser's old fog rows",
+        "shareLedger": "share or rebuild the ledger",
+        "seedDeferred": "seed discovery (deferred to ready)"
+      },
+      "stepFailed": "Fog: \"{step}\" failed; the remaining steps still run",
+      "stepFailedLater": "Fog: \"{step}\" failed after returning",
+      "stand": {
+        "notRunYet": "not run yet",
+        "canvasNotReady": "the canvas is not ready yet",
+        "settingOff": "the \"Rooms decide what players can see\" setting is off",
+        "noScene": "there is no scene on the canvas",
+        "noRoom": "this scene has no room (a named Region a GM marked one), so there is nothing to fog",
+        "noDimensions": "this scene reports no measurable dimensions to draw into",
+        "noPolygons": "regions exist but none exposed usable polygons",
+        "notRendered": "the fog texture could not be rendered",
+        "notCleared": "you are standing in \"{room}\", but the fog could not clear it, so it stood down rather than black the map out",
+        "notMounted": "the fog layer could not be mounted on the canvas"
+      },
+      "share": {
+        "nobodyAsked": "nobody asked",
+        "alreadyAnswered": "already answered"
+      },
+      "diagnosis": {
+        "head": "{module} | fog diagnosis: {scene}, grid {grid}",
+        "glow": "glow: openings {openings}, core {core}px, full depth {span}px, reach {reach}px, amplitude {amplitude}px",
+        "opening": "#{n} {length}px long, {squares} in grid squares, glow {span}px deep, starts at {x},{y}",
+        "shortened": "<- shortened to fit its own doorway",
+        "rooms": "rooms I am in: {rooms}",
+        "none": "none",
+        "elsewhere": "somewhere else"
       }
     },
     "Rooms": {
       "reportTitle": "Rooms marked",
-      "reportNote": "From this version a region is a room only when a GM has marked it one: the “This is a room” column in Room setup's Doors tab. The named regions below were marked once, so the map keeps its rooms; untick any that is not one. A region drawn from now on is yours to mark.",
+      "reportNote": "From this version a region is a room only when a GM has marked it one: the “This is a room” column in Room setup's Rooms tab. The named regions below were marked once, so the map keeps its rooms; untick any that is not one. A region drawn from now on is yours to mark.",
       "migrated": {
         "one": "{n} room marked: {names}.",
         "other": "{n} rooms marked: {names}."
@@ -6255,21 +6373,21 @@
         "one": "{n} region without a name was left alone: a room needs a name.",
         "other": "{n} regions without a name were left alone: a room needs a name."
       },
-      "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it.",
-      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}, projects: {projects}, things left behind for a trap: {plants}, other rooms' Neighbours lists: {lists}, the Mastermind's room: {lair}, a called assembly: {gather}, the seal of a Despair Call: {sealed}, bodies found there: {bodies}.",
-      "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room, and this GM had no record of the mark before the change, so nothing was put back. Check the region in Room setup (the Doors tab).",
-      "renameJoined": "“{room}” on {scene} was renamed “{name}”, the name of a room that was already there, so it is now one more piece of that room. Nothing that named “{room}” was carried: its keys, stashed items, notes of a stash found and discovery still name “{room}”. Taken off the region, so that it adds nothing to “{name}”: {carried}.",
+      "flagKept": "{user} changed whether “{region}” on {scene} is a room. Only a GM can mark a room, so the mark stays as a GM left it.",
+      "renamed": "“{from}” on {scene} is now “{to}”. Carried over: keys {keys}, stashed items {items}, notes of a found stash {found}, discoveries {cells}, projects {projects}, things left for a trap {plants}, other rooms' Neighbors lists {lists}, the Mastermind's room {lair}, a called assembly {gather}, a Despair Call's seal {sealed}, and bodies found there {bodies}.",
+      "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room. The mark before the change is not known, so nothing was put back. Check the region in Room setup's Rooms tab.",
+      "renameJoined": "“{room}” on {scene} was renamed “{name}”, a room already there, and is now one more piece of it. Its keys, stashed items, notes of a found stash, and discovery still name “{room}”. Taken off the region: {carried}.",
       "carriedNothing": "nothing",
-      "pieceSplit": "The region “{name}” on {scene} was one of several pieces of the room {room} until it was renamed. What it carried for that room ({carried}) was taken off it: the other pieces of {room} keep it, and “{name}” starts with none of it."
+      "pieceSplit": "The region “{name}” on {scene} was one piece of the room {room} until its rename. What it carried for that room ({carried}) came off it: the other pieces of {room} keep it, and “{name}” starts with none."
     },
     "Migrate": {
       "gmOnly": "Only a GM can run the data migration.",
       "done": {
-        "one": "Danganronpa RPG: one thing in this world was brought up to date for {version}.",
-        "other": "Danganronpa RPG: {n} things in this world were brought up to date for {version}."
+        "one": "Danganronpa RPG: one part of this world's data was updated for {version}.",
+        "other": "Danganronpa RPG: {n} parts of this world's data were updated for {version}."
       },
-      "failed": "Danganronpa RPG: the data migration stopped short - {clauses}. Nothing was marked as migrated, and the next load of this world tries again; the console has the details.",
-      "notPrimary": "Danganronpa RPG: you are not the primary GM, so the data migration marked nothing as migrated. The primary GM's browser runs it when it loads this world."
+      "failed": "Danganronpa RPG: part of the data migration failed ({clauses}). It runs again when this world next loads; the console has the details.",
+      "notPrimary": "Danganronpa RPG: only the primary GM can finish the data migration. It runs when the primary GM next loads this world."
     },
     "Popup": {
       "moreTip": {
@@ -6438,16 +6556,16 @@
       "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back it up now (GM panel, Diagnostics, The case: Back up).",
       "syncTimedOut": "The GM store did not hear from {names}. It carries on with what this browser holds, and their copy is merged when it arrives.",
       "claimFailed": {
-        "one": "The GM store could not take over this browser's old \"{store}\" ({n} row): {error}. Nothing was changed; the old copy is still here.",
-        "other": "The GM store could not take over this browser's old \"{store}\" ({n} rows): {error}. Nothing was changed; the old copy is still here."
+        "one": "The GM store could not take over this browser's old \"{store}\" ({n} row): {error}. The old copy stays here as it was, and the next load tries again.",
+        "other": "The GM store could not take over this browser's old \"{store}\" ({n} rows): {error}. The old copy stays here as it was, and the next load tries again."
       },
-      "resetPrimaryOnly": "Only the primary GM, {name}, can reset the season, so that one browser decides what every GM's copy of the case loses. Ask {name}, or reset when you are the only GM connected.",
+      "resetPrimaryOnly": "Only the primary GM, {name}, can reset the season. Ask {name}, or reset when you are the only GM connected.",
       "resetOfflineGms": {
         "one": "One GM is not connected ({names}): their browser drops what this reset clears the next time it opens this world.",
         "other": "{n} GMs are not connected ({names}): their browsers drop what this reset clears the next time they open this world."
       },
       "resetCutFailed": "The season reset could not mark the clock with the moment of the reset ({error}). Nothing was cleared.",
-      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back it up now (GM panel, Diagnostics, The case: Back up).",
+      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy. Back it up now (GM panel, Diagnostics, The case: Back up).",
       "openFailed": "The GM store could not open on this browser: {error}. Until it does, an Analyze or a handover of a Truth Bullet is refused. Reload to try again; the console has the details.",
       "notOpen": "The GM store (the answer keys) still has not opened in this browser after {seconds} seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem."
     },
@@ -6508,7 +6626,7 @@
       "castNobody": "- nobody -",
       "gmOnly": "Only a GM can back up or restore the case.",
       "backupTitle": "Back up the case",
-      "backupWhat": "The file holds every GM-only secret of this world: who the Mastermind is, every Truth Bullet's answer, every Remnant's real type, the cast of an open incident and the Blackened of each chapter, the traps' planted objects, the Level Ups on offer and the rooms each character has found. Keep it where no player can open it.",
+      "backupWhat": "The file holds this world's GM-only secrets: who the Mastermind is, every Truth Bullet's answer, every Remnant's real type, the cast of an open incident and the Blackened of each chapter, the traps' planted objects, the Level Ups on offer, and the rooms each character has found. Keep it where no player can open it.",
       "backupEarly": "The copy from {names} has not arrived yet: this backup holds only what this browser has. Back up anyway?",
       "backedUp": {
         "one": "The case was saved to a file: {n} row.",
@@ -6523,21 +6641,21 @@
         "one": "last backup: {n} day ago",
         "other": "last backup: {n} days ago"
       },
-      "chapterReminder": "The answer keys this chapter's close reveals live in GM browsers, not in the world file. Back up the case: {when}.",
+      "chapterReminder": "The answer keys revealed when this chapter closes are kept only in the GMs' browsers. Back up the case ({when}).",
       "refused": {
         "unreadable": "That file is not a case backup.",
         "newer": "That file was written by a newer version of the module (format {version}); this one cannot read it.",
         "otherWorld": "That file is the case of another world ({title}). Tick the box to restore it here anyway.",
-        "malformed": "That file cannot be restored: its section for {store} is damaged (the console names the row). Nothing was changed."
+        "malformed": "The restore refused the whole file: its section for “{store}” is damaged, and the console names the row. The case here stays as it was."
       },
       "restored": "The case was restored.",
-      "restoredStore": "{store}: {n} changed, {cut} under the reset's cut left out",
+      "restoredStore": "{store}: {n} changed, {cut} skipped as older than the last reset",
       "store": {
         "bullets": "Truth Bullets",
         "remnants": "Remnants",
         "mastermind": "The Mastermind",
         "passageMap": "The secret passages: where each one is and whether it is open",
-        "passageAccess": "Who knows each secret passage, and how they learnt it",
+        "passageAccess": "Who knows each secret passage, and how they learned it",
         "passageLog": "What was done with the secret passages",
         "passageSeason": "The secret passages a project made this season",
         "cast": "The incident's cast",
@@ -6550,36 +6668,36 @@
         "projectSecrets": "Who builds each trap, and what sets it off",
         "foundDone": "The finished secret projects waiting for their finders to come back",
         "pendingMurders": "The Direct Murders declared in the dark",
-        "eclipseMoves": "Who has crossed how often in the Eclipse",
+        "eclipseMoves": "How often each character has crossed in the Eclipse",
         "keyPlan": "The Key Remnant plan, chapter by chapter",
         "trialCast": "Which of the trial hall's tokens the trial shows",
         "caseSchema": "The case map: each chapter's deductions, counters, and solution",
         "notes": "The players' pre-session notes",
         "deaths": "The deaths nobody has found yet",
         "deferredOffers": "The Reinforced Level Ups waiting for the class",
-        "overflow": "The Despair overflow's count",
+        "overflow": "The Despair Overflow's count",
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
-        "lootTraces": "What has been taken off each body, and its trace",
-        "lootRolls": "The first Hand and Shadow roll each taker made for their next Take from each body",
+        "lootTraces": "What has been taken off each body, and its Remnant",
+        "lootRolls": "The first Hand and Shadow roll kept for each taker's next Take from each body",
         "rifles": "Which stash each character has gone through, and in which time of day",
         "facilityUses": "Which room actions each character used, and in which time of day",
         "tails": "Who is tailing whom today, and how well",
         "barricades": "Which rooms are barricaded, by whom and how strongly",
         "bedroomNotes": "What happened to each bedroom while its owner was away, told when they walk back in",
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
-        "pendingBodies": "The bodies found that wait for the GMs' word to be announced",
+        "pendingBodies": "The found bodies waiting for a GM to announce them",
         "bodiesHeard": "Which bodies each character has heard the discovery sound for",
         "lockpicks": "Who may walk through a lock they picked, into which room",
         "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
         "masks": "Which killer hides behind a \"?\" after a murder's opening, and what their token looked like",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
-        "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
-        "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",
+        "clockBeat": "When the primary GM was last at the table",
+        "takeBack": "What the last start of a time of day changed, kept for five minutes so a GM can take back a misclick",
         "crossings": "Each character's last crossing between rooms, what it cost, and whether a GM gave it back",
-        "traceDigest": "The traces placed since the last digest to the GMs, said at the next time of day",
+        "traceDigest": "The Remnants placed since the last digest to the GMs, reported at the next time of day",
         "confusions": "The Confusions armed on a character and not rolled yet",
         "cubs": "The Monocubs' record: which Monocub witnessed the crime",
-        "cubTargets": "How many Monocub moves each student has had this day",
+        "cubTargets": "How many Monocub moves each student has had today",
         "projectWork": "Who worked on each project this time of day",
         "bounties": "The open Bounties on students, for the Monocubs",
         "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
@@ -6589,14 +6707,14 @@
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
         "sheetWrites": "The writes on a student's sheet the GMs put back, flagged, or listed, kept a day",
-        "diceLooks": "Each character's dice look as the GMs set it, which a player's change of it goes back to",
+        "diceLooks": "Each character's dice look as the GMs set it; a player's change goes back to it",
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
-        "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",
+        "verdict": "The Blackened named in the last verdict, kept by the GMs for its Finish",
         "trialMute": "The microphones the Class Trial turned off, and what each player had before, kept by the GMs until it ends",
         "closingClaim": "Who volunteered for the Closing Argument, and who was drawn, kept by the GMs",
         "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once",
-        "caseTicks": "The trial's ticks: each chapter's deductions, counters and solution a GM ticked",
-        "diveSets": "Logic Dive sets: each set's questions, their answers and which answer is right"
+        "caseTicks": "The trial's ticks: each chapter's deductions, counters, and solution a GM ticked",
+        "diveSets": "Logic Dive sets: each set's questions, their answers, and which answer is right"
       },
       "row": {
         "traces": {
@@ -6608,65 +6726,65 @@
           "other": "{n} Truth Bullets (of {of}) have no answer key on this browser: an Analyze of them is refused."
         },
         "noAnswer": {
-          "one": "{n} answer key has lost its real type (the damage the old merge did).",
-          "other": "{n} answer keys have lost their real type (the damage the old merge did)."
+          "one": "{n} answer key has lost its real type.",
+          "other": "{n} answer keys have lost their real type."
         },
         "incident": "An incident is open, and this browser does not hold its cast.",
         "neverHeld": "This browser has never held this world's case, which began on {date}.",
-        "legacyChanged": "The old store of {store} changed after the upgrade (a GM went back to an older version): take what changed from the diagnostics.",
-        "claimFailed": "This browser's old {store} could not be taken over: {error}. Nothing was changed; the next load tries again.",
-        "unseen": "This check cannot see who the Mastermind is, the Level Up offers or the Blackened register: a browser that lost them does not know it.",
+        "legacyChanged": "The old store of {store} changed after the upgrade (a GM went back to an older version): the diagnostics show what changed, so a GM can bring it over.",
+        "claimFailed": "This browser could not take over its old {store}: {error}. The old rows stay as they were, and the next load tries again.",
+        "unseen": "This check cannot see who the Mastermind is, the Level Up offers, or the Blackened register: a browser that lost them does not know it.",
         "left": {
           "one": "{n} old row stays in this browser, not taken: another world's, or no longer part of this world's case.",
           "other": "{n} old rows stay in this browser, not taken: other worlds', or no longer part of this world's case."
         },
         "clamped": {
-          "one": "{n} old row was stamped after the moment this browser took it over - a clock that ran ahead - and was taken at that moment.",
-          "other": "{n} old rows were stamped after the moment this browser took them over - a clock that ran ahead - and were taken at that moment."
+          "one": "{n} old row had a time later than when this browser took it over (a clock ran ahead), so it was given the takeover time.",
+          "other": "{n} old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time."
         },
-        "skew": "Stamps from ahead of this browser's clock: {names}.",
-        "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all, its notice history aside.",
+        "skew": "Timestamps ahead of this browser's clock: {names}.",
+        "bytes": "The GM stores take {stores} KB of this browser's storage; the whole module takes {total} KB, not counting its notice history.",
         "notices": "The notice history takes {notices} KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.",
         "lastBackup": "Last backup: {when} ({who}).",
         "neverBackedUp": "This case has never been backed up.",
         "traceOrphans": {
-          "one": "{n} Remnant's answer key has no token on any scene: kept, and read by nothing.",
-          "other": "{n} Remnants' answer keys have no token on any scene: kept, and read by nothing."
+          "one": "{n} Remnant's answer key has no token on any scene: it is kept, but nothing reads it.",
+          "other": "{n} Remnants' answer keys have no token on any scene: they are kept, but nothing reads them."
         },
-        "mastermindCleared": "A GM's old store (from before 1.2.63) says the Mastermind was cleared on {cleared}, after {name} was picked on {picked} - possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.",
+        "mastermindCleared": "A GM's old store (from before 1.2.63) says the Mastermind was cleared on {cleared}, after {name} was picked on {picked}, possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.",
         "traps": {
           "one": "{n} armed item trap has no planted object on this browser: it cannot fire.",
           "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
         },
         "projectSecrets": {
-          "one": "{n} indirect murder (of {of}) has no killer, condition or trigger on this browser: its trap cannot arm or fire.",
-          "other": "{n} indirect murders (of {of}) have no killer, condition or trigger on this browser: their traps cannot arm or fire."
+          "one": "{n} indirect murder (of {of}) has no killer, condition, or trigger on this browser: its trap cannot arm or fire.",
+          "other": "{n} indirect murders (of {of}) have no killer, condition, or trigger on this browser: their traps cannot arm or fire."
         },
         "notes": {
           "one": "{n} pre-session note is marked written, and this browser does not hold it, or holds an older one.",
           "other": "{n} pre-session notes are marked written, and this browser does not hold them, or holds older ones."
         },
-        "tracesOnToken": {"one": "{n} Remnant on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} Remnants on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."},
-        "tracesKept": {"one": "{n} Remnant on the map (of {of}) keeps flags of its answer key on its token, which every browser holds - a Faint Prep promotion a later correction stood against, or flags with no ledger row to carry them into: a GM decides it, and game.drpg.migrateRemnants() names it.", "other": "{n} Remnants on the map (of {of}) keep flags of their answer keys on their tokens, which every browser holds - a Faint Prep promotion a later correction stood against, or flags with no ledger row to carry them into: a GM decides each, and game.drpg.migrateRemnants() names them."},
+        "tracesOnToken": {"one": "{n} Remnant on the map (of {of}) still carries its answer key on its token: move it into the ledger.", "other": "{n} Remnants on the map (of {of}) still carry their answer keys on their tokens: move them into the ledger."},
+        "tracesKept": {"one": "{n} Remnant on the map (of {of}) keeps flags of its answer key on its token, which every browser holds. They are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides it, and game.drpg.migrateRemnants() names it.", "other": "{n} Remnants on the map (of {of}) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them."},
         "leftNotPrimary": {"one": "{n} of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).", "other": "{n} of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store)."}
       },
       "healthTitle": "The case on this browser",
       "healthIntro": "This browser is missing part of this world's case:",
-      "healthNote": "Restore brings it back from a backup file; Continue carries on without it, and the GM panel keeps saying so until the case is whole.",
+      "healthNote": "Restore from a file brings it back from a backup; without it, the GM panel keeps saying so until the case is whole.",
       "restoreFromFile": "Restore from a file",
       "continue": "Continue",
-      "continued": "The case is incomplete on this browser. Restore it from a backup file (GM panel, Diagnostics, The case: Restore from a file).",
+      "continued": "The case is incomplete on this browser. Restore it from a backup file (GM panel, Diagnostics, The case).",
       "panelWarning": "The case is incomplete on this browser:",
       "restoreTitle": "Restore the case",
-      "previewStore": "{store}: {add} new, {refresh} refreshed, {kept} newer here, {cut} under the reset's cut, {remove} removed here",
+      "previewStore": "{store}: {add} new, {refresh} refreshed, {kept} newer here, {cut} older than the last reset, {remove} removed here",
       "otherWorld": "This file is the case of another world ({title}). Restore it here anyway.",
-      "beforeCut": "Restore anyway the rows the last reset removed (they come back freshly stamped).",
-      "restoreNote": "A restore takes only what is newer than what this browser holds - a removal too, counted above. It never takes the file's reset cut, and a file of another world brings no removal.",
+      "beforeCut": "Also restore the rows the last reset removed; only what this browser lacks is filled in.",
+      "restoreNote": "A restore takes only what is newer than what this browser holds, removals included, as counted above. It never applies a reset recorded in the file, and a file of another world brings no removals.",
       "restore": "Restore",
-      "answerKeyMissing": "{actor}'s Truth Bullet \"{bullet}\" has no answer key on this browser, so its Analyze was refused. Restore it from a backup (GM panel, Diagnostics, The case: Restore from a file).",
+      "answerKeyMissing": "{actor}'s Truth Bullet “{bullet}” has no answer key on the GM browser that answered its Analyze, so the Analyze was refused and its price given back. Restore a backup of the case (GM panel, Diagnostics, The case).",
       "chargeHeld": {
-        "one": "The charge for unfound Key Remnants is held: {n} Truth Bullet has no answer key on this browser, and the count would come out wrong. Restore it from a backup (GM panel, Diagnostics, The case) and ask again.",
-        "other": "The charge for unfound Key Remnants is held: {n} Truth Bullets have no answer key on this browser, and the count would come out wrong. Restore them from a backup (GM panel, Diagnostics, The case) and ask again."
+        "one": "The charge for unfound Key Remnants is on hold: {n} Truth Bullet has no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.",
+        "other": "The charge for unfound Key Remnants is on hold: {n} Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that."
       },
       "fillFromTraces": "Fill from their Remnants ({n})",
       "filled": {
@@ -6678,30 +6796,30 @@
       "clearMastermind": "Clear the Mastermind",
       "enterCast": "Enter the cast by hand",
       "castTitle": "The incident's cast",
-      "castIntro": "An incident is running and this browser does not know who is in it. Name them as they are at the table; a GM who held the cast and comes back later brings it with them.",
+      "castIntro": "An incident is running and this browser does not know who is in it. Name them as they are at the table.",
       "castKiller": "Killer",
       "castVictim": "Victim",
-      "castThird": "A third, if there was one",
-      "castEnter": "Enter",
-      "previewRecord": "{store}: another world's - taken only if you tick it below.",
-      "previewClamped": {"one": "{n} row is stamped later than the clock allows: it would be taken at this moment.", "other": "{n} rows are stamped later than the clock allows: they would be taken at this moment."},
+      "castThird": "Third person involved, if any",
+      "castEnter": "Enter the cast",
+      "previewRecord": "{store}: another world's, taken only if you tick it below.",
+      "previewClamped": {"one": "{n} row has a time later than the clock allows: it would be given the current time.", "other": "{n} rows have times later than the clock allows: they would be given the current time."},
       "previewNotThisWorld": {"one": "{n} row is another world's and is left out.", "other": "{n} rows are another world's and are left out."},
-      "otherWorldRecord": "Take {store} from this file as well: another world's, it replaces this world's where the file's is newer.",
+      "otherWorldRecord": "Take “{store}” from this file as well. It is another world's and replaces this world's where the file's is newer.",
       "restoredSkipped": "{store}: another world's, not taken",
-      "restoredClamped": {"one": "{n} row was stamped later than the clock allows and was taken at this moment.", "other": "{n} rows were stamped later than the clock allows and were taken at this moment."},
+      "restoredClamped": {"one": "{n} row had a time later than the clock allows and was given the current time.", "other": "{n} rows had times later than the clock allows and were given the current time."},
       "moveTraces": "Move them into the ledger",
-      "moveNote": "Move them into the ledger takes each Remnant's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
+      "moveNote": "Move them into the ledger takes each Remnant's answer key off its token; Continue carries on without it, and the GM panel keeps saying so until the case is whole."
     },
     "CaseMap": {
       "noDiveSet": "- no set -",
       "diveSetGone": "(a set since deleted)",
       "autopsySent": "Sent to the students.",
-      "autopsyWhen": "Goes to every living student when body {n} is found.",
+      "autopsyWhen": "Goes to every living student when body {n} is found, if this Autopsy has a name or words and is within the chapter's count.",
       "autopsyNth": "{label} {n}",
       "autopsyAt": "Sent at",
       "autopsyBody": "Body {n} found",
       "autopsyCount": "Autopsies this chapter",
-      "autopsyPreset": "Preset: {n}, one for each body.",
+      "autopsyPreset": "By default {n}: one for each body, or one if there is no body yet.",
       "autopsyWentOut": {"one": "The planned Autopsy Truth Bullet went out to {n} student.", "other": "The planned Autopsy Truth Bullet went out to {n} students."},
       "viewSwitch": "Investigation view",
       "editLabel": "Fields of {name}",
@@ -6750,7 +6868,7 @@
       "noMode": "- no trial mode -",
       "nothingToRefute": "No deduction to refute yet.",
       "removeNode": "Remove from the case",
-      "removeAsk": "Remove {name} from the case? A node that rests on it keeps naming it, and the check says so.",
+      "removeAsk": "Remove {name} from the case? A node that rests on it keeps naming it, and Check consistency reports it.",
       "addDeduction": "Add deduction",
       "addCounter": "Add counter",
       "addSolution": "Add solution",
@@ -6759,7 +6877,7 @@
       "sortLabel": "Order in a column",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "notSaved": "Not saved. Your text is still in the fields.",
+      "notSaved": "Your changes were not saved. They are still in the fields.",
       "field": {
         "img": "Picture",
         "label": "Name",
@@ -6773,7 +6891,7 @@
         "kind": "By kind",
         "room": "By room",
         "state": "By state",
-        "uncrossed": "Fewer crossings"
+        "uncrossed": "Fewer crossing lines"
       },
       "newLabel": {
         "deduction": "New deduction",
@@ -6784,7 +6902,7 @@
         "bullet": "New Truth Bullet"
       },
       "reachYes": "{held}/{of}: the students can reach it",
-      "reachNo": "{held}/{of}: not yet",
+      "reachNo": "{held}/{of}: the students cannot reach it yet",
       "panelReach": "Students hold",
       "culpritOnly": "Only the culprit holds it, so it does not count.",
       "studentBullets": "Truth Bullets",
@@ -6796,36 +6914,43 @@
       "hasProblem": "has a problem",
       "problem": {
         "noInputs": "{node} rests on nothing.",
-        "cycle": "{node} is on a circle of inputs, so the map leaves it out.",
+        "cycle": "{node} is on a loop of inputs, so the map shows nothing until the loop is broken.",
         "missing": "{node} refers to “{ref}”, which is gone.",
         "noTarget": "{node} refutes nothing.",
         "noSolution": "The case has deductions and no solution.",
         "twoSolutions": "{node} is a second solution.",
         "solutionUnreached": "Nothing on the map leads to {node}.",
-        "badMode": "{node} asks for a trial mode the trial does not have, “{ref}”.",
+        "badMode": "{node} asks for the trial mode “{ref}”, which the trial does not have.",
         "culpritOnly": "Only the culprit holds {ref}, an input of {node}, so it does not count.",
-        "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares.",
+        "tooManyKeys": "The case has more Key Remnants ({ref}) than a chapter allows.",
         "incomplete": "{node} is missing its {ref}."
       },
       "needs": {"room": "room", "name": "name", "recipient": "recipient"},
       "pickRoom": "- pick a room -",
       "noRecipient": "- nobody yet -",
       "bulletGiven": "Given.",
-      "finalAskRoomTitle": "Where does the Final Truth Remnant go?",
-      "placeOnMap": "Place on the map"
+      "finalAskRoomTitle": "Final Truth Remnant's room",
+      "placeOnMap": "Place on the map",
+      "failed": {
+        "add": "The case map could not add a node.",
+        "sort": "The case map could not set the column order.",
+        "move": "The case map could not move a node.",
+        "remove": "The case map could not remove a node.",
+        "place": "The case map could not place a planned Remnant."
+      }
     },
     "CaseRealize": {
       "preview": "Realization preview",
       "undo": "Undo realization",
-      "title": "Realization of the case, chapter {chapter}",
-      "intro": "Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet is placed in the room you pick; a slot with no room stays as it is.",
+      "title": "Case realization, chapter {chapter}",
+      "intro": "Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet, within the chapter's limit, is placed in the room you pick; a slot with no room stays as it is.",
       "colWhat": "What",
       "colSlot": "Slot",
       "colName": "Name",
       "colRoom": "Room",
       "noRoom": "- leave it -",
       "run": "Run realization",
-      "undoNote": "Undo realization removes only what nobody has found.",
+      "undoNote": "Undo realization removes only what nobody has found and Monokuma has not revealed.",
       "action": {
         "create": "Will place",
         "placed": "On the map",
@@ -6834,8 +6959,8 @@
       "ran": "Key Remnants the realization placed: {n}.",
       "notRun": "Nothing was placed.",
       "nothingMade": "The realization placed nothing this chapter.",
-      "undoAsk": "Take back what the realization placed? Marked: {n}. What a student has found stays.",
-      "undone": "Removed {removed}; {kept} stay, found or revealed.",
+      "undoAsk": "Undo the realization? Key Remnants it placed: {n}. Those a student has found or Monokuma has revealed stay.",
+      "undone": "Removed {removed}; {kept} stay because they were found or revealed.",
       "askTitle": "The case's realization",
       "askBody": "A body was found. The case for this chapter has not been realized yet. Nothing happens until you choose.",
       "showPreview": "Show the preview",
@@ -6847,7 +6972,7 @@
       "floorOpen": "Another mode is running. End it first.",
       "tickLabel": "Ticked: {name}",
       "startLabel": "Start {mode} from {name}",
-      "hint": "Hint: the evidence shown supports this",
+      "hint": "Supported by the evidence presented",
       "presented": "Presented",
       "ticked": "Ticked",
       "unknown": {
@@ -6863,8 +6988,8 @@
       "send": "Send to everyone",
       "sent": "Summary sent.",
       "already": "Already sent for this trial.",
-      "noVerdict": "Only after the verdict.",
-      "title": "Chapter {chapter}: how the case was solved",
+      "noVerdict": "The summary goes out only after the verdict.",
+      "title": "Case summary, chapter {chapter}",
       "speaker": "Case summary",
       "noSolution": "The class voted wrong, so the solution stays hidden.",
       "role": {
@@ -6880,14 +7005,14 @@
       "button": "Reveal",
       "noTrace": "not on the map",
       "title": "Monokuma's Reveal",
-      "intro": "Everyone taking part in the trial receives {name} as a Key Remnant they found. Analyzing it costs what Analyze always costs.",
+      "intro": "Everyone taking part in the trial who does not hold one yet gets a Truth Bullet of {name}, as if they had found it. Analyzing it costs what Analyze always costs.",
       "textLabel": "What the players read",
       "beyondPaid": "No Despair was charged for this Key Remnant. Reveal it anyway?",
       "told": "Monokuma reveals a Key Remnant you never found.",
       "defaultName": "Key Remnant",
       "notHydrated": "The Key Remnant plan is still loading. Try again in a moment.",
       "notMissing": "That Key Remnant is not missing: somebody found it, or Monokuma has revealed it.",
-      "pastPaid": "Every Key Remnant the Despair was charged for has been revealed. Confirm to reveal another.",
+      "pastPaid": "Every Key Remnant that Despair was charged for has been revealed. Confirm to reveal another.",
       "noText": "Write what the players read on this Key Remnant first.",
       "notDone": "The Key Remnant was not revealed."
     }

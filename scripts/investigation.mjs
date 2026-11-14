@@ -1801,7 +1801,7 @@ function saveFieldsIn(scope) {
 function wireMap(dialog, reading, refresh) {
     const root = dialog.element;
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
-    const fail = what => err => error(`The case map could not ${what}`, err);
+    const fail = key => err => error(game.i18n.localize(`DRPG.CaseMap.failed.${key}`), err);
     /* A node's mode select shows that mode's planned-minigame rows (`zoneRows`), and its button opens the Logic Dive sets
        (13.11.2026). Once per window: a redraw keeps the root. */
     if (root && !root.dataset.drpgZoneRows) {
@@ -1836,16 +1836,16 @@ function wireMap(dialog, reading, refresh) {
         onAdd: kind => {
             const id = newCaseNodeId(kind);
             setCaseNode(chapterNow(), id, { kind, label: game.i18n.localize(`DRPG.CaseMap.newLabel.${kind}`) })
-                .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add a node"));
+                .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add"));
         },
-        onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("set the column order")); },
-        onMove: (id, step) => { reading.focus = id; moveCaseNode(chapterNow(), id, step).then(() => refresh(), fail("move a node")); },
-        onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove a node")),
+        onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("sort")); },
+        onMove: (id, step) => { reading.focus = id; moveCaseNode(chapterNow(), id, step).then(() => refresh(), fail("move")); },
+        onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove")),
         // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
         onCheck: () => { reading.overview = true; refresh(); },
         onPlace: ref => {
             const [chapter, id] = ref.split(":");
-            placeIncident(Number(chapter), id).then(() => refresh(), fail("place a planned Remnant"));
+            placeIncident(Number(chapter), id).then(() => refresh(), fail("place"));
         }
     });
     if (reading.focus) {
