@@ -88,6 +88,24 @@ Questions with the default taken (round 2):
 | Q-E109-5: D08, D09 "keep the rest of the approved wording" | the pilot's approved after of pair 21 (EN and PL), which makes exactly the two changes and was approved by the owner on 01.11; the old text was the pilot's before |
 | Q-E109-6: the 4 tier-2 test names that say "tier pool", "Refund last crossing" or "DRPG Settings" (git grep of their name lines) | left: a test's name is its id in the results and the baselines; their assertions read the texts through i18n and pass |
 
+## Round 3: after the merge of the assembly's base (4fb0667a), the coordinator's four (14.11.2026, evening)
+
+The coordinator's answers: Q-E109-1 (Tamper renames the stage only), Q-E109-2 (both defaults confirmed by the owner),
+Q-E109-3 (the replay plays whatever the switch), Q-E109-4..6 (the defaults stand). The coordinator's first message of
+round 3 asked whether the decisions had arrived: they had, and 95bf8d12 built them (the report of round 2 said so).
+
+| Item | What | How it was measured |
+| --- | --- | --- |
+| The merge | origin/claude/fervent-sagan-gme4vt at 4fb0667a merged (94733c59): conflicts in tests-tier1.mjs's INVARIANTS tail (both sides kept) and tools/tooltip-census.json (the base's side: its sweep removed the rows this line had reworded) | quick green on the merge |
+| The Polish checkbox (Item tables, Room tables tab, Stained Glass) | the label's box at the top of its first line: `align-items: flex-start` on the label, and on the glass's 22 px box `margin-top: (1lh - 22px) / 2` with the label's font size and line height (components.css). Read in Chromium on the style harness first: the box was `align-self: center` (the glass's rule) and its own `1lh` 17.33 px (a number line-height times the control's 13.33 px font), so the first two tries moved nothing | the radio sweep on that window: red 112 (13.80 px below the first line) before, green after; then the Polish captures again (probe 08 on 94733c59 with the rule: 103 of 104 rows) and the whole sweep, both languages: 42 windows, 1488 radio readings, 616 checkbox readings of the module's own box, green (0 problems). No tier test can hold a layout (the harness has none), so the sweep is the red-first reading |
+| KEYS.json | every row's en and pl as lang/ has them (placeOnTheMapTooltip's English, minusTooltip and plusTooltip's "{n}"), and the two rows lang/ no longer holds removed: `Tips.Case.undoRealizationTooltip` (its note: "Not built (C6b): E64-inv moved Undo realization off the dashboard's footer into the realization's preview") and `Tips.Case.finderTextTooltip` (its note: "Not built (C6b): E104 gave the planned Incident Remnant node New Remnant's own fields ... a second key would say the same") - their notes are kept here | a script over KEYS.json and lang/: 0 rows differ after |
+| B-H6 (E59, beside H20) | the reset's "actions" group's label names what the group clears (gm-stores.mjs's rows with `resetGroup: "actions"`: Bounties, Confusions, room effects, lock picks, eavesdrops, masks, tails, watches, crossings, the rolls' records, beside the budget, the rests and the barricades), EN and PL, and the GM handbook's 16.2 row in both languages | check text green; tier 1 |
+| B-M6 (E59, beside H11) | the GM handbook's two sentences (both languages): a Cleaning Tool gives advantage on erasing, reshaping and a trail, and takes its tier off the DC to erase or reshape and off Move the Body's 16 - not a trail's 15, and Move the Body gets no advantage (cleanup.mjs: `attemptCleanup` arms advantage, `cleanupDc` takes the tier and the warm scene; `attemptStageSix` arms it but for Move the Body; `resolveStageSix` takes `toolBonusPerTier`, Move the Body's alone); the warm scene's -3 is on the DC to erase or reshape | a book: nothing to be red |
+
+Question with the default taken: Q-E109-7 (E59's Q-115-2, beside B-H6): move `bounties` to the "seals" group, so a reset
+with "despair" ticked and "actions" unticked does not lapse a Bounty into the new season? A design call: not changed;
+the label now says the group takes the Bounties.
+
 ## Every row of DRPG-Q113 (140), with the owner's answer of 14.11.2026
 
 "owner's or coordinator's" marks a kept default whose work names the README, CLAUDE.md, .claude/ or the release, read
@@ -276,3 +294,13 @@ by the row's name on the page, not by its asking line's file.
 
 Needs a local Foundry (round 2): the held Key fee card's button at a table (the card drawn on a GM's browser, the press
 reaching the primary, a second card while a key is still missing); the GM's floor tooltip on a multi-floor scene.
+
+## Checked, round 3 (14.11.2026, this machine)
+
+| What | Tree | Result |
+| --- | --- | --- |
+| tier 1, whole | f3f8e5a0 | 1700 passed, 0 failed, 16 skipped, 0 red, 522 s |
+| radio sweep, both languages, Polish captures of 94733c59 with the rule | f3f8e5a0's tree | 42 windows, 1488 radio readings, green |
+| scenarios, one at a time | f3f8e5a0 | 65-season 58/60, 2 expected red (Foundry limits); 50-lang 45/45; 51-lang-mixed 38/38; 62-investigation 52/52; 63-class-trial 79/79; 0 failed in each |
+
+Needs a local Foundry (round 3): the Polish checkbox with Foundry's core sheet loaded (the harness has none).

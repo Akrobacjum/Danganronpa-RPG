@@ -2869,6 +2869,20 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-item-cell > input[type=
     /* a long category ("Narzędzie do sprzątania" under Legacy's pixel face) wraps inside its box, not into Actions */
     white-space: normal;
     overflow-wrap: break-word;
+    /* and its box stays on the first line (E109, 14.11.2026): centred, a two-line label stood it between the lines,
+       13.80 px below the first one in Polish under the glass (audit/radio-sweep.mjs --pl-windows, the Room tables tab) */
+    align-items: flex-start;
+}
+/* The glass's box is 22 px and centred on its line as a flex item (stained-glass.css, "ON ITS LABEL'S LINE"): here it
+   stands at the label's top and is moved down by half of what the first line is taller than the box, the line's height
+   its label's (`font-size` and `line-height` inherited, so `1lh` is the label's line: the line-height is a number, and
+   with the control's own 13.33 px font it read 17.33 px, under the box). Legacy's box is core's and is not moved. The window's
+   three classes outweigh the glass's box rule, which sets `margin: 0` (its `:is()` counts as three classes). */
+body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-tables .drpg-table-item-roles > .drpg-check > input[type="checkbox"] {
+    align-self: flex-start;
+    font-size: inherit;
+    line-height: inherit;
+    margin-top: max(0px, calc((1lh - 22px) / 2));
 }
 .drpg-window-tables .drpg-table-item-roles > .drpg-check:has(> input:checked) {
     border-color: var(--drpg-kit-btn-on-edge);
