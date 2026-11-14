@@ -37642,6 +37642,20 @@ const INVARIANTS = [
             "[each site: names its key, joins with \", \", calls listOf]");
     }],
 
+    ["R6404 - the incident's dead keys are gone from both files (E71 line A, 14.11.2026; audit/findings-1.2.42/text.md 352-356): `Murder.addThird`, `whoWalkedIn`, `nobodyElse` (the tracker's \"Somebody walks in\" control is gone), `noStressLeft` (superseded by `spentHealth`) and `betrayalConfirm` (the betrayal window says `betrayalButton`), and no script names them", async () => {
+        /* E71 line A's code faults (the coordinator, 14.11.2026). Red at 4acd3f5b: all five in en.json and pl.json, no reader. */
+        const DEAD = ["addThird", "whoWalkedIn", "nobodyElse", "noStressLeft", "betrayalConfirm"];
+        const sources = new Map(await otherSources());
+        must(sources.size > 100, "the module's sources did not load - this reads nothing");
+        const read = { scripts: DEAD.filter(k => [...sources.values()].some(src => new RegExp(`DRPG\\.Murder\\.${k}(?![\\w])`).test(src))) };
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            must(file?.DRPG?.Murder?.opened, `lang/${lang}.json has no DRPG.Murder - this reads nothing`);
+            read[lang] = DEAD.filter(k => Object.hasOwn(file.DRPG.Murder, k));
+        }
+        equal(stableJson(read), stableJson({ scripts: [], en: [], pl: [] }), "[the dead keys a script names; the dead keys each file still holds]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
