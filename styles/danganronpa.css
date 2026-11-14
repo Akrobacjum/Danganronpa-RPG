@@ -12116,10 +12116,6 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     opacity: 0.75;
 }
 
-#countdowns .drpg-projects-gear i,
-#countdowns .drpg-projects-fold i {
-    font-size: var(--font-size-15, 0.9375rem);
-}
 
 #countdowns .drpg-projects-gear:hover,
 #countdowns .drpg-projects-fold:hover {
@@ -14323,6 +14319,7 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
 
 #countdowns .drpg-projects-gear i,
 #countdowns .drpg-projects-fold i {
+    font-size: var(--font-size-15, 0.9375rem);
     color: var(--drpg-bone) !important;
 }
 
