@@ -493,6 +493,12 @@
             "until": "E71"
         },
         {
+            "key": "DRPG.Loot.coverTitle",
+            "rule": "X4",
+            "why": "A roll window named by its part, as palm.mjs `palmTitle` names Palm's (“Palm - Shadow, beat 15”, E51 C1, the owner's A11): the dash parts the action from its roll, not an aside. (1.2.113 assembly, 14.11.2026)",
+            "until": "E71"
+        },
+        {
             "key": "DRPG.Cleanup.reinforcedFlag",
             "rule": "X11",
             "why": "A state label on a Remnant: nobody acts at the moment it is read. (E57 T5, 14.11.2026)",

@@ -77,6 +77,13 @@
       "dropped": 0,
       "baseline": false,
       "note": ""
+    },
+    {
+      "date": "2026-11-14",
+      "keys": 4,
+      "dropped": 0,
+      "baseline": false,
+      "note": ""
     }
   ],
   "keys": {
@@ -6018,6 +6025,10 @@
     "DRPG.Tips.Actions.shareTooltip": "ab6e0d02:584be565:b",
     "DRPG.Tips.Actions.statisticTooltip": "e264c7c5:60b283a4:b",
     "DRPG.Tips.Actions.useItTooltip": "629a145a:29720213:b",
+    "DRPG.Tips.Case.placeOnTheMapTooltip": "5cdd595d:517e3a75",
+    "DRPG.Tips.Case.roomPlannedFinalTooltip": "f232b8a0:9443471c",
+    "DRPG.Tips.Case.roomPlannedIncidentRemnantTooltip": "f9804254:555ab17e",
+    "DRPG.Tips.Case.tiedToCrimeTooltip": "a3b93fab:73e09ba8",
     "DRPG.Tips.Gm.aCharacterDiesTooltip": "d73836b1:2c68b992:b",
     "DRPG.Tips.Gm.amountTooltip": "f3853df1:a341d87c:b",
     "DRPG.Tips.Gm.backUpTooltip": "ea930923:42fbed33:b",
