@@ -7799,7 +7799,7 @@
    "facts": [
     {
      "fact": "On a player's sheet the item name fields are read-only, with this tooltip; the write itself is refused in resource-guard.mjs.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-item.mjs",
      "fn": "lockItemName",
      "note": null
     }
@@ -7841,7 +7841,7 @@
    "facts": [
     {
      "fact": "On a player's sheet the item description editors are read-only, with this tooltip.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-item.mjs",
      "fn": "lockItemDescription",
      "note": null
     }
