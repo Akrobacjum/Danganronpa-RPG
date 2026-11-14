@@ -1,0 +1,30 @@
+# E55 step 4 (14.11.2026): the index in SHEET.md, generated from the sheets banners.
+import re,sys
+SHEET=re.compile(r'\.sheet\.actor|character-(header|sidebar)-sheet|drpg-item-sheet|\.sheet-tabs|drpg-inventory|drpg-action-panel|drpg-action-button|drpg-call-button')
+PART=[('item sheet',r'drpg-item-sheet|\.sheet\.item'),('tabs',r'sheet-tabs|tab-navigation'),('actions',r'drpg-action-|drpg-call-button|drpg-actions'),
+      ('inventory',r'inventory|drpg-row-|loadout|drpg-group'),('sidebar',r'character-sidebar-sheet|status-bar|resources-section'),
+      ('header',r'character-header-sheet|hope-section|character-traits|name-row'),('frame',r'.')]
+def mark(m):
+    c=m.group(1)
+    if '=====' in c or c.lstrip().startswith('---- '):
+        first=[l.strip(' =-*') for l in c.strip().split('\n') if l.strip(' =-*')]
+        if first: return ' @@H:'+re.sub(r'\s+',' ',first[0])[:100].replace('{','(').replace('}',')')+'@@ '
+    return ' '
+for f in sys.argv[1:]:
+    t=re.sub(r'/\*(.*?)\*/',mark,open(f).read(),flags=re.S)
+    heading='(before the first banner)'; out={}; order=[]
+    for m in re.finditer(r'([^{}]*)\{',t):
+        pre=m.group(1)
+        hs=re.findall(r'@@H:(.*?)@@',pre)
+        if hs: heading=hs[-1]
+        sel=re.sub(r'@@H:.*?@@','',pre).strip()
+        if not sel or sel.startswith('@') or not SHEET.search(sel): continue
+        part=next(p for p,rx in PART if re.search(rx,sel))
+        if heading not in out: out[heading]={}; order.append(heading)
+        out[heading][part]=out[heading].get(part,0)+1
+    total=sum(sum(v.values()) for v in out.values())
+    print(f'### {f}: {total} rules of the sheets in {len(order)} sections\n')
+    print('| Section (its banner) | Rules, by part |\n| --- | --- |')
+    for h in order:
+        parts=out[h]; print(f"| {h.replace('|','/')} | {', '.join(f'{p} {n}' for p,n in sorted(parts.items(), key=lambda x:-x[1]))} |")
+    print()

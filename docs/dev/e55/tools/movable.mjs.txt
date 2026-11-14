@@ -1,0 +1,20 @@
+// E55 (14.11.2026): run from the repository root, renamed to .mjs, as INVENTORY.md says of the finders. The helpers are read out of merge.mjs.txt beside this file.
+// For each sheet rule (selector names the character or item sheet), can it move to the END of its sheet without passing a
+// rule that ties with it (same property family, equal weight, same importance, subjects that may be one element)?
+import fs from "node:fs";
+const src=fs.readFileSync("docs/dev/e55/tools/merge.mjs.txt","utf8");
+const file=process.argv[2];
+// reuse functions by eval of the helper part
+const helpers=src.slice(src.indexOf("const blank ="), src.indexOf("const bt=blank(text)"));
+const fn=new Function("text", helpers+`
+const bt=blank(text); const blocks=walk(bt).filter(b=>b.prelude&&!b.prelude.startsWith("@")&&!b.ctx.some(c=>/keyframes|font-face/i.test(c)));
+blocks.forEach((b,i)=>{ b.idx=i; b.sels=splitTop(b.prelude).map(s=>s.replace(/\\s+/g," ").trim()); b.specs=b.sels.map(spec);
+  b.props=b.decls.map(([s,e])=>{const raw=bt.slice(s,e).replace(/;\\s*$/,""); const c=raw.indexOf(":"); if(c<=0) return null; const p=raw.slice(0,c).trim(); if(!/^-{0,2}[a-zA-Z][\\w-]*$/.test(p)) return null; return {p,imp:/!\\s*important\\s*$/i.test(raw)};}).filter(Boolean); });
+const sheet=b=>/\\.sheet\\.actor|character-(header|sidebar)-sheet|drpg-item-sheet|\\.sheet-tabs|drpg-inventory|drpg-action-panel|drpg-action-button|drpg-call-button/.test(b.prelude);
+let n=0, ok=0, blockedBy=new Map();
+for(const b of blocks){ if(!sheet(b)) continue; n++; let bad=null;
+  for(const r of blocks.slice(b.idx+1)){ for(const d of b.props){ for(const x of r.props){ if(fam(x.p)!==fam(d.p)||x.imp!==d.imp) continue;
+        r.sels.forEach((rs,ri)=>b.sels.forEach((ms,mi)=>{ if(!bad&&cmp(r.specs[ri],b.specs[mi])===0&&mayOverlap(rs,ms)) bad=r; })); if(bad) break; } if(bad) break; } if(bad) break; }
+  if(!bad) ok++; }
+return {n,ok,blocks:blocks.length};`);
+console.log(file, fn(fs.readFileSync(file,"utf8")));
