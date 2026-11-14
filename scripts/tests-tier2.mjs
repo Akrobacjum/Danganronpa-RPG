@@ -66384,6 +66384,104 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{the table renamed, and each region's table afterwards: the Kitchen's two pieces on the new name, the Garden on its own table}");
     }],
 
+    ["a secret project revealed before it is completed still stamps its room action's completion, so the action's lifetime counts from then (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 3): a reveal moves the action from the GMs' half to projectMeta and leaves the GMs' row's field null, and the project's step read its row as `{ ...metaFor, ...secretsOf }`, so the null hid the action from the completion row (`COMPLETION_EFFECTS` facility, `has: meta => Boolean(meta.facility)`) and nothing stamped `completedAt` - an action of three times of day then stood for good; since, a null of the GMs' half is no value (projects-secrecy.mjs `bothHalves`)", async () => {
+        /* Red at 1c820482: completedAt null after the completion, and the action standing three times of day later. Read on
+           this GM's browser; the scenario 99-actions holds the player's browser on the roads a table takes. */
+        const P = await import("./projects.mjs");
+        const F = await import("./facilities.mjs");
+        const { actor, where } = await playerInRoom();
+        must(actor && where?.room, "no connected player's character stands in a named room - this would measure nothing");
+        const read = {};
+        let id = null;
+        try {
+            id = (await P.createProject({ name: "SUITE reveal then complete", target: 2, room: where.room, secret: true }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE reveal soup", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "timesOfDay", n: 1 } });
+            await P.revealProject(id);
+            await settle();
+            await P.addProgress(id, 2);
+            await settle();
+            const stamp = F.projectFacilityOf(id).completedAt;
+            const clock = getClock(), later = { ...clock, day: (clock.day ?? 1) + 1 };
+            read.stamp = Boolean(stamp) && stamp.at === F.facilityOrdinal().at;
+            read.now = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+            read.nextDay = (await F.projectActionsAt(where, game.user, later)).some(r => r.project.id === id);
+        } finally {
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ stamp: true, now: true, nextDay: false }),
+            "{the completion stamped now; the action stands now; and not a day later (its lifetime is one time of day)}");
+    }],
+
+    ["a completed project with no room gives its room action wherever a student who knows it stands, and one with a room only in that room (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 4 and its default, Q-T115-3): \"abstract work anywhere\" has no room to stand in, so `standsAtProject` is false and until 1.2.115 such a project's action showed nowhere; since, a project with no room stands wherever its readers are (`canSee` still decides who), and the GM's run judges a use by the same rows (facilities-gm.mjs `offerAt`)", async () => {
+        /* Red at d949b11d: the roomless project's action was in no row. Read on this GM's browser, for a connected player's
+           character standing in a named room. */
+        const P = await import("./projects.mjs");
+        const F = await import("./facilities.mjs");
+        const { where } = await playerInRoom();
+        const elsewhere = Array.from(where.scene.regions ?? []).map(r => r.name?.trim()).find(n => n && n !== where.room) ?? null;
+        must(elsewhere, `the scene ${where.scene.name} has no second named room - the control would read nothing`);
+        const read = {};
+        const ids = [];
+        try {
+            for (const [name, room] of [["SUITE roomless work", null], ["SUITE work in another room", elsewhere]]) {
+                const id = (await P.createProject({ name, target: 2, room }))?.id ?? null;
+                must(id, "no project was made - this would measure nothing");
+                ids.push(id);
+                await F.setProjectFacility(id, { label: `${name} action`, effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+                await P.addProgress(id, 2);
+            }
+            await settle();
+            const here = await F.projectActionsAt(where, game.user);
+            read.roomless = here.some(r => r.project.id === ids[0]);
+            read.otherRoom = here.some(r => r.project.id === ids[1]);
+        } finally {
+            for (const id of ids) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ otherRoom: false, roomless: true }),
+            "{where the student stands: the roomless project's action, and not the action of a project in another room}");
+    }],
+
+    ["a countdown made in Daggerheart's own window keeps its direction when the module first writes to it, so it is complete exactly when Daggerheart's tray shows it run out (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 5): Daggerheart's countdown starts full and ticks down to 0, and with no projectMeta the module reads it so (`countsUp` false); the module's first write to it - a room or an action from the project manager - left a row without `countsUp`, which `countsUp` reads as \"ours, from before the stamp\", and the direction flipped: the fresh countdown read complete and gave its action at once, and the one Daggerheart showed run out read not complete and gave none; since, a first write to a countdown with no row stamps `countsUp: false` (projects-secrecy.mjs `setProjectMeta`)", async () => {
+        /* Red at d77329e4: { roomGiven: true, actionGiven: true, runOut: false } - complete as soon as it had a room, and
+           not once it ran out. The countdown is written to Daggerheart's setting as its own window writes one. */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const F = await import("./facilities.mjs");
+        const { where } = await playerInRoom();
+        const id = foundry.utils.randomID(16);
+        const complete = () => P.allProjects().find(p => p.id === id)?.complete ?? null;
+        const writeCountdown = async current => {
+            const data = foundry.utils.deepClone(game.settings.get(S.DH, S.COUNTDOWNS) ?? {});
+            data.countdowns = { ...(data.countdowns ?? {}) };
+            data.countdowns[id] = { ...(data.countdowns[id] ?? { name: "SUITE a countdown of Daggerheart's", img: "icons/magic/time/hourglass-yellow-green.webp", ownership: { default: S.OBSERVER } }),
+                progress: { start: 4, current } };
+            await game.settings.set(S.DH, S.COUNTDOWNS, data);
+            await settle();
+        };
+        const read = {};
+        try {
+            await writeCountdown(4);
+            read.fresh = complete();
+            await S.setProjectMeta(id, { room: where.room });
+            await settle();
+            read.roomGiven = complete();
+            await F.setProjectFacility(id, { label: "SUITE Daggerheart's soup", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+            await settle();
+            read.actionGiven = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+            await writeCountdown(0);
+            read.runOut = complete();
+            read.actionAtRunOut = (await F.projectActionsAt(where, game.user)).some(r => r.project.id === id);
+        } finally {
+            await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ actionAtRunOut: true, actionGiven: false, fresh: false, roomGiven: false, runOut: true }),
+            "{Daggerheart's countdown: not complete fresh, nor once given a room, no action while it runs, complete and its action given once it ran out}");
+    }],
+
     ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
         /*
          * E12 C5, 11.10.2026; plan-E12 section 4's C5, audit S16-07. The gather's room was looked up

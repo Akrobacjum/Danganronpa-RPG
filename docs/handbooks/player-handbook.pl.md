@@ -389,7 +389,7 @@ Okno kafelka **Facilities** ma najpierw dwa odpoczynki, bez rzutu, a po nich to,
 
 Okno wycenia oba odpoczynki wobec tego, co masz, i wymienia pokoje, które pozwalają na każdy z nich.
 
-Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i kosztuje akcję; gdy ktokolwiek użyje jej o tej porze dnia, także nieudanym rzutem, jest wyszarzona dla wszystkich aż do następnej. Akcja ukończonego projektu nie wymaga rzutu i kosztuje akcję, chyba że GM ustawił, że nic nie kosztuje; zostawia Subtle Remnant oznaczony jako Faint, tak jak akcja samego pokoju, i masz ją raz na każdą porę dnia. Jej wiersz mówi, który projekt ją daje i jak długo działa. Despair Overflow może na porę dnia wyłączyć akcje w pokojach (Lockdown, Power cut), podrożyć je (Toll), utrudnić (Jitters) albo zabrać Short Rest (Insomnia).
+Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i kosztuje akcję; gdy ktokolwiek użyje jej o tej porze dnia, także nieudanym rzutem, jest wyszarzona dla wszystkich aż do następnej. Akcja ukończonego projektu nie wymaga rzutu i kosztuje akcję, chyba że GM ustawił, że nic nie kosztuje; zostawia Subtle Remnant oznaczony jako Faint, tak jak akcja samego pokoju, i masz ją raz na każdą porę dnia; projekt bez pokoju daje swoją akcję w każdym pokoju, w którym stoisz. Jej wiersz mówi, który projekt ją daje i jak długo działa. Despair Overflow może na porę dnia wyłączyć akcje w pokojach (Lockdown, Power cut), podrożyć je (Toll), utrudnić (Jitters) albo zabrać Short Rest (Insomnia).
 
 ### Infiltrate: Listen - Shadow, 1 akcja
 

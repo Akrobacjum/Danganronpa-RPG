@@ -264,7 +264,8 @@ function toldFacility(projectId) {
 
 /**
  * The completed projects' actions standing where `place` is (movement.mjs `locateActor`'s `{ room, scene }`) for `user`:
- * each project complete, in that room on that scene (projects.mjs `standsAtProject`), seen by `user` (`canSee`), not an
+ * each project complete, in that room on that scene (projects.mjs `standsAtProject`) or with no room at all (it stands
+ * wherever its readers are, 1.2.115), seen by `user` (`canSee`), not an
  * indirect murder, with an action whose lifetime runs at `clock`. `[{ project, facility, completedAt, timesLeft }]`.
  * Reaches projects.mjs by `import()`: it imports this file, so a static import here would close a cycle.
  */
@@ -282,7 +283,11 @@ export function projectActionsWith({ allProjects, standsAtProject, canSee }, pla
     if (!place?.room || !place.scene) return [];
     const out = [];
     for (const project of allProjects()) {
-        if (!project.complete || project.indirectMurder || !standsAtProject(place, project.id) || !canSee(project.id, user)) continue;
+        /* A PROJECT WITH NO ROOM STANDS WHEREVER ITS READERS ARE (1.2.115; the owner's report of 14.11.2026, the
+           coordinator's default, Q-T115-3): "abstract work anywhere" has no room to stand in, so `standsAtProject` is
+           false for it and its action showed nowhere. `canSee` still decides who reads it. */
+        const here = project.room ? standsAtProject(place, project.id) : true;
+        if (!project.complete || project.indirectMurder || !here || !canSee(project.id, user)) continue;
         const { facility, completedAt } = projectFacilityOf(project.id);
         if (!facility || !facilityLive(facility, completedAt, clock)) continue;
         out.push({ project, facility, completedAt, timesLeft: facilityTimesLeft(facility, completedAt, clock) });
