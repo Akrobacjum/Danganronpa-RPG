@@ -8,8 +8,8 @@
 
 /**
  * The window width that shows a table of `widest` pixels without clipping: ui-kit.mjs `fitKitWidth`'s, for every `fit`
- * window (E21 C2a; this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and not in
- * the kit because R168 reads it here, and the kit may import this file (R161).
+ * window (E21 C2a; utils.mjs's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). In windows.mjs and not in
+ * the kit because the kit imports utils.mjs, which re-exports it (R161 holds no cycle); R168 imports it from there.
  *
  * IT USED TO TAKE A `settled` FLAG - "this window has been fitted before, so
  * somebody may have put it somewhere" - and cap the answer at the room to the
@@ -73,9 +73,9 @@ export function windowWidthFor(root, content, widest) {
 /**
  * The kit's tab panes, each shown in turn (E44 C4a, 04.11.2026). `measure(pane)` runs with that pane shown and every
  * other hidden, by the same `hidden` the tabs switch (ui-kit.mjs `kitTabs`, `wireKitTabs`), and every pane is put
- * back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, which hands it on and
- * measures with it (`fitKitWidth`, E21 C2a; this file's `fitWindowToTabs` until then), because utils.mjs may not import
- * the kit (R161: the kit imports this file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.
+ * back as it was; answers what each call answered, by the pane's key. In windows.mjs and not in ui-kit.mjs, which hands it on and
+ * measures with it (`fitKitWidth`, E21 C2a; utils.mjs's `fitWindowToTabs` until then), because windows.mjs, like utils.mjs, may not import
+ * the kit (R161: the kit imports utils.mjs, which re-exports this file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.
  *
  * @param {HTMLElement} root
  * @param {(pane: HTMLElement) => any} measure
