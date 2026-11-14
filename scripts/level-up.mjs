@@ -104,15 +104,18 @@ export async function openAdvancementFor(actor) {
 
     if (!picked) return null;
     if (picked.value.startsWith("take:")) return takeBackOffer(actor, picked.value.slice("take:".length));
+    // The GM granted it from this window, whatever its kind (the needsCode line, R6913): the kind's own reason - the class
+    // named the Blackened, a wrong vote freed them - was said here for a Reinforced Level Up given for a good chapter.
+    const GRANTED = { reasons: ["DRPG.Advance.reason.granted"] };
     // Nobody would see an offer (`offerAdvancement`): said, and the GM picks.
     if (!played) {
         ui.notifications.info(game.i18n.format("DRPG.Advance.nobodyPlays", { name: actor.name }));
-        return openAdvancement(actor, picked.value);
+        return openAdvancement(actor, picked.value, GRANTED);
     }
     // The who-picks row checked when Grant was pressed; the GM's when the answer carries no form (the suite's stand-ins).
     const who = picked.form?.querySelector?.('input[name="who"]:checked')?.value ?? "gm";
     if (who === "player") return offerAdvancement(actor, picked.value);
-    return openAdvancement(actor, picked.value);
+    return openAdvancement(actor, picked.value, GRANTED);
 }
 
 /* ==========================================================================

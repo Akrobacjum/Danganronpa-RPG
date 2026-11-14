@@ -4909,6 +4909,7 @@
       "reason": {
         "standard": "The class named the Blackened.",
         "reinforced": "A wrong vote let the Blackened go free.",
+        "granted": "The GM granted this Level Up.",
         "withClass": "The Reinforced Level Up from the wrong vote comes with this one."
       },
       "buttonTooltip": "Level Up",

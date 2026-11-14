@@ -37966,6 +37966,22 @@ const INVARIANTS = [
             "[roomPhrase for a room and for none; the Polish hosts that bend a room's placeholder; each fragment in en and pl; each site asks roomPhrase]");
     }],
 
+    ["R6913 - a Level Up the GM grants from its own window says the GM granted it, not that the class named the Blackened or a wrong vote freed them (needsCode, 14.11.2026): level-up.mjs `openAdvancementFor` (the sheet's menu, the Students window, `game.drpg.advanceFor`) opens the GM's picks with `reasons: [\"DRPG.Advance.reason.granted\"]`, in English and Polish", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #75. Red at 4bc27697: openAdvancement was
+         * called with no reasons, so the reason was the kind's (`DRPG.Advance.reason.${kind}`): a Reinforced Level Up the
+         * menu's hint offers \"for an exceptional chapter\" told the player a wrong vote let the Blackened go free. An offer
+         * the GM sends from the same window (`offerAdvancement`) still carries the kind alone: its record and its bridge row
+         * carry no reason, a change left open in NEEDSCODE.md.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "level-up.mjs")?.[1] ?? ""), "openAdvancementFor") ?? "";
+        must(body.includes("openAdvancement(actor"), "openAdvancementFor no longer opens the GM's picks - this reads nothing");
+        const calls = [...body.matchAll(/openAdvancement\(actor, [^)]*\)/g)].map(m => m[0]);
+        equal(stableJson({ granted: calls.length > 0 && calls.every(c => c.includes("GRANTED")) && /const GRANTED = \{ reasons: \["DRPG\.Advance\.reason\.granted"\] \}/.test(body),
+            key: game.i18n.has("DRPG.Advance.reason.granted") }), stableJson({ granted: true, key: true }),
+            "[every call of the GM's picks gives the granted reason; the key exists]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

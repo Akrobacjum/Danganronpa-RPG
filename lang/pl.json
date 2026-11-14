@@ -5288,6 +5288,7 @@
       "reason": {
         "standard": "Klasa wskazała Blackened.",
         "reinforced": "Błędne głosowanie zostawiło Blackened na wolności.",
+        "granted": "Ten Level Up przyznał GM.",
         "withClass": "Reinforced Level Up za błędne głosowanie przychodzi razem z tym Level Upem."
       },
       "buttonTooltip": "Level Up",
