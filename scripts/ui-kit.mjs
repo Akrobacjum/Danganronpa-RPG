@@ -358,7 +358,7 @@ export function shownTab(root) {
  *
  * HIDDEN IS NOT ENOUGH FOR A FOOTER BUTTON, AND THAT IS THE WHOLE TRAP (utils.mjs's `wirePanelTabs`, measured against
  * DialogV2 on 14.365, which this replaces): the footer's buttons are `type="submit"` inside the dialog's form and
- * `_onKeyDown` intercepts Escape only, so Enter goes through the browser's implicit submission, which picks the first
+ * `DialogV2#_onKeyDown` intercepts Escape only, so Enter goes through the browser's implicit submission, which picks the first
  * submit button in tree order whether or not it shows; `autofocus` does not decide it either. So a button another
  * tab owns is hidden AND disabled - a disabled first submit button makes Enter do nothing at all (the spec does not
  * fall through to the next one; E44-T5 reads it so), where a hidden one alone would be pressed - and
@@ -849,8 +849,9 @@ export function readStepper(el, options = {}) {
     return wholeNumber(input.value, { min: bound(input.min, -Infinity), max: bound(input.max, Infinity), fallback });
 }
 
-/* One step of a stepper and its message line (chrome.mjs `step` and `dressNumberField`'s check until E44 C4b, the same
-   rules): the step inside `min` and `max`, an empty field starting from `min` (or 0), `input` and `change` as a keystroke
+/* One step of a stepper and its message line (chrome.mjs `step` and `dressNumberField`'s check until E44 C4b,
+   04.11.2026, which removed both from chrome.mjs; the same rules): the step inside `min` and `max`, an empty
+   field starting from `min` (or 0), `input` and `change` as a keystroke
    sends them; the line under the field only while the value is out of range. */
 function wireStepper(wrap) {
     if (wrap.dataset.drpgKitWired) return;

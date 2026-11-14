@@ -381,8 +381,8 @@ function liveKitClient() {
 /**
  * Is LiveKit the A/V client this world is actually using?
  *
- * `AVMaster` builds `this.client` from `CONFIG.WebRTC.clientClass` in its
- * constructor, and `LiveKitAVClient`'s own constructor creates `_liveKitClient`
+ * Foundry's `foundry.av.AVMaster` builds `this.client` from `CONFIG.WebRTC.clientClass` in its
+ * constructor, and avclient-livekit's own constructor (`LiveKitAVClient#constructor`) creates `_liveKitClient`
  * - so if the A/V client exists and has no `_liveKitClient`, some other class is
  * in charge and no amount of waiting will change that.
  *
@@ -458,7 +458,8 @@ export const ROOM_PREFIX = "drpg-";
  * whether the death is public or kept secret. Nobody else is sent it, so nobody hears the dead and the dead hear
  * nobody, and no document is written for it: the trial's block (`BROADCAST_AUDIO`, E70) stays the trial's.
  *
- * ONE PER ACCOUNT, NOT ONE FOR ALL (E19 C3 had `DEAD_ROOM`, `drpg-dead`, for every death kept secret, and sent a
+ * ONE PER ACCOUNT, NOT ONE FOR ALL (E19 C3 had `DEAD_ROOM`, gone from the code by 13.11.2026, `drpg-dead`, for
+ * every death kept secret, and sent a
  * public one to the main room): in the shared room two dead players heard each other, so the first learnt of a second
  * death nobody had found; in the main room every living player heard a public death. One of ours by the prefix, so
  * `landedCorrectly` reads it as a breakout; a room `liveKitRoomFor` names carries a scene id, a slug and a hash after

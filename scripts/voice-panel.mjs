@@ -9,7 +9,8 @@
  *     design read av/client.mjs:121-151). Before the browser has allowed the microphone it lists one device with no
  *     id or labels it `WEBRTC.UnknownDevice` (the design's reading, external); then the section says what to do
  *     instead of offering a list of nameless devices;
- *   - the sound output: `getAudioSinks()`, the row left out where it lists nothing (a browser without `setSinkId`,
+ *   - the sound output: `getAudioSinks()`, the row left out where it lists nothing (a browser without
+ *     `HTMLMediaElement#setSinkId`,
  *     the design's reading, external);
  *   - the microphone's mode, always on or push to talk (`voice.mode`: "always", "ptt"; avclient-livekit has no
  *     voice-activity mode, the design's reading of its hooks.ts:10-17, external);

@@ -182,8 +182,9 @@ export async function startClassTrial() {
     const picked = result.cast;
     if (hall && picked?.sceneId === hall.id && Object.keys(picked.changes ?? {}).length) await saveTrialCast(hall, picked.changes);
 
-    // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp go together
-    // - see `resetElapsed` - so the HUD redraws once. Two writes would redraw
+    // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp
+    // (`timeOfDayStartedAt`) go together in the one `setClock` below, so
+    // the HUD redraws once. Two writes would redraw
     // it twice a few milliseconds apart, and the second redraw would land in
     // the middle of the turn-over animation the first one started.
     // A fresh trial has not voted and has not delivered a verdict, G-32

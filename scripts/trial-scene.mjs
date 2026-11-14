@@ -15,7 +15,7 @@
  * a flag of its own or an option of the write (`stagePlan`). Until DZ6 the module
  * created, moved and deleted no token in the hall (D7) and named the students the
  * hall had no token for; the design before D7 placed and cleared seats (A5's
- * `ensureTrialTokens`, `clearTrialTokens`).
+ * `ensureTrialTokens`, `clearTrialTokens`, both gone by 1.2.70, the oldest tree git holds here).
  *
  * THE CAST is the hall's tokens whose actor is a "character" - a student,
  * Monokuma among them. An NPC token, a prop, a token with no actor, is never the
@@ -677,7 +677,7 @@ export function leaveDestination({ school = null, returnTo = null, hall = null }
 /**
  * The cast actors the module will not make a token for and the hall holds none of: Monokuma, ticked as
  * the GMs' choice has him (else `defaultReveal`), with no token there - the Scenes tab's `handPlaced` row
- * (E81 DZ6; until then `studentsWithoutHallToken`, every student a player plays with no hall token).
+ * (E81 DZ6, which removed `studentsWithoutHallToken`: every student a player plays with no hall token).
  */
 export function handPlacedActors(hall) {
     if (!hall?.tokens) return [];
