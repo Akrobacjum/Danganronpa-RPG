@@ -107,7 +107,7 @@ W chwili twojej śmierci szkło na twoim ekranie szarzeje, z dźwiękiem Gaśni�
 
 ### Dzień, sesja, rozdział
 
-Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia odnawia twoje dwie akcje, Free Move i Search Tokeny każdego pokoju. Gdy kończy się Noc, zaczyna się nowy dzień.
+Jedna sesja to jeden dzień w fikcji, a dzień to pięć pór dnia: Rano, Południe, Popołudnie, Wieczór, Noc. Każda pora dnia uzupełnia Search Tokeny każdego pokoju, a jej Eclipse odnawia twoje dwie akcje i Free Move (gdy pora mija bez Eclipse, odnawia je GM). Gdy kończy się Noc, zaczyna się nowy dzień.
 
 Kanoniczny rozdział to pięć sesji: trzy Daily Life, jedna sesja **Investigation** i jedna sesja **Class Trial**, a morderstwo przychodzi zwykle w trzeciej sesji Daily Life. GM może rozciągnąć rozdział, gdy morderstwa jeszcze nie było. Sezon to sześć rozdziałów; sezon modułowy to krótszy sezon, który GM może wybrać zamiast niego, i ma jeden rozdział.
 
@@ -172,6 +172,7 @@ Zawraca cię:
 | pokój, który **nie łączy się** z twoim | odmowa wymienia tylko te sąsiednie pokoje, w których już byłeś |
 | **piętro**, na które schody z twojego pokoju nie prowadzą | na mapie ze schodami tylko one zabiorą cię w górę lub w dół |
 | **zamknięte drzwi** | GM zamknął pokój |
+| **zabarykadowane drzwi** | ktoś zamknął drzwi od środka (Shut the Door); sekretne przejście albo wyłom nadal prowadzą dalej |
 | **zapieczętowany pokój** | Despair Call Behind Closed Doors, na jedną porę dnia |
 | **Chained** od Despair Calla | nie wyjdziesz z pokoju do końca pory dnia |
 | **cudza sypialnia** | gdy nie masz do niej klucza |
@@ -427,7 +428,7 @@ Barykadujesz od środka pokój, w którym stoisz, a siłą barykady jest twój r
 
 ### Force the Door - Body, 1 akcja
 
-Przy drzwiach z twojego pokoju do sąsiedniego rzucasz raz na Body przeciw wszystkiemu, co je trzyma, naraz, a drzwi ustępują tylko wtedy, gdy rzut pokona to wszystko. Barykada wymaga więcej niż jej siła (remis ją utrzymuje); zamek (GM-a albo sypialni) i pieczęć wymagają 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, dopóki ktoś go nie naprawi (Repair the Lock, w części o Projects), a wyważona pieczęć znika do końca swojej pory dnia. Osoby w twoim pokoju zawsze widzą, kto to był, jakikolwiek byłby rzut. Wyważone drzwi, a także pudło z Despair, są głośne: pokoje obok jednego i drugiego pokoju słyszą *Łomot z: {room}.* bez imienia, a osoby w pokoju za drzwiami widzą, kto to był. Każda próba przy drzwiach, które coś trzyma, zostawia Remnant: Evident, gdy było głośno, a w przeciwnym razie Subtle. Właściciel sypialni, który tego nie widział, dostaje wiadomość, że drzwi wyważono, gdy następnym razem wejdzie do tej sypialni, albo od razu, jeśli w niej jest. Force the Door nie wolno użyć w trakcie Class Trial ani wtedy, gdy jesteś Chained.
+Przy drzwiach z twojego pokoju do sąsiedniego rzucasz raz na Body przeciw wszystkiemu, co je trzyma, naraz, a drzwi ustępują tylko wtedy, gdy rzut pokona to wszystko. Barykada wymaga więcej niż jej siła (remis ją utrzymuje); zamek (GM-a albo sypialni) i pieczęć wymagają 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, dopóki ktoś go nie naprawi (Repair the Lock, w części o Projects), a wyważona pieczęć znika do końca swojej pory dnia. Osoby w twoim pokoju zawsze widzą, kto to był, jakikolwiek byłby rzut. Wyważone drzwi, a także pudło z Despair, są głośne: pokoje obok jednego i drugiego pokoju słyszą *Słychać łomot przy drzwiach pokoju {room}.* bez imienia (pokój, którego nie znaleźli, to dla nich *Nieodkryty pokój n*), a osoby w pokoju za drzwiami widzą, kto to był. Każda próba przy drzwiach, które coś trzyma, zostawia Remnant: Evident, gdy było głośno, a w przeciwnym razie Subtle. Właściciel sypialni, który tego nie widział, dostaje wiadomość, że drzwi wyważono, gdy następnym razem wejdzie do tej sypialni, albo od razu, jeśli w niej jest. Force the Door nie wolno użyć w trakcie Class Trial ani wtedy, gdy jesteś Chained.
 
 ### Pick the Lock - Shadow, potem Hand, 1 akcja
 

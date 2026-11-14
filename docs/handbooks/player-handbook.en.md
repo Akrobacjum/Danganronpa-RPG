@@ -107,7 +107,7 @@ At your death the glass on your screen fades to gray, with the Death fade sound;
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move, and each room's Search Tokens. When Night ends, the day turns over.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day restocks each room's Search Tokens, and its Eclipse refills your two actions and your Free Move (the GM refills them when a time of day goes by without one). When Night ends, the day turns over.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season, a shorter one the GM may choose instead, runs a single chapter.
 
@@ -172,6 +172,7 @@ You are turned back by:
 | a room that is **not connected** to yours | the refusal names only the neighboring rooms you have already been in |
 | a **floor** the stairs do not lead to from your room | on a map with stairs, only they take you up or down |
 | a **locked door** | the GM locked the room |
+| a **barricaded door** | somebody shut the door from inside (Shut the Door); a secret passage or a breach still goes through |
 | a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
 | being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
 | **somebody else's bedroom** | when you hold no key to it |
@@ -427,7 +428,7 @@ Barricade the room you stand in, from inside; your Body roll is the barricade's 
 
 ### Force the Door - Body, 1 action
 
-At a door from your room to the next: one Body roll against everything that holds it at once, and the door gives only when the roll beats all of it. A barricade needs more than its strength (a tie holds); a lock (a GM's or a bedroom's) and a seal need 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it (Repair the Lock, under Projects); a forced seal is gone for the rest of its time of day. The people in your own room always see who it was, whatever the roll. A forced door, and a miss with Despair, is loud: the rooms next to either room hear *A banging from: room* without a name, and the people in the room beyond see who it was. Each attempt on a door that something holds leaves a Remnant, Evident when it was loud and Subtle otherwise. A bedroom's owner who did not see it is told their door was forced when they next walk into that bedroom, or at once if they are in it. Not during a Class Trial, and not while you are Chained.
+At a door from your room to the next: one Body roll against everything that holds it at once, and the door gives only when the roll beats all of it. A barricade needs more than its strength (a tie holds); a lock (a GM's or a bedroom's) and a seal need 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it (Repair the Lock, under Projects); a forced seal is gone for the rest of its time of day. The people in your own room always see who it was, whatever the roll. A forced door, and a miss with Despair, is loud: the rooms next to either room hear *A loud banging comes from room.* without a name (a room they have not found is *Unexplored room n* to them), and the people in the room beyond see who it was. Each attempt on a door that something holds leaves a Remnant, Evident when it was loud and Subtle otherwise. A bedroom's owner who did not see it is told their door was forced when they next walk into that bedroom, or at once if they are in it. Not during a Class Trial, and not while you are Chained.
 
 ### Pick the Lock - Shadow, then Hand, 1 action
 
