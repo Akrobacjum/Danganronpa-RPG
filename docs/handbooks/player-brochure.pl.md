@@ -4,10 +4,10 @@
 
 **Jesteś:** Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (maks. 6)**. Sanity na zerze = **Breakdown** (utrudnienie na każdym rzucie). Health na zerze = **Wounded** (o jedną akcję mniej). Rzut z Hope daje ci 1 Hope; rzut z Despair zasila Monokumę; krytyk daje 2 Hope.
 
-## Każda pora dnia (Rano, Południe, Popołudnie, Wieczór, Noc)
+## Każda pora dnia
 
 - **2 akcje** i **1 Free Move**. Odnawiają się, gdy zaczyna się Eclipse przed następną porą dnia.
-- Ruch wewnątrz pokoju jest darmowy. Pierwsze przejście do połączonego pokoju to Free Move; każde kolejne kosztuje 1 akcję. Przeciągnij token - koszt nalicza się, gdy dotrzesz. Zamknięte drzwi, zapieczętowane pokoje, cudze sypialnie (bez klucza) i Chained zawracają cię.
+- Ruch wewnątrz pokoju jest darmowy. Pierwsze przejście do połączonego pokoju to Free Move; każde kolejne kosztuje 1 akcję. Przeciągnij token - koszt nalicza się, gdy dotrzesz. Zamknięte drzwi, zapieczętowane pokoje, cudze sypialnie (bez klucza) i Chained (Despair Call, który trzyma cię w pokoju do końca pory dnia) zawracają cię.
 - Przed każdą porą dnia jest **Eclipse**: gasną światła, nikt nikogo nie widzi ani nie słyszy, ustawiasz token do 2 połączonych pokoi dalej (dowolny pokój przed Nocą).
 - Widzisz tylko swój pokój i ludzi w nim; odwiedzone pokoje są za zasłoną, reszta we mgle. Gdy głos per pokój jest włączony, twój głos idzie za tokenem - słyszysz tylko swój pokój. Każdy pokój ma **Search Tokens** (zwykle 3) wspólne dla wszystkich.
 
@@ -23,8 +23,8 @@
 | **Analyze** | Head | Zidentyfikuj Truth Bullet (porażka blokuje go do końca rozdziału), poproś GM-a o podpowiedź (14+ / 18+), Find Stash (16+) albo Find Passage (16+). |
 | **Projects** | Statystyka projektu | 12+ = +1 postępu, 18+ = +2, krytyk = +2 i akcja wraca. Nowe proponujesz GM-owi. Tu też Sabotage, który zawsze zostawia ślad. |
 | **Dynamiczna** | proponujesz, ustala GM | Opisz cokolwiek; GM ustala trudność. Łagodniejsze progi - nagroda za pomysł. |
-| **Rest** | - | Short: 1 akcja, wybierz 1, raz na porę dnia. Long: 2 akcje, wybierz 2, raz na sesję. Sleep = Health, Meal = Sanity, Breath = Hope. Tylko w oznaczonych pokojach. |
-| **Listen** | Shadow | 14+ ile osób za ścianą, 18+ kto, krytyk każdy sąsiedni pokój. Pokoje, w których nie byłeś, zostają bez nazwy (Nieodkryty pokój 1, 2...). |
+| **Facilities** | - albo z wiersza | Short Rest: 1 akcja, wybierz 1, raz na porę dnia. Long Rest: 2 akcje, wybierz 2, raz na sesję. Sleep = Health, Meal = Sanity, Breath = Hope; Rest tylko w oznaczonych pokojach. Pod nimi to, co daje pokój, w którym stoisz. |
+| **Infiltrate** | Shadow, Leg, Body albo Hand | Listen (14+ ile osób za ścianą, 18+ kto, krytyk każdy sąsiedni pokój; pokoje, w których nie byłeś, zostają bez nazwy: Nieodkryty pokój 1, 2...), Echoes, Tail Someone, Dash (12+ 2 darmowe przejścia, 18+ 3, krytyk 4), Shut the Door, Force the Door, Pick the Lock, Keep Watch. |
 | **Palm** | Hand + Shadow | Weź (12+, niezauważony 15+) albo podłóż (8+, niezauważony 13+) coś w czyjejś kieszeni. Albo zobacz, co nosi: najpierw poproś, Body 12+ po odmowie; ukradkiem Shadow 15+, potem Hand 10+. |
 | **Tamper** | Shadow | Wymaż ślad w tym pokoju, o którym wiesz (Hidden 9 do Obvious 18), przerób go (o 3 niżej, nowe słowa zatwierdza GM) albo podłóż Misleading Trail (15). Kosztuje akcję i żadnego Sanity; bez akcji nie ma Tamper. Świadkowie to rzut maskowania (16), który może kosztować Sanity nawet wtedy, gdy się uda (1 przy Despair, 1-2, jeśli cię przyłapią). |
 | **Direct Murder** | GM | Tylko podczas Eclipse, uzgodnione z GM-em, za zgodą gracza ofiary. Rozstrzyga się, gdy zapali się światło: musisz wtedy być <ins>w pokoju z dokładnie jedną inną osobą i nikim więcej</ins>. |
@@ -34,15 +34,14 @@
 | Call | Koszt | W skrócie |
 |---|---|---|
 | **Support** | 1 | Przewaga dla kogoś w twoim pokoju. |
-| **Experience** (GM) | 1 | Jedno doświadczenie dodane do następnego rzutu. |
-| **Ultimate** (GM) | 1 | Przewaga na następnym rzucie. |
+| **Talent** (GM) | 1 | Jedno doświadczenie dodane do następnego rzutu albo przewaga z Ultimate na nim. |
 | **Contribution** | 2 | +1 postępu projektu w twoim pokoju, bez rzutu. |
 | **Sprint** | 2 | Jedno darmowe przejście. |
 | **Reroll** | 3 | Twój ostatni rzut jeszcze raz, akcja rozgrywa się od nowa. |
 | **Resolve** | 2 | Sam wybierasz dowolną statystykę. |
 | **Burst** | 4 | Następna akcja za darmo. |
 | **Relief** | 4 | Short Rest od razu. |
-| **Loaded Die** | 6 | Jedna kość ustawiona na 12. |
+| **Loaded Die** | 6 | Jedna kość twojego następnego rzutu akcji ustawiona na 12. |
 
 ## Rzeczy
 
@@ -55,21 +54,21 @@ Twoja sypialnia jest zamknięta dla innych bez klucza (klucz otwiera ją temu, k
 
 ## Komunikator i GM
 
-Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **Czat z GM-em** - jeden wątek między tobą a każdym GM-em. Wszystko, co wymaga decyzji (konkretne Observe, podpowiedź, Dynamic Action, propozycja projektu, Calle Ultimate i Experience), ląduje tam obok twoich wiadomości. Zakładka Notatka to twoje plany i granice przed sesją.
+Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **Czat z GM-em** - jeden wątek między tobą a każdym GM-em. Wszystko, co wymaga decyzji (konkretne Observe, podpowiedź, Dynamic Action, propozycja projektu, Call Talent), ląduje tam obok twoich wiadomości. Zakładka Notatka to twoje plany i granice przed sesją.
 
 ## Safeword
 
 W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Safe Word**, chyba że twój stół wybrał własne; GM może je zmienić).
 
 > [!CAUTION]
-> Wciśnij, a scena staje, GM-owie się dowiadują, wszyscy widzą kartę. Bez powodu, ani teraz, ani później.
+> Wciśnij go i odpowiedz na *Zatrzymać scenę?* przyciskiem **Zatrzymaj** (naciska go też Enter): scena staje, GM-owie się dowiadują, wszyscy widzą kartę; **Anuluj** niczego nie wysyła. Bez powodu, ani teraz, ani później.
 
 ## Gdy idzie źle
 
 - **Morderstwo.** Pułapka prosi cię o rzut (Eye albo Head przeciw 20) - sama prośba jest ostrzeżeniem. Bezpośredni atak zaczyna się twoją turą: Leave a Clue (12), Secure a Trace (15), Self-Defense (18, odblokowuje Survive i Role Reversal), Use an Item (15). Każda tura po pierwszej kosztuje Sanity, potem Health. Wejście na incydent daje jeden darmowy wybór: uciec razem, stanąć po stronie albo odwrócić wzrok.
-- **Investigation.** Każdy dostaje Autopsy Truth Bullet. Observe, Analyze, dziel się. Istnieje od trzech do pięciu Key Remnants; razem zawężają podejrzanych do 2-4 osób. To, co ciało ma przy sobie, zabierasz z jego arkusza - bez akcji, jednym rzutem na Hand na całość: dostajesz też Truth Bullet o tym, co wziąłeś, a na ciele zostaje jeden ślad przeszukania, tym łatwiejszy do znalezienia, im niższy był rzut. Czego nikt nie znajdzie, kosztuje Despair, a Monokuma może to ujawnić w Class Trialu.
+- **Investigation.** Każdy dostaje Autopsy Truth Bullet. Observe, Analyze, dziel się. Istnieje od trzech do pięciu Key Remnantów; razem zawężają podejrzanych do 2-4 osób. To, co ciało ma przy sobie, zabierasz z jego arkusza - bez akcji, jednym rzutem na Hand na całość: dostajesz też Truth Bullet o tym, co wziąłeś, a na ciele zostaje jeden ślad przeszukania, tym łatwiejszy do znalezienia, im niższy był rzut. Czego nikt nie znajdzie, kosztuje Despair, a Monokuma może to ujawnić w Class Trial.
 - **Class Trial.** Zaczyna się ze świeżym kompletem akcji i nikt nie wychodzi z pokoju; z akcji zostaje tylko Analyze, do tego Hope Calle i przedmioty. Otwarta dyskusja; Przedstawiaj Truth Bullets z ekwipunku, za darmo. Przedstaw pokazuje Truth Bullet z wynikiem twojego Analyze albo bez niego, a każdy inny dostaje kopię tak, jak ją pokazano; w rozprawie nie ma Udostępnij. Gdy GM otworzy Nonstop Debate, **OBJECTION!** na twoim kaflu głosu przerywa temu, kto mówi (albo mówił ostatni); potem masz 30 s na wybór Truth Bulleta, inaczej Objection zostaje wycofane, a cena nie wraca. Potem 60 s tylko ty, potem 120 s rebuttalu z osobą, w którą trafiło. Objection, tak jak Analyze na procesie, kosztuje 1 akcję, a bez niej 1 Hope, a bez tego 1 Sanity. W Testimony i Panic Round każdy mówi po kolei (Gotowe, Pasuję); w Closing Argument GM zatwierdza jednego zgłoszonego na 300 s; w nich dowody przedstawia tylko mówca, a Panic Round nie ma Objection. Potem tajne głosowanie - <ins>więcej niż połowa kart</ins> skazuje, remis liczy się jak pomyłka. Trafnie: Blackened stracony, gdy rozprawa się kończy, ocalali dostają Level Up. Błędnie: oskarżony ginie, gdy rozprawa się kończy, Blackened zostaje z Reinforced Level Up, który czeka na następny Level Up klasy.
-- **Śmierć.** Twoje Truth Bullets giną z tobą, gdy twoja śmierć wyjdzie na jaw; reszta zostaje przy ciele. Dopóki nikt cię nie znajdzie, wiedzą tylko GM-owie i ci, którzy tam byli, a po incydencie twój głos jest w kanale tylko dla ciebie, którego nikt inny nie słyszy. Gdy twoja śmierć wyjdzie na jaw, GM-owie mogą cię zaprosić do dalszej gry jako Monocub, jeśli przyjmiesz Zasadę Monocuba (nigdy nie mów żywym tego, co wiedzą tylko zmarli): Move, Confusion, Redeem, Ask for Hope, Tinker i Ghost Bet; żywy uczeń może zaproponować ci Bribe.
+- **Śmierć.** Twoje Truth Bullets giną z tobą, gdy twoja śmierć wyjdzie na jaw; reszta zostaje przy ciele. Dopóki nikt cię nie znajdzie, wiedzą tylko GM-owie i ci, którzy tam byli, a po incydencie rozmawiasz z Widzami i innymi zmarłymi, a żywi cię nie słyszą. Gdy twoja śmierć wyjdzie na jaw, GM-owie mogą cię zaprosić do dalszej gry jako Monocub, jeśli przyjmiesz Zasadę Monocuba (nigdy nie mów żywym tego, co wiedzą tylko zmarli): chodzisz swobodnie i masz Confusion, Redeem, Ask for Hope, Tinker i Ghost Bet; żywy uczeń może zaproponować ci Bribe.
 
 **Zębatka ustawień**, prawy dolny róg: Język (English / Polski, tylko ta przeglądarka), motyw, skala, dźwięki i głos (mikrofon, wyjście, push to talk), ograniczone animacje, wysoki kontrast.
 
