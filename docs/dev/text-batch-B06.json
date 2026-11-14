@@ -1,0 +1,4125 @@
+{
+ "$comment": [
+  "B06, an E71 batch of group B (claude/e71-b; E71 C0-C19, the plan's batch list, with E25's content part): every key of its namespaces and of the leaves the coordinator's map of 14.11.2026 gives it was read against its code; this file holds the texts that changed, each written from its facts (O6, M1). The keys read and kept are in docs/dev/e71/STATUS-B.md's batch table.",
+  "Fields as B01a's (text-batch-B01a.json's $comment). An after equal to its before is the side the batch left as it stood. `surface`: the key's budget surface where docs/text-budgets.json's rules place it; else one named in `removed` (\"surface: ...\") that stands in for a window's line. The Polish was written from the facts, the code and the old Polish, without the new English (DB26).",
+  "Held by `node tools/check.mjs text` (tools/text-render.mjs batchSchema); the afters are the text of lang/en.json and lang/pl.json in the same commit."
+ ],
+ "batch": "B06",
+ "stage": "E71",
+ "texts": [
+  {
+   "key": "DRPG.Calls.resolveNext",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Shown as a note in the confirmation window of Resolve (the Hope Call whose grant is 'trait'), before the price is paid; the reader is the buyer.",
+     "file": "scripts/calls.mjs",
+     "fn": "callAbout",
+     "note": null
+    },
+    {
+     "fact": "Resolve costs 2 Hope and is armed for the buyer's next roll; no GM rules it.",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    },
+    {
+     "fact": "Armed, it opens the statistic picker in the next roll window: the player picks any statistic, and nobody is asked, even where the action lists several.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockTrait",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Your next roll will ask you which statistic to use.",
+    "after": "Your next roll window lets you pick any statistic."
+   },
+   "pl": {
+    "before": "Następny rzut zapyta, której statystyki użyć.",
+    "after": "W następnym oknie rzutu sam wybierasz dowolną statystykę, bez pytania GM-a."
+   },
+   "removed": [
+    "\"will ask you which statistic\" read as if the roll asked a question; the window's open picker is what happens (fact 2).",
+    "pl: „Następny rzut zapyta” makes the roll ask; the buyer picks any statistic in the roll window and no GM is asked (F1, F2).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.waitingGm",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A sticky notice on the player's own screen while a GM decides a Hope Call that waits for one (Experience or Ultimate, picked in the Talent tile); {call} is the Call's name. It goes away when the answer comes.",
+     "file": "scripts/calls.mjs",
+     "fn": "showWaitingCard",
+     "note": null
+    },
+    {
+     "fact": "Experience and Ultimate are the two Hope Calls a GM rules (needsGm); both sit inside the Talent tile, which asks which of the two in its confirmation window. The player must write a note; the ask goes to a GM, and the Hope is paid only after the GM approves. The price is checked again after the approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Waiting on the GM: {call}. The Hope is charged only if they say yes.",
+    "after": "Waiting for the GM: {call}. You pay the Hope only if they approve."
+   },
+   "pl": {
+    "before": "Czekamy na GM-a: {call}. Hope zostanie pobrane dopiero przy zgodzie.",
+    "after": "{call} czeka na decyzję GM-a. Hope płacisz dopiero po jego zgodzie."
+   },
+   "removed": [
+    "\"The Hope is charged only if they say yes\" said in the reader's terms: they pay, on an approval (O4).",
+    "pl: „Czekamy” speaks as a „we” nobody is; „Hope zostanie pobrane” gives Hope the neuter gender (PL-b: Hope is masculine).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.approveCost",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/call-gm.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line on the GM ruling card of a Hope Call that waits for a GM; {cost} is that Call's Hope price, read from the GM's own table. The card is read by the asking player and every GM.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "askHopeCallByCard",
+     "note": null
+    },
+    {
+     "fact": "Experience and Ultimate are the two Hope Calls a GM rules (needsGm); both sit inside the Talent tile, which asks which of the two in its confirmation window. The player must write a note; the ask goes to a GM, and the Hope is paid only after the GM approves. The price is checked again after the approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{cost} Hope, charged only on a yes.",
+    "after": "{cost} Hope, paid only if the GM approves."
+   },
+   "pl": {
+    "before": "{cost} Hope, pobrane tylko przy zgodzie.",
+    "after": "Gracz płaci {cost} Hope dopiero po zgodzie GM-a."
+   },
+   "removed": [
+    "\"charged only on a yes\": the card is read by the player and several GMs, so the passive with no \"you\" (P1); the approval is the GM's (M8).",
+    "pl: „pobrane” gives Hope the neuter gender (PL-b); the card is read by the player and every GM, so the payer is named in the third person (P1).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - the approver named, as the Polish does (M8)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.send",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The confirm button of the Talent window (Experience or Ultimate), drawn on the GM's road (red); {cost} is the price in Hope.",
+     "file": "scripts/calls.mjs",
+     "fn": "confirmCall",
+     "note": null
+    },
+    {
+     "fact": "Experience and Ultimate are the two Hope Calls a GM rules (needsGm); both sit inside the Talent tile, which asks which of the two in its confirmation window. The player must write a note; the ask goes to a GM, and the Hope is paid only after the GM approves. The price is checked again after the approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": null
+    },
+    {
+     "fact": "The note under the box beside the button already says the Hope is paid only on the GM's approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "confirmCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Ask the GM - {cost} Hope on a yes",
+    "after": "Send to the GM ({cost} Hope)"
+   },
+   "pl": {
+    "before": "Zapytaj GM-a - {cost} Hope po zgodzie",
+    "after": "Wyślij do GM-a ({cost} Hope)"
+   },
+   "removed": [
+    "X4: the dash that tacked \"{cost} Hope on a yes\" on; the button says where the request goes, as E100's \"Send to the GM\"; \"on a yes\" lives in DRPG.Calls.waitsForGm beside it.",
+    "pl: The dash tacked an aside on (X4); „po zgodzie” is already said by the note beside the button (F2).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - E100's word for a button after which the GM decides (DRPG.Bridge.send, DRPG.Project.proposeButton)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.tellGmPlaceholder.ultimate",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The example text in the note box of the Talent window while the Ultimate row is picked.",
+     "file": "scripts/calls.mjs",
+     "fn": "confirmCall",
+     "note": null
+    },
+    {
+     "fact": "Ultimate, approved, gives advantage on the buyer's next roll; its row is labeled Ultimate inside the Talent tile.",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "How your talent applies to what you are attempting.",
+    "after": "How your Ultimate applies to what you are attempting."
+   },
+   "pl": {
+    "before": "Jak twój talent stosuje się do tego, co próbujesz zrobić.",
+    "after": "Jak twój Ultimate pasuje do tego, co próbujesz zrobić."
+   },
+   "removed": [
+    "\"your talent\": since E72 Talent is the tile's name, so the row's own name, Ultimate, stands here (O14).",
+    "pl: „twój talent” names the wrong thing: Talent is the tile, and this row is the Ultimate (F1; glossary talent, PL-k).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.waitsForGm",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note under the note box of the Talent window, beside the button that sends it.",
+     "file": "scripts/calls.mjs",
+     "fn": "confirmCall",
+     "note": null
+    },
+    {
+     "fact": "Experience and Ultimate are the two Hope Calls a GM rules (needsGm); both sit inside the Talent tile, which asks which of the two in its confirmation window. The player must write a note; the ask goes to a GM, and the Hope is paid only after the GM approves. The price is checked again after the approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The GM has to agree before this is spent. Your Hope is not touched until they do.",
+    "after": "You pay the Hope only if the GM approves."
+   },
+   "pl": {
+    "before": "GM musi się zgodzić, zanim to wydasz. Twój Hope jest nietknięty, dopóki tego nie zrobi.",
+    "after": "Hope płacisz dopiero po zgodzie GM-a i musi ci go wtedy wystarczyć."
+   },
+   "removed": [
+    "\"Your Hope is not touched until they do\": X1, a loss denied; the sentence says when the reader pays (O8, M3). \"has to agree before this is spent\" is the same fact.",
+    "pl: „zanim to wydasz” reads as if the player spends first; the old text left out that the price is checked again after the approval (F1).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - „mieć go dość” reads as „be fed up with it”; the fact (the price checked again after the approval) stays."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.needNote",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast when the send button of the Talent window is pressed with an empty note: the window stays open and the box gets the focus.",
+     "file": "scripts/calls.mjs",
+     "fn": "wireNoteGate",
+     "note": null
+    },
+    {
+     "fact": "The GM rules on what the note says the player will do with the Experience or the Ultimate.",
+     "file": "scripts/calls.mjs",
+     "fn": "askHopeCallApproval",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Write what you are going to do with it first - the GM is being asked to rule on that, not on the Call.",
+    "after": "First write what you will do with this Call. That is what the GM rules on."
+   },
+   "pl": {
+    "before": "Najpierw napisz, co chcesz z tym zrobić: GM ocenia twój zamiar.",
+    "after": "Najpierw napisz, co chcesz z tym zrobić: GM ocenia twój zamiar."
+   },
+   "removed": [
+    "X3 (\"not on the Call\") and X4 (the dash); T4: 23 words, now 15.",
+    "review: en: taken - the word order.",
+    "review: coldEn: taken - 'this Call' gives 'it' its antecedent; the Polish is the owner-approved N36 and stays."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.approveTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The title of the GM's approval of a Hope Call that waits for one: the ruling card in the player's thread (read by the player and every GM) and the window a GM gets when buying on their own side; {call} is the Call's name (Experience or Ultimate).",
+     "file": "scripts/call-gm.mjs",
+     "fn": "askHopeCallByCard",
+     "note": null
+    },
+    {
+     "fact": "Experience and Ultimate are the two Hope Calls a GM rules (needsGm); both sit inside the Talent tile, which asks which of the two in its confirmation window. The player must write a note; the ask goes to a GM, and the Hope is paid only after the GM approves. The price is checked again after the approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{call} - does it apply?",
+    "after": "Does {call} apply?"
+   },
+   "pl": {
+    "before": "{call} - czy się stosuje?",
+    "after": "Czy {call} tu pasuje?"
+   },
+   "removed": [
+    "X4: the dash between the name and the question.",
+    "pl: The dash after the name (X4); a plain question reads as a title."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.approveHint",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Shown to the GMs only: the GM-only part of the ruling card, and a note in the GM's own approval window, under the player's words.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "askHopeCallByCard",
+     "note": null
+    },
+    {
+     "fact": "Refusing, or closing the window, refuses the Call; the player paid nothing, because the Hope is taken only on approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "askHopeCallApproval",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The question is the handbook's: does it genuinely apply here? Refusing costs the player nothing.",
+    "after": "Approve it only if it applies here. If you refuse, the player keeps their Hope."
+   },
+   "pl": {
+    "before": "Pytanie jest z podręcznika: czy naprawdę się tu stosuje? Odmowa nic gracza nie kosztuje.",
+    "after": "GM ocenia, czy to, co pisze gracz, naprawdę tu pasuje. Odmowa albo zamknięcie okna odrzuca Call, a gracz zachowuje swój Hope."
+   },
+   "removed": [
+    "\"The question is the handbook's: does it genuinely apply here?\" - a question the reader answers with the buttons, now said as what to do (O4); \"Refusing costs the player nothing\" said as what the player keeps (X1, O8).",
+    "pl: A rhetorical question (X21) and a denial of loss, „nic nie kosztuje” (X1); it did not say that closing the window refuses the Call (F1). Several GMs read it: third person (P1).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - 'genuinely' cut (X10), 'If you refuse' for the GM who acts (group B's ruling: the GM's text may say what to do; 'you' here is the one acting, not the owner of a thing)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.approveYes",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The GM's yes on the approval of a Hope Call that waits for one (card and window): the player pays the Hope and the Call is armed for their next roll.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "askHopeCallByCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "It applies",
+    "after": "Approve"
+   },
+   "pl": {
+    "before": "Stosuje się",
+    "after": "Zatwierdź"
+   },
+   "removed": [
+    "\"It applies\": a GM's decision on a player's proposal is Approve / Refuse (M8; glossary refuse); O11 asks a verb.",
+    "pl: „Stosuje się” is not a button verb; the glossary's approve button is „Zatwierdź”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.approveNo",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The GM's no on the approval of a Hope Call that waits for one (card and window): nothing is paid or armed, and the player is told.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "askHopeCallByCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Not this time",
+    "after": "Refuse"
+   },
+   "pl": {
+    "before": "Nie tym razem",
+    "after": "Odmów"
+   },
+   "removed": [
+    "\"Not this time\": M8 and the glossary's refuse entry (\"Refuse\" / \"Odmów\") for the GM's refusal of a player's proposal.",
+    "pl: „Nie tym razem” is a quip, not the glossary's refuse button „Odmów”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.refused",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the player when a GM refuses their Experience or Ultimate; {call} is the Call's name. Nothing was paid: the Hope is taken only on approval.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{call}: the GM said not this time. You keep your Hope.",
+    "after": "The GM refused {call}. You keep your Hope."
+   },
+   "pl": {
+    "before": "{call}: GM powiedział „nie tym razem”. Hope zostaje przy tobie.",
+    "after": "GM odmawia ci Calla {call}. Hope zostaje przy tobie."
+   },
+   "removed": [
+    "\"the GM said not this time\" echoed the old button; the result first (O1), with the button's new word (DRPG.Calls.approveNo).",
+    "pl: Quoted the old button „nie tym razem”, which is now „Odmów”; present tense, as N28-N30."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.sprinted",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line on the buyer's Sprint card (whispered to the buyer and the GMs); {n} is how many extra crossings the character now has banked.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "freeMovesEffect",
+     "note": null
+    },
+    {
+     "fact": "Sprint costs 2 Hope and banks one more crossing for this time of day: once the Free Move is used, the next crossing uses it instead of an action.",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": {
+     "one": "{n} extra crossing this time of day, free of charge.",
+     "other": "{n} extra crossings this time of day, free of charge."
+    },
+    "after": {
+     "one": "{n} extra crossing this time of day, free of charge.",
+     "other": "{n} extra crossings this time of day, free of charge."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "{n} dodatkowe przejście o tej porze dnia, za darmo.",
+     "few": "{n} dodatkowe przejścia o tej porze dnia, za darmo.",
+     "many": "{n} dodatkowych przejść o tej porze dnia, za darmo.",
+     "other": "{n} dodatkowych przejść o tej porze dnia, za darmo."
+    },
+    "after": {
+     "one": "Masz w zapasie {n} dodatkowe przejście na tę porę dnia. Po Free Move przechodzisz dzięki niemu bez wydawania akcji.",
+     "few": "Masz w zapasie {n} dodatkowe przejścia na tę porę dnia. Po Free Move przechodzisz dzięki nim bez wydawania akcji.",
+     "many": "Masz w zapasie {n} dodatkowych przejść na tę porę dnia. Po Free Move przechodzisz dzięki nim bez wydawania akcji.",
+     "other": "Masz w zapasie {n} dodatkowych przejść na tę porę dnia. Po Free Move przechodzisz dzięki nim bez wydawania akcji."
+    }
+   },
+   "removed": [
+    "pl: The forms had no verb (PL7, X6), and „za darmo” hid that a banked crossing is used after the Free Move instead of an action (F1).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - „przechodzisz nim zamiast za akcję” goes; fact 1 and PL7 kept.",
+    "review: Not a review row, noted: the English after (unchanged) still says 'free of charge', which the Polish side replaced as hiding that the banked crossing is used after the Free Move instead of an action (the en lens's summary); left for the owner's English pass."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.nobodyHere",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast when a Hope Call aimed at a student (Support) is pressed and no other living student is in the buyer's room; the Call does not open, nothing is paid.",
+     "file": "scripts/call-pickers.mjs",
+     "fn": "pickPlayer",
+     "note": null
+    },
+    {
+     "fact": "The list leaves out the buyer, the dead, Monokumas and characters marked as not in the class.",
+     "file": "scripts/call-pickers.mjs",
+     "fn": "pickPlayer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Nobody else is in this room.",
+    "after": "No other living student is in your room. You keep your Hope."
+   },
+   "pl": {
+    "before": "Nikogo innego nie ma w tym pokoju.",
+    "after": "W twoim pokoju nie ma innego żywego ucznia. Hope zostaje przy tobie."
+   },
+   "removed": [
+    "\"Nobody else is in this room\": an NPC or a body may be there; the list is of students (fact 1, DB24), and \"your room\" names whose.",
+    "pl: The old text missed that only a living student counts, and did not say the buyer keeps the Hope (O8).",
+    "review: en: taken - 'living' (fact 0) and the kept Hope (O8), as the Polish says."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.noPlayers",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM when a Despair Call aimed at a student is pressed and there is no living student to pick (Monokumas, the dead and characters not in the class are left out); nothing is spent.",
+     "file": "scripts/call-pickers.mjs",
+     "fn": "pickPlayer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "There are no other characters.",
+    "after": "There is no living student to pick. You keep your Despair."
+   },
+   "pl": {
+    "before": "Nie ma innych postaci.",
+    "after": "Nie ma żywego ucznia do wybrania. Despair zostaje w twojej puli."
+   },
+   "removed": [
+    "\"no other characters\": the list is of living students (DB24).",
+    "pl: „innych postaci” is wrong: Monokumas, the dead and those not in the class are left out, and the GM is not one of the characters; it did not say the pool is kept.",
+    "review: en: taken - the kept Despair (O8)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.noItems",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM when Contraband finds nothing to destroy: it lists the items with a module category (never a Truth Bullet) of every actor of type 'character', living or dead (a body keeps its belongings), NPC characters and characters not in the class included, but never a Monokuma's or a Monocub's things; nothing is spent.",
+     "file": "scripts/call-pickers.mjs",
+     "fn": "pickItem",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Nobody carries anything that can be destroyed.",
+    "after": "No character, living or dead, carries an item to destroy. You keep your Despair."
+   },
+   "pl": {
+    "before": "Nikt nie nosi niczego, co dałoby się zniszczyć.",
+    "after": "Żadna postać, żywa ani martwa, nie ma przedmiotu, który Contraband może zniszczyć. Despair zostaje w twojej puli."
+   },
+   "removed": [
+    "X11: the passive \"that can be destroyed\"; whose items are read (fact 0).",
+    "pl: „Nikt nie nosi” left out the dead, whose bodies keep their things, and did not say the pool is kept.",
+    "review: mechanics: taken - 'character', which is what pickItem reads (NPCs and those not in the class included); fact 0 corrected, both languages.",
+    "review: en: taken - 'You keep your Despair' (O8), as the Polish says."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.onTheBody",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A row in Contraband's item picker (the GM's) for an item a dead student still carries; {name} is the dead student, {item} the item's name. A living student's row is written by the code as the name, a dash and the item.",
+     "file": "scripts/call-pickers.mjs",
+     "fn": "pickItem",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name}'s body - “{item}”",
+    "after": "“{item}” on {name}'s body"
+   },
+   "pl": {
+    "before": "Ciało: „{name}” - {item}",
+    "after": "Ciało postaci {name}: „{item}”"
+   },
+   "removed": [
+    "X4 (the dash between the body and the item) and T22's mirror; the item first, in quotes (EN17).",
+    "pl: The quotes stood round the student's name, not the item (PL-g, T23), and the dash tacked the item on (X4).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [
+    "The living student's row in call-pickers.mjs `pickItem` is a literal `${actor.name} - ${item.name}`: no key, and the item's name without quotes (EN17, DB31). It needs a key of its own, e.g. \"“{item}”, carried by {name}\"."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.armed",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A receipt line for a Call that arms a roll: on a Hope Call's card (the buyer and the GMs) and on a Despair Call's public card (everyone). {name} is the character whose next roll gets it, {what} what it gets (DRPG.Calls.grantsGen.*: advantage, disadvantage, Experience, Resolve, a Loaded Die, a bonus or penalty).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "grantEffect",
+     "note": null
+    },
+    {
+     "fact": "Obstacle, a Despair Call, arms disadvantage on a student's next roll: the grant is imposed, switched on and locked in that roll window.",
+     "file": "scripts/config.mjs",
+     "fn": "DESPAIR_CALLS",
+     "note": null
+    },
+    {
+     "fact": "The Polish host takes the genitive fragment (DRPG.Calls.grantsGen.*), by the fragment contract of docs/text-style.md section 14.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "grantWords",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{name} may now use {what} on their next roll.",
+    "after": "{name}'s next roll gets {what}."
+   },
+   "pl": {
+    "before": "{name} może teraz użyć {what} przy następnym rzucie.",
+    "after": "Przy następnym rzucie postaci {name} zadziała efekt {what}."
+   },
+   "removed": [
+    "\"may now use {what}\" read wrong for Obstacle's imposed disadvantage (fact 1); \"gets\" holds for every grant.",
+    "pl: „może użyć {what}” is wrong for disadvantage, which Obstacle imposes and locks (F1); the host keeps the genitive fragment (F2, section 14).",
+    "surface: whispered to its player (whisperToOwner, read at its code site)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.alreadyArmed",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast when a Call is refused because the character it is for already holds an unused one of the same kind: before any window for a Call aimed at the buyer, before the price for a Despair Call, and after the payment if the world moved (the price then comes back). {name} is that character, {call} the Call's name.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "refusalBeforePaying",
+     "note": null
+    },
+    {
+     "fact": "Advantage and disadvantage stack and are never refused so; the refusal is for Experience, Resolve, the Loaded Die and a bonus.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "alreadyArmed",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{name} is already holding {call} for their next roll. A second one would add nothing.",
+    "after": "{name} already holds {call} for their next roll."
+   },
+   "pl": {
+    "before": "{name} już trzyma {call} na następny rzut. Drugi nic by nie dodał.",
+    "after": "{name} ma już niewykorzystany {call} na następny rzut, więc drugiego nie da się dodać."
+   },
+   "removed": [
+    "\"A second one would add nothing\": why the rule is so (O9).",
+    "pl: „już trzyma” and „Drugi nic by nie dodał” blur that the Call is refused because an unused one of that kind is already held."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.damaged",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A receipt line on the public card of Pain (4 Despair, 2 Health) or Paranoia (2 Despair, 2 Sanity); {name} is the student, {what} what they actually lost, e.g. \"2 Health\" (less when less was left).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "damageEffect",
+     "note": null
+    },
+    {
+     "fact": "The config effects say \"A player loses {hp} Health\" and \"loses {stress} Sanity\"; a resource is a reserve (M7).",
+     "file": "scripts/config.mjs",
+     "fn": "DESPAIR_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{name} takes {what}.",
+    "after": "{name} loses {what}."
+   },
+   "pl": {
+    "before": "{name} przyjmuje {what}.",
+    "after": "{name} traci {what}."
+   },
+   "removed": [
+    "\"takes {what}\": the reserve is lost (M7, D5), as the Calls' own effects say.",
+    "pl: „przyjmuje 2 Health” reads as receiving; the student loses the resource (M7).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [
+    "call-effects.mjs `damageEffect` builds {what} from the English literals \"Health\" and \"Sanity\" (`${next - marks} Health`), so the Polish card reads English words; it needs DRPG.Reserve.* (or a unit) through the code."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.nothingToMark",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM when Pain or Paranoia is aimed at a student who has none of that Health or Sanity left to lose: refused before the pool is touched, or, if it changed meanwhile, after it, with the price given back. {name} is the student.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "refusalBeforePaying",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name} has nothing left to mark there.",
+    "after": "{name} has nothing left for this Call to take. You keep your Despair."
+   },
+   "pl": {
+    "before": "{name} nie ma tam już czego zaznaczyć.",
+    "after": "{name} nie ma już czego stracić. Despair zostaje w twojej puli."
+   },
+   "removed": [
+    "\"to mark\": M7/D5, a resource is a reserve, never \"mark\".",
+    "pl: „zaznaczyć” names a box to tick, not the Health or Sanity to lose; it did not say the pool is kept.",
+    "review: en: taken - 'keep' holds on both roads of fact 0 (refused before the price, or refunded)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.alreadySilenced",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM when Silence is aimed at a student already under it; refused before the pool is touched (or refunded). {name} is the student.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "refusalBeforePaying",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name} is already silenced.",
+    "after": "{name} is already silenced."
+   },
+   "pl": {
+    "before": "{name} ma już nałożone uciszenie.",
+    "after": "{name} jest już pod działaniem Silence."
+   },
+   "removed": [
+    "pl: „uciszenie” is a Polish gloss of the Call's name; Call names stay English (PL-k, PL-e)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.alreadyChained",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM when Chained is aimed at a student already chained; refused before the pool is touched (or refunded). {name} is the student.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "refusalBeforePaying",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name} is already chained.",
+    "after": "{name} is already chained."
+   },
+   "pl": {
+    "before": "{name} jest już w łańcuchach.",
+    "after": "{name} jest już pod działaniem Chained."
+   },
+   "removed": [
+    "pl: „w łańcuchach” is a Polish gloss of the Call's name; Call names stay English (PL-k, PL-e)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.gathered",
+   "group": "window",
+   "surface": "world-voice",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line on the public announcement when an assembly is held at the start of the next time of day: {n} is how many were moved, {room} the room. Living characters and Monocubs are moved, never a Monokuma or a body.",
+     "file": "scripts/call-world.mjs",
+     "fn": "runPendingGather",
+     "note": null
+    },
+    {
+     "fact": "The count is of characters (Monocubs and NPC characters included), not only students.",
+     "file": "scripts/call-world.mjs",
+     "fn": "gatherEveryone",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": {
+     "one": "{n} character moved to {room}.",
+     "other": "{n} characters moved to {room}."
+    },
+    "after": {
+     "one": "{n} character was moved to {room}.",
+     "other": "{n} characters were moved to {room}."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "{n} postać przeniesiona do pokoju {room}.",
+     "few": "{n} postacie przeniesione do pokoju {room}.",
+     "many": "{n} postaci przeniesionych do pokoju {room}.",
+     "other": "{n} postaci przeniesionych do pokoju {room}."
+    },
+    "after": {
+     "one": "Do pokoju {room} trafia {n} postać.",
+     "few": "Do pokoju {room} trafiają {n} postacie.",
+     "many": "Do pokoju {room} trafia {n} postaci.",
+     "other": "Do pokoju {room} trafia {n} postaci."
+    }
+   },
+   "removed": [
+    "pl: The forms had a participle and no verb (PL7, X6).",
+    "review: coldEn: taken - the world voice reports that the characters were moved, not that they walked."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.destroyed",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A receipt line on the public card of Contraband (4 Despair): the item is deleted; {item} is its name.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "destroyItemEffect",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "“{item}” is destroyed.",
+    "after": "“{item}” is destroyed."
+   },
+   "pl": {
+    "before": "„{item}” zniszczony.",
+    "after": "Przedmiot „{item}” zostaje zniszczony."
+   },
+   "removed": [
+    "pl: „„{item}” zniszczony” is masculine whatever the item; wrong for „Lina”, „Krzesło” (PL17).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.effectFailed",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "An error toast to the GM when a Despair Call was paid for and applying its effect threw; a second toast follows saying the price came back (DRPG.Calls.refunded). {call} is the Call's name.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendDespairCallFor",
+     "note": null
+    },
+    {
+     "fact": "The same text is pushed as a receipt line when an effect fails, but the callers then refund and post no card, so that line is not shown.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "applyCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{call} was paid for, but its effect could not be applied. Tell the GM.",
+    "after": "You paid for {call}, but its effect could not be applied."
+   },
+   "pl": {
+    "before": "{call} opłacony, ale nie dało się zastosować efektu. Powiedz GM-owi.",
+    "after": "Call {call} jest opłacony, ale jego efektu nie udało się zastosować."
+   },
+   "removed": [
+    "\"Tell the GM.\": the reader is the GM who spent the Despair.",
+    "pl: „Powiedz GM-owi” is said to the GM, who is the reader (F0).",
+    "review: coldEn: the passive that hides the payer - taken: the toast goes only to the GM who paid (spendDespairCallFor, despairGmOnly), so 'You paid'.",
+    "review: coldEn: no next step - rejected: DRPG.Calls.refunded follows it at once and says the price comes back (fact 0, O3); there is nothing else for the GM to do."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.refunded",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast when a Call that was paid did nothing and its price is given back: a Hope Call (to the buyer, Hope back) or a Despair Call (to the GM, Despair back into the pool). {call} is the Call's name, {cost} its price as a bare number.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": null
+    },
+    {
+     "fact": "The Despair refund goes through the pool's adjuster.",
+     "file": "scripts/calls.mjs",
+     "fn": "spendDespairCallFor",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{call} did nothing, so the {cost} it cost has been returned.",
+    "after": "{call} had no effect, so the {cost} you paid comes back to you."
+   },
+   "pl": {
+    "before": "{call} nic nie dał, więc koszt ({cost}) wraca.",
+    "after": "{call} nic nie dał, więc koszt ({cost}) wraca."
+   },
+   "removed": [
+    "present tense for the result (O15); what the reader keeps (O8)."
+   ],
+   "needsCode": [
+    "{cost} is a bare number with no unit (Hope or Despair); the two callers in calls.mjs (`spendHopeCall`, `spendDespairCallFor`) could pass the price with its unit (DRPG.Calls.costsHopeShort / costsDespairShort)."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.silencedNotice",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the silenced student (and the GMs) when Silence lands; also the refusal toast when they try a Hope Call, and the tooltip of the Silenced badge on their sheet.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "silenceEffect",
+     "note": null
+    },
+    {
+     "fact": "Silence lasts until this time of day ends.",
+     "file": "scripts/config.mjs",
+     "fn": "DESPAIR_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Monokuma has silenced you. No Hope Calls until this time of day ends.",
+    "after": "Monokuma has silenced you. You cannot use Hope Calls until this time of day ends."
+   },
+   "pl": {
+    "before": "Monokuma cię uciszył. Żadnych Hope Calls do końca tej pory dnia.",
+    "after": "Działa na ciebie Silence. Do końca tej pory dnia nie możesz wydawać Hope Calls."
+   },
+   "removed": [
+    "X6: \"No Hope Calls until ...\" as a whole sentence.",
+    "pl: „uciszył” is a Polish gloss of Silence (PL-k); the text is also the refusal toast and the badge's tooltip, so it says the state, not the act.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - a Call is used, Hope is spent."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.chained",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A receipt line on the public card of Chained (3 Despair); {name} is the student, who cannot leave their room until this time of day ends. The room stays off the public card.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "chainEffect",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name} is chained where they stand until this time of day ends.",
+    "after": "{name} is chained where they stand until this time of day ends."
+   },
+   "pl": {
+    "before": "{name} jest przykuty tam, gdzie stoi, dopóki zegar się nie przesunie.",
+    "after": "{name} nie może opuścić swojego pokoju do końca tej pory dnia."
+   },
+   "removed": [
+    "pl: „jest przykuty” is masculine and wrong for a woman's name (PL17).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - one wording for the duration (O14), as chainedNoticeIn, chainedBlocked and silencedNotice."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.chainedNoticeIn",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the chained student (and the GMs) when Chained lands; {room} is the room they are chained in.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "chainEffect",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Monokuma chained you to {room}. You cannot leave until this time of day ends.",
+    "after": "Monokuma chained you to {room}. You cannot leave until this time of day ends."
+   },
+   "pl": {
+    "before": "Monokuma przykuł cię do: {room}. Nie możesz wyjść do końca tej pory dnia.",
+    "after": "Monokuma przykuł cię do pokoju {room}. Nie możesz wyjść do końca tej pory dnia."
+   },
+   "removed": [
+    "pl: „do: {room}” (X12); the smallest fix, „do pokoju {room}”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.chainedBlocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The refusal a chained student gets when they try to cross into another room.",
+     "file": "scripts/movement.mjs",
+     "fn": "restrictedFrom",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "You are chained here until this time of day ends.",
+    "after": "You are chained here until this time of day ends."
+   },
+   "pl": {
+    "before": "Jesteś tu przykuty do końca tej pory dnia.",
+    "after": "Działa na ciebie Chained: do końca tej pory dnia nie wyjdziesz z tego pokoju."
+   },
+   "removed": [
+    "pl: „przykuty” is masculine, wrong for a woman's student (PL17); the Call's name says why.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.sealedBlocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The refusal a character gets when they try to cross into a room sealed by Behind Closed Doors; {room} is the room.",
+     "file": "scripts/movement.mjs",
+     "fn": "restrictedFrom",
+     "note": null
+    },
+    {
+     "fact": "The Mastermind and a holder of Pick the Lock's pass for that room cross a seal; nobody else does.",
+     "file": "scripts/movement.mjs",
+     "fn": "restrictedFrom",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{room} is sealed for this time of day. Nobody gets in.",
+    "after": "{room} is sealed for this time of day. You cannot get in."
+   },
+   "pl": {
+    "before": "{room} zapieczętowany na tę porę dnia. Nikt nie wchodzi.",
+    "after": "Pokój {room} jest zapieczętowany na tę porę dnia. Nie możesz tam wejść."
+   },
+   "removed": [
+    "pl: „{room} zapieczętowany” is masculine, wrong for „Biblioteka” and „Kino”; „Nikt nie wchodzi” is untrue for the Mastermind and a pass holder (F1).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - 'Nobody gets in' is untrue for the Mastermind and a pass holder (fact 1, M2); said to the refused character, as the Polish says, and the Mastermind is not named (M9).",
+    "en: \"can't\" written in full (DB8, T19)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.freeCritUsed",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the roller and the GMs when a roll with a Loaded Die is thrown; {name} is the character. One of the two dice, at random, was set to 12, and the other is thrown.",
+     "file": "scripts/action-pipeline.mjs",
+     "fn": "throwDice",
+     "note": null
+    },
+    {
+     "fact": "Loaded Die costs 6 Hope; a 12 on the thrown die makes a critical, otherwise the roll is with Hope if the Hope die was set, with Despair if not.",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name} takes the action with one die already set to 12 and throws the other.",
+    "after": "{name} takes the action with a die already set to 12 and rolls the other die."
+   },
+   "pl": {
+    "before": "{name} wykonuje akcję z jedną kością już ustawioną na 12 i rzuca drugą.",
+    "after": "{name} wykonuje akcję z jedną kością już ustawioną na 12 i rzuca drugą."
+   },
+   "removed": [
+    "T7: \"one die\" wrote a number as a word.",
+    "review: coldEn: 'rolls the other' taken, with its noun; 'one die' rejected - T7 removed it as a number written as a word (M5)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.grants.critical",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A fragment in the accusative, put into DRPG.Calls.armedByMonokuma, armedForYou, armedForYouBy and armedByNobody (the card to the student whose next roll a Call was armed on).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "grantWords",
+     "note": null
+    },
+    {
+     "fact": "What it names: the Loaded Die, which sets one of the two dice, at random, to 12. English writes the three cases (grants, grantsGen, grantsNom) with the same words (docs/text-style.md section 14).",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "a loaded die (one die set to 12)",
+    "after": "a Loaded Die (a die set to 12)"
+   },
+   "pl": {
+    "before": "Loaded Die (jedna kość ustawiona na 12)",
+    "after": "Loaded Die (losowa kość ustawiona na 12)"
+   },
+   "removed": [
+    "T7: \"one die\" wrote a number as a word; the Call's name in Title Case (EN6), as its label \"Loaded Die\".",
+    "pl: „jedna kość” wrote a rule's number as a word (T7); the die is one of the two at random (F1).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.grantsGen.critical",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A fragment in the genitive, put into DRPG.Calls.armed (the receipt line of a Call that arms a roll).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "grantWords",
+     "note": null
+    },
+    {
+     "fact": "What it names: the Loaded Die, which sets one of the two dice, at random, to 12. English writes the three cases (grants, grantsGen, grantsNom) with the same words (docs/text-style.md section 14).",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "a loaded die (one die set to 12)",
+    "after": "a Loaded Die (a die set to 12)"
+   },
+   "pl": {
+    "before": "Loaded Die (jedna kość ustawiona na 12)",
+    "after": "Loaded Die (losowa kość ustawiona na 12)"
+   },
+   "removed": [
+    "T7: \"one die\" wrote a number as a word; the Call's name in Title Case (EN6), as its label \"Loaded Die\".",
+    "pl: „jedna kość” (T7), as grants.critical; the bracket reads the same in every case.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.grantsNom.critical",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A fragment in the nominative, put after the colon of DRPG.Calls.pendingTooltip and DRPG.Calls.waitsNextRoll (several joined into a list) and standing alone as a badge on the sheet when the armed entry names no Call.",
+     "file": "scripts/sheet-actions.mjs",
+     "fn": "callButton",
+     "note": "The badge is built in the sheet's armed-Calls list; the roll window's use is roll-dialog.mjs showWaitingCalls."
+    },
+    {
+     "fact": "What it names: the Loaded Die, which sets one of the two dice, at random, to 12. English writes the three cases (grants, grantsGen, grantsNom) with the same words (docs/text-style.md section 14).",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "a loaded die (one die set to 12)",
+    "after": "a Loaded Die (a die set to 12)"
+   },
+   "pl": {
+    "before": "Loaded Die (jedna kość ustawiona na 12)",
+    "after": "Loaded Die (losowa kość ustawiona na 12)"
+   },
+   "removed": [
+    "T7: \"one die\" wrote a number as a word; the Call's name in Title Case (EN6), as its label \"Loaded Die\".",
+    "pl: „jedna kość” (T7), as grants.critical.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.pendingTooltip",
+   "group": "window",
+   "surface": "tooltip",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of an armed Call's badge on the character's sheet; {what} is the grant (DRPG.Calls.grantsNom.*).",
+     "file": "scripts/sheet-actions.mjs",
+     "fn": "callButton",
+     "note": "Built in the sheet's armed-Calls list."
+    },
+    {
+     "fact": "Every armed entry but the Loaded Die is used up by the next roll window that opens with it; the Loaded Die only by the action roll throwDice marks (grantsFor drops 'critical' from a window with no LOADED_DIE mark, and onCloseApplication spends only what is usable), so a statistic rolled from the sheet leaves it armed. A Loaded Die whose die could not be set is armed again.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "grantsFor",
+     "note": "CALL-03; call-effects.mjs giveBackLoadedDie."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Waiting on your next roll: {what}. Spent the moment you roll.",
+    "after": "Waiting for your next roll: {what}. That roll uses it up, but a Loaded Die waits for an action roll."
+   },
+   "pl": {
+    "before": "Czeka na twój następny rzut: {what}. Zużyte w chwili rzutu.",
+    "after": "Czeka na twój następny rzut: {what}. Efekt znika po tym rzucie, ale Loaded Die czeka na rzut akcji."
+   },
+   "removed": [
+    "X6: \"Spent the moment you roll.\" had no subject.",
+    "pl: „Zużyte” is neuter and agrees with none of the fragments („przewaga”, „Loaded Die”); X6.",
+    "review: mechanics: taken - the Loaded Die waits for an action roll, in both languages; fact 1 corrected."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.armedTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The head of the card whispered to a student (and the GMs) when someone else's Call was armed on their next roll: another student's Support, or a Monokuma's Obstacle or Approval.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "armCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "A Call was made for you",
+    "after": "Call on your next roll"
+   },
+   "pl": {
+    "before": "Ktoś użył Calla dla ciebie",
+    "after": "Call na twój następny rzut"
+   },
+   "removed": [
+    "T4: 6 words, over the window-title target of 5; \"made for you\" did not fit Monokuma's Obstacle.",
+    "pl: „dla ciebie” is wrong for Obstacle, which a Monokuma puts on the student against them (F0)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.waitsNextRoll",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line in a roll window when Calls were armed on the character after that window opened: they do not count for this roll and wait for the next one; {what} lists them (DRPG.Calls.grantsNom.*).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "showWaitingCalls",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Armed after this window opened: {what}. It is not part of this roll - it waits for your next one.",
+    "after": "Your next roll gets what was armed after this window opened: {what}."
+   },
+   "pl": {
+    "before": "Nałożone po otwarciu tego okna: {what}. Nie wchodzi do tego rzutu - czeka na twój następny.",
+    "after": "Na twój następny rzut czeka też to, co doszło po otwarciu tego okna: {what}."
+   },
+   "removed": [
+    "X4: the dash that tacked \"it waits for your next one\" on.",
+    "pl: The dash tacked an aside on (X4).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - no pronoun to disagree in number with a list of several."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.armedByMonokuma",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to a student (and the GMs) when a Monokuma's Despair Call (Obstacle: disadvantage; Approval: advantage) was armed on their next roll; {what} is the grant (accusative fragment). The Monokuma is not named.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "armCall",
+     "note": null
+    },
+    {
+     "fact": "An imposed grant is switched on and locked in the roll window, so the player cannot turn it off.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockTrait",
+     "note": "The advantage and disadvantage lock is beside lockTrait, under its note \"Advantage and disadvantage\"."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Monokuma has {what} on your next roll. It applies by itself.",
+    "after": "Monokuma puts {what} on your next roll. Your roll window will have it switched on, and you cannot turn it off."
+   },
+   "pl": {
+    "before": "Monokuma nałożył na twój następny rzut {what}. Działa samo.",
+    "after": "Monokuma nałożył na twój następny rzut {what}. Okno rzutu ma to już włączone i tego nie wyłączysz."
+   },
+   "removed": [
+    "\"It applies by itself\" said as what the player sees, as the owner-approved DRPG.Calls.armedForYou does; \"has {what} on\" as a verb that acts.",
+    "pl: „Działa samo” is vague; the player needs to know the grant is on and locked in the roll window (F1).",
+    "review: en: taken - the window is not open yet, and the lock (fact 1) is back, as the Polish says; contraction by EN3 for a short message.",
+    "en: \"can't\" written in full (DB8, T19)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.armedByNobody",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "calls",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered, veiled, to a student when a Call of neither side was armed on their next roll by someone else; {what} is the grant (accusative fragment), and who armed it is not named.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "armCall",
+     "note": null
+    },
+    {
+     "fact": "The one such caller, a Monocub's Confusion, arms quietly and sends its own sentence, so the text is reached only by a future caller.",
+     "file": "scripts/monocub.mjs",
+     "fn": "scoreMeddle",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Your next roll carries {what}. It applies by itself.",
+    "after": "Your next roll carries {what}. Your roll window will have it switched on."
+   },
+   "pl": {
+    "before": "Twój następny rzut niesie {what}. Działa samo.",
+    "after": "Ktoś nałożył na twój następny rzut {what}. Okno rzutu ma to już włączone."
+   },
+   "removed": [
+    "pl: „rzut niesie {what}” and „Działa samo” do not read as Polish a player would say.",
+    "review: coldEn: taken in substance - 'It applies by itself' said as what the player will see, the wording of armedByMonokuma beside it and of the Polish after („Okno rzutu ma to już włączone”)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.overflowFed",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A receipt line on the public card of Feed the Overflow (1 Despair); {n} is how much Despair went into the Overflow counter, which darkens the world for a time of day when it reaches its threshold.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "feedOverflowEffect",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{n} Despair poured into the overflow.",
+    "after": "{n} Despair poured into the Overflow."
+   },
+   "pl": {
+    "before": "{n} Despair wlane do overflow.",
+    "after": "Do Overflow trafia {n} Despair."
+   },
+   "removed": [
+    "\"overflow\": a mechanic's name is capitalized (EN13, glossary overflow).",
+    "pl: „wlane” gives Despair the neuter gender (PL-b: masculine), and the name Overflow was written in lower case.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.progressRefused",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A receipt line when a Call's progress did not move the bar ({name} is the project): on a GM's browser addProgress answers changed:false, progressEffect pushes this line, so applyCall reports no failure and no refund runs. The line stands on the Call's card and the price stays spent.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "progressEffect",
+     "note": null
+    },
+    {
+     "fact": "The bar does not move when progress is added to a full or a frozen project, or taken from a project at 0 (changeStep's warning toast on the GM, DRPG.Project.alreadyFull or alreadyEmpty). Frozen stops only progress added (delta > 0 && isFrozen).",
+     "file": "scripts/projects.mjs",
+     "fn": "changeStep",
+     "note": null
+    },
+    {
+     "fact": "For a Despair Call, projectRefusal refuses a missing, finished or frozen project before the price; a project at 0 is not refused, so Game Integrity on it is paid, moves nothing and gets no refund. A Hope Call has no projectRefusal, only the picker (pickProject leaves out finished and frozen projects, not empty ones). A full or frozen project reaches this line only in a race (Patronage against a freeze or a finish).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "projectRefusal",
+     "note": null
+    },
+    {
+     "fact": "On a secret project the public card shows DRPG.Calls.progressSecret (“A project's progress changes.”) in its place, and this line goes to the veiled card.",
+     "file": "scripts/call-effects.mjs",
+     "fn": "progressEffect",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{name} could not take the progress - it is already complete.",
+    "after": "{name}'s progress did not change, and the Call's price stays spent."
+   },
+   "pl": {
+    "before": "Projekt {name} nie przyjmuje postępu: jest już ukończony.",
+    "after": "Postęp projektu {name} się nie zmienia, a koszt Calla nie wraca."
+   },
+   "removed": [
+    "X4 (the dash); \"it is already complete\" was not the only reason (fact 1).",
+    "pl: „jest już ukończony” gave one of three reasons (F1) and did not say the Call keeps its price (F0).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: mechanics: taken - the code confirmed (projectRefusal, progressEffect, changeStep): one set of facts in both languages, the price named, no list of reasons.",
+    "review: mechanics: fact 1 corrected (frozen stops only progress added) and fact 2 widened (the Hope Call path has no projectRefusal; full or frozen only in a race); the secret-project line is a new fact 3.",
+    "review: mechanics: the bug is not answered by a text - it stays open for the owner, in disagreements.",
+    "review: pl: taken - the three reasons and the separate sentence go; one sentence with the price as in the English."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "Game Integrity on a project with no progress is paid, moves nothing and says so (progressEffect pushes a line, so applyCall does not refund): the code wins for the text, which no longer names a reason; whether the Despair should come back is a question for the mechanics review.",
+    "Probable bug, for the owner (mechanics review, confirmed in the code 14.11.2026): Game Integrity on a project at 0 progress is paid, moves nothing and is not refunded (projectRefusal lets a project at 0 through; progressEffect pushes this line on changed:false, so applyCall does not refund), while every other effect throws NothingToDo and refunds, calls.mjs's own comment says a Call that would change nothing is turned away before the pool is touched, and GM handbook 6.2 says such a Call is refused before it is paid. On a secret project the public card then says the progress 'changes' (DRPG.Calls.progressSecret). Patronage racing a freeze or a finish, and a GM's Contribution on a full bar, are paid and not refunded the same way. A possible fix: projectRefusal refuses call.progress < 0 on a bar at 0, and progressEffect throws NothingToDo on changed === false; after it this line is unreachable on a GM's browser and the text would be revised. The text states what the code does today, in both languages: the bar did not move and the price is not returned."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": {
+     "verdict": "change",
+     "points": [
+      "Whether a progress Call that moves nothing (Game Integrity on a project at 0; Patronage in a race with a freeze or a finish) should be refused before the price or refunded - the code keeps the price today, against calls.mjs's own refusal comment, the NothingToDo pattern and GM handbook 6.2. The fix is in this entry's disagreements; the text follows the code until it changes."
+     ]
+    }
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.silencedBadge",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label of the badge on a student's sheet while Silence holds them; its tooltip is DRPG.Calls.silencedNotice.",
+     "file": "scripts/sheet-header.mjs",
+     "fn": "standingEffects",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Silenced",
+    "after": "Silenced"
+   },
+   "pl": {
+    "before": "Uciszony",
+    "after": "Silence"
+   },
+   "removed": [
+    "pl: A badge carries the Call's English name (PL-e: „Silence”, „Chained”).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.chainedBadge",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label of the badge on a student's sheet while Chained holds them; its tooltip is DRPG.Calls.chainedNotice.",
+     "file": "scripts/sheet-header.mjs",
+     "fn": "standingEffects",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Chained",
+    "after": "Chained"
+   },
+   "pl": {
+    "before": "Przykuty",
+    "after": "Chained"
+   },
+   "removed": [
+    "pl: A badge carries the Call's English name (PL-e); „Przykuty” was also masculine for every student.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.motiveSet",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A receipt line on Motive's public card (6 Despair), after the motive's own announcement; {n} is the deadline in times of day the GM chose (1 to 10, 3 by default).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "motiveEffect",
+     "note": null
+    },
+    {
+     "fact": "The motive's demand, deadline and consequence are all required in its picker.",
+     "file": "scripts/call-pickers.mjs",
+     "fn": "pickMotive",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": {
+     "one": "The motive is announced. One time of day on the clock.",
+     "other": "The motive is announced. {n} times of day on the clock."
+    },
+    "after": {
+     "one": "The motive is announced, with a deadline of one time of day.",
+     "other": "The motive is announced, with a deadline of {n} times of day."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Motive jest ogłoszony. Na zegarze została jedna pora dnia.",
+     "few": "Motive jest ogłoszony. Na zegarze zostały {n} pory dnia.",
+     "many": "Motive jest ogłoszony. Na zegarze zostało {n} pór dnia.",
+     "other": "Motive jest ogłoszony. Na zegarze zostało {n} pór dnia."
+    },
+    "after": {
+     "one": "Motive jest ogłoszony. Na zegarze została jedna pora dnia.",
+     "few": "Motive jest ogłoszony. Na zegarze zostały {n} pory dnia.",
+     "many": "Motive jest ogłoszony. Na zegarze zostało {n} pór dnia.",
+     "other": "Motive jest ogłoszony. Na zegarze zostało {n} pór dnia."
+    }
+   },
+   "removed": [
+    "X6: \"{n} times of day on the clock.\" had no verb.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.gatherRoomGone",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the primary GM when a pending assembly comes due and its room is no longer a Region on its scene; {room} is the room. The order is cleared, the Despair spent on it does not come back, and nobody is moved: a GM moves the cast by hand.",
+     "file": "scripts/call-world.mjs",
+     "fn": "runPendingGather",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "The assembly could not be held: \"{room}\" is not a room on that scene any more. The order has been cleared - the Despair it cost is not coming back, and the cast will have to be moved by hand.",
+    "after": "The assembly in “{room}” could not be held: the room is no longer on its scene. It is called off and its Despair stays spent. Move the characters by hand."
+   },
+   "pl": {
+    "before": "Zgromadzenie nie mogło się odbyć: „{room}” nie jest już pokojem na tamtej scenie. Polecenie zostało wyczyszczone - wydany na nie Despair nie wróci, a obsadę trzeba przenieść ręcznie.",
+    "after": "Zgromadzenie nie może się odbyć, bo „{room}” nie jest już pokojem na tamtej scenie. Polecenie znika, a wydany Despair nie wraca. Przenieś obsadę ręcznie."
+   },
+   "removed": [
+    "T4: 39 words, over the toast limit of 30 (now 29); X4: the dash; \"will have to be moved\" as what the GM does (O7).",
+    "pl: A dash tacked an aside on (X4), the passive hid the GM who moves the cast (X11), and it ran over the toast target (T4).",
+    "review: coldEn: 'gone from its scene', 'The order is cleared' and 'the cast' - taken: 'no longer on its scene', 'It is called off' (DRPG.Calls.gatherCancelled's word) and 'the characters'.",
+    "review: coldEn: 'gathering' rejected - 'assembly' is the module's name for it (gatherShort “Assembly”, gatherCancelAsk, gatherCancelled; O14).",
+    "review: coldEn: the length - the revision stays under the toast limit of 30."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.gatherNoRefund",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note in the window that calls off a pending assembly and in the pending tile's tooltip: calling it off costs nothing, and the Despair spent on it does not come back.",
+     "file": "scripts/call-world.mjs",
+     "fn": "cancelGather",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "No Despair comes back - the announcement has already been heard.",
+    "after": "No Despair comes back: the announcement has already been heard."
+   },
+   "pl": {
+    "before": "Despair nie wraca - ogłoszenie już zostało usłyszane.",
+    "after": "Despair nie wraca, bo wszyscy już usłyszeli ogłoszenie."
+   },
+   "removed": [
+    "X4: the dash before the reason, now a colon.",
+    "pl: The dash tacked the reason on (X4); the smallest fix.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.rowNoExperiences",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The reason on the greyed Experience row of the Talent window when the character has no experiences on the sheet.",
+     "file": "scripts/sheet-actions.mjs",
+     "fn": "runCall",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "No experiences on your sheet yet.",
+    "after": "No experiences on your sheet yet."
+   },
+   "pl": {
+    "before": "Na karcie nie ma jeszcze doświadczeń.",
+    "after": "Na arkuszu nie ma jeszcze doświadczeń."
+   },
+   "removed": [
+    "pl: „karta” is only the chat card; the sheet is „arkusz” (PL-d, DB27).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.locked",
+   "group": "window",
+   "surface": "toast",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast on the roller's own browser when they click a locked chip in the roll window: the advantage or disadvantage chip, an experience chip, or the reaction/action chip (every chip `lockChip` locks calls `stop`).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "stop",
+     "note": null
+    },
+    {
+     "fact": "Advantage and disadvantage reach a roll from Calls (Hope: Support, Ultimate; Despair: Approval and Obstacle; a Monocub's Meddle at its advantage tier), the situation (a fitting room, a tool, a weapon in a crisis, the Night die), a hindrance die and Breakdown, summed in advantageSources. An experience reaches it only through Talent's experience choice, which a GM approves, the Hope charged only on the yes.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "advantageSources",
+     "note": "Approval: config.mjs DESPAIR_CALLS approval, grants 'advantage'. Fact 1 before named Hope Calls alone, which the code does not run (M2)."
+    },
+    {
+     "fact": "Disadvantage is not bought by the roller: it comes from Despair Calls, the situation, a hindrance die or Breakdown (summed in `advantageSources`).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "advantageSources",
+     "note": "Now inside fact 1; kept here as it stood."
+    },
+    {
+     "fact": "The click changes nothing: the chip stays as the lock set it.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockChip",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
+    "after": "You cannot change this here. Advantage and disadvantage come from Calls, the situation, a hindrance die, or Breakdown. An experience comes only from the Talent Call, which a GM approves."
+   },
+   "pl": {
+    "before": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
+    "after": "Tego nie zmienisz w oknie rzutu. Przewagę i utrudnienie dają Calle, sytuacja, kość utrudnienia albo Breakdown. Doświadczenie do rzutu dodaje tylko Call Talent, za zgodą GM-a."
+   },
+   "removed": [
+    "\" - ask the GM\": X4 (the lint's T5); and not every Hope Call that gives advantage asks a GM - Support is bought by another student (fact 1). The GM's approval of Talent stays on DRPG.RollDialog.experienceLocked and the Calls' own windows (O3).",
+    "\"Not yours to choose\": the reader is told it is locked, the first fact (O1).",
+    "pl: Stare PL mówiło, że przewagę zawsze daje GM (Support kupuje inny uczeń bez GM-a), pomijało utrudnienie i miało X4.",
+    "review: mechanics: taken - 'come from Hope Calls' was false (Approval, the situation, a hindrance die, Breakdown, Meddle); both languages now name the four sources advantageSources sums, as advantageLocked does; fact 1 corrected.",
+    "review: mechanics: PL over the toast limit - taken, the Polish is under 30 words.",
+    "review: mechanics: the opening clause must cover the reaction chip - taken: 'You can't change this here' / „Tego nie zmienisz w oknie rzutu” speak of any locked chip.",
+    "review: en: taken in substance (the opening, disadvantage named, the GM's approval of the experience); the 'Calls and the situation' list widened to the four sources (mechanics, M2).",
+    "review: coldEn: 'This is locked' does not say what the reader cannot do - taken ('You can't change this here'); the two answers for advantage now agree with advantageLocked.",
+    "review: pl: the drop of the disadvantage sentence - rejected: the mechanics review shows that leaving disadvantage and Approval out states a false source of advantage (M2); the Polish names one list for both, inside the limit, and Talent once per fact (taken: „dodaje tylko Call Talent, za zgodą GM-a”).",
+    "en: \"can't\" written in full (DB8, T19)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.diceFixed",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on every dice select of the roll window, disabled for everyone the lock reaches: the Hope and Despair dice selects and the advantage die's count and faces selects.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockDice",
+     "note": null
+    },
+    {
+     "fact": "The Hope and Despair dice are d12; the advantage die is a d6 (LEGAL_ROLL_MODIFIERS bounds 12, 12, 6), and a drawn roll is thrown on those faces whatever the window says.",
+     "file": "scripts/config.mjs",
+     "fn": "LEGAL_ROLL_MODIFIERS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Fixed at d12 by the rules.",
+    "after": "The rules set these dice."
+   },
+   "pl": {
+    "before": "Ustalone na d12 przez zasady.",
+    "after": "Zasady ustalają te kości: kości Hope i Despair to d12, a kość przewagi też ma stałą liczbę ścianek. W tym oknie tego nie zmienisz."
+   },
+   "removed": [
+    "\"at d12\": the same tooltip stands on the advantage die's selects, which the rules fix at a d6 (fact 1), so the size is not named.",
+    "pl: Stare PL mówiło „d12” o każdej kości, także o kości przewagi, która ma inne ścianki.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - 'set' for 'fix'.",
+    "review: pl: taken in substance - the rules as the subject read first („Zasady ustalają te kości”) where „Kości wynikają z zasad” reads stiffly; „stałą liczbę ścianek” taken."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The text names d12 for every select it is on, the advantage die's included; the code (lockDice) puts it on the advantage die's selects too, which are a d6. Code wins: the after names no size."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.advantageLocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on both advantage chips when nothing puts advantage or disadvantage on the roll (net zero); both chips are locked and a click on them only raises the locked toast.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockAdvantage",
+     "note": null
+    },
+    {
+     "fact": "What can put advantage or disadvantage on a roll: Calls (Hope or Despair), the situation (a fitting room for a Search, a tool in hand, the Night die, a weapon in a crisis), a hindrance die, and Breakdown.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "advantageSources",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Advantage and disadvantage come from Calls, not from here.",
+    "after": "Advantage and disadvantage come from Calls, the situation, a hindrance die, or Breakdown; you cannot set them in this window."
+   },
+   "pl": {
+    "before": "Przewagę i utrudnienie dają Calle; w tym oknie ich nie ustawisz.",
+    "after": "Przewagę i utrudnienie dają Calle; w tym oknie ich nie ustawisz. Dają je też sytuacja, kość utrudnienia albo Breakdown."
+   },
+   "removed": [
+    "\"not from here\": X3 (the lint's T5); the after says the window cannot set them, as the approved Polish pair N32 does (T22's mirror now \";.\" in both).",
+    "\"from Calls\" widens to Calls and the situation (fact 1).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: mechanics: taken - the four sources of fact 1 in both languages.",
+    "review: mechanics: the PL proposal's wording rejected in favour of one that keeps the owner-approved pair N32 („Przewagę i utrudnienie dają Calle; w tym oknie ich nie ustawisz.”) whole inside the key, as the brief requires; the missing sources follow in a second sentence.",
+    "review: en: taken, with the Oxford comma (EN2).",
+    "en: \"can't\" written in full (DB8, T19)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.experienceLocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on every experience chip of the roll window while no experience Call is armed: the chips are locked.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockExperiences",
+     "note": null
+    },
+    {
+     "fact": "An experience reaches a roll only through the Talent Hope Call's experience choice since E72: the player writes how it applies, a GM approves or refuses, and the Hope is paid only on the yes. The Experience Call has no tile of its own any more (`inside: \"talent\"`).",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Using an experience is the Experience Hope Call - ask the GM to spend it.",
+    "after": "An experience counts on a roll only through the Talent Hope Call, which a GM approves."
+   },
+   "pl": {
+    "before": "Użycie doświadczenia to Hope Call „Experience” - poproś GM-a, by je wydać.",
+    "after": "Doświadczenie dodasz do rzutu tylko przez Hope Call Talent: opisujesz, jak pasuje do rzutu, a GM to zatwierdza albo odrzuca. Hope płacisz dopiero po jego zgodzie."
+   },
+   "removed": [
+    "\"the Experience Hope Call\": since E72 the player chooses it inside Talent (fact 1).",
+    "\" - ask the GM to spend it\": X4 (T5); the player asks and pays, the GM approves (fact 1). T22's mirror: no dash left in the English.",
+    "pl: Stare PL odsyłało do Calla „Experience”, który od E72 nie ma własnego kafla i jest wybierany w Callu Talent; miało też X4.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The text names an Experience Hope Call and has the GM spend it; config.mjs HOPE_CALLS has Experience only inside Talent (E72), chosen and paid by the player on a GM's yes. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.bonusLocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the roll window's free bonus input when no Call puts a flat bonus on the roll: the input is disabled and emptied.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockBonus",
+     "note": null
+    },
+    {
+     "fact": "A flat bonus reaches a roll only from a Call (Meddle's bonus, `grants: \"bonus\"`, shown read-only) or from active effects on the character, which the GM counts on a drawn roll.",
+     "file": "scripts/config.mjs",
+     "fn": "LEGAL_ROLL_MODIFIERS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Situational bonuses are the GM's call.",
+    "after": "You cannot add a bonus here. A bonus comes from a Call or an effect on your character."
+   },
+   "pl": {
+    "before": "Premie sytuacyjne to decyzja GM-a.",
+    "after": "W tym polu nie wpiszesz premii. Premię do rzutu daje tylko Call albo aktywny efekt na twojej postaci."
+   },
+   "removed": [
+    "\"Situational bonuses are the GM's call\": the GM types no bonus into this roll; a bonus comes from a Call or an effect (fact 1), and \"call\" beside the Call mechanic reads as a synonym (O14).",
+    "pl: Stare PL mówiło o premiach sytuacyjnych z decyzji GM-a; premię daje tylko Call albo aktywny efekt postaci.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - who throws the roll (O19, T29) goes; result first (O1); the same two facts as the English.",
+    "en: \"can't\" written in full (DB8, T19)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.modeLocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Second line of the roll-mode select's tooltip, after a line naming who sees the roll; the select is disabled for everyone the lock reaches.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockControls",
+     "note": null
+    },
+    {
+     "fact": "With forced private rolls on (the default) a student's roll goes to the GMs and its roller, a Monocub's to its room too, whatever the select says.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "audienceOf",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Who sees this roll is set by the game, not here.",
+    "after": "The game sets who sees this roll; you cannot change it in this window."
+   },
+   "pl": {
+    "before": "Kto zobaczy ten rzut, ustala gra; w tym oknie tego nie zmienisz.",
+    "after": "Kto zobaczy ten rzut, ustala gra; w tym oknie tego nie zmienisz."
+   },
+   "removed": [
+    "\"not here\": X3 (T5); the shape of the approved Polish pair N33 (T22's mirror now \";.\" in both).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "en: \"can't\" written in full (DB8, T19)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.modeRoom",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "First line of the roll-mode select's tooltip with forced private rolls on, for a Monocub's roll: the GMs, the roller and the room the Monocub stands in see the roll.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "audienceOf",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "The GMs, you and the room",
+    "after": "The GMs, you, and everyone in your room"
+   },
+   "pl": {
+    "before": "GM-owie, ty i pokój",
+    "after": "GM-owie, ty i wszyscy w twoim pokoju"
+   },
+   "removed": [
+    "EN2/DB35: the Oxford comma before the last item of the list.",
+    "pl: „pokój” bez dopowiedzenia brzmiało jak nazwa pokoju; rzut Monocuba widzą osoby w pokoju, w którym stoi.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - as the Polish says („wszyscy w twoim pokoju”)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.reactionLocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the reaction chip, held on, when a student rolls a statistic that no module action declared (from the sheet or on a GM's request).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "reactionHeld",
+     "note": null
+    },
+    {
+     "fact": "A reaction costs nothing and moves no Hope and no Despair; only an action's roll does.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "forceReaction",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
+    "after": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions."
+   },
+   "pl": {
+    "before": "Statystyka rzucona sama w sobie to reakcja: nic nie kosztuje i nic nie daje. Hope i Despair biorą się z akcji.",
+    "after": "Rzut na samą statystykę, poza akcją, to reakcja: nic nie kosztuje i nie daje Hope ani Despair. Dają je tylko rzuty akcji."
+   },
+   "removed": [
+    "pl: Kalka „statystyka rzucona sama w sobie”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.freeCritArmed",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A banner at the top of the roll window when the Loaded Die (`grants: \"critical\"`, 6 Hope) is armed for this roll.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "announceFreeCritical",
+     "note": null
+    },
+    {
+     "fact": "A coin picks the Hope die or the Despair die; that die is set to 12 and the other is thrown. A critical happens only when the thrown die also shows 12; otherwise the roll is with Hope if the Hope die was set, with Despair if not.",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    },
+    {
+     "fact": "The duality roll always has exactly two dice; the code passes no number for them.",
+     "file": "scripts/forced-roll.mjs",
+     "fn": "loadedDieHeld",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Loaded Die is armed. One of the two dice, at random, is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",
+    "after": "Loaded Die is armed: a random die is set to 12, and you roll the other. It is a critical only if the rolled die also comes up 12; otherwise the roll is with Hope if the Hope die was set, with Despair if not."
+   },
+   "pl": {
+    "before": "Loaded Die uzbrojony. Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
+    "after": "Loaded Die działa na ten rzut: jedna kość, losowo Hope albo Despair, stoi na 12, a drugą rzucasz. Krytyk jest tylko wtedy, gdy i ona pokaże 12; inaczej rzut jest z Hope albo z Despair, zależnie od tego, która kość stoi na 12."
+   },
+   "removed": [
+    "the dash before \"a very high total\": X4 (T5), now its own sentence.",
+    "pl: X4 i T7 („dwóch kości”); stare PL nie mówiło, kiedy rzut jest z Hope, a kiedy z Despair.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - the outcome of fact 1 (EN8), 'The total is very high' cut (O2).",
+    "review: coldEn: taken in part - 'you roll the other' for the passive 'is thrown'; 'one of your two dice' rejected because T7 reads 'two dice' as a rule's number written as a word (M5), and 'Your total will be high, but' rejected for the outcome sentence that replaces it inside the limit."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.forcedByCall",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the selected advantage or disadvantage chip when one Call alone gives the roll one die; also on the bonus input when a Call's flat bonus (Meddle) is imposed read-only.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    },
+    {
+     "fact": "The Calls summed are every Call armed on the roller: Support bought by another student, Ultimate or Talent bought by the roller, and Despair Calls a Monokuma bought against them (Obstacle, Meddle's bonus).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "callDice",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Set by a Call you paid for. It cannot be turned off.",
+    "after": "Set by a Call. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Ustawione przez opłacony Call. Nie da się tego wyłączyć.",
+    "after": "Ustawione przez opłacony Call. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "\"you paid for\": wrong for a Support another student bought and for a Monokuma's Despair Call (fact 1).",
+    "\"It cannot be turned off\": X11 (T5), now active.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The text says the reader paid for the Call; callDice and lockBonus show it for Calls others bought too (Support, Despair Calls, Meddle). Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.forcedByHindrance",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the selected disadvantage chip when a hindrance die given to this roll by name (a watch's die on the killer's opening, E74) is the one source and one die.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "A hindrance die is on this roll. It cannot be turned off.",
+    "after": "A hindrance die is on this roll. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Na tym rzucie jest kość utrudnienia. Nie da się tego wyłączyć.",
+    "after": "Na tym rzucie jest kość utrudnienia. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "\"It cannot be turned off\": X11 (T5).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.forcedBySituation",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the selected chip when the situation alone gives the roll one die.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    },
+    {
+     "fact": "The situation's die is armed by the action: a Search in a fitting room, a tool in hand for a project or a clean-up, a crisis action's weapon or second try, the opening's Night die or a trap's victim (armSituational and the opening's own die).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "situationalAdvantage",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Set by where you are and what you are looking for. It cannot be turned off.",
+    "after": "Set by your situation, such as the room, the time of day, or a tool in hand. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Ustawione przez to, gdzie jesteś i czego szukasz. Nie da się tego wyłączyć.",
+    "after": "Ustawione przez sytuację, na przykład pasujący pokój, narzędzie albo broń w ręku, noc czy pułapkę. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "\"where you are and what you are looking for\": true of a Search only; the same die comes from a tool, a weapon or the Night (fact 1).",
+    "\"It cannot be turned off\": X11 (T5).",
+    "pl: Stare PL mówiło tylko o miejscu i o tym, czego szukasz; sytuację tworzy też narzędzie, broń, noc albo pułapka.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The text ties the die to the room and the search; call-effects.mjs situationalAdvantage also carries tools, a crisis weapon and the opening's Night die. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.forcedByState",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the disadvantage chip when Breakdown alone puts one disadvantage die on the roll.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    },
+    {
+     "fact": "Breakdown is having no Sanity left; while it lasts every roll of that student has one disadvantage die. A Monocub has none.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "stateGrant",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "You are in Breakdown - every roll is at disadvantage until some Sanity comes back. It cannot be turned off.",
+    "after": "You are in Breakdown: every roll is at disadvantage until you have some Sanity again. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Jesteś w Breakdown - każdy rzut z utrudnieniem, dopóki nie wróci trochę Sanity. Nie da się tego wyłączyć.",
+    "after": "Jesteś w Breakdown, bo nie zostało ci Sanity: każdy twój rzut ma kość utrudnienia, dopóki nie odzyskasz choć trochę Sanity. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "the dash: X4 (T5), now a colon.",
+    "\"It cannot be turned off\": X11 (T5).",
+    "\"until some Sanity comes back\": said as the reserve (M7).",
+    "pl: X4 (myślnik).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.lockedByCall",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the opposite chip (the advantage chip when the roll has disadvantage, and the other way round) whenever anything puts a net die on the roll; that chip is locked so a click cannot cancel it.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "lockAdvantage",
+     "note": null
+    },
+    {
+     "fact": "The net die can come from the situation, a hindrance die or Breakdown as well as from a Call.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "advantageSources",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A Call has already decided this roll's modifier.",
+    "after": "This roll's advantage or disadvantage is already set."
+   },
+   "pl": {
+    "before": "O modyfikatorze tego rzutu zdecydował już Call.",
+    "after": "Ten rzut ma już przewagę albo utrudnienie z Calla, sytuacji, kości utrudnienia albo Breakdown; tym przyciskiem ich nie zniesiesz."
+   },
+   "removed": [
+    "\"A Call has already decided\": the net die is not always a Call's (fact 1).",
+    "pl: Stare PL przypisywało to zawsze Callowi; kość netto może dać też sytuacja, kość utrudnienia albo Breakdown.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The text says a Call decided the modifier; lockAdvantage shows it whenever the net is not zero, from any source. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.stackedAdvantage",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the advantage chip when the net comes to more than one die. {n} is the number of advantage dice (at most 3, ADVANTAGE_CAP); {sources} is the list of sources with each one's signed value, joined by commas (a Call, the situation, a hindrance die, Breakdown).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    },
+    {
+     "fact": "Several advantage dice are thrown and only the highest is kept (Daggerheart's kh).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "forceAdvantage",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Advantage ×{n} - {sources}. You roll {n} bonus dice and the best one counts. It cannot be turned off.",
+    "after": "Advantage ×{n} from {sources}. You roll {n} advantage dice and the best one counts. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Przewaga ×{n} - {sources}. Rzucasz {n} kośćmi premii i liczy się najlepsza. Nie da się tego wyłączyć.",
+    "after": "Przewaga ×{n} ({sources}). Rzucasz {n} kośćmi przewagi i liczy się najwyższa. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "the dash before {sources}: X4 (T5).",
+    "\"bonus dice\" becomes \"advantage dice\", the word DRPG.Rolls.flagKind.advantage uses (O14).",
+    "\"It cannot be turned off\": X11 (T5).",
+    "pl: X4; „kości premii” zamiast słowa modułu „kość przewagi”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [
+    "explainAdvantage joins {sources} with \", \" and writes a negative value with U+2212: the list could go through utils.mjs listOf (EN2) and a \"-\"."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.stackedDisadvantage",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the disadvantage chip when the net comes to more than one disadvantage die. {n} is the number of dice (at most 3); {sources} the signed sources, joined by commas.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    },
+    {
+     "fact": "Several disadvantage dice are thrown and the highest is the one subtracted, the worst for the roller.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "forceAdvantage",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Disadvantage ×{n} - {sources}. You roll {n} penalty dice and the worst one counts. It cannot be turned off.",
+    "after": "Disadvantage ×{n} from {sources}. You roll {n} disadvantage dice and the worst one counts. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Utrudnienie ×{n} - {sources}. Rzucasz {n} kośćmi kary i liczy się najgorsza. Nie da się tego wyłączyć.",
+    "after": "Utrudnienie ×{n} ({sources}). Rzucasz {n} kośćmi utrudnienia i odejmujesz najwyższą, czyli najgorszą dla ciebie. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "the dash before {sources}: X4 (T5).",
+    "\"penalty dice\" becomes \"disadvantage dice\" (O14).",
+    "\"It cannot be turned off\": X11 (T5).",
+    "pl: X4; „liczy się najgorsza” nie mówiło, że najwyższa kość jest odejmowana.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [
+    "As stackedAdvantage: {sources} joined by \", \" with U+2212 for negatives."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.mixedAdvantage",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the advantage chip when several sources come to exactly one advantage die: some of them pull the other way and cancel part of the rest. {sources} lists each source with its signed value. The code also passes {n}, unused here.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Advantage - {sources}. Together that is one bonus die. It cannot be turned off.",
+    "after": "Advantage, after {sources} partly cancel out. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Przewaga - {sources}. Razem to jedna kość premii. Nie da się tego wyłączyć.",
+    "after": "Przewaga ({sources}). Źródła częściowo się znoszą, a w sumie dają kość przewagi. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "the dash: X4 (T5).",
+    "\"Together that is one bonus die\": T7 (a number as a word); the after says the sources cancel down to advantage instead.",
+    "\"It cannot be turned off\": X11 (T5).",
+    "pl: X4 i T7 („jedna kość”); {n} nie stoi w tekście, więc liczba zostaje w liczbie pojedynczej rzeczownika.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.mixedDisadvantage",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Tooltip on the disadvantage chip when several sources come to exactly one disadvantage die after partly cancelling. {sources} lists each source with its signed value.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Disadvantage - {sources}. Together that is one penalty die. It cannot be turned off.",
+    "after": "Disadvantage, after {sources} partly cancel out. You cannot turn it off."
+   },
+   "pl": {
+    "before": "Utrudnienie - {sources}. Razem to jedna kość kary. Nie da się tego wyłączyć.",
+    "after": "Utrudnienie ({sources}). Źródła częściowo się znoszą, a w sumie dają kość utrudnienia. Nie da się tego wyłączyć."
+   },
+   "removed": [
+    "the dash: X4 (T5).",
+    "\"Together that is one penalty die\": T7.",
+    "\"It cannot be turned off\": X11 (T5).",
+    "pl: X4 i T7 („jedna kość”).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.source.situation",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A source's name in the advantage tooltip's list, followed by its signed value: the die the roll's circumstances give (a fitting room, a tool, a weapon, the Night, a trap).",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "advantageSources",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "where you are",
+    "after": "the situation"
+   },
+   "pl": {
+    "before": "miejsce, w którym jesteś",
+    "after": "sytuacja"
+   },
+   "removed": [
+    "\"where you are\": the situation's die is not only the room's (as DRPG.RollDialog.forcedBySituation).",
+    "pl: „miejsce, w którym jesteś” to tylko jedno ze źródeł; kość daje też narzędzie, broń, noc albo pułapka.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The fragment names the place alone; advantageSources' situation sums tools, weapons and the Night die too. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.rewritePutBack",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/reroll-receipts.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card to the GMs (whisperToGms), once per message and user, when a user who is not a GM rewrote the dice of a roll message and the primary GM's browser had kept that message's dice: the dice are put back on every browser.",
+     "file": "scripts/reroll-receipts.mjs",
+     "fn": "judgeRewrite",
+     "note": null
+    },
+    {
+     "fact": "{name} is the user who wrote the new dice (escaped, in bold); {roll} is the character the roll was for, or the speaker's alias, or the message id.",
+     "file": "scripts/reroll-receipts.mjs",
+     "fn": "warnGms",
+     "note": null
+    },
+    {
+     "fact": "Daggerheart's own chat-menu rerolls are taken off a player's menu; the game's Reroll is a Hope Call the GM makes.",
+     "file": "scripts/reroll-receipts.mjs",
+     "fn": "dropDaggerheartRerolls",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",
+    "after": "<strong>{name}</strong> changed the dice of a roll ({roll}) by hand. The roll shows the original dice again."
+   },
+   "pl": {
+    "before": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",
+    "after": "<strong>{name}</strong> ręcznie zmienia kości rzutu ({roll}). Rzut wraca do kości, które naprawdę padły."
+   },
+   "removed": [
+    "\"A Reroll is asked of the GM.\": why a rewrite is not the road (O9, T29); the Reroll Call's own texts and the GM handbook say how a Reroll is made.",
+    "\"wrote new dice into\" becomes \"changed the dice of\".",
+    "pl: „O Reroll prosi się GM-a” nie zgadzało się z faktami: Reroll to Hope Call, a rerolle z menu czatu Daggerheart są graczom zabrane.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - 'the dice that fell' is a calque.",
+    "review: pl: taken - „wpisuje kości” goes, the Reroll sentence (fact 2, not kept) and „w każdej przeglądarce” (T29) go; present tense avoids a gendered past (PL17)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.rewriteNotPutBack",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/reroll-receipts.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card to the GMs, once per message and user, when a user who is not a GM rewrote a roll message's dice and the dice could not be put back: either the primary GM's browser never saw the roll thrown (it loaded after), or the write that puts them back failed. The rewritten dice stand.",
+     "file": "scripts/reroll-receipts.mjs",
+     "fn": "judgeRewrite",
+     "note": null
+    },
+    {
+     "fact": "{name} is the user who rewrote the dice (bold); {roll} the roll's character, alias or message id.",
+     "file": "scripts/reroll-receipts.mjs",
+     "fn": "warnGms",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; this browser did not see that roll thrown, so its dice could not be put back.",
+    "after": "<strong>{name}</strong> changed the dice of a roll ({roll}) by hand, and the original dice could not be restored. The changed dice stand."
+   },
+   "pl": {
+    "before": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); ta przeglądarka nie widziała tego rzutu, więc nie dało się przywrócić jego kości.",
+    "after": "<strong>{name}</strong> ręcznie zmienia kości rzutu ({roll}). Nie udało się przywrócić kości, które naprawdę padły, więc zostają te zmienione."
+   },
+   "removed": [
+    "\"this browser did not see that roll thrown\": only one of the two causes (fact 0), and a browser's view is not what the GM acts on (T29).",
+    "pl: Stare PL pomijało drugi powód (nieudany zapis) i nie mówiło, że wpisane kości zostają.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - the dice named, not 'they'.",
+    "review: pl: taken - paired with rewritePutBack; the cause (the primary GM's browser, a failed write) goes (T29), as in the English; „kości” named where the proposal had „tych”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.notDrawnHere",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/roll-draw.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A card to the GMs at load, from the primary GM, once per Daggerheart version, when the roll draw cannot hook into this Daggerheart build: {version} is the system's version.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "announceRollDraw",
+     "note": null
+    },
+    {
+     "fact": "On such a build the players' rolls are thrown by Daggerheart on their own browsers as before, not drawn by the GM; only the refusal of an action roll with no GM connected still applies, and nothing is stamped.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "drawOrThrow",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Daggerheart {version} builds its rolls in a way this module was not written for, so the players' rolls are thrown in their own browsers and not drawn by the GM. Said once for this version.",
+    "after": "Daggerheart {version} builds rolls in a way this module was not written for, so players roll their own dice instead of the GM rolling for them. This message appears once for this version."
+   },
+   "pl": {
+    "before": "Daggerheart {version} buduje rzuty inaczej, niż zakłada ten moduł, więc rzuty graczy wykonują się w ich przeglądarkach, a nie u GM-a. Ten komunikat zobaczysz raz na każdą wersję systemu.",
+    "after": "Daggerheart {version} buduje rzuty inaczej, niż zakłada ten moduł, więc rzuty graczy wykonują się w ich przeglądarkach, a nie u GM-a. Ten komunikat zobaczysz raz na każdą wersję systemu."
+   },
+   "removed": [
+    "\"in their own browsers\": T29, the GM needs who throws, not where.",
+    "review: coldEn: taken - 'draw players' rolls' (module jargon), 'throws' and the telegraph 'Said once for this version.' (X6) go; the Polish is the owner-approved N60 and stays."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.unexpected",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/roll-draw.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card to the GMs, one per drawn roll, when the roll's claim differs from what the GM throws by its own list (statistic, the GM's pick, modifier, extra dice, advantage dice).",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "tellUnexpected",
+     "note": null
+    },
+    {
+     "fact": "Since E29 C10 the GM throws the roll its own list makes; what the roller's window put on beyond it is recorded and never counted.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "legalRollOf",
+     "note": null
+    },
+    {
+     "fact": "{name} is the character; {list} is each difference as a line (what, what the roll had, what the GM expected, and what the GM counted), joined by semicolons.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "flagText",
+     "note": null
+    },
+    {
+     "fact": "The console call game.drpg.rollFlags() lists the flagged rolls the GM still holds.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "rollFlags",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "The GM drew {name}'s roll and counted it as the GMs hold it; not counted as the roll claimed: {list}. game.drpg.rollFlags() lists it.",
+    "after": "{name}'s roll did not match the roll the GM expected, so the GM rolled the expected one. These parts did not count: {list}. game.drpg.rollFlags() lists it."
+   },
+   "pl": {
+    "before": "GM wylosował rzut postaci {name} i policzył go według tego, co mają GM-owie; nie policzono tak, jak podawał rzut: {list}. game.drpg.rollFlags() go wymienia.",
+    "after": "Rzut postaci {name} nie zgadza się z listą GM-a. GM rzuca według swojej listy, a różnice tylko zapisuje: {list}. Takie rzuty wypisuje w konsoli game.drpg.rollFlags()."
+   },
+   "removed": [
+    "\"counted it as the GMs hold it\": said as what the GM threw (fact 1).",
+    "pl: Szyk „nie policzono tak, jak podawał rzut” był kalką i nie mówił, że różnice są zapisane, a nie liczone.",
+    "review: en: taken in substance - 'holds' and 'threw it as held' go (T29); the GM rolls the roll its own list makes (fact 1).",
+    "review: coldEn: taken in substance - 'the GM's copy' rejected as inexact (legalRollOf builds the roll the GM expects, it does not copy one); 'expected' is the word {list}'s own lines use (fact 2); 'rolled' for 'threw'."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.flagsTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The heading a GM's console prints above the table of flagged drawn rolls when game.drpg.rollFlags() runs; {n} is how many rows. Only the GM's browser holds records; they are swept past the Reroll's window, so it lists the last minutes.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "rollFlags",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Drawn rolls with something the GM did not expect: {n}",
+    "after": "Flagged drawn rolls: {n}"
+   },
+   "pl": {
+    "before": "Wylosowane rzuty z czymś, czego GM się nie spodziewał: {n}",
+    "after": "Wylosowane rzuty niezgodne z listą GM-a: {n}"
+   },
+   "removed": [
+    "T4: 10 words over the window-title limit of 8; \"with something the GM did not expect\" is what a flag is (the card of DRPG.Rolls.unexpected says it).",
+    "pl: T4: 10 słów przy limicie 8."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.legal.experience",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/roll-draw.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A row's label of the GM's list: one experience's value, counted only when an armed Call grants an experience (bound 1).",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "LEGAL_READERS",
+     "note": null
+    },
+    {
+     "fact": "That Call is chosen inside the Talent Hope Call since E72; Experience has no tile of its own.",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "an experience an Experience Call bought",
+    "after": "an experience a Talent Call bought"
+   },
+   "pl": {
+    "before": "doświadczenie kupione Callem Experience",
+    "after": "doświadczenie z Calla Talent"
+   },
+   "removed": [
+    "\"an Experience Call\": the player buys it as Talent (fact 1, O14).",
+    "pl: Od E72 doświadczenie wybiera się w Callu Talent; Experience nie ma własnego kafla.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.waitsForGm",
+   "group": "window",
+   "surface": "toast",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning toast on the player's browser when they start an action that rolls dice and no GM is connected: refused before any window and any price, so nothing is paid and no action is used. Move and Rest throw no dice and are not refused.",
+     "file": "scripts/action-rolls.mjs",
+     "fn": "performAction",
+     "note": null
+    },
+    {
+     "fact": "The same toast when a GM leaves between the window and the draw: the action roll is not made, and the action's own close path decides the rest - when an earlier roll of the same action already landed, spentAfterRoll keeps the action spent and posts its own toast; Analyze gives back only the step of its price chain that paid; a Search can leave the room's token taken.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "drawOrThrow",
+     "note": "action-pipeline.mjs abort/spentAfterRoll (ROLL-05); action-search.mjs E18 note. Not traced: every action's close path."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "An action roll waits for a GM: no GM is connected, so the action was not taken and nothing was paid.",
+    "after": "An action roll needs a GM, and no GM is connected, so the roll is not made."
+   },
+   "pl": {
+    "before": "Rzut akcji czeka na GM-a: żaden GM nie jest połączony, więc akcja się nie odbyła i nic nie zapłacono.",
+    "after": "Rzut akcji wymaga połączonego GM-a, a żaden nie jest teraz połączony, więc rzut się nie odbywa."
+   },
+   "removed": [
+    "\"so the action was not taken and nothing was paid\": X1 and O8, the reader is told what they keep (the pilot's pairs N28-N30); T4 (21 words, over the toast's target of 20) is now 14.",
+    "pl: „czeka na GM-a” sugerowało, że rzut odbędzie się później, a jest odrzucony; „nic nie zapłacono” to kształt X1.",
+    "review: mechanics: taken - 'You keep your action' overstated the second road (drawOrThrow); both languages say what holds on both roads: the roll is not made. O8's kept resource is left to each action's close path, which says it where it is true; fact 1 corrected."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.unwitnessed",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/roll-draw.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line added to the card of a roll a player threw while no GM was connected (a statistic, a reaction, Daggerheart's own item roll); everyone who reads that card sees it.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "onRenderUnwitnessed",
+     "note": null
+    },
+    {
+     "fact": "Such a roll moves no Hope, no Sanity and no Despair when thrown; when a GM connects, the primary GM gets a card listing it and grants what it would have moved, or not.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "askAboutUnwitnessed",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Thrown with no GM connected - the GM will see it.",
+    "after": "Rolled with no GM connected, so it moves no Hope, Sanity, or Despair for now. A GM decides later whether to grant what it would have moved."
+   },
+   "pl": {
+    "before": "Rzucono bez połączonego GM-a - GM to zobaczy.",
+    "after": "Rzucono bez połączonego GM-a, więc na razie rzut nie zmienia Hope, Sanity ani Despair. Gdy GM się połączy, zdecyduje, czy przyznać to, co rzut by zmienił."
+   },
+   "removed": [
+    "\" - the GM will see it\": X4 (T5); what the GM does with it is said instead (fact 1).",
+    "pl: X4; stare PL nie mówiło, że rzut niczego nie przesuwa, dopóki GM nie zdecyduje.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: mechanics: taken - Sanity named (fact 1, roll-draw.mjs skips.resources).",
+    "review: en: taken - Sanity, and that nothing has moved yet, as the Polish says; third person kept.",
+    "review: coldEn: taken - 'Rolled' for 'Thrown'."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.awayLine",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/roll-draw.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "One row of the GMs' away card: {name} the character, {hope} and {fear} the faces the Hope and Despair dice showed (or -), {moves} what the roll would move (a fragment: Hope gained, one Despair, or nothing for a reaction). A claim in brackets may follow.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "askAboutUnwitnessed",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name}: Hope die {hope}, Despair die {fear} - {moves}",
+    "after": "{name}: Hope die {hope}, Despair die {fear}; the roll would give {moves}"
+   },
+   "pl": {
+    "before": "{name}: kość Hope {hope}, kość Despair {fear} - {moves}",
+    "after": "{name}: kość Hope {hope}, kość Despair {fear}; {moves}"
+   },
+   "removed": [
+    "the dash before {moves}: X4 (T5); the row says what the roll would give.",
+    "pl: X4 (myślnik); najmniejsza poprawka.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: 'it would give' - taken: 'the roll would give'.",
+    "review: coldEn: the sentence '{name} rolled {hope} on the Hope die ...' rejected: {hope} and {fear} may be '-' (fact 0), which reads as 'rolled - on the Hope die'; the row is one line of a GM's list, where label and value are the list's shape (X7 reads chains inside a sentence)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Calls.notArmedNotCharged",
+   "group": "window",
+   "surface": "toast",
+   "screen": "calls",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning notification on the player's own browser, after the player bought a Hope Call that arms a roll (Support on another student, Experience, Ultimate, Resolve, Loaded Die) and the arming failed; {call} is the Call's name. A GM never sees it (gmPays needs a non-GM buyer).",
+     "file": "scripts/calls.mjs",
+     "fn": "spendHopeCall",
+     "note": "Obstacle removed: it is a Despair Call (config.mjs DESPAIR_CALLS) and never passes here (the mechanics review)."
+    },
+    {
+     "fact": "For such a Call the GM's side charges the Hope at the moment it arms the Call, and gives it back when the arming throws; here the arming failed, so no Hope was charged and the Call is not waiting on any roll.",
+     "file": "scripts/bridge-runs-records.mjs",
+     "fn": "armPaidByPlayer",
+     "note": null
+    },
+    {
+     "fact": "The player keeps all their Hope. A retry is refused again while the cause stands (an unused Call of that kind already held, too little Hope, a Silence).",
+     "file": "scripts/call-effects.mjs",
+     "fn": "grantEffect",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{call} was not armed, and no Hope was taken.",
+    "after": "{call} was not armed. You keep your Hope."
+   },
+   "pl": {
+    "before": "{call} nie został uzbrojony i nie pobrano za niego Hope.",
+    "after": "Nie udało się uzbroić {call}. Hope zostaje przy tobie."
+   },
+   "removed": [
+    "\"and no Hope was taken\": a reassurance by denying a loss (X1); now said as what the player keeps (O8), as pair N28-N30 does.",
+    "pl: The old line only denied a loss (X1) and in a masculine past tense; it now says what the player keeps and that the Call can be tried again.",
+    "review: pl: taken - „Nie udało się uzbroić {call}. Hope zostaje przy tobie.”; „twój następny rzut” was false for a Support on another student, and the retry promise is dropped.",
+    "review: mechanics: taken - fact 0 corrected (Obstacle out, the GM never sees it), fact 1's refund named, fact 2 weakened to the code; the English, which promises no retry, stays.",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.RollDialog.advantageCapped",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "roll-window",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A sentence added at the end of the tooltip of the locked advantage chip in the roll window, after the sentence that lists the sources of advantage or disadvantage (a Call, the situation, a hindrance die, the state of having no Sanity left) and how many dice are rolled.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    },
+    {
+     "fact": "It appears only when the sources add up to more advantage or disadvantage dice than the cap; the roll then takes exactly the cap's number of dice. {cap} is that cap, ADVANTAGE_CAP, 3 on this tree; the plural form is chosen by {cap}.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "ADVANTAGE_CAP",
+     "note": null
+    },
+    {
+     "fact": "The same holds for advantage dice and for disadvantage dice.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "advantageSources",
+     "note": null
+    },
+    {
+     "fact": "The old text gave a reason (that more dice would no longer be a roll), which no rule states.",
+     "file": "scripts/roll-dialog.mjs",
+     "fn": "explainAdvantage",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": {
+     "one": "More than {cap} die stops being a roll, so it stops at {cap}.",
+     "other": "More than {cap} dice stops being a roll, so it stops at {cap}."
+    },
+    "after": {
+     "one": "A roll takes no more than {cap} of these dice.",
+     "other": "A roll takes no more than {cap} of these dice."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Więcej niż {cap} kość przestaje być rzutem, więc zatrzymuje się na {cap}.",
+     "few": "Więcej niż {cap} kości przestaje być rzutem, więc zatrzymuje się na {cap}.",
+     "many": "Więcej niż {cap} kości przestaje być rzutem, więc zatrzymuje się na {cap}.",
+     "other": "Więcej niż {cap} kości przestaje być rzutem, więc zatrzymuje się na {cap}."
+    },
+    "after": {
+     "one": "Źródła dają więcej, ale rzucasz najwyżej {cap} taką kością.",
+     "few": "Źródła dają więcej, ale rzucasz najwyżej {cap} takimi kośćmi.",
+     "many": "Źródła dają więcej, ale rzucasz najwyżej {cap} takimi kośćmi.",
+     "other": "Źródła dają więcej, ale rzucasz najwyżej {cap} takiej kości."
+    }
+   },
+   "removed": [
+    "\"stops being a roll\": a design rationale in the string (O9, X2); the cap itself stays.",
+    "The second {cap} goes: one statement of the number is enough (O2); the set of placeholders is unchanged (N2).",
+    "pl: The old text gave a reason no rule states (that more dice stop being a roll); it now says the roll takes at most the cap.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - the instrumental after „rzucasz”, the verb of the stacked sentence before it in the same tooltip.",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Rolls.awayTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "file:scripts/roll-draw.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The heading of a card for the GMs only, posted at the primary GM's start and on a stamped message: it lists the rolls players made while no GM was connected, each with its status, and has two buttons to accept all or none of them.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "awayRollsCard",
+     "note": null
+    },
+    {
+     "fact": "Read by the GMs; a player never sees it.",
+     "file": "scripts/roll-draw.mjs",
+     "fn": "awayRollsCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Rolls made while no GM was connected",
+    "after": "Rolls with no GM connected"
+   },
+   "pl": {
+    "before": "Rzuty wykonane bez połączonego GM-a",
+    "after": "Rzuty graczy pod nieobecność GM-a"
+   },
+   "removed": [
+    "\"made while ... was\": the heading was 7 words over the window-title target of 5 (T4); the same fact in 5 words.",
+    "pl: „bez połączonego GM-a” read like a description of the rolls, not of the time they were made; the title now names whose rolls and when.",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  }
+ ]
+}
