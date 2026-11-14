@@ -59129,6 +59129,42 @@ const INVARIANTS = [
             "[the walk writes the pending row, asks, runs no announcement; the sound first; to the walker's players; kept; "
             + "the announcement drops the row and notes the bodies heard before its gather; asked at the stores' opening and a GM's leaving; registered]");
     }],
+
+    ["R6300 - every font the stylesheets load ships with its own licence named in fonts/README.md and its text beside it, Special Elite's Apache 2.0 (E26 prep, 14.11.2026)", async () => {
+        /*
+         * E26 prep, 14.11.2026. Read off the woff2 files' own name tables (fontTools 4.68 on the checkout at 1463f22b):
+         * Special Elite's copyright says "Available under the Apache 2.0 licence" and its licence URL is apache.org's,
+         * while fonts/README.md and the root README called it SIL OFL 1.1; VT323 and the pixel face name the OFL. No
+         * licence text shipped at all. The licence files are google/fonts' own (ofl/pressstart2p/OFL.txt,
+         * ofl/vt323/OFL.txt, apache/specialelite/LICENSE.txt, fetched 14.11.2026). Red at 1463f22b: no "## Licences"
+         * table, so no woff2 had a row. What the name tables say is `node tools/check.mjs fonts`, in Node.
+         */
+        const css = await moduleStyles();
+        const loaded = [...new Set([...css.matchAll(/fonts\/([\w-]+\.woff2)/g)].map(m => m[1]))].sort();
+        must(loaded.length >= 6, `the stylesheets named ${loaded.length} woff2 file(s)`);
+        const res = await fetch(`/modules/${MODULE_ID}/fonts/README.md`);
+        must(res.ok, "fonts/README.md did not load");
+        const readme = await lfText(res);
+        const section = /^## Licences\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(readme)?.[1] ?? "";
+        const rows = new Map([...section.matchAll(/^\| `([\w-]+\.woff2)` \| ([^|]+?) \| ([^|]+?) \| `([\w.-]+)` \|$/gm)]
+            .map(m => [m[1], { face: m[2], licence: m[3], file: m[4] }]));
+        equal(stableJson(loaded.filter(f => !rows.has(f))), "[]", "a woff2 the stylesheets load with no row in fonts/README.md's licence table");
+        const want = { "Special Elite": /^Apache License 2\.0$/, "VT323": /^SIL Open Font License 1\.1$/, "Press Start 2P": /^SIL Open Font License 1\.1$/ };
+        const texts = { apache: /Apache License\s+Version 2\.0, January 2004/, ofl: /SIL OPEN FONT LICENSE Version 1\.1 - 26 February 2007/ };
+        const wrong = [];
+        for (const f of loaded) {
+            const row = rows.get(f);
+            if (!row) continue;
+            const face = Object.keys(want).find(k => row.face.includes(k));
+            if (!face) { wrong.push(`${f}: face "${row.face}" is none of ${Object.keys(want).join(", ")}`); continue; }
+            if (!want[face].test(row.licence)) wrong.push(`${f}: ${face} under "${row.licence}"`);
+            const lic = await fetch(`/modules/${MODULE_ID}/fonts/${row.file}`);
+            const text = lic.ok ? await lfText(lic) : "";
+            if (!(face === "Special Elite" ? texts.apache : texts.ofl).test(text)) wrong.push(`${f}: fonts/${row.file} ${lic.ok ? "is not that licence's text" : "did not load"}`);
+        }
+        equal(stableJson(wrong), "[]", "each face's licence and its text, as the font's own name table names it");
+        ok(!/Special Elite[^.\n]*Open Font License|both under the \*\*SIL Open/.test(readme), "fonts/README.md still calls Special Elite OFL");
+    }],
 ];
 
 /**

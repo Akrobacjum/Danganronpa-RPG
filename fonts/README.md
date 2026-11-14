@@ -21,10 +21,31 @@ pixel 3 px) Ó read as O. `node audit/glass-sweep.mjs --accents` fails when any 
 both themes. A redraw changes the `?v=` query on the `@font-face` rules in
 `styles/danganronpa.css`, or browsers keep the old file.
 
-## Licence
+## Licences
 
-Press Start 2P by CodeMan38, released under the **SIL Open Font License 1.1**,
-which permits redistribution alongside this module.
+Each face keeps its own licence, and each licence's text ships beside the files
+it covers. Read off the files' own name tables on 14.11.2026 (the copyright and
+the licence URL); the texts are google/fonts' own copies, fetched the same day.
+
+| File | Face | Licence | Text |
+| --- | --- | --- | --- |
+| `pixel.woff2` | Press Start 2P, modified | SIL Open Font License 1.1 | `OFL-PressStart2P.txt` |
+| `pixel-ext.woff2` | Press Start 2P, modified | SIL Open Font License 1.1 | `OFL-PressStart2P.txt` |
+| `VT323-Regular.woff2` | VT323 | SIL Open Font License 1.1 | `OFL-VT323.txt` |
+| `VT323-LatinExt.woff2` | VT323 | SIL Open Font License 1.1 | `OFL-VT323.txt` |
+| `SpecialElite-Regular.woff2` | Special Elite | Apache License 2.0 | `LICENSE-SpecialElite.txt` |
+| `SpecialElite-LatinExt.woff2` | Special Elite | Apache License 2.0 | `LICENSE-SpecialElite.txt` |
+
+- **Press Start 2P** by CodeMan38: Copyright 2012 The Press Start 2P Project
+  Authors, with Reserved Font Name "Press Start 2P". The two pixel files are a
+  modified version (the marks of Ó Ć Ń Ś Ź Ż, 13.11.2026, under "Polish capitals"
+  above), so under the licence's condition 3 they may not carry that name: the
+  stylesheet loads them as "DRPG Pixel".
+- **VT323** by Peter Hull: Copyright 2011 The VT323 Project Authors. No reserved
+  font name.
+- **Special Elite** by Astigmatic (Brian J. Bonislawsky): Copyright 2010, under
+  the Apache License 2.0, not the OFL. Until 14.11.2026 this file and the root
+  README called it OFL.
 
 ## Swapping the font - read this first
 
@@ -64,7 +85,7 @@ table it is E24's live check of the biography's type (AUDIT 9.2).
 
 ## Stained Glass theme faces
 
-Two more OFL faces, used only when the *Theme* setting is **Stained Glass**
+Two more faces, used only when the *Theme* setting is **Stained Glass**
 (see `styles/stained-glass.css` and `docs/design/typography.md`):
 
     VT323-Regular.woff2            latin       chrome, prose, stamps
@@ -72,8 +93,8 @@ Two more OFL faces, used only when the *Theme* setting is **Stained Glass**
     SpecialElite-Regular.woff2     latin       titles only
     SpecialElite-LatinExt.woff2    latin-ext
 
-VT323 by **Peter Hull**, Special Elite by **Astigmatic**, both under the **SIL Open
-Font License 1.1**. Split into latin and latin-ext the same way Google Fonts serves
+VT323 by **Peter Hull** and Special Elite by **Astigmatic**, each under its own
+licence (above). Split into latin and latin-ext the same way Google Fonts serves
 them, for the same reason as the pixel font above.
 
 **Two other faces were tried and sent back (07.09.2026).** Micro 5 was carried for a

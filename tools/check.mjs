@@ -769,7 +769,12 @@ const PACKAGE_NOTES = {
     "module.json": "Foundry reads it to install and load the module",
     "README.md": "the module's description, shown where the package is browsed",
     "LICENSE": "the module's licence, which ships with it",
-    "fonts/README.md": "the SIL Open Font License notice of the fonts beside it, which that licence asks to ship with them"
+    "fonts/README.md": "the fonts' licence table and their authors, which the licences ask to ship with the fonts",
+    /* E26 prep, 14.11.2026: each licence's own text, which the OFL (condition 2) and the Apache License 2.0 (4(a)) ask to
+       ship with every copy of the font; a table reads none of them. */
+    "fonts/OFL-PressStart2P.txt": "the SIL Open Font License 1.1 of pixel.woff2 and pixel-ext.woff2",
+    "fonts/OFL-VT323.txt": "the SIL Open Font License 1.1 of the VT323 files",
+    "fonts/LICENSE-SpecialElite.txt": "the Apache License 2.0 of the Special Elite files"
 };
 const PACKAGE_EXT = "mjs|js|css|json|svg|png|webp|jpe?g|gif|woff2?|ttf|otf|md|ogg|mp3|wav|webm";
 
