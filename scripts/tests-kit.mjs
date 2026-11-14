@@ -1636,6 +1636,328 @@ function voteText(sources, family = VOTE_FAMILY) {
 }
 
 /**
+ * The glass's family (E54): glass.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/glass.json): glass-geometry.mjs, glass-blocks.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of glass.mjs's text reads the family through `glassText`
+ * (or `glassFetch`, or `glassBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const GLASS_FAMILY = Object.freeze(["glass.mjs", "glass-geometry.mjs", "glass-blocks.mjs"]);
+
+/** The line `glassText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const GLASS_FAMILY_END = "const GLASS_FAMILY_END = {};";
+
+/**
+ * The glass's family's texts, raw, in GLASS_FAMILY's order, joined by the line `const GLASS_FAMILY_END = {};` (E54):
+ * what a read of glass.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function glassText(sources, family = GLASS_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the glass's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${GLASS_FAMILY_END}\n`);
+}
+
+/** `glassText` of the family as this browser is served it: what a `fetch` of glass.mjs's URL read while it was one file. */
+async function glassFetch(family = GLASS_FAMILY) {
+    return glassText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the glass's family: texts joined as `glassText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function glassBy(reader, family = GLASS_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the glass's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${GLASS_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the glass's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the glass's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
+ * The chapter's family (E54): chapter.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/chapter.json): body.mjs, death.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of chapter.mjs's text reads the family through `chapterText`
+ * (or `chapterFetch`, or `chapterBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const CHAPTER_FAMILY = Object.freeze(["chapter.mjs", "body.mjs", "death.mjs"]);
+
+/** The line `chapterText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const CHAPTER_FAMILY_END = "const CHAPTER_FAMILY_END = {};";
+
+/**
+ * The chapter's family's texts, raw, in CHAPTER_FAMILY's order, joined by the line `const CHAPTER_FAMILY_END = {};` (E54):
+ * what a read of chapter.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function chapterText(sources, family = CHAPTER_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the chapter's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${CHAPTER_FAMILY_END}\n`);
+}
+
+/** `chapterText` of the family as this browser is served it: what a `fetch` of chapter.mjs's URL read while it was one file. */
+async function chapterFetch(family = CHAPTER_FAMILY) {
+    return chapterText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the chapter's family: texts joined as `chapterText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function chapterBy(reader, family = CHAPTER_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the chapter's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${CHAPTER_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the chapter's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the chapter's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
+ * The cleanup's family (E54): cleanup.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/cleanup-reshape.json): cleanup-reshape.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of cleanup.mjs's text reads the family through `cleanupText`
+ * (or `cleanupFetch`, or `cleanupBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const CLEANUP_FAMILY = Object.freeze(["cleanup.mjs", "cleanup-reshape.mjs"]);
+
+/** The line `cleanupText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const CLEANUP_FAMILY_END = "const CLEANUP_FAMILY_END = {};";
+
+/**
+ * The cleanup's family's texts, raw, in CLEANUP_FAMILY's order, joined by the line `const CLEANUP_FAMILY_END = {};` (E54):
+ * what a read of cleanup.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function cleanupText(sources, family = CLEANUP_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the cleanup's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${CLEANUP_FAMILY_END}\n`);
+}
+
+/** `cleanupText` of the family as this browser is served it: what a `fetch` of cleanup.mjs's URL read while it was one file. */
+async function cleanupFetch(family = CLEANUP_FAMILY) {
+    return cleanupText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the cleanup's family: texts joined as `cleanupText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function cleanupBy(reader, family = CLEANUP_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the cleanup's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${CLEANUP_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the cleanup's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the cleanup's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
+ * The investigation's family (E54): investigation.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/key-remnants.json): key-remnants.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of investigation.mjs's text reads the family through `investigationText`
+ * (or `investigationFetch`, or `investigationBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const INVESTIGATION_FAMILY = Object.freeze(["investigation.mjs", "key-remnants.mjs"]);
+
+/** The line `investigationText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const INVESTIGATION_FAMILY_END = "const INVESTIGATION_FAMILY_END = {};";
+
+/**
+ * The investigation's family's texts, raw, in INVESTIGATION_FAMILY's order, joined by the line `const INVESTIGATION_FAMILY_END = {};` (E54):
+ * what a read of investigation.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function investigationText(sources, family = INVESTIGATION_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the investigation's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${INVESTIGATION_FAMILY_END}\n`);
+}
+
+/** `investigationText` of the family as this browser is served it: what a `fetch` of investigation.mjs's URL read while it was one file. */
+async function investigationFetch(family = INVESTIGATION_FAMILY) {
+    return investigationText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the investigation's family: texts joined as `investigationText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function investigationBy(reader, family = INVESTIGATION_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the investigation's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${INVESTIGATION_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the investigation's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the investigation's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
+ * The settings's family (E54): settings.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/windows-settings.json): window-scale.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of settings.mjs's text reads the family through `settingsText`
+ * (or `settingsFetch`, or `settingsBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const SETTINGS_FAMILY = Object.freeze(["settings.mjs", "window-scale.mjs"]);
+
+/** The line `settingsText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const SETTINGS_FAMILY_END = "const SETTINGS_FAMILY_END = {};";
+
+/**
+ * The settings's family's texts, raw, in SETTINGS_FAMILY's order, joined by the line `const SETTINGS_FAMILY_END = {};` (E54):
+ * what a read of settings.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function settingsText(sources, family = SETTINGS_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the settings's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${SETTINGS_FAMILY_END}\n`);
+}
+
+/** `settingsText` of the family as this browser is served it: what a `fetch` of settings.mjs's URL read while it was one file. */
+async function settingsFetch(family = SETTINGS_FAMILY) {
+    return settingsText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the settings's family: texts joined as `settingsText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function settingsBy(reader, family = SETTINGS_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the settings's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${SETTINGS_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the settings's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the settings's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
+ * The utils's family (E54): utils.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/windows.json): windows.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of utils.mjs's text reads the family through `utilsText`
+ * (or `utilsFetch`, or `utilsBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const UTILS_FAMILY = Object.freeze(["utils.mjs", "windows.mjs"]);
+
+/** The line `utilsText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const UTILS_FAMILY_END = "const UTILS_FAMILY_END = {};";
+
+/**
+ * The utils's family's texts, raw, in UTILS_FAMILY's order, joined by the line `const UTILS_FAMILY_END = {};` (E54):
+ * what a read of utils.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function utilsText(sources, family = UTILS_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the utils's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${UTILS_FAMILY_END}\n`);
+}
+
+/** `utilsText` of the family as this browser is served it: what a `fetch` of utils.mjs's URL read while it was one file. */
+async function utilsFetch(family = UTILS_FAMILY) {
+    return utilsText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the utils's family: texts joined as `utilsText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function utilsBy(reader, family = UTILS_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the utils's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${UTILS_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the utils's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the utils's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
+ * The sheet's family (E54): sheet.mjs - the facade, which keeps `registerSheetTweaks`, `SHEET_STEPS`, `runSheetSteps`, `onRenderCharacterSheet` - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/sheet.json): sheet-mode.mjs, sheet-item.mjs, sheet-repaint.mjs, sheet-fit.mjs, sheet-header.mjs, sheet-sidebar.mjs, sheet-inventory.mjs, sheet-actions.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of sheet.mjs's text reads the family through `sheetText`
+ * (or `sheetFetch`, or `sheetBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const SHEET_FAMILY = Object.freeze(["sheet.mjs", "sheet-mode.mjs", "sheet-item.mjs", "sheet-repaint.mjs", "sheet-fit.mjs", "sheet-header.mjs", "sheet-sidebar.mjs", "sheet-inventory.mjs", "sheet-actions.mjs"]);
+
+/** The line `sheetText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const SHEET_FAMILY_END = "const SHEET_FAMILY_END = {};";
+
+/**
+ * The sheet's family's texts, raw, in SHEET_FAMILY's order, joined by the line `const SHEET_FAMILY_END = {};` (E54):
+ * what a read of sheet.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function sheetText(sources, family = SHEET_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the sheet's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${SHEET_FAMILY_END}\n`);
+}
+
+/** `sheetText` of the family as this browser is served it: what a `fetch` of sheet.mjs's URL read while it was one file. */
+async function sheetFetch(family = SHEET_FAMILY) {
+    return sheetText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the sheet's family: texts joined as `sheetText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function sheetBy(reader, family = SHEET_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the sheet's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${SHEET_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the sheet's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the sheet's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
  * is handed the tables (as `bridgeTables()` gives them), the language keys of
  * each file, flattened, and bridge-guards.mjs's namespace, so R1b can run it on
@@ -2258,7 +2580,7 @@ function clientStored() {
 /**
  * The ids of the body tiles on `scene` that `known` (the snapshot's set of its tile ids) did not hold: what tier 2's
  * `restore` deletes (E95 fix RV-4, 10.11.2026; tier 1 R3146). A tile is a body tile by its `FLAGS.bodyOf` object, the
- * one a public death lays (body-tile.mjs `leaveBody`, from chapter.mjs `markDeceased` since E63) where a test marks a death and takes the flag
+ * one a public death lays (body-tile.mjs `leaveBody`, from death.mjs `markDeceased` since E63) where a test marks a death and takes the flag
  * back with no revive (E51-T21). Any other tile that appeared is left for the world dump to name ("tiles.<id>
  * appeared"), as it named that leak. No `known` (a scene that appeared, which goes whole): none.
  */
@@ -2609,7 +2931,7 @@ function dhSettingsStandIn(source, { name, tab, doc = document } = {}) {
 }
 
 /*
- * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet.mjs `markTraitGlyphs`).
+ * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet-header.mjs `markTraitGlyphs`).
  * Daggerheart 2.6.5 templates/sheets/actors/character/header.hbs:107-133, read at the tag: `.character-traits`, one
  * `.trait` per trait in the system's order with `data-attribute` (Daggerheart's key), its `.trait-name` (the tier mark and
  * a span with the label) and its `.trait-value-area` (the crest's svg and the value). Inside the sheet's root as the
@@ -2642,7 +2964,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, GLASS_FAMILY, glassText, glassFetch, glassBy, CHAPTER_FAMILY, chapterText, chapterFetch, chapterBy, CLEANUP_FAMILY, cleanupText, cleanupFetch, cleanupBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, SETTINGS_FAMILY, settingsText, settingsFetch, settingsBy, UTILS_FAMILY, utilsText, utilsFetch, utilsBy, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,

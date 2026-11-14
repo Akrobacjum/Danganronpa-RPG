@@ -79,10 +79,6 @@
       "citations": 1,
       "doubledJsdoc": 0
     },
-    "scripts/chapter.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
     "scripts/chrome.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
@@ -152,10 +148,6 @@
       "doubledJsdoc": 0
     },
     "scripts/incident-store.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/investigation.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
     },
@@ -275,10 +267,6 @@
       "citations": 11,
       "doubledJsdoc": 0
     },
-    "scripts/sheet.mjs": {
-      "citations": 5,
-      "doubledJsdoc": 0
-    },
     "scripts/sound-panel.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
@@ -334,6 +322,34 @@
     "scripts/voice.mjs": {
       "citations": 2,
       "doubledJsdoc": 0
+    },
+    "scripts/sheet-repaint.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-fit.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-header.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-sidebar.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-actions.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/key-remnants.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/death.mjs": {
+      "citations": 0,
+      "doubledJsdoc": 1
     }
   }
 }
