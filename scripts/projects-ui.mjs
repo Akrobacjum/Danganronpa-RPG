@@ -24,7 +24,7 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { error, markFired, markLanguage, serialWrite, plural } from "./utils.mjs";
+import { error, markFired, markLanguage, serialWrite, plural, esc } from "./utils.mjs";
 import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode, tipAttr, tipText } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
@@ -1434,7 +1434,6 @@ async function presetSizeOf(preset, ownedOf = null) {
 
 /** The approval window's box for the owner's three: what the card names, and why it may not be done. */
 function ownedFieldset({ preset, label, refused, why = null }) {
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     return `<fieldset class="drpg-passage-preset" data-drpg-owned-preset="${esc(preset)}"><legend>${esc(game.i18n.localize(`DRPG.Project.preset.${preset}`))}</legend>
         <p class="drpg-help">${esc(label)}</p>${refused ? `
         ${box("warning", esc(game.i18n.format("DRPG.Project.presetRefused", { why: why ?? "" })))}` : ""}</fieldset>`;
@@ -1442,7 +1441,6 @@ function ownedFieldset({ preset, label, refused, why = null }) {
 
 /** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */
 function passageFieldset({ offer, to, preset = "secretPassage" }) {
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     const t = key => game.i18n.localize(key);
     const legend = esc(t(`DRPG.Project.preset.${preset}`));
     if (!offer) return `<fieldset class="drpg-passage-preset"><legend>${legend}</legend>

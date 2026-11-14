@@ -1459,7 +1459,6 @@ export async function openFoundryReport() {
 /** Foundry and modules' body: the contract (`contract` a run of patches.mjs `runContract`, the world's unless handed) and the dice look's console line with its button. */
 export async function foundryReport({ contract = null } = {}) {
     const { runContract } = await import("./patches.mjs");
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     const title = game.i18n.localize("DRPG.DiceLook.diag.title");
     return `<div>
             ${contractSection(contract ?? runContract(), esc)}
@@ -1482,7 +1481,6 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
     const [{ auditAnonymity }, { videoUnwatched, avOffForTile, videoWithoutAudio }, { checkRoomImages }] = await Promise.all([
         import("./anonymity.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs")
     ]);
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 
     const anon = await auditAnonymity({ toChat: false });
     // E78 C5 (the owner's Q11, the A9 design's "avVideo", here voice-tile.mjs `videoUnwatched`): a world in

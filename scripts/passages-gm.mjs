@@ -58,7 +58,7 @@
 
 import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, debug, serialWrite, plural, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, debug, serialWrite, plural, forcedDeletion, esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { passageMapStore, passageSeasonStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
@@ -2217,7 +2217,6 @@ export async function sharePassage({ actorId, targetId, passageId } = {}, { stor
     const giver = facts.actor(actorId), target = facts.actor(targetId);
     const row = rowsOf(stores).get(passageId);
     const cellKey = `${passageId}/${target.id}`;
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     // A public passage is known to the one shown it already (E80 C6): no cell, which would outlast a Make secret.
     if (!stores.access.get(cellKey) && row.public !== true) {
         const at = serverNow();
@@ -2495,7 +2494,6 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         if (undo) return pick ? { found: true, to } : { nothing: true };
 
         if (!pick) await logRow("searched", null, actor.id, stores);
-        const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
         const people = peopleOf(users);
         // A player's search tells that player (the asker, not another owner of the character); a GM's, every owner (E18 C5).
         const owners = asker && !asker.isGM ? [asker] : people.filter(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
@@ -2749,7 +2747,6 @@ export async function repickPassage(passageId, { wallId, seg, rooms = [] } = {},
 }
 
 const tp = key => game.i18n.localize(`DRPG.Passage.pick.${key}`);
-const escp = text => foundry.utils.escapeHTML(String(text ?? ""));
 
 /**
  * The pick's window, `{ step(n, rooms), refuse(code), close() }`: which click is next, the rooms the
@@ -2766,8 +2763,8 @@ function pickPrompt({ again, tunnel = false, cancel }) {
         title: tp(tunnel ? "tunnelTitle" : again ? "retitle" : "title"),
         classes: ["drpg-panel", "drpg-passage-pick"],
         position: { width: 360, top: 80 },
-        body: `<p data-drpg-pick-step>${escp(game.i18n.format("DRPG.Passage.pick.step", { n: 1 }))}</p>
-            <p data-drpg-pick-say>${escp(say(1))}</p><p class="notes" data-drpg-pick-where hidden></p>
+        body: `<p data-drpg-pick-step>${esc(game.i18n.format("DRPG.Passage.pick.step", { n: 1 }))}</p>
+            <p data-drpg-pick-say>${esc(say(1))}</p><p class="notes" data-drpg-pick-where hidden></p>
             <p class="notes drpg-passage-pick-why" data-drpg-pick-why hidden></p>`,
         footer: { close: { role: "cancel", action: "cancel" } },
         render: (event, drawn) => { dialog = drawn; if (closing) drawn.close(); },

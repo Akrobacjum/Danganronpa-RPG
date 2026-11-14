@@ -40,7 +40,7 @@
  * line, and the footnote a sentence, saying it gives the passage at the next season's reset and nothing now.
  */
 
-import { error, listOf } from "./utils.mjs";
+import { error, listOf, esc } from "./utils.mjs";
 import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
@@ -51,7 +51,6 @@ import {
 import { viewPassage, oneWayOf } from "./passages.mjs";
 
 
-const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);
 const tf = (key, data) => game.i18n.format(key, data);
 const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown", found: "DRPG.Passage.tab.howFound",
