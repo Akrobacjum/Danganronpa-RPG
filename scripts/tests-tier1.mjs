@@ -11259,10 +11259,16 @@ const INVARIANTS = [
         const to = args => T.leaveDestination(args)?.id ?? null;
         must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
         const leave = fnSource(stripComments(sources.get("trial-scene.mjs")), "leaveTrialScene");
+        /* Since fix-113r (13.11.2026) leaveTrialScene asks `exitDestination(hall, exit)` for the way back - the GM's choice,
+           else the school and the flag - so the call is read where it now stands, in that function, once leaveTrialScene
+           is seen to ask it. */
+        const asks = leave.includes("leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })")
+            || (leave.includes("exitDestination(hall, exit)")
+                && (fnSource(stripComments(sources.get("trial-scene.mjs")), "exitDestination") ?? "").includes("leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })"));
         const [told, activates, hides] = ['"DRPG.TrialScene.noSchool"', ".activate(", "stageHall("].map(text => leave.indexOf(text));
         const back = told >= 0 ? leave.indexOf("return null;", told) : -1;
         equal(JSON.stringify([to({ school: linked, returnTo: from, hall }), to({ returnTo: from, hall }), to({ school: hall, returnTo: hall, hall }), to({ hall }),
-            leave.includes("leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })"), told >= 0 && told < back && back < activates && activates < hides]),
+            asks, told >= 0 && told < back && back < activates && activates < hides]),
             JSON.stringify(["school", "from", null, null, true, true]),
             "[the way back with a school and a scene the trial opened from, with that scene only, with only the hall named, with nothing; "
             + "leaveTrialScene asks the school and the flag; it tells the GMs and returns before it activates, and activates before it clears the hall]");
@@ -55040,17 +55046,22 @@ const INVARIANTS = [
         const T = S.SEQUENCE_TIMES.trialExit, read = {};
         const never = () => new Promise(() => null);
         const clock = (k, extra = {}) => ({ ...getClock(), phase: "dailyLife", chapter: 2, trialEndedAt: `R6093${k}:${Date.now()}`, trialCut: true, ...extra });
-        const ended = async ms => { const t0 = performance.now(); await until(() => S.sequenceNow() === null, ms); return Math.round(performance.now() - t0); };
+        /* Timed from the call, not from its answer: the sequence's own clock starts before it draws the curtain, and the
+           draw is synchronous, so a clock started on the answer is behind by the draw (in jsdom 100-140 ms, measured on
+           the 1.2.113 assembly, 14.11.2026: 3258-3307 ms read for the 3.4 s exit). */
+        const ended = async (ms, t0) => { await until(() => S.sequenceNow() === null, ms); return Math.round(performance.now() - t0); };
         try {
             body.classList.remove("drpg-theme-stained-glass");
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
+            const t0n = performance.now();
             read.none = await S.playTrialExit(clock("n", { trialExitScene: false }), { on: true, scene: never() });
-            const tn = await ended(T.end + 1500);
+            const tn = await ended(T.end + 1500, t0n);
             read.noneEnds = tn >= T.end - 100 && tn <= T.end + 400 && S.sequenceNow() === null;
             body.classList.add("drpg-reduced-motion");
+            const t0s = performance.now();
             read.still = await S.playTrialExit(clock("s", { trialExitScene: false }), { on: true, scene: never() });
-            const ts = await ended(T.still + 1500);
+            const ts = await ended(T.still + 1500, t0s);
             read.stillEnds = ts >= T.still - 100 && ts <= T.still + 400 && S.sequenceNow() === null;
             body.classList.remove("drpg-reduced-motion");
             // stamped true, and not stamped: the curtain waits for the scene, as R6090's
