@@ -12,9 +12,9 @@ R6600-R6699. Kept current as the line goes; the coordinator's ledger is the reco
 | C1 guards: stale-pl `--check`, `--sheet`, `--stamp`, `tools/pl-reviewed.json`, T9 FAIL | done | 78e4576e | R6600; R1058 widened; `check text` with T9 and the tool's self-check (a planted English moved alone seen) |
 | C2 rules-parity, check part `rules` | done | e66f01dc | the part's 14 planted faults |
 | C3 D34 | waits for E54 (settings.mjs, utils.mjs) | - | - |
-| C4 D35 "?" in six windows (GM panel 3, Season setup 2, Room setup 9.1, The case 14, the trial console 15, Edit campaign 4); "section N" references made jumps | done | (this commit) | R6601, R6602, R111's layout part; AUDIT 9.2 529-531 (LIVE-E57-01..03) |
+| C4 D35 "?" in six windows (GM panel 3, Season setup 2, Room setup 9.1, The case 14, the trial console 15, Edit campaign 4); "section N" references made jumps | done | a93cc6f1 | R6601, R6602, R111's layout part; AUDIT 9.2 529-531 (LIVE-E57-01..03) |
 | C4 the Investigation dashboard's "?" and tabs | waits for E54 (investigation.mjs) | - | - |
-| C5 window registry, mixed-language scenario | - | - | - |
+| C5 window registry (Q-E57-16: SCREENS' window rows) and scenario 51-lang-mixed | done | (this commit) | 51-lang-mixed 35/35, twice; a mutant (Edit campaign's title key gone) red on that window alone |
 | C12 last pass, text lints to their final modes | waits for the text and handbook lines | - | - |
 
 ## Anchors added to docs/handbooks/*.md
