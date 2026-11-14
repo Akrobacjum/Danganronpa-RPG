@@ -142,6 +142,20 @@ How the 15 were settled (each recorded in its batch text, `FIX:` in `removed` or
 - the test's expected wording given the new text, the fact it measures kept: R1156, R3150, R825, R1502, R1530;
 - scenario 50-lang: the Polish panel title it reads ("Panel GM-a").
 
+| When | Tree | Result |
+| --- | --- | --- |
+| tier 1, run c | 366dbfcc and the two scenario fixes below | 1590 passed, 1 failed (R2001, the known base failure), 16 skipped, 0 red (426 s): R4420 green, so its red in run b was load, not this line (it reads sequence.mjs, glass.mjs and the stylesheet, none changed here) |
+
+Scenarios that read the changed texts (`node cluster.mjs scenarios/<n>.mjs`, one at a time, on 366dbfcc): 62-investigation
+52/52, 65-season 58/60 with 2 expected red (Foundry limits), 66-rooms 77/77, 68-trial-zones 34/34, 75-voice-tile 42/42,
+41-trial-scene 52/52, 30-security 301/303 with 2 expected red, 33-bridge-paths 88/89 with 1 expected red, 88-flow-length
+27/27. Two were red and are fixed in the scenario, not the text: 61-gmstore-case 113/114 (Z2 matched "2 traces on the
+map", the early pass's text being "2 Remnants": Z2 now reads both lines through `game.i18n.format` of
+`DRPG.Case.row.bullets.other` and `DRPG.Case.row.traces.other`), then 114/114; 50-lang 41/45 (its plural check expected
+the English plural "Key Remnants" in Polish, where the early pass inflects "Key Remnanty", "Key Remnantów" by DB4; the
+check now reads the few and many forms), then 45/45. 50-lang's red was not this line's (the key, `DRPG.Chapter.doneKeys`,
+is unchanged here) and is fixed because the check measures the plural rule, not the word.
+
 ## Needs a local Foundry
 
 - The plan's screenshots of every window batch (EN and PL, both themes, 1366x768, 1024x768, 820x1180) need the windows
@@ -163,7 +177,6 @@ How the 15 were settled (each recorded in its batch text, `FIX:` in `removed` or
 | `DRPG.Vault.neighboursColumn` and the column's note | "Neighbours" (EN1, glossary neighbor); `DRPG.Rooms.renamed` keeps "Neighbours" to match it; the GM handbook quotes both |
 | `DRPG.Tips.Setup.playTooltip` | says "until Reset music"; the button is "Stop the track" since the early pass |
 | `DRPG.Tips.Setup.categoryTooltip`, `DRPG.Items.iconsPinned` | "icon" for the field the item tables window now calls a picture (O14) |
-| `DRPG.Chapter.doneKeys` (pl) | scenario 50-lang's "plural picks one/few/many" check expects "2 Key Remnants" in Polish and fails 4 checks (41/45) on this tip; the key is unchanged here, so the failure predates this line (not measured on the base) |
 
 ### For the handbook line (E25/E57): texts the batches changed or held back that the handbooks quote
 

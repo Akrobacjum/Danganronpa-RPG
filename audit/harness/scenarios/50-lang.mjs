@@ -39,7 +39,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         check(`${c.who}: config.mjs prose was swapped in place`, r.hint !== en.hint && /Przeszukaj/.test(r.hint), r.hint);
         check(`${c.who}: the glossary stays English`, r.label === "Search" && r.phase === "Daily Life" && r.stat === "Eye", JSON.stringify([r.label, r.phase, r.stat]));
         check(`${c.who}: the time of day is Polish`, r.tod === "Południe", r.tod);
-        check(`${c.who}: plural picks one/few/many`, r.p1.includes("1 Key Remnant.") && /2 Key Remnants/.test(r.p2) && /5 Key Remnants/.test(r.p5) && /22 Key Remnants/.test(r.p22), JSON.stringify([r.p1, r.p2, r.p5, r.p22]));
+        check(`${c.who}: plural picks one/few/many`, r.p1.includes("1 Key Remnant.") && /2 Key Remnanty\./.test(r.p2) && /5 Key Remnantów\./.test(r.p5) && /22 Key Remnanty\./.test(r.p22), JSON.stringify([r.p1, r.p2, r.p5, r.p22]));
         check(`${c.who}: the system override (Fear -> Despair) survived the merge`, r.dh === "Despair", r.dh);
     }
 
