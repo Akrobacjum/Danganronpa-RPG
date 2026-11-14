@@ -7763,7 +7763,7 @@
           "hope": "Ofiara czuje, że z tym pokojem coś jest nie tak, choć nie wie co. Zostaje na niej Incident Remnant (Evident).",
           "despair": "Ofiara rozgryza, co tu zastawiono, i może powiedzieć o tym innym; projekt, który za tym stoi, pozostaje aktywny. Zostaje na niej Incident Remnant (Evident).",
           "critical": "Ofiara dostrzega pułapkę i wie, kto ją zbudował. Zostaje na niej Incident Remnant (Evident).",
-          "failure": "Ofiara niczego nie zauważa, a pułapka się zamyka. Nie może już wziąć Role Reversal, a nikt, kto wejdzie, nie weźmie Double Role Reversal."
+          "failure": "Ofiara niczego nie zauważa, a pułapka się zamyka. Nie może już wziąć Role Reversal."
         }
       },
       "CRISIS_ACTIONS": {

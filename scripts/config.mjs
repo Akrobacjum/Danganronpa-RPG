@@ -3734,7 +3734,7 @@ export const MURDER_OPENING = {
         hope: "The victim senses something is wrong in this room, but not why. Their roll leaves an Incident Remnant (Evident).",
         despair: "The victim works out what was set up here and can tell the others; the project behind it stays active. Their roll leaves an Incident Remnant (Evident).",
         critical: "The victim spots the trap and knows who built it. Their roll leaves an Incident Remnant (Evident).",
-        failure: "The victim notices nothing, and the trap closes. The victim cannot take Role Reversal, and nobody who walks in can take Double Role Reversal.",
+        failure: "The victim notices nothing, and the trap closes. The victim cannot take Role Reversal.",
         /**
          * Noticing leaves a trace of the attempt.
          *
