@@ -5165,6 +5165,189 @@
     "mechanics": null
    },
    "owner": null
+  },
+  {
+   "key": "DRPG.Events.safewordSub",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The events feed's card for a stopped scene: shown while the game is paused and a safeword card was posted since the pause.",
+     "file": "scripts/events.mjs",
+     "fn": "safewordCard",
+     "note": null
+    },
+    {
+     "fact": "A player stops the scene by pressing the Safeword's \"Stop it\"; nobody calls it out, and the table's own card says the safeword was used (Safeword.announced).",
+     "file": "scripts/safeword.mjs",
+     "fn": "safeword",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Somebody called the safeword.",
+    "after": "Somebody used the safeword."
+   },
+   "pl": {
+    "before": "Ktoś użył safeword.",
+    "after": "Ktoś użył safeword."
+   },
+   "removed": [
+    "en: \"called\" for \"used\": the code's road is a press of Stop it, and Safeword.announced says \"used\" (line C's finding, the coordinator's round of 14.11)",
+    "surface: a line of the events feed no budget rule places; tile-hint's budget stands in"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Bridge.why.noBudget",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/bridge-guards.mjs",
+   "readers": [
+    "player"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The sentence a refused crossing or room action is told with when the character has no Free Move and no action left (the reason code noBudget), said to the asker in their language.",
+     "file": "scripts/bridge-guards.mjs",
+     "fn": "sayNotDone",
+     "note": null
+    },
+    {
+     "fact": "The sheet's and the movement's own refusal of the same case says DRPG.Move.noBudget; the two keys say one thing in each language.",
+     "file": "scripts/movement.mjs",
+     "fn": "refusal",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "No Free Move and no actions left.",
+    "after": "No Free Move and no actions left."
+   },
+   "pl": {
+    "before": "Brak Free Move i brak akcji.",
+    "after": "Nie masz już Free Move ani akcji."
+   },
+   "removed": [
+    "pl: the same sentence as DRPG.Move.noBudget's Polish (B09), which says it to the one moving; a group C key, edited here at the coordinator's word of 14.11"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Bridge.what.overflow.add",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/bridge-guards.mjs",
+   "readers": [
+    "player"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The name of the bridge action overflow.add (Despair put into the Overflow), said in a refusal or a failure the asker is told.",
+     "file": "scripts/bridge-wire.mjs",
+     "fn": "ACTION_OVERFLOW_ADD",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Add to the overflow",
+    "after": "Add to the Overflow"
+   },
+   "pl": {
+    "before": "Dodanie do overflow",
+    "after": "Dodanie do Overflow"
+   },
+   "removed": [
+    "\"overflow\" -> \"Overflow\": the glossary's name, capitalized (line A's reading, the coordinator's round of 14.11); the Polish keeps its noun phrase, Overflow neuter and indeclinable (PL-b)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Bridge.what.overflow.clear",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/bridge-guards.mjs",
+   "readers": [
+    "player"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The name of the bridge action overflow.clear (the Overflow emptied), said in a refusal or a failure the asker is told.",
+     "file": "scripts/bridge-wire.mjs",
+     "fn": "ACTION_OVERFLOW_CLEAR",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Clear the overflow",
+    "after": "Clear the Overflow"
+   },
+   "pl": {
+    "before": "Wyczyszczenie overflow",
+    "after": "Wyczyszczenie Overflow"
+   },
+   "removed": [
+    "\"overflow\" -> \"Overflow\": the glossary's name, capitalized (line A's reading, the coordinator's round of 14.11)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
   }
  ]
 }

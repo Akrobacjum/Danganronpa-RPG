@@ -418,6 +418,66 @@
             "rule": "X16",
             "why": "A status word in the GM's music diagnostics, set in capitals so it stands out in a list, not emphasis inside a sentence; the owner approved this allow row on 12.11.2026.",
             "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.exitTitle",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.moodLabel",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.morningLine",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.publicEvents",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.stampGuilty",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.stampInnocent",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.tableDay",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.trialTitle",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.votesCounted",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
+        },
+        {
+            "key": "DRPG.Sequence.yourDay",
+            "rule": "X16",
+            "why": "Display type on a full-screen sequence (sequence.mjs), a title or a stamp drawn in capitals as written - the CSS sets only some elements upper case (--drpg-seq-case), and the notice history keeps the board as written - not emphasis inside a sentence; the coordinator's word of 14.11.2026 on group B's question Q-B-7.",
+            "until": "E71"
         }
     ]
 }
