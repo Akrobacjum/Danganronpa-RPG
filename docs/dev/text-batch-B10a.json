@@ -6416,10 +6416,11 @@
    },
    "pl": {
     "before": "Kontynuuj przy otwartym",
-    "after": "Kontynuuj bez zamykania"
+    "after": null
    },
    "removed": [
-    "Polish \"przy otwartym\": an adjective with no noun (X6); the English stays."
+    "Polish \"przy otwartym\": an adjective with no noun (X6); the English stays.",
+    "After landing (scenario 50-lang): the Polish stays „Kontynuuj przy otwartym”, the label gm-handbook.pl.md quotes; a new label waits for the handbook line."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -8609,14 +8610,15 @@
    ],
    "en": {
     "before": "Close Debate",
-    "after": "Close the debate"
+    "after": null
    },
    "pl": {
     "before": "Zamknij debatę",
     "after": "Zamknij debatę"
    },
    "removed": [
-    "The capital D, as in DRPG.Floor.openDebate."
+    "The capital D, as in DRPG.Floor.openDebate.",
+    "After landing (scenario 50-lang, the handbooks' labels): the English stays \"Close Debate\": the GM handbook names the console's buttons by the label the module draws, and a new label waits for the handbook line."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -10398,10 +10400,11 @@
    },
    "pl": {
     "before": "Objection w Closing Argument: po wymianie decydujesz, kto mówi dalej.",
-    "after": "Objection przerwało Closing Argument. Gdy skończy się Rebuttal, zdecydujesz, kto mówi dalej. Jeśli Objection przepadnie, zostanie wycofane albo oddalone, albo jeśli naciśniesz Wróć do debaty, mówca od razu kontynuuje z czasem, który mu został."
+    "after": "Objection przerwało Closing Argument. Gdy skończy się Rebuttal, zdecydujesz, kto mówi dalej. Jeśli Objection przepadnie, zostanie wycofane albo oddalone, albo jeśli naciśniesz Z powrotem do debaty, mówca od razu kontynuuje z czasem, który mu został."
    },
    "removed": [
-    "\"after its exchange\" becomes when its Rebuttal ends, with the lapse, the one road that skips the decision, beside it (M4)."
+    "\"after its exchange\" becomes when its Rebuttal ends, with the lapse, the one road that skips the decision, beside it (M4).",
+    "After landing: the GM bar's button keeps its Polish label „Z powrotem do debaty” (DRPG.Floor.backToDebate, quoted by gm-handbook.pl.md); the name „Wróć do debaty” is Q-E71-4's proposal to the owner, so this text names the button as it stands."
    ],
    "needsCode": [],
    "disagreements": [],

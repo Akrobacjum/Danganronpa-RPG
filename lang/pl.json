@@ -1639,7 +1639,7 @@
       "nowMovedOn": "Tura już się zmieniła, więc Pomiń niczego nie zmieniło. Naciśnij je ponownie, jeśli ta tura wciąż ma się zakończyć.",
       "incidentTitle": "Incydent jest wciąż otwarty",
       "incidentOpen": "Incydent morderstwa jest wciąż otwarty. Jego Blackened trafiają do rejestru dopiero po zamknięciu incydentu, a głosowanie i werdykt czytają rejestr. Zakończyć morderstwo teraz czy kontynuować bez zamykania?",
-      "incidentKeep": "Kontynuuj bez zamykania",
+      "incidentKeep": "Kontynuuj przy otwartym",
       "registerEmpty": "Rejestr Blackened jest pusty, a w tym rozdziale zginął uczeń. Zabójca trafia do rejestru dopiero wtedy, gdy jego incydent się zamyka, więc sprawdź, czy ten incydent jest zamknięty.",
       "registerCount": {
         "one": "{n} Blackened w rejestrze tego rozdziału.",
@@ -1862,7 +1862,7 @@
           "many": "Closing Argument: mówi {who}, zostało {seconds} s.",
           "other": "Closing Argument: mówi {who}, zostało {seconds} s."
         },
-        "inExchange": "Objection przerwało Closing Argument. Gdy skończy się Rebuttal, zdecydujesz, kto mówi dalej. Jeśli Objection przepadnie, zostanie wycofane albo oddalone, albo jeśli naciśniesz Wróć do debaty, mówca od razu kontynuuje z czasem, który mu został."
+        "inExchange": "Objection przerwało Closing Argument. Gdy skończy się Rebuttal, zdecydujesz, kto mówi dalej. Jeśli Objection przepadnie, zostanie wycofane albo oddalone, albo jeśli naciśniesz Z powrotem do debaty, mówca od razu kontynuuje z czasem, który mu został."
       },
       "startClosing": "Closing Argument",
       "endClosing": "Zakończ Closing Argument",
@@ -4955,7 +4955,7 @@
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",
         "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
-        "noBudget": "Brakuje ci Free Move i akcji, żeby za to zapłacić.",
+        "noBudget": "Brak Free Move i brak akcji.",
         "eclipseSpent": "Przejścia Eclipse wyczerpane.",
         "roundMovedOn": "GM pyta ponownie: odpowiedz na nowe pytanie.",
         "notInRound": "To pytanie jest do graczy, których uczniowie są w grze, a twój nie jest."
@@ -5405,7 +5405,7 @@
       },
       "pickMe": "Wybieram ja",
       "pickPlayer": "Wybiera gracz",
-      "allPlayers": "Niech wybierają gracze",
+      "allPlayers": "Wszyscy: wybierają gracze",
       "queueGive": "Przyznaj",
       "notYetGiven": "Level Up postaci {name} nie jest jeszcze przyznany. Przyznaj go przyciskiem Level Up na jej arkuszu."
     },

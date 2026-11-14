@@ -1989,14 +1989,15 @@
    ],
    "en": {
     "before": "That Call cannot be bought for that character.",
-    "after": "You can't buy that Call for that character."
+    "after": "You cannot buy that Call for that character."
    },
    "pl": {
     "before": "Ten Call nie może zostać kupiony dla tej postaci.",
     "after": "Tego Calla nie możesz kupić dla tej postaci."
    },
    "removed": [
-    "The passive \"cannot be bought\" became \"you can't buy\" (X11; EN3, a short message)."
+    "The passive \"cannot be bought\" became \"you can't buy\" (X11; EN3, a short message).",
+    "After landing (T19): a prohibition text writes \"cannot\" and \"You are\" in full (DB8)."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -2056,7 +2057,7 @@
    ],
    "en": {
     "before": "You cannot spend a Hope Call right now.",
-    "after": "You can't make a Hope Call right now. You keep your Hope."
+    "after": "You cannot make a Hope Call right now. You keep your Hope."
    },
    "pl": {
     "before": "Teraz nie możesz użyć Hope Call.",
@@ -2064,7 +2065,8 @@
    },
    "removed": [
     "\"spend a Hope Call\" became \"make a Hope Call\": Hope is what is spent.",
-    "\"You keep your Hope.\" added (O8, fact 3)."
+    "\"You keep your Hope.\" added (O8, fact 3).",
+    "After landing (T19): a prohibition text writes \"cannot\" and \"You are\" in full (DB8)."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -2786,14 +2788,15 @@
    ],
    "en": {
     "before": "That cannot be done now.",
-    "after": "You can't do that right now."
+    "after": "You cannot do that right now."
    },
    "pl": {
     "before": "Teraz nie da się tego zrobić.",
     "after": "Teraz nie możesz tego zrobić."
    },
    "removed": [
-    "The passive \"That cannot be done\" became \"You can't do that\" (X11, O4)."
+    "The passive \"That cannot be done\" became \"You can't do that\" (X11, O4).",
+    "After landing (T19): a prohibition text writes \"cannot\" and \"You are\" in full (DB8)."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -3667,7 +3670,7 @@
    ],
    "en": {
     "before": "No GM has decided yet on that item, which a player made on a sheet: it changes no hands until one does.",
-    "after": "That item can't change hands yet. A player added it to a sheet, and no GM has decided on it."
+    "after": "That item cannot change hands yet. A player added it to a sheet, and no GM has decided on it."
    },
    "pl": {
     "before": "Żaden GM nie zdecydował jeszcze o tym przedmiocie, który gracz dodał do karty: do tego czasu nie zmienia właściciela.",
@@ -3675,7 +3678,8 @@
    },
    "removed": [
     "The colon chain became two sentences (X7).",
-    "PL: „karty” became „arkusza” (PL-d: „karta” only for a chat card)."
+    "PL: „karty” became „arkusza” (PL-d: „karta” only for a chat card).",
+    "After landing (T19): a prohibition text writes \"cannot\" and \"You are\" in full (DB8)."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -4154,15 +4158,16 @@
    ],
    "en": {
     "before": "No Free Move and no actions left.",
-    "after": "You don't have the Free Move or the actions to pay for that."
+    "after": null
    },
    "pl": {
     "before": "Brak Free Move i brak akcji.",
-    "after": "Brakuje ci Free Move i akcji, żeby za to zapłacić."
+    "after": null
    },
    "removed": [
     "Telegraph style became a sentence (X6).",
-    "\"no actions left\" became \"the actions to pay for that\": a room action can cost more than one (fact 2)."
+    "\"no actions left\" became \"the actions to pay for that\": a room action can cost more than one (fact 2).",
+    "After landing (scenario 76-passages U): the refusal is the same sentence as DRPG.Move.noBudget, the toast the sheet's own Go through says (another line's key); the two change together or not at all, so this one stays as it was."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -5943,7 +5948,7 @@
    ],
    "en": {
     "before": "{name}'s Reroll ({action}) was cut short by a reload while its action was being taken back and made again. The first roll was {first}, the new one {total}; the card shows the new one. What the first roll did may be undone only in part: check by hand what this action leaves - progress, items, Remnants, damage, a turn - and settle it. The Hope stays paid, and this roll cannot be rerolled again.",
-    "after": "A reload cut {name}'s Reroll ({action}) short while its action was being taken back and replayed. The card shows the new total, {total}; the first was {first}. The first roll's effects may be only partly undone, so check its progress, items, Remnants, damage, and turn, and settle them by hand. The Hope stays paid, and this roll can't be rerolled."
+    "after": "A reload cut {name}'s Reroll ({action}) short while its action was being taken back and replayed. The card shows the new total, {total}; the first was {first}. The first roll's effects may be only partly undone, so check its progress, items, Remnants, damage, and turn, and settle them by hand. The Hope stays paid, and this roll cannot be rerolled."
    },
    "pl": {
     "before": "Reroll postaci {name} ({action}) przerwało przeładowanie w chwili, gdy jej akcja była cofana i wykonywana ponownie. Pierwszy rzut dał {first}, nowy {total}; karta pokazuje nowy. To, co zrobił pierwszy rzut, mogło zostać cofnięte tylko częściowo: sprawdź ręcznie, co zostawia ta akcja - postęp, przedmioty, Remnanty, obrażenia, turę - i rozstrzygnij to. Hope zostaje zapłacony, a na tym rzucie nie da się już zrobić Rerolla.",
@@ -5951,7 +5956,8 @@
    },
    "removed": [
     "The dash aside (X4): the list is the object of \"check\".",
-    "\"and settle it\": carried by \"check ... by hand\"; the sentence is shorter (T4)."
+    "\"and settle it\": carried by \"check ... by hand\"; the sentence is shorter (T4).",
+    "After landing (T19): a prohibition text writes \"cannot\" and \"You are\" in full (DB8)."
    ],
    "needsCode": [],
    "disagreements": [],

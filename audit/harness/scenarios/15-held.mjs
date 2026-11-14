@@ -170,7 +170,7 @@ async function heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl }) {
         value.FILES_BROWSE = [...new Set([1, ...(value.FILES_BROWSE ?? game.permissions.FILES_BROWSE ?? [])])];
         await game.settings.set("core", "permissions", value);`;
     const cards = `const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
-        const tail = "the change to those permissions was put back.";
+        const tail = "The module put back a change to the file permissions."; // DRPG.Enforced.filesPutBack's words since E71 B12 (14.11.2026)
         const found = [];
         for (const m of game.messages.contents.slice(early)) if (String(await wordsOf(m, 2000) ?? "").includes(tail)) found.push(m);
         const gmIds = game.users.filter(u => u.isGM).map(u => u.id);`;

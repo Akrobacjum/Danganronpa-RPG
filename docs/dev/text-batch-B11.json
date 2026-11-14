@@ -2756,14 +2756,15 @@
    ],
    "en": {
     "before": "Not offered - already broken, or a repair project: {names}.",
-    "after": "You can't sabotage these, because each is already broken or is a repair project: {names}."
+    "after": "You cannot sabotage these, because each is already broken or is a repair project: {names}."
    },
    "pl": {
     "before": "Nieoferowane - już zepsute albo projekt naprawy: {names}.",
     "after": "Tych projektów nie możesz sabotować, bo są już zepsute albo same są naprawami: {names}."
    },
    "removed": [
-    "The dash aside (X4) and the label \"Not offered\" become a sentence to the reader (O4, X6)."
+    "The dash aside (X4) and the label \"Not offered\" become a sentence to the reader (O4, X6).",
+    "After landing (T19): a prohibition text writes \"cannot\" and \"You are\" in full (DB8)."
    ],
    "needsCode": [
     "{names} is joined with join(\", \") in action-project.mjs performSabotage; EN2 wants utils.mjs listOf (Oxford comma, Polish „i”). The same holds for DRPG.Project.allSabotaged."

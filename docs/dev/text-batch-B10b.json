@@ -4255,14 +4255,15 @@
    ],
    "en": {
     "before": "All: the players pick",
-    "after": "Let the players pick"
+    "after": null
    },
    "pl": {
     "before": "Wszyscy: wybierają gracze",
-    "after": "Niech wybierają gracze"
+    "after": null
    },
    "removed": [
-    "\"All:\" with a colon on a button (X7's label-colon shape); the button is a verb with its object now (O11)."
+    "\"All:\" with a colon on a button (X7's label-colon shape); the button is a verb with its object now (O11).",
+    "After landing (scenario 50-lang): \"All: the players pick\" / „Wszyscy: wybierają gracze” stay, the labels the GM handbooks quote (and tier 2 and scenario 63 press the button by its action, not its words); a new label waits for the handbook line."
    ],
    "needsCode": [],
    "disagreements": [],
@@ -5144,14 +5145,15 @@
    ],
    "en": {
     "before": "You stumbled onto the crime. No discussing it until next chapter.",
-    "after": "You're a witness: you can't discuss the crime until this chapter ends."
+    "after": "You are a witness: you cannot discuss the crime until this chapter ends."
    },
    "pl": {
     "before": "Zbrodnia na twoich oczach. Bez rozmów o niej do następnego rozdziału.",
     "after": "Jesteś świadkiem: nie możesz mówić o zbrodni do końca tego rozdziału."
    },
    "removed": [
-    "\"You stumbled onto the crime\" and the telegraph \"No discussing it\" (X6; T18's Polish find) become the witness's wording DB7 gives for the notice („Jesteś świadkiem: …”), the same words as the whisper (O14)."
+    "\"You stumbled onto the crime\" and the telegraph \"No discussing it\" (X6; T18's Polish find) become the witness's wording DB7 gives for the notice („Jesteś świadkiem: …”), the same words as the whisper (O14).",
+    "After landing (T19): a prohibition text writes \"cannot\" and \"You are\" in full (DB8)."
    ],
    "needsCode": [],
    "disagreements": [],
