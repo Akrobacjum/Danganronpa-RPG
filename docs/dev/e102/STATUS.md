@@ -96,7 +96,12 @@ landed on claude/fervent-sagan-gme4vt (merged in first; its sites are then in E5
 | base 1463f22b | - | 335 / 52 | R4755 red: "lang/en.json has not the family's 11 keys" |
 | C6a: case-map, case-realize, case-summary, remnant-ring | 8 tipped, 2 rows "conditional" | 327 / 41 (all investigation.mjs) | R4755 green, 10 keys |
 | C6a follow-up: the closing word's own label (ui-kit.mjs) | Not now tipped | 326 / 41 | R6350 red at c1a01382, green after; R4755 11 keys |
-| C6b: investigation.mjs (E54's files) | waits for E54 | - | - |
+| C12, Actions (c15061e2) | pickChoice's Next (the existing nextTooltip); 5 rows with reasons | 325 | R6351 |
+| C12, Gm (the next) | 4 tipped, 3 rows | 321 | R6352; R4753 counts 38 + 4 |
+| C12, Setup | 8 sites tipped (12 keys), 4 rows | 313 | R6353; R4754 counts 28 + 12 |
+| C12, More and Trial | 2 rows | 313 | - |
+| C12, Case: a map node's Close (cc4088ff) | 1 tipped | 312 | R4755, 12 keys |
+| C6b: investigation.mjs (E54's files), with its C12 rows; sheet.mjs's and chapter.mjs's C12 rows | waits for E54 | - | - |
 
 What C6a found, against KEYS.json's proposals:
 
@@ -133,6 +138,8 @@ written). `tools/registry.mjs` stamps a row with the first release tag whose sui
 worked on (`sinceOf`); all ten are in v1.2.112's suite, so the tool's answer is 1.2.112, not E102. Their stamp was
 cleared to "-" (which `renderRBlock` reads as new) and `node tools/registry.mjs --write --stage E102` wrote them:
 1.2.112 for the ten, E102 for R4755 and R6350 (no release carries them).
+
+Scenario 95 holds every C6 and C12 key its windows draw (11 Case, Gm tellOnGive, Setup diceLook since cc4088ff).
 
 **The C12 rows are this line's too** (the coordinator, 14.11): the 43 in C6's files with C6b, the other 30 as C12, one
 commit per family, keys under `DRPG.Tips.<family>`; sheet.mjs (an E54 file) after E54.
