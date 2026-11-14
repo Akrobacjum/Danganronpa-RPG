@@ -2014,7 +2014,7 @@
         "revokeAccessTooltip": "Ten gracz przestaje widzieć tajny projekt; budujący widzi go zawsze",
         "useItTooltip": "Przywraca to, co wybrano, i zużywa jedną sztukę przedmiotu, bez możliwości cofnięcia",
         "clearTheOverflowTooltip": "Najpierw pyta, potem zeruje rozlany Despair",
-        "onPerRuleTooltip": "Zaznaczone: to może zostać wylosowane, gdy overflow odpala",
+        "onPerRuleTooltip": "Zaznaczone: to może zostać wylosowane, gdy Overflow odpala",
         "grantAllGrantNoneTooltip": "Daje Hope i Despair, które te rzuty by przesunęły",
         "frameStudentTooltip": "Uczeń, na którego wskazuje fałszywy Remnant",
         "nothingMatchesRefuseTooltip": "Żaden nie pasuje do prośby. Akcja zostaje wydana, a rzut trafia do GM-ów do rozstrzygnięcia",

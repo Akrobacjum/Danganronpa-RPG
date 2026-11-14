@@ -213,8 +213,8 @@
   },
   "onPerRuleTooltip": {
    "key": "DRPG.Tips.Actions.onPerRuleTooltip",
-   "en": "Ticked: this can be drawn when the overflow fires",
-   "pl": "Zaznaczone: to może zostać wylosowane, gdy overflow odpala",
+   "en": "Ticked: this can be drawn when the Overflow fires",
+   "pl": "Zaznaczone: to może zostać wylosowane, gdy Overflow odpala",
    "sites": [
     "overflow:1157"
    ]

@@ -1926,7 +1926,7 @@
         "revokeAccessTooltip": "This player stops seeing the secret project; its builder always sees it",
         "useItTooltip": "Restores what you picked and uses up one of this item, with no way back",
         "clearTheOverflowTooltip": "Asks first, then sets the spilled Despair back to zero",
-        "onPerRuleTooltip": "Ticked: this can be drawn when the overflow fires",
+        "onPerRuleTooltip": "Ticked: this can be drawn when the Overflow fires",
         "grantAllGrantNoneTooltip": "Gives the Hope and Despair these rolls would have moved",
         "frameStudentTooltip": "The student the false Remnant points at",
         "nothingMatchesRefuseTooltip": "None fits their request. The action stays spent, and their roll goes to the GMs to rule on",

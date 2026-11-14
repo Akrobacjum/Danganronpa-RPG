@@ -27242,8 +27242,9 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R6354 - two Setup tooltips name the window's words as its controls say them (the text lines' read of DRPG.Tips, 14.11.2026, through the coordinator): the Sound window's Play names the button beside it by that button's own label (DRPG.Music.reset, \"Stop the track\" / \"Wyłącz utwór\", not \"Reset music\"), and the new item's Category names its picture by the item form's word (DRPG.Tables.picture, \"Picture\" / \"Obrazek\", not \"icon\" / \"Ikona\"), in English and in Polish", async () => {
-        /* Red at 7025ac5c: Play's tooltip said "Reset music" / "Resetuj muzykę" and Category's "icon" / "Ikona". */
+    ["R6354 - two Setup tooltips name the window's words as its controls say them (the text lines' read of DRPG.Tips, 14.11.2026, through the coordinator): the Sound window's Play names the button beside it by that button's own label (DRPG.Music.reset, \"Stop the track\" / \"Wyłącz utwór\", not \"Reset music\"), and the new item's Category names its picture by the item form's word (DRPG.Tables.picture, \"Picture\" / \"Obrazek\", not \"icon\" / \"Ikona\"), in English and in Polish; and no tooltip of DRPG.Tips writes the glossary's Overflow (docs/glossary.json, n) in lower case (the coordinator's note on Actions.onPerRuleTooltip, 14.11.2026)", async () => {
+        /* Red at 7025ac5c: Play's tooltip said "Reset music" / "Resetuj muzykę" and Category's "icon" / "Ikona". The Overflow
+           half red at acbaa909: Actions.onPerRuleTooltip said "the overflow fires" / "gdy overflow odpala". */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const read = (lang, ...path) => path.reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), lang.DRPG);
@@ -27255,8 +27256,14 @@ const INVARIANTS = [
             out[name] = { playNamesStop: play.toLowerCase().includes(stop.toLowerCase()), playSaysReset: /reset/i.test(play),
                 categoryNamesPicture: category.toLowerCase().includes(picture.toLowerCase()), categorySaysIcon: /\b(icon|ikona)\b/i.test(category) };
         }
-        const want = { playNamesStop: true, playSaysReset: false, categoryNamesPicture: true, categorySaysIcon: false };
-        equal(stableJson(out), stableJson({ en: want, pl: want }), "{per language: Play's tooltip names Stop the track and not Reset; Category's names Picture and not icon}");
+        const flat = o => (o && typeof o === "object" ? Object.values(o).flatMap(flat) : [String(o ?? "")]);
+        for (const [name, lang] of [["en", en], ["pl", pl]]) {
+            const all = flat(read(lang, "Tips"));
+            must(all.length > 100, `lang/${name}.json's DRPG.Tips read as nothing - this would measure nothing`);
+            out[name].lowerOverflow = all.filter(s => /\boverflow\b/.test(s)).length;
+        }
+        const want = { playNamesStop: true, playSaysReset: false, categoryNamesPicture: true, categorySaysIcon: false, lowerOverflow: 0 };
+        equal(stableJson(out), stableJson({ en: want, pl: want }), "{per language: Play's tooltip names Stop the track and not Reset; Category's names Picture and not icon; DRPG.Tips's tooltips with a lower-case overflow}");
     }],
     ["R6355 - two tooltips say what the code does (group B's review of DRPG.Tips, 14.11.2026, through the coordinator): Observe's \"Nothing matches - refuse\" does not give the action back - the action is paid before the dice and a refused pick hands the roll already thrown to the GMs as a card (action-observe.mjs `observeSpecific`: `!target.ok` goes to `ruleObserve`, not to `abort`), so its tooltip says the action stays spent and the roll goes to the GMs; and the Passages tab's Who knows gives the passage with no message to the player (passages-gm.mjs `grantPassage` writes the access row and pushes the copies, and whispers nothing), so its tooltip says it appears in their Known passages with no message; in English and in Polish", async () => {
         /* Red at aa774bd3: "The player keeps their action and finds nothing" / "Gracz zachowuje akcję", and "their player is told" / "jego gracz się o tym dowie". */
