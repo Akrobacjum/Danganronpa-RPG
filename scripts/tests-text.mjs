@@ -2077,10 +2077,14 @@ const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*(?::|=(?![=>]))[^,;{}]*$/;
    bridge-guards.mjs's, and reads a same-file why-function's call after a spread (`{ ...refuseAs(...) }`); then a judge's
    GM half (`cubAbilityRefusalOnGm`), bridge-guards.mjs's own `guard...` functions, a logger's alias (`report = (text, err)
    => error(text, err)`, bridge-guards.mjs `request`) and a reason's chain longer than the 160 characters read before it
-   (monocub.mjs `offerBribeOnGm`: 400 now, still cut at a comma, a semicolon or a brace). */
+   (monocub.mjs `offerBribeOnGm`: 400 now, still cut at a comma, a semicolon or a brace), and a bridge row's `claims`
+   (private-rolls.mjs `ROLL_ACTIONS`). */
 const REFUSAL_NAME = /^(?:[\w$]*Refusal(?:OnGm)?|refuses)$/;
 /* bridge-guards.mjs's guards, which `judge` asks in order and which answer an English reason or null (`firstRefusal`). */
 const GUARD_NAME = /^guard[A-Z][\w$]*$/;
+/* A bridge table row's `claims` (CLAUDE.md's trust model, "How to add a bridge action" step 2): for an id no guard names,
+   who judges it, in a sentence R1b reads and no screen shows. */
+const CLAIMS_OPEN = /(?<![\w$.])claims\s*:\s*\{/g;
 const ATTRIBUTE_RUN = /^\s*(?:[a-z][\w:-]*(?:\s*=\s*(?:"[^"]*"?|'[^']*'?))?\s*)+$/i;
 const CSS_VALUE = /^\s*(?:\d+(?:\.\d+)?(?:px|r?em|%)?\s+)+(?:solid|dashed|dotted|double)\s*$/;
 const FONT_LIST = /^\s*(?:(?:\\?"[^"\\]+\\?"|'[^']+'|[\w-]+)\s*,\s*)+(?:serif|sans-serif|monospace|cursive|fantasy|system-ui)\s*$/;
@@ -2192,6 +2196,65 @@ function callSpans(lx, blank, re) {
 }
 
 /**
+ * T13'S ALLOWED LITERALS (E57 T13 group 3, 14.11.2026): English in a UI file that no screen shows, each read at its call
+ * site, by file and the literal's own words (what a finding prints between the quotes, whitespace folded), with the
+ * reason in one line. A row names one shape the detector cannot tell from text; a shape it can tell is a rule above, not a
+ * row (C8's, and the group's: reasons, an Error subclass, fragments, claims). A row that matches nothing is a finding
+ * itself, so a row outlives neither its literal nor a reworded one. Read by `uiLiterals`; a fixture passes its own
+ * through `uiAllow`.
+ */
+const CONSOLE_ONLY = "console only";
+const STEPS_LABEL = "console only: steps.mjs runSteps names its procedure by `label` in its error lines alone";
+const OVERFLOW_REASON = "console only: overflow.mjs addOverflow's `reason` is logged with the count (and asked of the primary, which logs it)";
+const LIFT_WHAT = "console only: incident-store.mjs liftIntoCast's `what` names the lift in its log line and its Error";
+const OWN_ATTRS = "console only: the first argument of ui-kit.mjs ownAttrs, the message of the Error it throws";
+const REMNANT_LIST = "console only: a migration's per-token list, joined into its warn() lines; the GM's toast counts them (DRPG.Remnant.migratedCheck)";
+const CUB_REASON = "console only: the GM's log line of a refused or unpaid Bribe or a refused Bounty (`warn(...: ${why})`); the players are told by key";
+const TUNNEL_WORDS = "console only: TUNNEL_REFUSALS, the console's words for a tunnel's codes (createPassage, the GM's game.drpg call); the pick says the code";
+export const UI_LITERAL_ALLOW = Object.freeze({
+    "scripts/call-effects.mjs": Object.freeze([["Feed the Overflow", OVERFLOW_REASON]]),
+    "scripts/despair.mjs": Object.freeze([["pool spill", OVERFLOW_REASON]]),
+    "scripts/chapter.mjs": Object.freeze([["chapter's end", STEPS_LABEL]]),
+    "scripts/verdict.mjs": Object.freeze([["Final Trial's verdict", STEPS_LABEL]]),
+    "scripts/incident-store.mjs": Object.freeze([
+        ["an incident is running: the table knows that much, and every browser's locks read it (movement, the rolls' audience, the traces' hiding)",
+            "PUBLIC_INCIDENT's reason for each field the world half keeps, data the suite and world-secrets.mjs read; no screen draws it"],
+        ["the opening, the fight or Stage 6: which of those locks holds, and the Event card and the music on a witness's browser",
+            "PUBLIC_INCIDENT's reason for each field the world half keeps, data the suite and world-secrets.mjs read; no screen draws it"],
+        ["the incident's method", LIFT_WHAT],
+        ["the incident's fight", LIFT_WHAT]]),
+    "scripts/inventory.mjs": Object.freeze([
+        ["Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.", "OLD_TIER_THREE: an old item's description in each language, compared to find items to migrate; never shown"],
+        ["Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope.", "OLD_TIER_THREE: an old item's description in each language, compared to find items to migrate; never shown"]]),
+    "scripts/monocub.mjs": Object.freeze([
+        ["the payer has not the Hope for it", CUB_REASON],
+        ["the Monocub's Hope is full", CUB_REASON],
+        ["the darkening blocks Hope", CUB_REASON]]),
+    "scripts/passages-gm.mjs": Object.freeze([
+        ["the stretch is shorter than", "MAP_REFUSALS.short, a template the closed list whyTable names (code short, DRPG.Passage.why.short); a template is not matched whole"],
+        ["name one of the scene's floors for each end (none on a scene with no floors).", TUNNEL_WORDS],
+        ["an end is in no room on its floor.", TUNNEL_WORDS],
+        ["an end stands on the square of another passage's end.", TUNNEL_WORDS],
+        ["both ends are in one room.", TUNNEL_WORDS],
+        ["the trial hall has no secret passages.", TUNNEL_WORDS]]),
+    "scripts/projects-ui.mjs": Object.freeze([["project sabotage", "a data-drpg-when-trigger value, the select's option value it is compared with; an id, not words"]]),
+    "scripts/relay-guard.mjs": Object.freeze([
+        ["Fear asked for as", "console only: an own verdict's `noted`, logged by warn() in judge (Daggerheart \"...\": accepted in part)"],
+        ["while it stood at", "console only: an own verdict's `noted`, logged by warn() in judge (Daggerheart \"...\": accepted in part)"],
+        ["; moved by one", "console only: an own verdict's `noted`, logged by warn() in judge (Daggerheart \"...\": accepted in part)"]]),
+    "scripts/remnants.mjs": Object.freeze([
+        ["), so nothing was taken off", REMNANT_LIST],
+        [": its row did not read back (", REMNANT_LIST],
+        [": no ledger row to carry", REMNANT_LIST],
+        [": a Faint Prep promotion a later correction stood against (", REMNANT_LIST],
+        ["the row", REMNANT_LIST],
+        ["delta name", REMNANT_LIST]]),
+    "scripts/settings.mjs": Object.freeze([["Safe Word", "DEFAULT_SAFEWORD, a world setting's stored default: the one word the whole table says, which a per-browser translation would split at a table of two languages; migrate.mjs compares it"]]),
+    "scripts/tables-editor.mjs": Object.freeze([["Danganronpa RPG", "the module's own name (module.json title) on the RollTable folder it creates, a proper noun the Polish keeps"]]),
+    "scripts/ui-kit.mjs": Object.freeze([["a role button", OWN_ATTRS], ["an icon button", OWN_ATTRS]])
+});
+
+/**
  * T13 (plan, S18-46; report, FAIL from E71): English written into the code of a
  * script that draws UI (UI_FILE) - a string or a template piece whose shown text
  * (shownOf) holds two or more English words (so never a key, which has no
@@ -2209,7 +2272,8 @@ function callSpans(lx, blank, re) {
 export function uiLiterals(bag = {}) {
     const lx = lexerOf(bag, "uiLiterals");
     const S = asMap(bag.scripts);
-    const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0 };
+    const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0, allowed: 0 };
+    const allow = bag.uiAllow ?? UI_LITERAL_ALLOW, used = new Set();
     const guardFile = S.get("scripts/bridge-guards.mjs");
     const guards = guardFile === undefined ? [] : [...lx.blankComments(String(guardFile)).matchAll(/^export function (\w+)\s*\(([^)]*)\)/gm)]
         .filter(m => /(?<![\w$])why(?![\w$])/.test(m[2])).map(m => m[1]);
@@ -2225,6 +2289,7 @@ export function uiLiterals(bag = {}) {
         const logs = [...callSpans(lx, blank, LOG_CALL), ...(errors.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$.])new\\s+(?:${errors.join("|")})\\s*\\(`, "g")) : [])];
         const reasons = [...callSpans(lx, blank, REASON_CALL),
             ...(ownWhy.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$])(?<![^.]\\.)(?:${[...new Set(ownWhy)].join("|")})\\s*\\(`, "g")) : [])];
+        const claims = callSpans(lx, blank, CLAIMS_OPEN);
         const judges = fns.filter(f => REFUSAL_NAME.test(f.name) || (file === "scripts/bridge-guards.mjs" && GUARD_NAME.test(f.name)));
         const aliases = fns.filter(f => f.expression && new RegExp(`^\\s*${LOG_CALL.source}`).test(blank.slice(...f.body))).map(f => f.name);
         if (aliases.length) logs.push(...callSpans(lx, blank, new RegExp(`(?<![\\w$.])(?:${[...new Set(aliases)].join("|")})\\s*\\(`, "g")));
@@ -2248,14 +2313,25 @@ export function uiLiterals(bag = {}) {
             const head = heads.get(s.start) ?? s.start;
             const before = blank.slice(Math.max(0, s.start - 40), s.start), after = blank.slice(s.end, s.end + 6);
             const opening = blank.slice(Math.max(0, head - 400), head);
-            if (REASON_PROPERTY.test(opening) || inside(reasons, s) || answered(s) || closedList.some(p => p.test(raw)) || passageReasons.has(raw)) { counts.reasons++; continue; }
+            if (REASON_PROPERTY.test(opening) || inside(claims, s) || inside(reasons, s) || answered(s) || closedList.some(p => p.test(raw)) || passageReasons.has(raw)) { counts.reasons++; continue; }
             if (/(?:[!=]==?|\bcase)\s*$/.test(before) || /^\s*[!=]==?/.test(after)) { counts.compared++; continue; }
             if (/\bSymbol\s*\(\s*$/.test(before) || fragmentOf(shown)) { counts.notText++; continue; }
             if ((SELECTOR.test(shown) && /[-_.#[]/.test(shown)) || CSS_DECLARATIONS.test(shown) || !twoWords(shown.replace(NOT_WORDS, " "))) { counts.notText++; continue; }
             if (has.some(h => h < s.start && s.start - h < 200 && !/[;{}]/.test(blank.slice(h, s.start)))) { counts.fallback++; continue; }
             const line = lineOf(code, s.start), words = shown.replace(/\s+/g, " ").trim();
+            const row = (allow[file] ?? []).find(([text]) => text === words);
+            if (row) { counts.allowed++; used.add(`${file}\u0000${row[0]}`); continue; }
             found.push({ key: `${file}:${line}`, kind: s.kind, file, line,
                 what: `${file}:${line}: "${words.length > 60 ? `${words.slice(0, 57)}...` : words}" - English written into a screen's code, not read from lang/ (S18-46; T13)` });
+        }
+    }
+    /* A row with no literal left to name, in a file the bag holds: a finding, so the table follows the code. */
+    for (const [file, rows] of Object.entries(allow)) {
+        if (!S.has(file)) continue;
+        for (const [text] of rows) {
+            if (used.has(`${file}\u0000${text}`)) continue;
+            found.push({ key: `${file}:allow`, kind: "allow", file, line: 0,
+                what: `${file}: the allow row "${text}" names no literal of the file any more - take it out of UI_LITERAL_ALLOW (T13)` });
         }
     }
     return { found, read: counts.literals, sources: ["script"], counts };
@@ -3425,7 +3501,11 @@ export const FIXTURES = Object.freeze({
     uiLiterals: {
         flags: ["scripts/fx-text.mjs:1 string", "scripts/fx-ui.mjs:1 string", "scripts/fx-ui.mjs:2 template", "scripts/fx-ui.mjs:15 template",
             "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string", "scripts/fx-ui.mjs:37 string", "scripts/fx-ui.mjs:40 string"],
+        counts: { allowed: 1 },
+        also: [{ input: { uiAllow: { "scripts/fx-ui.mjs": [["a line the allow table names", "the fixture's row"], ["a line no longer there", "a stale row"]] } },
+            add: ["scripts/fx-ui.mjs:allow allow"] }],
         input: {
+            uiAllow: { "scripts/fx-ui.mjs": [["a line the allow table names", "the fixture's row"]] },
             scripts: {
                 "scripts/fx-ui.mjs": [
                     "const d = new foundry.applications.api.DialogV2({ window: { title: \"Pick a student\" } });",     // flagged
@@ -3472,7 +3552,9 @@ export const FIXTURES = Object.freeze({
                     "const near2 = \"that wall is a door, and shut.\";",                                             // the table takes it not: flagged
                     "async function abilityRefusalOnGm(x) { return x ? \"the cub has no action left\" : null; }",      // a refusal's GM half: passes
                     "function sendFx({ report = (text, err) => error(text, err) } = {}) { report(\"Could not send the fx packet\"); }", // a logger's alias: passes
-                    "why = !payer || payer.dead || payer.away || payer.gone || payer.elsewhere || payer.asleep || payer.hidden || payer.frozen || payer.lost || payer.missing ? \"the payer is gone now\" : payer.hope < cost || payer.spent || payer.locked ? \"the payer has not the Hope for it\" : null;" // a long chain: passes
+                    "why = !payer || payer.dead || payer.away || payer.gone || payer.elsewhere || payer.asleep || payer.hidden || payer.frozen || payer.lost || payer.missing ? \"the payer is gone now\" : payer.hope < cost || payer.spent || payer.locked ? \"the payer has not the Hope for it\" : null;", // a long chain: passes
+                    "const ROWS = { fx: { guards: [], claims: { roll: guardFx, ids: \"the run reads only the ids that are strings\" } } };", // a bridge row's claim: passes
+                    "const named = \"a line the allow table names\";"                                               // an allow row's: counted apart
                 ].join("\n"),
                 "scripts/passages-gm.mjs": [
                     "const WALL_GONE = \"the wall it was cut from is gone.\";",
