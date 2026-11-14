@@ -25523,6 +25523,11 @@ const REGRESSIONS = [
         equal(JSON.stringify({ every: /\bownerIdsOf\(/.test(sound), first: /\bownerOf\(/.test(sound), users: /\bplaySfxForUsers\(/.test(sound) }),
             JSON.stringify({ every: true, first: false, users: true }), "{playSfxFor: whether it reads every owner, the first alone, and sends through playSfxForUsers}");
     }],
+    ["R7168 - an account no longer a Spectator's leaves its talk switch behind (E59 C-115, CHAINS.md B-S6): the switch is the player's User flag (spectator.mjs `SPECTATOR_TALK_FLAG`), honoured for a Spectator's account alone, and nothing took it off - a player marked a Spectator again started in the Spectators' room with the microphone open, without a press; monokuma.mjs `setSpectator`, unmarking, unsets it for every account that stopped being a Spectator's (the users of `spectatorUserIds` before and not after)", async () => {
+        const body = fnSource(stripComments(new Map(await otherSources()).get("monokuma.mjs") ?? ""), "setSpectator");
+        ok(/\bbefore\b[\s\S]*\bnow\b/.test(body), "setSpectator no longer reads the Spectators' accounts before and after - this test reads the wrong road");
+        ok(/unsetFlag\(\s*MODULE_ID\s*,\s*SPECTATOR_TALK_FLAG\s*\)/.test(body), "setSpectator leaves the talk switch of an account that stopped being a Spectator's");
+    }],
 ];
 
 
