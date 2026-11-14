@@ -68,3 +68,11 @@ R block R6300-R6349.
 | Q-E26P-4 | A LIVE row for the renamed face at a table? | None added: the glyphs are byte-equal (fontTools) and the accents sweep is green |
 | Q-E26P-5 | The seven Polish "MG" where the glossary says "GM" | Not changed here (texts lines' files); reported |
 | Q-E26P-6 | tools/crlf-writers.mjs is a standalone tool (20 s), not in `npm run quick` or CI's CRLF dispatch | Standalone; the coordinator may add it to the CRLF dispatch |
+
+## Done-check (14.11.2026, this machine, 4 cores)
+
+- Tier 1 at 2ab48f7c (the tip after it changed STATUS.md alone): `node run-tests.mjs --tier 1`, 1607 tests, 474.5 s
+  wall: 1591 passed, 1 failed, 16 skipped, 0 red. The failure is R2001 (53 stale "row 1.2.N" quotes), red at the base
+  1463f22b by the assembly's ledger change, per the coordinator: not this line's.
+- Scenario 00-boot (reads the stylesheets this line changed): 35/35. No other scenario names a file this line changed
+  (`grep` of audit/harness/scenarios for the fonts, the hint, module.json and the package tools).
