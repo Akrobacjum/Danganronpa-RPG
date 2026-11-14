@@ -5,8 +5,10 @@ stays in 1.2.114. Nothing a player or a GM sees changes.
 
 **Lint.** `npm run lint` now holds `no-unused-vars` as an error (options: `args: "none"`, a name starting with `_`
 ignored, and `ignoreRestSiblings`, so `const { a, ...rest } = x` may leave `a` unread). Measured on the 1.2.113
-assembly at 123f8242 with the harness's ESLint 10.11.0 over the 395 files `npm run lint` reads: 96 with the first two
-options, 74 with all three; 0 after this part. `no-undef` was 0 before and is 0 after. The 74 were removed, not
+assembly at 123f8242 with the harness's ESLint 10.11.0 over the 394 files `npm run lint` reads: 96 with the first two
+options, 74 with all three; 0 after this part. `no-undef` was 0 before and is 0 after. The lint part now also plants a
+name declared and never read in each of its six folders and is red unless all six report it, as it already did for
+an undefined name. The 74 were removed, not
 silenced: 20 in the module's own files (a function nothing called since E64, `cleanup.mjs bodyDestinations`; eight
 fields `placeRemnant` destructured and `traceRowOf` reads itself; unread imports and locals), 37 in the test files
 (imports and locals no assertion read; no assertion removed) and 17 in audit/ and tools/. Each was read in context
