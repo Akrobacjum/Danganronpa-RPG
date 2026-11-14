@@ -194,7 +194,7 @@
   {"id": "s6.p1.f1", "unit": "s6.p1", "place": "The safeword, line 81", "kind": "rule", "text": "The button at the bottom-left of your sheet shows your table's word.", "keywords": ["The button at the bottom-left of your sheet shows your table's word"]},
   {"id": "s6.p1.f2", "unit": "s6.p1", "place": "The safeword, line 81", "kind": "condition", "text": "The word is Safe Word, unless your table chose its own.", "keywords": ["Safe Word", "unless your table chose its own"]},
   {"id": "s6.p1.f3", "unit": "s6.p1", "place": "The safeword, line 81", "kind": "rule", "text": "The GM can change the word.", "keywords": ["The GM can change it"]},
-  {"id": "s6.n1.f1", "unit": "s6.n1", "place": "The safeword, line 83", "kind": "tip", "text": "Press the button and answer Stop the scene? with Stop it.", "keywords": ["Press it and answer", "Stop it"]},
+  {"id": "s6.n1.f1", "unit": "s6.n1", "place": "The safeword, line 83", "kind": "tip", "text": "Press the button and answer Stop the scene? with Stop the scene.", "keywords": ["Press it and answer", "Stop the scene"]},
   {"id": "s6.n1.f2", "unit": "s6.n1", "place": "The safeword, line 83", "kind": "rule", "text": "Enter presses Stop it.", "keywords": ["Enter presses it"]},
   {"id": "s6.n1.f3", "unit": "s6.n1", "place": "The safeword, line 83", "kind": "rule", "text": "Stopping the scene stops the scene.", "keywords": ["the scene stops"]},
   {"id": "s6.n1.f4", "unit": "s6.n1", "place": "The safeword, line 83", "kind": "rule", "text": "The GMs are told.", "keywords": ["the GMs are told"]},
