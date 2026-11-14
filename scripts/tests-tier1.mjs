@@ -4691,7 +4691,13 @@ const INVARIANTS = [
 
         for (const [userId, chosen] of byUser) {
             const theirs = rows.filter(r => r.user?.id === userId);
-            ok(theirs.includes(chosen),
+            /* A killer behind a "?" (E69 C8, voice.mjs `maskedRow`) and a character listening at a door (E69 C6,
+               `listeningRow`) are placed by a copy of their own row with another target, not the row itself, so the
+               identity check missed them: red in CI run 542 (14.11.2026) in 01-runtests A1-A3, where A1's opening on
+               Hope masks Chie and the mask stands until the next time of day. Such a copy counts when its character is
+               one of theirs. */
+            const copyOfTheirs = (chosen?.masked || chosen?.listening) && theirs.some(r => r.actor?.id === chosen.actor?.id);
+            ok(theirs.includes(chosen) || Boolean(copyOfTheirs),
                 `${game.users.get(userId)?.name}'s room comes from no character of theirs`);
         }
 
