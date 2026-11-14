@@ -21,7 +21,7 @@ import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, log, error, plural, esc} from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
@@ -483,7 +483,7 @@ export async function openRulesManager() {
                 })}</small>
             </td>
             <td style="text-align:center">
-                <input type="checkbox" name="delete:${rule.id}" />
+                <input type="checkbox" name="delete:${rule.id}"${tipAttr("DRPG.Tips.Sweep.Gm.revokeRuleTooltip")} />
             </td>
         </tr>`).join("");
 

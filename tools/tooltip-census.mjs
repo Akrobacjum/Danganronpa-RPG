@@ -258,11 +258,11 @@ export function scan(file, raw, es = espree()) {
                 let at = open + 1;
                 while (/\s/.test(s[at])) at++;
                 const items = s[at] === "[" ? arrayObjects(s, at) : [];
-                // a tab draws its section's `tooltip` (tabNav); a mode draws only its label; a chip only its attrs (C9)
+                // a tab draws its section's `tooltip` (tabNav), and a mode its own since 1.2.115 (modeBar); a chip only its attrs (C9)
                 if (items.length) {
                     for (const [x, y] of items) {
                         const text = s.slice(x, y);
-                        push(`kit:${own}-item`, x, y, own === "modeBar" ? { tip: "none" } : own === "chips" ? { tip: KIT_TIP.test(text) ? "always" : "none" } : {});
+                        push(`kit:${own}-item`, x, y, own === "chips" ? { tip: KIT_TIP.test(text) ? "always" : "none" } : {});
                     }
                     continue;
                 }
@@ -433,7 +433,7 @@ export const PLANTS = [
     ["d3", 'export function d3(x) { return document.createElement(x ? "button" : "span"); }', [["d3", "dom:button", true]]],
     ["d5", 'export function d5() { const b = document.createElement("button"); b.dataset.tooltipText = "x"; return b; }', [["d5", "dom:button", false]]],
     ["d6", 'export function d6() { const b = document.createElement("button"); setTip(b, "DRPG.Tips.X.bTooltip"); return b; }', [["d6", "dom:button", false]]],
-    ["c4", 'export function c4() { return toggle({ name: "t", label: "T", title: "x" }) + modeBar([{ key: "a", label: "A", tooltip: "x" }]); }', [["c4", "kit:toggle", true], ["c4", "kit:modeBar-item", true]]],
+    ["c4", 'export function c4() { return toggle({ name: "t", label: "T", title: "x" }) + modeBar([{ key: "a", label: "A", tooltip: "x" }, { key: "b", label: "B" }]); }', [["c4", "kit:toggle", true], ["c4", "kit:modeBar-item", false], ["c4", "kit:modeBar-item", true]]],
     ["a7", 'export function a7() { return `<select name="s"${tipAttr("DRPG.Tips.X.sTooltip") ? "" : ""}></select>`; }', [["a7", "select", true]]],
     ["d4", 'function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }\nexport function d4() { const go = el("button", "go"); return go; }', [["d4", "dom:button", true]]]
 ];

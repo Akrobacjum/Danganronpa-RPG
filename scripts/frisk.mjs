@@ -1127,7 +1127,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
             body: text,
             rejectClose: false,
             footer: {
-                primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse") },
+                primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse"), tooltip: tipText("DRPG.Tips.Sweep.Actions.refuseFriskTooltip") },
                 secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow"), tooltip: tipText("DRPG.Tips.Actions.letThemLookTooltip") }]
             },
             render: (event, dialog) => {
@@ -1165,7 +1165,7 @@ async function askToForce(def, forceMs) {
             rejectClose: false,
             footer: {
                 primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), tooltip: tipText("DRPG.Tips.Actions.leaveItTooltip") },
-                secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force") }]
+                secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force"), tooltip: tipText("DRPG.Tips.Sweep.Actions.forceFriskTooltip") }]
             },
             render: (event, dialog) => {
                 timer = setTimeout(() => { if (dialog.rendered) dialog.close(); }, forceMs);

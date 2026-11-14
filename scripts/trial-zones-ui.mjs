@@ -155,7 +155,8 @@ async function saveDiveSet(id, set) {
 /** One question's rows in the editor. */
 function questionRows(q, i) {
     const n = i + 1;
-    const field = (name, value) => `<input type="text" name="q${i}.${name}" value="${esc(value ?? "")}" maxlength="${name === "question" ? TRIAL.modes.zones.questionLength : TRIAL.modes.zones.answerLength}">`;
+    const field = (name, value) => `<input type="text" name="q${i}.${name}" value="${esc(value ?? "")}" maxlength="${name === "question" ? TRIAL.modes.zones.questionLength : TRIAL.modes.zones.answerLength}"${
+        name === "question" ? tipAttr("DRPG.Tips.Sweep.Trial.zoneQuestionTooltip") : tipAttr("DRPG.Tips.Sweep.Trial.zoneAnswerTooltip")}>`;
     const truth = side => `<label><input type="radio" name="q${i}.truth" value="${side}"${q.truth === side ? " checked" : ""}${tipAttr("DRPG.Tips.Trial.rightAnswerZoneATooltip")}> ${esc(game.i18n.localize(side === "a" ? "DRPG.TrialScene.zoneA" : "DRPG.TrialScene.zoneB"))}</label>`;
     return `<fieldset class="drpg-dive-question" data-drpg-dive-q="${i}"><legend>${esc(game.i18n.format("DRPG.Zones.dive.editor.question", { n }))}</legend>
         ${formGrid([
@@ -194,7 +195,7 @@ export async function editDiveSet(id = null) {
         body: `<form>
             ${box("secret", `<p>${esc(game.i18n.localize("DRPG.Zones.dive.editor.secret"))}</p>`)}
             ${formGrid([
-        { label: game.i18n.localize("DRPG.Zones.dive.editor.name"), field: `<input type="text" name="name" value="${esc(was?.name ?? "")}" maxlength="80">` },
+        { label: game.i18n.localize("DRPG.Zones.dive.editor.name"), field: `<input type="text" name="name" value="${esc(was?.name ?? "")}" maxlength="80"${tipAttr("DRPG.Tips.Sweep.Trial.diveSetNameTooltip")}>` },
         { label: game.i18n.localize("DRPG.Zones.dive.editor.conclusion"), field: `<input type="text" name="conclusion" value="${esc(was?.conclusion ?? "")}" maxlength="${TRIAL.modes.zones.answerLength * 3}"${tipAttr("DRPG.Tips.Trial.findingWhenSolvedTooltip")}>` }
     ])}
             ${qs.map(questionRows).join("")}
@@ -213,7 +214,7 @@ export async function editDiveSet(id = null) {
             paint();
         },
         footer: {
-            primary: { action: "save", label: game.i18n.localize("DRPG.Zones.dive.editor.save"), callback: (e, b, d) => readSetForm(d.element) },
+            primary: { action: "save", label: game.i18n.localize("DRPG.Zones.dive.editor.save"), tooltip: tipText("DRPG.Tips.Sweep.Trial.diveSetSaveTooltip"), callback: (e, b, d) => readSetForm(d.element) },
             close: "cancel"
         },
         rejectClose: false
@@ -256,9 +257,9 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = 
         <fieldset class="drpg-zone-modes"><legend>${esc(L("DRPG.Zones.picker.mode"))}</legend>${Object.values(ZONE_MODES).map(radio).join(" ")}</fieldset>
         <p class="notes" data-drpg-zone-hint></p>
         <div data-drpg-zone-fields="free">${formGrid([
-        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" ${named("DRPG.Zones.picker.question")} value="${p("question")}" maxlength="${TRIAL.modes.zones.questionLength}">` },
-        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" ${named("DRPG.Zones.picker.a")} value="${p("a")}" maxlength="${TRIAL.modes.zones.answerLength}">` },
-        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" ${named("DRPG.Zones.picker.b")} value="${p("b")}" maxlength="${TRIAL.modes.zones.answerLength}">` }
+        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" ${named("DRPG.Zones.picker.question")} value="${p("question")}" maxlength="${TRIAL.modes.zones.questionLength}"${tipAttr("DRPG.Tips.Sweep.Trial.zoneQuestionTooltip")}>` },
+        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" ${named("DRPG.Zones.picker.a")} value="${p("a")}" maxlength="${TRIAL.modes.zones.answerLength}"${tipAttr("DRPG.Tips.Sweep.Trial.zoneAnswerTooltip")}>` },
+        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" ${named("DRPG.Zones.picker.b")} value="${p("b")}" maxlength="${TRIAL.modes.zones.answerLength}"${tipAttr("DRPG.Tips.Sweep.Trial.zoneAnswerTooltip")}>` }
     ])}
             <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" ${named("DRPG.Zones.picker.thesis")} value="${p("thesis")}" maxlength="${TRIAL.modes.zones.scrum.thesisLength}"${tipAttr("DRPG.Tips.Trial.thesisTooltip")}>` }])}</div>
         </div>
@@ -266,7 +267,7 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = 
             ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId" ${named("DRPG.Zones.picker.set")}${tipAttr("DRPG.Tips.Trial.setTooltip")}>${setOptions}</select>` }])
         : `<p>${esc(L("DRPG.Zones.picker.noSets"))}</p>`}
             <div class="drpg-dive-replay">${warnings ? box("secret", warnings) : ""}</div>
-            <button type="button" data-drpg-dive-edit>${esc(L("DRPG.Zones.picker.editSets"))}</button>
+            <button type="button" data-drpg-dive-edit${tipAttr("DRPG.Tips.Sweep.Trial.diveSetsTooltip")}>${esc(L("DRPG.Zones.picker.editSets"))}</button>
         </div>
     </form>`;
 }
@@ -333,8 +334,8 @@ export async function openDiveSets() {
         if (!sets.length) return `<p>${esc(game.i18n.localize("DRPG.Zones.picker.noSets"))}</p>`;
         return `<ul class="drpg-dive-sets">${sets.map(s => `<li data-drpg-dive-set="${esc(s.id)}"><strong>${esc(s.name)}</strong>
             (${s.questions.length})${replayWarning(s) ? ` - <small>${esc(replayWarning(s))}</small>` : ""}
-            <button type="button" data-drpg-dive-act="edit">${esc(game.i18n.localize("DRPG.Zones.dive.editor.edit"))}</button>
-            <button type="button" data-drpg-dive-act="delete">${esc(game.i18n.localize("DRPG.Zones.dive.editor.delete"))}</button></li>`).join("")}</ul>`;
+            <button type="button" data-drpg-dive-act="edit"${tipAttr("DRPG.Tips.Sweep.Trial.diveSetEditTooltip")}>${esc(game.i18n.localize("DRPG.Zones.dive.editor.edit"))}</button>
+            <button type="button" data-drpg-dive-act="delete"${tipAttr("DRPG.Tips.Sweep.Trial.diveSetDeleteTooltip")}>${esc(game.i18n.localize("DRPG.Zones.dive.editor.delete"))}</button></li>`).join("")}</ul>`;
     };
     return drpgWindow({
         title: game.i18n.localize("DRPG.Zones.dive.editor.listTitle"),
@@ -354,7 +355,7 @@ export async function openDiveSets() {
             });
         },
         footer: {
-            secondary: [{ action: "new", label: game.i18n.localize("DRPG.Zones.dive.editor.new"), callback: () => "new" }],
+            secondary: [{ action: "new", label: game.i18n.localize("DRPG.Zones.dive.editor.new"), tooltip: tipText("DRPG.Tips.Sweep.Trial.diveSetNewTooltip"), callback: () => "new" }],
             close: "close"
         },
         rejectClose: false
@@ -381,7 +382,7 @@ export function findingsListHtml(list) {
 async function askFindingText(title, value = "") {
     const out = await drpgWindow({
         title, classes: ["drpg-panel", "drpg-narrow"],
-        body: `<form>${formGrid([{ label: game.i18n.localize("DRPG.Zones.findings.text"), field: `<input type="text" name="text" value="${esc(value)}" maxlength="${TRIAL.modes.zones.answerLength * 3}">` }])}</form>`,
+        body: `<form>${formGrid([{ label: game.i18n.localize("DRPG.Zones.findings.text"), field: `<input type="text" name="text" value="${esc(value)}" maxlength="${TRIAL.modes.zones.answerLength * 3}"${tipAttr("DRPG.Tips.Sweep.Trial.findingTextTooltip")}>` }])}</form>`,
         footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Zones.findings.save"), tooltip: tipText("DRPG.Tips.Trial.saveTooltip"), callback: (e, b, d) => d.element.querySelector('[name="text"]')?.value ?? "" }, close: "cancel" },
         rejectClose: false
     });
@@ -412,7 +413,7 @@ export async function openFindings() {
                 box.innerHTML = await draw();
             });
         },
-        footer: { secondary: [{ action: "add", label: game.i18n.localize("DRPG.Zones.findings.add"), callback: () => "add" }], close: "close" },
+        footer: { secondary: [{ action: "add", label: game.i18n.localize("DRPG.Zones.findings.add"), tooltip: tipText("DRPG.Tips.Sweep.Trial.findingAddTooltip"), callback: () => "add" }], close: "close" },
         rejectClose: false
     }).then(async out => {
         if (out !== "add") return null;

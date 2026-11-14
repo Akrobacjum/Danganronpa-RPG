@@ -66,7 +66,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { warn, error, isPrimaryGm, whisperToGms, esc, listOf } from "./utils.mjs";
-import { drpgWindow, box } from "./ui-kit.mjs";
+import { drpgWindow, box, tipText } from "./ui-kit.mjs";
 
 /**
  * @typedef {object} EnforcedRow
@@ -1001,7 +1001,7 @@ async function askHoldAgain() {
         // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
         fit: true,
         body: `<p>${esc(game.i18n.localize("DRPG.GiveBack.heldNothing"))}</p>`,
-        footer: { primary: { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain") }, close: { role: "cancel", action: "close" } },
+        footer: { primary: { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain"), tooltip: tipText("DRPG.Tips.Sweep.Actions.holdAgainTooltip") }, close: { role: "cancel", action: "close" } },
         rejectClose: false
     });
 }

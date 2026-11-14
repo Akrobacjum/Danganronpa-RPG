@@ -33,7 +33,7 @@ import { WORLD_SECRET_RULES } from "./world-secrets.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { WINDOW_HELP } from "./ui-kit.mjs";
 
@@ -2714,9 +2714,9 @@ export async function runHealthCheck() {
                     : { action: "continue", label: game.i18n.localize("DRPG.Case.continue") },
                 secondary: [
                     ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }] : []),
-                    ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
+                    ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces"), tooltip: tipText("DRPG.Tips.Sweep.Gm.moveRemnantKeysTooltip") }] : []),
                     ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
-                    ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : [])
+                    ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast"), tooltip: tipText("DRPG.Tips.Sweep.Gm.enterCastTooltip") }] : [])
                 ],
                 destructive: decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind"), tooltip: tipText("DRPG.Tips.Gm.clearTheMastermindTooltip") }] : []
             },
@@ -2837,7 +2837,8 @@ export async function enterCastByHand() {
     const students = (game.actors?.contents ?? []).filter(a => a.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.spectator));
     const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
-    const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;
+    const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}"${tipAttr({ killerId: "DRPG.Tips.Sweep.Gm.castKillerTooltip",
+        victimId: "DRPG.Tips.Sweep.Gm.castVictimTooltip", thirdId: "DRPG.Tips.Sweep.Gm.castThirdTooltip" }[name])}>${options}</select></label>`;
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Case.castTitle"),
         classes: ["drpg-panel", "drpg-window-enter-cast"],

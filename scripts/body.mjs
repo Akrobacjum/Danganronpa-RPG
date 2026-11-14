@@ -14,7 +14,7 @@ import { sameSeason, deathRecordFor, seasonEpoch, setBodyDiscovery, isDeadForGm,
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log, error, isPrimaryGm, primaryGmId, announce, whisperToGms, serverNow, plural, warn, esc, listOf, ownerIdsOf } from "./utils.mjs";
-import { drpgWindow, emptyOption } from "./ui-kit.mjs";
+import { drpgWindow, emptyOption, tipAttr } from "./ui-kit.mjs";
 import { pendingBodyStore, deathStore, bodyHeardStore } from "./gm-stores.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { sceneOfRoom, placeScenes, roomNames } from "./rooms.mjs";
@@ -1176,9 +1176,9 @@ export async function openBodyDiscoveryDialog() {
         classes: ["drpg-panel", "drpg-window-body"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
-                <select name="room">${emptyOption("DRPG.Chapter.chooseOne", { selected: !roomOptions.includes(" selected") })}${roomOptions}</select></label>
+                <select name="room"${tipAttr("DRPG.Tips.Sweep.Trial.bodyRoomTooltip")}>${emptyOption("DRPG.Chapter.chooseOne", { selected: !roomOptions.includes(" selected") })}${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
-                <select name="victim">
+                <select name="victim"${tipAttr("DRPG.Tips.Sweep.Trial.bodyVictimTooltip")}>
                     <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
                     ${victims}
                 </select></label>

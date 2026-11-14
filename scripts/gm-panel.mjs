@@ -484,7 +484,7 @@ export function buildSections() {
         return `
         <details class="drpg-gmp-section${section.dim ? " dim" : ""}${
             inSeason ? " in-season" : ""}" data-drpg-key="${section.key}"${open ? " open" : ""}>
-            <summary>${section.dim ? `<em class="drpg-gmp-dim">${title}</em>` : title}</summary>
+            <summary${tipAttr("DRPG.Tips.Sweep.Gm.panelSectionTooltip")}>${section.dim ? `<em class="drpg-gmp-dim">${title}</em>` : title}</summary>
             <div class="drpg-gmp-grid">${section.items.map(item => tileHtml(item, current)).join("")}</div>
         </details>`;
     }).join("")}</div>`;

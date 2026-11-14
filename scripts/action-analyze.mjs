@@ -29,6 +29,7 @@ import { rollTrait, rollInHand, noteRollContext, gmRulingActions } from "./actio
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { requestFieldHtml, readRequestField, chooseVariant } from "./action-menus.mjs";
+import { tipAttr } from "./ui-kit.mjs";
 
 /*
  * ONE CLASS TRIAL FILTER FOR ANALYZE (E16 part 2 C3, 26.10.2026; audit S02-70, the owner's D16: "Płatne opcje Analyze w
@@ -484,7 +485,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
         ].filter(option => !analyzeRowShut(option.value)),
         extra: `${bullets.length
             ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
-                <select name="bullet">${bullets
+                <select name="bullet"${tipAttr("DRPG.Tips.Sweep.Actions.analyzeBulletTooltip")}>${bullets
                     .map(b => `<option value="${b.id}">${
                         foundry.utils.escapeHTML(b.name)}</option>`).join("")}</select></label>`
             : ""}${requestFieldHtml({

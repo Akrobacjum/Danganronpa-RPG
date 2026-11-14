@@ -27895,6 +27895,7 @@ const INVARIANTS = [
         const files = ["anonymity.mjs", "messenger-app.mjs", "popup.mjs", "room-tile.mjs", "voice-panel.mjs", "voice-tile.mjs"];
         const src = Object.fromEntries(await Promise.all(files.map(async f => [f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")))])));
         must(files.every(f => src[f].length > 500), "a script read as nothing - this would measure nothing");
+        // voice-tile.mjs's second: the voice list's Mute everybody for you (the tooltip sweep, 1.2.115), in the file's text form.
         const uses = f => [...src[f].matchAll(/\bsetTip\(\s*\w+,\s*"DRPG\.Tips\.[^"]+"(?:,\s*null)?(,\s*\{\s*text:\s*true\s*\})?\)/g)].map(m => (m[1] ? "text" : "html"));
         equal(stableJson({
             drawn: [a.dataset.tooltip === words && !("tooltipText" in a.dataset), b.dataset.tooltipText === words && !("tooltip" in b.dataset), c.hasAttribute("data-tooltip") || c.hasAttribute("data-tooltip-text")],
@@ -27902,7 +27903,7 @@ const INVARIANTS = [
             sites: Object.fromEntries(files.map(f => [f, uses(f)]))
         }), stableJson({
             drawn: [true, true, false], byHand: [],
-            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text"] }
+            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text", "text"] }
         }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
     }],
     ["R7300 - every control the module draws has a tooltip, a hint, or a row that says why it needs none, and \"none needed\" is no longer a reason (the tooltip sweep, 1.2.115; Q-E57-8, the owner's \"Robic teraz\" of 14.11.2026): tools/tooltip-census.json, the baseline `node tools/check.mjs tooltips` holds every site with no tooltip and no hint line to, keeps only rows of six reasons - \"label is enough: ...\" (the label and its options say it all), \"hint: ...\" and \"help in code: ...\" (help the census cannot see near the control, each with a held { fn, pattern } found in that function of its file), \"not met: ...\" (no reader meets it as a control), \"conditional: ...\" (a tooltip drawn under a named condition), or a stage's commit that gives one; E102's \"none needed\" rows, an agent's judgement the owner never saw, are each a tooltip now or one of those", async () => {

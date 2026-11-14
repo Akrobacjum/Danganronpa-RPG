@@ -52,7 +52,7 @@ import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitF
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
 
-import { tipAttr } from "./ui-kit.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * PROJECTS
@@ -151,12 +151,12 @@ export async function performProject(actor, def, options) {
         extra: `${here.length
             ? `<label class="drpg-specific-note" data-drpg-when="work">
                 <span>${game.i18n.localize("DRPG.Project.whichWork")}</span>
-                <select name="project">${projectOptionsHtml(here)}</select>
+                <select name="project"${tipAttr("DRPG.Tips.Sweep.Actions.workWhichTooltip")}>${projectOptionsHtml(here)}</select>
             </label>`
             : ""}${breakable.length
             ? `<label class="drpg-specific-note" data-drpg-when="sabotage">
                 <span>${game.i18n.localize("DRPG.Project.whichSabotage")}</span>
-                <select name="sabotage">${projectOptionsHtml(breakable)}</select>
+                <select name="sabotage"${tipAttr("DRPG.Tips.Sweep.Actions.sabotageWhichTooltip")}>${projectOptionsHtml(breakable)}</select>
             </label>`
             : ""}`
     });
@@ -272,7 +272,7 @@ export async function startProject(actor) {
             { full: box("warning", game.i18n.localize("DRPG.Project.agreedWarning")) },
             ...presetRows,
             { label: game.i18n.localize("DRPG.Project.name"), id: idOf("name"),
-                field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus />` },
+                field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Actions.proposeNameTooltip")} autofocus />` },
             descriptionField(""),
             { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${scaleOptions}</select>` },
             { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.roomTooltip")}>${roomOptions}</select>` },
@@ -901,7 +901,7 @@ async function proposeProjectTrait(actor, project, listed) {
         body: `<form><p><strong>${esc(project.name ?? "?")}</strong></p>
             <p>${game.i18n.localize("DRPG.TraitRuling.projectBody")}</p>${traitFieldHtml(actor, listed, { propose: true })}</form>`,
         footer: {
-            gmRoute: [{ action: "propose", label: game.i18n.localize("DRPG.TraitRuling.propose"),
+            gmRoute: [{ action: "propose", label: game.i18n.localize("DRPG.TraitRuling.propose"), tooltip: tipText("DRPG.Tips.Sweep.Actions.proposeTraitTooltip"),
                 callback: (event, button, dialog) => readProposal(dialog.element.querySelector("form"), listed) }],
             close: "cancel"
         },
@@ -938,7 +938,7 @@ async function chooseProject(list, promptKey, actor, def, { disableComplete = fa
         brief: def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : "",
         ask: `<form>
             <label>${game.i18n.localize(promptKey)}
-                <select name="project">${projectOptions}</select></label>
+                <select name="project"${tipAttr(def === ACTIONS.sabotage ? "DRPG.Tips.Sweep.Actions.sabotageWhichTooltip" : "DRPG.Tips.Sweep.Actions.workWhichTooltip")}>${projectOptions}</select></label>
         </form>`,
         footer: {
             primary: {

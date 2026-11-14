@@ -237,7 +237,7 @@ export async function confirmNewTrial(chapter) {
         classes: ["drpg-panel", "drpg-narrow"],
         body: `<p>${game.i18n.localize("DRPG.Floor.newTrialConfirm")}</p>`,
         footer: {
-            destructive: [{ action: "ok", label: game.i18n.localize("DRPG.Floor.newTrialTitle") }],
+            destructive: [{ action: "ok", label: game.i18n.localize("DRPG.Floor.newTrialTitle"), tooltip: tipText("DRPG.Tips.Sweep.Trial.newTrialTooltip") }],
             close: "cancel",
             default: "cancel"
         },
@@ -272,8 +272,8 @@ export async function incidentClosedFirst() {
         classes: ["drpg-panel", "drpg-narrow"],
         body: `<p>${game.i18n.localize("DRPG.Floor.incidentOpen")}</p>`,
         footer: {
-            secondary: [{ action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep") }],
-            destructive: [{ action: "endMurder", label: game.i18n.localize("DRPG.Murder.endMurder") }],
+            secondary: [{ action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep"), tooltip: tipText("DRPG.Tips.Sweep.Trial.incidentKeepTooltip") }],
+            destructive: [{ action: "endMurder", label: game.i18n.localize("DRPG.Murder.endMurder"), tooltip: tipText("DRPG.Tips.Sweep.Trial.incidentEndTooltip") }],
             close: "cancel",
             default: "cancel"
         },
@@ -998,7 +998,7 @@ async function pickClosingDialog() {
         title: game.i18n.localize("DRPG.Floor.mode.closing"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-closing-pick"],
         body: `<form><label>${game.i18n.localize("DRPG.Floor.closing.pickLabel")}
-            <select name="actor">${actors.map(option).join("")}</select></label></form>`,
+            <select name="actor"${tipAttr("DRPG.Tips.Sweep.Trial.closingPickTooltip")}>${actors.map(option).join("")}</select></label></form>`,
         footer: {
             primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"), tooltip: tipText("DRPG.Tips.Trial.pickASpeakerTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=actor]")?.value ?? null },
@@ -1042,7 +1042,7 @@ export async function confirmReveal(row, { left = 0 } = {}) {
     const name = row.name || game.i18n.localize("DRPG.Reveal.defaultName");
     const words = row.text
         ? `<blockquote class="drpg-reveal-text">${esc(row.text)}</blockquote>`
-        : `<label>${esc(game.i18n.localize("DRPG.Reveal.textLabel"))}<textarea name="text" rows="3"></textarea></label>`;
+        : `<label>${esc(game.i18n.localize("DRPG.Reveal.textLabel"))}<textarea name="text" rows="3"${tipAttr("DRPG.Tips.Sweep.Trial.revealTextTooltip")}></textarea></label>`;
     // M13's card (E21 C4; docs/design/windows.md): Cancel and Reveal on the left, Reveal the destructive role, no primary.
     const answer = await drpgConfirm({
         title: game.i18n.localize("DRPG.Reveal.title"),

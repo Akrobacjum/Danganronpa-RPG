@@ -109,7 +109,7 @@ export async function editRoomActions(scene, room) {
         width: "tables",
         body: roomActionsBody(room, roomActions(scene, room)),
         footer: {
-            primary: { action: "save", label: t("save"), callback: (e, b, d) => readRoomActions(d.element) },
+            primary: { action: "save", label: t("save"), tooltip: tipText("DRPG.Tips.Sweep.Setup.facilitySaveRoomTooltip"), callback: (e, b, d) => readRoomActions(d.element) },
             close: { role: "cancel", action: "cancel" }
         },
         rejectClose: false
@@ -129,7 +129,8 @@ export function projectFacilityBody(project, facility) {
                 placeholder="${esc(t("labelPlaceholder"))}" aria-label="${esc(t("label"))}"${tipAttr("DRPG.Tips.Setup.facilityNameTooltip")} />
         </div>
         ${effectFields("p", f.effects)}
-        <div class="drpg-facility-line">${toggle({ name: "p.costsAction", checked: f.costsAction !== false, label: t("costsAction") })}</div>
+        <div class="drpg-facility-line">${toggle({ name: "p.costsAction", checked: f.costsAction !== false, label: t("costsAction"),
+            attrs: { "data-tooltip": tipText("DRPG.Tips.Sweep.Setup.facilityCostsActionTooltip") } })}</div>
         <div class="drpg-facility-line">
             ${select("p.life", FACILITIES.lifetimes.map(k => [k, t(`life.${k}`)]), life.kind, t("lifetime"), "DRPG.Tips.Setup.facilityLifetimeTooltip")}
             ${stepper({ name: "p.n", value: life.n ?? 1, min: 1, max: FACILITIES.maxLifetime, compact: true, attrs: { "aria-label": t("lifetimeN") } })}
@@ -158,7 +159,7 @@ export async function editProjectFacility(project) {
         width: "tables",
         body: projectFacilityBody(project, facility),
         footer: {
-            primary: { action: "save", label: t("saveProject"), callback: (e, b, d) => readProjectFacility(d.element) },
+            primary: { action: "save", label: t("saveProject"), tooltip: tipText("DRPG.Tips.Sweep.Setup.facilitySaveProjectTooltip"), callback: (e, b, d) => readProjectFacility(d.element) },
             secondary: [{ action: "remove", label: t("remove"), tooltip: tipText("DRPG.Tips.Setup.facilityRemoveTooltip") }],
             close: { role: "cancel", action: "cancel" }
         },

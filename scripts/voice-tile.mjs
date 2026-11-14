@@ -1631,6 +1631,7 @@ function buildVoiceList(watch) {
     const muteAll = textNode("button", "drpg-voice-list-muteall", game.i18n.localize("DRPG.Voice.list.muteAll"));
     muteAll.type = "button";
     muteAll.setAttribute("aria-pressed", "false");
+    setTip(muteAll, "DRPG.Tips.Sweep.More.muteEverybodyTooltip", null, { text: true });
     muteAll.addEventListener("click", () => listAct(watch, () => toggleMuteAll(watch)));
     const alone = textNode("p", "drpg-voice-list-alone", game.i18n.localize("DRPG.Voice.list.alone"));
     alone.hidden = true;

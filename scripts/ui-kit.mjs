@@ -1001,13 +1001,15 @@ export function emptyOption(key, { selected = false, disabled = false } = {}) {
 }
 
 /**
- * A row of modes, the active one pressed (E70's trial console, E47): `modes` `[{ key, label }]`, labels text.
- * `wireKit` presses the one clicked and calls the window's `onMode(key)` when it has one.
+ * A row of modes, the active one pressed (E70's trial console, E47): `modes` `[{ key, label, tooltip? }]`, labels text.
+ * `wireKit` presses the one clicked and calls the window's `onMode(key)` when it has one. A mode's `tooltip` (words, as
+ * a tab section's) is its button's data-tooltip, and a mode without one draws as before (the tooltip sweep, 1.2.115: the
+ * GM panel's Give bars had their tooltips patched into this markup by string until the kit drew them).
  */
 export function modeBar(modes, { active = null } = {}) {
     const on = modes.some(m => m.key === active) ? active : modes[0]?.key;
     return `<div class="drpg-mode-bar" role="toolbar">${modes.map(m =>
-        `<button type="button" data-drpg-mode="${esc(m.key)}" aria-pressed="${m.key === on}">${esc(m.label)}</button>`).join("")}</div>`;
+        `<button type="button" data-drpg-mode="${esc(m.key)}" aria-pressed="${m.key === on}"${m.tooltip ? ` data-tooltip="${esc(m.tooltip)}"` : ""}>${esc(m.label)}</button>`).join("")}</div>`;
 }
 
 /** Wire every stepper inside `root` (idempotent per stepper): `wireKit`'s, and chrome.mjs `dressChrome`'s on every window. */

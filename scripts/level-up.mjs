@@ -751,7 +751,7 @@ function buildDetail(option, index, actor, experiences) {
                 })
                 .join("");
             return `<label>${game.i18n.localize("DRPG.Advance.whichTrait")}
-                        <select name="pick.${index}.trait">${options}</select>
+                        <select name="pick.${index}.trait"${tipAttr("DRPG.Tips.Sweep.Gm.traitTooltip")}>${options}</select>
                     </label>`;
         }
 
@@ -763,13 +763,13 @@ function buildDetail(option, index, actor, experiences) {
                 .map(e => `<option value="${e.id}">${foundry.utils.escapeHTML(e.name || "-")} (+${e.value ?? 0})</option>`)
                 .join("");
             return `<label>${game.i18n.localize("DRPG.Advance.whichExperience")}
-                        <select name="pick.${index}.experience">${options}</select>
+                        <select name="pick.${index}.experience"${tipAttr("DRPG.Tips.Sweep.Gm.experienceUpTooltip")}>${options}</select>
                     </label>`;
         }
 
         case "experienceNew":
             return `<label>${game.i18n.localize("DRPG.Advance.newExperienceName")}
-                        <input type="text" name="pick.${index}.name" placeholder="${game.i18n.localize("DRPG.Advance.newExperiencePlaceholder")}" />
+                        <input type="text" name="pick.${index}.name" placeholder="${game.i18n.localize("DRPG.Advance.newExperiencePlaceholder")}"${tipAttr("DRPG.Tips.Sweep.Gm.newExperienceTooltip")} />
                     </label>`;
 
         default:
