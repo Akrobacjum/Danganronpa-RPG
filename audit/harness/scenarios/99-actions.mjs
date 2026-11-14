@@ -87,6 +87,7 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS }) {
                     setTimeout(() => {
                         const el = app.element; if (!el?.isConnected) return;
                         const title = String(app.options?.window?.title ?? "?"), step = S.plan.find(p => title.includes(p.title)) ?? null;
+                        S.drawn = [...(S.drawn ?? []), title + " :: " + el.textContent.replace(/\\s+/g, " ")].slice(-6);
                         for (const sel of step?.click ?? []) el.querySelector(sel)?.click();
                         for (const [sel, value] of Object.entries(step?.fill ?? {})) {
                             const field = el.querySelector(sel);
@@ -319,6 +320,54 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl, IDS }) {
         }
         check(`frisk: Palm's Frisk from p1 - Unseen at Shadow ${N.cover} and Hand ${N.hand}, one below and at each and both critical; Openly allowed, and forced at Body ${N.force} and one below - the GM's cards give the list, the miss and the noticing config.mjs gives, each at Palm's cost`,
             frisked.length === unseenCases.length + 3 && frisked.every(f => f.ok), J({ friskSet, frisked: frisked.filter(f => !f.ok), all: frisked.map(f => [f.name, f.ok]) }));
+
+        /*
+         * FACILITIES: A COMPLETED PROJECT'S ROOM ACTION ON THE PLAYER'S OWN PAGE (the owner's report of 14.11.2026 on 1.2.114,
+         * "the project's action does not show in Facilities"; 1.2.115). On the roads a table takes, a public project and a
+         * secret one with Aiko's player in on it, each in Dorm A: the GM gives it its action in the editor as drawn (the
+         * project manager's Edit room action, facility-editor.mjs `editProjectFacility`, its name typed and Save pressed),
+         * p1 completes it with Work rolls from the sheet's tile (the GM's draw, the bridge's run, the completion row), and p1
+         * opens Facilities (Rest) and reads the row drawn there; the GM reads the same rows for Aiko, as on her sheet.
+         * All green when this was written (1.2.115's probes); what a real table may differ in is in docs/dev/tips-115.
+         */
+        phase("facilities");
+        await gm.eval(`if (!globalThis.__s99gm) { const S = globalThis.__s99gm = { label: "", seen: new Set() }; globalThis.__dialogWindows = true;
+            S.timer = setInterval(() => { for (const app of foundry.applications.instances.values()) {
+                if (!(app instanceof foundry.applications.api.DialogV2) || S.seen.has(app.id) || !app.rendered || !app.element?.isConnected) continue;
+                S.seen.add(app.id); setTimeout(() => { const el = app.element; const f = el?.querySelector('[name="p.label"]'); if (!f) return;
+                    f.value = S.label; f.dispatchEvent(new Event("input", { bubbles: true })); el.querySelector('footer button[data-action="save"]')?.click(); }, 150); } }, 100); }
+            const P = ${imp("projects.mjs")}; for (const p of P.allProjects().filter(p => String(p.name ?? "").includes("E39 99"))) await P.applyProjectChange(p.id, { remove: true }, { by: { kind: "gm" } });
+            return true;`, { timeout: 60000 });
+        const facility = [];
+        for (const [tag, secret] of [["public", false], ["secret, p1 in on it", true]]) {
+            const label = `E39 99 facility soup (${tag})`;
+            const made = await gm.eval(`const P = ${imp("projects.mjs")}, E = ${imp("facility-editor.mjs")}, F = ${imp("facilities.mjs")};
+                const viewers = ${secret} ? [game.users.find(u => u.character?.id === "${IDS.aiko}")?.id].filter(Boolean) : [];
+                const id = (await P.createProject({ name: "E39 99 facility ${tag}", target: 2, room: "Dorm A", secret: ${secret}, viewers, trait: "body" }))?.id ?? null;
+                globalThis.__s99gm.label = ${J(label)};
+                const project = P.allProjects().find(p => p.id === id);
+                await Promise.race([E.editProjectFacility(project), new Promise(r => setTimeout(r, 8000))]);
+                return { id, stored: F.projectFacilityOf(id).facility?.label ?? null };`, { timeout: 60000 });
+            await settle(800);
+            for (let i = 0; i < 4; i += 1) {
+                const done = await gm.eval(`return (${imp("projects.mjs")}).allProjects().find(p => p.id === ${J(made.id)})?.complete === true;`);
+                if (done) break;
+                await gm.eval(`const a = game.actors.get("${IDS.aiko}"); await game.drpg.setActions(a, game.drpg.actionsMax(a)); globalThis.__forceRoll = { hope: 7, fear: 6 }; return true;`, { timeout: 30000 });
+                await p1.eval(`const S = globalThis.__s99; S.plan = [{ title: "Projects", click: ['input[value="work"]'] }]; S.log = []; globalThis.__forceRoll = { hope: 7, fear: 6 };
+                    await Promise.race([game.drpg.performAction(game.actors.get("${IDS.aiko}"), "project"), new Promise(r => setTimeout(r, 12000))]); return true;`, { timeout: 60000 });
+                await settle(800);
+            }
+            const seen = await p1.eval(`const S = globalThis.__s99; S.plan = [{ title: "", button: "cancel" }]; S.drawn = [];
+                const a = game.actors.get("${IDS.aiko}"), P = ${imp("projects.mjs")}, A = ${imp("action-facilities.mjs")};
+                const complete = P.allProjects().find(p => p.id === ${J(made.id)})?.complete === true;
+                await Promise.race([game.drpg.performAction(a, "rest"), new Promise(r => setTimeout(r, 4000))]);
+                return { complete, rows: A.facilitiesRows(a).some(r => r.label === ${J(label)}), drawn: (S.drawn ?? []).some(t => t.includes(${J(label)})) };`, { timeout: 30000 });
+            const onGm = await gm.eval(`return (${imp("action-facilities.mjs")}).facilitiesRows(game.actors.get("${IDS.aiko}")).some(r => r.label === ${J(label)});`);
+            facility.push({ tag, made, seen, onGm, ok: made.stored === label && seen.complete && seen.rows && seen.drawn && onGm });
+        }
+        check("facilities: a completed project's room action - given in the editor as drawn, completed by p1's Work rolls - is a row of the Facilities window p1 opens in its room and of the GM's rows for her, for a public project and a secret one p1 is in on",
+            facility.length === 2 && facility.every(f => f.ok), J(facility));
+        await gm.eval(`clearInterval(globalThis.__s99gm?.timer); delete globalThis.__s99gm; return true;`).catch(() => null);
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), w = globalThis.__s99was ?? {}, { SETTINGS } = ${imp("settings.mjs")};
             for (const i of a.items.filter(i => !(w.items ?? []).includes(i.id))) await i.delete();
