@@ -14726,6 +14726,51 @@
       "owner": null
     },
     {
+      "key": "DRPG.Panel.seasonChecks",
+      "group": "window",
+      "surface": "window-title",
+      "screen": "season-setup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "No code reads this key since E101 item 2 (docs/dev/e101/STATUS.md lists it among the keys kept only so the texts line's edits merge): Pre-season checks is the Season checklist's button, named by another key.",
+          "file": "scripts/season-setup.mjs",
+          "fn": "preSessionReport",
+          "note": null
+        }
+      ],
+      "kept": [
+        0
+      ],
+      "en": {
+        "before": "Pre-season checks",
+        "after": "Pre-season checks"
+      },
+      "pl": {
+        "before": "Kontrola przed sezonem",
+        "after": "Kontrola przed sezonem"
+      },
+      "removed": [
+        "unchanged: a key no screen draws; the glossary's window-pre-season-checks name",
+        "PL: unchanged: the Polish holds the guide; no rule calls for a change"
+      ],
+      "needsCode": [
+        "DRPG.Panel.seasonChecks is read by no code since E101 item 2; the sweep docs/dev/e101/STATUS.md names removes it in both files."
+      ],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
       "key": "DRPG.Panel.foundryReport",
       "group": "window",
       "surface": "window-title",

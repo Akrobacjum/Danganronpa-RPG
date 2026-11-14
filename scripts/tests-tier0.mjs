@@ -19074,7 +19074,8 @@ const REGRESSIONS = [
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
-            baselines: [["dashesIn", 3], ["familyFormats", 0]],
+            // dashesIn: 2 rows since the needsCode line (R6902) wrote roll-dialog.mjs's minus sign "-".
+            baselines: [["dashesIn", 2], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -19131,7 +19132,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 3, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 2, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -19558,7 +19559,9 @@ const REGRESSIONS = [
             `Key Remnant${W}`, `Remnant${W}`, "s", "min", "Hope", "Sanity", "Health", "Despair", `postęp${W}`].join("|");
         const AGREES_PL = `został${W}|zostaje|wróci${W}|znalazł${W}|rozlał${W}|wszystkie|wszystkich`;
         const NOT_COUNTS = new Set(["name", "names", "who", "target", "room", "rooms", "item", "what", "actor", "call", "project", "phase", "time", "tier",
-            "action", "mode", "kind", "field", "row", "third", "chapter", "to", "from", "version", "bonus", "value", "label", "next", "why", "duality", "stat"]);
+            "action", "mode", "kind", "field", "row", "third", "chapter", "to", "from", "version", "bonus", "value", "label", "next", "why", "duality", "stat",
+            // rooms.mjs `roomPhrase`'s places, a room with its preposition (the needsCode line, R6912): „{into} przejściem” is no count.
+            "at", "into", "leaving", "returning"]);
         const EN_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_EN})(?![\\w\\u00c0-\\u017f])`, "g");
         const PL_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_PL})(?![\\w\\u00c0-\\u017f])|(?:${AGREES_PL})\\s+(?:ci\\s+)?\\{(\\w+)\\}|\\{(\\w+)\\}\\s+z\\s+\\{\\w+\\}\\s+(?:${AGREES_PL})`, "g");
         const familyOf = key => key.replace(/\.(one|few|many|other)$/, "");
@@ -22891,8 +22894,9 @@ const REGRESSIONS = [
                 fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
                 footer: ["save", "cancel", "delete"]
             },
+            // The Scale options through plural("DRPG.Project.scaleOption") since the needsCode line (R6906): their family is read here.
             propose: {
-                keys: ["DRPG.Project.agreedWarning", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirectMine", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.proposalPrompt", "DRPG.Project.proposalPlaceholder", "DRPG.Project.startNote"],
+                keys: ["DRPG.Project.agreedWarning", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.scale", "DRPG.Project.scaleOption.other", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirectMine", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.proposalPrompt", "DRPG.Project.proposalPlaceholder", "DRPG.Project.startNote"],
                 fields: ["name", "description", "target", "room", "trait", "murder", "condition", "request"],
                 footer: ["create", "cancel"]
             }

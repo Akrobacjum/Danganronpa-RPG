@@ -37785,17 +37785,18 @@ const INVARIANTS = [
             + "Reserve keys, listOf, a hand join; the refunds' price with its unit (Hope, Despair); pickItem: the literal row, carriedBy, in en, in pl]");
     }],
 
-    ["R6904 - the keys the text lines found dead are gone from both language files and no script names them (needsCode, 14.11.2026): `Vault.fogNote`, `Look.uiScaleAuto` and `uiScaleSlider` with look.mjs `scaleNote` that read them and nothing called, `TrialScene.noWayBack`, `hallDark` and `prepare`, `Season.note`, `Panel.checksSetup` and `seasonChecks`, `SearchTokens.roomSetupNote`, `Tables.newTierPool`, `newTierPoolPlaceholder` and `newTierPoolNote`, `Zones.open`, `Facility.editor.tabNote`, `Passage.tab.intro` and `pick.cancel`, `Monocub.nobodyDead`, `manageTitle`, `dialogIntro`, `isOne`, `tickFirst` and `student`, `Floor.startPanic`, `startClosing` and `startTrialNoHall`", async () => {
+    ["R6904 - the keys the text lines found dead are gone from both language files and no script names them (needsCode, 14.11.2026): `Vault.fogNote`, `Look.uiScaleAuto` and `uiScaleSlider` with look.mjs `scaleNote` that read them and nothing called, `TrialScene.noWayBack`, `hallDark` and `prepare`, `Season.note`, `Panel.checksSetup`, `SearchTokens.roomSetupNote`, `Tables.newTierPool`, `newTierPoolPlaceholder` and `newTierPoolNote`, `Zones.open`, `Facility.editor.tabNote`, `Passage.tab.intro` and `pick.cancel`, `Monocub.nobodyDead`, `manageTitle`, `dialogIntro`, `isOne`, `tickFirst` and `student`, `Floor.startPanic`, `startClosing` and `startTrialNoHall`", async () => {
         /*
          * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #50, #53, #58, #59, #73, #96, #113, #115,
          * #129, #130, #133, S6, S8, S9, S11. Each was read against the code before it went: no literal names it and no
          * template can make it (TrialScene's `${key}` reads zoneA, zoneB, preparePlaylist, prepareVoice; Panel's `${key}`
          * the three A/V checks; Monocub's a row's choices and the critical's two keys; startPanic and startClosing are
-         * action names). TrialScene.scenesIntro, named with them in line C's notes, is read (trial-scene.mjs) and stays.
+         * action names). TrialScene.scenesIntro, named with them in line C's notes, is read (trial-scene.mjs) and stays; so does
+         * Panel.seasonChecks, which docs/design/windows.md's M4 row (the owner's approval) names and R1334 holds.
          * Red at 729987e4: every key in both files, and scaleNote in look.mjs.
          */
         const DEAD = ["Vault.fogNote", "Look.uiScaleAuto", "Look.uiScaleSlider", "TrialScene.noWayBack", "TrialScene.hallDark", "TrialScene.prepare",
-            "Season.note", "Panel.checksSetup", "Panel.seasonChecks", "SearchTokens.roomSetupNote", "Tables.newTierPool", "Tables.newTierPoolPlaceholder",
+            "Season.note", "Panel.checksSetup", "SearchTokens.roomSetupNote", "Tables.newTierPool", "Tables.newTierPoolPlaceholder",
             "Tables.newTierPoolNote", "Zones.open", "Facility.editor.tabNote", "Passage.tab.intro", "Passage.pick.cancel", "Monocub.nobodyDead",
             "Monocub.manageTitle", "Monocub.dialogIntro", "Monocub.isOne", "Monocub.tickFirst", "Monocub.student", "Floor.startPanic",
             "Floor.startClosing", "Floor.startTrialNoHall"];

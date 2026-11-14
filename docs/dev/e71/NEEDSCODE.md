@@ -148,7 +148,7 @@ Verdicts:
 | 112 | `DRPG.Panel.sweepBullets` | -B15 | confirmSweepBullets has no caller at the table since E64-inv (scenario 62 alone); DRPG.Panel.sweepBullets, sweepNone, sweepConfirm, sweepConfirmNote and sweptBullets are drawn only there: keep the road or drop the keys with it. | gm-panel.mjs confirmSweepBullets (no caller at the table) | **Q** Q-NC-11, as #111. |
 | 113 | `DRPG.Panel.checksSetup` | -B15 | DRPG.Panel.checksSetup is read by no code since E101 item 2; the sweep docs/dev/e101/STATUS.md names removes it in both files. | (no reader) | **DEF** Dead key: deleted. |
 | 114 | `DRPG.Panel.checksImagesBytes` | -B15 | room-setup.mjs pictureWarning fills {mb} with toFixed(1), so a Polish page reads "2.5" where Pre-season checks read "2,5": the number goes through utils.mjs localeFormat (O5's E66 note, T20). | room-setup.mjs pictureWarning | **DEF** Defect (T20): {mb} written with toFixed(1), "2.5" on a Polish page. |
-| 115 | `DRPG.Panel.seasonChecks` | -B15 | DRPG.Panel.seasonChecks is read by no code since E101 item 2; the sweep docs/dev/e101/STATUS.md names removes it in both files. | (no reader) | **DEF** Dead key: deleted. |
+| 115 | `DRPG.Panel.seasonChecks` | -B15 | DRPG.Panel.seasonChecks is read by no code since E101 item 2; the sweep docs/dev/e101/STATUS.md names removes it in both files. | (no reader) | **ND** Not a defect: kept. No code reads it, but docs/design/windows.md's M4 row (the owner's approval) names it as the Pre-season checks window's key and R1334 holds the record to it; it goes with that row (E101's sweep), not alone. Deleted in 2883945f and put back in its follow-up. |
 | 116 | `DRPG.Panel.refundCrossing` | -B15 | also names it: docs/handbooks/gm-handbook.en.md line 560 (**Refund last crossing**, twice); the suite's test titles (tests-tier2.mjs, tests-flows.mjs, tests-tier0.mjs) say it in prose and read no label. | docs/handbooks | **DOC** Not code: handbook line. |
 | 117 | `DRPG.Panel.refundCrossingNote` | -B15 | PL: „{to} z powrotem do {from}” puts a room name in the nominative after „do” (and {from} can be DRPG.Movement.outsideRooms „poza pokojami”, giving „do poza pokojami”); the Polish needs a case-ready fragment (section 14) or a shape with no preposition, which the code must supply; kept unchanged until then | gm-students.mjs refundButton; movement.mjs | **DEF** Defect (PL): a room name after „do” in the nominative and „do poza pokojami” for the fallback; see Q-B-6. |
 | 118 | `DRPG.Investigation.neverOnePerson` | -B16 | DRPG.Investigation.neverOnePerson: "2-4" (both languages) is KEY_REMNANTS.suspectRange typed into the prose (O5, M5); it would need placeholders filled in caseTracesPanel, as plannerIntro fills {min}-{max}. | investigation.mjs caseTracesPanel (KEY_REMNANTS.suspectRange) | **Q** Q-NC-1 (O5/M5): a number the code knows typed into the prose (investigation.mjs is E54's) |
@@ -205,7 +205,7 @@ Each commit red first (its test failing on the commit before it, the reading quo
 | 1d2b2125 | #60-#68, #70, #71 | R6901 | the trial's lists through `listOf` |
 | 7af2ca7c, d2afa5f4 | #33, #34, #79, #82, #86, #87, #106, #122, #124 | R6902 | the other lists through `listOf`; a roll's negative source with "-"; T6's baseline row gone |
 | 729987e4 | S1 (Q-B-2), #30, #31, #32 | R6903 | a Call that would move nothing refused before the price, an unmoved bar refunded; `Calls.progressRefused` gone; damage, refund and item rows in the page's words |
-| 2883945f | #50, #53, #58, #59, #73, #96, #113, #115, #129, #130, #133, S6, S8, S9, S11 | R6904 | 26 dead keys and look.mjs `scaleNote` gone |
+| 2883945f | #50, #53, #58, #59, #73, #96, #113, #129, #130, #133, S6, S8, S9, S11 | R6904 | 25 dead keys and look.mjs `scaleNote` gone (`Panel.seasonChecks`, deleted with them, put back after: #115) |
 | 173256af | #76, #77 (monocub.mjs) | R6905 | a Monocub's browser checks `priceOf` |
 | 4522d6f7 | #83, #114 | R6906 | a project's scale through `plural`; a picture's size through `localeFormat` |
 | a5030c9c | #105, #144 | R6907 | `Season.resetPools`, `Diagnostics.cast.experiences` as plural families |
@@ -221,9 +221,9 @@ Waiting for E54's files: #28, #29 (cleanup.mjs), #36 (remnants.mjs), #38 and #76
 
 ## Counts
 
-On this table (158 rows: 146 needsCode, 12 from the STATUS files): defects fixed 73 rows (two in part: #75's offer path
+On this table (158 rows: 146 needsCode, 12 from the STATUS files): defects fixed 72 rows (two in part: #75's offer path
 is Q-NC-15, #76's sheet half waits for E54), defects waiting for E54 5, questions 35 rows (26 of them Q-NC-1, O5's
-numbers; 9 more under Q-NC-6 to Q-NC-13), not defects 18, done by a text line 13, for the handbook line 13, open 1
+numbers; 9 more under Q-NC-6 to Q-NC-13), not defects 19, done by a text line 13, for the handbook line 13, open 1
 (S12). Questions asked of the owner: 10 (Q-NC-1, Q-NC-6 to Q-NC-15).
 
 ## Needs a local Foundry
