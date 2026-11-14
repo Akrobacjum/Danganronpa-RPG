@@ -239,7 +239,6 @@ export async function startProject(actor) {
     const lockable = here?.room ? [here.room, ...neighbouringRooms(here.scene, here.room)].filter(room => roomBroken(here.scene, room)) : [];
     const kinds = [...(offer ? ["secretPassage", "breach"] : []), ...(owned.seal.length ? ["sealPassage"] : []),
         ...(owned.breaches.length ? ["closeBreach"] : []), ...(mendable.length ? ["repairItem"] : []), ...(lockable.length ? ["repairLock"] : [])];
-    const esc1 = text => foundry.utils.escapeHTML(String(text ?? ""));
     /* ON THE KIT'S `formGrid` (E47-C6, 09.11.2026; card M19, approved by the owner on 09.11 with one change): a field with
        a caption is a row of the grid - the caption, then the field with its notes in the kit's fine print - and the rest
        lines across both, in the order they had (D31). The change: "Say what you are actually doing" takes the form's
@@ -248,7 +247,7 @@ export async function startProject(actor) {
     const uid = foundry.utils.randomID(6);
     const idOf = name => `drpg-propose-${name}-${uid}`;
     const choose = (name, label, options, note) => ({ label: game.i18n.localize(label), id: idOf(name),
-        field: `<select name="${name}" id="${idOf(name)}">${options.map((text, i) => `<option value="${i}">${esc1(text)}</option>`).join("")}</select>
+        field: `<select name="${name}" id="${idOf(name)}">${options.map((text, i) => `<option value="${i}">${esc(text)}</option>`).join("")}</select>
                 ${note.map(key => helpText(key)).join("")}` });
     const presetRows = kinds.length ? [
         { label: game.i18n.localize("DRPG.Project.kind"), id: idOf("preset"),

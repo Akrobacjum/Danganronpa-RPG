@@ -14,7 +14,7 @@
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, LEVEL_UP_TRAIT_RESOURCES, TRAITS, STARTING, TRIAL } from "./config.mjs";
 import { listExperiences } from "./character.mjs";
-import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf } from "./utils.mjs";
+import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf, esc } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
@@ -1466,7 +1466,6 @@ function traitName(dh) {
  * name is `da39.<actorId>.<what>.<n>`, `what` one of `hpOld`, `sanOld` or `rise-<trait>` - what `readDa39Answers` counts.
  */
 export function da39Boxes(plan) {
-    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     return plan.map(row => {
         const boxes = [];
         const box = (what, n, text) => boxes.push(`<label class="drpg-choice"><input type="checkbox" name="da39.${esc(row.actorId)}.${what}.${n}">`
