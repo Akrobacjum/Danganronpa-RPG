@@ -1075,7 +1075,7 @@
       "whichBullet": "Which Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "You have nothing left to analyze.",
-      "sent": "The result for {name} is on a card of its own.",
+      "sent": "You analyze {name}. The result comes on a card of its own.",
       "identifiedTitle": "Identified",
       "identified": "{name} is {a} {type}.",
       "failedTitle": "You get nowhere",
@@ -2771,9 +2771,9 @@
       "openedTitle": "Murder opened",
       "opened": "{killer} is moving on {victim}. The opening roll has gone to {roller}.",
       "openedSelf": "{name} means to take their own life. The opening roll has gone to them.",
-      "openedSelfNote": "There is no fight to run. If the roll succeeds, the incident goes straight to the clean-up, where they arrange the scene before dying; if it fails, it ends and nobody dies. They stay alive until you close the incident.",
-      "selfWentThrough": "<strong>You went through with it.</strong> There is no fight. The clean-up is open on your sheet: while you are alive, you can see and clean your own Remnants.",
-      "resolutionNoteSelf": "The clean-up begins. They can see and clean their own Remnants while still alive; the death is recorded when you close the incident.",
+      "openedSelfNote": "There is no fight to run. If the roll succeeds, the incident goes straight to the Tamper stage, where they arrange the scene before dying; if it fails, it ends and nobody dies. They stay alive until you close the incident.",
+      "selfWentThrough": "<strong>You went through with it.</strong> There is no fight. The Tamper stage is open on your sheet: while you are alive, you can see and clean your own Remnants.",
+      "resolutionNoteSelf": "The Tamper stage begins. They can see and clean their own Remnants while still alive; the death is recorded when you close the incident.",
       "trackerStateSelf": "{stage} · no turns",
       "trackerStateOver": "{stage} · the turns are over",
       "afterSelf": "By their own hand: nobody else was in the room, and the class has only the scene to go on.",
@@ -2858,7 +2858,7 @@
       "rolesSwapped": "The roles are reversed: the former killer is now the victim and loses Sanity each turn, then Health once Sanity runs out. The turn passes to the new killer, and unlocked and spent actions and hindrances start over.",
       "incidentEnded": "The incident is over.",
       "victimDead": "The victim is dead. The killer is Blackened.",
-      "resolutionNote": "The clean-up begins. The killer now sees the Remnants on the map and can clean them up, except Reinforced ones, which stay. The Murder Weapon that was swung breaks when the incident closes.",
+      "resolutionNote": "The Tamper stage begins. The killer now sees the Remnants on the map and can clean them up, except Reinforced ones, which stay. The Murder Weapon that was swung breaks when the incident closes.",
       "thirdTitle": "You walk in on it",
       "thirdIntro": "You get one choice: get the victim out with you, take a side, or turn away.",
       "band": {
@@ -2874,7 +2874,7 @@
       "stage": {
         "openingRoll": "Opening",
         "incident": "Incident",
-        "resolution": "Resolution"
+        "resolution": "Tamper"
       },
       "actionLocked": "Locked until {name} lands.",
       "actionSpent": "You have already taken that one this incident.",
@@ -2954,7 +2954,7 @@
       "criticalChoiceHp": "Both off Health",
       "criticalChoiceStress": "Both off Sanity",
       "ranOutTwoKillers": "{victim} is out of Health and Sanity, and {killers} are both in this.",
-      "ranOutTwoKillersNote": "End it now and the incident moves to the clean-up. Or let the turns go on, so no one loses a turn they were owed, and end it from the tracker later.",
+      "ranOutTwoKillersNote": "End it now and the incident moves to the Tamper stage. Or let the turns go on, so no one loses a turn they were owed, and end it from the tracker later.",
       "ranOutEndNow": "End the incident",
       "crowdedTitle": "Too many people",
       "crowded": "{name} walked in after {third}. With four people in the room, the incident is canceled.",
@@ -3727,7 +3727,7 @@
         "project": "Project",
         "dynamic": "Dynamic Action",
         "incident": "Incident",
-        "resolution": "Clean-up",
+        "resolution": "Tamper",
         "discard": "Thrown away",
         "manual": "Placed by the GM",
         "loot": "Taken from a body",
@@ -4196,7 +4196,7 @@
       "deadStill": "Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot."
     },
     "Overflow": {
-      "hopeBlocked": "The darkening blocks Hope Calls this time of day. You keep your Hope.",
+      "hopeBlocked": "The darkening blocks Hope this time of day.",
       "title": "Despair Overflow",
       "caption": "Despair Overflow",
       "clear": "Clear the Overflow",
@@ -4611,7 +4611,7 @@
       "proposeLabel": "Which statistic do you propose?",
       "howLabel": "How do you do it? (optional)",
       "projectBody": "This project was stored without a statistic. Propose one: the GM approves or changes it, and it stays the project's.",
-      "propose": "Propose",
+      "propose": "Send to the GM",
       "howSearch": "How do you search? (optional)"
     },
     "DiceLook": {
@@ -7386,6 +7386,8 @@
       "send": "Send to everyone",
       "sent": "Summary sent.",
       "already": "Already sent for this trial.",
+      "replay": "Replay the summary",
+      "replayNone": "The summary's card is no longer in the chat, so there is nothing to replay.",
       "noVerdict": "The summary goes out only after the verdict.",
       "title": "Case summary, chapter {chapter}",
       "speaker": "Case summary",

@@ -764,6 +764,28 @@ Force, Pick). Lista okien jest w `docs/dev/e100/STATUS.md`.
 | `DRPG.Notices.filter.moreLabel` | nazwa menu dla czytnika ekranu | “More filters” | „Więcej filtrów” | nowy |
 | `DRPG.Notices.filter.withCount` | pozycja menu z liczbą | “{label} ({n})” | „{label} ({n})” | nowy |
 
+### E109: odpowiedzi właściciela ze strony DRPG-Q113 (14.11.2026)
+
+Teksty zmienione przez E109 (1.2.115) na odpowiedzi właściciela; numer wiersza strony w nawiasie. Etap incydentu po
+walce nazywa się teraz Tamper (#11, notatka właściciela przy Q-A6: „Nazwijmy to tamper po prostu”): na liczniku
+„Tamper”, w zdaniu “the Tamper stage” / „etap Tamper” (nieodmienne, jak Hope; wpis `tamper-stage` w słowniku). Próby w tym
+etapie zostają przy swoich słowach (rzut sprzątania, Cleaning Tool, okno Sprzątanie). Para N30 zostaje w tabeli jako
+wzór; jej „po” zastępuje odpowiedź właściciela z 14.11.
+
+| Klucz | Gdzie | EN | PL | Zmiana |
+| --- | --- | --- | --- | --- |
+| `DRPG.Overflow.hopeBlocked` | odmowa zysku Hope pod Zaciemnieniem Despair (#6, Q-A1: „Wystarczy powiedziec ze blokuje”) | “The darkening blocks Hope this time of day.” | „Zaciemnienie blokuje Hope o tej porze dnia.” | było “...blocks Hope Calls... You keep your Hope.” / „...Hope Calls... Hope zostaje przy tobie.”; słowa jak `DRPG.Monocub.darkened` |
+| `DRPG.TraitRuling.propose` | przycisk propozycji statystyki projektu (#16, Q-A11: „Wyslij do gma”) | “Send to the GM” | „Wyślij do GM-a” | było “Propose” / „Zaproponuj”; reguła przycisków E100 |
+| `DRPG.Murder.stage.resolution` | etap na liczniku incydentu (#11) | “Tamper” | „Tamper” | było “Resolution” / „Rozstrzygnięcie” |
+| `DRPG.Remnant.action.resolution` | skąd jest Remnant (#11) | “Tamper” | „Tamper” | było “Clean-up” / „Sprzątanie” |
+| `DRPG.Murder.openedSelfNote`, `selfWentThrough`, `resolutionNoteSelf`, `resolutionNote`, `ranOutTwoKillersNote` | karty incydentu (#11) | “the Tamper stage” | „etap Tamper” | było “the clean-up” / „sprzątanie” jako nazwa etapu |
+| `DRPG.Murder.afterInterrupted` (PL) | karta przerwanego incydentu (#11) | - | „przed etapem Tamper” | było „przed sprzątaniem” |
+| `DRPG.Config.ITEM_CATEGORIES.crimeTool.hint` | podpowiedź kategorii (#11) | “when the Tamper stage ends” | „gdy kończy się etap Tamper” | było “when the clean-up ends” / „gdy kończy się sprzątanie” |
+| `DRPG.Config.INDIRECT_MURDER.subProjects.0.note` | Prepare the Weapon (#49, H13: „Tekst zmienic”) | “May need a room with the right equipment.” | „Może wymagać konkretnego pokoju z właściwym sprzętem.” | bez “unless the killer already has the tool”: nic tego nie sprawdza |
+| `DRPG.Analyze.sent` | karta rzutu Analyze, teraz przed kartą wyniku (#40, Q-NC-7: „Zmienic kolejnosc”) | “You analyze {name}. The result comes on a card of its own.” | „Analizujesz Truth Bullet „{name}”. Wynik przyjdzie na osobnej karcie.” | było “The result for {name} is on a card of its own.” / „...Wynik pokazuje osobna karta.”: karta idzie przed wynikiem |
+| `DRPG.CaseSummary.replay` | przycisk konsoli Rozprawy po wysłaniu podsumowania (#56, Q-E99-9: „Budowac”) | “Replay the summary” | „Odtwórz podsumowanie” | nowy; odtwarza tablicę tylko w przeglądarce tego GM-a |
+| `DRPG.CaseSummary.replayNone` | toast, gdy karty podsumowania nie ma na czacie (#56) | “The summary's card is no longer in the chat, so there is nothing to replay.” | „Karty podsumowania nie ma już na czacie, więc nie ma czego odtworzyć.” | nowy |
+
 ## 13. Why so much is rebuilt
 
 On 30.10.2026 the owner wrote: „Nie mam juz cztery kierunki niestety. Myslalem ze czat wszystko przeniosl do audytu.

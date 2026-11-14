@@ -61292,6 +61292,134 @@ const INVARIANTS = [
         equal(stableJson([reads, /drpgSecretStored/.test(watch), /stores:\s*\[[^\]]*\bprojectSightCopy\b/.test(watch)]), stableJson([true, true, true]),
             "[descriptionOf reads the sight copy, the card watches the private card's words, the card watches the sight copy]");
     }],
+    ["R7120 - the owner's text answers on DRPG-Q113 (E109, 14.11.2026): Overflow.hopeBlocked says only that the darkening blocks Hope (#6, Q-A1), TraitRuling.propose reads as the bridge's Send (#16, Q-A11), the incident's stage after the fight is \"Tamper\" on the tracker and on the cards (#11, Q-A6), Prepare the Weapon's note names no tool the code never checks (#49, H13), and Season.resetKeeps keeps no promise the assignments group breaks (#53, H20)", async () => {
+        /*
+         * Red at 9e7e3d78 on the first four (hopeBlocked named Hope Calls and "You keep your Hope"; propose read
+         * "Propose"; the stage label "Resolution" and the cards "the clean-up"; the note "unless the killer already has the
+         * tool"). The fifth was green there already: E71's B15 had dropped "who watches whom" from resetKeeps; it is held
+         * here so the text cannot drift back while season-wipe.mjs `RESET_STEPS` clears the assignments.
+         */
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const { INDIRECT_MURDER } = await import("./config.mjs");
+        const { RESET_STEPS } = await import("./season-wipe.mjs");
+        /* The cards that name the stage (afterInterrupted's English does not; its Polish did, "przed sprzątaniem"): each
+           names it "the Tamper stage" / "etap Tamper" now. "clean them up", "posprzątać" and "żadne sprzątanie" are the activity, and stay. */
+        const named = ["openedSelfNote", "selfWentThrough", "resolutionNoteSelf", "resolutionNote", "ranOutTwoKillersNote"];
+        const cards = { en: named, pl: [...named, "afterInterrupted"] };
+        const read = lang => {
+            const f = flats[lang];
+            const note = lang === "en" ? INDIRECT_MURDER.subProjects[0].note : f["DRPG.Config.INDIRECT_MURDER.subProjects.0.note"];
+            return [
+                f["DRPG.Overflow.hopeBlocked"],
+                f["DRPG.TraitRuling.propose"] === f["DRPG.Bridge.send"],
+                f["DRPG.Murder.stage.resolution"], f["DRPG.Remnant.action.resolution"],
+                cards[lang].map(k => `DRPG.Murder.${k}`).filter(k => typeof f[k] !== "string" || (lang === "en" && /the clean-up/i.test(f[k]))
+                    || !(lang === "en" ? /the Tamper stage/i : /etap\w* Tamper/).test(f[k])),
+                typeof note === "string" && !(lang === "en" ? /\btool\b/i : /narzędzi/i).test(note),
+                RESET_STEPS.includes("assignments") && typeof f["DRPG.Season.resetKeeps"] === "string"
+                    && !(lang === "en" ? /watches/i : /pilnuje/i).test(f["DRPG.Season.resetKeeps"])
+            ];
+        };
+        equal(stableJson([read("en"), read("pl")]), stableJson([
+            ["The darkening blocks Hope this time of day.", true, "Tamper", "Tamper", [], true, true],
+            ["Zaciemnienie blokuje Hope o tej porze dnia.", true, "Tamper", "Tamper", [], true, true]
+        ]), "[hopeBlocked, propose = Bridge.send, the stage label, the Remnant's stage label, the cards not naming the Tamper stage, Prepare the Weapon's note without the tool, resetKeeps without who watches whom] in English, then Polish");
+    }],
+    ["R7121 - the critical's hint line is on Observe's and Analyze's critical cards only (E109, DRPG-Q113 #43, Q-NC-10; the owner, 14.11.2026: \"Ograniczyc\"): call-gm.mjs `callCardHtml` draws DRPG.Bridge.criticalHint only when its caller says the card owes one (`criticalHint`), action-observe.mjs and action-analyze.mjs say so, and the Reroll's re-asked ruling says so for an Observe or an Analyze alone", async () => {
+        /* Red at 9e7e3d78: a critical roll drew the line on every card (a Dynamic action's, a Search's), whatever the caller. */
+        const B = await import("./gm-bridge.mjs");
+        const hint = game.i18n.localize("DRPG.Bridge.criticalHint");
+        const roll = { trait: "instinct", total: 22, isCritical: true };
+        const drawn = opts => {
+            const card = document.createElement("template");
+            card.innerHTML = B.callCardHtml({ name: "R7121 Student" }, { title: "R7121", ...opts });
+            return card.content.textContent.includes(hint);
+        };
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const callOf = (text, fn) => (fnSource(text, fn).match(/callGm\(actor, \{[\s\S]*?\n {4}\}\);/)?.[0] ?? "");
+        const observe = callOf(await src("action-observe.mjs"), "ruleObserve"), analyze = callOf(await src("action-analyze.mjs"), "askForHint");
+        const reroll = fnSource(await src("reroll.mjs"), "settleGmRuling");
+        equal(stableJson([drawn({ roll }), drawn({ roll, criticalHint: true }), drawn({ roll: { ...roll, isCritical: false }, criticalHint: true }),
+            /criticalHint:\s*true/.test(observe), /criticalHint:\s*true/.test(analyze),
+            /criticalHint:\s*\[\s*"observe",\s*"analyze"\s*\]\.includes\(bookmark\.actionKey\)/.test(reroll)]),
+        stableJson([false, true, false, true, true, true]),
+            "[a critical card that owes no hint draws the line, one that owes it, a card that owes it on a roll no critical, Observe's call says it owes, Analyze's, the Reroll's re-asked ruling by the action]");
+    }],
+    ["R7122 - Analyze's roll card comes before its result card, as Find Stash's does (E109, DRPG-Q113 #40, Q-NC-7; the owner, 14.11.2026: \"Zmienic kolejnosc\"): action-analyze.mjs `analyseBullet` reads the roll in hand, then posts the roll card (`whisperToOwner`, awaited, so its message exists on the server before the request leaves), then asks `requestAnalyzeResolve`, whose result card the GM's client posts only on that request", async () => {
+        /*
+         * Red at 9e7e3d78: the roll card was posted after `requestAnalyzeResolve` had answered, so it landed under the
+         * result card. Not the bridge's timing: the order follows from the awaits, read here off the source. A refusal is
+         * still said after the card (the bridge's toast), as Find Stash's and Find Passage's are.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-analyze.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "analyseBullet");
+        const at = needle => body.indexOf(needle);
+        const [hand, card, ask] = [at("rollInHand(actor)"), at("await whisperToOwner("), at("await requestAnalyzeResolve(")];
+        const stash = fnSource(src, "locateStash");
+        equal(stableJson([hand >= 0 && card >= 0 && ask >= 0, hand < card, card < ask, /rollId(?:,|\s*\})/.test(body.slice(ask)),
+            stash.indexOf("await whisperToOwner(") < stash.indexOf("await requestStashSearch(")]),
+        stableJson([true, true, true, true, true]),
+            "[analyseBullet reads the roll in hand, posts its card and asks, the roll read before the card, the card before the ask, the ask sends the roll read first, Find Stash's card before its ask]");
+    }],
+    ["R7123 - Move the Body's number to beat has the clean-up's floor, `CLEANUP.minDc`, as every other clean-up roll's (E109, DRPG-Q113 #48, H11; the owner, 14.11.2026: change): cleanup.mjs `resolveStageSix` takes the tool's relief off the threshold through `atLeastFloor`, not `Math.max(0, ...)`", async () => {
+        /*
+         * Red at 9e7e3d78: the relief stopped at 0. No tier reaches the floor today (16 less a tier of at most 3), so the
+         * change moves no roll a table can make; it is the one rule written once. Read off the source, as no fixture can
+         * reach the floor; `atLeastFloor` itself is asked with a relief that would.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const body = fnSource(src, "resolveStageSix");
+        const C = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        equal(stableJson([/const threshold = atLeastFloor\(\(def\.threshold \?\? 0\) - relief\)/.test(body), /Math\.max\(0,\s*\(def\.threshold/.test(body),
+            C.atLeastFloor(16 - 12), CLEANUP.minDc]),
+        stableJson([true, false, 8, 8]),
+            "[resolveStageSix floors the threshold with atLeastFloor, it still floors at 0, atLeastFloor(16 - 12), CLEANUP.minDc]");
+    }],
+    ["R7124 - the GM's session log keeps the newest 60 rows and counts the ones it dropped, and diagnose()'s text says so (E109, DRPG-Q113 #60, Q-E43-6, E43-F7; the owner, 14.11.2026: \"Zmieniamy\"): utils.mjs `keepNewest` drops the oldest row of a full log, `record` keeps through it, and diagnostics.mjs `failureText` names the count dropped", async () => {
+        /*
+         * Red at 9e7e3d78: a full log refused every new row, so a burst of refusals left the newest out (E43's matrix read
+         * 17 of its 73 as unlogged). Asked on a log of its own, never this browser's: tier 1 writes nothing, and a GM's
+         * real log at a table is theirs.
+         */
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const log = [];
+        let dropped = 0;
+        for (let i = 1; i <= 75; i++) dropped += U.keepNewest(log, { level: "warn", message: `row ${i}`, stack: null, at: i, count: 1 }, 60);
+        const text = D.failureText([{ level: "warn", message: "row 75", stack: null, at: 0, count: 1 }], 15);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson([log.length, log[0]?.message, log.at(-1)?.message, dropped, /keepNewest\(sessionLog,/.test(fnSource(src, "record")),
+            typeof U.sessionFailuresDropped === "function", /15 older rows? (?:were|was) dropped/.test(text), D.failureText([], 0)]),
+        stableJson([60, "row 16", "row 75", 15, true, true, true, "Nothing has failed since this page loaded."]),
+            "[rows kept, the oldest kept, the newest kept, rows dropped, record keeps through keepNewest, the dropped count is read, the report names it, an empty log's report]");
+    }],
+    ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
+        /*
+         * Red at 9e7e3d78: there was no replay (E99's STATUS: "there is no board to replay"). Asked with the table's switch
+         * off and no sound (`on: false, sound: false`), so tier 1 draws nothing on a GM's screen and plays nothing; the
+         * road is the one a live replay takes up to the drawing.
+         */
+        const S = await import("./sequence.mjs");
+        ok(typeof S.replayCaseSummary === "function", "sequence.mjs exports no replayCaseSummary - there is no replay to measure");
+        const flag = { at: 7125, chapter: 1, correct: true, nodes: [{ role: "evidence", name: "R7125 knife", text: "" }], links: [] };
+        const card = isGM => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID && key === "caseBoard" ? flag : undefined) });
+        const quiet = { on: false, sound: false };
+        const played = [S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(false), quiet)];
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const ui = await src("trial-floor-ui.mjs"), cs = await src("case-summary.mjs");
+        const offered = /\.\.\.\(progress\.summaryShown && !finalNow\s*\?\s*\[\{ action: "caseSummaryReplay"/.test(ui);
+        const wired = /caseSummaryReplay: async \(\) => \(await import\("\.\/case-summary\.mjs"\)\)\.replayCaseSummary\(\)/.test(ui);
+        const body = fnSource(cs, "replayCaseSummary");
+        const writes = /setTrialProgress|ChatMessage\.create|\.update\(|setSetting/.test(body);
+        equal(stableJson([game.user.isGM ? played : ["off", "off", null], offered, wired, /summaryShown/.test(body), writes]),
+            stableJson([["off", "off", null], true, true, true, false]),
+            "[the replays of a GM's card twice and of a player's card, the console offers it once the summary is out, the button runs case-summary.mjs's replay, which finds this trial's card, and writes nothing]");
+    }],
 ];
 
 /**

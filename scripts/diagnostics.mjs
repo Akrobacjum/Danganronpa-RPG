@@ -22,7 +22,7 @@ import { studentActors, studentCensus } from "./monokuma.mjs";
 import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures } from "./utils.mjs";
+import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures, sessionFailuresDropped } from "./utils.mjs";
 import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
@@ -2088,12 +2088,13 @@ function contractText(contract) {
         + " (unknown is a warning, never a pass)", ...contract.failed.map(line), ...contract.unknown.map(line)].join("\n");
 }
 
-/* This session's failures as the debug log copies them (gm-panel.mjs `openFailureLog`), whole stacks. */
-function failureText() {
-    const rows = sessionFailures();
-    if (!rows.length) return "Nothing has failed since this page loaded.";
-    return rows.map(r => [`[${new Date(r.at).toISOString()}] (${r.level}${r.count > 1 ? ` x${r.count}` : ""}) ${r.message}`,
-        ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])].join("\n")).join("\n");
+/* This session's failures as the debug log copies them (gm-panel.mjs `openFailureLog`), whole stacks, and since E109
+   (R7124) how many older rows the log dropped to keep the newest. Arguments for the test alone; the report reads this browser's. */
+export function failureText(rows = sessionFailures(), dropped = sessionFailuresDropped()) {
+    if (!rows.length && !dropped) return "Nothing has failed since this page loaded.";
+    const head = dropped ? [`${dropped} older row${dropped === 1 ? " was" : "s were"} dropped to keep the newest ${rows.length}.`] : [];
+    return [...head, ...rows.map(r => [`[${new Date(r.at).toISOString()}] (${r.level}${r.count > 1 ? ` x${r.count}` : ""}) ${r.message}`,
+        ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])].join("\n"))].join("\n");
 }
 
 /* The silences part: the live one and every stale one, by id. */

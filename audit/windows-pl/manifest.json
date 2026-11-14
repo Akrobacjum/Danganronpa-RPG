@@ -1,0 +1,3745 @@
+{
+  "about": "The module's windows as the harness drew them (probe 08, audit/harness/probes/08-capture-windows.mjs): one file a window, its element's HTML; each row its opener, its title, classes and buttons, or why it was not captured. Written by the probe from a run, never by hand.",
+  "windows": [
+    {
+      "id": "rooms-bedrooms",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"bedrooms\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-bedrooms.html"
+    },
+    {
+      "id": "rooms-doors",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"doors\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-doors.html"
+    },
+    {
+      "id": "rooms-passages",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"passages\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-passages.html"
+    },
+    {
+      "id": "rooms-search",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"search\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-search.html"
+    },
+    {
+      "id": "rooms-rest",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"rest\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-rest.html"
+    },
+    {
+      "id": "rooms-stashes",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"stashes\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-stashes.html"
+    },
+    {
+      "id": "rooms-description",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"description\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-description.html"
+    },
+    {
+      "id": "rooms-fog",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"fog\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-fog.html"
+    },
+    {
+      "id": "rooms-passages--rows",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"passages\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia pokoi - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rooms-passages--rows.html"
+    },
+    {
+      "id": "sound",
+      "client": "gm",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Dźwięk",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-sound",
+        "drpg-window-sound",
+        "drpg-ui",
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "sound.html"
+    },
+    {
+      "id": "sound--music",
+      "client": "gm",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "lang": "pl",
+      "of": "sound",
+      "tab": "music",
+      "captured": true,
+      "title": "Dźwięk",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-sound",
+        "drpg-window-sound",
+        "drpg-ui",
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "sound--music.html"
+    },
+    {
+      "id": "sound--effects",
+      "client": "gm",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "lang": "pl",
+      "of": "sound",
+      "tab": "effects",
+      "captured": true,
+      "title": "Dźwięk",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-sound",
+        "drpg-window-sound",
+        "drpg-ui",
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "sound--effects.html"
+    },
+    {
+      "id": "despair-flow",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-ui",
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        },
+        {
+          "action": "auto",
+          "label": "Podziel po równo",
+          "default": false
+        }
+      ],
+      "file": "despair-flow.html"
+    },
+    {
+      "id": "despair-flow--pools",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "lang": "pl",
+      "of": "despair-flow",
+      "tab": "pools",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-ui",
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "despair-flow--pools.html"
+    },
+    {
+      "id": "despair-flow--monokumas",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "lang": "pl",
+      "of": "despair-flow",
+      "tab": "monokumas",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-ui",
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "despair-flow--monokumas.html"
+    },
+    {
+      "id": "despair-flow--students",
+      "client": "gm",
+      "opener": "gm-team-dialog.mjs m.openGmTeamDialog()",
+      "lang": "pl",
+      "of": "despair-flow",
+      "tab": "students",
+      "captured": true,
+      "title": "Despair Flow",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-monokuma-panel",
+        "drpg-assign",
+        "drpg-window-gmteam",
+        "drpg-ui",
+        "drpg-kit-fit",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        },
+        {
+          "action": "auto",
+          "label": "Podziel po równo",
+          "default": false
+        }
+      ],
+      "file": "despair-flow--students.html"
+    },
+    {
+      "id": "season-setup",
+      "client": "gm",
+      "opener": "season-setup.mjs m.openSeasonSetup()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia sezonu",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-season",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "season-setup.html"
+    },
+    {
+      "id": "season-checklist",
+      "client": "gm",
+      "opener": "season-setup.mjs m.openSeasonChecklist()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Lista kontrolna sezonu",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-season-checklist",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "season-checklist.html"
+    },
+    {
+      "id": "pre-season-checks",
+      "client": "gm",
+      "opener": "season-setup.mjs m.openSeasonChecklist()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Lista kontrolna sezonu",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-season-checklist",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "pre-season-checks.html"
+    },
+    {
+      "id": "foundry-report",
+      "client": "gm",
+      "opener": "season-setup.mjs m.openFoundryReport()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Foundry i moduły",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-foundry-report",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "foundry-report.html"
+    },
+    {
+      "id": "investigation",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation.html"
+    },
+    {
+      "id": "investigation--key",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
+      "lang": "pl",
+      "of": "investigation",
+      "tab": "key",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--key.html"
+    },
+    {
+      "id": "investigation--final",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
+      "lang": "pl",
+      "of": "investigation",
+      "tab": "final",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--final.html"
+    },
+    {
+      "id": "investigation--who",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
+      "lang": "pl",
+      "of": "investigation",
+      "tab": "who",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--who.html"
+    },
+    {
+      "id": "investigation--map",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map.html"
+    },
+    {
+      "id": "investigation--map-node",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-node.html"
+    },
+    {
+      "id": "investigation--map-trace",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-trace.html"
+    },
+    {
+      "id": "investigation--map-slot",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-slot.html"
+    },
+    {
+      "id": "investigation--map-planned",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-planned.html"
+    },
+    {
+      "id": "investigation--map-autopsy",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-autopsy.html"
+    },
+    {
+      "id": "investigation--map-zone",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-zone.html"
+    },
+    {
+      "id": "investigation--map-final",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-final.html"
+    },
+    {
+      "id": "investigation--map-bullet",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "Nowy Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Wydaj Autopsy Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "bodyFound",
+          "label": "Znaleziono ciało",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Podgląd realizacji",
+          "default": false
+        }
+      ],
+      "file": "investigation--map-bullet.html"
+    },
+    {
+      "id": "case-realize",
+      "client": "gm",
+      "opener": "case-realize.mjs m.openRealization()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Realizacja sprawy, rozdział 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-case-realize",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 720,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "run",
+          "label": "Uruchom realizację",
+          "default": false
+        }
+      ],
+      "file": "case-realize.html"
+    },
+    {
+      "id": "case-realize--made",
+      "client": "gm",
+      "opener": "case-realize.mjs m.openRealization()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Realizacja sprawy, rozdział 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-case-realize",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 720,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "run",
+          "label": "Uruchom realizację",
+          "default": false
+        },
+        {
+          "action": "undo",
+          "label": "Cofnij realizację",
+          "default": false
+        }
+      ],
+      "file": "case-realize--made.html"
+    },
+    {
+      "id": "new-trace",
+      "client": "gm",
+      "opener": "investigation.mjs m.openNewTrace({ room: \"Library\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Nowy Remnant",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-newtrace",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 900,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Utwórz na mapie",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "new-trace.html"
+    },
+    {
+      "id": "case-body-ask",
+      "client": "gm",
+      "opener": "case-realize.mjs m.askAtBody(globalThis.__probe08case.ch)",
+      "lang": "pl",
+      "captured": true,
+      "title": "Realizacja sprawy",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-case-ask",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "later",
+          "label": "Nie teraz",
+          "default": true
+        },
+        {
+          "action": "preview",
+          "label": "Pokaż podgląd",
+          "default": false
+        }
+      ],
+      "file": "case-body-ask.html"
+    },
+    {
+      "id": "chapter-end",
+      "client": "gm",
+      "opener": "chapter.mjs m.openChapterEndDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Zakończ rozdział",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-chapter-end",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 900,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": true
+        },
+        {
+          "action": "ok",
+          "label": "Zakończ rozdział 1",
+          "default": false
+        }
+      ],
+      "file": "chapter-end.html"
+    },
+    {
+      "id": "gm-panel--case-asks",
+      "client": "gm",
+      "opener": "gm-panel.mjs m.openGmPanel()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Panel GM-a",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-gm-panel-window",
+        "drpg-window-panel",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-panel"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "gm-panel--case-asks.html"
+    },
+    {
+      "id": "class-trial",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "start",
+          "label": "Zacznij Class Trial",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "toggleFinal",
+          "label": "Zacznij Final Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial.html"
+    },
+    {
+      "id": "class-trial--case",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "start",
+          "label": "Zacznij Class Trial",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "toggleFinal",
+          "label": "Zacznij Final Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--case.html"
+    },
+    {
+      "id": "class-trial--case-debate",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "closeDebate",
+          "label": "Zamknij debatę",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "caseSummary",
+          "label": "Pokaż podsumowanie",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--case-debate.html"
+    },
+    {
+      "id": "class-trial--case-objection",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "closeDebate",
+          "label": "Zamknij debatę",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "caseSummary",
+          "label": "Pokaż podsumowanie",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--case-objection.html"
+    },
+    {
+      "id": "class-trial--counted",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "verdict",
+          "label": "Werdykt",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "openDebate",
+          "label": "Otwórz debatę",
+          "default": false
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "caseSummary",
+          "label": "Pokaż podsumowanie",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--counted.html"
+    },
+    {
+      "id": "class-trial--verdict-given",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "caseSummary",
+          "label": "Pokaż podsumowanie",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "openDebate",
+          "label": "Otwórz debatę",
+          "default": false
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--verdict-given.html"
+    },
+    {
+      "id": "class-trial--summary-sent",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "openDebate",
+          "label": "Otwórz debatę",
+          "default": false
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "caseSummary",
+          "label": "Podsumowanie wysłane",
+          "default": false
+        },
+        {
+          "action": "caseSummaryReplay",
+          "label": "Odtwórz podsumowanie",
+          "default": false
+        },
+        {
+          "action": "chapterEnd",
+          "label": "Zakończ rozdział",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--summary-sent.html"
+    },
+    {
+      "id": "class-trial--straw",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "endZone",
+          "label": "Zakończ ten tryb",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "caseSummary",
+          "label": "Pokaż podsumowanie",
+          "default": false
+        },
+        {
+          "action": "backToSchool",
+          "label": "Wróć do szkoły",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--straw.html"
+    },
+    {
+      "id": "class-trial--debate",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "closeDebate",
+          "label": "Zamknij debatę",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "caseSummary",
+          "label": "Pokaż podsumowanie",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--debate.html"
+    },
+    {
+      "id": "class-trial--objection",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.manageClassTrial()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-trial",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "closeDebate",
+          "label": "Zamknij debatę",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "vote",
+          "label": "Głosowanie",
+          "default": false
+        },
+        {
+          "action": "caseSummary",
+          "label": "Pokaż podsumowanie",
+          "default": false
+        },
+        {
+          "action": "end",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "class-trial--objection.html"
+    },
+    {
+      "id": "zone-picker",
+      "client": "gm",
+      "opener": "trial-zones-ui.mjs m.openZonePicker({ mode: \"dive\" })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Strefy sali",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-zone-picker",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "start",
+          "label": "Zacznij",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "zone-picker.html"
+    },
+    {
+      "id": "dive-editor",
+      "client": "gm",
+      "opener": "trial-zones-ui.mjs m.editDiveSet(\"probe08set\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Edycja zestawu Logic Dive",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-dive-editor",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz zestaw",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "dive-editor.html"
+    },
+    {
+      "id": "findings",
+      "client": "gm",
+      "opener": "trial-zones-ui.mjs m.openFindings()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Findings",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-findings-window",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "add",
+          "label": "Dodaj Finding",
+          "default": false
+        }
+      ],
+      "file": "findings.html"
+    },
+    {
+      "id": "season-setup--zones",
+      "client": "gm",
+      "opener": "season-setup.mjs m.openSeasonSetup()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia sezonu",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-season",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "season-setup--zones.html"
+    },
+    {
+      "id": "reveal-confirm",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ujawnienie Monokumy",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-reveal-confirm",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": true
+        },
+        {
+          "action": "reveal",
+          "label": "Ujawnij",
+          "default": false
+        }
+      ],
+      "file": "reveal-confirm.html"
+    },
+    {
+      "id": "trial-end",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.askTrialEnd()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Zakończ Class Trial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": true
+        },
+        {
+          "action": "yes",
+          "label": "Zakończ Class Trial",
+          "default": false
+        }
+      ],
+      "file": "trial-end.html"
+    },
+    {
+      "id": "vote",
+      "client": "gm",
+      "opener": "trial-floor-ui.mjs m.openVoteDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Głosowanie",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-vote",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "open",
+          "label": "Wyślij karty",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        },
+        {
+          "action": "tally",
+          "label": "Zamknij i policz",
+          "default": false
+        }
+      ],
+      "file": "vote.html"
+    },
+    {
+      "id": "edit-campaign",
+      "client": "gm",
+      "opener": "gm-campaign.mjs m.openClockDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Edytuj kampanię",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-clock",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "edit-campaign.html"
+    },
+    {
+      "id": "murder",
+      "client": "gm",
+      "opener": "murder-ui.mjs m.openMurderDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Morderstwo",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-murder",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Otwórz incydent",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "murder.html"
+    },
+    {
+      "id": "incident-tracker",
+      "client": "gm",
+      "opener": "murder-ui.mjs m.openIncidentTracker()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Śledzenie incydentu",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-incident",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tracker"
+      ],
+      "tag": "dialog",
+      "width": 520,
+      "buttons": [
+        {
+          "action": "open",
+          "label": "Otwórz morderstwo...",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        }
+      ],
+      "file": "incident-tracker.html"
+    },
+    {
+      "id": "level-up",
+      "client": "gm",
+      "opener": "level-up.mjs m.openAdvancementFor(game.actors.find(a => a.type === \"character\"))",
+      "lang": "pl",
+      "captured": true,
+      "title": "Level Up dla postaci Aiko Hoshino",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ui",
+        "drpg-prompt"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Przyznaj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "level-up.html"
+    },
+    {
+      "id": "item-manager",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Daj / zabierz przedmioty",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Daj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "take",
+          "label": "Zabierz przedmiot",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Zabierz Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Zabierz klucz do pokoju",
+          "default": false
+        }
+      ],
+      "file": "item-manager.html"
+    },
+    {
+      "id": "item-manager--take",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "lang": "pl",
+      "of": "item-manager",
+      "tab": "take",
+      "captured": true,
+      "title": "Daj / zabierz przedmioty",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "take",
+          "label": "Zabierz przedmiot",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Zabierz Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Zabierz klucz do pokoju",
+          "default": false
+        }
+      ],
+      "file": "item-manager--take.html"
+    },
+    {
+      "id": "item-manager--item-new",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Daj / zabierz przedmioty",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Daj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "take",
+          "label": "Zabierz przedmiot",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Zabierz Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Zabierz klucz do pokoju",
+          "default": false
+        }
+      ],
+      "file": "item-manager--item-new.html"
+    },
+    {
+      "id": "item-manager--bullet",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Daj / zabierz przedmioty",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Daj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "take",
+          "label": "Zabierz przedmiot",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Zabierz Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Zabierz klucz do pokoju",
+          "default": false
+        }
+      ],
+      "file": "item-manager--bullet.html"
+    },
+    {
+      "id": "item-manager--bullet-new",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Daj / zabierz przedmioty",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Daj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "take",
+          "label": "Zabierz przedmiot",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Zabierz Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Zabierz klucz do pokoju",
+          "default": false
+        }
+      ],
+      "file": "item-manager--bullet-new.html"
+    },
+    {
+      "id": "item-manager--key",
+      "client": "gm",
+      "opener": "gm-items.mjs m.openItemManager()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Daj / zabierz przedmioty",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-items",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Daj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Zamknij",
+          "default": false
+        },
+        {
+          "action": "take",
+          "label": "Zabierz przedmiot",
+          "default": false
+        },
+        {
+          "action": "takeBullet",
+          "label": "Zabierz Truth Bullet",
+          "default": false
+        },
+        {
+          "action": "takeKey",
+          "label": "Zabierz klucz do pokoju",
+          "default": false
+        }
+      ],
+      "file": "item-manager--key.html"
+    },
+    {
+      "id": "item-tables",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Tabele przedmiotów",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-tables",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "add",
+          "label": "Dodaj przedmiot",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "newPool",
+          "label": "Utwórz tabelę",
+          "default": false
+        },
+        {
+          "action": "install",
+          "label": "Zainstaluj / przeinstaluj",
+          "default": false
+        }
+      ],
+      "file": "item-tables.html"
+    },
+    {
+      "id": "item-tables--editRooms",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "lang": "pl",
+      "of": "item-tables",
+      "tab": "editRooms",
+      "captured": true,
+      "title": "Tabele przedmiotów",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-tables",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "newPool",
+          "label": "Utwórz tabelę",
+          "default": false
+        }
+      ],
+      "file": "item-tables--editRooms.html"
+    },
+    {
+      "id": "item-tables--newItem",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "lang": "pl",
+      "of": "item-tables",
+      "tab": "newItem",
+      "captured": true,
+      "title": "Tabele przedmiotów",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-tables",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "add",
+          "label": "Dodaj przedmiot",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": false
+        }
+      ],
+      "file": "item-tables--newItem.html"
+    },
+    {
+      "id": "item-tables--rooms",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Tabele przedmiotów",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-tables",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "add",
+          "label": "Dodaj przedmiot",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "newPool",
+          "label": "Utwórz tabelę",
+          "default": false
+        },
+        {
+          "action": "install",
+          "label": "Zainstaluj / przeinstaluj",
+          "default": false
+        }
+      ],
+      "file": "item-tables--rooms.html"
+    },
+    {
+      "id": "look-gm",
+      "client": "gm",
+      "opener": "look.mjs m.openLookDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia DRPG",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz zmiany",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "look-gm.html"
+    },
+    {
+      "id": "drpg-settings",
+      "client": "gm",
+      "opener": "settings-window.mjs m.openSettingsWindow()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia DRPG",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz zmiany",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "drpg-settings.html"
+    },
+    {
+      "id": "game-settings",
+      "client": "gm",
+      "opener": "settings-window.mjs m.openGameSettingsWindow()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia gry",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-game-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz zmiany",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "game-settings.html"
+    },
+    {
+      "id": "notices-gm",
+      "client": "gm",
+      "opener": "notice-history-app.mjs m.openNotices()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Historia powiadomień",
+      "classes": [
+        "application",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-window-notices"
+      ],
+      "tag": "div",
+      "width": 420,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "clear",
+          "label": "Wyczyść historię",
+          "default": false
+        }
+      ],
+      "file": "notices-gm.html"
+    },
+    {
+      "id": "gm-panel",
+      "client": "gm",
+      "opener": "gm-panel.mjs m.openGmPanel()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Panel GM-a",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-gm-panel-window",
+        "drpg-window-panel",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-panel"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "gm-panel.html"
+    },
+    {
+      "id": "give",
+      "client": "gm",
+      "opener": "gm-items.mjs m.gmGiveItemDialog(student)",
+      "lang": "pl",
+      "captured": true,
+      "title": "Daj przedmiot",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-give",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Daj przedmiot",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "give.html"
+    },
+    {
+      "id": "give--create",
+      "client": "gm",
+      "opener": "gm-items.mjs m.gmGiveItemDialog(student)",
+      "lang": "pl",
+      "of": "give",
+      "tab": "create",
+      "captured": true,
+      "title": "Daj przedmiot",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-give",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Daj przedmiot",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "give--create.html"
+    },
+    {
+      "id": "bullet",
+      "client": "gm",
+      "opener": "gm-items.mjs m.giveTruthBulletDialog(student)",
+      "lang": "pl",
+      "captured": true,
+      "title": "Daj Truth Bullet",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-bullet",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Daj Truth Bullet",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "bullet.html"
+    },
+    {
+      "id": "bullet--create",
+      "client": "gm",
+      "opener": "gm-items.mjs m.giveTruthBulletDialog(student)",
+      "lang": "pl",
+      "of": "bullet",
+      "tab": "create",
+      "captured": true,
+      "title": "Daj Truth Bullet",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-bullet",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Daj Truth Bullet",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "bullet--create.html"
+    },
+    {
+      "id": "students",
+      "client": "gm",
+      "opener": "gm-students.mjs m.openWhoIsAliveDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Uczniowie",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-alive",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zastosuj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "students.html"
+    },
+    {
+      "id": "projects",
+      "client": "gm",
+      "opener": "projects-ui.mjs m.openProjectManager()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Utwórz projekt",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-project-form",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-wide"
+      ],
+      "tag": "dialog",
+      "width": 704,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Utwórz projekt",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "projects.html"
+    },
+    {
+      "id": "sound-player",
+      "client": "p1",
+      "opener": "sound-panel.mjs m.openSoundDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Dźwięk",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-sound",
+        "drpg-sound-player",
+        "drpg-window-sound",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 460,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "sound-player.html"
+    },
+    {
+      "id": "look-player",
+      "client": "p1",
+      "opener": "look.mjs m.openLookDialog()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia DRPG",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz zmiany",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "look-player.html"
+    },
+    {
+      "id": "drpg-settings-player",
+      "client": "p1",
+      "opener": "settings-window.mjs m.openSettingsWindow()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia DRPG",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz zmiany",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "drpg-settings-player.html"
+    },
+    {
+      "id": "drpg-settings-player-voice",
+      "client": "p1",
+      "opener": "settings-window.mjs m.openSettingsWindow()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Ustawienia DRPG",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Zapisz zmiany",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "drpg-settings-player-voice.html"
+    },
+    {
+      "id": "notices-player",
+      "client": "p1",
+      "opener": "notice-history-app.mjs m.openNotices()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Historia powiadomień",
+      "classes": [
+        "application",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-window-notices"
+      ],
+      "tag": "div",
+      "width": 420,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "clear",
+          "label": "Wyczyść historię",
+          "default": false
+        }
+      ],
+      "file": "notices-player.html"
+    },
+    {
+      "id": "action-observe",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"observe\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Observe",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Rzuć",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-observe.html"
+    },
+    {
+      "id": "action-search",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"search\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Search",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Rzuć",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-search.html"
+    },
+    {
+      "id": "action-analyze",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"analyze\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Analyze",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Rzuć",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-analyze.html"
+    },
+    {
+      "id": "action-tamper",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"tamper\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Tamper",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Rzuć",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-tamper.html"
+    },
+    {
+      "id": "action-rest",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"rest\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Facilities",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        }
+      ],
+      "file": "action-rest.html"
+    },
+    {
+      "id": "action-project",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"project\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Projects",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Dalej",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-project.html"
+    },
+    {
+      "id": "action-palm",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"palm\")",
+      "lang": "pl",
+      "captured": false,
+      "answered": "null",
+      "threw": null
+    },
+    {
+      "id": "action-dynamic",
+      "client": "p1",
+      "opener": "action-rolls.mjs m.performAction(game.actors.find(a => a.type === \"character\" && a.isOwner), \"dynamic\")",
+      "lang": "pl",
+      "captured": true,
+      "title": "Dynamic Action",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "send",
+          "label": "Wyślij do GM-a",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-dynamic.html"
+    },
+    {
+      "id": "notices-player-250",
+      "client": "p1",
+      "opener": "notice-history-app.mjs m.openNotices()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Historia powiadomień",
+      "classes": [
+        "application",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-window-notices"
+      ],
+      "tag": "div",
+      "width": 420,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Zamknij",
+          "default": true
+        },
+        {
+          "action": "clear",
+          "label": "Wyczyść historię",
+          "default": false
+        }
+      ],
+      "file": "notices-player-250.html"
+    },
+    {
+      "id": "room-window",
+      "client": "p1",
+      "opener": "room-tile.mjs m.openRoomWindow()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Opis",
+      "classes": [
+        "application",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-window-room"
+      ],
+      "tag": "div",
+      "width": 480,
+      "buttons": [],
+      "file": "room-window.html"
+    },
+    {
+      "id": "palm-frisk",
+      "client": "p1",
+      "opener": "palm.mjs m.choosePalm(game.actors.find(a => a.type === \"character\" && a.isOwner), C.ACTIONS.palm, [other], [])",
+      "lang": "pl",
+      "captured": true,
+      "title": "Palm",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Poproś",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "palm-frisk.html"
+    },
+    {
+      "id": "ballot",
+      "client": "p1",
+      "opener": "vote.mjs onBallotOpened (the GM's vote.open to p1)",
+      "lang": "pl",
+      "captured": true,
+      "title": "Kto to zrobił?",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ballot",
+        "drpg-ui",
+        "drpg-prompt"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Oddaj głos",
+          "default": true
+        }
+      ],
+      "file": "ballot.html"
+    },
+    {
+      "id": "season-reset",
+      "client": "gm",
+      "opener": "season-wipe.mjs m.resetSeason()",
+      "lang": "pl",
+      "captured": true,
+      "title": "Zresetuj sezon",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-season-reset",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": true
+        },
+        {
+          "action": "reset",
+          "label": "Zresetuj sezon",
+          "default": false
+        }
+      ],
+      "file": "season-reset.html"
+    },
+    {
+      "id": "use-item-pick",
+      "client": "p1",
+      "opener": "use-items.mjs (a => m.useItem(a, a.items.find(i => i.name === \"Probe odd vial\")))(game.actors.find(a => a.type === \"character\" && a.isOwner))",
+      "lang": "pl",
+      "captured": true,
+      "title": "Użycie przedmiotu „Probe odd vial”",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Użyj",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "use-item-pick.html"
+    },
+    {
+      "id": "level-up-queue",
+      "client": "gm",
+      "opener": "level-up.mjs m.runAdvancementBatch(game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 3), \"standard\", { onGiving: () => { throw new Error(\"probe 08: the window is captured, nothing is given\"); } })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Level Upy klasy",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-advance-queue",
+        "drpg-ui",
+        "drpg-prompt"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "give",
+          "label": "Przyznaj",
+          "default": true
+        },
+        {
+          "action": "allPlayers",
+          "label": "Wszyscy: wybierają gracze",
+          "default": false
+        }
+      ],
+      "file": "level-up-queue.html"
+    },
+    {
+      "id": "rest-pick",
+      "client": "p1",
+      "opener": "rest.mjs m.takeRest(game.actors.find(a => a.type === \"character\" && a.isOwner), \"short\", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true })",
+      "lang": "pl",
+      "captured": true,
+      "title": "Short Rest",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-rest",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Odpocznij",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "rest-pick.html"
+    },
+    {
+      "id": "action-loot",
+      "client": "p1",
+      "opener": "anonymity.mjs m.openBodyLoot(lootBody)",
+      "lang": "pl",
+      "captured": true,
+      "title": "Take from the Body",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-loot-window",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Weź",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Anuluj",
+          "default": false
+        }
+      ],
+      "file": "action-loot.html"
+    },
+    {
+      "id": "action-loot--long",
+      "client": "p1",
+      "opener": "anonymity.mjs m.openBodyLoot(lootBody)",
+      "lang": "pl",
+      "captured": false,
+      "answered": "null",
+      "threw": null
+    }
+  ]
+}
