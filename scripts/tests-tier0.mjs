@@ -615,6 +615,29 @@ const REGRESSIONS = [
         equal(doubled.length ? `doubled JSDoc allowed in ${doubled.length} file(s): ${doubled.join(", ")}` : "", "", "the comment budget lets a docblock stand after a docblock");
     }],
 
+    ["R7151 - a name in backticks exists: tools/comment-budget.json, held by `node tools/check.mjs comments` to the comments lint's counts, allows no module file of scripts/ a comment citation of a name nothing in the repository holds - no row's `citations` above 0 - and every name its `known` keeps, read and left (a history record, another module's or a browser's name), carries its reason (E56 part 2)", async () => {
+        /*
+         * E56 part 2, 14.11.2026 (the plan's guard "an identifier in a comment must exist in the source"). Read as R7150
+         * reads the budget. Red first, on the budget at 512f74d5 (the sweep's comments in, the budget not yet lowered):
+         * "citations allowed in 77 file(s): scripts/a11y.mjs 1, ..."; green on the budget written after it. The sweep: 141
+         * citations in 77 files on 9e7e3d78, 0 after; `known` from 28 names to 93, each with its reason.
+         */
+        needs(env.tools(), "tools/comment-budget.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        let budget = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/comment-budget.json`, { cache: "no-cache" });
+            if (res.ok) budget = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(budget && typeof budget.files === "object" && typeof budget.known === "object", "tools/comment-budget.json is missing, or holds no files or no known");
+        if (!budget) return;
+        const cited = Object.entries(budget.files).filter(([, row]) => Number(row?.citations) > 0);
+        equal(cited.length ? `citations allowed in ${cited.length} file(s): ${cited.slice(0, 6).map(([file, row]) => `${file} ${row.citations}`).join(", ")}` : "", "", "the comment budget lets a comment name what nothing holds");
+        const known = Object.entries(budget.known ?? {});
+        must(known.length > 0, "the budget keeps no known name - this half would hold nothing");
+        const bare = known.filter(([, why]) => typeof why !== "string" || why.trim().length < 10).map(([name]) => name);
+        ok(!bare.length, `known names with no reason: ${bare.join(", ")}`);
+    }],
+
     ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection, nor `--drpg-critical` outside a critical; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it, and `--drpg-critical` is the critical's light red, read by the flat roll's critical line (E48 K1, K2b; Q6)", async () => {
         /*
          * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the
