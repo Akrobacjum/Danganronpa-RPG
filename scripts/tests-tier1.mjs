@@ -38014,6 +38014,18 @@ const INVARIANTS = [
             stableJson([false, true]), "[the raw id passed; actionLabelOf passed]");
     }],
 
+    ["R6916 - a Monocub's tile on the sheet prices a move as the GM charges it (needsCode, 14.11.2026, after E54; E72 C17, DC34): sheet-actions.mjs `abilityButton` reads monocub.mjs `priceOf(actor, def)` for what it checks, greys and says, never the row's bare `cost` or `hopeCost` - the sheet's half of R6905", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #76, the sheet's half, held for E54's split
+         * of sheet.mjs. Red at 527c5546: the tile tested `def.cost` and `def.hopeCost`, so a Monocub with an open order
+         * and no Hope saw the move greyed with `Monocub.cannotMeddle` though the GM would charge no Hope.
+         */
+        const body = fnSource(stripComments((await otherSources()).find(([name]) => name === "sheet-actions.mjs")?.[1] ?? ""), "abilityButton") ?? "";
+        must(body.includes("DRPG.Monocub.cannotMeddle"), "abilityButton no longer says cannotMeddle - this reads nothing");
+        equal(stableJson([/priceOf\(actor, def\)/.test(body), /\bdef\.(?:cost|hopeCost)\b/.test(body)]), stableJson([true, false]),
+            "[abilityButton: priceOf asked; the row's own cost or hopeCost read]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

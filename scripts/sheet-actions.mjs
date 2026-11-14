@@ -16,7 +16,7 @@ import { inClassTrial } from "./trial.mjs";
 import { facilitiesShutReason } from "./action-facilities.mjs";
 import { murderState, sideOf, isTheirTurn, betrayalTarget, crisisTileLabel } from "./murder.mjs";
 import { incidentTurnText, actingActor } from "./events.mjs";
-import { isCrimeSilenced, purseOf, cubPanelLines, cubBlockSaid } from "./monocub.mjs";
+import { isCrimeSilenced, purseOf, cubPanelLines, cubBlockSaid, priceOf } from "./monocub.mjs";
 import { isCallSilenced, pendingGather, alreadyArmed } from "./call-effects.mjs";
 import { witnessesTo, isCleaner, freeTonightText, tamperQuote } from "./cleanup.mjs";
 import { stripeKindFor, quotePrice, priceLabel } from "./price.mjs";
@@ -437,20 +437,23 @@ export function monocubTiles(actor) {
 function abilityButton(actor, key, def) {
     // The sheet's Hope and the purse's (E72 C14; DC37): a price may be paid from either.
     const held = hopeHeld(actor) + purseOf(actor);
-    const affordable = actionsLeft(actor) >= def.cost && held >= def.hopeCost;
+    // What the move costs now, as the GM charges it (monocub.mjs `priceOf`: a move done to order its action and no Hope,
+    // E72 C17); the row's own price stood here until the needsCode line (R6916, the sheet's half of R6905).
+    const cost = priceOf(actor, def);
+    const affordable = actionsLeft(actor) >= cost.cost && held >= cost.hopeCost;
     /* SHUT, AND WHY (E72 C9, 12.11.2026; audit S18-62, DC22): a row's blocks this browser can read - Redeem used today,
        the Hope full, an Ask for Hope still open (monocub.mjs `cubBlockSaid`, the owner's copy of the GMs' row) - grey
        the tile with the block's own sentence. The GM asks them again before the price; this is the courtesy. */
     const shut = cubBlockSaid(actor, def);
-    const free = def.cost === 0 && def.hopeCost === 0;
+    const free = cost.cost === 0 && cost.hopeCost === 0;
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = `drpg-action-button${affordable && !shut ? "" : " unaffordable"}`;
     // Counted on the actions (E66 C2; S18-36): Hope agrees with nothing in either language.
     // The grid's own words for a price with no Hope (`costLabelFor`): "free", "1 action".
-    const price = free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0 ? plural("DRPG.Action.costActions", { n: def.cost })
-        : plural("DRPG.Monocub.meddleCost", { actions: def.cost, hope: def.hopeCost }, "actions");
+    const price = free ? game.i18n.localize("DRPG.Action.costFree") : cost.hopeCost === 0 ? plural("DRPG.Action.costActions", { n: cost.cost })
+        : plural("DRPG.Monocub.meddleCost", { actions: cost.cost, hope: cost.hopeCost }, "actions");
     const why = shut ? game.i18n.localize(shut) : affordable ? "" : game.i18n.localize("DRPG.Monocub.cannotMeddle");
     button.dataset.tooltip = `${foundry.utils.escapeHTML(price)}${why ? `<br><em>${foundry.utils.escapeHTML(why)}</em>` : ""}`;
     // "1 · 1◆" was unreadable without already knowing which number was which.
@@ -459,9 +462,9 @@ function abilityButton(actor, key, def) {
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0
-            ? plural("DRPG.Action.costActions", { n: def.cost })
-            : plural("DRPG.Monocub.meddleCostShort", { actions: def.cost, hope: def.hopeCost }, "actions")}</span>`;
+        <span class="drpg-action-cost">${free ? game.i18n.localize("DRPG.Action.costFree") : cost.hopeCost === 0
+            ? plural("DRPG.Action.costActions", { n: cost.cost })
+            : plural("DRPG.Monocub.meddleCostShort", { actions: cost.cost, hope: cost.hopeCost }, "actions")}</span>`;
 
     button.addEventListener("click", async () => {
         const { cubAbilityDialog } = await import("./monocub.mjs");
