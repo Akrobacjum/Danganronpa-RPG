@@ -25,7 +25,7 @@ import {
  * TIER 0 - MODULE-WIDE REGRESSION
  * ========================================================================== */
 
-/**
+/*
  * WHY A THIRD TIER, AND WHY IT READS SOURCE INSTEAD OF CALLING FUNCTIONS.
  *
  * Look at which defects in this update surfaced LAST. Not one of them was bad
@@ -8856,7 +8856,7 @@ const REGRESSIONS = [
          * `sweepTruthBullets` and `confirmSweepBullets` (both read through chapter.mjs `sweepPlan` now, which
          * names no field) and added `sparedBySweep`, where the planned `sweepPlan` row's field read is: 78
          * rows, 21 ITEM (read live 08.10.2026, none without a row). E09 C2 struck `propagateCrimeTie`,
-         * `propagateCrimeTieMany` and `propagateRealType` (folded into `propagateVerdicts`, the planned row it
+         * `propagateCrimeTieMany` and `propagateRealType` (gone since, folded into `propagateVerdicts`, the planned row it
          * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). E09 C7 added
          * `keyFeeOf`, the fee's count, where its planned row said: 77 rows, 20 ITEM (read live
          * 08.10.2026, none without a row). E09 C8 struck `revealAllBulletTypes` and
@@ -9078,7 +9078,7 @@ const REGRESSIONS = [
          * coming back is a place without a row. Measured on the harness on 09.10.2026 with C1
          * in the tree: 37 places against 37 rows - 7 PACKET, 6 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
          * E10 C2 (1.2.71) added `vote.cast`'s two PACKET rows, `vote.ask`'s one and the `round` the
-         * ballot's packet carries now, struck `onBallotCast` (the raw `vote.ballot`) and the
+         * ballot's packet carries now, struck `onBallotCast` (since removed; the raw `vote.ballot`) and the
          * `voterActorId` nothing read, and rewrote the verdicts the bridge's ballot changes. Measured
          * on the harness on 09.10.2026 with C2 in the tree: 39 places against 39 rows - 10 PACKET,
          * 5 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
@@ -10346,7 +10346,7 @@ const REGRESSIONS = [
          * 3 DELETE, 7 HOOK, 5 STORE: the five more are `askReroll`'s second and third refusal, the messenger hook's
          * second card and the two `updateNotice` calls; nothing else stands twice in a declaration.
          * Merged into the main line (12.10.2026), the body's `updateNotice` row is keyed by C9's `watchCard`, the
-         * declaration that took over `watchNotice`'s call (read in popup.mjs; the fix line was cut before C9).
+         * declaration that took over `watchNotice`'s call (since removed; read in popup.mjs; the fix line was cut before C9).
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, a second `recordNotice` and an
          * `updateNotice` in one declaration, both deletions and a
@@ -22312,7 +22312,7 @@ const REGRESSIONS = [
            declaration (a function, a const or let); the imports before the first are not read. Red on E24's tip: 46 lines
            in 24 declarations (`injectActionPanel`'s eight the most), and `sheetMode` and `labelItemKind` reading none.
            E24 fix G2B (general m1): `testUserPermission?.(` and `<name>?.isGM` were not read; read now, red on 52955be4 at
-           sheet.mjs `mayEditReserve`'s two lines and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
+           sheet.mjs `mayEditReserve`'s two lines (since removed: the mode's `reserveField` gates it) and `paintPartyReserves`' one, and at sheet-audit.mjs's role checks, listed. */
         const sources = await moduleSources();
         const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\??\.?\(|\.isOwner\b|\b\w+\??\.isGM\b|\bisEditable\b/;
         const AUDIT_ROLE = "the audit's role: which browser judges, relays or decides a write (the GMs', D2), not a view's gate";

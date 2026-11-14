@@ -735,8 +735,8 @@ function sheetAsFound(actor, paths) {
 /*
  * DAGGERHEART'S PREPARATION, WHERE THE HARNESS HAS NONE (E29 fix r2-H25, 06.10.2026). At a table a student's prepared
  * data is not its sheet: Daggerheart sets Hope's maximum to the world's setting less the scars, adds the class's hit
- * points to Health's maximum and a Level Up's picks to a statistic (data/actor/character.mjs `prepareBaseData`,
- * `prepareDerivedData`; 2.10.5 :678-700, :740-741, :752). The harness prepares nothing - a document's `system` is its
+ * points to Health's maximum and a Level Up's picks to a statistic (data/actor/character.mjs `DhCharacter#prepareBaseData`,
+ * `DhCharacter#prepareDerivedData`; 2.10.5 :678-700, :740-741, :752). The harness prepares nothing - a document's `system` is its
  * source - so there `prepare` is applied to a copy of the sheet at every read of `actor.system` on this client, until
  * the function this answers is called. A table prepares its own: there nothing is done, it answers null and the test
  * reads Daggerheart's.
@@ -1161,9 +1161,10 @@ async function drawnMurderWindow(open) {
  * opener's own promise, which settles once the whole Save has run - the Save closes the window
  * (E24 C6; until then it reopened, and this waited for that copy and closed it); `close()` closes
  * whatever copy stands. Each settles `answer`.
+ *
+ * The dashboard drawn, on the Table unless `view` says (the Map is the default since E97 C9; most of these read the
+ * Table's rows).
  */
-/** The dashboard drawn, on the Table unless `view` says (the Map is the default since E97 C9; most of these read the
- *  Table's rows). */
 async function drawnCaseWindow({ view = "table" } = {}) {
     const investigation = await import("./investigation.mjs");
     const open = () => [...foundry.applications.instances.values()]
@@ -1944,7 +1945,6 @@ async function despairOf(who) {
     return { D, o, mono, state: () => [D.getDespair(mono.id), o.overflowCount()] };
 }
 
-/** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
 /**
  * THE ROOMS OF A SCENE IN A LINE OF DOORS (E69 C6, C7): the harness's scene draws no doors, so each room's doors are Room
  * Setup's word (`ROOM_FLAGS.neighbours`), written on every piece: each room next to the one before and the one after it in
@@ -1973,6 +1973,7 @@ async function roomsInLine(scene) {
     };
 }
 
+/** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
 async function playerInRoom() {
     const { locateActor } = await import("./movement.mjs");
     const found = game.users.filter(u => !u.isGM && u.active).flatMap(player => game.actors
@@ -2206,24 +2207,6 @@ async function heldCopy(holder, copy) {
 }
 
 /**
- * A USE AN ITEM AND ITS REROLL, ON THE GM (E08+E28 C6b, 03.10.2026; audit S04-18). At the
- * killer's turn (`swingFixture`) the killer, with two Health marks, holds a Tier 1 healing pack
- * of two; their player's roll is bookmarked (`playerRollBookmark`), the pack used as their
- * browser uses it - one Health off, one off the pack - and the action judged as the listener
- * judges it, a hit with Hope naming the pack and what it started from. Then the Reroll is made
- * on this GM (`rerollAgain`) onto the faces `next`, its replay on the GMs' row (reroll.mjs
- * `settleCrisis`). Answers, after it: whether it stood, the killer's Health marks, the pack's
- * quantity and whether it is broken, whether the replay's receipt names the pack, and the reserve
- * the row says the use healed. `tier` 3 (fix r1-G6): a pack of no kind that heals 2 Health marks
- * and gives 2 Hope, the killer at their most Hope after it and 2 below it before (`before.hope`).
- * `aside` (fix r2-H20): an update written to the pack after the first use and before the Reroll
- * where the GMs' mark does not see it (sheet-audit.mjs `AUDIT_ASIDE`, a failed put-back's state).
- * `consoleWrite` (fix r2-H23): an update of the pack the player's console writes at the same moment,
- * judged as theirs (`asPlayerItemWrite`), its put-back refused by a hook of this GM's while the Reroll
- * is made, as scenario 30 refuses one, and the hook taken off before the read, which then holds the
- * count the GMs' mark holds (`marked`). `qty`: the count the row's `before` names, the player's word.
- */
-/**
  * TIER 3'S ROW OF BEFORE 15.10.2026, LENT TO A TEST (E14 part 1 C5, 24.10.2026). A usable's row may add Hope to what it
  * restores (config.mjs `USABLE_EFFECTS`: `bonus`), and the rewind, the credit and the judge of a use still read it
  * (murder-rules.mjs `hopeTheUseGave`, sheet-audit.mjs `itemCovers`); since the owner's ruling of 15.10 no row adds any -
@@ -2242,6 +2225,24 @@ async function withHopeRow(run) {
     }
 }
 
+/**
+ * A USE AN ITEM AND ITS REROLL, ON THE GM (E08+E28 C6b, 03.10.2026; audit S04-18). At the
+ * killer's turn (`swingFixture`) the killer, with two Health marks, holds a Tier 1 healing pack
+ * of two; their player's roll is bookmarked (`playerRollBookmark`), the pack used as their
+ * browser uses it - one Health off, one off the pack - and the action judged as the listener
+ * judges it, a hit with Hope naming the pack and what it started from. Then the Reroll is made
+ * on this GM (`rerollAgain`) onto the faces `next`, its replay on the GMs' row (reroll.mjs
+ * `settleCrisis`). Answers, after it: whether it stood, the killer's Health marks, the pack's
+ * quantity and whether it is broken, whether the replay's receipt names the pack, and the reserve
+ * the row says the use healed. `tier` 3 (fix r1-G6): a pack of no kind that heals 2 Health marks
+ * and gives 2 Hope, the killer at their most Hope after it and 2 below it before (`before.hope`).
+ * `aside` (fix r2-H20): an update written to the pack after the first use and before the Reroll
+ * where the GMs' mark does not see it (sheet-audit.mjs `AUDIT_ASIDE`, a failed put-back's state).
+ * `consoleWrite` (fix r2-H23): an update of the pack the player's console writes at the same moment,
+ * judged as theirs (`asPlayerItemWrite`), its put-back refused by a hook of this GM's while the Reroll
+ * is made, as scenario 30 refuses one, and the hook taken off before the read, which then holds the
+ * count the GMs' mark holds (`marked`). `qty`: the count the row's `before` names, the player's word.
+ */
 async function useItemRerolled(next, { tier = 1, aside = null, consoleWrite = null, qty = 2 } = {}) {
     const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
     const audit = aside || consoleWrite ? await import("./sheet-audit.mjs") : null;
@@ -2591,14 +2592,6 @@ async function whileDead(actor, run) {
 }
 
 /**
- * A body with its tile in another room than its token, for the length of `run` (E95 C1): two students alone together in
- * a room of the scene on screen (`aloneTogether`), the second dead on a published death (`whileDead`), and a tile of its
- * body made by the suite in another room, the data body-tile.mjs `bodyTileSpec` gives (what E95 C2's `leaveBody` will
- * lay), on the token's floor. `run` gets the two, a player who owns neither, the tile, the two rooms, `standTaker(room)`
- * (the taker's token stood in a room, waited for) and `drawn()` (the loot window's Take for the taker: [greyed, its
- * words]). The tile is deleted after, whatever `run` did with it, and the tokens put back.
- */
-/**
  * A body's tile in another room, the taker stood beside it, and a Take of named items off the body (E68 C10; the three
  * tier-2 tests of Take from the Body). `loot(names, hand, { one, cover })` puts the items on the body and takes them
  * through handover.mjs `lootBody` - `itemIds`, or `itemId` with `one`, let go of after (`drop`) - with the Hand roll `hand`
@@ -2702,6 +2695,14 @@ async function lootWindowFor(body, taker, opts = {}) {
     return { app, el, take, rows, close };
 }
 
+/**
+ * A body with its tile in another room than its token, for the length of `run` (E95 C1): two students alone together in
+ * a room of the scene on screen (`aloneTogether`), the second dead on a published death (`whileDead`), and a tile of its
+ * body made by the suite in another room, the data body-tile.mjs `bodyTileSpec` gives (what E95 C2's `leaveBody` will
+ * lay), on the token's floor. `run` gets the two, a player who owns neither, the tile, the two rooms, `standTaker(room)`
+ * (the taker's token stood in a room, waited for) and `drawn()` (the loot window's Take for the taker: [greyed, its
+ * words]). The tile is deleted after, whatever `run` did with it, and the tokens put back.
+ */
 async function withBodyTile(run) {
     const { isPrimaryGm } = await import("./utils.mjs");
     must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
@@ -9040,7 +9041,7 @@ const SCENARIOS = [
         /*
          * E08+E28 fix r2-H8, 05.10.2026 (H8-5). The GM looked for a pick card only where the roll's
          * window said a GM had picked (`TRAIT_BY_GM`), which is the packet's to say: a crisis roll sent
-         * without it was held to no pick at all (roll-draw.mjs `pickDue`; since E29 fix r1-G10 the
+         * without it was held to no pick at all (then roll-draw.mjs `pickDue`; since E29 fix r1-G10 the
          * table's `gm` row, on `listedFor`). Two crisis draws of a
          * player's character, a Strike - whose definition lists several statistics - at turns of theirs
          * in a fight (C12b's pick test's setting), neither packet saying a GM picked: after a card
@@ -35689,7 +35690,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     ["handing over evidence hands over only what the giver had analysed", async () => {
         /*
-         * The copy is born with the giver's state - `handoverBullet` passes
+         * The copy is born with the giver's state - handover.mjs `mintCopy` passes
          * `analyzed` through - so an analysed bullet arrives analysed and its
          * reading arrives with it, which is what sharing findings means. The
          * half worth a test is the other one: hand over something you have NOT
@@ -50263,7 +50264,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
      * GM it could be run during play. Their own `finally` blocks put most of it back,
      * but "most" was the defect: nothing checked, and the trial queue was set to {}
      * even when a real trial was sitting. Here they run under the snapshot, and tier
-     * 0/1 is now asserted not to change the world at all (see `worldFingerprint`).
+     * 0/1 is now asserted not to change the world at all (see tests-kit.mjs `worldDump`).
      */
     ["a chapter's Key Remnant plan is filed, not dropped, when the chapter ends", async () => {
         /*
@@ -58993,7 +58994,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         /*
          * E29 fix r2-H25, 06.10.2026; found by fix r2-H24. level-up.mjs `applyAdvancement` writes into the sheet, which
          * Daggerheart prepares again: it adds the class's hit points to Health's maximum and a Level Up's picks to a
-         * statistic (data/actor/character.mjs `prepareBaseData`, 2.10.5). It rose from the prepared values - Health's
+         * statistic (data/actor/character.mjs `DhCharacter#prepareBaseData`, 2.10.5). It rose from the prepared values - Health's
          * maximum as `meansMaxHeld` answers it, a statistic as `numberHeld` did - so the sheet took the class's hit points
          * and the pick a second time. The GM's copy of the student prepared with a class of 5 hit points and a pick of +1
          * to a statistic (`preparedAs`; the harness prepares nothing), the GM applies +1 Health and +1 to that statistic.
@@ -59424,7 +59425,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a player's write of the scars that set Hope's maximum is put back, and a GM's give of Hope reads the maximum the GMs hold", async () => {
         /*
          * E29 fix r2-H25, 06.10.2026; found by fix r2-H24. Daggerheart's scars set a student's Hope maximum - the world's
-         * setting less the scars (data/actor/character.mjs `prepareDerivedData`, 2.10.5 :752, 2.6.5 :817) - and the audit
+         * setting less the scars (data/actor/character.mjs `DhCharacter#prepareDerivedData`, 2.10.5 :752, 2.6.5 :817) - and the audit
          * judged no write of them: listed and left standing. No road of the module writes them, and the one of
          * Daggerheart's that does, the Death Move's Avoid Death, is no road in this game (states.mjs switches off the
          * automation that offers it; the stylesheet hides the sheet's button): so they are judged as the fields only
@@ -92576,7 +92577,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["E60-T18 - a player's roll not drawn on a GM's screen (E60 C5e; E60-18): a duality roll the player's own browser wrote (no GM at its throw, Daggerheart's own) is animated by this GM's Dice So Nice only while this GM's Monokuma stands in the roller's room, and its card is read either way", async () => {
         /*
          * E60 C5e, 03.11.2026. A roll the player's browser throws itself is the player's message, which Dice So Nice animates
-         * wherever its content is visible (the harness's model of 6.3.1's `shouldInterceptMessage`, `__dsnAnimated`), and a
+         * wherever its content is visible (the harness's model of 6.3.1's `main.js#shouldInterceptMessage`, `__dsnAnimated`), and a
          * GM reads every whisper, so until C5e every GM's screen threw it. Now private-rolls.mjs `keepDiceToReaders` turns
          * Dice So Nice's decision off on a GM's browser that is not among `gmsInRoomOf` the roll's subject. A player's
          * duality card about their character (`playerRollCard`, the player as author), with the world's Monokuma moved into
@@ -93018,7 +93019,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * the world. Enter is pressed as a browser presses it in a field - the form submitted by its first submit button
          * in the tree (HTML's implicit submission; jsdom submits nothing on a synthetic key, as "Enter in the verdict
          * window executes nobody" says), and where that button is disabled the browser submits nothing, which is read,
-         * not pressed. Escape is the harness's DialogV2 `_onKeyDown`, modelled from the module's note on 14.365 (shim.mjs).
+         * not pressed. Escape is the harness's `DialogV2#_onKeyDown`, modelled from the module's note on 14.365 (shim.mjs).
          * Red before C3a: no ui-kit.mjs. The mutant c3a-m1 (the primary on the left) reads red here.
          */
         needs(env.dialogs(), "the kit window is drawn, read and pressed");
@@ -101099,7 +101100,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*
          * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`
-         * (DocumentSheetV2's `_processSubmitData`). The form is read as R3552 reads it - Foundry's FormDataExtended where it
+         * (`DocumentSheetV2#_processSubmitData`). The form is read as R3552 reads it - Foundry's FormDataExtended where it
          * is, else each named field by its type - and the character is the suite's own, made and deleted here. Red at
          * 54493dbf: no dh-settings.mjs to dress the window.
          */
