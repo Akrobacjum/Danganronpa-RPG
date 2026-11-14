@@ -414,7 +414,9 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
                 flags: { [MODULE_ID]: {
                     [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: false, [TRIAL_FLAGS.presenter]: actor.name,
                     [TRIAL_FLAGS.item]: item.id, [TRIAL_FLAGS.target]: null, [TRIAL_FLAGS.targetName]: null,
-                    [TRIAL_FLAGS.topic]: floor?.topic ?? null, [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+                    [TRIAL_FLAGS.topic]: floor?.topic ?? null, [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none",
+                    // Its sound for the whole table (E110 part 3, 14.11.2026): `present`; a copy's `truthBullet` yields to it.
+                    sfx: { key: "present", gm: true }
                 } }
             });
         } catch (err) {

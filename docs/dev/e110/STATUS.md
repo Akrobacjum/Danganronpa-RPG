@@ -76,6 +76,28 @@ automatycznie graczy, ktorych nie dopuszczaja do glosu."
 | C1+C2 (one commit: the two share floor-machine.mjs, trial-floor.mjs and the lang files) | Redirect: machine `repoint` row in the Objection and its Rebuttal with a public card; `repointRefusal`; `repointObjectionInStep` writes floor, card (by the stack), flags and receipt (`repointCopies`) in one step for both GM roads; bar and dialog open in the Rebuttal. Muting: floor-machine.mjs `floorSpeakers`; `settleTrialVoices` blocks by it; settles on every trialQueue write; `floorHold` lines in micHold, trialVoiceLine, moduleHoldsMic; EN/PL | R7100-R7103 red at 6dd02975, green after; E110-T1, E110-T2 red at 6dd02975, green after; R3909 and the bar's census test changed on purpose (Re-point open in the Rebuttal); R220, R311, R432 census rows |
 | C3+C4 | Gaps: the vote's opening ends any floor (trial-floor.mjs `endFloorForVoteInStep`, trial-modes.mjs `endFloorForVote`); `MODE_OPENS` take back a Straw Poll's split; events.mjs `roundNextId`; zone-machine.mjs Scrum `done`/`pass`/`gone`, trial-modes.mjs Scrum branch of `turnOnPrimary`, `speakerGone` for a Scrum speaker; trial-prompt.mjs Done/Pass/Post thesis in a Scrum turn and the thesis window. Books: GM and player handbooks EN/PL; AUDIT 9.2 LIVE-E110-01..03; scenario 67 phase V, 33 A23 (the Assistant GM's redirect by both roads), 30 a forged "trial.gm" op repoint | R7104, E110-T3 red at 6dd02975, green after; changed on purpose: R1047, R1365 (`turnFooter(` with args), R4752 (36 keys) |
 
+| 08048db0 | D-E110-A: a trial mode mutes a Monocub too (settle, micHold, trialVoiceLine, moduleHoldsMic; handbooks) | E110-T2's Monocub step red before ([1, open, blocked, open]), green after |
+| 98f60442 | D-E110-B, D-E110-C: a mode's own music state (Rebuttal, Testimony, Panic Round, Closing Argument, Straw Poll, Logic Dive, Scrum's Sides, Camps confer, turns), each only once mapped; Music tab rows EN/PL; handbook; LIVE-E110-04 | R7105, E110-T4 red at 19991c24, green after |
+| (part 3) | Fixes: `floorSounds` (debateOpen only for a debate; yourTurn for a Scrum speaker); yields either order (sfx-play.mjs) with truthBullet -> keyReveal, present and despairCall -> newRule, motive, publicAnnouncement. New: `present`, `stashFound` (and a Find Stash's miss `searchNothing`), `bedroomEntered`; the vote's music state `trial.vote`. Texts: the safeword's no-file line and the handbooks' "needs a file"; musicEnabled hint; Music tab's trial note; stale comments (config.mjs counts, Rest and Listen; messenger.mjs Season setup row); the Messenger switch holds a card's gmAsk (`messengerMuted`) | R7106-R7108 red at 98f60442, green after |
+
+## Part 3: questions and what was not done
+
+- **Q-E110-12** The yield works in either order now (a winner played in the last 120 ms silences the loser too); a
+  winner with no file mapped silences nothing. Default: as written.
+- **Q-E110-13** The Present's sound is heard by the whole table and the GMs; its copies' `truthBullet` yields to it.
+- **Q-E110-14** `trial.vote` runs from the vote's opening (or its count) to the verdict, only once mapped.
+- **Q-E110-15** The Messenger switch silences all three messenger sounds when they come on a card, not only `gmAsk`.
+- **Not measured: eclipseStart with dayStart, eclipseEnd with dayEnd.** The harness plays no audio and counts a play only
+  for a mapped file; no run here mapped files to both and drove an Eclipse's start and end, so whether they double is
+  not known. Left as they are; it belongs to a table or a later harness run (LIVE-E110-05).
+- **Not done: per-row hints on the Music tab.** About twenty-five new strings in two languages, a text stage's work by
+  docs/text-style.md O16; written here for E71's table.
+- **Checked, no change: "the handbook lists Monocub meddling and Confusion as two events".** At this tree the Incident
+  row names "a Monocub changing" (`monocub`) and "Confusion" (`meddle`), two keys of the catalogue.
+- **Considered and not built (the owner's default "no")**: start stings for Testimony and the zone modes; the rarer
+  moments (the Final Trial or Mastermind, an Objection lapse, Tinker, Ghost Bet, a Bribe, a Spectator move, a door
+  forced told to the room); a separate Night Eclipse music state. No audio file is added.
+
 ## Not fixed, with the reason
 
 - A disconnected Scrum speaker is passed by `speakerGone` on `userConnected`; the harness cannot disconnect a player, so

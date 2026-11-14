@@ -39,6 +39,10 @@ import {
     stashesFoundBy
 } from "./vault-store.mjs";
 
+/* A Find Stash's sounds (E110 part 3, 14.11.2026; the coordinator's survey): a miss is heard by the searcher as a search
+   that finds nothing (`searchNothing`), a find by the searcher and the GMs (`stashFound`), as Find Passage's. */
+const STASH_MISS = { flags: { [MODULE_ID]: { sfx: "searchNothing" } } };
+
 /**
  * The stash of my own I am standing in, or `null`.
  *
@@ -718,7 +722,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     // A finder standing in no room paid an Analyze and was told nothing (S08-20; E14 part 1 C1): told what a search that
     // finds nothing is told. A Reroll's replay of a search made elsewhere is given back whole by its caller instead.
     if (!where?.room) {
-        if (!replay) await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
+        if (!replay) await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`, STASH_MISS);
         return { found: false, reason: "noRoom" };
     }
     const place = { sceneId: where.scene?.id ?? null, room: where.room, level: floor(where.level) };
@@ -727,7 +731,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
 
     const beat = Boolean(isCritical) || Number(total) >= (ACTIONS.analyze?.stashThreshold ?? 16);
     if (!beat) {
-        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`, STASH_MISS);
         return { found: false, reason: "missed", place };
     }
 
@@ -745,7 +749,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     }
 
     if (!target) {
-        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`, STASH_MISS);
         return { found: false, reason: "none", place };
     }
 
@@ -755,7 +759,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
 
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Analyze.stashFound", {
         who: esc(target.owner.name), room: esc(where.room)
-    })}</p>`);
+    })}</p>`, { flags: { [MODULE_ID]: { sfx: { key: "stashFound", gm: true } } } });
 
     /*
      * THE OWNER IS NOT TOLD, and that is the rule this action was written with

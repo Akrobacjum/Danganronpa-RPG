@@ -26533,10 +26533,13 @@ const INVARIANTS = [
         const atReady = /Hooks\.once\("ready",[^\n]{0,80}?snapshotWorld\(/.test(register);
         const snapshot = topLevelFunction(sfx, "snapshotWorld") ?? "";
         const reads = /onFloorChanged\(/.test(snapshot) && /onIncidentChanged\(/.test(snapshot) && /worldWas\.known = true/.test(snapshot);
-        const quiet = ["onFloorChanged", "onIncidentChanged"].map(name => {
-            const body = topLevelFunction(sfx, name) ?? "";
-            const plays = [...body.matchAll(/playSfx\(/g)].map(m => lineAround(body, m.index));
-            return [name, plays.length > 0 && plays.every(line => /worldWas\.known &&/.test(line))];
+        // E110 part 3 (14.11.2026): the floor's sounds are decided in sfx.mjs `floorSounds`, pure, from the `was` it is
+        // handed (`worldWas`, its `known` among them) - read there, each push behind `known &&`; changed on purpose.
+        const quiet = [["onFloorChanged", "floorSounds", /play\.push\(/g, /known &&/], ["onIncidentChanged", "onIncidentChanged", /playSfx\(/g, /worldWas\.known &&/]].map(([name, where, call, guard]) => {
+            const body = topLevelFunction(sfx, where) ?? "";
+            const plays = [...body.matchAll(call)].map(m => lineAround(body, m.index));
+            const handed = where === name || /floorSounds\(worldWas,/.test(topLevelFunction(sfx, name) ?? "");
+            return [name, handed && plays.length > 0 && plays.every(line => guard.test(line))];
         });
         const initRegisters = /\bregisterSfx\b/.test(bodyOf(boot, 'Hooks.once("init"', { until: "\nHooks." }));
         equal(stableJson([["registerSfx runs at init", initRegisters], ["every reader call is on a hook's line", calls.length > 0 && calls.every(line => /Hooks\.on(?:ce)?\(/.test(line))],
@@ -59572,6 +59575,83 @@ const INVARIANTS = [
                 closing: "trial.discussion", straw: "trial.debate", dive: "trial.debate", sides: "trial.debate", confer: "trial.debate", speak: "trial.debate" },
             rows: [], words: []
         }), "{all: each floor's state with every own state mapped; none: with none mapped (as before); rows: own states with no MUSIC_STATES row; words: rows with no English or Polish label}");
+    }],
+    ["R7106 - the trial's sounds, one for one moment (E110 part 3, 14.11.2026; the coordinator's survey of 1.2.113): sfx.mjs `floorSounds` plays \"Nonstop Debate opens\" only when the floor that opens is a debate - not a Testimony, a Panic Round (its own start alone), a zone mode or the Closing - and \"your turn\" for a Scrum Debate speaker's player at each turn as for a round's; a Truth Bullet copy yields to Monokuma's Reveal and to a Present, and a Despair Call's sound to the Motive's, the New Rule's and the Public Announcement's", async () => {
+        /* Pure over frames of the floor, then the catalogue read. Red at 98f60442: no floorSounds, no yields. */
+        const S = await import("./sfx.mjs");
+        must(typeof S.floorSounds === "function", "sfx.mjs has no floorSounds");
+        const { SFX_EVENTS } = await import("./config.mjs");
+        const none = { known: true, floorOpen: false, floorMode: null, turnStep: null, closingAt: null };
+        const open = (floor, mine = () => false) => S.floorSounds(none, floor, { mine }).play;
+        const round = mode => ({ active: true, mode, holderId: "O", round: { mode, order: ["O"], index: 0, step: 1, openedAt: 5 } });
+        const zone = (mode, phase, holderId = null) => ({ active: true, mode, holderId, zone: { phase, step: 3, openedAt: 7 } });
+        const read = {
+            debate: open({ active: true, mode: "debate" }), testimony: open(round("testimony")), panic: open(round("panic")),
+            straw: open(zone("straw", "vote")), dive: open(zone("dive", "vote")), scrum: open(zone("scrum", "setup")),
+            closing: open({ active: true, mode: "closing", holderId: null, closing: { phase: "volunteer", openedAt: 9, step: 1 } })
+        };
+        const turn = zone("scrum", "speak", "O");
+        const first = S.floorSounds({ ...none, floorOpen: true, floorMode: "scrum" }, turn, { mine: id => id === "O" });
+        const again = S.floorSounds({ ...none, ...first.was, known: true }, turn, { mine: id => id === "O" });
+        const next = S.floorSounds({ ...none, ...first.was, known: true }, { ...turn, zone: { ...turn.zone, step: 4 } }, { mine: id => id === "O" });
+        read.scrumTurn = [first.play, again.play, next.play, S.floorSounds({ ...none, floorOpen: true, floorMode: "scrum" }, turn, { mine: () => false }).play];
+        read.yields = [SFX_EVENTS.truthBullet?.yieldsTo ?? null, SFX_EVENTS.despairCall?.yieldsTo ?? null];
+        equal(stableJson(read), stableJson({
+            debate: ["debateOpen"], testimony: [], panic: ["panicStart"], straw: [], dive: [], scrum: [], closing: ["closingStart"],
+            scrumTurn: [["yourTurn"], [], ["yourTurn"], []],
+            yields: [["keyReveal", "present"], ["newRule", "motive", "publicAnnouncement"]]
+        }), "{each floor opening's sounds; scrumTurn: [a Scrum turn of mine, the same again, the next of mine, another's]; yields: [truthBullet, despairCall]}");
+    }],
+    ["R7107 - the sounds and the music the survey found missing (E110 part 3, 14.11.2026): three new effects in the catalogue with their words in English and Polish - \"present\" (the Present's card, the whole table), \"stashFound\" (a Find Stash's find, the searcher and the GMs) and \"bedroomEntered\" (the bedroom's owner alone) - each on its card's flag, a Find Stash's miss playing \"searchNothing\"; and the vote's own music (music-states.mjs `voteMusicPlays`) from the vote's opening to the verdict, only with a playlist mapped", async () => {
+        /* Pure but for the catalogue and three sources read. Red at 98f60442: no such keys, no voteMusicPlays. */
+        const { SFX_EVENTS } = await import("./config.mjs");
+        const Mu = await import("./music-states.mjs");
+        must(typeof Mu.voteMusicPlays === "function", "music-states.mjs has no voteMusicPlays");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const keys = ["present", "stashFound", "bedroomEntered"];
+        const read = {
+            catalogue: keys.map(k => [k, SFX_EVENTS[k]?.category ?? null, Boolean(SFX_EVENTS[k]?.label && SFX_EVENTS[k]?.hint),
+                Boolean(pl.DRPG?.Config?.SFX_EVENTS?.[k]?.label && pl.DRPG?.Config?.SFX_EVENTS?.[k]?.hint)])
+        };
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const trial = await src("trial.mjs"), stash = await src("stash-reach.mjs"), doors = await src("doors-gm.mjs");
+        read.flags = [/key:\s*"present"/.test(fnSource(trial, "presentOnPrimary")), /key:\s*"stashFound"/.test(stash),
+            (stash.match(/STASH_MISS\)/g) ?? []).length, /sfx:\s*"searchNothing"/.test(stash), (doors.match(/BEDROOM_SOUND\)/g) ?? []).length, /sfx:\s*"bedroomEntered"/.test(doors)];
+        const clock = { phase: "classTrial", chapter: 2 };
+        const yes = () => true;
+        read.vote = [
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: true } }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: false }, voteClosed: true }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, voteClosed: true, verdictApplied: true }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2 }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: true } }, clock, { mapped: () => false }),
+            Mu.voteMusicPlays({ chapter: 1, vote: { open: true } }, clock, { mapped: yes }),
+            Mu.voteMusicPlays({ chapter: 2, vote: { open: true } }, { phase: "dailyLife", chapter: 2 }, { mapped: yes }),
+            Mu.MUSIC_STATES.some(s => s.key === "trial.vote")
+        ];
+        equal(stableJson(read), stableJson({
+            catalogue: [["present", "incident", true, true], ["stashFound", "world", true, true], ["bedroomEntered", "world", true, true]],
+            flags: [true, true, 3, true, 2, true],
+            vote: [true, true, false, false, false, false, false, true]
+        }), "{catalogue: [key, group, English words, Polish words]; flags: [the Present's card, a find, the misses, the miss's key, the bedroom's two cards, its key]; vote: [open, counted, verdict given, not opened, unmapped, another chapter, outside the trial, a row]}");
+    }],
+    ["R7108 - the Messenger sounds switch holds a card's messenger sound too, and the Effects tab says when the safeword has no file (E110 part 3, 14.11.2026): sfx.mjs `messengerMuted` silences \"chatSend\", \"chatReceive\" and \"gmAsk\" while the switch is off and nothing else, the card's road asks it; the safeword's row in `soundEffectsHtml` carries its no-file line, in English and Polish, while no file is chosen", async () => {
+        /* Pure, then the tab's markup as this world maps it. Red at 98f60442: no messengerMuted, no line. */
+        const S = await import("./sfx.mjs");
+        must(typeof S.messengerMuted === "function", "sfx.mjs has no messengerMuted");
+        const { soundFor } = await import("./sfx-play.mjs");
+        const read = { off: ["chatSend", "chatReceive", "gmAsk", "despairCall", "safeword"].map(k => S.messengerMuted(k, false)),
+            on: ["chatSend", "gmAsk"].map(k => S.messengerMuted(k, true)) };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sfx.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        read.road = /messengerMuted\(key,/.test(src);
+        const box = document.createElement("div");
+        box.innerHTML = S.soundEffectsHtml();
+        const row = box.querySelector('[data-drpg-sfx="safeword"]');
+        read.line = soundFor("safeword") ? "a file is mapped here" : Boolean(row?.querySelector("[data-drpg-sfx-nofile]"));
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        read.words = [game.i18n.has("DRPG.Sound.safewordNoFile"), Boolean(pl.DRPG?.Sound?.safewordNoFile)];
+        equal(stableJson(read), stableJson({ off: [true, true, true, false, false], on: [false, false], road: true, line: true, words: [true, true] }),
+            "{off: muted with the switch off [chatSend, chatReceive, gmAsk, despairCall, safeword]; on: with it on; road: the card's road asks it; line: the safeword's row says it has no file; words: [English, Polish]}");
     }],
 ];
 

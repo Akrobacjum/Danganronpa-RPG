@@ -51,6 +51,10 @@ import { barricadeStore, bedroomNoteStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { roomFlag } from "./rooms.mjs";
 
+/* What a bedroom's owner hears when told it was entered (E110 part 3, 14.11.2026; the coordinator's survey): the card's
+   sound, `bedroomEntered`, on the owner's whisper alone. */
+const BEDROOM_SOUND = { flags: { [MODULE_ID]: { sfx: "bedroomEntered" } } };
+
 /** A barricade's key in the GMs' store: the scene and the room. */
 export const barricadeKey = (sceneId, room) => `${sceneId}:${room}`;
 
@@ -353,7 +357,8 @@ export async function noteBedroom({ scene, room, kind, told = new Set(), by = nu
     const at = gmPlaceOf(owner);
     if (at?.scene?.id === scene.id && at.room === room) {
         const { whisperToOwnerOnly } = await import("./utils.mjs");
-        await whisperToOwnerOnly(owner, await bedroomCard(room, [kind], { unsealed }));
+        // Its sound for the owner alone (E110 part 3, 14.11.2026): `bedroomEntered`, the card's flag.
+        await whisperToOwnerOnly(owner, await bedroomCard(room, [kind], { unsealed }), BEDROOM_SOUND);
         return "told";
     }
     await bedroomNoteStore.whenHydrated();
@@ -403,7 +408,7 @@ async function tellBedroomNotesNow(owner, room, scene) {
         .sort((a, b) => (Number(row[a]) - Number(row[b])) || NOTE_KINDS.indexOf(a) - NOTE_KINDS.indexOf(b));
     if (!kinds.length) return false;
     const { whisperToOwnerOnly } = await import("./utils.mjs");
-    await whisperToOwnerOnly(owner, await bedroomCard(room, kinds, { unsealed: row.unsealed ?? null }));
+    await whisperToOwnerOnly(owner, await bedroomCard(room, kinds, { unsealed: row.unsealed ?? null }), BEDROOM_SOUND);
     log(`${owner.name} was told what happened to ${room} while they were away (${kinds.join(", ")}).`);
     return true;
 }

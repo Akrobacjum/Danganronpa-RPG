@@ -428,7 +428,7 @@
       },
       "musicEnabled": {
         "name": "Music follows the game state",
-        "hint": "Changes the playlist with the game: an Eclipse, a trial, an investigation, the time of day, a pause. Map the playlists first in the Sound window."
+        "hint": "Changes the playlist with the game: an Eclipse, the trial and its modes, a body found, an investigation, the time of day, a pause. Map the playlists first in the Sound window."
       },
       "voiceEnabled": {
         "name": "Separate voice in each room",
@@ -2083,6 +2083,7 @@
       "severalHint": "One file, or several split by | - one is picked, never twice running.",
       "fileCount": { "one": "{n} file", "other": "{n} files" },
       "varies": "varies",
+      "safewordNoFile": "No file yet: the safeword plays no sound until you choose one. Its card still reaches everybody.",
       "variesHint": "Heard constantly, so each play bends its speed very slightly.",
       "varyLabel": "Vary the sounds you hear often",
       "varyHint": "Frequent sounds come out a little different each time.",
@@ -2264,6 +2265,7 @@
         "trialScrumSides": "Scrum Debate: Sides",
         "trialScrumConfer": "Scrum Debate: Camps confer",
         "trialScrumSpeak": "Scrum Debate: the turns",
+        "trialVote": "The vote (until the verdict)",
         "bodyFound": "A body has been found (silence unless mapped)",
         "search": "Investigation"
       },

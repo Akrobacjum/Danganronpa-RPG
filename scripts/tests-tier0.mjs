@@ -17985,7 +17985,7 @@ const REGRESSIONS = [
         const files = Object.fromEntries(await Promise.all(["trial-floor-ui.mjs", "trial-progress.mjs", "sfx.mjs", "hud.mjs"].map(async f => [f, await read(f)])));
         must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
         const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
-        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("trial-progress.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "onFloorChanged");
+        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("trial-progress.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "floorSounds"); // E110 part 3: the floor's sounds moved there, pure - changed on purpose
         const time = fn("hud.mjs", "buildTimeRow"), bar = fn("trial-floor-ui.mjs", "trialBar"), console_ = fn("trial-floor-ui.mjs", "manageClassTrial");
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -17996,7 +17996,7 @@ const REGRESSIONS = [
             // (the same flag, played as an ordinary trial's card plays it), not a sound alone: one
             // road, read as a card with "execution" and no branch for the Final. Changed on purpose.
             final: /sfx: \{ key: "execution", gm: true \}/.test(card) && !/\bfinal\b/.test(card),
-            rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) playSfx\("rebuttal"\)/.test(floor),
+            rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) play\.push\("rebuttal"\)/.test(floor),
             hud: /\btrialVoiceLine\(\)/.test(time) && /drpg-voice-tile/.test(time),
             bar: /data-drpg-target/.test(bar) && /overruleTargetId\(floor\)/.test(bar) && /drpgTarget/.test(console_),
             words: moved.map(t => t.length > 20 && !/primary|główn/i.test(t))

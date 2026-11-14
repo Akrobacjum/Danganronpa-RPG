@@ -91,6 +91,16 @@ export function trialMusicState(floor, phase, { mapped = key => Boolean(playlist
     return phase === "classTrial" ? "trial.discussion" : null;
 }
 
+/**
+ * Whether the vote's own music plays (E110 part 3): a Class Trial, this chapter's record with its vote opened and no
+ * verdict yet, and a playlist mapped to `trial.vote` (`mapped`, the world's map by default). Pure over what is handed in.
+ */
+export function voteMusicPlays(record, clock, { mapped = key => Boolean(playlistFor(key)) } = {}) {
+    if (clock?.phase !== "classTrial" || !record || record.chapter !== clock.chapter || record.verdictApplied) return false;
+    const opened = Boolean(record.vote?.open || record.voteClosed || record.voteOpenedAt != null);
+    return opened && mapped("trial.vote");
+}
+
 /** The rows of `MUSIC_STATES` for the modes' own states: each applies while `trialMusicState` answers it. */
 const OWN_LABELS = Object.freeze({
     "trial.rebuttal": "trialRebuttal", "trial.testimony": "trialTestimony", "trial.panic": "trialPanic", "trial.closing": "trialClosing",
@@ -177,6 +187,15 @@ export const MUSIC_STATES = [
      */
     // Each mode's own playlist first (E110; D-E110-B, D-E110-C): a row applies only while its playlist is mapped.
     ...ownStateRows(),
+    /*
+     * THE VOTE (E110 part 3, 14.11.2026; the coordinator's survey): from the vote's opening to the verdict, a playlist of
+     * its own - only once one is mapped; unmapped, the trial's music plays on as before. The vote ends every floor
+     * (trial-floor.mjs `endFloorForVoteInStep`), so no mode's row competes with it. R7107.
+     */
+    {
+        key: "trial.vote", labelKey: "DRPG.Music.state.trialVote", randomTrack: true,
+        test: () => voteMusicPlays(getSetting(SETTINGS.trialProgress), getClock())
+    },
     {
         key: "trial.objection", labelKey: "DRPG.Music.state.trialObjection",
         randomTrack: true,

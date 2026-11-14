@@ -424,7 +424,7 @@
       },
       "musicEnabled": {
         "name": "Muzyka podąża za stanem gry",
-        "hint": "Zmienia playlistę razem z grą: Eclipse, Class Trial, Investigation, pora dnia, pauza. Najpierw przypisz playlisty w oknie Dźwięk."
+        "hint": "Zmienia playlistę razem z grą: Eclipse, Class Trial i jego tryby, znalezione ciało, Investigation, pora dnia, pauza. Najpierw przypisz playlisty w oknie Dźwięk."
       },
       "voiceEnabled": {
         "name": "Głos osobno w każdym pokoju",
@@ -2183,6 +2183,7 @@
         "other": "{n} plików"
       },
       "varies": "zmienny",
+      "safewordNoFile": "Brak pliku: safeword nie gra dźwięku, dopóki go nie wybierzesz. Jego karta i tak trafia do wszystkich.",
       "variesHint": "Słyszany ciągle, więc każde odtworzenie lekko zmienia jego tempo.",
       "varyLabel": "Różnicuj dźwięki, które słychać często",
       "varyHint": "Częste dźwięki brzmią za każdym razem trochę inaczej.",
@@ -2392,6 +2393,7 @@
         "trialScrumSides": "Scrum Debate: Strony",
         "trialScrumConfer": "Scrum Debate: Narada obozów",
         "trialScrumSpeak": "Scrum Debate: tury",
+        "trialVote": "Głosowanie (do werdyktu)",
         "bodyFound": "Znaleziono ciało (cisza, o ile nie przypisano)",
         "search": "Investigation"
       },
@@ -7822,6 +7824,14 @@
           "label": "Przejście odrzucone",
           "hint": "Ściana, zamknięte drzwi albo zapieczętowany pokój zawracają kogoś. Słyszy ten, kto próbował - jedyny błąd, który gracz popełnia regularnie."
         },
+        "stashFound": {
+          "label": "Znaleziona ukryta skrytka",
+          "hint": "Find Stash znajduje czyjąś skrytkę. Słyszy go szukający i GM-owie."
+        },
+        "bedroomEntered": {
+          "label": "Ktoś wszedł do twojej sypialni",
+          "hint": "Zamek twojej sypialni ktoś otworzył wytrychem, wyważył albo przebił, albo naprawił. Słyszysz tylko ty."
+        },
         "passageFound": {
           "label": "Poznajesz tajne przejście",
           "hint": "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."
@@ -8001,6 +8011,10 @@
         "keyReveal": {
           "label": "Ujawnienie Monokumy",
           "hint": "Monokuma ujawnia Key Remnant, którego nikt nie znalazł. Słyszy każdy uczestnik rozprawy."
+        },
+        "present": {
+          "label": "Przedstawiony Truth Bullet",
+          "hint": "Ktoś przedstawia Truth Bullet w Class Trial. Słyszy go cały stół."
         },
         "strawPollResult": {
           "label": "Wynik Straw Poll",
