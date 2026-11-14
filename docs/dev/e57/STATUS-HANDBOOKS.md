@@ -30,6 +30,8 @@ Files: the six handbooks in `docs/handbooks/`, their facts files, this file and 
 | R431 (tests-tier0.mjs :14406, :14408, :14410, :14417, :14418) | Polish "GMa", "GMem", "GMowie" (5 sentences) | "GM-a", "GM-em", "GM-owie" | a rename carries keys, the rename record, the body records, the put-back of a player's mark, one student one witness | the same |
 | R321 (tests-tier0.mjs :13687, player `lateBallot`) | "If you connect while a vote is open, your ballot comes as your browser loads" | "... your ballot comes as the game loads" | a late joiner gets a ballot; the browser wording moved to 17.12 (O19) | red at b2362972's tree with the new player text, green after (`--only R321`, 14.11) |
 | R1036 (tests-tier0.mjs :17892, player `mutedDead` first pattern) | "... gives it back when it ends - a death nobody has found too" | "... gives it back when it ends\\. It does so for a death nobody has found too" | the dead's microphones off for the trial, an unfound death included (the dash aside split, X4) | the same (`--only R1036`) |
+| R310 (tests-tier0.mjs :13475, the Polish GM Daily Life sentence) | "... żaden ślad nie jest tego rodzaju ..." | "... żaden Remnant nie jest tego rodzaju ..." | no roll is scored on the Daily Life row (the glossary's `remnant`, PL-r) | red on the new line with the old regex, green after (`--only R310`, 14.11) |
+| R321 (tests-tier0.mjs :13725, the Polish player `lateBallot`) | "... gdy wczytuje się przeglądarka" | "... gdy wczytuje się gra" | a late joiner gets a ballot (O19; the browser wording stays in 17.12) | green both ways: the appendix's copy still held the old words; the new line is the one it now reads |
 
 ## Where this line follows the UI, not the decision, until the text lines land
 

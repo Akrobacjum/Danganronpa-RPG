@@ -13472,7 +13472,7 @@ const REGRESSIONS = [
             pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
                 tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
                 daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden Remnant nie jest tego rodzaju\. To drabina, którą briefing Observe/,
-                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
+                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden Remnant nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
         };
         // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
         const rolls = stripComments(actionText(await otherSources()));
@@ -13722,7 +13722,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],
-                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka/],
+                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się gra/],
                     majority: [/\*\*więcej niż połowy\*\* wydanych kart - dla każdego nazwiska/],
                     verdictCard: [/Potem wszyscy widzą jedną kartę, \*\*WERDYKT\*\*/, /Jeśli to twoja postać, dowiadujesz się o tym także prywatnie/],
                     deadObjector: [/Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection\./]
