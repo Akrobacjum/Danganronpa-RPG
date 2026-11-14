@@ -265,11 +265,11 @@ const fadeMs = () => Math.max(ENTER(), 1);
 
 export function registerFog() {
     // The ledger's socket road and its pull-on-join (D2).
-    step("the ledger's road", () => registerLedgerRoad());
+    step("ledgerRoad", () => registerLedgerRoad());
     // At init (module.mjs), before any canvas is drawn and a door control made from the class.
-    step("door controls by the rooms", () => registerDoorControls());
+    step("doorControls", () => registerDoorControls());
     // The same, for the ruler a token's move draws: the hour's colour (E51 C3; fog-doorways.mjs `hourRulerFor`).
-    step("the token ruler in the hour's colour", () => registerTokenRuler());
+    step("tokenRuler", () => registerTokenRuler());
 
     /*
      * EACH STEP GUARDED SEPARATELY, because they used to share one handler and
@@ -290,27 +290,27 @@ export function registerFog() {
     Hooks.on("canvasPan", () => { try { rezoomRoomOutline(); } catch (err) { debug("Fog: could not restrike the outline", err); } });
 
     Hooks.on("canvasReady", () => {
-        step("scene vision mode", () => visionForDrawnScene());
+        step("sceneVision", () => visionForDrawnScene());
         // Before the first paint, so a character who has been standing in a
         // room since before this client connected is not shown their own floor
         // under full fog for one frame.
-        step("local discovery mirror", () => rememberMine());
-        step("first paint", () => repaintFog());
+        step("discoveryMirror", () => rememberMine());
+        step("firstPaint", () => repaintFog());
         // After the paint, so a floor the switcher moves the view to is drawn by the `canvasReady` that move ends in.
-        step("floor switcher", () => floorSwitcher({ arrived: true }));
+        step("floorSwitcher", () => floorSwitcher({ arrived: true }));
         // A character who is STANDING in a room nobody here has seen deserves
         // the reveal too. It used to need a step of movement to fire, so the
         // first room of a session - the one you wake up in - was the one room
         // that never got named.
-        step("reveal on arrival", () => revealStartingRooms());
+        step("revealOnArrival", () => revealStartingRooms());
         // WITHOUT THIS THE FIRST STEP REPLAYS THE ARRIVAL. `lastMineSignature`
         // starts empty, so the first move a character makes - even across two
         // feet of the room it woke up in - read as "the set of rooms I occupy
         // has changed" and announced the room a second time.
-        step("remember where we started", () => standWhereWeStand());
+        step("rememberStart", () => standWhereWeStand());
         // After it: this writes a world setting, and the paint must not wait
         // on a round trip to the database to put something on screen.
-        step("seed discovery", () => seedDiscovery());
+        step("seedDiscovery", () => seedDiscovery());
     });
 
     // A player's own token appearing or moving changes which room is theirs.
@@ -321,33 +321,33 @@ export function registerFog() {
        step inside the room then played the arrival. `ownArrival` is the half of `reactToMove` a move runs on this
        viewer's browser; the ledger's half stays the seed's. E51-T10, scenario 86's "a placed token". */
     Hooks.on("createToken", tokenDoc => {
-        step("local discovery mirror", () => rememberMine());
+        step("discoveryMirror", () => rememberMine());
         step("repaint", () => repaintFog());
-        step("arrival of a placed token", () => ownArrival(tokenDoc));
-        step("seed discovery", () => seedDiscovery(tokenDoc?.parent ?? null));
+        step("placedArrival", () => ownArrival(tokenDoc));
+        step("seedDiscovery", () => seedDiscovery(tokenDoc?.parent ?? null));
     });
     /* A DOOR OPENED OR SHUT, A WALL MOVED (E51 C3; E51-22): the outline standing beside it drawn again, its gaps and glow
        as the walls now stand, with no sound (`outlineAfterDoor`). A room's flag - a lock, an owner - is `regionChanged`'s.
        A WALL MADE OR DELETED TOO (E51 fix FG2, 31.10.2026; the correctness review's F2): until the fix only `updateWall`
        was heard, so a wall drawn on the border, or one deleted, left the outline's gap or line as it was until the next
        arrival. A deleted wall's `c` is where it stood. */
-    Hooks.on("updateWall", (wall, changes) => step("the outline by a door", () => outlineAfterDoor(wall, changes)));
-    Hooks.on("createWall", wall => step("the outline by a wall made", () => outlineAfterDoor(wall, { c: wall?.c }, { placed: true })));
-    Hooks.on("deleteWall", wall => step("the outline by a wall deleted", () => outlineAfterDoor(wall, { c: wall?.c }, { placed: true })));
+    Hooks.on("updateWall", (wall, changes) => step("outlineDoor", () => outlineAfterDoor(wall, changes)));
+    Hooks.on("createWall", wall => step("outlineWallMade", () => outlineAfterDoor(wall, { c: wall?.c }, { placed: true })));
+    Hooks.on("deleteWall", wall => step("outlineWallDeleted", () => outlineAfterDoor(wall, { c: wall?.c }, { placed: true })));
     /* A SEAL OR A CHAIN SET (E51 fix FG2, 31.10.2026; the goal review's G8). The glow asks the veto (`doorwayEdges`,
        D43c = 2), and a seal or a chain is a world setting the veto reads, which no listener above hears: a Hope Call's
        Seal on the room beyond left its glow lit beside a door the veto then refused, until the next arrival. Both
        settings' writes now draw the standing outline again, with no sound. A Setting is made by its first write
        (`createSetting`) and changed by every later one (`updateSetting`). */
     for (const hook of ["createSetting", "updateSetting"]) {
-        Hooks.on(hook, setting => step("the outline by a seal or a chain", () => outlineAfterVeto(setting)));
+        Hooks.on(hook, setting => step("outlineVeto", () => outlineAfterVeto(setting)));
     }
     /* A TOKEN DELETED TELLS WHERE THIS VIEWER STANDS (E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10). The repaint
        alone left `lastMineSignature` naming the deleted token's room, so the next arrival of any token read "my rooms
        changed" and outlined that token's room - on a GM, a player's (the goal review's measurement, 31.10). */
     Hooks.on("deleteToken", tokenDoc => {
         step("repaint", () => repaintFog());
-        step("where this viewer stands", () => standWhereWeStand({ without: tokenDoc?.id ?? null, redraw: true }));
+        step("whereIStand", () => standWhereWeStand({ without: tokenDoc?.id ?? null, redraw: true }));
     });
 
     /*
@@ -446,10 +446,10 @@ export function registerFog() {
     // Every scene with rooms, once a session, on the one GM entitled to write.
     // `canvasReady` still covers the scene in front of the GM; this covers the
     // ones nobody has opened yet, which is where the trap was.
-    Hooks.once("ready", () => step("prepare scenes", () => prepareScenes()));
-    Hooks.once("ready", () => step("remember which scenes hold rooms", () => primeHeldRooms()));
-    Hooks.once("ready", () => step("remember the regions' names", () => primeRegionNames()));
-    Hooks.on("createScene", scene => step("remember the regions' names", () => primeRegionNames([scene])));
+    Hooks.once("ready", () => step("prepareScenes", () => prepareScenes()));
+    Hooks.once("ready", () => step("heldRooms", () => primeHeldRooms()));
+    Hooks.once("ready", () => step("regionNames", () => primeRegionNames()));
+    Hooks.on("createScene", scene => step("regionNames", () => primeRegionNames([scene])));
 
     // Leaving a scene does not tear this layer down - `RenderedCanvasGroup`
     // sets `tearDownChildren = false` - so the texture would otherwise sit on
@@ -474,7 +474,20 @@ export function registerFog() {
 }
 
 /** Run one registration step without letting it stop the ones after it. */
-function step(label, fn) {
+/*
+ * A FOG TEXT IN THE PAGE'S LANGUAGE (E71 C20, 14.11.2026; DB12, audit S18-46): a step's label, a reason the fog stood
+ * down, a line of the fog's diagnosis - each a key under DRPG.Fog. Read when the text is said, never when it is named:
+ * the steps are named at init, and a label is looked up only on the error path, by which time Foundry has read the
+ * language file. Where i18n is not there to ask, the key itself, so a failure is still logged with a name.
+ */
+function fogText(key, data = null) {
+    return (data ? game.i18n?.format?.(key, data) : game.i18n?.localize?.(key)) ?? key;
+}
+
+/** A registration step's label, by its id (`DRPG.Fog.step.<id>`), in the page's language. */
+const stepLabel = id => fogText(`DRPG.Fog.step.${id}`);
+
+function step(id, fn) {
     try {
         const result = fn();
         // ASYNC STEPS COUNT TOO. `applySceneVisionMode` writes to the scene and
@@ -483,10 +496,10 @@ function step(label, fn) {
         // fails without saying so is the exact failure shape this file keeps
         // paying for - see the note on `fogOffPatch` for the last one.
         if (typeof result?.catch === "function") {
-            result.catch(err => error(`Fog: "${label}" failed after returning`, err));
+            result.catch(err => error(fogText("DRPG.Fog.stepFailedLater", { step: stepLabel(id) }), err));
         }
     } catch (err) {
-        error(`Fog: "${label}" failed; the remaining steps still run`, err);
+        error(fogText("DRPG.Fog.stepFailed", { step: stepLabel(id) }), err);
     }
 }
 
@@ -613,13 +626,13 @@ function primeHeldRooms() {
 function regionChanged(region, userId, changes = null) {
     const scene = region?.parent ?? null;
     if (!scene) return;
-    step("a room renamed", () => noteRegionName(region, userId, changes));
-    step("scene vision mode", () => prepareRoomScene(scene, userId));
+    step("roomRenamed", () => noteRegionName(region, userId, changes));
+    step("sceneVision", () => prepareRoomScene(scene, userId));
     step("repaint", () => repaintRoomScene(scene));
-    step("the outline by a room's flag", () => outlineAfterRoomFlag(region, changes));
+    step("outlineRoomFlag", () => outlineAfterRoomFlag(region, changes));
     /* The standing room's own region drawn, reshaped or deleted (E49 B4; D174): its outline drawn again from the shape it
        has now, quietly (`redrawOutline` reads the shape). Until B4 it kept the old shape until the next arrival. */
-    step("the outline of a room reshaped", () => {
+    step("outlineReshaped", () => {
         const standing = roomOutline;
         if (standing?.region?.parent === scene && region?.name === standing.room) redrawOutline(standing.room);
     });
@@ -627,7 +640,7 @@ function regionChanged(region, userId, changes = null) {
        arrival of theirs (E51 fix FG2; the correctness review's road (d)): read now, so the next arrival of another token
        does not find "my rooms changed" and outline its room. Nothing is announced - no token of this viewer's moved - and
        with no outline standing, the room a lead stands in is outlined again, with no sound (`standWhereWeStand`). */
-    step("where this viewer stands", () => standWhereWeStand({ redraw: true }));
+    step("whereIStand", () => standWhereWeStand({ redraw: true }));
 }
 
 /*
@@ -689,8 +702,8 @@ function outlineAfterRoomFlag(region, changes) {
 function regionsReplaced(scene, changes, userId) {
     const patches = regionPatches(scene, changes);
     if (!patches.length) return;
-    for (const [region, patch] of patches) step("a room renamed", () => noteRegionName(region, userId, patch));
-    step("scene vision mode", () => prepareRoomScene(scene, userId));
+    for (const [region, patch] of patches) step("roomRenamed", () => noteRegionName(region, userId, patch));
+    step("sceneVision", () => prepareRoomScene(scene, userId));
     step("repaint", () => repaintRoomScene(scene));
 }
 
@@ -1314,8 +1327,10 @@ const SHARE_WINDOW_MS = 10_000;
 export function fogShareRefusal({ sender, askedAt, answered, now = Date.now(), windowMs = SHARE_WINDOW_MS }) {
     if (!sender) return "unknown sender";
     if (sender.isGM) return null;
-    if (!askedAt || now - askedAt > windowMs) return "nobody asked";
-    if (answered?.has(sender.id)) return "already answered";
+    // The two reasons of this road alone, in the page's language (E71 C20): no other code reads them, and
+    // "unknown sender" above stays the bridge's closed list's English (bridge-guards.mjs `REASON_PATTERNS`).
+    if (!askedAt || now - askedAt > windowMs) return fogText("DRPG.Fog.share.nobodyAsked");
+    if (answered?.has(sender.id)) return fogText("DRPG.Fog.share.alreadyAnswered");
     return null;
 }
 
@@ -1451,12 +1466,12 @@ function registerLedgerRoad() {
     };
     Hooks.once("ready", () => {
         if (!game.user.isGM) {
-            step("take in this browser's old fog rows", () => fogCopy.claim());
+            step("oldFogRows", () => fogCopy.claim());
             askForCells();
             Hooks.on("drpgPrimaryReady", askForCells);
             return;
         }
-        step("share or rebuild the ledger", () => discoveryStore.whenHydrated().then(() => {
+        step("shareLedger", () => discoveryStore.whenHydrated().then(() => {
             if (!isPrimaryGm()) return;
             if (!Object.keys(discoveryStore.entries()).length) askForShares();
             else shareLedger();
@@ -1645,7 +1660,7 @@ export async function seedDiscovery(scene = null) {
             seedWaitingForReady = true;
             Hooks.once("ready", () => {
                 seedWaitingForReady = false;
-                step("seed discovery (deferred to ready)", () => seedDiscovery());
+                step("seedDeferred", () => seedDiscovery());
             });
         }
         return false;
@@ -2434,9 +2449,11 @@ function disarmRendererFailsafe() {
  *
  * Every early return in `repaintFog` writes its reason here, so "the fog does
  * not work" can be answered with a fact instead of a guess. Read it from the
- * console with `game.drpg.diagnoseFog()`.
+ * console with `game.drpg.diagnoseFog()`. Null until the first repaint, read
+ * as "not run yet" in the page's language (`DRPG.Fog.stand.notRunYet`): this
+ * line runs at load, before Foundry has read the language file (E71 C20).
  */
-let lastFogReason = "not run yet";
+let lastFogReason = null;
 
 /**
  * A plain-language report of what the fog layer is doing right now.
@@ -2490,7 +2507,7 @@ export function diagnoseFog({ gm = game.user.isGM } = {}) {
         layerMounted: Boolean(container && !container.destroyed),
         layerParent: container?.parent === canvas?.rendered ? "canvas.rendered"
             : container?.parent === canvas?.stage ? "canvas.stage (stale)"
-            : container?.parent ? "somewhere else" : null,
+            : container?.parent ? fogText("DRPG.Fog.diagnosis.elsewhere") : null,
         layerVisible: Boolean(container?.visible),
         layerChildren: container?.children?.length ?? 0,
         // What the last doorway glow was actually built from - the numbers
@@ -2523,7 +2540,7 @@ export function diagnoseFog({ gm = game.user.isGM } = {}) {
                 token: t.name,
                 at: `${Math.round(t.document.x + (t.w ?? 0) / 2)},${Math.round(t.document.y + (t.h ?? 0) / 2)}`
             })),
-        lastReason: lastFogReason
+        lastReason: lastFogReason ?? fogText("DRPG.Fog.stand.notRunYet")
     };
 
     /*
@@ -2533,18 +2550,21 @@ export function diagnoseFog({ gm = game.user.isGM } = {}) {
      * `Array(5) [ {…}, {…} ]` and the answer is still a click away from
      * whoever needed it. The lines below carry the numbers themselves.
      */
-    const lines = [`${MODULE_ID} | fog diagnosis - ${report.scene}, grid ${canvas?.grid?.size}`];
+    /* In the page's language (E71 C20; DB12, S18-46): the GM reads these lines, and the object after them keeps its
+       field names. */
+    const lines = [fogText("DRPG.Fog.diagnosis.head", { module: MODULE_ID, scene: report.scene, grid: canvas?.grid?.size })];
     if (report.lastGlow) {
         const g = report.lastGlow;
-        lines.push(`  glow: ${g.openings} opening(s), core ${g.core}px, `
-            + `full depth ${g.span}px, reach ${g.reachFromAveragedLine}px, amplitude ${g.amplitude}px`);
+        lines.push(`  ${fogText("DRPG.Fog.diagnosis.glow",
+            { openings: g.openings, core: g.core, span: g.span, reach: g.reachFromAveragedLine, amplitude: g.amplitude })}`);
         for (const [i, one] of (g.each ?? []).entries()) {
-            lines.push(`    #${i + 1}  ${one.length}px long (${one.inSquares} squares), `
-                + `glow ${one.span}px deep, starts at ${one.at.x},${one.at.y}`
-                + `${one.span < g.span ? "  <- shortened to fit its own doorway" : ""}`);
+            lines.push(`    ${fogText("DRPG.Fog.diagnosis.opening",
+                { n: i + 1, length: one.length, squares: one.inSquares, span: one.span, x: one.at.x, y: one.at.y })}`
+                + `${one.span < g.span ? `  ${fogText("DRPG.Fog.diagnosis.shortened")}` : ""}`);
         }
     }
-    lines.push(`  rooms I am in: ${(report.currentRooms ?? []).join(", ") || "none"}`);
+    lines.push(`  ${fogText("DRPG.Fog.diagnosis.rooms",
+        { rooms: (report.currentRooms ?? []).join(", ") || fogText("DRPG.Fog.diagnosis.none") })}`);
     console.log(lines.join("\n"));
 
     console.log(`${MODULE_ID} | fog diagnosis`, report);
@@ -2719,7 +2739,7 @@ export function whyBlack() {
         insideRaster: (named(RASTER_GROUP)?.children ?? []).map(describe),
         dissolveGeneration: DISSOLVE.generation,
         coveragePercent: measureCoverage(fogTexture),
-        lastReason: lastFogReason
+        lastReason: lastFogReason ?? fogText("DRPG.Fog.stand.notRunYet")
     };
 
     console.log(`${MODULE_ID} | why black`, report);
@@ -2991,16 +3011,16 @@ export function repaintFog() {
         lastDrawn = null;
         lastShading = null;
         doorRooms = null;
-        if (!canvas?.ready) return stand(  "the canvas is not ready yet");
+        if (!canvas?.ready) return stand("canvasNotReady");
         if (!fogEnabled()) {
-            stand("the 'Rooms decide what players can see' setting is off");
+            stand("settingOff");
             // Not hidden but taken away (E51 C3; D43b = 1): no layer stands while the setting is off.
             tearDownLayer();
             return false;
         }
 
         const scene = canvas.scene;
-        if (!scene) return stand("there is no scene on the canvas");
+        if (!scene) return stand("noScene");
 
         // Rooms only, every piece of each (E12 C2b): `buildFogTexture` clears and veils by
         // name, so two pieces of a room come clear together. A named region that is no room -
@@ -3014,7 +3034,7 @@ export function repaintFog() {
         // canvas as Foundry would show it rather than fogging a scene the
         // GM has not built rooms into yet.
         if (!regions.length && !sceneHoldsRooms(scene)) {
-            return stand("this scene has no room (a named Region a GM marked one), so there is nothing to fog");
+            return stand("noRoom");
         }
         /* A FLOOR WITH NO ROOM IS FOGGED WHOLE (E12 fix r2-H1, 11.10.2026; security review r2 on
            EARLY-C10-1). On a scene that has rooms this stood down, and with Foundry's token vision
@@ -3027,7 +3047,7 @@ export function repaintFog() {
         const dims = canvas.dimensions;
         const rect = dims?.rect ?? { x: 0, y: 0, width: dims?.width ?? 0, height: dims?.height ?? 0 };
         if (!(rect.width > 0) || !(rect.height > 0)) {
-            return stand("this scene reports no measurable dimensions to draw into");
+            return stand("noDimensions");
         }
 
         // FIRST GUARD: geometry at all.
@@ -3050,7 +3070,7 @@ export function repaintFog() {
         if (regions.length && !readable) {
             warn("Fog: no room geometry could be read on this scene, so nothing was fogged. "
                 + "The Regions may be drawn in a shape the module cannot measure.");
-            return stand("regions exist but none exposed usable polygons");
+            return stand("noPolygons");
         }
 
         const { mine, discovered, current, opened } = fogSets(scene);
@@ -3083,7 +3103,7 @@ export function repaintFog() {
         }
 
         const built = buildFogTexture({ regions, shading, rect, ink });
-        if (!built) return stand("the fog texture could not be rendered");
+        if (!built) return stand("notRendered");
 
         // SECOND GUARD: the room you are standing in really did get cleared.
         //
@@ -3099,14 +3119,13 @@ export function repaintFog() {
         const clearHere = Object.keys(shading).filter(room => shading[room] === "clear");
         if (clearHere.length && !built.cleared) {
             for (const t of [built.texture, built.maskTexture]) if (t && !t.destroyed) t.destroy(true);
-            return stand(`you are standing in "${clearHere[0]}", but the fog could not `
-                + "clear it, so it stood down rather than black the map out");
+            return stand("notCleared", { room: clearHere[0] });
         }
 
         const container = mountLayer();
         if (!container) {
             for (const t of [built.texture, built.maskTexture]) if (t && !t.destroyed) t.destroy(true);
-            return stand("the fog layer could not be mounted on the canvas");
+            return stand("notMounted");
         }
 
         clearLayerLeftovers(container);
@@ -3150,9 +3169,10 @@ export function repaintFog() {
     }
 }
 
-/** Hide the layer and record why, in one line, for `diagnoseFog`. */
-function stand(reason) {
-    lastFogReason = reason;
+/** Hide the layer and record why, in one line, for `diagnoseFog`: `reason` is the id of a key under DRPG.Fog.stand,
+    said in the page's language (E71 C20), with `data` for its placeholders. */
+function stand(reason, data = null) {
+    lastFogReason = fogText(`DRPG.Fog.stand.${reason}`, data);
     lastPaintSignature = "";
     lastLedgerSeen = null;
     readableCache = { sceneId: null, level: null, count: -1, readable: 0 };

@@ -1,0 +1,5610 @@
+# Group D's English text (B14-B18), rendered
+
+Cut on 14.11.2026 from `node tools/text-render.mjs`'s whole-module render (audit/harness/results/text/text-render.en.md, generated, never committed) to the keys of group D's namespaces (Settings, SettingsWindow, DhSettings, Season, Assign, Requirements, Migrate, Panel, Case, CaseMap, CaseRealize, CaseTrial, CaseSummary, Reveal, Investigation, GmStore, Live, Tables, SearchTokens, Zones, Rooms, Music, Sound, Voice, Fog, Diagnostics, Failures, Tests, Anonymity, Diagnose), screen by screen as the screen map lays them out; a key reached by several screens is under each. Regenerate with the tool and cut again; this file is a reading copy for the owner, not a source.
+
+
+Written by `node tools/text-render.mjs` (E65 C10). Fixtures: tools/text-render.mjs PLACEHOLDERS; n = 0, 1, 2, 5, 12, 22, 25, 112. Placeholders with no fixture are left as `{name}`: alive, amplitude, answer, body, clean, core, counts, cover, cub, d, entered, far, finding, grid, hpMax, into, life, module, node, openings, proposed, question, ref, reward, sanity, sanityMax, span, thief, until, warning, y, zone. HTML is escaped here.
+
+## Room Setup (room-setup; reader: gm; E12)
+
+- `DRPG.Panel.apply`
+  - Apply
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the stashes, every one (game.drpg.inspectVaults) (stash-inspector; reader: gm; E13)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the stash: a character's items and gear (stash; reader: both)
+
+- `DRPG.Panel.checksImagesBytes`
+  - n=0: 0 MB
+  - n=1: 1 MB
+  - n=2: 2 MB
+  - n=5: 5 MB
+  - n=12: 12 MB
+  - n=22: 22 MB
+  - n=25: 25 MB
+  - n=112: 112 MB
+- `DRPG.Panel.checksImagesPixels`
+  - n=0: 0 x 0 px
+  - n=1: 1 x 1 px
+  - n=2: 2 x 2 px
+  - n=5: 5 x 5 px
+  - n=12: 12 x 12 px
+  - n=22: 22 x 22 px
+  - n=25: 25 x 25 px
+  - n=112: 112 x 112 px
+- `DRPG.Rooms.carriedNothing`
+  - nothing
+- `DRPG.Rooms.pieceSplit`
+  - #1: The region “Aiko” on School, floor 1 was one piece of the room Workshop until its rename. What it carried for that room (something the code puts here) came off it: the other pieces of Workshop keep it, and “Aiko” starts with none.
+  - #2: The region “Daichi” on School, floor 1 was one piece of the room Library until its rename. What it carried for that room (something the code puts here) came off it: the other pieces of Library keep it, and “Daichi” starts with none.
+  - #3: The region “Aiko” on School, floor 1 was one piece of the room Cinema until its rename. What it carried for that room (something the code puts here) came off it: the other pieces of Cinema keep it, and “Aiko” starts with none.
+- `DRPG.Rooms.renameJoined`
+  - #1: “Workshop” on School, floor 1 was renamed “Aiko”, a room already there, and is now one more piece of it. Its keys, stashed items, notes of a found stash, and discovery still name “Workshop”. Taken off the region: something the code puts here.
+  - #2: “Library” on School, floor 1 was renamed “Daichi”, a room already there, and is now one more piece of it. Its keys, stashed items, notes of a found stash, and discovery still name “Library”. Taken off the region: something the code puts here.
+  - #3: “Cinema” on School, floor 1 was renamed “Aiko”, a room already there, and is now one more piece of it. Its keys, stashed items, notes of a found stash, and discovery still name “Cinema”. Taken off the region: something the code puts here.
+- `DRPG.SearchTokens.giveOne`
+  - Give one back
+- `DRPG.SearchTokens.refillRoom`
+  - Refill this room
+- `DRPG.SearchTokens.roomSetupLine`
+  - n=0: Search Tokens per room: 0, refilled every time of day. A room's - and + buttons change that room alone.
+  - n=1: Search Tokens per room: 1, refilled every time of day. A room's - and + buttons change that room alone.
+  - n=2: Search Tokens per room: 2, refilled every time of day. A room's - and + buttons change that room alone.
+  - n=5: Search Tokens per room: 5, refilled every time of day. A room's - and + buttons change that room alone.
+  - n=12: Search Tokens per room: 12, refilled every time of day. A room's - and + buttons change that room alone.
+  - n=22: Search Tokens per room: 22, refilled every time of day. A room's - and + buttons change that room alone.
+  - n=25: Search Tokens per room: 25, refilled every time of day. A room's - and + buttons change that room alone.
+  - n=112: Search Tokens per room: 112, refilled every time of day. A room's - and + buttons change that room alone.
+- `DRPG.SearchTokens.sealedColumn`
+  - No search
+- `DRPG.SearchTokens.sealedNote`
+  - “No search” shuts the room to Search until you untick it.
+- `DRPG.SearchTokens.spendOne`
+  - Spend one
+- `DRPG.SearchTokens.title`
+  - Search Tokens
+
+## Season setup (season-setup; reader: gm)
+
+- `DRPG.Anonymity.audit.title`
+  - Sheet Anonymity Audit
+- `DRPG.Assign.save`
+  - Save
+- `DRPG.Fog.sceneFloor`
+  - School, floor 1 (School, floor 1)
+- `DRPG.Panel.actorNameShared` (by prefix)
+  - n=0 (other): 0 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=1 (one): 1 actor is named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=2 (other): 2 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=5 (other): 5 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=12 (other): 12 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=22 (other): 22 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=25 (other): 25 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=112 (other): 112 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+- `DRPG.Panel.advance` (by prefix)
+  - Skip the Eclipse
+- `DRPG.Panel.advanceDuringEclipse` (by prefix)
+  - An Eclipse is running, and its end moves the clock. End it from the clock's chevron.
+- `DRPG.Panel.advanceOffEclipse` (by prefix)
+  - The Eclipse is running: its end moves the clock on.
+- `DRPG.Panel.advanceOffTrial` (by prefix)
+  - A Class Trial is running: the chapter's end moves the clock on.
+- `DRPG.Panel.advanceTooltip` (by prefix)
+  - No Eclipse. Refills actions and Search Tokens.
+- `DRPG.Panel.alsoReset`
+  - Also refill actions and Search Tokens
+- `DRPG.Panel.apply` (by prefix)
+  - Apply
+- `DRPG.Panel.character` (by prefix)
+  - Character
+- `DRPG.Panel.checksAvOff` (by prefix)
+  - A/V is off, so the voice tile does not work. Turn A/V on, or switch the tile off.
+- `DRPG.Panel.checksAvVideo` (by prefix)
+  - This world sends video nobody watches: set the A/V mode to audio only.
+- `DRPG.Panel.checksAvVideoOnly` (by prefix)
+  - This world is set to video only: nobody sends sound. Set the A/V mode to audio only.
+- `DRPG.Panel.checksImages`
+  - Room pictures
+- `DRPG.Panel.checksImagesBytes`
+  - n=0: 0 MB
+  - n=1: 1 MB
+  - n=2: 2 MB
+  - n=5: 5 MB
+  - n=12: 12 MB
+  - n=22: 22 MB
+  - n=25: 25 MB
+  - n=112: 112 MB
+- `DRPG.Panel.checksImagesLarge`
+  - n=0: These room pictures are large and slow to load for every player: Workshop, Library, and Cinema. Make each at most something the code puts here px on a side and 0 MB.
+  - n=1: These room pictures are large and slow to load for every player: Library. Make each at most something the code puts here px on a side and 1 MB.
+  - n=2: These room pictures are large and slow to load for every player: Workshop, Library, and Cinema. Make each at most something the code puts here px on a side and 2 MB.
+  - n=5: These room pictures are large and slow to load for every player: Library. Make each at most something the code puts here px on a side and 5 MB.
+  - n=12: These room pictures are large and slow to load for every player: Workshop, Library, and Cinema. Make each at most something the code puts here px on a side and 12 MB.
+  - n=22: These room pictures are large and slow to load for every player: Library. Make each at most something the code puts here px on a side and 22 MB.
+  - n=25: These room pictures are large and slow to load for every player: Workshop, Library, and Cinema. Make each at most something the code puts here px on a side and 25 MB.
+  - n=112: These room pictures are large and slow to load for every player: Library. Make each at most something the code puts here px on a side and 112 MB.
+- `DRPG.Panel.checksImagesLate` (by prefix)
+  - n=0 (other): These room pictures are on the server but did not finish loading within 0 seconds, so their size in pixels was not checked: Workshop, Library, and Cinema. Run the checks again on a faster connection.
+  - n=1 (one): These room pictures are on the server but did not finish loading within 1 second, so their size in pixels was not checked: Library. Run the checks again on a faster connection.
+  - n=2 (other): These room pictures are on the server but did not finish loading within 2 seconds, so their size in pixels was not checked: Workshop, Library, and Cinema. Run the checks again on a faster connection.
+  - n=5 (other): These room pictures are on the server but did not finish loading within 5 seconds, so their size in pixels was not checked: Library. Run the checks again on a faster connection.
+  - n=12 (other): These room pictures are on the server but did not finish loading within 12 seconds, so their size in pixels was not checked: Workshop, Library, and Cinema. Run the checks again on a faster connection.
+  - n=22 (other): These room pictures are on the server but did not finish loading within 22 seconds, so their size in pixels was not checked: Library. Run the checks again on a faster connection.
+  - n=25 (other): These room pictures are on the server but did not finish loading within 25 seconds, so their size in pixels was not checked: Workshop, Library, and Cinema. Run the checks again on a faster connection.
+  - n=112 (other): These room pictures are on the server but did not finish loading within 112 seconds, so their size in pixels was not checked: Library. Run the checks again on a faster connection.
+- `DRPG.Panel.checksImagesMissing`
+  - #1: These room pictures do not load: Workshop, Library, and Cinema. Pick the file again in Room setup.
+  - #2: These room pictures do not load: Library. Pick the file again in Room setup.
+- `DRPG.Panel.checksImagesPixels`
+  - n=0: 0 x 0 px
+  - n=1: 1 x 1 px
+  - n=2: 2 x 2 px
+  - n=5: 5 x 5 px
+  - n=12: 12 x 12 px
+  - n=22: 22 x 22 px
+  - n=25: 25 x 25 px
+  - n=112: 112 x 112 px
+- `DRPG.Panel.checksImagesSized`
+  - #1: Workshop, Library, and Cinema: something the code puts here
+  - #2: Library: something the code puts here
+- `DRPG.Panel.checksImagesUnknown`
+  - #1: The file size of these room pictures could not be read: Workshop, Library, and Cinema
+  - #2: The file size of these room pictures could not be read: Library
+- `DRPG.Panel.checksImagesWhere`
+  - #1: Workshop (School, floor 1)
+  - #2: Library (School, floor 1)
+  - #3: Cinema (School, floor 1)
+- `DRPG.Panel.checksSetup` (by prefix)
+  - Cast
+- `DRPG.Panel.clearFaint` (by prefix)
+  - Clear Faint Remnants
+- `DRPG.Panel.close` (by prefix)
+  - Close
+- `DRPG.Panel.despairFlow` (by prefix)
+  - Despair Flow
+- `DRPG.Panel.doColumn` (by prefix)
+  - Do
+- `DRPG.Panel.failed` (by prefix)
+  - That did not work. The Debug log in Diagnostics says why.
+- `DRPG.Panel.faintCleared` (by prefix)
+  - n=0 (other): 0 Faint Remnants cleared.
+  - n=1 (one): 1 Faint Remnant cleared.
+  - n=2 (other): 2 Faint Remnants cleared.
+  - n=5 (other): 5 Faint Remnants cleared.
+  - n=12 (other): 12 Faint Remnants cleared.
+  - n=22 (other): 22 Faint Remnants cleared.
+  - n=25 (other): 25 Faint Remnants cleared.
+  - n=112 (other): 112 Faint Remnants cleared.
+- `DRPG.Panel.faintConfirm` (by prefix)
+  - n=0 (other): Delete 0 Faint Remnants, across every scene?
+  - n=1 (one): Delete 1 Faint Remnant, across every scene?
+  - n=2 (other): Delete 2 Faint Remnants, across every scene?
+  - n=5 (other): Delete 5 Faint Remnants, across every scene?
+  - n=12 (other): Delete 12 Faint Remnants, across every scene?
+  - n=22 (other): Delete 22 Faint Remnants, across every scene?
+  - n=25 (other): Delete 25 Faint Remnants, across every scene?
+  - n=112 (other): Delete 112 Faint Remnants, across every scene?
+- `DRPG.Panel.faintConfirmNote` (by prefix)
+  - Reinforced Remnants and anything tied to the crime are left alone. The rest go for good.
+- `DRPG.Panel.faintNone` (by prefix)
+  - No Faint Remnants to clear: every Faint Remnant left is Reinforced or tied to the crime.
+- `DRPG.Panel.foundryReport`
+  - Foundry and modules
+- `DRPG.Panel.freeMove` (by prefix)
+  - Free Move
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.goAdvanceButton` (by prefix)
+  - Move the clock on
+- `DRPG.Panel.goAutopsyButton` (by prefix)
+  - Issue the autopsy
+- `DRPG.Panel.goBodyButton` (by prefix)
+  - Announce the body
+- `DRPG.Panel.goChapterEndButton` (by prefix)
+  - End the chapter
+- `DRPG.Panel.goEclipseEndButton` (by prefix)
+  - End the Eclipse
+- `DRPG.Panel.goEclipseStartButton` (by prefix)
+  - Start the Eclipse
+- `DRPG.Panel.goInvestigationButton` (by prefix)
+  - Open the Investigation
+- `DRPG.Panel.goMurderButton` (by prefix)
+  - Open the incident
+- `DRPG.Panel.goSeasonChecklistButton` (by prefix)
+  - Season checklist
+- `DRPG.Panel.goStartInvestigationButton` (by prefix)
+  - Start the Investigation
+- `DRPG.Panel.goTrialButton` (by prefix)
+  - Open the trial console
+- `DRPG.Panel.group.monokumas` (by prefix)
+  - Monokumas
+- `DRPG.Panel.group.notInClass` (by prefix)
+  - Not in the class
+- `DRPG.Panel.group.spectators` (by prefix)
+  - Spectators
+- `DRPG.Panel.group.students` (by prefix)
+  - Students
+- `DRPG.Panel.installTables` (by prefix)
+  - Create item tables
+- `DRPG.Panel.jump`
+  - Edit campaign
+- `DRPG.Panel.launcher` (by prefix)
+  - Open the GM panel
+- `DRPG.Panel.levelUpColumn` (by prefix)
+  - Level Up
+- `DRPG.Panel.nextAllDone` (by prefix)
+  - Everyone has spent their actions. Start the Eclipse: it refills everyone's actions, and its end moves the clock on.
+- `DRPG.Panel.nextAutopsy` (by prefix)
+  - The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.
+- `DRPG.Panel.nextBodyAsked` (by prefix)
+  - #1: Students found a body in Workshop, and it waits for your word: announce it, or leave it for now.
+  - #2: Students found a body in Library, and it waits for your word: announce it, or leave it for now.
+  - #3: Students found a body in Cinema, and it waits for your word: announce it, or leave it for now.
+- `DRPG.Panel.nextBodyFound` (by prefix)
+  - A body has been found. Start the Investigation when the room is ready.
+- `DRPG.Panel.nextBodyWaiting` (by prefix)
+  - #1: A body is waiting to be found in Workshop. It is found once two witnesses see it, or you can announce it yourself.
+  - #2: A body is waiting to be found in Library. It is found once two witnesses see it, or you can announce it yourself.
+  - #3: A body is waiting to be found in Cinema. It is found once two witnesses see it, or you can announce it yourself.
+- `DRPG.Panel.nextBodyWaitingNoRoom` (by prefix)
+  - A body is waiting to be found. It is found once two witnesses see it, or you can announce it yourself.
+- `DRPG.Panel.nextBodyWaitingUnseen` (by prefix)
+  - A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.
+- `DRPG.Panel.nextChapterEndStopped` (by prefix)
+  - The end of the chapter stopped before every step was done. Finish it in End the chapter.
+- `DRPG.Panel.nextEclipse` (by prefix)
+  - The Eclipse is running. End it once everyone has placed their token.
+- `DRPG.Panel.nextIncident` (by prefix)
+  - An incident is running. Take it to the end before anything else.
+- `DRPG.Panel.nextInvestigation` (by prefix)
+  - The Investigation is running. Check what has been found and what is still out there.
+- `DRPG.Panel.nextKeysToPlace` (by prefix)
+  - n=0 (other): 0 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=1 (one): 1 Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.
+  - n=2 (other): 2 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=5 (other): 5 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=12 (other): 12 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=22 (other): 22 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=25 (other): 25 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=112 (other): 112 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+- `DRPG.Panel.nextLabel` (by prefix)
+  - Next
+- `DRPG.Panel.nextReady` (by prefix)
+  - The players are being asked whether they are done. Open the question again to see who has answered.
+- `DRPG.Panel.nextSeasonSetup` (by prefix)
+  - To set up: something the code puts here.
+- `DRPG.Panel.nextSeasonSetupAside` (by prefix)
+  - Still to set up: something the code puts here.
+- `DRPG.Panel.nextStartTrial` (by prefix)
+  - Every planned Key Remnant has been found. Start the Class Trial from the trial console.
+- `DRPG.Panel.nextStillActing` (by prefix)
+  - n=0 (other): 0 students still have actions to spend.
+  - n=1 (one): 1 student still has actions to spend.
+  - n=2 (other): 2 students still have actions to spend.
+  - n=5 (other): 5 students still have actions to spend.
+  - n=12 (other): 12 students still have actions to spend.
+  - n=22 (other): 22 students still have actions to spend.
+  - n=25 (other): 25 students still have actions to spend.
+  - n=112 (other): 112 students still have actions to spend.
+- `DRPG.Panel.nextTrialOutlived` (by prefix)
+  - The chapter has moved on and the trial is still sitting. End the trial.
+- `DRPG.Panel.noActorNamed` (by prefix)
+  - game.drpg.openRoomSetupDialog found no actor with the id or name "something the code puts here". Check the spelling.
+- `DRPG.Panel.noCharacters` (by prefix)
+  - No living students in this world.
+- `DRPG.Panel.noSceneNamed` (by prefix)
+  - game.drpg.openRoomSetupDialog did nothing: it was given no scene and could not find one. Pass it the scene.
+- `DRPG.Panel.openColumn` (by prefix)
+  - Open
+- `DRPG.Panel.openSheet` (by prefix)
+  - #1: Open Aiko's sheet
+  - #2: Open Daichi's sheet
+- `DRPG.Panel.publicRoll.badFormula` (by prefix)
+  - "something the code puts here" is not a roll formula.
+- `DRPG.Panel.publicRoll.gmOnly` (by prefix)
+  - Only a GM can make a public roll.
+- `DRPG.Panel.refilled` (by prefix)
+  - Actions and Search Tokens refilled. The motive, the Despair Calls in force, and the Overflow are unchanged, and no time-of-day card was posted.
+- `DRPG.Panel.refundCrossing` (by prefix)
+  - Refund last crossing
+- `DRPG.Panel.refundCrossingNote` (by prefix)
+  - #1: Workshop back to Workshop
+  - #2: Library back to Library
+  - #3: Cinema back to Cinema
+- `DRPG.Panel.resetHint`
+  - Gives everyone full actions. Leave it off for a plain correction.
+- `DRPG.Panel.role.student` (by prefix)
+  - Student
+- `DRPG.Panel.roleColumn` (by prefix)
+  - Role
+- `DRPG.Panel.seasonChecks` (by prefix)
+  - Pre-season checks
+- `DRPG.Panel.section.between` (by prefix)
+  - Between sessions
+- `DRPG.Panel.section.case` (by prefix)
+  - The case
+- `DRPG.Panel.section.fixes` (by prefix)
+  - Diagnostics
+- `DRPG.Panel.section.now` (by prefix)
+  - Right now
+- `DRPG.Panel.settings` (by prefix)
+  - Settings
+- `DRPG.Panel.state.alive` (by prefix)
+  - Alive
+- `DRPG.Panel.state.dead` (by prefix)
+  - Dead
+- `DRPG.Panel.state.monocub` (by prefix)
+  - Monocub
+- `DRPG.Panel.stateColumn` (by prefix)
+  - State
+- `DRPG.Panel.stateSaved` (by prefix)
+  - n=0 (other): 0 characters changed.
+  - n=1 (one): 1 character changed.
+  - n=2 (other): 2 characters changed.
+  - n=5 (other): 5 characters changed.
+  - n=12 (other): 12 characters changed.
+  - n=22 (other): 22 characters changed.
+  - n=25 (other): 25 characters changed.
+  - n=112 (other): 112 characters changed.
+- `DRPG.Panel.stateUnchanged` (by prefix)
+  - Nothing changed.
+- `DRPG.Panel.studentsLeft` (by prefix)
+  - n=0 (other): 0 students still have actions
+  - n=1 (one): 1 student still has actions
+  - n=2 (other): 2 students still have actions
+  - n=5 (other): 5 students still have actions
+  - n=12 (other): 12 students still have actions
+  - n=22 (other): 22 students still have actions
+  - n=25 (other): 25 students still have actions
+  - n=112 (other): 112 students still have actions
+- `DRPG.Panel.sweepBullets` (by prefix)
+  - Sweep Truth Bullets
+- `DRPG.Panel.sweepConfirm` (by prefix)
+  - n=0 (other): Delete 0 Truth Bullets from the students' inventories?
+  - n=1 (one): Delete 1 Truth Bullet from the students' inventories?
+  - n=2 (other): Delete 2 Truth Bullets from the students' inventories?
+  - n=5 (other): Delete 5 Truth Bullets from the students' inventories?
+  - n=12 (other): Delete 12 Truth Bullets from the students' inventories?
+  - n=22 (other): Delete 22 Truth Bullets from the students' inventories?
+  - n=25 (other): Delete 25 Truth Bullets from the students' inventories?
+  - n=112 (other): Delete 112 Truth Bullets from the students' inventories?
+- `DRPG.Panel.sweepConfirmNote` (by prefix)
+  - n=0: This cannot be undone. 0 stay: the Faint ones and the Final Truth.
+  - n=1: This cannot be undone. 1 stay: the Faint ones and the Final Truth.
+  - n=2: This cannot be undone. 2 stay: the Faint ones and the Final Truth.
+  - n=5: This cannot be undone. 5 stay: the Faint ones and the Final Truth.
+  - n=12: This cannot be undone. 12 stay: the Faint ones and the Final Truth.
+  - n=22: This cannot be undone. 22 stay: the Faint ones and the Final Truth.
+  - n=25: This cannot be undone. 25 stay: the Faint ones and the Final Truth.
+  - n=112: This cannot be undone. 112 stay: the Faint ones and the Final Truth.
+- `DRPG.Panel.sweepNone` (by prefix)
+  - Nothing to sweep: every Truth Bullet in play is Faint or Final.
+- `DRPG.Panel.sweptBullets` (by prefix)
+  - n=0 (other): 0 Truth Bullets swept.
+  - n=1 (one): 1 Truth Bullet swept.
+  - n=2 (other): 2 Truth Bullets swept.
+  - n=5 (other): 5 Truth Bullets swept.
+  - n=12 (other): 12 Truth Bullets swept.
+  - n=22 (other): 22 Truth Bullets swept.
+  - n=25 (other): 25 Truth Bullets swept.
+  - n=112 (other): 112 Truth Bullets swept.
+- `DRPG.Panel.title` (by prefix)
+  - GM panel
+- `DRPG.Panel.voiceReset` (by prefix)
+  - Fix voice
+- `DRPG.Panel.whoIsAlive` (by prefix)
+  - Students
+- `DRPG.Panel.whoIsAliveNote` (by prefix)
+  - The State column fixes a mis-click: the change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.
+- `DRPG.Season.checkClean`
+  - The room check found nothing to fix on this scene.
+- `DRPG.Season.checkRooms`
+  - Check the rooms on this scene
+- `DRPG.Season.checklistTitle`
+  - Season checklist
+- `DRPG.Season.convertDoors`
+  - Convert to passages
+- `DRPG.Season.cursorButton`
+  - Hide the GMs' cursor
+- `DRPG.Season.fallsBackTo`
+  - #1: Aiko (falls back to Kitchen Knife)
+  - #2: Daichi (falls back to Rope)
+  - #3: Aiko (falls back to Chair)
+- `DRPG.Season.firstSession`
+  - First session
+- `DRPG.Season.firstSessionNote`
+  - Set once, before the first session.
+- `DRPG.Season.fixed` (by prefix)
+  - n=0 (other): Gave 0 characters the starting resources.
+  - n=1 (one): Gave 1 character the starting resources.
+  - n=2 (other): Gave 2 characters the starting resources.
+  - n=5 (other): Gave 5 characters the starting resources.
+  - n=12 (other): Gave 12 characters the starting resources.
+  - n=22 (other): Gave 22 characters the starting resources.
+  - n=25 (other): Gave 25 characters the starting resources.
+  - n=112 (other): Gave 112 characters the starting resources.
+- `DRPG.Season.fixedCursor` (by prefix)
+  - n=0 (other): Stopped sharing the cursor for 0 roles.
+  - n=1 (one): Stopped sharing the cursor for 1 role.
+  - n=2 (other): Stopped sharing the cursor for 2 roles.
+  - n=5 (other): Stopped sharing the cursor for 5 roles.
+  - n=12 (other): Stopped sharing the cursor for 12 roles.
+  - n=22 (other): Stopped sharing the cursor for 22 roles.
+  - n=25 (other): Stopped sharing the cursor for 25 roles.
+  - n=112 (other): Stopped sharing the cursor for 112 roles.
+- `DRPG.Season.fixedRulers` (by prefix)
+  - n=0 (other): The movement ruler is hidden for 0 roles.
+  - n=1 (one): The movement ruler is hidden for 1 role.
+  - n=2 (other): The movement ruler is hidden for 2 roles.
+  - n=5 (other): The movement ruler is hidden for 5 roles.
+  - n=12 (other): The movement ruler is hidden for 12 roles.
+  - n=22 (other): The movement ruler is hidden for 22 roles.
+  - n=25 (other): The movement ruler is hidden for 25 roles.
+  - n=112 (other): The movement ruler is hidden for 112 roles.
+- `DRPG.Season.fixedSecretDoors` (by prefix)
+  - n=0 (other): Converted 0 secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab.
+  - n=1 (one): Converted 1 secret door. Where it stood between two rooms, it is now a secret passage nobody knows; give it to a student in the Passages tab.
+  - n=2 (other): Converted 2 secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab.
+  - n=5 (other): Converted 5 secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab.
+  - n=12 (other): Converted 12 secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab.
+  - n=22 (other): Converted 22 secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab.
+  - n=25 (other): Converted 25 secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab.
+  - n=112 (other): Converted 112 secret doors. Each one between two rooms is now a secret passage nobody knows; give it to a student in the Passages tab.
+- `DRPG.Season.hideRulers`
+  - Hide
+- `DRPG.Season.hint.assignments` (by prefix)
+  - In Despair Flow, assign each student a Monokuma; Despair from their rolls goes to that Monokuma's pool. A student with no Monokuma assigned falls back to the first pool and is named here until assigned. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody. The step is done when every student is assigned by hand or set to “- nobody -”.
+- `DRPG.Season.hint.cast` (by prefix)
+  - One character per student. Monokumas are separate and do not count here.
+- `DRPG.Season.hint.cursor` (by prefix)
+  - Otherwise the players see your cursor on the map.
+- `DRPG.Season.hint.despairSplit` (by prefix)
+  - Pools may differ by at most one living student. This is advice only.
+- `DRPG.Season.hint.diceSoNice` (by prefix)
+  - Dice So Nice shows the dice as they fall. Danganronpa RPG does not start without it.
+- `DRPG.Season.hint.experiences` (by prefix)
+  - Two at +2, set when the character is made.
+- `DRPG.Season.hint.foundryHeld` (by prefix)
+  - Foundry's settings are given back. Unless your table wants that, hold them again.
+- `DRPG.Season.hint.hallTokens` (by prefix)
+  - A trial hall is linked, with no warnings on the Scenes tab. This is optional.
+- `DRPG.Season.hint.items` (by prefix)
+  - One starting item per student.
+- `DRPG.Season.hint.mastermind` (by prefix)
+  - Who is hiding among the students, and what proves it.
+- `DRPG.Season.hint.monokumas` (by prefix)
+  - A Monokuma spends Despair from their sheet. With several GMs, split the students evenly between the Monokumas.
+- `DRPG.Season.hint.name` (by prefix)
+  - Shown at the top of everyone's screen, above the chapter and the clock.
+- `DRPG.Season.hint.nobodyPublic` (by prefix)
+  - The Mastermind is set in Despair Flow to feed no pool. Any player can find that out, and the one student left out stands out: give them a Monokuma like any other student.
+- `DRPG.Season.hint.npcs` (by prefix)
+  - A character no player owns is probably an NPC: mark it Not in the class on its sheet, or leave it as it is.
+- `DRPG.Season.hint.overflow` (by prefix)
+  - Suggested: 12 + half the living students. Set the threshold in Despair Flow.
+- `DRPG.Season.hint.resources` (by prefix)
+  - Without them a character is Wounded and in Breakdown at once.
+- `DRPG.Season.hint.roomCount` (by prefix)
+  - About one and a half rooms per living student, corridors and bedrooms aside.
+- `DRPG.Season.hint.rooms` (by prefix)
+  - Rooms are Scene Regions a GM ticked “This is a room” in Room setup. Movement, Search, Listen, and every incident work room by room.
+- `DRPG.Season.hint.roomsMarked` (by prefix)
+  - A region is a room only when a GM ticks “This is a room” in Room setup (the Rooms tab). These named regions have not been decided yet.
+- `DRPG.Season.hint.rulers` (by prefix)
+  - Otherwise the table sees a player's route, even through a secret passage.
+- `DRPG.Season.hint.scenes` (by prefix)
+  - Room setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.
+- `DRPG.Season.hint.secretDoors` (by prefix)
+  - Any player can open a Foundry secret door. Convert them to secret passages.
+- `DRPG.Season.hint.sound` (by prefix)
+  - This module ships and assigns no audio: the files are yours. Map what you want in the Sound window; anything left blank stays silent.
+- `DRPG.Season.hint.ultimate` (by prefix)
+  - Write it on the sheet.
+- `DRPG.Season.introOutstanding`
+  - n=0: 0 still to do. The season can start without them.
+  - n=1: 1 still to do. The season can start without them.
+  - n=2: 2 still to do. The season can start without them.
+  - n=5: 5 still to do. The season can start without them.
+  - n=12: 12 still to do. The season can start without them.
+  - n=22: 22 still to do. The season can start without them.
+  - n=25: 25 still to do. The season can start without them.
+  - n=112: 112 still to do. The season can start without them.
+- `DRPG.Season.introReady`
+  - Every row this list needs is done. Read the further checks below before the first session.
+- `DRPG.Season.missingMonokumaActor`
+  - no character is marked as Monokuma (the Students window's Role list, or Mark as Monokuma on a sheet)
+- `DRPG.Season.missingPool`
+  - no Despair pool yet (every account with the Gamemaster role holds one)
+- `DRPG.Season.moreChecking`
+  - Checking the room pictures, the voice, the dice, and the sheets...
+- `DRPG.Season.moreFailed`
+  - The further checks could not run. The Debug log in the GM panel says why.
+- `DRPG.Season.noHall`
+  - No trial hall is linked.
+- `DRPG.Season.noNamedRegions`
+  - No scene has a named region yet: draw each room as a Scene Region first.
+- `DRPG.Season.openIt`
+  - Open
+- `DRPG.Season.overflowNow`
+  - n=0: something the code puts here Now 0.
+  - n=1: something the code puts here Now 1.
+  - n=2: something the code puts here Now 2.
+  - n=5: something the code puts here Now 5.
+  - n=12: something the code puts here Now 12.
+  - n=22: something the code puts here Now 22.
+  - n=25: something the code puts here Now 25.
+  - n=112: something the code puts here Now 112.
+- `DRPG.Season.resetNote`
+  - Wipes the season's play, such as projects, evidence, deaths, items, and Level Ups, and keeps the cast. It asks first.
+- `DRPG.Season.resetTitle`
+  - Reset the season
+- `DRPG.Season.resourcesButton`
+  - Give the starting resources
+- `DRPG.Season.roomGuide`
+  - Draw the walls, then a region for each room, and tick “This is a room” in Room setup.
+- `DRPG.Season.roomsCheckErrors` (by prefix)
+  - n=0 (other): The room check found 0 problems on School, floor 1: fix them and check again.
+  - n=1 (one): The room check found 1 problem on School, floor 1: fix it and check again.
+  - n=2 (other): The room check found 2 problems on School, floor 1: fix them and check again.
+  - n=5 (other): The room check found 5 problems on School, floor 1: fix them and check again.
+  - n=12 (other): The room check found 12 problems on School, floor 1: fix them and check again.
+  - n=22 (other): The room check found 22 problems on School, floor 1: fix them and check again.
+  - n=25 (other): The room check found 25 problems on School, floor 1: fix them and check again.
+  - n=112 (other): The room check found 112 problems on School, floor 1: fix them and check again.
+- `DRPG.Season.roomsJudged` (by prefix)
+  - n=0 (other): This row checks School, floor 1. 0 scenes have rooms.
+  - n=1 (one): This row checks School, floor 1. 1 scene has rooms.
+  - n=2 (other): This row checks School, floor 1. 2 scenes have rooms.
+  - n=5 (other): This row checks School, floor 1. 5 scenes have rooms.
+  - n=12 (other): This row checks School, floor 1. 12 scenes have rooms.
+  - n=22 (other): This row checks School, floor 1. 22 scenes have rooms.
+  - n=25 (other): This row checks School, floor 1. 25 scenes have rooms.
+  - n=112 (other): This row checks School, floor 1. 112 scenes have rooms.
+- `DRPG.Season.roomsUncovered`
+  - n=0: 0% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+  - n=1: 1% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+  - n=2: 2% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+  - n=5: 5% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+  - n=12: 12% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+  - n=22: 22% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+  - n=25: 25% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+  - n=112: 112% of School, floor 1 belongs to no room: draw the missing rooms, or draw their regions out to the walls.
+- `DRPG.Season.roomsVision`
+  - School, floor 1: Foundry's token vision or its fog is still on there, or its global light is off, so players may see black.
+- `DRPG.Season.safeword`
+  - Safeword
+- `DRPG.Season.safewordNote`
+  - The word that stops the scene, shown on each student's sheet. Leave it blank for the default.
+- `DRPG.Season.scenesHint`
+  - Season setup links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.
+- `DRPG.Season.scenesLine`
+  - The school and the trial hall, linked once a season.
+- `DRPG.Season.secretDoorsPlain` (by prefix)
+  - n=0 (other): 0 of them did not stand between two rooms and are now plain walls.
+  - n=1 (one): 1 of them did not stand between two rooms and is now a plain wall.
+  - n=2 (other): 2 of them did not stand between two rooms and are now plain walls.
+  - n=5 (other): 5 of them did not stand between two rooms and are now plain walls.
+  - n=12 (other): 12 of them did not stand between two rooms and are now plain walls.
+  - n=22 (other): 22 of them did not stand between two rooms and are now plain walls.
+  - n=25 (other): 25 of them did not stand between two rooms and are now plain walls.
+  - n=112 (other): 112 of them did not stand between two rooms and are now plain walls.
+- `DRPG.Season.showRulers`
+  - Show
+- `DRPG.Season.splitUneven`
+  - Uneven: {counts}.
+- `DRPG.Season.startHereText`
+  - Open Season setup from the GM panel. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do.
+- `DRPG.Season.startHereTitle`
+  - Where to start
+- `DRPG.Season.step.assignments` (by prefix)
+  - Every student has a Monokuma watching
+- `DRPG.Season.step.cast` (by prefix)
+  - The cast exists
+- `DRPG.Season.step.cursor` (by prefix)
+  - The GMs' cursor is private (recommended)
+- `DRPG.Season.step.despairSplit` (by prefix)
+  - The students are split evenly between the pools
+- `DRPG.Season.step.diceSoNice` (by prefix)
+  - Dice So Nice is active
+- `DRPG.Season.step.experiences` (by prefix)
+  - Everybody has their Experiences
+- `DRPG.Season.step.foundryHeld` (by prefix)
+  - The module holds Foundry's settings (optional)
+- `DRPG.Season.step.hallTokens` (by prefix)
+  - The trial hall and its tokens (optional)
+- `DRPG.Season.step.items` (by prefix)
+  - Everybody carries something
+- `DRPG.Season.step.liveKitSecret` (by prefix)
+  - The voice server's secret key is not saved in the world
+- `DRPG.Season.step.mastermind` (by prefix)
+  - The Mastermind (optional)
+- `DRPG.Season.step.monokumas` (by prefix)
+  - At least one Monokuma
+- `DRPG.Season.step.name` (by prefix)
+  - Name the campaign
+- `DRPG.Season.step.nobodyPublic` (by prefix)
+  - The Mastermind feeds a Despair pool
+- `DRPG.Season.step.npcs` (by prefix)
+  - Characters no player plays are marked
+- `DRPG.Season.step.overflow` (by prefix)
+  - The Overflow threshold suits the cast
+- `DRPG.Season.step.resources` (by prefix)
+  - Starting Health, Sanity, and Hope
+- `DRPG.Season.step.roomCount` (by prefix)
+  - Enough rooms for the cast
+- `DRPG.Season.step.rooms` (by prefix)
+  - The map has rooms
+- `DRPG.Season.step.roomsMarked` (by prefix)
+  - Every named region is marked as a room or not
+- `DRPG.Season.step.rulers` (by prefix)
+  - The players' movement ruler is hidden (optional)
+- `DRPG.Season.step.scenes` (by prefix)
+  - The school and the trial hall are linked
+- `DRPG.Season.step.secretDoors` (by prefix)
+  - No Foundry secret doors (recommended)
+- `DRPG.Season.step.sound` (by prefix)
+  - Sound files
+- `DRPG.Season.step.ultimate` (by prefix)
+  - Everybody has an Ultimate
+- `DRPG.Season.title`
+  - Season setup
+- `DRPG.Season.undoneRulers` (by prefix)
+  - n=0 (other): The movement ruler is shown for 0 roles again.
+  - n=1 (one): The movement ruler is shown for 1 role again.
+  - n=2 (other): The movement ruler is shown for 2 roles again.
+  - n=5 (other): The movement ruler is shown for 5 roles again.
+  - n=12 (other): The movement ruler is shown for 12 roles again.
+  - n=22 (other): The movement ruler is shown for 22 roles again.
+  - n=25 (other): The movement ruler is shown for 25 roles again.
+  - n=112 (other): The movement ruler is shown for 112 roles again.
+- `DRPG.Season.waitingForCast`
+  - Waiting for the cast: create the students first.
+- `DRPG.Season.windows`
+  - The season's windows
+- `DRPG.Voice.liveKitSecret`
+  - LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting that every player's browser receives. Anyone holding it can connect to any voice room. To keep the secret off every browser, use a server that issues its own access tokens, such as the Tavern.
+- `DRPG.Voice.panel.legend`
+  - Voice
+
+## the season reset (season-wipe; reader: gm)
+
+- `DRPG.GmStore.resetCutFailed`
+  - The season reset could not mark the clock with the moment of the reset (something the code puts here). Nothing was cleared.
+- `DRPG.GmStore.resetOfflineGms` (by prefix)
+  - n=0 (other): 0 GMs are not connected (Aiko, Daichi, and Chie): their browsers drop what this reset clears the next time they open this world.
+  - n=1 (one): One GM is not connected (Aiko and Daichi): their browser drops what this reset clears the next time it opens this world.
+  - n=2 (other): 2 GMs are not connected (Chie): their browsers drop what this reset clears the next time they open this world.
+  - n=5 (other): 5 GMs are not connected (Aiko, Daichi, and Chie): their browsers drop what this reset clears the next time they open this world.
+  - n=12 (other): 12 GMs are not connected (Aiko and Daichi): their browsers drop what this reset clears the next time they open this world.
+  - n=22 (other): 22 GMs are not connected (Chie): their browsers drop what this reset clears the next time they open this world.
+  - n=25 (other): 25 GMs are not connected (Aiko, Daichi, and Chie): their browsers drop what this reset clears the next time they open this world.
+  - n=112 (other): 112 GMs are not connected (Aiko and Daichi): their browsers drop what this reset clears the next time they open this world.
+- `DRPG.GmStore.resetPrimaryOnly`
+  - #1: Only the primary GM, Aiko, can reset the season. Ask Aiko, or reset when you are the only GM connected.
+  - #2: Only the primary GM, Daichi, can reset the season. Ask Daichi, or reset when you are the only GM connected.
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Season.failed`
+  - #1: The reset did not finish: Kitchen Knife, Rope, and Chair. The other ticked groups were cleared. Reset again: the window ticks only the groups that did not finish.
+  - #2: The reset did not finish: Rope. The other ticked groups were cleared. Reset again: the window ticks only the groups that did not finish.
+- `DRPG.Season.failedCast`
+  - The reset did not move all of the cast's tokens where you chose. Move them by hand: no reset moves only the tokens.
+- `DRPG.Season.group.actions` (by prefix)
+  - The action budget refilled, each student's rests cleared, and every barricade taken down
+- `DRPG.Season.group.advancement` (by prefix)
+  - Level Ups, with traits and maxima back to the starting sheet and the experiences they added removed
+- `DRPG.Season.group.assembly` (by prefix)
+  - A called assembly that has not gathered yet
+- `DRPG.Season.group.assignments` (by prefix)
+  - Despair Flow's division of the students between the Monokumas, with every student back to the first pool
+- `DRPG.Season.group.bodyFound` (by prefix)
+  - The body waiting for a GM's word, and the record of which bodies were found
+- `DRPG.Season.group.bullets` (by prefix)
+  - Truth Bullets in the cast's packs
+- `DRPG.Season.group.cards` (by prefix)
+  - This module's own cards and the messenger
+- `DRPG.Season.group.chatRest` (by prefix)
+  - The rest of the chat log, which this module did not write
+- `DRPG.Season.group.clock` (by prefix)
+  - The clock, back to Chapter 1, Day 1, Morning
+- `DRPG.Season.group.deaths` (by prefix)
+  - Deaths and Monocubs, with the dead back, the bodies off the maps, and every student's Health and Sanity whole again
+- `DRPG.Season.group.despair` (by prefix)
+  - Despair pools, and every Hope back to the start
+- `DRPG.Season.group.discovered` (by prefix)
+  - Which rooms have been discovered
+- `DRPG.Season.group.doors` (by prefix)
+  - Locked doors, back to how the season opened
+- `DRPG.Season.group.eclipseMoves` (by prefix)
+  - Eclipse crossings already used
+- `DRPG.Season.group.incident` (by prefix)
+  - The incident, the Blackened, a betrayal still on offer, and any murder declared in the dark
+- `DRPG.Season.group.items` (by prefix)
+  - What the cast is carrying, with each bedroom key handed back to its owner
+- `DRPG.Season.group.keyPlan` (by prefix)
+  - The Key Remnant plan
+- `DRPG.Season.group.mastermind` (by prefix)
+  - The Mastermind
+- `DRPG.Season.group.motive` (by prefix)
+  - The motive
+- `DRPG.Season.group.overflow` (by prefix)
+  - The Overflow and its darkening
+- `DRPG.Season.group.passages` (by prefix)
+  - Who knows each secret passage, the passages projects made, and their breaches (the GMs' passages stay, and whoever knew one at season start knows it again)
+- `DRPG.Season.group.preNotes` (by prefix)
+  - The GMs' pre-session notes
+- `DRPG.Season.group.projects` (by prefix)
+  - Projects, repairs, and their countdowns
+- `DRPG.Season.group.remnants` (by prefix)
+  - Remnants on the maps, and what each one really was
+- `DRPG.Season.group.rules` (by prefix)
+  - Monokuma's standing rules
+- `DRPG.Season.group.seals` (by prefix)
+  - Despair Calls still in force, and every Call armed for a roll
+- `DRPG.Season.group.searchTokens` (by prefix)
+  - Search Tokens spent in each room
+- `DRPG.Season.group.stashesFound` (by prefix)
+  - The stashes each student has already found, and every hidden stash open again
+- `DRPG.Season.group.trialFloor` (by prefix)
+  - The trial floor
+- `DRPG.Season.group.trialProgress` (by prefix)
+  - The trial's progress and its vote
+- `DRPG.Season.reportCard.cast`
+  - The cast's tokens went as chosen (something the code puts here).
+- `DRPG.Season.reportCard.done` (by prefix)
+  - #1: Cleared: Kitchen Knife, Rope, and Chair.
+  - #2: Cleared: Rope.
+- `DRPG.Season.reportCard.experiences`
+  - Experiences left on the sheets, since there is no way to tell whether a Level Up or a GM added them: something the code puts here.
+- `DRPG.Season.reportCard.failed` (by prefix)
+  - #1: Not cleared: Kitchen Knife, Rope, and Chair.
+  - #2: Not cleared: Rope.
+- `DRPG.Season.reportCard.kept` (by prefix)
+  - #1: Kept (unticked): Kitchen Knife, Rope, and Chair.
+  - #2: Kept (unticked): Rope.
+- `DRPG.Season.reportCard.notRun`
+  - #1: Not run, because the primary GM changed while the reset ran: Kitchen Knife, Rope, and Chair.
+  - #2: Not run, because the primary GM changed while the reset ran: Rope.
+- `DRPG.Season.reportCard.stayed`
+  - #1: Stayed where they were: Aiko, Daichi, and Chie.
+  - #2: Stayed where they were: Aiko and Daichi.
+  - #3: Stayed where they were: Chie.
+- `DRPG.Season.reportCard.title`
+  - The season reset did not finish
+- `DRPG.Season.reportCard.titleCast`
+  - Where the cast went after the season reset
+- `DRPG.Season.reportCard.titleLeft`
+  - What the season reset left on the sheets
+- `DRPG.Season.resetButton`
+  - Reset the season
+- `DRPG.Season.resetCastBedroom`
+  - Each student to their own bedroom, as Room setup assigns it
+- `DRPG.Season.resetCastNoRooms`
+  - No map has a named room yet
+- `DRPG.Season.resetCastNote`
+  - A student with no bedroom, or with no token on the map of the room they are sent to, stays where they are, and the report names them. A body stays where it fell. Every reset opens on the first choice.
+- `DRPG.Season.resetCastPoint`
+  - Everyone to one room:
+- `DRPG.Season.resetCastStay`
+  - They stay where they stand
+- `DRPG.Season.resetCastTitle`
+  - Where the cast's tokens go
+- `DRPG.Season.resetDone`
+  - The season has been reset. The cast and the maps are untouched.
+- `DRPG.Season.resetDoneKept` (by prefix)
+  - n=0 (other): The season has been reset, with 0 exceptions left as they were.
+  - n=1 (one): The season has been reset, with one exception left as it was.
+  - n=2 (other): The season has been reset, with 2 exceptions left as they were.
+  - n=5 (other): The season has been reset, with 5 exceptions left as they were.
+  - n=12 (other): The season has been reset, with 12 exceptions left as they were.
+  - n=22 (other): The season has been reset, with 22 exceptions left as they were.
+  - n=25 (other): The season has been reset, with 25 exceptions left as they were.
+  - n=112 (other): The season has been reset, with 112 exceptions left as they were.
+- `DRPG.Season.resetForgotten` (by prefix)
+  - n=0 (other): 0 remembered exceptions are no longer part of a reset and were dropped.
+  - n=1 (one): One remembered exception is no longer part of a reset and was dropped.
+  - n=2 (other): 2 remembered exceptions are no longer part of a reset and were dropped.
+  - n=5 (other): 5 remembered exceptions are no longer part of a reset and were dropped.
+  - n=12 (other): 12 remembered exceptions are no longer part of a reset and were dropped.
+  - n=22 (other): 22 remembered exceptions are no longer part of a reset and were dropped.
+  - n=25 (other): 25 remembered exceptions are no longer part of a reset and were dropped.
+  - n=112 (other): 112 remembered exceptions are no longer part of a reset and were dropped.
+- `DRPG.Season.resetGoes`
+  - What goes:
+- `DRPG.Season.resetGroupsNote`
+  - Untick anything this reset should leave alone. The next reset remembers it and opens with it unticked; tick it again to include it in the reset.
+- `DRPG.Season.resetGroupsTitle`
+  - What goes, and what stays
+- `DRPG.Season.resetKeeps`
+  - What stays: the cast with their names, portraits, and Ultimates, the maps, the rooms and who owns them, the Monokuma team, and the campaign name.
+- `DRPG.Season.resetMistyped`
+  - The season was not reset. Open the reset again and type something the code puts here exactly.
+- `DRPG.Season.resetNothing`
+  - Nothing is ticked, so there is nothing to reset.
+- `DRPG.Season.resetRemembered` (by prefix)
+  - n=0 (other): 0 exceptions are remembered from the last reset and are unticked below.
+  - n=1 (one): One exception is remembered from the last reset and is unticked below.
+  - n=2 (other): 2 exceptions are remembered from the last reset and are unticked below.
+  - n=5 (other): 5 exceptions are remembered from the last reset and are unticked below.
+  - n=12 (other): 12 exceptions are remembered from the last reset and are unticked below.
+  - n=22 (other): 22 exceptions are remembered from the last reset and are unticked below.
+  - n=25 (other): 25 exceptions are remembered from the last reset and are unticked below.
+  - n=112 (other): 112 exceptions are remembered from the last reset and are unticked below.
+- `DRPG.Season.resetTitle`
+  - Reset the season
+- `DRPG.Season.resetType`
+  - Type something the code puts here to confirm
+- `DRPG.Season.resetUnfinished`
+  - #1: The last reset did not finish: Kitchen Knife, Rope, and Chair. Only those are ticked, and this reset leaves the remembered exceptions as they are.
+  - #2: The last reset did not finish: Rope. Only those are ticked, and this reset leaves the remembered exceptions as they are.
+- `DRPG.Season.resetWarning`
+  - This cannot be undone, by this module or by anything else.
+- `DRPG.Season.resetWord`
+  - RESET
+- `DRPG.Season.section.board` (by prefix)
+  - The board
+- `DRPG.Season.section.case` (by prefix)
+  - The case
+- `DRPG.Season.section.cast` (by prefix)
+  - The cast
+- `DRPG.Season.section.log` (by prefix)
+  - The log
+- `DRPG.Season.section.world` (by prefix)
+  - The world
+- `DRPG.Season.stoppedPrimary`
+  - #1: The reset stopped: Aiko is now the primary GM, and these did not run: Kitchen Knife, Rope, and Chair. What ran stays done; Aiko can finish the rest with another reset.
+  - #2: The reset stopped: Daichi is now the primary GM, and these did not run: Rope. What ran stays done; Daichi can finish the rest with another reset.
+
+## the GM panel (gm-panel; reader: gm; E13)
+
+- `DRPG.Case.backupAgo` (by prefix)
+  - n=0 (other): last backup: 0 days ago
+  - n=1 (one): last backup: 1 day ago
+  - n=2 (other): last backup: 2 days ago
+  - n=5 (other): last backup: 5 days ago
+  - n=12 (other): last backup: 12 days ago
+  - n=22 (other): last backup: 22 days ago
+  - n=25 (other): last backup: 25 days ago
+  - n=112 (other): last backup: 112 days ago
+- `DRPG.Case.backupNever`
+  - last backup: never
+- `DRPG.Case.backupToday`
+  - last backup: today
+- `DRPG.Case.panelWarning`
+  - The case is incomplete on this browser:
+- `DRPG.Case.tile`
+  - The case
+- `DRPG.Failures.clear`
+  - Clear the log
+- `DRPG.Failures.cleared`
+  - The debug log on this browser is now empty.
+- `DRPG.Failures.copied`
+  - Debug log copied. Paste it (Ctrl+V) wherever it needs to go.
+- `DRPG.Failures.copy`
+  - Copy to clipboard
+- `DRPG.Failures.intro`
+  - Everything this browser has failed at since the page loaded; reloading the page empties it. Repeats show as one row with a count.
+- `DRPG.Failures.none`
+  - Nothing has gone wrong since this page loaded.
+- `DRPG.Failures.title`
+  - Debug log
+- `DRPG.Investigation.dashboardTitle`
+  - Investigation
+- `DRPG.Panel.advance`
+  - Skip the Eclipse
+- `DRPG.Panel.advanceOffEclipse`
+  - The Eclipse is running: its end moves the clock on.
+- `DRPG.Panel.advanceOffTrial`
+  - A Class Trial is running: the chapter's end moves the clock on.
+- `DRPG.Panel.advanceTooltip`
+  - No Eclipse. Refills actions and Search Tokens.
+- `DRPG.Panel.apply`
+  - Apply
+- `DRPG.Panel.character`
+  - Character
+- `DRPG.Panel.doColumn`
+  - Do
+- `DRPG.Panel.failed`
+  - That did not work. The Debug log in Diagnostics says why.
+- `DRPG.Panel.foundryReport`
+  - Foundry and modules
+- `DRPG.Panel.freeMove`
+  - Free Move
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.goAdvanceButton`
+  - Move the clock on
+- `DRPG.Panel.goAutopsyButton`
+  - Issue the autopsy
+- `DRPG.Panel.goBodyButton`
+  - Announce the body
+- `DRPG.Panel.goChapterEndButton`
+  - End the chapter
+- `DRPG.Panel.goEclipseEndButton`
+  - End the Eclipse
+- `DRPG.Panel.goEclipseStartButton`
+  - Start the Eclipse
+- `DRPG.Panel.goInvestigationButton`
+  - Open the Investigation
+- `DRPG.Panel.goMurderButton`
+  - Open the incident
+- `DRPG.Panel.goSeasonChecklistButton`
+  - Season checklist
+- `DRPG.Panel.goStartInvestigationButton`
+  - Start the Investigation
+- `DRPG.Panel.goTrialButton`
+  - Open the trial console
+- `DRPG.Panel.group.monokumas` (by prefix)
+  - Monokumas
+- `DRPG.Panel.group.notInClass` (by prefix)
+  - Not in the class
+- `DRPG.Panel.group.spectators` (by prefix)
+  - Spectators
+- `DRPG.Panel.group.students` (by prefix)
+  - Students
+- `DRPG.Panel.launcher`
+  - Open the GM panel
+- `DRPG.Panel.levelUpColumn`
+  - Level Up
+- `DRPG.Panel.nextAllDone`
+  - Everyone has spent their actions. Start the Eclipse: it refills everyone's actions, and its end moves the clock on.
+- `DRPG.Panel.nextAutopsy`
+  - The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.
+- `DRPG.Panel.nextBodyAsked`
+  - #1: Students found a body in Workshop, and it waits for your word: announce it, or leave it for now.
+  - #2: Students found a body in Library, and it waits for your word: announce it, or leave it for now.
+  - #3: Students found a body in Cinema, and it waits for your word: announce it, or leave it for now.
+- `DRPG.Panel.nextBodyFound`
+  - A body has been found. Start the Investigation when the room is ready.
+- `DRPG.Panel.nextBodyWaiting`
+  - #1: A body is waiting to be found in Workshop. It is found once two witnesses see it, or you can announce it yourself.
+  - #2: A body is waiting to be found in Library. It is found once two witnesses see it, or you can announce it yourself.
+  - #3: A body is waiting to be found in Cinema. It is found once two witnesses see it, or you can announce it yourself.
+- `DRPG.Panel.nextBodyWaitingNoRoom`
+  - A body is waiting to be found. It is found once two witnesses see it, or you can announce it yourself.
+- `DRPG.Panel.nextBodyWaitingUnseen`
+  - A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.
+- `DRPG.Panel.nextChapterEndStopped`
+  - The end of the chapter stopped before every step was done. Finish it in End the chapter.
+- `DRPG.Panel.nextEclipse`
+  - The Eclipse is running. End it once everyone has placed their token.
+- `DRPG.Panel.nextIncident`
+  - An incident is running. Take it to the end before anything else.
+- `DRPG.Panel.nextInvestigation`
+  - The Investigation is running. Check what has been found and what is still out there.
+- `DRPG.Panel.nextKeysToPlace` (by prefix)
+  - n=0 (other): 0 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=1 (one): 1 Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.
+  - n=2 (other): 2 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=5 (other): 5 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=12 (other): 12 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=22 (other): 22 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=25 (other): 25 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+  - n=112 (other): 112 Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab.
+- `DRPG.Panel.nextLabel`
+  - Next
+- `DRPG.Panel.nextReady`
+  - The players are being asked whether they are done. Open the question again to see who has answered.
+- `DRPG.Panel.nextSeasonSetup`
+  - To set up: something the code puts here.
+- `DRPG.Panel.nextSeasonSetupAside`
+  - Still to set up: something the code puts here.
+- `DRPG.Panel.nextStartTrial`
+  - Every planned Key Remnant has been found. Start the Class Trial from the trial console.
+- `DRPG.Panel.nextStillActing` (by prefix)
+  - n=0 (other): 0 students still have actions to spend.
+  - n=1 (one): 1 student still has actions to spend.
+  - n=2 (other): 2 students still have actions to spend.
+  - n=5 (other): 5 students still have actions to spend.
+  - n=12 (other): 12 students still have actions to spend.
+  - n=22 (other): 22 students still have actions to spend.
+  - n=25 (other): 25 students still have actions to spend.
+  - n=112 (other): 112 students still have actions to spend.
+- `DRPG.Panel.nextTrialOutlived`
+  - The chapter has moved on and the trial is still sitting. End the trial.
+- `DRPG.Panel.noCharacters`
+  - No living students in this world.
+- `DRPG.Panel.openColumn`
+  - Open
+- `DRPG.Panel.openSheet`
+  - #1: Open Aiko's sheet
+  - #2: Open Daichi's sheet
+- `DRPG.Panel.refundCrossing`
+  - Refund last crossing
+- `DRPG.Panel.refundCrossingNote`
+  - #1: Workshop back to Workshop
+  - #2: Library back to Library
+  - #3: Cinema back to Cinema
+- `DRPG.Panel.role.student`
+  - Student
+- `DRPG.Panel.roleColumn`
+  - Role
+- `DRPG.Panel.section.between` (by prefix)
+  - Between sessions
+- `DRPG.Panel.section.case` (by prefix)
+  - The case
+- `DRPG.Panel.section.fixes` (by prefix)
+  - Diagnostics
+- `DRPG.Panel.section.now` (by prefix)
+  - Right now
+- `DRPG.Panel.settings`
+  - Settings
+- `DRPG.Panel.state.alive` (by prefix)
+  - Alive
+- `DRPG.Panel.state.dead` (by prefix)
+  - Dead
+- `DRPG.Panel.state.monocub` (by prefix)
+  - Monocub
+- `DRPG.Panel.stateColumn`
+  - State
+- `DRPG.Panel.stateSaved` (by prefix)
+  - n=0 (other): 0 characters changed.
+  - n=1 (one): 1 character changed.
+  - n=2 (other): 2 characters changed.
+  - n=5 (other): 5 characters changed.
+  - n=12 (other): 12 characters changed.
+  - n=22 (other): 22 characters changed.
+  - n=25 (other): 25 characters changed.
+  - n=112 (other): 112 characters changed.
+- `DRPG.Panel.stateUnchanged`
+  - Nothing changed.
+- `DRPG.Panel.studentsLeft` (by prefix)
+  - n=0 (other): 0 students still have actions
+  - n=1 (one): 1 student still has actions
+  - n=2 (other): 2 students still have actions
+  - n=5 (other): 5 students still have actions
+  - n=12 (other): 12 students still have actions
+  - n=22 (other): 22 students still have actions
+  - n=25 (other): 25 students still have actions
+  - n=112 (other): 112 students still have actions
+- `DRPG.Panel.title`
+  - GM panel
+- `DRPG.Panel.voiceReset`
+  - Fix voice
+- `DRPG.Panel.whoIsAlive`
+  - Students
+- `DRPG.Panel.whoIsAliveNote`
+  - The State column fixes a mis-click: the change is saved when you press Apply, with no announcement. Role changes at once. The row's buttons act at once, with every effect: a death destroys Truth Bullets. Monocub, by its button or in the State list, sends an invitation: the student becomes a Monocub when their player accepts the Monocub Rule.
+- `DRPG.Season.openIt`
+  - Open
+- `DRPG.Season.step.assignments` (by prefix)
+  - Every student has a Monokuma watching
+- `DRPG.Season.step.cast` (by prefix)
+  - The cast exists
+- `DRPG.Season.step.cursor` (by prefix)
+  - The GMs' cursor is private (recommended)
+- `DRPG.Season.step.despairSplit` (by prefix)
+  - The students are split evenly between the pools
+- `DRPG.Season.step.diceSoNice` (by prefix)
+  - Dice So Nice is active
+- `DRPG.Season.step.experiences` (by prefix)
+  - Everybody has their Experiences
+- `DRPG.Season.step.foundryHeld` (by prefix)
+  - The module holds Foundry's settings (optional)
+- `DRPG.Season.step.hallTokens` (by prefix)
+  - The trial hall and its tokens (optional)
+- `DRPG.Season.step.items` (by prefix)
+  - Everybody carries something
+- `DRPG.Season.step.liveKitSecret` (by prefix)
+  - The voice server's secret key is not saved in the world
+- `DRPG.Season.step.mastermind` (by prefix)
+  - The Mastermind (optional)
+- `DRPG.Season.step.monokumas` (by prefix)
+  - At least one Monokuma
+- `DRPG.Season.step.name` (by prefix)
+  - Name the campaign
+- `DRPG.Season.step.nobodyPublic` (by prefix)
+  - The Mastermind feeds a Despair pool
+- `DRPG.Season.step.npcs` (by prefix)
+  - Characters no player plays are marked
+- `DRPG.Season.step.overflow` (by prefix)
+  - The Overflow threshold suits the cast
+- `DRPG.Season.step.resources` (by prefix)
+  - Starting Health, Sanity, and Hope
+- `DRPG.Season.step.roomCount` (by prefix)
+  - Enough rooms for the cast
+- `DRPG.Season.step.rooms` (by prefix)
+  - The map has rooms
+- `DRPG.Season.step.roomsMarked` (by prefix)
+  - Every named region is marked as a room or not
+- `DRPG.Season.step.rulers` (by prefix)
+  - The players' movement ruler is hidden (optional)
+- `DRPG.Season.step.scenes` (by prefix)
+  - The school and the trial hall are linked
+- `DRPG.Season.step.secretDoors` (by prefix)
+  - No Foundry secret doors (recommended)
+- `DRPG.Season.step.sound` (by prefix)
+  - Sound files
+- `DRPG.Season.step.ultimate` (by prefix)
+  - Everybody has an Ultimate
+- `DRPG.Season.title`
+  - Season setup
+- `DRPG.SettingsWindow.mayNot`
+  - Only a user with permission to change world settings can open Game settings.
+- `DRPG.Sound.title`
+  - Sound
+- `DRPG.Tables.editorTitle`
+  - Item tables
+- `DRPG.Voice.resetDone` (by prefix)
+  - n=0 (other): Voice rooms re-sent to 0 people.
+  - n=1 (one): Voice room re-sent to 1 person.
+  - n=2 (other): Voice rooms re-sent to 2 people.
+  - n=5 (other): Voice rooms re-sent to 5 people.
+  - n=12 (other): Voice rooms re-sent to 12 people.
+  - n=22 (other): Voice rooms re-sent to 22 people.
+  - n=25 (other): Voice rooms re-sent to 25 people.
+  - n=112 (other): Voice rooms re-sent to 112 people.
+- `DRPG.Voice.resetRefused.livekit`
+  - Nothing was sent: LiveKit AVClient is not active. Turn it on in Manage Modules, then reload the world.
+- `DRPG.Voice.resetRefused.primary`
+  - #1: Only the primary GM, Aiko, can re-send the voice rooms. Ask Aiko.
+  - #2: Only the primary GM, Daichi, can re-send the voice rooms. Ask Daichi.
+- `DRPG.Voice.silenceNow`
+  - Silence now
+- `DRPG.Voice.silenceNowTip`
+  - Moves this player's voice to the Spectators now, before the body is found.
+- `DRPG.Voice.silenced`
+  - Silenced
+
+## the trial console: the GM's controls for a Class Trial (trial-console; reader: gm; E10)
+
+- `DRPG.CaseSummary.show`
+  - Show summary
+- `DRPG.CaseSummary.shown`
+  - Summary sent
+- `DRPG.Panel.close`
+  - Close
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Reveal.beyondPaid`
+  - No Despair was charged for this Key Remnant. Reveal it anyway?
+- `DRPG.Reveal.button`
+  - Reveal
+- `DRPG.Reveal.defaultName`
+  - Key Remnant
+- `DRPG.Reveal.intro`
+  - #1: Everyone taking part in the trial who does not hold one yet gets a Truth Bullet of Aiko, as if they had found it. Analyzing it costs what Analyze always costs.
+  - #2: Everyone taking part in the trial who does not hold one yet gets a Truth Bullet of Daichi, as if they had found it. Analyzing it costs what Analyze always costs.
+- `DRPG.Reveal.left`
+  - n=0: Left to reveal: 0
+  - n=1: Left to reveal: 1
+  - n=2: Left to reveal: 2
+  - n=5: Left to reveal: 5
+  - n=12: Left to reveal: 12
+  - n=22: Left to reveal: 22
+  - n=25: Left to reveal: 25
+  - n=112: Left to reveal: 112
+- `DRPG.Reveal.noTrace`
+  - not on the map
+- `DRPG.Reveal.notMissing`
+  - That Key Remnant is not missing: somebody found it, or Monokuma has revealed it.
+- `DRPG.Reveal.section`
+  - Missing Key Remnants
+- `DRPG.Reveal.textLabel`
+  - What the players read
+- `DRPG.Reveal.title`
+  - Monokuma's Reveal
+- `DRPG.Zones.busy`
+  - Another mode holds the floor. End it first, or close the debate.
+- `DRPG.Zones.confer.conferOver`
+  - End the confer
+- `DRPG.Zones.confer.sidesSet`
+  - Sides set
+- `DRPG.Zones.end`
+  - End this mode
+- `DRPG.Zones.findings.button`
+  - n=0: Findings (0)
+  - n=1: Findings (1)
+  - n=2: Findings (2)
+  - n=5: Findings (5)
+  - n=12: Findings (12)
+  - n=22: Findings (22)
+  - n=25: Findings (25)
+  - n=112: Findings (112)
+- `DRPG.Zones.noZones`
+  - The trial hall has no Zone A and Zone B. Pick them in Season setup.
+
+## evidence put in front of the table, and the Objection (trial-evidence; reader: both)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the murder window (murder-window; reader: gm)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the GM's incident tracker (incident-tracker; reader: gm)
+
+- `DRPG.Voice.silenceNow`
+  - Silence now
+- `DRPG.Voice.silenceNowTip`
+  - Moves this player's voice to the Spectators now, before the body is found.
+
+## the room tile and the room's window (room-tile; reader: both; E77)
+
+- `DRPG.SearchTokens.sealed`
+  - You cannot search this room. There is nothing in here to find, at any time of day.
+
+## the voice tile and its list (voice-tile; reader: both; E78)
+
+- `DRPG.Voice.held.connected`
+  - Connected to your voice channel.
+- `DRPG.Voice.held.connecting`
+  - Joining your voice channel.
+- `DRPG.Voice.held.cubListen` (by prefix)
+  - something the code puts here: you listen.
+- `DRPG.Voice.held.cubSpeak` (by prefix)
+  - Discussion: you may speak.
+- `DRPG.Voice.held.cubVote` (by prefix)
+  - The vote: you listen.
+- `DRPG.Voice.held.deadAlone` (by prefix)
+  - Your character is dead: you talk with the Spectators. The living do not hear you.
+- `DRPG.Voice.held.deadMuted` (by prefix)
+  - Your character is dead: you listen to the trial, and your microphone stays off until it ends.
+- `DRPG.Voice.held.eclipse`
+  - Eclipse: no player is in a voice channel until the lights come back.
+- `DRPG.Voice.held.eclipseHeard`
+  - Eclipse: nobody hears you until the lights come back.
+- `DRPG.Voice.held.external`
+  - Voice is in its own window: use the controls there.
+- `DRPG.Voice.held.gmBlock`
+  - The GM blocked your microphone.
+- `DRPG.Voice.held.listening` (by prefix)
+  - Listening at a door: your microphone stays off until you stop.
+- `DRPG.Voice.held.masked` (by prefix)
+  - Hidden behind a "?": your microphone stays off until you reveal yourself.
+- `DRPG.Voice.held.offline`
+  - You are not connected to voice.
+- `DRPG.Voice.held.ownCase` (by prefix)
+  - You listen: this trial is about your death.
+- `DRPG.Voice.held.spectator` (by prefix)
+  - You're a Spectator: you hear the room you're in, and your microphone is off.
+- `DRPG.Voice.held.spectatorTalk` (by prefix)
+  - You're talking with the other Spectators.
+- `DRPG.Voice.list.alone`
+  - Nobody else is in your channel.
+- `DRPG.Voice.list.count` (by prefix)
+  - n=0 (other): You hear 0 people in your channel
+  - n=1 (one): You hear 1 person in your channel
+  - n=2 (other): You hear 2 people in your channel
+  - n=5 (other): You hear 5 people in your channel
+  - n=12 (other): You hear 12 people in your channel
+  - n=22 (other): You hear 22 people in your channel
+  - n=25 (other): You hear 25 people in your channel
+  - n=112 (other): You hear 112 people in your channel
+- `DRPG.Voice.list.gmBlock`
+  - #1: Block Aiko's microphone for everyone
+  - #2: Block Daichi's microphone for everyone
+- `DRPG.Voice.list.gmHeld`
+  - You cannot block this microphone now.
+- `DRPG.Voice.list.gmNoBlock`
+  - This version of Foundry has no microphone permission, so you cannot block a microphone from here.
+- `DRPG.Voice.list.gmSecretDead`
+  - This death is still a secret: a block would give it away.
+- `DRPG.Voice.list.gmUnblock`
+  - #1: Unblock Aiko's microphone
+  - #2: Unblock Daichi's microphone
+- `DRPG.Voice.list.hidden`
+  - You hid them in the camera dock, so you do not hear them.
+- `DRPG.Voice.list.muteAll`
+  - Mute everybody on your end
+- `DRPG.Voice.list.muteFor`
+  - #1: Mute Aiko on your end
+  - #2: Mute Daichi on your end
+- `DRPG.Voice.list.open`
+  - Who you hear
+- `DRPG.Voice.list.unhide`
+  - Show and listen
+- `DRPG.Voice.list.unmuteFor`
+  - #1: Hear Aiko again
+  - #2: Hear Daichi again
+- `DRPG.Voice.list.volume`
+  - #1: Volume: Aiko
+  - #2: Volume: Daichi
+- `DRPG.Voice.mic.mute`
+  - Mute your microphone
+- `DRPG.Voice.mic.ptt`
+  - Push to talk: hold something the code puts here to speak
+- `DRPG.Voice.mic.pttBadge`
+  - PTT
+- `DRPG.Voice.mic.pttNoKey`
+  - Push to talk: set a key for it in Configure Controls.
+- `DRPG.Voice.mic.unmute`
+  - Turn your microphone back on
+- `DRPG.Voice.panel.legend` (by prefix)
+  - Voice
+- `DRPG.Voice.panel.mic` (by prefix)
+  - Microphone
+- `DRPG.Voice.panel.micNote` (by prefix)
+  - Allow the browser to use your microphone, then open this window again to choose one.
+- `DRPG.Voice.panel.mode` (by prefix)
+  - Microphone mode
+- `DRPG.Voice.panel.modeAlways` (by prefix)
+  - Always on
+- `DRPG.Voice.panel.modePtt` (by prefix)
+  - Push to talk
+- `DRPG.Voice.panel.output` (by prefix)
+  - Sound output
+- `DRPG.Voice.panel.pttChange` (by prefix)
+  - Change the key
+- `DRPG.Voice.panel.pttKey`
+  - Push-to-talk key: something the code puts here
+- `DRPG.Voice.tile.hasFloor`
+  - has the floor
+- `DRPG.Voice.tile.label`
+  - Voice
+- `DRPG.Voice.tile.more` (by prefix)
+  - n=0 (other): and 0 more speaking
+  - n=1 (one): and 1 more speaking
+  - n=2 (other): and 2 more speaking
+  - n=5 (other): and 5 more speaking
+  - n=12 (other): and 12 more speaking
+  - n=22 (other): and 22 more speaking
+  - n=25 (other): and 25 more speaking
+  - n=112 (other): and 112 more speaking
+- `DRPG.Voice.tile.nobody`
+  - Nobody is speaking
+- `DRPG.Voice.tile.speaking`
+  - Speaking
+- `DRPG.Voice.tile.state.blocked`
+  - Blocked
+- `DRPG.Voice.tile.state.connected`
+  - Connected
+- `DRPG.Voice.tile.state.connecting`
+  - Connecting
+- `DRPG.Voice.tile.state.disconnected`
+  - Disconnected
+- `DRPG.Voice.tile.state.eclipsed`
+  - Eclipsed
+- `DRPG.Voice.tile.state.external`
+  - Own window
+
+## the secret passages as the GMs keep them (passages-gm; reader: gm)
+
+- `DRPG.Season.secretDoorsPutBack` (by prefix)
+  - n=0 (other): 0 secret doors were changed while no GM was online, and are back as a GM last left them: School, floor 1 and Trial hall.
+  - n=1 (one): 1 secret door was changed while no GM was online, and is back as a GM last left it: School, floor 1 and Trial hall.
+  - n=2 (other): 2 secret doors were changed while no GM was online, and are back as a GM last left them: School, floor 1 and Trial hall.
+  - n=5 (other): 5 secret doors were changed while no GM was online, and are back as a GM last left them: School, floor 1 and Trial hall.
+  - n=12 (other): 12 secret doors were changed while no GM was online, and are back as a GM last left them: School, floor 1 and Trial hall.
+  - n=22 (other): 22 secret doors were changed while no GM was online, and are back as a GM last left them: School, floor 1 and Trial hall.
+  - n=25 (other): 25 secret doors were changed while no GM was online, and are back as a GM last left them: School, floor 1 and Trial hall.
+  - n=112 (other): 112 secret doors were changed while no GM was online, and are back as a GM last left them: School, floor 1 and Trial hall.
+
+## a death: the window and its cards (death-window; reader: gm; E09)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the body discovery (body-discovery; reader: gm; E11)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## a chapter's end and Stage Six (chapter; reader: both)
+
+- `DRPG.Case.backupAgo` (by prefix)
+  - n=0 (other): last backup: 0 days ago
+  - n=1 (one): last backup: 1 day ago
+  - n=2 (other): last backup: 2 days ago
+  - n=5 (other): last backup: 5 days ago
+  - n=12 (other): last backup: 12 days ago
+  - n=22 (other): last backup: 22 days ago
+  - n=25 (other): last backup: 25 days ago
+  - n=112 (other): last backup: 112 days ago
+- `DRPG.Case.backupNever`
+  - last backup: never
+- `DRPG.Case.backupNow`
+  - Back up the case
+- `DRPG.Case.backupToday`
+  - last backup: today
+- `DRPG.Case.chapterReminder`
+  - #1: The answer keys revealed when this chapter closes are kept only in the GMs' browsers. Back up the case (Morning).
+  - #2: The answer keys revealed when this chapter closes are kept only in the GMs' browsers. Back up the case (Noon).
+  - #3: The answer keys revealed when this chapter closes are kept only in the GMs' browsers. Back up the case (Afternoon).
+  - #4: The answer keys revealed when this chapter closes are kept only in the GMs' browsers. Back up the case (Evening).
+  - #5: The answer keys revealed when this chapter closes are kept only in the GMs' browsers. Back up the case (Night).
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## a key Remnant placed, and the bullets swept (key-remnant; reader: gm; E09)
+
+- `DRPG.Investigation.noRooms`
+  - This scene has no rooms yet, so there is nowhere to put a Remnant. Draw the regions first; Room setup explains how.
+- `DRPG.Investigation.place`
+  - Place
+- `DRPG.Investigation.placeTitle`
+  - Place this Key Remnant
+- `DRPG.Investigation.placedMeanwhile`
+  - Another GM placed this row's Key Remnant while the window was open, so nothing more was placed.
+- `DRPG.Investigation.plannedRoomGone`
+  - #1: The planned room “Workshop” is not on this scene. Pick a room.
+  - #2: The planned room “Library” is not on this scene. Pick a room.
+  - #3: The planned room “Cinema” is not on this scene. Pick a room.
+- `DRPG.Investigation.room`
+  - Room
+- `DRPG.Investigation.visibility`
+  - Visibility
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.sweepBullets`
+  - Sweep Truth Bullets
+- `DRPG.Panel.sweepConfirm` (by prefix)
+  - n=0 (other): Delete 0 Truth Bullets from the students' inventories?
+  - n=1 (one): Delete 1 Truth Bullet from the students' inventories?
+  - n=2 (other): Delete 2 Truth Bullets from the students' inventories?
+  - n=5 (other): Delete 5 Truth Bullets from the students' inventories?
+  - n=12 (other): Delete 12 Truth Bullets from the students' inventories?
+  - n=22 (other): Delete 22 Truth Bullets from the students' inventories?
+  - n=25 (other): Delete 25 Truth Bullets from the students' inventories?
+  - n=112 (other): Delete 112 Truth Bullets from the students' inventories?
+- `DRPG.Panel.sweepConfirmNote`
+  - n=0: This cannot be undone. 0 stay: the Faint ones and the Final Truth.
+  - n=1: This cannot be undone. 1 stay: the Faint ones and the Final Truth.
+  - n=2: This cannot be undone. 2 stay: the Faint ones and the Final Truth.
+  - n=5: This cannot be undone. 5 stay: the Faint ones and the Final Truth.
+  - n=12: This cannot be undone. 12 stay: the Faint ones and the Final Truth.
+  - n=22: This cannot be undone. 22 stay: the Faint ones and the Final Truth.
+  - n=25: This cannot be undone. 25 stay: the Faint ones and the Final Truth.
+  - n=112: This cannot be undone. 112 stay: the Faint ones and the Final Truth.
+- `DRPG.Panel.sweepNone`
+  - Nothing to sweep: every Truth Bullet in play is Faint or Final.
+- `DRPG.Panel.sweptBullets` (by prefix)
+  - n=0 (other): 0 Truth Bullets swept.
+  - n=1 (one): 1 Truth Bullet swept.
+  - n=2 (other): 2 Truth Bullets swept.
+  - n=5 (other): 5 Truth Bullets swept.
+  - n=12 (other): 12 Truth Bullets swept.
+  - n=22 (other): 22 Truth Bullets swept.
+  - n=25 (other): 25 Truth Bullets swept.
+  - n=112 (other): 112 Truth Bullets swept.
+
+## the GM's side of an Investigation (investigation; reader: gm)
+
+- `DRPG.Assign.save`
+  - Save
+- `DRPG.Case.chargeHeld` (by prefix)
+  - n=0 (other): The charge for unfound Key Remnants is on hold: 0 Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+  - n=1 (one): The charge for unfound Key Remnants is on hold: 1 Truth Bullet has no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+  - n=2 (other): The charge for unfound Key Remnants is on hold: 2 Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+  - n=5 (other): The charge for unfound Key Remnants is on hold: 5 Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+  - n=12 (other): The charge for unfound Key Remnants is on hold: 12 Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+  - n=22 (other): The charge for unfound Key Remnants is on hold: 22 Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+  - n=25 (other): The charge for unfound Key Remnants is on hold: 25 Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+  - n=112 (other): The charge for unfound Key Remnants is on hold: 112 Truth Bullets have no answer key on the primary GM's browser, so the count would come out wrong. Restore a backup of the case (GM panel, Diagnostics, The case); the charge can be made again after that.
+- `DRPG.CaseMap.addCounter`
+  - Add counter
+- `DRPG.CaseMap.addDeduction`
+  - Add deduction
+- `DRPG.CaseMap.addPlan`
+  - Add a plan
+- `DRPG.CaseMap.addSolution`
+  - Add solution
+- `DRPG.CaseMap.autopsyAt`
+  - Sent at
+- `DRPG.CaseMap.autopsyBody`
+  - n=0: Body 0 found
+  - n=1: Body 1 found
+  - n=2: Body 2 found
+  - n=5: Body 5 found
+  - n=12: Body 12 found
+  - n=22: Body 22 found
+  - n=25: Body 25 found
+  - n=112: Body 112 found
+- `DRPG.CaseMap.autopsyCount`
+  - Autopsies this chapter
+- `DRPG.CaseMap.autopsyPreset`
+  - n=0: By default 0: one for each body, or one if there is no body yet.
+  - n=1: By default 1: one for each body, or one if there is no body yet.
+  - n=2: By default 2: one for each body, or one if there is no body yet.
+  - n=5: By default 5: one for each body, or one if there is no body yet.
+  - n=12: By default 12: one for each body, or one if there is no body yet.
+  - n=22: By default 22: one for each body, or one if there is no body yet.
+  - n=25: By default 25: one for each body, or one if there is no body yet.
+  - n=112: By default 112: one for each body, or one if there is no body yet.
+- `DRPG.CaseMap.autopsySent`
+  - Sent to the students.
+- `DRPG.CaseMap.autopsyWhen`
+  - n=0: Goes to every living student when body 0 is found, if this Autopsy has a name or words and is within the chapter's count.
+  - n=1: Goes to every living student when body 1 is found, if this Autopsy has a name or words and is within the chapter's count.
+  - n=2: Goes to every living student when body 2 is found, if this Autopsy has a name or words and is within the chapter's count.
+  - n=5: Goes to every living student when body 5 is found, if this Autopsy has a name or words and is within the chapter's count.
+  - n=12: Goes to every living student when body 12 is found, if this Autopsy has a name or words and is within the chapter's count.
+  - n=22: Goes to every living student when body 22 is found, if this Autopsy has a name or words and is within the chapter's count.
+  - n=25: Goes to every living student when body 25 is found, if this Autopsy has a name or words and is within the chapter's count.
+  - n=112: Goes to every living student when body 112 is found, if this Autopsy has a name or words and is within the chapter's count.
+- `DRPG.CaseMap.bulletGiven`
+  - Given.
+- `DRPG.CaseMap.diveSetGone`
+  - (a set since deleted)
+- `DRPG.CaseMap.field.img`
+  - Picture
+- `DRPG.CaseMap.field.inputs`
+  - Rests on
+- `DRPG.CaseMap.field.label`
+  - Name
+- `DRPG.CaseMap.field.mode`
+  - Trial mode
+- `DRPG.CaseMap.field.refutes`
+  - Refutes
+- `DRPG.CaseMap.field.text`
+  - Note for the GMs
+- `DRPG.CaseMap.finalAskRoomTitle`
+  - Final Truth Remnant's room
+- `DRPG.CaseMap.graphLabel`
+  - n=0: Case map, chapter 0
+  - n=1: Case map, chapter 1
+  - n=2: Case map, chapter 2
+  - n=5: Case map, chapter 5
+  - n=12: Case map, chapter 12
+  - n=22: Case map, chapter 22
+  - n=25: Case map, chapter 25
+  - n=112: Case map, chapter 112
+- `DRPG.CaseMap.newLabel.bullet` (by prefix)
+  - New Truth Bullet
+- `DRPG.CaseMap.newLabel.counter` (by prefix)
+  - New counter
+- `DRPG.CaseMap.newLabel.deduction` (by prefix)
+  - New deduction
+- `DRPG.CaseMap.newLabel.final` (by prefix)
+  - Final Truth Remnant
+- `DRPG.CaseMap.newLabel.incident` (by prefix)
+  - New Remnant
+- `DRPG.CaseMap.newLabel.solution` (by prefix)
+  - Solution
+- `DRPG.CaseMap.noDiveSet`
+  - - no set -
+- `DRPG.CaseMap.noMode`
+  - - no trial mode -
+- `DRPG.CaseMap.noName`
+  - (no name)
+- `DRPG.CaseMap.noRecipient`
+  - - nobody yet -
+- `DRPG.CaseMap.none`
+  - None
+- `DRPG.CaseMap.notSaved`
+  - Your changes were not saved. They are still in the fields.
+- `DRPG.CaseMap.nothingToRefute`
+  - No deduction to refute yet.
+- `DRPG.CaseMap.pickRoom`
+  - - pick a room -
+- `DRPG.CaseMap.placeOnMap`
+  - Place on the map
+- `DRPG.CaseMap.plan.bullet` (by prefix)
+  - Planned Truth Bullet
+- `DRPG.CaseMap.plan.final` (by prefix)
+  - Planned Final Truth
+- `DRPG.CaseMap.plan.incident` (by prefix)
+  - Planned Remnant
+- `DRPG.CaseMap.removeAsk`
+  - #1: Remove Aiko from the case? A node that rests on it keeps naming it, and Check consistency reports it.
+  - #2: Remove Daichi from the case? A node that rests on it keeps naming it, and Check consistency reports it.
+- `DRPG.CaseMap.removeNode`
+  - Remove from the case
+- `DRPG.CaseMap.slotNumber`
+  - n=0: Slot 0
+  - n=1: Slot 1
+  - n=2: Slot 2
+  - n=5: Slot 5
+  - n=12: Slot 12
+  - n=22: Slot 22
+  - n=25: Slot 25
+  - n=112: Slot 112
+- `DRPG.CaseMap.sort.kind` (by prefix)
+  - By kind
+- `DRPG.CaseMap.sort.manual` (by prefix)
+  - By hand
+- `DRPG.CaseMap.sort.room` (by prefix)
+  - By room
+- `DRPG.CaseMap.sort.state` (by prefix)
+  - By state
+- `DRPG.CaseMap.sort.uncrossed` (by prefix)
+  - Fewer crossing lines
+- `DRPG.CaseMap.sortLabel`
+  - Order in a column
+- `DRPG.CaseMap.studentBullets`
+  - Truth Bullets
+- `DRPG.CaseMap.studentItems`
+  - Items
+- `DRPG.CaseMap.toolsLabel`
+  - Map tools
+- `DRPG.CaseMap.viewMap`
+  - Map
+- `DRPG.CaseMap.viewSwitch`
+  - Investigation view
+- `DRPG.CaseMap.viewTable`
+  - Table
+- `DRPG.CaseRealize.noRoom`
+  - - leave it -
+- `DRPG.CaseRealize.notNow`
+  - Not now
+- `DRPG.CaseRealize.preview`
+  - Realization preview
+- `DRPG.Investigation.analysisPlaceholder`
+  - What Analyze reveals
+- `DRPG.Investigation.breakdown`
+  - Answer key
+- `DRPG.Investigation.breakdownTooltip`
+  - What each Truth Bullet is by the GMs' answer key, whatever its holder was shown.
+- `DRPG.Investigation.bullets`
+  - Truth Bullets
+- `DRPG.Investigation.chapterN`
+  - n=0: Chapter 0
+  - n=1: Chapter 1
+  - n=2: Chapter 2
+  - n=5: Chapter 5
+  - n=12: Chapter 12
+  - n=22: Chapter 22
+  - n=25: Chapter 25
+  - n=112: Chapter 112
+- `DRPG.Investigation.chargeTooLate`
+  - No Despair was charged for unfound Key Remnants: the clock is in chapter something the code puts here, but the last case belongs to chapter something the code puts here, so this chapter has no case to count.
+- `DRPG.Investigation.createHere`
+  - Create on the map
+- `DRPG.Investigation.createHereIntro` (by prefix)
+  - n=0 (other): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the 0 clues you planned that is not on the map yet.
+  - n=1 (one): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to the 1 clue you planned, if it is not on the map yet.
+  - n=2 (other): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the 2 clues you planned that is not on the map yet.
+  - n=5 (other): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the 5 clues you planned that is not on the map yet.
+  - n=12 (other): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the 12 clues you planned that is not on the map yet.
+  - n=22 (other): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the 22 clues you planned that is not on the map yet.
+  - n=25 (other): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the 25 clues you planned that is not on the map yet.
+  - n=112 (other): A player named a point of interest, and you decided something is there. This puts a Key Remnant on the map and can attach it to one of the 112 clues you planned that is not on the map yet.
+- `DRPG.Investigation.createHereTitle`
+  - Create a Key Remnant here
+- `DRPG.Investigation.createNote`
+  - Place puts a row's Key Remnant on the map at once, in the room you pick: reinforced, tied to the crime, somewhere inside the room, with the words typed on its row. A row already on the map has no Place button.
+- `DRPG.Investigation.createdHere`
+  - #1: Key Remnant placed in Workshop.
+  - #2: Key Remnant placed in Library.
+  - #3: Key Remnant placed in Cinema.
+- `DRPG.Investigation.dashboardTitle`
+  - Investigation
+- `DRPG.Investigation.deleteTrace`
+  - Delete
+- `DRPG.Investigation.deleteTraceAsk`
+  - #1: Delete the Remnant “Aiko”? Its token is removed from the map and its row from the case.
+  - #2: Delete the Remnant “Daichi”? Its token is removed from the map and its row from the case.
+- `DRPG.Investigation.deleteTraceTitle`
+  - Delete the Remnant
+- `DRPG.Investigation.difficulty`
+  - Difficulty
+- `DRPG.Investigation.filterAll`
+  - Everyone
+- `DRPG.Investigation.filterAnywhere`
+  - Anywhere
+- `DRPG.Investigation.filterChapter`
+  - Chapter
+- `DRPG.Investigation.filterCount`
+  - n=0: Showing 0 of 0.
+  - n=1: Showing 1 of 1.
+  - n=2: Showing 2 of 2.
+  - n=5: Showing 5 of 5.
+  - n=12: Showing 12 of 12.
+  - n=22: Showing 22 of 22.
+  - n=25: Showing 25 of 25.
+  - n=112: Showing 112 of 112.
+- `DRPG.Investigation.filterEveryChapter`
+  - Every chapter
+- `DRPG.Investigation.filterOrder`
+  - Order
+- `DRPG.Investigation.filterPlayer`
+  - Left by
+- `DRPG.Investigation.filterRoom`
+  - Room
+- `DRPG.Investigation.finalAskBody`
+  - You picked a room for the Final Truth Remnant and closed the window without saving. Place it now?
+- `DRPG.Investigation.finalAskPlace`
+  - Place it
+- `DRPG.Investigation.finalAskTitle`
+  - Place the Final Truth Remnant
+- `DRPG.Investigation.finalFoundBy`
+  - Found by
+- `DRPG.Investigation.finalNobody`
+  - Nobody has found it
+- `DRPG.Investigation.finalNotePlaceholder`
+  - What it points at
+- `DRPG.Investigation.foundBy`
+  - Found by
+- `DRPG.Investigation.keyDcNote`
+  - A Key Remnant is the easiest thing in a room to notice. How easy depends on its visibility: something the code puts here. The difficulty scale above does not change it. Ordinary evidence in the same band is three to six points harder to notice. The scale is how much a clue gives away.
+- `DRPG.Investigation.keyLimitLine`
+  - n=0: 0 of 0 Key Remnants used this chapter. The minimum is 0.
+  - n=1: 1 of 1 Key Remnants used this chapter. The minimum is 1.
+  - n=2: 2 of 2 Key Remnants used this chapter. The minimum is 2.
+  - n=5: 5 of 5 Key Remnants used this chapter. The minimum is 5.
+  - n=12: 12 of 12 Key Remnants used this chapter. The minimum is 12.
+  - n=22: 22 of 22 Key Remnants used this chapter. The minimum is 22.
+  - n=25: 25 of 25 Key Remnants used this chapter. The minimum is 25.
+  - n=112: 112 of 112 Key Remnants used this chapter. The minimum is 112.
+- `DRPG.Investigation.keyLimitOverride`
+  - Place more than the opening roll allows
+- `DRPG.Investigation.keyNoteLabel`
+  - Your note
+- `DRPG.Investigation.keyNotePlaceholder`
+  - Only GMs read this
+- `DRPG.Investigation.keyOffPlan` (by prefix)
+  - n=0 (other): 0 found Key Remnants are not on the plan (Aiko, Daichi, and Chie); they still count toward the threshold of 0.
+  - n=1 (one): One found Key Remnant is not on the plan (Aiko and Daichi); it still counts toward the threshold of 1.
+  - n=2 (other): 2 found Key Remnants are not on the plan (Chie); they still count toward the threshold of 2.
+  - n=5 (other): 5 found Key Remnants are not on the plan (Aiko, Daichi, and Chie); they still count toward the threshold of 5.
+  - n=12 (other): 12 found Key Remnants are not on the plan (Aiko and Daichi); they still count toward the threshold of 12.
+  - n=22 (other): 22 found Key Remnants are not on the plan (Chie); they still count toward the threshold of 22.
+  - n=25 (other): 25 found Key Remnants are not on the plan (Aiko, Daichi, and Chie); they still count toward the threshold of 25.
+  - n=112 (other): 112 found Key Remnants are not on the plan (Aiko and Daichi); they still count toward the threshold of 112.
+- `DRPG.Investigation.keyPublicNote`
+  - “Name” and “Player description” are what a finder holds the moment they pick it up; “What analysis reveals” waits until they Analyze it. The Remnants tab edits the same three fields. Only GMs read your note.
+- `DRPG.Investigation.keyRetyped`
+  - Its Remnant is no longer a Key Remnant
+- `DRPG.Investigation.keyStatus`
+  - Status
+- `DRPG.Investigation.keySummary`
+  - n=0: 0 of 0 found, 0 on the map.
+  - n=1: 1 of 1 found, 1 on the map.
+  - n=2: 2 of 2 found, 2 on the map.
+  - n=5: 5 of 5 found, 5 on the map.
+  - n=12: 12 of 12 found, 12 on the map.
+  - n=22: 22 of 22 found, 22 on the map.
+  - n=25: 25 of 25 found, 25 on the map.
+  - n=112: 112 of 112 found, 112 on the map.
+- `DRPG.Investigation.keysHeld`
+  - Key
+- `DRPG.Investigation.leftoverKeys` (by prefix)
+  - n=0 (other): 0 Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.
+  - n=1 (one): 1 Key Remnant from an earlier chapter is still on the map. This chapter's plan cannot see it; clear it at the end of a chapter or attach it here.
+  - n=2 (other): 2 Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.
+  - n=5 (other): 5 Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.
+  - n=12 (other): 12 Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.
+  - n=22 (other): 22 Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.
+  - n=25 (other): 25 Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.
+  - n=112 (other): 112 Key Remnants from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.
+- `DRPG.Investigation.neverOnePerson`
+  - A Remnant names nobody: a Key Remnant narrows the suspects to at most half the cast, any other to 2-4.
+- `DRPG.Investigation.newTraceBadType`
+  - That is not a kind of Remnant this module knows.
+- `DRPG.Investigation.newTraceDone`
+  - #1: something the code puts here placed in Workshop.
+  - #2: something the code puts here placed in Library.
+  - #3: something the code puts here placed in Cinema.
+- `DRPG.Investigation.newTraceIntro`
+  - The Remnant lands at a random spot in the room; move its token if the spot matters.
+- `DRPG.Investigation.newTraceNote`
+  - The name and the description are what a student reads when they find it; what analysis reveals waits until they Analyze it. Only GMs read your note.
+- `DRPG.Investigation.newTraceReinforced`
+  - Reinforced (no cleanup removes it)
+- `DRPG.Investigation.newTraceTied`
+  - Part of this murder (survives the chapter-end sweep)
+- `DRPG.Investigation.newTraceTitle`
+  - New Remnant
+- `DRPG.Investigation.newTraceUnfindable`
+  - Observe has no difficulty for that kind of Remnant at that visibility, so nobody can find it. Open New Remnant again with another kind or visibility.
+- `DRPG.Investigation.noRemnant`
+  - - no Remnant -
+- `DRPG.Investigation.noRooms`
+  - This scene has no rooms yet, so there is nowhere to put a Remnant. Draw the regions first; Room setup explains how.
+- `DRPG.Investigation.noSlot`
+  - n=0: None of the 0 planned clues
+  - n=1: None of the 1 planned clues
+  - n=2: None of the 2 planned clues
+  - n=5: None of the 5 planned clues
+  - n=12: None of the 12 planned clues
+  - n=22: None of the 22 planned clues
+  - n=25: None of the 25 planned clues
+  - n=112: None of the 112 planned clues
+- `DRPG.Investigation.noTraces`
+  - No Remnants anywhere yet.
+- `DRPG.Investigation.noneMatch`
+  - No Remnant matches this filter.
+- `DRPG.Investigation.notFound`
+  - Nobody has found it
+- `DRPG.Investigation.notPlaced`
+  - Not placed yet
+- `DRPG.Investigation.notePlaceholder`
+  - What the finder sees
+- `DRPG.Investigation.onMap`
+  - Which Remnant
+- `DRPG.Investigation.orderNewest`
+  - Newest first
+- `DRPG.Investigation.orderRoom`
+  - By room
+- `DRPG.Investigation.place`
+  - Place
+- `DRPG.Investigation.plannedRoom`
+  - Planned room
+- `DRPG.Investigation.plannedRoomGone`
+  - #1: The planned room “Workshop” is not on this scene. Pick a room.
+  - #2: The planned room “Library” is not on this scene. Pick a room.
+  - #3: The planned room “Cinema” is not on this scene. Pick a room.
+- `DRPG.Investigation.plannerIntro` (by prefix)
+  - n=0 (other): 0 clues for chapter 0. Together they should narrow the suspects to 0-0 people.
+  - n=1 (one): 1 clue for chapter 1. It should narrow the suspects to 1-1 people.
+  - n=2 (other): 2 clues for chapter 2. Together they should narrow the suspects to 2-2 people.
+  - n=5 (other): 5 clues for chapter 5. Together they should narrow the suspects to 5-5 people.
+  - n=12 (other): 12 clues for chapter 12. Together they should narrow the suspects to 12-12 people.
+  - n=22 (other): 22 clues for chapter 22. Together they should narrow the suspects to 22-22 people.
+  - n=25 (other): 25 clues for chapter 25. Together they should narrow the suspects to 25-25 people.
+  - n=112 (other): 112 clues for chapter 112. Together they should narrow the suspects to 112-112 people.
+- `DRPG.Investigation.revealedByMonokuma`
+  - Revealed by Monokuma
+- `DRPG.Investigation.room`
+  - Room
+- `DRPG.Investigation.saveStopped`
+  - The Save stopped part-way: something the code puts here. What it wrote before that stands, and Investigation is open again with it. Type the rest again.
+- `DRPG.Investigation.savedOver` (by prefix)
+  - n=0 (other): 0 fields changed elsewhere while you edited, so they were not saved: something the code puts here. Reopen Investigation to see what they hold, and type yours again if they should stand.
+  - n=1 (one): One field changed elsewhere while you edited, so it was not saved: something the code puts here. Reopen Investigation to see what it holds, and type yours again if it should stand.
+  - n=2 (other): 2 fields changed elsewhere while you edited, so they were not saved: something the code puts here. Reopen Investigation to see what they hold, and type yours again if they should stand.
+  - n=5 (other): 5 fields changed elsewhere while you edited, so they were not saved: something the code puts here. Reopen Investigation to see what they hold, and type yours again if they should stand.
+  - n=12 (other): 12 fields changed elsewhere while you edited, so they were not saved: something the code puts here. Reopen Investigation to see what they hold, and type yours again if they should stand.
+  - n=22 (other): 22 fields changed elsewhere while you edited, so they were not saved: something the code puts here. Reopen Investigation to see what they hold, and type yours again if they should stand.
+  - n=25 (other): 25 fields changed elsewhere while you edited, so they were not saved: something the code puts here. Reopen Investigation to see what they hold, and type yours again if they should stand.
+  - n=112 (other): 112 fields changed elsewhere while you edited, so they were not saved: something the code puts here. Reopen Investigation to see what they hold, and type yours again if they should stand.
+- `DRPG.Investigation.savedOverItem`
+  - openRoomSetupDialog of openRoomSetupDialog: "something the code puts here"
+- `DRPG.Investigation.student`
+  - Student
+- `DRPG.Investigation.tabKeyRemnants`
+  - Key Remnants
+- `DRPG.Investigation.tabTraces`
+  - Remnants
+- `DRPG.Investigation.tokenGone`
+  - Its Remnant is gone from the map
+- `DRPG.Investigation.tooThin` (by prefix)
+  - n=0 (other): Only 0 Key Remnants have been found, and the trial needs more than 0 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=1 (one): Only 1 Key Remnant has been found, and the trial needs more than 1 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=2 (other): Only 2 Key Remnants have been found, and the trial needs more than 2 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=5 (other): Only 5 Key Remnants have been found, and the trial needs more than 5 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=12 (other): Only 12 Key Remnants have been found, and the trial needs more than 12 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=22 (other): Only 22 Key Remnants have been found, and the trial needs more than 22 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=25 (other): Only 25 Key Remnants have been found, and the trial needs more than 25 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=112 (other): Only 112 Key Remnants have been found, and the trial needs more than 112 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+- `DRPG.Investigation.tooThinNone`
+  - n=0: No Key Remnant has been found yet, and the trial needs more than 0 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=1: No Key Remnant has been found yet, and the trial needs more than 1 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=2: No Key Remnant has been found yet, and the trial needs more than 2 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=5: No Key Remnant has been found yet, and the trial needs more than 5 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=12: No Key Remnant has been found yet, and the trial needs more than 12 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=22: No Key Remnant has been found yet, and the trial needs more than 22 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=25: No Key Remnant has been found yet, and the trial needs more than 25 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+  - n=112: No Key Remnant has been found yet, and the trial needs more than 112 to have an honest answer. Point the players at what is left, or let it stand: each Monokuma's pool gains Despair when the Class Trial opens.
+- `DRPG.Investigation.traceAnalysis`
+  - What analysis reveals
+- `DRPG.Investigation.traceImage`
+  - Image
+- `DRPG.Investigation.traceName`
+  - Name
+- `DRPG.Investigation.traceText`
+  - Player description
+- `DRPG.Investigation.traceType`
+  - What it really is
+- `DRPG.Investigation.tracesSaved` (by prefix)
+  - n=0 (other): Updated 0 Remnants.
+  - n=1 (one): Updated 1 Remnant.
+  - n=2 (other): Updated 2 Remnants.
+  - n=5 (other): Updated 5 Remnants.
+  - n=12 (other): Updated 12 Remnants.
+  - n=22 (other): Updated 22 Remnants.
+  - n=25 (other): Updated 25 Remnants.
+  - n=112 (other): Updated 112 Remnants.
+- `DRPG.Investigation.unfoundKeys` (by prefix)
+  - n=0 (other): The investigation turned up 0 of 0 Key Remnants, 0 short. Each Monokuma's pool gains 0 Despair: Aiko.
+  - n=1 (one): The investigation turned up 1 of 1 Key Remnants, one short. Each Monokuma's pool gains 1 Despair: Daichi.
+  - n=2 (other): The investigation turned up 2 of 2 Key Remnants, 2 short. Each Monokuma's pool gains 2 Despair: Aiko.
+  - n=5 (other): The investigation turned up 5 of 5 Key Remnants, 5 short. Each Monokuma's pool gains 5 Despair: Daichi.
+  - n=12 (other): The investigation turned up 12 of 12 Key Remnants, 12 short. Each Monokuma's pool gains 12 Despair: Aiko.
+  - n=22 (other): The investigation turned up 22 of 22 Key Remnants, 22 short. Each Monokuma's pool gains 22 Despair: Daichi.
+  - n=25 (other): The investigation turned up 25 of 25 Key Remnants, 25 short. Each Monokuma's pool gains 25 Despair: Aiko.
+  - n=112 (other): The investigation turned up 112 of 112 Key Remnants, 112 short. Each Monokuma's pool gains 112 Despair: Daichi.
+- `DRPG.Investigation.unidentified`
+  - Not analysed
+- `DRPG.Investigation.visibility`
+  - Visibility
+- `DRPG.Investigation.whichSlot`
+  - Which planned clue is this?
+- `DRPG.Investigation.whoHasWhat`
+  - Who has what
+- `DRPG.Live.ticked`
+  - ticked
+- `DRPG.Live.unticked`
+  - not ticked
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Zones.picker.a`
+  - Zone A's answer
+- `DRPG.Zones.picker.b`
+  - Zone B's answer
+- `DRPG.Zones.picker.editSets`
+  - Logic Dive sets...
+- `DRPG.Zones.picker.question`
+  - Question
+- `DRPG.Zones.picker.set`
+  - Set
+- `DRPG.Zones.picker.thesis`
+  - Thesis (optional)
+
+## Observe and Analyze (observe; reader: both; E09)
+
+- `DRPG.Case.answerKeyMissing`
+  - #1: Aiko's Truth Bullet “Kitchen Knife” has no answer key on the GM browser that answered its Analyze, so the Analyze was refused and its price given back. Restore a backup of the case (GM panel, Diagnostics, The case).
+  - #2: Daichi's Truth Bullet “Rope” has no answer key on the GM browser that answered its Analyze, so the Analyze was refused and its price given back. Restore a backup of the case (GM panel, Diagnostics, The case).
+  - #3: Aiko's Truth Bullet “Chair” has no answer key on the GM browser that answered its Analyze, so the Analyze was refused and its price given back. Restore a backup of the case (GM panel, Diagnostics, The case).
+
+## Advancement (advancement; reader: both; E10)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the vote and the verdict (vote; reader: both; E10)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Zones.findings.confirmedMark`
+  - Monokuma confirms
+- `DRPG.Zones.findings.title`
+  - Findings
+
+## the GM's clock and its corrections (clock; reader: gm; E11)
+
+- `DRPG.Panel.alsoReset`
+  - Also refill actions and Search Tokens
+- `DRPG.Panel.apply`
+  - Apply
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.jump`
+  - Edit campaign
+- `DRPG.Panel.resetHint`
+  - Gives everyone full actions. Leave it off for a plain correction.
+
+## a crisis action rated at tier zero (tier-zero; reader: gm; E13)
+
+- `DRPG.Panel.apply`
+  - Apply
+
+## the GM gives a key or an item (give-items; reader: gm; E14)
+
+- `DRPG.Panel.noCharacters`
+  - No living students in this world.
+
+## the GM hands things out and takes them away (gm-items; reader: gm)
+
+- `DRPG.CaseMap.field.img`
+  - Picture
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.noCharacters`
+  - No living students in this world.
+- `DRPG.Tables.rolesTierOnly`
+  - n=0: Below Tier 0, an item takes no roles.
+  - n=1: Below Tier 1, an item takes no roles.
+  - n=2: Below Tier 2, an item takes no roles.
+  - n=5: Below Tier 5, an item takes no roles.
+  - n=12: Below Tier 12, an item takes no roles.
+  - n=22: Below Tier 22, an item takes no roles.
+  - n=25: Below Tier 25, an item takes no roles.
+  - n=112: Below Tier 112, an item takes no roles.
+
+## an item table named and its pane (table-names; reader: gm; E14)
+
+- `DRPG.Tables.deleteConfirm` (by prefix)
+  - n=0 (other): Delete “Aiko” and the 0 items in it? This cannot be undone.
+  - n=1 (one): Delete “Daichi” and the 1 item in it? This cannot be undone.
+  - n=2 (other): Delete “Aiko” and the 2 items in it? This cannot be undone.
+  - n=5 (other): Delete “Daichi” and the 5 items in it? This cannot be undone.
+  - n=12 (other): Delete “Aiko” and the 12 items in it? This cannot be undone.
+  - n=22 (other): Delete “Daichi” and the 22 items in it? This cannot be undone.
+  - n=25 (other): Delete “Aiko” and the 25 items in it? This cannot be undone.
+  - n=112 (other): Delete “Daichi” and the 112 items in it? This cannot be undone.
+- `DRPG.Tables.deleteTable`
+  - Delete table
+- `DRPG.Tables.deleted`
+  - #1: Deleted “Aiko”.
+  - #2: Deleted “Daichi”.
+- `DRPG.Tables.needsName`
+  - The name cannot be empty.
+- `DRPG.Tables.newPoolExists`
+  - #1: A table called “Aiko” already exists.
+  - #2: A table called “Daichi” already exists.
+- `DRPG.Tables.newPoolTierName`
+  - That name looks like a tier pool's (“DRPG … - Tier N”). A room table needs a name of its own.
+- `DRPG.Tables.newTierPoolForms`
+  - n=0: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 0 to 0: something the code puts here.
+  - n=1: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 1 to 1: something the code puts here.
+  - n=2: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 2 to 2: something the code puts here.
+  - n=5: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 5 to 5: something the code puts here.
+  - n=12: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 12 to 12: something the code puts here.
+  - n=22: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 22 to 22: something the code puts here.
+  - n=25: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 25 to 25: something the code puts here.
+  - n=112: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 112 to 112: something the code puts here.
+- `DRPG.Tables.renameNote`
+  - A tier pool's name must keep its category and tier. A room table can take any other name.
+- `DRPG.Tables.renameOtherPool`
+  - #1: “Aiko” would name another pool. This one holds the items of “Kitchen Knife”: keep its category and tier in the name.
+  - #2: “Daichi” would name another pool. This one holds the items of “Rope”: keep its category and tier in the name.
+  - #3: “Aiko” would name another pool. This one holds the items of “Chair”: keep its category and tier in the name.
+- `DRPG.Tables.renameTable`
+  - Rename table
+- `DRPG.Tables.renamed`
+  - #1: Renamed to “Aiko”.
+  - #2: Renamed to “Daichi”.
+
+## the item tables (item-tables; reader: gm)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.installTables`
+  - Create item tables
+- `DRPG.Tables.addItem`
+  - Add an item
+- `DRPG.Tables.addNote`
+  - The finder gets the picture and the description.
+- `DRPG.Tables.allPresent` (by prefix)
+  - n=0 (other): All 0 item tables already exist in this world.
+  - n=1 (one): 1 item table already exists in this world.
+  - n=2 (other): All 2 item tables already exist in this world.
+  - n=5 (other): All 5 item tables already exist in this world.
+  - n=12 (other): All 12 item tables already exist in this world.
+  - n=22 (other): All 22 item tables already exist in this world.
+  - n=25 (other): All 25 item tables already exist in this world.
+  - n=112 (other): All 112 item tables already exist in this world.
+- `DRPG.Tables.changeIcon`
+  - Change this item's picture
+- `DRPG.Tables.col.actions`
+  - Actions
+- `DRPG.Tables.col.description`
+  - Description
+- `DRPG.Tables.col.items`
+  - Items
+- `DRPG.Tables.col.table`
+  - Table
+- `DRPG.Tables.createTable`
+  - Create table
+- `DRPG.Tables.deleteTable`
+  - Delete table
+- `DRPG.Tables.editorIntro`
+  - Everything a Search can turn up. Pick a table on the left.
+- `DRPG.Tables.editorTitle`
+  - Item tables
+- `DRPG.Tables.installAction`
+  - Install / reinstall
+- `DRPG.Tables.installTabNote`
+  - “Install / reinstall” below builds the default set, one table per category and tier. If they already exist, you choose between keeping yours and rebuilding.
+- `DRPG.Tables.installed`
+  - n=0: Item tables ready: 0 created, 0 already existed.
+  - n=1: Item tables ready: 1 created, 1 already existed.
+  - n=2: Item tables ready: 2 created, 2 already existed.
+  - n=5: Item tables ready: 5 created, 5 already existed.
+  - n=12: Item tables ready: 12 created, 12 already existed.
+  - n=22: Item tables ready: 22 created, 22 already existed.
+  - n=25: Item tables ready: 25 created, 25 already existed.
+  - n=112: Item tables ready: 112 created, 112 already existed.
+- `DRPG.Tables.itemAdded` (by prefix)
+  - n=0 (other): “Aiko” added to 0 tables.
+  - n=1 (one): “Daichi” added to 1 table.
+  - n=2 (other): “Aiko” added to 2 tables.
+  - n=5 (other): “Daichi” added to 5 tables.
+  - n=12 (other): “Aiko” added to 12 tables.
+  - n=22 (other): “Daichi” added to 22 tables.
+  - n=25 (other): “Aiko” added to 25 tables.
+  - n=112 (other): “Daichi” added to 112 tables.
+- `DRPG.Tables.keep`
+  - Keep mine
+- `DRPG.Tables.needsName`
+  - The name cannot be empty.
+- `DRPG.Tables.needsTable`
+  - There is no tier pool for this category and tier. Tick at least one room table.
+- `DRPG.Tables.newPool`
+  - New room table
+- `DRPG.Tables.newPoolExists`
+  - #1: A table called “Aiko” already exists.
+  - #2: A table called “Daichi” already exists.
+- `DRPG.Tables.newPoolNote`
+  - What a room stocks. Assign it to a room in Room setup, in the “Draws from” column.
+- `DRPG.Tables.newPoolPlaceholder`
+  - e.g. Kitchen
+- `DRPG.Tables.newPoolTierName`
+  - That name looks like a tier pool's (“DRPG … - Tier N”). A room table needs a name of its own.
+- `DRPG.Tables.newTierPoolForms`
+  - n=0: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 0 to 0: something the code puts here.
+  - n=1: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 1 to 1: something the code puts here.
+  - n=2: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 2 to 2: something the code puts here.
+  - n=5: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 5 to 5: something the code puts here.
+  - n=12: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 12 to 12: something the code puts here.
+  - n=22: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 22 to 22: something the code puts here.
+  - n=25: “Aiko” is not a tier pool's name. Use one of these, where N is a tier from 25 to 25: something the code puts here.
+  - n=112: “Daichi” is not a tier pool's name. Use one of these, where N is a tier from 112 to 112: something the code puts here.
+- `DRPG.Tables.noRoomPools`
+  - No room pools yet. Name one below.
+- `DRPG.Tables.noRoomTables`
+  - No room tables yet. Create one on the Room pools tab.
+- `DRPG.Tables.noTierPools`
+  - No pools yet. Press “Install / reinstall”.
+- `DRPG.Tables.noneYet`
+  - No table to show yet.
+- `DRPG.Tables.picture`
+  - Picture
+- `DRPG.Tables.pictureFile`
+  - Another file...
+- `DRPG.Tables.pictureOwn`
+  - Category's own
+- `DRPG.Tables.placeDone`
+  - n=0: “Aiko”: 0 added, 0 removed.
+  - n=1: “Daichi”: 1 added, 1 removed.
+  - n=2: “Aiko”: 2 added, 2 removed.
+  - n=5: “Daichi”: 5 added, 5 removed.
+  - n=12: “Aiko”: 12 added, 12 removed.
+  - n=22: “Daichi”: 22 added, 22 removed.
+  - n=25: “Aiko”: 25 added, 25 removed.
+  - n=112: “Daichi”: 112 added, 112 removed.
+- `DRPG.Tables.placeIntro`
+  - Tick every pool this item should be in. Ticking a new pool copies it there, and unticking one takes it out. To move it, untick the pool you are viewing and tick another.
+- `DRPG.Tables.placeNone`
+  - An item has to live in at least one pool. Use the row's ✕ to delete it outright.
+- `DRPG.Tables.placeRolesNote`
+  - The description, the picture, and the roles travel with it. A tier pool below Tier 2 takes no roles, and an item cannot take its pool's own category as a role.
+- `DRPG.Tables.placeSave`
+  - Save
+- `DRPG.Tables.placeTitle`
+  - #1: Pools for “Aiko”
+  - #2: Pools for “Daichi”
+- `DRPG.Tables.placeTooltip`
+  - Choose the pools that hold this item
+- `DRPG.Tables.placeUnchanged`
+  - #1: “Aiko” is already in exactly those pools.
+  - #2: “Daichi” is already in exactly those pools.
+- `DRPG.Tables.poolCreated`
+  - #1: Room table “Aiko” created. Point a room at it in Room setup.
+  - #2: Room table “Daichi” created. Point a room at it in Room setup.
+- `DRPG.Tables.presetRoomNoTable`
+  - #1: Workshop draws from no table of its own. Point it at one in Room setup to keep finds like this in that table.
+  - #2: Library draws from no table of its own. Point it at one in Room setup to keep finds like this in that table.
+  - #3: Cinema draws from no table of its own. Point it at one in Room setup to keep finds like this in that table.
+- `DRPG.Tables.presetRoomTier`
+  - #1: Workshop has no table for this tier yet: make “Aiko” on the Room pools tab to keep finds of this tier there.
+  - #2: Library has no table for this tier yet: make “Daichi” on the Room pools tab to keep finds of this tier there.
+  - #3: Cinema has no table for this tier yet: make “Aiko” on the Room pools tab to keep finds of this tier there.
+- `DRPG.Tables.rebuildNote`
+  - Rebuilding deletes the default item tables and builds them again from the module's own lists. Anything you edited by hand is lost.
+- `DRPG.Tables.recreate`
+  - Delete and rebuild
+- `DRPG.Tables.removeItem`
+  - Remove from this table
+- `DRPG.Tables.renameOtherPool`
+  - #1: “Aiko” would name another pool. This one holds the items of “Kitchen Knife”: keep its category and tier in the name.
+  - #2: “Daichi” would name another pool. This one holds the items of “Rope”: keep its category and tier in the name.
+  - #3: “Aiko” would name another pool. This one holds the items of “Chair”: keep its category and tier in the name.
+- `DRPG.Tables.renameTable`
+  - Rename table
+- `DRPG.Tables.rolesNote`
+  - What else it can be. It still takes one slot.
+- `DRPG.Tables.rolesTierOnly`
+  - n=0: Below Tier 0, an item takes no roles.
+  - n=1: Below Tier 1, an item takes no roles.
+  - n=2: Below Tier 2, an item takes no roles.
+  - n=5: Below Tier 5, an item takes no roles.
+  - n=12: Below Tier 12, an item takes no roles.
+  - n=22: Below Tier 22, an item takes no roles.
+  - n=25: Below Tier 25, an item takes no roles.
+  - n=112: Below Tier 112, an item takes no roles.
+- `DRPG.Tables.roomBreakdown`
+  - Grouped by the category the tier pools give each name. A room table with no category in its name can supply any category a Search asks for. Name a table after the room's table and a category, as “Kitchen - Murder Weapons”, and the names no pool holds count as that category.
+- `DRPG.Tables.roomFilter`
+  - Show
+- `DRPG.Tables.roomTargets`
+  - Room tables it also appears in:
+- `DRPG.Tables.roomTotal`
+  - Everything
+- `DRPG.Tables.someFailed` (by prefix)
+  - n=0 (other): 0 item tables could not be created. See the console.
+  - n=1 (one): 1 item table could not be created. See the console.
+  - n=2 (other): 2 item tables could not be created. See the console.
+  - n=5 (other): 5 item tables could not be created. See the console.
+  - n=12 (other): 12 item tables could not be created. See the console.
+  - n=22 (other): 22 item tables could not be created. See the console.
+  - n=25 (other): 25 item tables could not be created. See the console.
+  - n=112 (other): 112 item tables could not be created. See the console.
+- `DRPG.Tables.tabNewItem`
+  - New item
+- `DRPG.Tables.tabRoomPools`
+  - Room pools
+- `DRPG.Tables.tabTierPools`
+  - Tier pools
+- `DRPG.Tables.tableEmpty`
+  - Nothing in this table yet.
+- `DRPG.Tables.tierPoolCreated`
+  - #1: “Aiko” is ready as a tier pool: its items are filed by its category and tier.
+  - #2: “Daichi” is ready as a tier pool: its items are filed by its category and tier.
+- `DRPG.Tables.tierTargetIs`
+  - #1: Goes into Kitchen Knife. Worked out from the category and tier above.
+  - #2: Goes into Rope. Worked out from the category and tier above.
+  - #3: Goes into Chair. Worked out from the category and tier above.
+- `DRPG.Tables.tierTargetNone`
+  - There is no such tier pool, so the item goes only into the room tables ticked. Install the pools on the Tier pools tab.
+- `DRPG.Tables.unfiled`
+  - Not in any tier pool
+- `DRPG.Tables.unfiledNote`
+  - No tier pool holds these names, so the module cannot tell what they are or how good they are. In a room table with no category in its name, they can come up for any category. Use the arrows on a row to put one in a tier pool.
+- `DRPG.Tables.whereNote`
+  - A Search draws from the room's tables first, then from the tier pools.
+
+## projects and the countdown tray (projects; reader: both; E15)
+
+- `DRPG.Assign.save`
+  - Save
+- `DRPG.GmStore.resetPrimaryOnly`
+  - #1: Only the primary GM, Aiko, can reset the season. Ask Aiko, or reset when you are the only GM connected.
+  - #2: Only the primary GM, Daichi, can reset the season. Ask Daichi, or reset when you are the only GM connected.
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the Eclipse asked and ended, from the HUD and the panel (eclipse-hud; reader: gm; E17)
+
+- `DRPG.Panel.advanceDuringEclipse`
+  - An Eclipse is running, and its end moves the clock. End it from the clock's chevron.
+- `DRPG.Panel.character`
+  - Character
+
+## the action tiles and the actions (action-tiles; reader: both; rule texts)
+
+- `DRPG.SearchTokens.exhausted`
+  - This room has no Search Tokens left. Try again in the next time of day.
+- `DRPG.SearchTokens.pickedClean`
+  - The room had no Search Token left by then. The action is spent.
+- `DRPG.SearchTokens.sealed`
+  - You cannot search this room. There is nothing in here to find, at any time of day.
+- `DRPG.SearchTokens.timeout`
+  - This search did not count. You keep your action.
+
+## the GM stores: back up, restore, the health check (gm-stores; reader: gm)
+
+- `DRPG.Case.backedUp` (by prefix)
+  - n=0 (other): The case was saved to a file: 0 rows.
+  - n=1 (one): The case was saved to a file: 1 row.
+  - n=2 (other): The case was saved to a file: 2 rows.
+  - n=5 (other): The case was saved to a file: 5 rows.
+  - n=12 (other): The case was saved to a file: 12 rows.
+  - n=22 (other): The case was saved to a file: 22 rows.
+  - n=25 (other): The case was saved to a file: 25 rows.
+  - n=112 (other): The case was saved to a file: 112 rows.
+- `DRPG.Case.backup`
+  - Back up
+- `DRPG.Case.backupEarly`
+  - #1: The copy from Aiko, Daichi, and Chie has not arrived yet: this backup holds only what this browser has. Back up anyway?
+  - #2: The copy from Aiko and Daichi has not arrived yet: this backup holds only what this browser has. Back up anyway?
+  - #3: The copy from Chie has not arrived yet: this backup holds only what this browser has. Back up anyway?
+- `DRPG.Case.backupNow`
+  - Back up the case
+- `DRPG.Case.backupTitle`
+  - Back up the case
+- `DRPG.Case.backupWhat`
+  - The file holds this world's GM-only secrets: who the Mastermind is, every Truth Bullet's answer, every Remnant's real type, the cast of an open incident and the Blackened of each chapter, the traps' planted objects, the Level Ups on offer, and the rooms each character has found. Keep it where no player can open it.
+- `DRPG.Case.beforeCut`
+  - Also restore the rows the last reset removed; only what this browser lacks is filled in.
+- `DRPG.Case.castEnter`
+  - Enter the cast
+- `DRPG.Case.castIntro`
+  - An incident is running and this browser does not know who is in it. Name them as they are at the table.
+- `DRPG.Case.castKiller`
+  - Killer
+- `DRPG.Case.castNobody`
+  - - nobody -
+- `DRPG.Case.castThird`
+  - Third person involved, if any
+- `DRPG.Case.castTitle`
+  - The incident's cast
+- `DRPG.Case.castVictim`
+  - Victim
+- `DRPG.Case.clearMastermind`
+  - Clear the Mastermind
+- `DRPG.Case.continue`
+  - Continue
+- `DRPG.Case.continued`
+  - The case is incomplete on this browser. Restore it from a backup file (GM panel, Diagnostics, The case).
+- `DRPG.Case.decideIntro`
+  - One thing in this world needs a GM to decide it:
+- `DRPG.Case.enterCast`
+  - Enter the cast by hand
+- `DRPG.Case.fillFromTraces`
+  - n=0: Fill from their Remnants (0)
+  - n=1: Fill from their Remnants (1)
+  - n=2: Fill from their Remnants (2)
+  - n=5: Fill from their Remnants (5)
+  - n=12: Fill from their Remnants (12)
+  - n=22: Fill from their Remnants (22)
+  - n=25: Fill from their Remnants (25)
+  - n=112: Fill from their Remnants (112)
+- `DRPG.Case.filled` (by prefix)
+  - n=0 (other): 0 Truth Bullets took their answer keys from their Remnants.
+  - n=1 (one): 1 Truth Bullet took its answer key from its Remnant.
+  - n=2 (other): 2 Truth Bullets took their answer keys from their Remnants.
+  - n=5 (other): 5 Truth Bullets took their answer keys from their Remnants.
+  - n=12 (other): 12 Truth Bullets took their answer keys from their Remnants.
+  - n=22 (other): 22 Truth Bullets took their answer keys from their Remnants.
+  - n=25 (other): 25 Truth Bullets took their answer keys from their Remnants.
+  - n=112 (other): 112 Truth Bullets took their answer keys from their Remnants.
+- `DRPG.Case.gmOnly`
+  - Only a GM can back up or restore the case.
+- `DRPG.Case.healthIntro`
+  - This browser is missing part of this world's case:
+- `DRPG.Case.healthNote`
+  - Restore from a file brings it back from a backup; without it, the GM panel keeps saying so until the case is whole.
+- `DRPG.Case.healthTitle`
+  - The case on this browser
+- `DRPG.Case.keepMastermind`
+  - Keep the Mastermind
+- `DRPG.Case.moveNote`
+  - Move them into the ledger takes each Remnant's answer key off its token; Continue carries on without it, and the GM panel keeps saying so until the case is whole.
+- `DRPG.Case.moveTraces`
+  - Move them into the ledger
+- `DRPG.Case.otherWorld`
+  - This file is the case of another world (School, floor 1). Restore it here anyway.
+- `DRPG.Case.otherWorldRecord`
+  - Take “something the code puts here” from this file as well. It is another world's and replaces this world's where the file's is newer.
+- `DRPG.Case.previewClamped` (by prefix)
+  - n=0 (other): 0 rows have times later than the clock allows: they would be given the current time.
+  - n=1 (one): 1 row has a time later than the clock allows: it would be given the current time.
+  - n=2 (other): 2 rows have times later than the clock allows: they would be given the current time.
+  - n=5 (other): 5 rows have times later than the clock allows: they would be given the current time.
+  - n=12 (other): 12 rows have times later than the clock allows: they would be given the current time.
+  - n=22 (other): 22 rows have times later than the clock allows: they would be given the current time.
+  - n=25 (other): 25 rows have times later than the clock allows: they would be given the current time.
+  - n=112 (other): 112 rows have times later than the clock allows: they would be given the current time.
+- `DRPG.Case.previewNotThisWorld` (by prefix)
+  - n=0 (other): 0 rows are another world's and are left out.
+  - n=1 (one): 1 row is another world's and is left out.
+  - n=2 (other): 2 rows are another world's and are left out.
+  - n=5 (other): 5 rows are another world's and are left out.
+  - n=12 (other): 12 rows are another world's and are left out.
+  - n=22 (other): 22 rows are another world's and are left out.
+  - n=25 (other): 25 rows are another world's and are left out.
+  - n=112 (other): 112 rows are another world's and are left out.
+- `DRPG.Case.previewRecord`
+  - something the code puts here: another world's, taken only if you tick it below.
+- `DRPG.Case.previewStore`
+  - n=0: something the code puts here: 0 new, 0 refreshed, 0 newer here, 0 older than the last reset, 0 removed here
+  - n=1: something the code puts here: 1 new, 1 refreshed, 1 newer here, 1 older than the last reset, 1 removed here
+  - n=2: something the code puts here: 2 new, 2 refreshed, 2 newer here, 2 older than the last reset, 2 removed here
+  - n=5: something the code puts here: 5 new, 5 refreshed, 5 newer here, 5 older than the last reset, 5 removed here
+  - n=12: something the code puts here: 12 new, 12 refreshed, 12 newer here, 12 older than the last reset, 12 removed here
+  - n=22: something the code puts here: 22 new, 22 refreshed, 22 newer here, 22 older than the last reset, 22 removed here
+  - n=25: something the code puts here: 25 new, 25 refreshed, 25 newer here, 25 older than the last reset, 25 removed here
+  - n=112: something the code puts here: 112 new, 112 refreshed, 112 newer here, 112 older than the last reset, 112 removed here
+- `DRPG.Case.refused.malformed` (by prefix)
+  - The restore refused the whole file: its section for “something the code puts here” is damaged, and the console names the row. The case here stays as it was.
+- `DRPG.Case.refused.newer` (by prefix)
+  - That file was written by a newer version of the module (format 1.2.95); this one cannot read it.
+- `DRPG.Case.refused.otherWorld` (by prefix)
+  - That file is the case of another world (School, floor 1). Tick the box to restore it here anyway.
+- `DRPG.Case.refused.unreadable` (by prefix)
+  - That file is not a case backup.
+- `DRPG.Case.restore`
+  - Restore
+- `DRPG.Case.restoreFromFile`
+  - Restore from a file
+- `DRPG.Case.restoreNote`
+  - A restore takes only what is newer than what this browser holds, removals included, as counted above. It never applies a reset recorded in the file, and a file of another world brings no removals.
+- `DRPG.Case.restoreTitle`
+  - Restore the case
+- `DRPG.Case.restored`
+  - The case was restored.
+- `DRPG.Case.restoredClamped` (by prefix)
+  - n=0 (other): 0 rows had times later than the clock allows and were given the current time.
+  - n=1 (one): 1 row had a time later than the clock allows and was given the current time.
+  - n=2 (other): 2 rows had times later than the clock allows and were given the current time.
+  - n=5 (other): 5 rows had times later than the clock allows and were given the current time.
+  - n=12 (other): 12 rows had times later than the clock allows and were given the current time.
+  - n=22 (other): 22 rows had times later than the clock allows and were given the current time.
+  - n=25 (other): 25 rows had times later than the clock allows and were given the current time.
+  - n=112 (other): 112 rows had times later than the clock allows and were given the current time.
+- `DRPG.Case.restoredSkipped`
+  - something the code puts here: another world's, not taken
+- `DRPG.Case.restoredStore`
+  - n=0: something the code puts here: 0 changed, 0 skipped as older than the last reset
+  - n=1: something the code puts here: 1 changed, 1 skipped as older than the last reset
+  - n=2: something the code puts here: 2 changed, 2 skipped as older than the last reset
+  - n=5: something the code puts here: 5 changed, 5 skipped as older than the last reset
+  - n=12: something the code puts here: 12 changed, 12 skipped as older than the last reset
+  - n=22: something the code puts here: 22 changed, 22 skipped as older than the last reset
+  - n=25: something the code puts here: 25 changed, 25 skipped as older than the last reset
+  - n=112: something the code puts here: 112 changed, 112 skipped as older than the last reset
+- `DRPG.Case.row.bullets` (by prefix)
+  - n=0 (other): 0 Truth Bullets (of 0) have no answer key on this browser: an Analyze of them is refused.
+  - n=1 (one): 1 Truth Bullet (of 1) has no answer key on this browser: an Analyze of it is refused.
+  - n=2 (other): 2 Truth Bullets (of 2) have no answer key on this browser: an Analyze of them is refused.
+  - n=5 (other): 5 Truth Bullets (of 5) have no answer key on this browser: an Analyze of them is refused.
+  - n=12 (other): 12 Truth Bullets (of 12) have no answer key on this browser: an Analyze of them is refused.
+  - n=22 (other): 22 Truth Bullets (of 22) have no answer key on this browser: an Analyze of them is refused.
+  - n=25 (other): 25 Truth Bullets (of 25) have no answer key on this browser: an Analyze of them is refused.
+  - n=112 (other): 112 Truth Bullets (of 112) have no answer key on this browser: an Analyze of them is refused.
+- `DRPG.Case.row.bytes`
+  - n=0: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 0 KB, not counting its notice history.
+  - n=1: The GM stores take Rope KB of this browser's storage; the whole module takes 1 KB, not counting its notice history.
+  - n=2: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 2 KB, not counting its notice history.
+  - n=5: The GM stores take Rope KB of this browser's storage; the whole module takes 5 KB, not counting its notice history.
+  - n=12: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 12 KB, not counting its notice history.
+  - n=22: The GM stores take Rope KB of this browser's storage; the whole module takes 22 KB, not counting its notice history.
+  - n=25: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 25 KB, not counting its notice history.
+  - n=112: The GM stores take Rope KB of this browser's storage; the whole module takes 112 KB, not counting its notice history.
+- `DRPG.Case.row.claimFailed`
+  - This browser could not take over its old something the code puts here: something the code puts here. The old rows stay as they were, and the next load tries again.
+- `DRPG.Case.row.clamped` (by prefix)
+  - n=0 (other): 0 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=1 (one): 1 old row had a time later than when this browser took it over (a clock ran ahead), so it was given the takeover time.
+  - n=2 (other): 2 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=5 (other): 5 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=12 (other): 12 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=22 (other): 22 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=25 (other): 25 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=112 (other): 112 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+- `DRPG.Case.row.incident`
+  - An incident is open, and this browser does not hold its cast.
+- `DRPG.Case.row.lastBackup`
+  - #1: Last backup: Morning (Aiko).
+  - #2: Last backup: Noon (Daichi).
+  - #3: Last backup: Afternoon (Aiko).
+  - #4: Last backup: Evening (Daichi).
+  - #5: Last backup: Night (Aiko).
+- `DRPG.Case.row.left` (by prefix)
+  - n=0 (other): 0 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=1 (one): 1 old row stays in this browser, not taken: another world's, or no longer part of this world's case.
+  - n=2 (other): 2 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=5 (other): 5 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=12 (other): 12 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=22 (other): 22 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=25 (other): 25 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=112 (other): 112 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+- `DRPG.Case.row.leftNotPrimary` (by prefix)
+  - n=0 (other): 0 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=1 (one): 1 of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).
+  - n=2 (other): 2 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=5 (other): 5 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=12 (other): 12 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=22 (other): 22 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=25 (other): 25 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=112 (other): 112 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+- `DRPG.Case.row.legacyChanged`
+  - The old store of something the code puts here changed after the upgrade (a GM went back to an older version): the diagnostics show what changed, so a GM can bring it over.
+- `DRPG.Case.row.mastermindCleared`
+  - #1: A GM's old store (from before 1.2.63) says the Mastermind was cleared on 31.10.2026, after Aiko was picked on 31.10.2026, possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.
+  - #2: A GM's old store (from before 1.2.63) says the Mastermind was cleared on 31.10.2026, after Daichi was picked on 31.10.2026, possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.
+- `DRPG.Case.row.neverBackedUp`
+  - This case has never been backed up.
+- `DRPG.Case.row.neverHeld`
+  - This browser has never held this world's case, which began on 31.10.2026.
+- `DRPG.Case.row.noAnswer` (by prefix)
+  - n=0 (other): 0 answer keys have lost their real type.
+  - n=1 (one): 1 answer key has lost its real type.
+  - n=2 (other): 2 answer keys have lost their real type.
+  - n=5 (other): 5 answer keys have lost their real type.
+  - n=12 (other): 12 answer keys have lost their real type.
+  - n=22 (other): 22 answer keys have lost their real type.
+  - n=25 (other): 25 answer keys have lost their real type.
+  - n=112 (other): 112 answer keys have lost their real type.
+- `DRPG.Case.row.notes` (by prefix)
+  - n=0 (other): 0 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=1 (one): 1 pre-session note is marked written, and this browser does not hold it, or holds an older one.
+  - n=2 (other): 2 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=5 (other): 5 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=12 (other): 12 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=22 (other): 22 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=25 (other): 25 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=112 (other): 112 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+- `DRPG.Case.row.notices`
+  - n=0: The notice history takes 0 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=1: The notice history takes 1 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=2: The notice history takes 2 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=5: The notice history takes 5 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=12: The notice history takes 12 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=22: The notice history takes 22 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=25: The notice history takes 25 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=112: The notice history takes 112 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+- `DRPG.Case.row.projectSecrets` (by prefix)
+  - n=0 (other): 0 indirect murders (of 0) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=1 (one): 1 indirect murder (of 1) has no killer, condition, or trigger on this browser: its trap cannot arm or fire.
+  - n=2 (other): 2 indirect murders (of 2) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=5 (other): 5 indirect murders (of 5) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=12 (other): 12 indirect murders (of 12) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=22 (other): 22 indirect murders (of 22) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=25 (other): 25 indirect murders (of 25) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=112 (other): 112 indirect murders (of 112) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+- `DRPG.Case.row.skew`
+  - #1: Timestamps ahead of this browser's clock: Aiko, Daichi, and Chie.
+  - #2: Timestamps ahead of this browser's clock: Aiko and Daichi.
+  - #3: Timestamps ahead of this browser's clock: Chie.
+- `DRPG.Case.row.traceOrphans` (by prefix)
+  - n=0 (other): 0 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=1 (one): 1 Remnant's answer key has no token on any scene: it is kept, but nothing reads it.
+  - n=2 (other): 2 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=5 (other): 5 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=12 (other): 12 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=22 (other): 22 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=25 (other): 25 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=112 (other): 112 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+- `DRPG.Case.row.traces` (by prefix)
+  - n=0 (other): 0 Remnants on the map (of 0) have no answer key on this browser.
+  - n=1 (one): 1 Remnant on the map (of 1) has no answer key on this browser.
+  - n=2 (other): 2 Remnants on the map (of 2) have no answer key on this browser.
+  - n=5 (other): 5 Remnants on the map (of 5) have no answer key on this browser.
+  - n=12 (other): 12 Remnants on the map (of 12) have no answer key on this browser.
+  - n=22 (other): 22 Remnants on the map (of 22) have no answer key on this browser.
+  - n=25 (other): 25 Remnants on the map (of 25) have no answer key on this browser.
+  - n=112 (other): 112 Remnants on the map (of 112) have no answer key on this browser.
+- `DRPG.Case.row.tracesKept` (by prefix)
+  - n=0 (other): 0 Remnants on the map (of 0) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=1 (one): 1 Remnant on the map (of 1) keeps flags of its answer key on its token, which every browser holds. They are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides it, and game.drpg.migrateRemnants() names it.
+  - n=2 (other): 2 Remnants on the map (of 2) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=5 (other): 5 Remnants on the map (of 5) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=12 (other): 12 Remnants on the map (of 12) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=22 (other): 22 Remnants on the map (of 22) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=25 (other): 25 Remnants on the map (of 25) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=112 (other): 112 Remnants on the map (of 112) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+- `DRPG.Case.row.tracesOnToken` (by prefix)
+  - n=0 (other): 0 Remnants on the map (of 0) still carry their answer keys on their tokens: move them into the ledger.
+  - n=1 (one): 1 Remnant on the map (of 1) still carries its answer key on its token: move it into the ledger.
+  - n=2 (other): 2 Remnants on the map (of 2) still carry their answer keys on their tokens: move them into the ledger.
+  - n=5 (other): 5 Remnants on the map (of 5) still carry their answer keys on their tokens: move them into the ledger.
+  - n=12 (other): 12 Remnants on the map (of 12) still carry their answer keys on their tokens: move them into the ledger.
+  - n=22 (other): 22 Remnants on the map (of 22) still carry their answer keys on their tokens: move them into the ledger.
+  - n=25 (other): 25 Remnants on the map (of 25) still carry their answer keys on their tokens: move them into the ledger.
+  - n=112 (other): 112 Remnants on the map (of 112) still carry their answer keys on their tokens: move them into the ledger.
+- `DRPG.Case.row.traps` (by prefix)
+  - n=0 (other): 0 armed item traps have no planted object on this browser: they cannot fire.
+  - n=1 (one): 1 armed item trap has no planted object on this browser: it cannot fire.
+  - n=2 (other): 2 armed item traps have no planted object on this browser: they cannot fire.
+  - n=5 (other): 5 armed item traps have no planted object on this browser: they cannot fire.
+  - n=12 (other): 12 armed item traps have no planted object on this browser: they cannot fire.
+  - n=22 (other): 22 armed item traps have no planted object on this browser: they cannot fire.
+  - n=25 (other): 25 armed item traps have no planted object on this browser: they cannot fire.
+  - n=112 (other): 112 armed item traps have no planted object on this browser: they cannot fire.
+- `DRPG.Case.row.unseen`
+  - This check cannot see who the Mastermind is, the Level Up offers, or the Blackened register: a browser that lost them does not know it.
+- `DRPG.Case.store.ballots` (by prefix)
+  - The ballots of the Class Trial's vote, kept by the GMs
+- `DRPG.Case.store.barricades` (by prefix)
+  - Which rooms are barricaded, by whom and how strongly
+- `DRPG.Case.store.bedroomNotes` (by prefix)
+  - What happened to each bedroom while its owner was away, told when they walk back in
+- `DRPG.Case.store.blackened` (by prefix)
+  - The Blackened register
+- `DRPG.Case.store.bodiesHeard` (by prefix)
+  - Which bodies each character has heard the discovery sound for
+- `DRPG.Case.store.bounties` (by prefix)
+  - The open Bounties on students, for the Monocubs
+- `DRPG.Case.store.bullets` (by prefix)
+  - Truth Bullets
+- `DRPG.Case.store.caseSchema` (by prefix)
+  - The case map: each chapter's deductions, counters, and solution
+- `DRPG.Case.store.caseTicks` (by prefix)
+  - The trial's ticks: each chapter's deductions, counters, and solution a GM ticked
+- `DRPG.Case.store.cast` (by prefix)
+  - The incident's cast
+- `DRPG.Case.store.cleanupAttempts` (by prefix)
+  - Each character's last clean-up, kept so a Reroll can take it back
+- `DRPG.Case.store.clockBeat` (by prefix)
+  - When the primary GM was last at the table
+- `DRPG.Case.store.closingClaim` (by prefix)
+  - Who volunteered for the Closing Argument, and who was drawn, kept by the GMs
+- `DRPG.Case.store.confusions` (by prefix)
+  - The Confusions armed on a character and not rolled yet
+- `DRPG.Case.store.crossings` (by prefix)
+  - Each character's last crossing between rooms, what it cost, and whether a GM gave it back
+- `DRPG.Case.store.cubTargets` (by prefix)
+  - How many Monocub moves each student has had today
+- `DRPG.Case.store.cubs` (by prefix)
+  - The Monocubs' record: which Monocub witnessed the crime
+- `DRPG.Case.store.deaths` (by prefix)
+  - The deaths nobody has found yet
+- `DRPG.Case.store.deferredOffers` (by prefix)
+  - The Reinforced Level Ups waiting for the class
+- `DRPG.Case.store.despairOwed` (by prefix)
+  - The Despair each pool owes for its conversions to Hope
+- `DRPG.Case.store.diceLooks` (by prefix)
+  - Each character's dice look as the GMs set it; a player's change goes back to it
+- `DRPG.Case.store.discovery` (by prefix)
+  - The rooms each character has found
+- `DRPG.Case.store.diveSets` (by prefix)
+  - Logic Dive sets: each set's questions, their answers, and which answer is right
+- `DRPG.Case.store.eavesdrops` (by prefix)
+  - Who listens at which door, from which room, and which room they may listen at again for free
+- `DRPG.Case.store.eclipseMoves` (by prefix)
+  - How often each character has crossed in the Eclipse
+- `DRPG.Case.store.facilityUses` (by prefix)
+  - Which room actions each character used, and in which time of day
+- `DRPG.Case.store.foundDone` (by prefix)
+  - The finished secret projects waiting for their finders to come back
+- `DRPG.Case.store.keyPlan` (by prefix)
+  - The Key Remnant plan, chapter by chapter
+- `DRPG.Case.store.lockpicks` (by prefix)
+  - Who may walk through a lock they picked, into which room
+- `DRPG.Case.store.lootRolls` (by prefix)
+  - The first Hand and Shadow roll kept for each taker's next Take from each body
+- `DRPG.Case.store.lootTraces` (by prefix)
+  - What has been taken off each body, and its Remnant
+- `DRPG.Case.store.masks` (by prefix)
+  - Which killer hides behind a "?" after a murder's opening, and what their token looked like
+- `DRPG.Case.store.mastermind` (by prefix)
+  - The Mastermind
+- `DRPG.Case.store.notes` (by prefix)
+  - The players' pre-session notes
+- `DRPG.Case.store.observe` (by prefix)
+  - The Observe declarations waiting for their roll
+- `DRPG.Case.store.offers` (by prefix)
+  - The Level Ups on offer
+- `DRPG.Case.store.overflow` (by prefix)
+  - The Despair Overflow's count
+- `DRPG.Case.store.passageAccess` (by prefix)
+  - Who knows each secret passage, and how they learned it
+- `DRPG.Case.store.passageLog` (by prefix)
+  - What was done with the secret passages
+- `DRPG.Case.store.passageMap` (by prefix)
+  - The secret passages: where each one is and whether it is open
+- `DRPG.Case.store.passageSeason` (by prefix)
+  - The secret passages a project made this season
+- `DRPG.Case.store.pendingBodies` (by prefix)
+  - The found bodies waiting for a GM to announce them
+- `DRPG.Case.store.pendingMurders` (by prefix)
+  - The Direct Murders declared in the dark
+- `DRPG.Case.store.projectSecrets` (by prefix)
+  - Who builds each trap, and what sets it off
+- `DRPG.Case.store.projectWork` (by prefix)
+  - Who worked on each project this time of day
+- `DRPG.Case.store.remnants` (by prefix)
+  - Remnants
+- `DRPG.Case.store.rerollBookmarks` (by prefix)
+  - Each character's last roll a Reroll would take back, and what the GMs did for it
+- `DRPG.Case.store.rerollJournal` (by prefix)
+  - A Reroll the GM is making, step by step, so a reload in the middle can be put right
+- `DRPG.Case.store.rifles` (by prefix)
+  - Which stash each character has gone through, and in which time of day
+- `DRPG.Case.store.rolls` (by prefix)
+  - The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them
+- `DRPG.Case.store.ruledCards` (by prefix)
+  - Who ruled each card sent to the GMs, so a card is ruled once
+- `DRPG.Case.store.sheetMarks` (by prefix)
+  - What each character's sheet held when the GMs last judged a write on it
+- `DRPG.Case.store.sheetWrites` (by prefix)
+  - The writes on a student's sheet the GMs put back, flagged, or listed, kept a day
+- `DRPG.Case.store.tails` (by prefix)
+  - Who is tailing whom today, and how well
+- `DRPG.Case.store.takeBack` (by prefix)
+  - What the last start of a time of day changed, kept for five minutes so a GM can take back a misclick
+- `DRPG.Case.store.timedEffects` (by prefix)
+  - What room actions gave each character for a while, and when it ends
+- `DRPG.Case.store.traceDigest` (by prefix)
+  - The Remnants placed since the last digest to the GMs, reported at the next time of day
+- `DRPG.Case.store.trapLedger` (by prefix)
+  - The traps' planted objects
+- `DRPG.Case.store.trapPlants` (by prefix)
+  - The plants waiting in rooms
+- `DRPG.Case.store.trialCast` (by prefix)
+  - Which of the trial hall's tokens the trial shows
+- `DRPG.Case.store.trialMute` (by prefix)
+  - The microphones the Class Trial turned off, and what each player had before, kept by the GMs until it ends
+- `DRPG.Case.store.usedTools` (by prefix)
+  - The Cleaning Tools each clean-up used, broken when the body is found
+- `DRPG.Case.store.verdict` (by prefix)
+  - The Blackened named in the last verdict, kept by the GMs for its Finish
+- `DRPG.Case.store.watches` (by prefix)
+  - Who keeps watch through the Eclipse, from which room, and what they saw
+- `DRPG.Case.tile`
+  - The case
+- `DRPG.GmStore.notOpen`
+  - n=0: The GM store (the answer keys) still has not opened in this browser after 0 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+  - n=1: The GM store (the answer keys) still has not opened in this browser after 1 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+  - n=2: The GM store (the answer keys) still has not opened in this browser after 2 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+  - n=5: The GM store (the answer keys) still has not opened in this browser after 5 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+  - n=12: The GM store (the answer keys) still has not opened in this browser after 12 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+  - n=22: The GM store (the answer keys) still has not opened in this browser after 22 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+  - n=25: The GM store (the answer keys) still has not opened in this browser after 25 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+  - n=112: The GM store (the answer keys) still has not opened in this browser after 112 seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem.
+- `DRPG.Season.hint.nobodyPublic`
+  - The Mastermind is set in Despair Flow to feed no pool. Any player can find that out, and the one student left out stands out: give them a Monokuma like any other student.
+
+## the GM team panel (Despair Flow) (gm-team; reader: gm)
+
+- `DRPG.Assign.failed`
+  - The division could not be saved. See the Debug log.
+- `DRPG.Assign.fallbackOption`
+  - #1: Aiko (fallback)
+  - #2: Daichi (fallback)
+- `DRPG.Assign.footnote`
+  - Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody.
+- `DRPG.Assign.implicitHint`
+  - Never assigned: this student feeds the first pool until you pick one.
+- `DRPG.Assign.intro`
+  - A roll that lands with Despair feeds the pool of that student's Monokuma.
+- `DRPG.Assign.monokuma`
+  - Monokuma
+- `DRPG.Assign.noMonokumas`
+  - Nobody holds a Despair pool: this world has no Gamemaster account. Give one the Gamemaster role, then open Despair Flow again.
+- `DRPG.Assign.nobody`
+  - - nobody -
+- `DRPG.Assign.outside`
+  - Outside every pool
+- `DRPG.Assign.save`
+  - Save
+- `DRPG.Assign.splitDone`
+  - Students split evenly between Monokumas.
+- `DRPG.Assign.splitEvenly`
+  - Split evenly
+- `DRPG.Panel.character`
+  - Character
+- `DRPG.Panel.despairFlow`
+  - Despair Flow
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.noCharacters`
+  - No living students in this world.
+
+## the Mastermind and the Final Trial (mastermind; reader: both)
+
+- `DRPG.Panel.apply`
+  - Apply
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## the GM's reports (diagnostics and the map's checks) (diagnostics; reader: gm)
+
+- `DRPG.Diagnose.copied`
+  - Report copied. Paste it (Ctrl+V) wherever it needs to go.
+- `DRPG.Diagnose.copy`
+  - Copy report
+- `DRPG.Diagnose.gmOnly`
+  - This part of the report can only run in a GM's browser. Open the report in a GM's browser to see it.
+- `DRPG.Diagnose.intro`
+  - Everything the module can check here, as one text. Copy it and send it to whoever is helping you.
+- `DRPG.Diagnose.showAgain`
+  - Show again
+- `DRPG.Diagnose.silence.systemWarning`
+  - The warning that Daggerheart 1.2.95 is newer than the version this module was tested on.
+- `DRPG.Diagnose.silencesTitle`
+  - Warnings you silenced
+- `DRPG.Diagnose.title`
+  - Diagnostics report
+- `DRPG.Diagnostics.cast.allSet` (by prefix)
+  - Every student has the starting resources.
+- `DRPG.Diagnostics.cast.experiences` (by prefix)
+  - n=0: Everybody has 0 experiences
+  - n=1: Everybody has 1 experiences
+  - n=2: Everybody has 2 experiences
+  - n=5: Everybody has 5 experiences
+  - n=12: Everybody has 12 experiences
+  - n=22: Everybody has 22 experiences
+  - n=25: Everybody has 25 experiences
+  - n=112: Everybody has 112 experiences
+- `DRPG.Diagnostics.cast.experiencesFix` (by prefix)
+  - Each at +2, agreed at character creation.
+- `DRPG.Diagnostics.cast.fix` (by prefix)
+  - To fix it: open the sheet and press the wand beside the name.
+- `DRPG.Diagnostics.cast.item` (by prefix)
+  - Everybody carries their opening item
+- `DRPG.Diagnostics.cast.itemFix` (by prefix)
+  - n=0: One Tier 0 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=1: One Tier 1 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=2: One Tier 2 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=5: One Tier 5 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=12: One Tier 12 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=22: One Tier 22 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=25: One Tier 25 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=112: One Tier 112 item tied to their Ultimate: hand it out from “Give / take items”.
+- `DRPG.Diagnostics.cast.noCast` (by prefix)
+  - No students yet: create the cast first, then run these checks again.
+- `DRPG.Diagnostics.cast.notSetUp` (by prefix)
+  - not set up
+- `DRPG.Diagnostics.cast.pending` (by prefix)
+  - n=0 (other): 0 students still need the starting resources.
+  - n=1 (one): 1 student still needs the starting resources.
+  - n=2 (other): 2 students still need the starting resources.
+  - n=5 (other): 5 students still need the starting resources.
+  - n=12 (other): 12 students still need the starting resources.
+  - n=22 (other): 22 students still need the starting resources.
+  - n=25 (other): 25 students still need the starting resources.
+  - n=112 (other): 112 students still need the starting resources.
+- `DRPG.Diagnostics.cast.pendingWhy` (by prefix)
+  - Until they are given their starting resources, these students have a maximum Health and Sanity of zero, so they look the same as a student beaten unconscious.
+- `DRPG.Diagnostics.cast.pool` (by prefix)
+  - Everybody is assigned in Despair Flow
+- `DRPG.Diagnostics.cast.poolFix` (by prefix)
+  - Assign each of them a Monokuma by hand, or deliberately assign them none, in the GM panel under Despair Flow. Until then, Despair from their rolls goes to the pool named beside them; where none is named, it goes nowhere.
+- `DRPG.Diagnostics.cast.row` (by prefix)
+  - n=0: Health max 0, Sanity max 0
+  - n=1: Health max 1, Sanity max 1
+  - n=2: Health max 2, Sanity max 2
+  - n=5: Health max 5, Sanity max 5
+  - n=12: Health max 12, Sanity max 12
+  - n=22: Health max 22, Sanity max 22
+  - n=25: Health max 25, Sanity max 25
+  - n=112: Health max 112, Sanity max 112
+- `DRPG.Diagnostics.cast.starting` (by prefix)
+  - n=0: Starting resources: 0 Health, 0 Sanity, 0 Hope
+  - n=1: Starting resources: 1 Health, 1 Sanity, 1 Hope
+  - n=2: Starting resources: 2 Health, 2 Sanity, 2 Hope
+  - n=5: Starting resources: 5 Health, 5 Sanity, 5 Hope
+  - n=12: Starting resources: 12 Health, 12 Sanity, 12 Hope
+  - n=22: Starting resources: 22 Health, 22 Sanity, 22 Hope
+  - n=25: Starting resources: 25 Health, 25 Sanity, 25 Hope
+  - n=112: Starting resources: 112 Health, 112 Sanity, 112 Hope
+- `DRPG.Diagnostics.cast.students` (by prefix)
+  - n=0: Students: 0, living: 0
+  - n=1: Students: 1, living: 1
+  - n=2: Students: 2, living: 2
+  - n=5: Students: 5, living: 5
+  - n=12: Students: 12, living: 12
+  - n=22: Students: 22, living: 22
+  - n=25: Students: 25, living: 25
+  - n=112: Students: 112, living: 112
+- `DRPG.Diagnostics.cast.ultimate` (by prefix)
+  - Everybody has an Ultimate
+- `DRPG.Diagnostics.cast.ultimateFix` (by prefix)
+  - Set it on the sheet, under the name.
+- `DRPG.Diagnostics.cssMissing`
+  - This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().
+- `DRPG.Diagnostics.pageTinted`
+  - #1: Aiko is repainting this page in colors that are not this module's. Foundry is already dark, so turn the extension off for this site.
+  - #2: Daichi is repainting this page in colors that are not this module's. Foundry is already dark, so turn the extension off for this site.
+- `DRPG.Diagnostics.title.season`
+  - Season setup
+- `DRPG.Diagnostics.tracing` (by prefix)
+  - n=0 (other): Watching clicks for 0 seconds. Click the control that misbehaves.
+  - n=1 (one): Watching clicks for 1 second. Click the control that misbehaves.
+  - n=2 (other): Watching clicks for 2 seconds. Click the control that misbehaves.
+  - n=5 (other): Watching clicks for 5 seconds. Click the control that misbehaves.
+  - n=12 (other): Watching clicks for 12 seconds. Click the control that misbehaves.
+  - n=22 (other): Watching clicks for 22 seconds. Click the control that misbehaves.
+  - n=25 (other): Watching clicks for 25 seconds. Click the control that misbehaves.
+  - n=112 (other): Watching clicks for 112 seconds. Click the control that misbehaves.
+- `DRPG.Season.fallsBackTo`
+  - #1: Aiko (falls back to Kitchen Knife)
+  - #2: Daichi (falls back to Rope)
+  - #3: Aiko (falls back to Chair)
+- `DRPG.Voice.liveKitSecret`
+  - LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting that every player's browser receives. Anyone holding it can connect to any voice room. To keep the secret off every browser, use a server that issues its own access tokens, such as the Tavern.
+- `DRPG.Voice.warn.others`
+  - #1: Other active modules that mention voice: Kitchen Knife, Rope, and Chair.
+  - #2: Other active modules that mention voice: Rope.
+- `DRPG.Voice.warn.othersHint`
+  - Worth ruling out first if the rooms below are right and the audio is not.
+- `DRPG.Voice.warn.proximity`
+  - Proximity Voice Chat is also active.
+- `DRPG.Voice.warn.proximityFix`
+  - Turn it off, or set "global listen", unless you use both on purpose.
+- `DRPG.Voice.warn.proximityGlobal`
+  - Its "global listen" setting is on, so it is not muting anybody right now.
+- `DRPG.Voice.warn.proximitySceneOff`
+  - It is switched off on "School, floor 1", so it is not muting anybody there.
+- `DRPG.Voice.warn.proximityVolume`
+  - It sets each participant's volume from token distance, on top of the room this module puts them in. Unconfigured, that volume is zero for everyone.
+
+## the character sheet (sheet; reader: both)
+
+- `DRPG.Anonymity.audit.assistants`
+  - Owned by an Assistant GM, who reads every sheet in the world. Change their role to Player:
+- `DRPG.Anonymity.audit.clean`
+  - No sheet is open in full to every player. Nothing to fix.
+- `DRPG.Anonymity.audit.closed`
+  - Closed to the other players. Nothing to fix, but no other player can open these sheets, so nobody can Take from the Body when the character dies:
+- `DRPG.Anonymity.audit.exposed`
+  - Owned by every player, so nothing on these sheets is hidden:
+- `DRPG.Anonymity.audit.fix`
+  - Set them to Observer
+- `DRPG.Anonymity.audit.fixed` (by prefix)
+  - n=0 (other): 0 sheets set to Observer: every player can open them, their secrets hidden.
+  - n=1 (one): 1 sheet set to Observer: every player can open it, its secrets hidden.
+  - n=2 (other): 2 sheets set to Observer: every player can open them, their secrets hidden.
+  - n=5 (other): 5 sheets set to Observer: every player can open them, their secrets hidden.
+  - n=12 (other): 12 sheets set to Observer: every player can open them, their secrets hidden.
+  - n=22 (other): 22 sheets set to Observer: every player can open them, their secrets hidden.
+  - n=25 (other): 25 sheets set to Observer: every player can open them, their secrets hidden.
+  - n=112 (other): 112 sheets set to Observer: every player can open them, their secrets hidden.
+- `DRPG.Anonymity.audit.fixedOpen` (by prefix)
+  - n=0 (other): 0 sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole.
+  - n=1 (one): 1 sheet set to Observer: every player can open it and, with 'Keep character sheets anonymous' off, read it whole.
+  - n=2 (other): 2 sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole.
+  - n=5 (other): 5 sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole.
+  - n=12 (other): 12 sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole.
+  - n=22 (other): 22 sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole.
+  - n=25 (other): 25 sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole.
+  - n=112 (other): 112 sheets set to Observer: every player can open them and, with 'Keep character sheets anonymous' off, read them whole.
+- `DRPG.Anonymity.audit.nobody`
+  - nobody at all
+- `DRPG.Anonymity.audit.orphaned`
+  - Owned by no player. Who has access to each:
+- `DRPG.Anonymity.audit.shared`
+  - Owned by more than one player:
+- `DRPG.Anonymity.audit.switchOff`
+  - Turn on 'Keep character sheets anonymous' in the module's settings. While it is off, every player can read these Observer sheets whole:
+- `DRPG.Anonymity.audit.title`
+  - Sheet Anonymity Audit
+- `DRPG.Anonymity.blocked`
+  - #1: Ownership not raised: every player would own “Aiko” and read the whole sheet. Give Owner only to the player whose character it is.
+  - #2: Ownership not raised: every player would own “Daichi” and read the whole sheet. Give Owner only to the player whose character it is.
+- `DRPG.Anonymity.everyone.limited` (by prefix)
+  - the other players see the name and portrait only
+- `DRPG.Anonymity.everyone.none` (by prefix)
+  - the other players cannot open the sheet
+- `DRPG.Anonymity.everyone.observer` (by prefix)
+  - every player can open the sheet, its secrets hidden
+- `DRPG.Anonymity.everyone.observerOpen` (by prefix)
+  - every player can open the sheet and read it whole
+- `DRPG.Anonymity.everyone.owner` (by prefix)
+  - every player owns the sheet and reads it whole
+- `DRPG.Anonymity.level.limited` (by prefix)
+  - sees the name and portrait only
+- `DRPG.Anonymity.level.none` (by prefix)
+  - cannot open the sheet
+- `DRPG.Anonymity.level.observer` (by prefix)
+  - can open the sheet, its secrets hidden
+- `DRPG.Anonymity.level.observerOpen` (by prefix)
+  - can open the sheet and read it whole
+- `DRPG.Anonymity.level.owner` (by prefix)
+  - owns the sheet
+- `DRPG.Anonymity.reverted`
+  - #1: “Aiko” was shared as Owner with every player, which lets all of them read the whole sheet. It is back to Observer. Give Owner only to the player whose character it is.
+  - #2: “Daichi” was shared as Owner with every player, which lets all of them read the whole sheet. It is back to Observer. Give Owner only to the player whose character it is.
+- `DRPG.Anonymity.role.assistant`
+  - (Assistant GM)
+- `DRPG.Anonymity.role.gm`
+  - (GM)
+- `DRPG.SearchTokens.exhausted`
+  - This room has no Search Tokens left. Try again in the next time of day.
+- `DRPG.SearchTokens.sealed`
+  - You cannot search this room. There is nothing in here to find, at any time of day.
+
+## the HUD (hud; reader: both)
+
+- `DRPG.Voice.held.connected` (by prefix)
+  - Connected to your voice channel.
+- `DRPG.Voice.held.connecting` (by prefix)
+  - Joining your voice channel.
+- `DRPG.Voice.held.cubListen` (by prefix)
+  - something the code puts here: you listen.
+- `DRPG.Voice.held.cubSpeak` (by prefix)
+  - Discussion: you may speak.
+- `DRPG.Voice.held.cubVote` (by prefix)
+  - The vote: you listen.
+- `DRPG.Voice.held.deadAlone` (by prefix)
+  - Your character is dead: you talk with the Spectators. The living do not hear you.
+- `DRPG.Voice.held.deadMuted` (by prefix)
+  - Your character is dead: you listen to the trial, and your microphone stays off until it ends.
+- `DRPG.Voice.held.eclipse` (by prefix)
+  - Eclipse: no player is in a voice channel until the lights come back.
+- `DRPG.Voice.held.eclipseHeard` (by prefix)
+  - Eclipse: nobody hears you until the lights come back.
+- `DRPG.Voice.held.external` (by prefix)
+  - Voice is in its own window: use the controls there.
+- `DRPG.Voice.held.gmBlock` (by prefix)
+  - The GM blocked your microphone.
+- `DRPG.Voice.held.listening` (by prefix)
+  - Listening at a door: your microphone stays off until you stop.
+- `DRPG.Voice.held.masked` (by prefix)
+  - Hidden behind a "?": your microphone stays off until you reveal yourself.
+- `DRPG.Voice.held.offline` (by prefix)
+  - You are not connected to voice.
+- `DRPG.Voice.held.ownCase` (by prefix)
+  - You listen: this trial is about your death.
+- `DRPG.Voice.held.spectator` (by prefix)
+  - You're a Spectator: you hear the room you're in, and your microphone is off.
+- `DRPG.Voice.held.spectatorTalk` (by prefix)
+  - You're talking with the other Spectators.
+- `DRPG.Zones.confer.apart`
+  - Zone A and Zone B confer apart.
+- `DRPG.Zones.confer.mine`
+  - You confer with Zone {zone}.
+- `DRPG.Zones.confer.name`
+  - Camps confer
+- `DRPG.Zones.confer.none`
+  - You are in neither camp: you stay in the trial hall's voice.
+
+## Foundry's settings window: the module's settings (settings; reader: both)
+
+- `DRPG.Settings.autoApproveTraits.hint`
+  - A player's statistic for a Search or a project goes through without your approval. A Resolve never asks for one.
+- `DRPG.Settings.autoApproveTraits.name`
+  - Players' statistics need no approval
+- `DRPG.Settings.bulletSort.hint`
+  - Sorts your Truth Bullets by chapter, the default, or by room. The switch is in your inventory, beside them. Only affects this browser.
+- `DRPG.Settings.bulletSort.name`
+  - How Truth Bullets are grouped
+- `DRPG.Settings.chargeMovement.hint`
+  - Moving inside a room is free. The first crossing each time of day uses the Free Move; later ones cost an action or a Sprint crossing. Off, you handle movement yourself.
+- `DRPG.Settings.chargeMovement.name`
+  - Crossing rooms costs a Move
+- `DRPG.Settings.debug.hint`
+  - Print Danganronpa RPG diagnostics to the browser console. Only affects this browser.
+- `DRPG.Settings.debug.name`
+  - Verbose console logging
+- `DRPG.Settings.despairFromRolls.hint`
+  - A roll that lands with Despair feeds the pool of that student's Monokuma. Assign each student a Monokuma in the GM panel's Despair Flow.
+- `DRPG.Settings.despairFromRolls.name`
+  - Rolls grant Despair
+- `DRPG.Settings.documentLanguage.hint`
+  - The language of the documents the module writes into this world, one for everyone. Windows, cards, and the sheet follow each browser's Language. The first time the primary GM starts this world, it takes their language.
+- `DRPG.Settings.documentLanguage.name`
+  - Document language
+- `DRPG.Settings.enforceAnonymity.hint`
+  - Another player's sheet shows only their name, portrait, Ultimate, Health, what they hold, and how many Experiences they have. Each player's own sheet stays whole.
+- `DRPG.Settings.enforceAnonymity.name`
+  - Keep character sheets anonymous
+- `DRPG.Settings.enforceDhWelcome.hint`
+  - Daggerheart's welcome journal opens for nobody, the GM included.
+- `DRPG.Settings.enforceDhWelcome.name`
+  - Keep Daggerheart's welcome journal closed for everyone
+- `DRPG.Settings.enforceIsoWelcome.hint`
+  - Isometric Perspective's welcome window opens for nobody, the GM included.
+- `DRPG.Settings.enforceIsoWelcome.name`
+  - Keep Isometric Perspective's welcome window closed for everyone
+- `DRPG.Settings.enforcePlayerFiles.hint`
+  - Players cannot browse or upload files, and a click on a portrait opens nothing. Pictures already in the world still show.
+- `DRPG.Settings.enforcePlayerFiles.name`
+  - Keep players out of the file browser
+- `DRPG.Settings.forceDiceLook.choices.daggerheart` (by prefix)
+  - Everyone: Daggerheart
+- `DRPG.Settings.forceDiceLook.choices.dsn` (by prefix)
+  - Everyone: Dice So Nice
+- `DRPG.Settings.forceDiceLook.choices.own` (by prefix)
+  - Each player's own
+- `DRPG.Settings.forceDiceLook.hint`
+  - With either Everyone choice, players and Assistant GMs roll in one full Gamemaster's Dice So Nice look, fixed the first time the game runs with it on. Everyone: Daggerheart gives Hope, Despair, advantage, and disadvantage dice Daggerheart's colors.
+- `DRPG.Settings.forceDiceLook.name`
+  - Dice look for the table
+- `DRPG.Settings.forcePrivateRolls.hint`
+  - Every player's roll is whispered to that player and the GMs, and a GM's roll to the GMs. Only a GM's game.drpg.publicRoll macro is seen by everyone.
+- `DRPG.Settings.forcePrivateRolls.name`
+  - Force private player rolls
+- `DRPG.Settings.foundryToolWindows.hint`
+  - Puts a GM's Foundry sidebar and map tools in two windows, Foundry tools and Map tools, opened from the button in the corner. Players' screens stay the same. Saving reloads every screen once you confirm.
+- `DRPG.Settings.foundryToolWindows.name`
+  - The module's windows for Foundry's sidebar and scene controls
+- `DRPG.Settings.friskForce.hint`
+  - When off, an open Frisk only asks: a refusal or no answer ends it.
+- `DRPG.Settings.friskForce.name`
+  - Frisk: forcing after a refusal
+- `DRPG.Settings.glassBlur.hint`
+  - The glass frosts the map behind it. If the game stutters, turn this off first. Only affects this browser.
+- `DRPG.Settings.glassBlur.name`
+  - Glass blurs the map
+- `DRPG.Settings.glassPulse.hint`
+  - The slow darkening that travels around the frame. Turn it off to keep the glass and stop it breathing. Only affects this browser.
+- `DRPG.Settings.glassPulse.name`
+  - Glass pulse
+- `DRPG.Settings.hideSystemFear.hint`
+  - Hides Daggerheart's shared Fear bar. Each Monokuma keeps a Despair pool of their own either way. Turn it off to show the bar again.
+- `DRPG.Settings.hideSystemFear.name`
+  - Replace the Daggerheart Fear tracker
+- `DRPG.Settings.highContrast.hint`
+  - Brighter fine print, solid hairlines, and opaque panels with no blur behind them. If your system asks for more contrast, you get this look even with the setting off. Only affects this browser.
+- `DRPG.Settings.highContrast.name`
+  - High contrast
+- `DRPG.Settings.hudTicker.hint`
+  - The time of day, faint, behind the clock. Only affects this browser.
+- `DRPG.Settings.hudTicker.name`
+  - State name behind the clock
+- `DRPG.Settings.isoTokenShield.hint`
+  - Keeps Isometric Perspective out of the token configuration window, where it breaks editing. Turn this off to reach its Isometric tab.
+- `DRPG.Settings.isoTokenShield.name`
+  - Guard token editing from Isometric Perspective
+- `DRPG.Settings.language.hint`
+  - The language of this module's windows, cards, and sheet; Foundry keeps its own. Game names such as Truth Bullet stay in English. Needs a reload. Only affects this browser.
+- `DRPG.Settings.language.name`
+  - Language
+- `DRPG.Settings.liveKitInFoundry.hint`
+  - Voice runs in the Foundry window, with no separate tab.
+- `DRPG.Settings.liveKitInFoundry.name`
+  - Voice inside the Foundry window for everyone
+- `DRPG.Settings.lockPlayerResources.hint`
+  - A player's own edit of their Actions, Hope, Health, Sanity, or statistics is put back or flagged to the GMs; with this off, it is only listed. Items and effects are checked either way. GMs are unaffected.
+- `DRPG.Settings.lockPlayerResources.name`
+  - Lock players' resources on the sheet
+- `DRPG.Settings.lockRollDialog.hint`
+  - Players cannot change the dice, statistic, advantage, Experiences, or bonus in the roll window; those come from the action, a Hope Call, or the GM. GMs are unaffected.
+- `DRPG.Settings.lockRollDialog.name`
+  - Lock the roll window for players
+- `DRPG.Settings.messengerSound.hint`
+  - Plays the messenger's sounds for a message sent, a message received, and a question for the GM. Only affects this browser.
+- `DRPG.Settings.messengerSound.name`
+  - Messenger sounds
+- `DRPG.Settings.moveAudit.hint`
+  - Choose what happens when someone moves a player's token through a wall.
+- `DRPG.Settings.moveAudit.log`
+  - Note it in the Debug log
+- `DRPG.Settings.moveAudit.name`
+  - When a player's token moves through a wall
+- `DRPG.Settings.moveAudit.sendBack`
+  - Send the token back
+- `DRPG.Settings.musicEnabled.hint`
+  - Changes the playlist with the game: an Eclipse, a trial, an investigation, the time of day, a pause. Assign the playlists first in the Sound window.
+- `DRPG.Settings.musicEnabled.name`
+  - Music follows the game state
+- `DRPG.Settings.pixelFont.hint`
+  - Monokuma Legacy only: Press Start 2P on the HUD, tabs, names, and labels. Long text keeps the normal font. Only affects this browser.
+- `DRPG.Settings.pixelFont.name`
+  - Pixel font
+- `DRPG.Settings.reducedMotion.hint`
+  - Hold the interface still on this browser, whatever the operating system says. This client only.
+- `DRPG.Settings.reducedMotion.name`
+  - Reduced motion
+- `DRPG.Settings.regionFog.hint`
+  - A player sees their own room clearly and rooms they have visited dimly; the rest is fogged.
+- `DRPG.Settings.regionFog.name`
+  - Rooms decide what players can see
+- `DRPG.Settings.roomVisibility.hint`
+  - Hides characters in other rooms from players, even ones they could see through gaps in the walls. GMs see everything.
+- `DRPG.Settings.roomVisibility.name`
+  - Players only see who is in their room
+- `DRPG.Settings.searchTokensPerRoom.hint`
+  - Search Tokens per room each time of day, 0 to 10. A Search uses one; a room with none left cannot be searched.
+- `DRPG.Settings.searchTokensPerRoom.name`
+  - Search Tokens per room
+- `DRPG.Settings.sequences.hint`
+  - Plays the Class Trial's entry, the verdict, the clock's turns and flashes, and the day boards full screen for everyone. When off, only the trial's and the verdict's sounds play. Esc skips one.
+- `DRPG.Settings.sequences.name`
+  - Full-screen sequences
+- `DRPG.Settings.theme.hint`
+  - How the module looks. Only affects this browser.
+- `DRPG.Settings.theme.monokumaLegacy`
+  - Monokuma Legacy
+- `DRPG.Settings.theme.name`
+  - Theme
+- `DRPG.Settings.theme.stainedGlass`
+  - Stained Glass
+- `DRPG.Settings.uiScale.hint`
+  - Sets the size of the module's windows and text, and with them Foundry's windows and the sheet, from 80% to 140%. The map keeps its size. Only affects this browser.
+- `DRPG.Settings.uiScale.name`
+  - Interface scale
+- `DRPG.Settings.voiceEnabled.hint`
+  - You hear only the people in your room. Needs LiveKit AVClient.
+- `DRPG.Settings.voiceEnabled.name`
+  - Separate voice in each room
+- `DRPG.Settings.voiceTile.hint`
+  - Hides the cameras. The tile shows how many people are in your channel.
+- `DRPG.Settings.voiceTile.name`
+  - Voice tile instead of the camera dock
+- `DRPG.Settings.wideProjectWindows.hint`
+  - Project windows open wider. Only affects this browser.
+- `DRPG.Settings.wideProjectWindows.name`
+  - Wide project windows
+- `DRPG.SettingsWindow.menuLabel`
+  - Open DRPG Settings
+- `DRPG.SettingsWindow.menuName`
+  - DRPG Settings
+- `DRPG.Sound.varyHint`
+  - Frequent sounds come out a little different each time.
+- `DRPG.Sound.varyLabel`
+  - Vary the sounds you hear often
+
+## the suite's runner (scripts/tests.mjs, a suite file the map does not read) (suite; reader: gm)
+
+- `DRPG.Tests.alreadyRunning` (by prefix)
+  - The regression suite is already running in this browser. Wait for it to finish before you run it again.
+- `DRPG.Tests.cancel` (by prefix)
+  - Cancel
+- `DRPG.Tests.confirmedNotThisWorld` (by prefix)
+  - The confirmed value given to runTests is openRoomSetupDialog, but this world's id is openRoomSetupDialog, so the confirmation window opens instead.
+- `DRPG.Tests.tier2Advice` (by prefix)
+  - Run it on a copy of a world, never on a campaign somebody is playing. Without arguments, runTests() runs the read-only tiers.
+- `DRPG.Tests.tier2Cancelled` (by prefix)
+  - Nothing ran: tier 2 was not confirmed.
+- `DRPG.Tests.tier2Online` (by prefix)
+  - n=0 (other): 0 other people are connected to this world right now.
+  - n=1 (one): 1 other person is connected to this world right now.
+  - n=2 (other): 2 other people are connected to this world right now.
+  - n=5 (other): 5 other people are connected to this world right now.
+  - n=12 (other): 12 other people are connected to this world right now.
+  - n=22 (other): 22 other people are connected to this world right now.
+  - n=25 (other): 25 other people are connected to this world right now.
+  - n=112 (other): 112 other people are connected to this world right now.
+- `DRPG.Tests.tier2Run` (by prefix)
+  - Run tier 2 on School, floor 1
+- `DRPG.Tests.tier2Title` (by prefix)
+  - Tier 2 writes to School, floor 1
+- `DRPG.Tests.tier2What` (by prefix)
+  - The scenarios build their own fixtures in this world and put them back: they open and close incidents, kill and revive students, write world settings, and delete the chat they produce. After each scenario the whole world is read again, and anything left behind is reported as a failure.
+- `DRPG.Tests.tier2Where` (by prefix)
+  - World: School, floor 1 (openRoomSetupDialog)
+
+## scripts/api.mjs (entry points no SCREENS row groups) (file:scripts/api.mjs; reader: unknown)
+
+- `DRPG.Anonymity.audit.assistants`
+  - Owned by an Assistant GM, who reads every sheet in the world. Change their role to Player:
+- `DRPG.Anonymity.audit.clean`
+  - No sheet is open in full to every player. Nothing to fix.
+- `DRPG.Anonymity.audit.closed`
+  - Closed to the other players. Nothing to fix, but no other player can open these sheets, so nobody can Take from the Body when the character dies:
+- `DRPG.Anonymity.audit.exposed`
+  - Owned by every player, so nothing on these sheets is hidden:
+- `DRPG.Anonymity.audit.fix`
+  - Set them to Observer
+- `DRPG.Anonymity.audit.nobody`
+  - nobody at all
+- `DRPG.Anonymity.audit.orphaned`
+  - Owned by no player. Who has access to each:
+- `DRPG.Anonymity.audit.shared`
+  - Owned by more than one player:
+- `DRPG.Anonymity.audit.switchOff`
+  - Turn on 'Keep character sheets anonymous' in the module's settings. While it is off, every player can read these Observer sheets whole:
+- `DRPG.Anonymity.audit.title`
+  - Sheet Anonymity Audit
+- `DRPG.Anonymity.role.assistant`
+  - (Assistant GM)
+- `DRPG.Anonymity.role.gm`
+  - (GM)
+- `DRPG.Case.row.bullets` (by prefix)
+  - n=0 (other): 0 Truth Bullets (of 0) have no answer key on this browser: an Analyze of them is refused.
+  - n=1 (one): 1 Truth Bullet (of 1) has no answer key on this browser: an Analyze of it is refused.
+  - n=2 (other): 2 Truth Bullets (of 2) have no answer key on this browser: an Analyze of them is refused.
+  - n=5 (other): 5 Truth Bullets (of 5) have no answer key on this browser: an Analyze of them is refused.
+  - n=12 (other): 12 Truth Bullets (of 12) have no answer key on this browser: an Analyze of them is refused.
+  - n=22 (other): 22 Truth Bullets (of 22) have no answer key on this browser: an Analyze of them is refused.
+  - n=25 (other): 25 Truth Bullets (of 25) have no answer key on this browser: an Analyze of them is refused.
+  - n=112 (other): 112 Truth Bullets (of 112) have no answer key on this browser: an Analyze of them is refused.
+- `DRPG.Case.row.bytes`
+  - n=0: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 0 KB, not counting its notice history.
+  - n=1: The GM stores take Rope KB of this browser's storage; the whole module takes 1 KB, not counting its notice history.
+  - n=2: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 2 KB, not counting its notice history.
+  - n=5: The GM stores take Rope KB of this browser's storage; the whole module takes 5 KB, not counting its notice history.
+  - n=12: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 12 KB, not counting its notice history.
+  - n=22: The GM stores take Rope KB of this browser's storage; the whole module takes 22 KB, not counting its notice history.
+  - n=25: The GM stores take Kitchen Knife, Rope, and Chair KB of this browser's storage; the whole module takes 25 KB, not counting its notice history.
+  - n=112: The GM stores take Rope KB of this browser's storage; the whole module takes 112 KB, not counting its notice history.
+- `DRPG.Case.row.claimFailed`
+  - This browser could not take over its old something the code puts here: something the code puts here. The old rows stay as they were, and the next load tries again.
+- `DRPG.Case.row.clamped` (by prefix)
+  - n=0 (other): 0 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=1 (one): 1 old row had a time later than when this browser took it over (a clock ran ahead), so it was given the takeover time.
+  - n=2 (other): 2 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=5 (other): 5 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=12 (other): 12 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=22 (other): 22 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=25 (other): 25 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+  - n=112 (other): 112 old rows had times later than when this browser took them over (a clock ran ahead), so they were given the takeover time.
+- `DRPG.Case.row.incident`
+  - An incident is open, and this browser does not hold its cast.
+- `DRPG.Case.row.lastBackup`
+  - #1: Last backup: Morning (Aiko).
+  - #2: Last backup: Noon (Daichi).
+  - #3: Last backup: Afternoon (Aiko).
+  - #4: Last backup: Evening (Daichi).
+  - #5: Last backup: Night (Aiko).
+- `DRPG.Case.row.left` (by prefix)
+  - n=0 (other): 0 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=1 (one): 1 old row stays in this browser, not taken: another world's, or no longer part of this world's case.
+  - n=2 (other): 2 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=5 (other): 5 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=12 (other): 12 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=22 (other): 22 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=25 (other): 25 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+  - n=112 (other): 112 old rows stay in this browser, not taken: other worlds', or no longer part of this world's case.
+- `DRPG.Case.row.leftNotPrimary` (by prefix)
+  - n=0 (other): 0 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=1 (one): 1 of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).
+  - n=2 (other): 2 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=5 (other): 5 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=12 (other): 12 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=22 (other): 22 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=25 (other): 25 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+  - n=112 (other): 112 of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store).
+- `DRPG.Case.row.legacyChanged`
+  - The old store of something the code puts here changed after the upgrade (a GM went back to an older version): the diagnostics show what changed, so a GM can bring it over.
+- `DRPG.Case.row.mastermindCleared`
+  - #1: A GM's old store (from before 1.2.63) says the Mastermind was cleared on 31.10.2026, after Aiko was picked on 31.10.2026, possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.
+  - #2: A GM's old store (from before 1.2.63) says the Mastermind was cleared on 31.10.2026, after Daichi was picked on 31.10.2026, possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.
+- `DRPG.Case.row.neverBackedUp`
+  - This case has never been backed up.
+- `DRPG.Case.row.neverHeld`
+  - This browser has never held this world's case, which began on 31.10.2026.
+- `DRPG.Case.row.noAnswer` (by prefix)
+  - n=0 (other): 0 answer keys have lost their real type.
+  - n=1 (one): 1 answer key has lost its real type.
+  - n=2 (other): 2 answer keys have lost their real type.
+  - n=5 (other): 5 answer keys have lost their real type.
+  - n=12 (other): 12 answer keys have lost their real type.
+  - n=22 (other): 22 answer keys have lost their real type.
+  - n=25 (other): 25 answer keys have lost their real type.
+  - n=112 (other): 112 answer keys have lost their real type.
+- `DRPG.Case.row.notes` (by prefix)
+  - n=0 (other): 0 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=1 (one): 1 pre-session note is marked written, and this browser does not hold it, or holds an older one.
+  - n=2 (other): 2 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=5 (other): 5 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=12 (other): 12 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=22 (other): 22 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=25 (other): 25 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+  - n=112 (other): 112 pre-session notes are marked written, and this browser does not hold them, or holds older ones.
+- `DRPG.Case.row.notices`
+  - n=0: The notice history takes 0 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=1: The notice history takes 1 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=2: The notice history takes 2 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=5: The notice history takes 5 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=12: The notice history takes 12 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=22: The notice history takes 22 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=25: The notice history takes 25 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+  - n=112: The notice history takes 112 KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.
+- `DRPG.Case.row.projectSecrets` (by prefix)
+  - n=0 (other): 0 indirect murders (of 0) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=1 (one): 1 indirect murder (of 1) has no killer, condition, or trigger on this browser: its trap cannot arm or fire.
+  - n=2 (other): 2 indirect murders (of 2) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=5 (other): 5 indirect murders (of 5) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=12 (other): 12 indirect murders (of 12) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=22 (other): 22 indirect murders (of 22) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=25 (other): 25 indirect murders (of 25) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+  - n=112 (other): 112 indirect murders (of 112) have no killer, condition, or trigger on this browser: their traps cannot arm or fire.
+- `DRPG.Case.row.skew`
+  - #1: Timestamps ahead of this browser's clock: Aiko, Daichi, and Chie.
+  - #2: Timestamps ahead of this browser's clock: Aiko and Daichi.
+  - #3: Timestamps ahead of this browser's clock: Chie.
+- `DRPG.Case.row.traceOrphans` (by prefix)
+  - n=0 (other): 0 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=1 (one): 1 Remnant's answer key has no token on any scene: it is kept, but nothing reads it.
+  - n=2 (other): 2 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=5 (other): 5 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=12 (other): 12 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=22 (other): 22 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=25 (other): 25 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+  - n=112 (other): 112 Remnants' answer keys have no token on any scene: they are kept, but nothing reads them.
+- `DRPG.Case.row.traces` (by prefix)
+  - n=0 (other): 0 Remnants on the map (of 0) have no answer key on this browser.
+  - n=1 (one): 1 Remnant on the map (of 1) has no answer key on this browser.
+  - n=2 (other): 2 Remnants on the map (of 2) have no answer key on this browser.
+  - n=5 (other): 5 Remnants on the map (of 5) have no answer key on this browser.
+  - n=12 (other): 12 Remnants on the map (of 12) have no answer key on this browser.
+  - n=22 (other): 22 Remnants on the map (of 22) have no answer key on this browser.
+  - n=25 (other): 25 Remnants on the map (of 25) have no answer key on this browser.
+  - n=112 (other): 112 Remnants on the map (of 112) have no answer key on this browser.
+- `DRPG.Case.row.tracesKept` (by prefix)
+  - n=0 (other): 0 Remnants on the map (of 0) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=1 (one): 1 Remnant on the map (of 1) keeps flags of its answer key on its token, which every browser holds. They are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides it, and game.drpg.migrateRemnants() names it.
+  - n=2 (other): 2 Remnants on the map (of 2) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=5 (other): 5 Remnants on the map (of 5) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=12 (other): 12 Remnants on the map (of 12) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=22 (other): 22 Remnants on the map (of 22) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=25 (other): 25 Remnants on the map (of 25) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+  - n=112 (other): 112 Remnants on the map (of 112) keep flags of their answer keys on their tokens, which every browser holds. Each one's flags are left by a Faint Prep promotion that a later correction overrode, have no ledger row to move into, or were not stripped. A GM decides each, and game.drpg.migrateRemnants() names them.
+- `DRPG.Case.row.tracesOnToken` (by prefix)
+  - n=0 (other): 0 Remnants on the map (of 0) still carry their answer keys on their tokens: move them into the ledger.
+  - n=1 (one): 1 Remnant on the map (of 1) still carries its answer key on its token: move it into the ledger.
+  - n=2 (other): 2 Remnants on the map (of 2) still carry their answer keys on their tokens: move them into the ledger.
+  - n=5 (other): 5 Remnants on the map (of 5) still carry their answer keys on their tokens: move them into the ledger.
+  - n=12 (other): 12 Remnants on the map (of 12) still carry their answer keys on their tokens: move them into the ledger.
+  - n=22 (other): 22 Remnants on the map (of 22) still carry their answer keys on their tokens: move them into the ledger.
+  - n=25 (other): 25 Remnants on the map (of 25) still carry their answer keys on their tokens: move them into the ledger.
+  - n=112 (other): 112 Remnants on the map (of 112) still carry their answer keys on their tokens: move them into the ledger.
+- `DRPG.Case.row.traps` (by prefix)
+  - n=0 (other): 0 armed item traps have no planted object on this browser: they cannot fire.
+  - n=1 (one): 1 armed item trap has no planted object on this browser: it cannot fire.
+  - n=2 (other): 2 armed item traps have no planted object on this browser: they cannot fire.
+  - n=5 (other): 5 armed item traps have no planted object on this browser: they cannot fire.
+  - n=12 (other): 12 armed item traps have no planted object on this browser: they cannot fire.
+  - n=22 (other): 22 armed item traps have no planted object on this browser: they cannot fire.
+  - n=25 (other): 25 armed item traps have no planted object on this browser: they cannot fire.
+  - n=112 (other): 112 armed item traps have no planted object on this browser: they cannot fire.
+- `DRPG.Case.row.unseen`
+  - This check cannot see who the Mastermind is, the Level Up offers, or the Blackened register: a browser that lost them does not know it.
+- `DRPG.Case.store.ballots` (by prefix)
+  - The ballots of the Class Trial's vote, kept by the GMs
+- `DRPG.Case.store.barricades` (by prefix)
+  - Which rooms are barricaded, by whom and how strongly
+- `DRPG.Case.store.bedroomNotes` (by prefix)
+  - What happened to each bedroom while its owner was away, told when they walk back in
+- `DRPG.Case.store.blackened` (by prefix)
+  - The Blackened register
+- `DRPG.Case.store.bodiesHeard` (by prefix)
+  - Which bodies each character has heard the discovery sound for
+- `DRPG.Case.store.bounties` (by prefix)
+  - The open Bounties on students, for the Monocubs
+- `DRPG.Case.store.bullets` (by prefix)
+  - Truth Bullets
+- `DRPG.Case.store.caseSchema` (by prefix)
+  - The case map: each chapter's deductions, counters, and solution
+- `DRPG.Case.store.caseTicks` (by prefix)
+  - The trial's ticks: each chapter's deductions, counters, and solution a GM ticked
+- `DRPG.Case.store.cast` (by prefix)
+  - The incident's cast
+- `DRPG.Case.store.cleanupAttempts` (by prefix)
+  - Each character's last clean-up, kept so a Reroll can take it back
+- `DRPG.Case.store.clockBeat` (by prefix)
+  - When the primary GM was last at the table
+- `DRPG.Case.store.closingClaim` (by prefix)
+  - Who volunteered for the Closing Argument, and who was drawn, kept by the GMs
+- `DRPG.Case.store.confusions` (by prefix)
+  - The Confusions armed on a character and not rolled yet
+- `DRPG.Case.store.crossings` (by prefix)
+  - Each character's last crossing between rooms, what it cost, and whether a GM gave it back
+- `DRPG.Case.store.cubTargets` (by prefix)
+  - How many Monocub moves each student has had today
+- `DRPG.Case.store.cubs` (by prefix)
+  - The Monocubs' record: which Monocub witnessed the crime
+- `DRPG.Case.store.deaths` (by prefix)
+  - The deaths nobody has found yet
+- `DRPG.Case.store.deferredOffers` (by prefix)
+  - The Reinforced Level Ups waiting for the class
+- `DRPG.Case.store.despairOwed` (by prefix)
+  - The Despair each pool owes for its conversions to Hope
+- `DRPG.Case.store.diceLooks` (by prefix)
+  - Each character's dice look as the GMs set it; a player's change goes back to it
+- `DRPG.Case.store.discovery` (by prefix)
+  - The rooms each character has found
+- `DRPG.Case.store.diveSets` (by prefix)
+  - Logic Dive sets: each set's questions, their answers, and which answer is right
+- `DRPG.Case.store.eavesdrops` (by prefix)
+  - Who listens at which door, from which room, and which room they may listen at again for free
+- `DRPG.Case.store.eclipseMoves` (by prefix)
+  - How often each character has crossed in the Eclipse
+- `DRPG.Case.store.facilityUses` (by prefix)
+  - Which room actions each character used, and in which time of day
+- `DRPG.Case.store.foundDone` (by prefix)
+  - The finished secret projects waiting for their finders to come back
+- `DRPG.Case.store.keyPlan` (by prefix)
+  - The Key Remnant plan, chapter by chapter
+- `DRPG.Case.store.lockpicks` (by prefix)
+  - Who may walk through a lock they picked, into which room
+- `DRPG.Case.store.lootRolls` (by prefix)
+  - The first Hand and Shadow roll kept for each taker's next Take from each body
+- `DRPG.Case.store.lootTraces` (by prefix)
+  - What has been taken off each body, and its Remnant
+- `DRPG.Case.store.masks` (by prefix)
+  - Which killer hides behind a "?" after a murder's opening, and what their token looked like
+- `DRPG.Case.store.mastermind` (by prefix)
+  - The Mastermind
+- `DRPG.Case.store.notes` (by prefix)
+  - The players' pre-session notes
+- `DRPG.Case.store.observe` (by prefix)
+  - The Observe declarations waiting for their roll
+- `DRPG.Case.store.offers` (by prefix)
+  - The Level Ups on offer
+- `DRPG.Case.store.overflow` (by prefix)
+  - The Despair Overflow's count
+- `DRPG.Case.store.passageAccess` (by prefix)
+  - Who knows each secret passage, and how they learned it
+- `DRPG.Case.store.passageLog` (by prefix)
+  - What was done with the secret passages
+- `DRPG.Case.store.passageMap` (by prefix)
+  - The secret passages: where each one is and whether it is open
+- `DRPG.Case.store.passageSeason` (by prefix)
+  - The secret passages a project made this season
+- `DRPG.Case.store.pendingBodies` (by prefix)
+  - The found bodies waiting for a GM to announce them
+- `DRPG.Case.store.pendingMurders` (by prefix)
+  - The Direct Murders declared in the dark
+- `DRPG.Case.store.projectSecrets` (by prefix)
+  - Who builds each trap, and what sets it off
+- `DRPG.Case.store.projectWork` (by prefix)
+  - Who worked on each project this time of day
+- `DRPG.Case.store.remnants` (by prefix)
+  - Remnants
+- `DRPG.Case.store.rerollBookmarks` (by prefix)
+  - Each character's last roll a Reroll would take back, and what the GMs did for it
+- `DRPG.Case.store.rerollJournal` (by prefix)
+  - A Reroll the GM is making, step by step, so a reload in the middle can be put right
+- `DRPG.Case.store.rifles` (by prefix)
+  - Which stash each character has gone through, and in which time of day
+- `DRPG.Case.store.rolls` (by prefix)
+  - The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them
+- `DRPG.Case.store.ruledCards` (by prefix)
+  - Who ruled each card sent to the GMs, so a card is ruled once
+- `DRPG.Case.store.sheetMarks` (by prefix)
+  - What each character's sheet held when the GMs last judged a write on it
+- `DRPG.Case.store.sheetWrites` (by prefix)
+  - The writes on a student's sheet the GMs put back, flagged, or listed, kept a day
+- `DRPG.Case.store.tails` (by prefix)
+  - Who is tailing whom today, and how well
+- `DRPG.Case.store.takeBack` (by prefix)
+  - What the last start of a time of day changed, kept for five minutes so a GM can take back a misclick
+- `DRPG.Case.store.timedEffects` (by prefix)
+  - What room actions gave each character for a while, and when it ends
+- `DRPG.Case.store.traceDigest` (by prefix)
+  - The Remnants placed since the last digest to the GMs, reported at the next time of day
+- `DRPG.Case.store.trapLedger` (by prefix)
+  - The traps' planted objects
+- `DRPG.Case.store.trapPlants` (by prefix)
+  - The plants waiting in rooms
+- `DRPG.Case.store.trialCast` (by prefix)
+  - Which of the trial hall's tokens the trial shows
+- `DRPG.Case.store.trialMute` (by prefix)
+  - The microphones the Class Trial turned off, and what each player had before, kept by the GMs until it ends
+- `DRPG.Case.store.usedTools` (by prefix)
+  - The Cleaning Tools each clean-up used, broken when the body is found
+- `DRPG.Case.store.verdict` (by prefix)
+  - The Blackened named in the last verdict, kept by the GMs for its Finish
+- `DRPG.Case.store.watches` (by prefix)
+  - Who keeps watch through the Eclipse, from which room, and what they saw
+- `DRPG.Diagnostics.cast.allSet` (by prefix)
+  - Every student has the starting resources.
+- `DRPG.Diagnostics.cast.experiences` (by prefix)
+  - n=0: Everybody has 0 experiences
+  - n=1: Everybody has 1 experiences
+  - n=2: Everybody has 2 experiences
+  - n=5: Everybody has 5 experiences
+  - n=12: Everybody has 12 experiences
+  - n=22: Everybody has 22 experiences
+  - n=25: Everybody has 25 experiences
+  - n=112: Everybody has 112 experiences
+- `DRPG.Diagnostics.cast.experiencesFix` (by prefix)
+  - Each at +2, agreed at character creation.
+- `DRPG.Diagnostics.cast.fix` (by prefix)
+  - To fix it: open the sheet and press the wand beside the name.
+- `DRPG.Diagnostics.cast.item` (by prefix)
+  - Everybody carries their opening item
+- `DRPG.Diagnostics.cast.itemFix` (by prefix)
+  - n=0: One Tier 0 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=1: One Tier 1 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=2: One Tier 2 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=5: One Tier 5 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=12: One Tier 12 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=22: One Tier 22 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=25: One Tier 25 item tied to their Ultimate: hand it out from “Give / take items”.
+  - n=112: One Tier 112 item tied to their Ultimate: hand it out from “Give / take items”.
+- `DRPG.Diagnostics.cast.noCast` (by prefix)
+  - No students yet: create the cast first, then run these checks again.
+- `DRPG.Diagnostics.cast.notSetUp` (by prefix)
+  - not set up
+- `DRPG.Diagnostics.cast.pending` (by prefix)
+  - n=0 (other): 0 students still need the starting resources.
+  - n=1 (one): 1 student still needs the starting resources.
+  - n=2 (other): 2 students still need the starting resources.
+  - n=5 (other): 5 students still need the starting resources.
+  - n=12 (other): 12 students still need the starting resources.
+  - n=22 (other): 22 students still need the starting resources.
+  - n=25 (other): 25 students still need the starting resources.
+  - n=112 (other): 112 students still need the starting resources.
+- `DRPG.Diagnostics.cast.pendingWhy` (by prefix)
+  - Until they are given their starting resources, these students have a maximum Health and Sanity of zero, so they look the same as a student beaten unconscious.
+- `DRPG.Diagnostics.cast.pool` (by prefix)
+  - Everybody is assigned in Despair Flow
+- `DRPG.Diagnostics.cast.poolFix` (by prefix)
+  - Assign each of them a Monokuma by hand, or deliberately assign them none, in the GM panel under Despair Flow. Until then, Despair from their rolls goes to the pool named beside them; where none is named, it goes nowhere.
+- `DRPG.Diagnostics.cast.row` (by prefix)
+  - n=0: Health max 0, Sanity max 0
+  - n=1: Health max 1, Sanity max 1
+  - n=2: Health max 2, Sanity max 2
+  - n=5: Health max 5, Sanity max 5
+  - n=12: Health max 12, Sanity max 12
+  - n=22: Health max 22, Sanity max 22
+  - n=25: Health max 25, Sanity max 25
+  - n=112: Health max 112, Sanity max 112
+- `DRPG.Diagnostics.cast.starting` (by prefix)
+  - n=0: Starting resources: 0 Health, 0 Sanity, 0 Hope
+  - n=1: Starting resources: 1 Health, 1 Sanity, 1 Hope
+  - n=2: Starting resources: 2 Health, 2 Sanity, 2 Hope
+  - n=5: Starting resources: 5 Health, 5 Sanity, 5 Hope
+  - n=12: Starting resources: 12 Health, 12 Sanity, 12 Hope
+  - n=22: Starting resources: 22 Health, 22 Sanity, 22 Hope
+  - n=25: Starting resources: 25 Health, 25 Sanity, 25 Hope
+  - n=112: Starting resources: 112 Health, 112 Sanity, 112 Hope
+- `DRPG.Diagnostics.cast.students` (by prefix)
+  - n=0: Students: 0, living: 0
+  - n=1: Students: 1, living: 1
+  - n=2: Students: 2, living: 2
+  - n=5: Students: 5, living: 5
+  - n=12: Students: 12, living: 12
+  - n=22: Students: 22, living: 22
+  - n=25: Students: 25, living: 25
+  - n=112: Students: 112, living: 112
+- `DRPG.Diagnostics.cast.ultimate` (by prefix)
+  - Everybody has an Ultimate
+- `DRPG.Diagnostics.cast.ultimateFix` (by prefix)
+  - Set it on the sheet, under the name.
+- `DRPG.Diagnostics.title.music`
+  - Music diagnostics
+- `DRPG.Diagnostics.title.season`
+  - Season setup
+- `DRPG.Fog.checkNoRooms.detail`
+  - Tick “This is a room” for its regions in Room setup (the Doors tab), then check again.
+- `DRPG.Fog.checkNoRooms.problem`
+  - No rooms on this scene
+- `DRPG.Fog.checkNoScene.detail`
+  - Open the scene you want checked, then check again.
+- `DRPG.Fog.checkNoScene.problem`
+  - No scene on the canvas
+- `DRPG.Fog.diagnosis.elsewhere`
+  - somewhere else
+- `DRPG.Fog.diagnosis.glow`
+  - glow: openings {openings}, core {core}px, full depth {span}px, reach something the code puts herepx, amplitude {amplitude}px
+- `DRPG.Fog.diagnosis.head`
+  - {module} \| fog diagnosis: School, floor 1, grid {grid}
+- `DRPG.Fog.diagnosis.none`
+  - none
+- `DRPG.Fog.diagnosis.opening`
+  - n=0: #0 something the code puts herepx long, 0 in grid squares, glow {span}px deep, starts at 0,{y}
+  - n=1: #1 something the code puts herepx long, 1 in grid squares, glow {span}px deep, starts at 1,{y}
+  - n=2: #2 something the code puts herepx long, 2 in grid squares, glow {span}px deep, starts at 2,{y}
+  - n=5: #5 something the code puts herepx long, 5 in grid squares, glow {span}px deep, starts at 5,{y}
+  - n=12: #12 something the code puts herepx long, 12 in grid squares, glow {span}px deep, starts at 12,{y}
+  - n=22: #22 something the code puts herepx long, 22 in grid squares, glow {span}px deep, starts at 22,{y}
+  - n=25: #25 something the code puts herepx long, 25 in grid squares, glow {span}px deep, starts at 25,{y}
+  - n=112: #112 something the code puts herepx long, 112 in grid squares, glow {span}px deep, starts at 112,{y}
+- `DRPG.Fog.diagnosis.rooms`
+  - #1: rooms I am in: Workshop, Library, and Cinema
+  - #2: rooms I am in: Library
+- `DRPG.Fog.diagnosis.shortened`
+  - &lt;- shortened to fit its own doorway
+- `DRPG.Fog.lastCheckErrors` (by prefix)
+  - n=0 (other): the last room check found 0 problems
+  - n=1 (one): the last room check found 1 problem
+  - n=2 (other): the last room check found 2 problems
+  - n=5 (other): the last room check found 5 problems
+  - n=12 (other): the last room check found 12 problems
+  - n=22 (other): the last room check found 22 problems
+  - n=25 (other): the last room check found 25 problems
+  - n=112 (other): the last room check found 112 problems
+- `DRPG.Fog.noRoomScenes`
+  - No scene has rooms (named Regions a GM marked as rooms), so no scene uses room-based visibility.
+- `DRPG.Fog.notRooms` (by prefix)
+  - n=0 (other): 0 named regions are not rooms
+  - n=1 (one): 1 named region is not a room
+  - n=2 (other): 2 named regions are not rooms
+  - n=5 (other): 5 named regions are not rooms
+  - n=12 (other): 12 named regions are not rooms
+  - n=22 (other): 22 named regions are not rooms
+  - n=25 (other): 25 named regions are not rooms
+  - n=112 (other): 112 named regions are not rooms
+- `DRPG.Fog.stand.notRunYet`
+  - not run yet
+- `DRPG.Fog.uncoveredShare`
+  - n=0: 0% of the map belongs to no room
+  - n=1: 1% of the map belongs to no room
+  - n=2: 2% of the map belongs to no room
+  - n=5: 5% of the map belongs to no room
+  - n=12: 12% of the map belongs to no room
+  - n=22: 22% of the map belongs to no room
+  - n=25: 25% of the map belongs to no room
+  - n=112: 112% of the map belongs to no room
+- `DRPG.Fog.uncoveredShareFloor`
+  - n=0: 0% of School, floor 1 belongs to no room
+  - n=1: 1% of School, floor 1 belongs to no room
+  - n=2: 2% of School, floor 1 belongs to no room
+  - n=5: 5% of School, floor 1 belongs to no room
+  - n=12: 12% of School, floor 1 belongs to no room
+  - n=22: 22% of School, floor 1 belongs to no room
+  - n=25: 25% of School, floor 1 belongs to no room
+  - n=112: 112% of School, floor 1 belongs to no room
+- `DRPG.Music.diag.clock`
+  - #1: Clock: phase=Morning time of day=Morning eclipse=something the code puts here paused=something the code puts here
+  - #2: Clock: phase=Noon time of day=Noon eclipse=something the code puts here paused=something the code puts here
+  - #3: Clock: phase=Afternoon time of day=Afternoon eclipse=something the code puts here paused=something the code puts here
+  - #4: Clock: phase=Evening time of day=Evening eclipse=something the code puts here paused=something the code puts here
+  - #5: Clock: phase=Night time of day=Night eclipse=something the code puts here paused=something the code puts here
+- `DRPG.Music.diag.colApplies`
+  - applies
+- `DRPG.Music.diag.colPlaylist`
+  - playlist
+- `DRPG.Music.diag.colState`
+  - state
+- `DRPG.Music.diag.cue`
+  - #1: Cue playlist ("Aiko"): something the code puts here
+  - #2: Cue playlist ("Daichi"): something the code puts here
+- `DRPG.Music.diag.cueHolding`
+  - n=0: , playlists on hold: 0
+  - n=1: , playlists on hold: 1
+  - n=2: , playlists on hold: 2
+  - n=5: , playlists on hold: 5
+  - n=12: , playlists on hold: 12
+  - n=22: , playlists on hold: 22
+  - n=25: , playlists on hold: 25
+  - n=112: , playlists on hold: 112
+- `DRPG.Music.diag.cueMissing`
+  - missing, so the Play button has nothing to draw from
+- `DRPG.Music.diag.cueRunning`
+  - A cue is running: something the code puts here
+- `DRPG.Music.diag.cueTracks`
+  - n=0: tracks: 0
+  - n=1: tracks: 1
+  - n=2: tracks: 2
+  - n=5: tracks: 5
+  - n=12: tracks: 12
+  - n=22: tracks: 22
+  - n=25: tracks: 25
+  - n=112: tracks: 112
+- `DRPG.Music.diag.drives`
+  - This browser drives playback: something the code puts here
+- `DRPG.Music.diag.emptyPlaylist`
+  - #1: Aiko: empty, nothing to play
+  - #2: Daichi: empty, nothing to play
+- `DRPG.Music.diag.enabled`
+  - Setting "Music follows the game state": something the code puts here
+- `DRPG.Music.diag.missingPlaylist`
+  - mapped to a missing playlist
+- `DRPG.Music.diag.no`
+  - no
+- `DRPG.Music.diag.noState`
+  - No state applies, so the music is left alone.
+- `DRPG.Music.diag.off`
+  - off
+- `DRPG.Music.diag.on`
+  - on
+- `DRPG.Music.diag.onCue`
+  - #1: Aiko: the cue playlist, never played for a state
+  - #2: Daichi: the cue playlist, never played for a state
+- `DRPG.Music.diag.perClient`
+  - per browser
+- `DRPG.Music.diag.playingHere`
+  - playing here
+- `DRPG.Music.diag.playlists`
+  - n=0: Playlists in this world: 0
+  - n=1: Playlists in this world: 1
+  - n=2: Playlists in this world: 2
+  - n=5: Playlists in this world: 5
+  - n=12: Playlists in this world: 12
+  - n=22: Playlists in this world: 22
+  - n=25: Playlists in this world: 25
+  - n=112: Playlists in this world: 112
+- `DRPG.Music.diag.randomTrack`
+  -  (random track)
+- `DRPG.Music.diag.testError`
+  - error: something the code puts here
+- `DRPG.Music.diag.unmapped`
+  - "something the code puts here" is the active state but has no playlist to play, so the music is left alone. Map one: GM panel, Sound, Music.
+- `DRPG.Music.diag.unset`
+  - (unset)
+- `DRPG.Music.diag.wins`
+  -  &lt;- wins
+- `DRPG.Music.diag.yes`
+  - yes
+- `DRPG.Panel.actorNameShared` (by prefix)
+  - n=0 (other): 0 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=1 (one): 1 actor is named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=2 (other): 2 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=5 (other): 5 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=12 (other): 12 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=22 (other): 22 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=25 (other): 25 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+  - n=112 (other): 112 actors are named "something the code puts here", and game.drpg.openRoomSetupDialog acted on the first. Pass it the id of the one you mean.
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Panel.noActorNamed`
+  - game.drpg.openRoomSetupDialog found no actor with the id or name "something the code puts here". Check the spelling.
+- `DRPG.Panel.noSceneNamed`
+  - game.drpg.openRoomSetupDialog did nothing: it was given no scene and could not find one. Pass it the scene.
+- `DRPG.Season.fallsBackTo`
+  - #1: Aiko (falls back to Kitchen Knife)
+  - #2: Daichi (falls back to Rope)
+  - #3: Aiko (falls back to Chair)
+- `DRPG.Season.hint.nobodyPublic`
+  - The Mastermind is set in Despair Flow to feed no pool. Any player can find that out, and the one student left out stands out: give them a Monokuma like any other student.
+- `DRPG.Sound.why.failed`
+  - Foundry could not load that file. Check its path in the File column.
+- `DRPG.Sound.why.interfaceZero`
+  - Foundry's own Interface volume is at zero. Raise it, then test again.
+- `DRPG.Sound.why.locked`
+  - This browser plays no audio until you click the page. Click anywhere on it, then test again.
+- `DRPG.Sound.why.noEvent`
+  - There is no event with that key. The event keys are something the code puts here.
+- `DRPG.Sound.why.noFile`
+  - This event has no file yet. Choose one in the File column.
+- `DRPG.Sound.why.refused`
+  - The sound did not start. Test again.
+- `DRPG.Sound.why.soundZero`
+  - The Sound slider is at zero. Raise it, then test again.
+- `DRPG.Sound.why.timeout`
+  - The file did not finish loading. Check its path, then test again.
+
+## scripts/case-realize.mjs (entry points no SCREENS row groups) (file:scripts/case-realize.mjs; reader: unknown)
+
+- `DRPG.CaseMap.autopsyWentOut` (by prefix)
+  - n=0 (other): The planned Autopsy Truth Bullet went out to 0 students.
+  - n=1 (one): The planned Autopsy Truth Bullet went out to 1 student.
+  - n=2 (other): The planned Autopsy Truth Bullet went out to 2 students.
+  - n=5 (other): The planned Autopsy Truth Bullet went out to 5 students.
+  - n=12 (other): The planned Autopsy Truth Bullet went out to 12 students.
+  - n=22 (other): The planned Autopsy Truth Bullet went out to 22 students.
+  - n=25 (other): The planned Autopsy Truth Bullet went out to 25 students.
+  - n=112 (other): The planned Autopsy Truth Bullet went out to 112 students.
+- `DRPG.CaseMap.noName`
+  - (no name)
+- `DRPG.CaseMap.slotNumber`
+  - n=0: Slot 0
+  - n=1: Slot 1
+  - n=2: Slot 2
+  - n=5: Slot 5
+  - n=12: Slot 12
+  - n=22: Slot 22
+  - n=25: Slot 25
+  - n=112: Slot 112
+- `DRPG.CaseRealize.action.create` (by prefix)
+  - Will place
+- `DRPG.CaseRealize.action.overLimit` (by prefix)
+  - Past the limit
+- `DRPG.CaseRealize.action.placed` (by prefix)
+  - On the map
+- `DRPG.CaseRealize.askBody`
+  - A body was found. The case for this chapter has not been realized yet. Nothing happens until you choose.
+- `DRPG.CaseRealize.askTitle`
+  - The case's realization
+- `DRPG.CaseRealize.colName`
+  - Name
+- `DRPG.CaseRealize.colRoom`
+  - Room
+- `DRPG.CaseRealize.colSlot`
+  - Slot
+- `DRPG.CaseRealize.colWhat`
+  - What
+- `DRPG.CaseRealize.intro`
+  - Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet, within the chapter's limit, is placed in the room you pick; a slot with no room stays as it is.
+- `DRPG.CaseRealize.noRoom`
+  - - leave it -
+- `DRPG.CaseRealize.notNow`
+  - Not now
+- `DRPG.CaseRealize.notRun`
+  - Nothing was placed.
+- `DRPG.CaseRealize.nothingMade`
+  - The realization placed nothing this chapter.
+- `DRPG.CaseRealize.ran`
+  - n=0: Key Remnants the realization placed: 0.
+  - n=1: Key Remnants the realization placed: 1.
+  - n=2: Key Remnants the realization placed: 2.
+  - n=5: Key Remnants the realization placed: 5.
+  - n=12: Key Remnants the realization placed: 12.
+  - n=22: Key Remnants the realization placed: 22.
+  - n=25: Key Remnants the realization placed: 25.
+  - n=112: Key Remnants the realization placed: 112.
+- `DRPG.CaseRealize.run`
+  - Run realization
+- `DRPG.CaseRealize.showPreview`
+  - Show the preview
+- `DRPG.CaseRealize.title`
+  - n=0: Case realization, chapter 0
+  - n=1: Case realization, chapter 1
+  - n=2: Case realization, chapter 2
+  - n=5: Case realization, chapter 5
+  - n=12: Case realization, chapter 12
+  - n=22: Case realization, chapter 22
+  - n=25: Case realization, chapter 25
+  - n=112: Case realization, chapter 112
+- `DRPG.CaseRealize.undo`
+  - Undo realization
+- `DRPG.CaseRealize.undoAsk`
+  - n=0: Undo the realization? Key Remnants it placed: 0. Those a student has found or Monokuma has revealed stay.
+  - n=1: Undo the realization? Key Remnants it placed: 1. Those a student has found or Monokuma has revealed stay.
+  - n=2: Undo the realization? Key Remnants it placed: 2. Those a student has found or Monokuma has revealed stay.
+  - n=5: Undo the realization? Key Remnants it placed: 5. Those a student has found or Monokuma has revealed stay.
+  - n=12: Undo the realization? Key Remnants it placed: 12. Those a student has found or Monokuma has revealed stay.
+  - n=22: Undo the realization? Key Remnants it placed: 22. Those a student has found or Monokuma has revealed stay.
+  - n=25: Undo the realization? Key Remnants it placed: 25. Those a student has found or Monokuma has revealed stay.
+  - n=112: Undo the realization? Key Remnants it placed: 112. Those a student has found or Monokuma has revealed stay.
+- `DRPG.CaseRealize.undoNote`
+  - Undo realization removes only what nobody has found and Monokuma has not revealed.
+- `DRPG.CaseRealize.undone`
+  - n=0: Removed 0; 0 stay because they were found or revealed.
+  - n=1: Removed 1; 1 stay because they were found or revealed.
+  - n=2: Removed 2; 2 stay because they were found or revealed.
+  - n=5: Removed 5; 5 stay because they were found or revealed.
+  - n=12: Removed 12; 12 stay because they were found or revealed.
+  - n=22: Removed 22; 22 stay because they were found or revealed.
+  - n=25: Removed 25; 25 stay because they were found or revealed.
+  - n=112: Removed 112; 112 stay because they were found or revealed.
+- `DRPG.Investigation.plannedRoomGone`
+  - #1: The planned room “Workshop” is not on this scene. Pick a room.
+  - #2: The planned room “Library” is not on this scene. Pick a room.
+  - #3: The planned room “Cinema” is not on this scene. Pick a room.
+
+## scripts/case-summary.mjs (entry points no SCREENS row groups) (file:scripts/case-summary.mjs; reader: unknown)
+
+- `DRPG.CaseSummary.already`
+  - Already sent for this trial.
+- `DRPG.CaseSummary.intro`
+  - Players get only this: what they found, the ticked deductions and counters, and the solution if they voted right.
+- `DRPG.CaseSummary.noSolution`
+  - The class voted wrong, so the solution stays hidden.
+- `DRPG.CaseSummary.noVerdict`
+  - The summary goes out only after the verdict.
+- `DRPG.CaseSummary.previewTitle`
+  - The case's summary
+- `DRPG.CaseSummary.role.counter` (by prefix)
+  - Counters
+- `DRPG.CaseSummary.role.deduction` (by prefix)
+  - Deductions
+- `DRPG.CaseSummary.role.evidence` (by prefix)
+  - Evidence
+- `DRPG.CaseSummary.role.solution` (by prefix)
+  - Solution
+- `DRPG.CaseSummary.send`
+  - Send to everyone
+- `DRPG.CaseSummary.sent`
+  - Summary sent.
+- `DRPG.CaseSummary.speaker`
+  - Case summary
+- `DRPG.CaseSummary.title`
+  - n=0: Case summary, chapter 0
+  - n=1: Case summary, chapter 1
+  - n=2: Case summary, chapter 2
+  - n=5: Case summary, chapter 5
+  - n=12: Case summary, chapter 12
+  - n=22: Case summary, chapter 22
+  - n=25: Case summary, chapter 25
+  - n=112: Case summary, chapter 112
+
+## scripts/case-trial.mjs (entry points no SCREENS row groups) (file:scripts/case-trial.mjs; reader: unknown)
+
+- `DRPG.CaseMap.cameraLabel`
+  - Camera
+- `DRPG.CaseMap.colDeductions`
+  - Deductions
+- `DRPG.CaseMap.colEvidence`
+  - Evidence
+- `DRPG.CaseMap.colSolution`
+  - Solution
+- `DRPG.CaseMap.unrelated`
+  - n=0: Not tied to the murder: 0
+  - n=1: Not tied to the murder: 1
+  - n=2: Not tied to the murder: 2
+  - n=5: Not tied to the murder: 5
+  - n=12: Not tied to the murder: 12
+  - n=22: Not tied to the murder: 22
+  - n=25: Not tied to the murder: 25
+  - n=112: Not tied to the murder: 112
+- `DRPG.CaseMap.zoomFit`
+  - Fit to view
+- `DRPG.CaseMap.zoomIn`
+  - Zoom in
+- `DRPG.CaseMap.zoomLevel`
+  - Zoom
+- `DRPG.CaseMap.zoomOut`
+  - Zoom out
+- `DRPG.CaseTrial.empty`
+  - No case schema yet. Build it on the Map in the Investigation panel.
+- `DRPG.CaseTrial.floorOpen`
+  - Another mode is running. End it first.
+- `DRPG.CaseTrial.startLabel`
+  - #1: Start something the code puts here from Aiko
+  - #2: Start something the code puts here from Daichi
+- `DRPG.CaseTrial.tickLabel`
+  - #1: Ticked: Aiko
+  - #2: Ticked: Daichi
+- `DRPG.CaseTrial.title`
+  - Case schema
+- `DRPG.CaseTrial.unknown` (by prefix)
+  - n=0 (other): 0 presented cards aren't on the schema.
+  - n=1 (one): 1 presented card isn't on the schema.
+  - n=2 (other): 2 presented cards aren't on the schema.
+  - n=5 (other): 5 presented cards aren't on the schema.
+  - n=12 (other): 12 presented cards aren't on the schema.
+  - n=22 (other): 22 presented cards aren't on the schema.
+  - n=25 (other): 25 presented cards aren't on the schema.
+  - n=112 (other): 112 presented cards aren't on the schema.
+
+## scripts/character.mjs (entry points no SCREENS row groups) (file:scripts/character.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/dh-settings.mjs (entry points no SCREENS row groups) (file:scripts/dh-settings.mjs; reader: unknown)
+
+- `DRPG.DhSettings.coreExperience` (by prefix)
+  - A Level Up gave this Experience, so you cannot remove it here.
+- `DRPG.DhSettings.delete` (by prefix)
+  - Delete
+- `DRPG.DhSettings.description` (by prefix)
+  - Description
+- `DRPG.DhSettings.details` (by prefix)
+  - Details
+- `DRPG.DhSettings.experiences` (by prefix)
+  - Experiences
+- `DRPG.DhSettings.maxHealth` (by prefix)
+  - Max Health
+- `DRPG.DhSettings.maxSanity` (by prefix)
+  - Max Sanity
+- `DRPG.DhSettings.name` (by prefix)
+  - Name
+- `DRPG.DhSettings.newExperience` (by prefix)
+  - Add Experience
+- `DRPG.DhSettings.reserves` (by prefix)
+  - Health and Sanity
+- `DRPG.DhSettings.statistics` (by prefix)
+  - Statistics
+- `DRPG.DhSettings.title` (by prefix)
+  - Character settings
+- `DRPG.DhSettings.value` (by prefix)
+  - Value
+
+## scripts/dice-look.mjs (entry points no SCREENS row groups) (file:scripts/dice-look.mjs; reader: unknown)
+
+- `DRPG.Diagnose.copy`
+  - Copy report
+
+## scripts/enforced.mjs (entry points no SCREENS row groups) (file:scripts/enforced.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/events.mjs (entry points no SCREENS row groups) (file:scripts/events.mjs; reader: unknown)
+
+- `DRPG.Zones.confer.apart`
+  - Zone A and Zone B confer apart.
+- `DRPG.Zones.confer.mine`
+  - You confer with Zone {zone}.
+- `DRPG.Zones.confer.name`
+  - Camps confer
+- `DRPG.Zones.confer.none`
+  - You are in neither camp: you stay in the trial hall's voice.
+
+## scripts/fog.mjs (entry points no SCREENS row groups) (file:scripts/fog.mjs; reader: unknown)
+
+- `DRPG.Fog.floorUnnamed`
+  - n=0: Floor 0
+  - n=1: Floor 1
+  - n=2: Floor 2
+  - n=5: Floor 5
+  - n=12: Floor 12
+  - n=22: Floor 22
+  - n=25: Floor 25
+  - n=112: Floor 112
+- `DRPG.Fog.floors`
+  - Floors
+- `DRPG.Fog.floorsHint`
+  - The floor your character is on, and the floors with a room you have visited. Rooms you have not visited stay fogged.
+- `DRPG.Fog.scenesFailed`
+  - Could not switch these scenes to room-based visibility: School, floor 1 and Trial hall
+- `DRPG.Fog.scenesPrepared` (by prefix)
+  - n=0 (other): Room-based visibility switched on for 0 scenes.
+  - n=1 (one): Room-based visibility switched on for 1 scene.
+  - n=2 (other): Room-based visibility switched on for 2 scenes.
+  - n=5 (other): Room-based visibility switched on for 5 scenes.
+  - n=12 (other): Room-based visibility switched on for 12 scenes.
+  - n=22 (other): Room-based visibility switched on for 22 scenes.
+  - n=25 (other): Room-based visibility switched on for 25 scenes.
+  - n=112 (other): Room-based visibility switched on for 112 scenes.
+- `DRPG.Fog.share.alreadyAnswered`
+  - already answered
+- `DRPG.Fog.share.nobodyAsked`
+  - nobody asked
+- `DRPG.Fog.stand.canvasNotReady` (by prefix)
+  - the canvas is not ready yet
+- `DRPG.Fog.stand.noDimensions` (by prefix)
+  - this scene reports no measurable dimensions to draw into
+- `DRPG.Fog.stand.noPolygons` (by prefix)
+  - regions exist but none exposed usable polygons
+- `DRPG.Fog.stand.noRoom` (by prefix)
+  - this scene has no room (a named Region a GM marked one), so there is nothing to fog
+- `DRPG.Fog.stand.noScene` (by prefix)
+  - there is no scene on the canvas
+- `DRPG.Fog.stand.notCleared` (by prefix)
+  - #1: you are standing in "Workshop", but the fog could not clear it, so it stood down rather than black the map out
+  - #2: you are standing in "Library", but the fog could not clear it, so it stood down rather than black the map out
+  - #3: you are standing in "Cinema", but the fog could not clear it, so it stood down rather than black the map out
+- `DRPG.Fog.stand.notMounted` (by prefix)
+  - the fog layer could not be mounted on the canvas
+- `DRPG.Fog.stand.notRendered` (by prefix)
+  - the fog texture could not be rendered
+- `DRPG.Fog.stand.notRunYet` (by prefix)
+  - not run yet
+- `DRPG.Fog.stand.settingOff` (by prefix)
+  - the "Rooms decide what players can see" setting is off
+- `DRPG.Fog.step.discoveryMirror` (by prefix)
+  - local discovery mirror
+- `DRPG.Fog.step.doorControls` (by prefix)
+  - door controls by the rooms
+- `DRPG.Fog.step.firstPaint` (by prefix)
+  - first paint
+- `DRPG.Fog.step.floorSwitcher` (by prefix)
+  - floor switcher
+- `DRPG.Fog.step.heldRooms` (by prefix)
+  - remember which scenes hold rooms
+- `DRPG.Fog.step.ledgerRoad` (by prefix)
+  - the ledger's road
+- `DRPG.Fog.step.oldFogRows` (by prefix)
+  - take in this browser's old fog rows
+- `DRPG.Fog.step.outlineDoor` (by prefix)
+  - the outline by a door
+- `DRPG.Fog.step.outlineReshaped` (by prefix)
+  - the outline of a room reshaped
+- `DRPG.Fog.step.outlineRoomFlag` (by prefix)
+  - the outline by a room's flag
+- `DRPG.Fog.step.outlineVeto` (by prefix)
+  - the outline by a seal or a chain
+- `DRPG.Fog.step.outlineWallDeleted` (by prefix)
+  - the outline by a wall deleted
+- `DRPG.Fog.step.outlineWallMade` (by prefix)
+  - the outline by a wall made
+- `DRPG.Fog.step.placedArrival` (by prefix)
+  - arrival of a placed token
+- `DRPG.Fog.step.prepareScenes` (by prefix)
+  - prepare scenes
+- `DRPG.Fog.step.regionNames` (by prefix)
+  - remember the regions' names
+- `DRPG.Fog.step.rememberStart` (by prefix)
+  - remember where we started
+- `DRPG.Fog.step.repaint` (by prefix)
+  - repaint
+- `DRPG.Fog.step.revealOnArrival` (by prefix)
+  - reveal on arrival
+- `DRPG.Fog.step.roomRenamed` (by prefix)
+  - a room renamed
+- `DRPG.Fog.step.sceneVision` (by prefix)
+  - scene vision mode
+- `DRPG.Fog.step.seedDeferred` (by prefix)
+  - seed discovery (deferred to ready)
+- `DRPG.Fog.step.seedDiscovery` (by prefix)
+  - seed discovery
+- `DRPG.Fog.step.shareLedger` (by prefix)
+  - share or rebuild the ledger
+- `DRPG.Fog.step.tokenRuler` (by prefix)
+  - the token ruler in the hour's color
+- `DRPG.Fog.step.whereIStand` (by prefix)
+  - where this viewer stands
+- `DRPG.Fog.stepFailed`
+  - Fog: "something the code puts here" failed; the remaining steps still run
+- `DRPG.Fog.stepFailedLater`
+  - Fog: "something the code puts here" failed after returning
+- `DRPG.Rooms.renamed`
+  - n=0: “Workshop” on School, floor 1 is now “Workshop”. Carried over: keys something the code puts here, stashed items Kitchen Knife, Rope, and Chair, notes of a found stash 0, discoveries 0, projects 0, things left for a trap 0, other rooms' Neighbours lists something the code puts here, the Mastermind's room Workshop, a called assembly Workshop, a Despair Call's seal Workshop, and bodies found there 0.
+  - n=1: “Library” on School, floor 1 is now “Library”. Carried over: keys something the code puts here, stashed items Rope, notes of a found stash 1, discoveries 1, projects 1, things left for a trap 1, other rooms' Neighbours lists something the code puts here, the Mastermind's room Library, a called assembly Library, a Despair Call's seal Library, and bodies found there 1.
+  - n=2: “Cinema” on School, floor 1 is now “Cinema”. Carried over: keys something the code puts here, stashed items Kitchen Knife, Rope, and Chair, notes of a found stash 2, discoveries 2, projects 2, things left for a trap 2, other rooms' Neighbours lists something the code puts here, the Mastermind's room Cinema, a called assembly Cinema, a Despair Call's seal Cinema, and bodies found there 2.
+  - n=5: “Workshop” on School, floor 1 is now “Workshop”. Carried over: keys something the code puts here, stashed items Rope, notes of a found stash 5, discoveries 5, projects 5, things left for a trap 5, other rooms' Neighbours lists something the code puts here, the Mastermind's room Workshop, a called assembly Workshop, a Despair Call's seal Workshop, and bodies found there 5.
+  - n=12: “Library” on School, floor 1 is now “Library”. Carried over: keys something the code puts here, stashed items Kitchen Knife, Rope, and Chair, notes of a found stash 12, discoveries 12, projects 12, things left for a trap 12, other rooms' Neighbours lists something the code puts here, the Mastermind's room Library, a called assembly Library, a Despair Call's seal Library, and bodies found there 12.
+  - n=22: “Cinema” on School, floor 1 is now “Cinema”. Carried over: keys something the code puts here, stashed items Rope, notes of a found stash 22, discoveries 22, projects 22, things left for a trap 22, other rooms' Neighbours lists something the code puts here, the Mastermind's room Cinema, a called assembly Cinema, a Despair Call's seal Cinema, and bodies found there 22.
+  - n=25: “Workshop” on School, floor 1 is now “Workshop”. Carried over: keys something the code puts here, stashed items Kitchen Knife, Rope, and Chair, notes of a found stash 25, discoveries 25, projects 25, things left for a trap 25, other rooms' Neighbours lists something the code puts here, the Mastermind's room Workshop, a called assembly Workshop, a Despair Call's seal Workshop, and bodies found there 25.
+  - n=112: “Library” on School, floor 1 is now “Library”. Carried over: keys something the code puts here, stashed items Rope, notes of a found stash 112, discoveries 112, projects 112, things left for a trap 112, other rooms' Neighbours lists something the code puts here, the Mastermind's room Library, a called assembly Library, a Despair Call's seal Library, and bodies found there 112.
+
+## scripts/gm-campaign.mjs (entry points no SCREENS row groups) (file:scripts/gm-campaign.mjs; reader: unknown)
+
+- `DRPG.Panel.refilled`
+  - Actions and Search Tokens refilled. The motive, the Despair Calls in force, and the Overflow are unchanged, and no time-of-day card was posted.
+
+## scripts/inventory.mjs (entry points no SCREENS row groups) (file:scripts/inventory.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/live.mjs (entry points no SCREENS row groups) (file:scripts/live.mjs; reader: unknown)
+
+- `DRPG.Live.movedUnder`
+  - Changed elsewhere to: something the code puts here
+- `DRPG.Live.ticked`
+  - ticked
+- `DRPG.Live.unticked`
+  - not ticked
+
+## scripts/migrate.mjs (entry points no SCREENS row groups) (file:scripts/migrate.mjs; reader: unknown)
+
+- `DRPG.Anonymity.aboveLimited`
+  - #1: Shared as Owner with every player, so any player can read the whole sheet, inventory and Truth Bullets included: Aiko, Daichi, and Chie. Set them back to Observer unless that is what you want.
+  - #2: Shared as Owner with every player, so any player can read the whole sheet, inventory and Truth Bullets included: Aiko and Daichi. Set them back to Observer unless that is what you want.
+  - #3: Shared as Owner with every player, so any player can read the whole sheet, inventory and Truth Bullets included: Chie. Set them back to Observer unless that is what you want.
+- `DRPG.Migrate.done` (by prefix)
+  - n=0 (other): Danganronpa RPG: 0 parts of this world's data were updated for 1.2.95.
+  - n=1 (one): Danganronpa RPG: one part of this world's data was updated for 1.2.95.
+  - n=2 (other): Danganronpa RPG: 2 parts of this world's data were updated for 1.2.95.
+  - n=5 (other): Danganronpa RPG: 5 parts of this world's data were updated for 1.2.95.
+  - n=12 (other): Danganronpa RPG: 12 parts of this world's data were updated for 1.2.95.
+  - n=22 (other): Danganronpa RPG: 22 parts of this world's data were updated for 1.2.95.
+  - n=25 (other): Danganronpa RPG: 25 parts of this world's data were updated for 1.2.95.
+  - n=112 (other): Danganronpa RPG: 112 parts of this world's data were updated for 1.2.95.
+- `DRPG.Migrate.failed`
+  - #1: Danganronpa RPG: part of the data migration failed (Kitchen Knife, Rope, and Chair). It runs again when this world next loads; the console has the details.
+  - #2: Danganronpa RPG: part of the data migration failed (Rope). It runs again when this world next loads; the console has the details.
+- `DRPG.Migrate.gmOnly`
+  - Only a GM can run the data migration.
+- `DRPG.Migrate.notPrimary`
+  - Danganronpa RPG: only the primary GM can finish the data migration. It runs when the primary GM next loads this world.
+- `DRPG.Rooms.migrated` (by prefix)
+  - n=0 (other): 0 rooms marked: Aiko, Daichi, and Chie.
+  - n=1 (one): 1 room marked: Aiko and Daichi.
+  - n=2 (other): 2 rooms marked: Chie.
+  - n=5 (other): 5 rooms marked: Aiko, Daichi, and Chie.
+  - n=12 (other): 12 rooms marked: Aiko and Daichi.
+  - n=22 (other): 22 rooms marked: Chie.
+  - n=25 (other): 25 rooms marked: Aiko, Daichi, and Chie.
+  - n=112 (other): 112 rooms marked: Aiko and Daichi.
+- `DRPG.Rooms.reportNote`
+  - From this version a region is a room only when a GM has marked it one: the “This is a room” column in Room setup's Rooms tab. The named regions below were marked once, so the map keeps its rooms; untick any that is not one. A region drawn from now on is yours to mark.
+- `DRPG.Rooms.reportTitle`
+  - Rooms marked
+- `DRPG.Rooms.skippedBehaviours`
+  - #1: Left for you to decide in Room setup, because they carry behaviors: Aiko, Daichi, and Chie.
+  - #2: Left for you to decide in Room setup, because they carry behaviors: Aiko and Daichi.
+  - #3: Left for you to decide in Room setup, because they carry behaviors: Chie.
+- `DRPG.Rooms.skippedNoName` (by prefix)
+  - n=0 (other): 0 regions without a name were left alone: a room needs a name.
+  - n=1 (one): 1 region without a name was left alone: a room needs a name.
+  - n=2 (other): 2 regions without a name were left alone: a room needs a name.
+  - n=5 (other): 5 regions without a name were left alone: a room needs a name.
+  - n=12 (other): 12 regions without a name were left alone: a room needs a name.
+  - n=22 (other): 22 regions without a name were left alone: a room needs a name.
+  - n=25 (other): 25 regions without a name were left alone: a room needs a name.
+  - n=112 (other): 112 regions without a name were left alone: a room needs a name.
+- `DRPG.Rooms.skippedPlayer`
+  - #1: Never rooms, because a player drew them: Aiko, Daichi, and Chie.
+  - #2: Never rooms, because a player drew them: Aiko and Daichi.
+  - #3: Never rooms, because a player drew them: Chie.
+- `DRPG.Rooms.stashesGiven` (by prefix)
+  - n=0 (other): 0 bedrooms: Aiko, Daichi, and Chie.
+  - n=1 (one): 1 bedroom: Aiko and Daichi.
+  - n=2 (other): 2 bedrooms: Chie.
+  - n=5 (other): 5 bedrooms: Aiko, Daichi, and Chie.
+  - n=12 (other): 12 bedrooms: Aiko and Daichi.
+  - n=22 (other): 22 bedrooms: Chie.
+  - n=25 (other): 25 bedrooms: Aiko, Daichi, and Chie.
+  - n=112 (other): 112 bedrooms: Aiko and Daichi.
+- `DRPG.Rooms.stashesNote`
+  - Each bedroom below had no stash for its owner, so its owner was given an open one. If you had removed one on purpose, remove it again on Room setup's Stashes tab.
+- `DRPG.Rooms.stashesTitle`
+  - Bedroom stashes given
+
+## scripts/module.mjs (entry points no SCREENS row groups) (file:scripts/module.mjs; reader: unknown)
+
+- `DRPG.Voice.mic.keybinding`
+  - Mute or unmute your microphone
+
+## scripts/movement.mjs (entry points no SCREENS row groups) (file:scripts/movement.mjs; reader: unknown)
+
+- `DRPG.Rooms.flagKept`
+  - #1: Aiko changed whether “Workshop” on School, floor 1 is a room. Only a GM can mark a room, so the mark stays as a GM left it.
+  - #2: Daichi changed whether “Library” on School, floor 1 is a room. Only a GM can mark a room, so the mark stays as a GM left it.
+  - #3: Aiko changed whether “Cinema” on School, floor 1 is a room. Only a GM can mark a room, so the mark stays as a GM left it.
+- `DRPG.Rooms.flagUnjudged`
+  - #1: Aiko changed whether “Workshop” on School, floor 1 is a room. The mark before the change is not known, so nothing was put back. Check the region in Room setup's Rooms tab.
+  - #2: Daichi changed whether “Library” on School, floor 1 is a room. The mark before the change is not known, so nothing was put back. Check the region in Room setup's Rooms tab.
+  - #3: Aiko changed whether “Cinema” on School, floor 1 is a room. The mark before the change is not known, so nothing was put back. Check the region in Room setup's Rooms tab.
+
+## scripts/music-play.mjs (entry points no SCREENS row groups) (file:scripts/music-play.mjs; reader: unknown)
+
+- `DRPG.Music.noSituational`
+  - #1: No playlist called “Aiko” yet.
+  - #2: No playlist called “Daichi” yet.
+- `DRPG.Music.noTrack`
+  - Pick a track first.
+- `DRPG.Music.playFailed`
+  - That track would not play. See the console.
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/player-status.mjs (entry points no SCREENS row groups) (file:scripts/player-status.mjs; reader: unknown)
+
+- `DRPG.Panel.state.dead`
+  - Dead
+- `DRPG.Panel.stateColumn`
+  - State
+
+## scripts/popup.mjs (entry points no SCREENS row groups) (file:scripts/popup.mjs; reader: unknown)
+
+- `DRPG.Panel.close`
+  - Close
+
+## scripts/private-rolls.mjs (entry points no SCREENS row groups) (file:scripts/private-rolls.mjs; reader: unknown)
+
+- `DRPG.Panel.publicRoll.badFormula`
+  - "something the code puts here" is not a roll formula.
+- `DRPG.Panel.publicRoll.gmOnly`
+  - Only a GM can make a public roll.
+
+## scripts/remnant-ring.mjs (entry points no SCREENS row groups) (file:scripts/remnant-ring.mjs; reader: unknown)
+
+- `DRPG.Investigation.visibility`
+  - Visibility
+
+## scripts/remnants.mjs (entry points no SCREENS row groups) (file:scripts/remnants.mjs; reader: unknown)
+
+- `DRPG.Panel.clearFaint`
+  - Clear Faint Remnants
+- `DRPG.Panel.faintCleared` (by prefix)
+  - n=0 (other): 0 Faint Remnants cleared.
+  - n=1 (one): 1 Faint Remnant cleared.
+  - n=2 (other): 2 Faint Remnants cleared.
+  - n=5 (other): 5 Faint Remnants cleared.
+  - n=12 (other): 12 Faint Remnants cleared.
+  - n=22 (other): 22 Faint Remnants cleared.
+  - n=25 (other): 25 Faint Remnants cleared.
+  - n=112 (other): 112 Faint Remnants cleared.
+- `DRPG.Panel.faintConfirm` (by prefix)
+  - n=0 (other): Delete 0 Faint Remnants, across every scene?
+  - n=1 (one): Delete 1 Faint Remnant, across every scene?
+  - n=2 (other): Delete 2 Faint Remnants, across every scene?
+  - n=5 (other): Delete 5 Faint Remnants, across every scene?
+  - n=12 (other): Delete 12 Faint Remnants, across every scene?
+  - n=22 (other): Delete 22 Faint Remnants, across every scene?
+  - n=25 (other): Delete 25 Faint Remnants, across every scene?
+  - n=112 (other): Delete 112 Faint Remnants, across every scene?
+- `DRPG.Panel.faintConfirmNote`
+  - Reinforced Remnants and anything tied to the crime are left alone. The rest go for good.
+- `DRPG.Panel.faintNone`
+  - No Faint Remnants to clear: every Faint Remnant left is Reinforced or tied to the crime.
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/requirements.mjs (entry points no SCREENS row groups) (file:scripts/requirements.mjs; reader: unknown)
+
+- `DRPG.Requirements.how` (by prefix)
+  - Install or switch on what is listed in Manage Modules (on the Forge, in the game's module list), then reload the world.
+- `DRPG.Requirements.intro` (by prefix)
+  - n=0 (other): Danganronpa RPG has not started: it needs these 0 modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+  - n=1 (one): Danganronpa RPG has not started: it needs this module. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+  - n=2 (other): Danganronpa RPG has not started: it needs these 2 modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+  - n=5 (other): Danganronpa RPG has not started: it needs these 5 modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+  - n=12 (other): Danganronpa RPG has not started: it needs these 12 modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+  - n=22 (other): Danganronpa RPG has not started: it needs these 22 modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+  - n=25 (other): Danganronpa RPG has not started: it needs these 25 modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+  - n=112 (other): Danganronpa RPG has not started: it needs these 112 modules. What it changed in Foundry stays as it is until Danganronpa RPG runs again and a GM presses “Give back Foundry's settings”.
+- `DRPG.Requirements.newerSystemAllPatches`
+  - The module found every place in the system that it changes or relies on. That makes trouble less likely, though it does not rule it out.
+- `DRPG.Requirements.newerSystemIntro`
+  - n=0: This world runs something the code puts here 0. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+  - n=1: This world runs something the code puts here 1. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+  - n=2: This world runs something the code puts here 2. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+  - n=5: This world runs something the code puts here 5. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+  - n=12: This world runs something the code puts here 12. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+  - n=22: This world runs something the code puts here 22. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+  - n=25: This world runs something the code puts here 25. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+  - n=112: This world runs something the code puts here 112. Danganronpa RPG was verified on 1.2.95. It loads anyway, but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own rely on how something the code puts here is built, which a newer version can change. If something goes wrong, mention this first when you report it.
+- `DRPG.Requirements.newerSystemNotice`
+  - n=0: something the code puts here 0 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+  - n=1: something the code puts here 1 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+  - n=2: something the code puts here 2 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+  - n=5: something the code puts here 5 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+  - n=12: something the code puts here 12 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+  - n=22: something the code puts here 22 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+  - n=25: something the code puts here 25 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+  - n=112: something the code puts here 112 is newer than 1.2.95, the version Danganronpa RPG was verified on. It loads, but some features may misbehave.
+- `DRPG.Requirements.newerSystemPatches`
+  - The module could not find these places in the system that it changes or relies on, so what it does there is not happening:
+- `DRPG.Requirements.newerSystemSilence`
+  - n=0: Do not mention 0 again on this browser
+  - n=1: Do not mention 1 again on this browser
+  - n=2: Do not mention 2 again on this browser
+  - n=5: Do not mention 5 again on this browser
+  - n=12: Do not mention 12 again on this browser
+  - n=22: Do not mention 22 again on this browser
+  - n=25: Do not mention 25 again on this browser
+  - n=112: Do not mention 112 again on this browser
+- `DRPG.Requirements.newerSystemTitle`
+  - something the code puts here is newer than the verified version
+- `DRPG.Requirements.playerNotice` (by prefix)
+  - #1: Danganronpa RPG is not running: it needs Kitchen Knife, Rope, and Chair. Ask your GM to enable what is missing.
+  - #2: Danganronpa RPG is not running: it needs Rope. Ask your GM to enable what is missing.
+- `DRPG.Requirements.reason.avclient-livekit` (by prefix)
+  - Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you.
+- `DRPG.Requirements.reason.dice-so-nice` (by prefix)
+  - Every roll is thrown as 3D dice, seen only by the people allowed to see that roll, in the one dice style the GM sets for the table.
+- `DRPG.Requirements.reason.isometric-perspective` (by prefix)
+  - Maps drawn for isometric play will look wrong on a flat grid.
+- `DRPG.Requirements.state.absent` (by prefix)
+  - not installed
+- `DRPG.Requirements.state.disabled` (by prefix)
+  - installed, but switched off
+- `DRPG.Requirements.title` (by prefix)
+  - Danganronpa RPG is not running
+- `DRPG.Requirements.understood`
+  - Understood
+
+## scripts/rules.mjs (entry points no SCREENS row groups) (file:scripts/rules.mjs; reader: unknown)
+
+- `DRPG.Assign.save`
+  - Save
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/search-tokens.mjs (entry points no SCREENS row groups) (file:scripts/search-tokens.mjs; reader: unknown)
+
+- `DRPG.SearchTokens.allFull` (by prefix)
+  - n=0 (other): Every room still holds all 0 tokens.
+  - n=1 (one): Every room still holds its 1 token.
+  - n=2 (other): Every room still holds all 2 tokens.
+  - n=5 (other): Every room still holds all 5 tokens.
+  - n=12 (other): Every room still holds all 12 tokens.
+  - n=22 (other): Every room still holds all 22 tokens.
+  - n=25 (other): Every room still holds all 25 tokens.
+  - n=112 (other): Every room still holds all 112 tokens.
+- `DRPG.SearchTokens.reset`
+  - Search Tokens refilled in every room.
+- `DRPG.SearchTokens.roomColumn`
+  - Room
+- `DRPG.SearchTokens.title`
+  - Search Tokens
+- `DRPG.SearchTokens.tokensColumn`
+  - Tokens
+
+## scripts/settings-window.mjs (entry points no SCREENS row groups) (file:scripts/settings-window.mjs; reader: unknown)
+
+- `DRPG.Settings.forceDiceLook.choices.daggerheart`
+  - Everyone: Daggerheart
+- `DRPG.Settings.forceDiceLook.choices.dsn`
+  - Everyone: Dice So Nice
+- `DRPG.Settings.forceDiceLook.choices.own`
+  - Each player's own
+- `DRPG.SettingsWindow.gameNote`
+  - These are the whole table's settings: a change here changes the game for everybody.
+- `DRPG.SettingsWindow.gameTitle`
+  - Game settings
+- `DRPG.SettingsWindow.glassOnly`
+  - Stained Glass only: pick that theme to change it.
+- `DRPG.SettingsWindow.legacyOnly`
+  - Monokuma Legacy only: pick that theme to change it.
+- `DRPG.SettingsWindow.liveNote`
+  - The volumes and the voice settings apply as you move them; the rest waits for Save changes.
+- `DRPG.SettingsWindow.mayNot`
+  - Only a user with permission to change world settings can open Game settings.
+- `DRPG.SettingsWindow.save`
+  - Save changes
+- `DRPG.SettingsWindow.scaleNow`
+  - n=0: On this screen: 0%.
+  - n=1: On this screen: 1%.
+  - n=2: On this screen: 2%.
+  - n=5: On this screen: 5%.
+  - n=12: On this screen: 12%.
+  - n=22: On this screen: 22%.
+  - n=25: On this screen: 25%.
+  - n=112: On this screen: 112%.
+- `DRPG.SettingsWindow.scopeClient`
+  - This browser only
+- `DRPG.SettingsWindow.scopeWorld`
+  - The whole table
+- `DRPG.SettingsWindow.sections.audio` (by prefix)
+  - Voice
+- `DRPG.SettingsWindow.sections.effects` (by prefix)
+  - Effects and accessibility
+- `DRPG.SettingsWindow.sections.foundry` (by prefix)
+  - Foundry, Daggerheart, and other modules
+- `DRPG.SettingsWindow.sections.gm` (by prefix)
+  - Map
+- `DRPG.SettingsWindow.sections.look` (by prefix)
+  - Look
+- `DRPG.SettingsWindow.sections.privacy` (by prefix)
+  - Rolls and privacy
+- `DRPG.SettingsWindow.sections.rules` (by prefix)
+  - Rules at the table
+- `DRPG.SettingsWindow.sections.sound` (by prefix)
+  - Sound and voice
+- `DRPG.SettingsWindow.sections.tech` (by prefix)
+  - Technical
+- `DRPG.SettingsWindow.sectionsLabel`
+  - Sections
+- `DRPG.SettingsWindow.title`
+  - DRPG Settings
+- `DRPG.SettingsWindow.uiScaleHint`
+  - Makes the module's text and windows, and Foundry's with them, larger or smaller in this browser.
+
+## scripts/sfx.mjs (entry points no SCREENS row groups) (file:scripts/sfx.mjs; reader: unknown)
+
+- `DRPG.Sound.assigned` (by prefix)
+  - n=0 (other): 0 of 0 events have a file.
+  - n=1 (one): 1 of 1 events has a file.
+  - n=2 (other): 2 of 2 events have a file.
+  - n=5 (other): 5 of 5 events have a file.
+  - n=12 (other): 12 of 12 events have a file.
+  - n=22 (other): 22 of 22 events have a file.
+  - n=25 (other): 25 of 25 events have a file.
+  - n=112 (other): 112 of 112 events have a file.
+- `DRPG.Sound.autosave`
+  - Changes save automatically.
+- `DRPG.Sound.choose`
+  - Choose
+- `DRPG.Sound.clear`
+  - Clear
+- `DRPG.Sound.effectsIntro`
+  - This module ships no audio. Give an event a file of your own; an empty box means silence.
+- `DRPG.Sound.event`
+  - Event
+- `DRPG.Sound.file`
+  - File
+- `DRPG.Sound.fileCount` (by prefix)
+  - n=0 (other): 0 files
+  - n=1 (one): 1 file
+  - n=2 (other): 2 files
+  - n=5 (other): 5 files
+  - n=12 (other): 12 files
+  - n=22 (other): 22 files
+  - n=25 (other): 25 files
+  - n=112 (other): 112 files
+- `DRPG.Sound.groupAssigned`
+  - n=0: 0 of 0 assigned
+  - n=1: 1 of 1 assigned
+  - n=2: 2 of 2 assigned
+  - n=5: 5 of 5 assigned
+  - n=12: 12 of 12 assigned
+  - n=22: 22 of 22 assigned
+  - n=25: 25 of 25 assigned
+  - n=112: 112 of 112 assigned
+- `DRPG.Sound.notAssigned`
+  - not assigned yet
+- `DRPG.Sound.rowButtons`
+  - Test or clear
+- `DRPG.Sound.severalHint`
+  - One file, or several separated by \|. Each play picks one, never the same one twice in a row.
+- `DRPG.Sound.test`
+  - Test
+- `DRPG.Sound.testFailed`
+  - something the code puts here: something the code puts here
+- `DRPG.Sound.varies`
+  - varies
+- `DRPG.Sound.variesHint`
+  - Each play comes out a little different in speed and loudness.
+- `DRPG.Sound.why.failed`
+  - Foundry could not load that file. Check its path in the File column.
+- `DRPG.Sound.why.interfaceZero`
+  - Foundry's own Interface volume is at zero. Raise it, then test again.
+- `DRPG.Sound.why.locked`
+  - This browser plays no audio until you click the page. Click anywhere on it, then test again.
+- `DRPG.Sound.why.noEvent`
+  - There is no event with that key. The event keys are something the code puts here.
+- `DRPG.Sound.why.noFile`
+  - This event has no file yet. Choose one in the File column.
+- `DRPG.Sound.why.refused`
+  - The sound did not start. Test again.
+- `DRPG.Sound.why.soundZero`
+  - The Sound slider is at zero. Raise it, then test again.
+- `DRPG.Sound.why.timeout`
+  - The file did not finish loading. Check its path, then test again.
+
+## scripts/sound-panel.mjs (entry points no SCREENS row groups) (file:scripts/sound-panel.mjs; reader: unknown)
+
+- `DRPG.Music.fadeNote`
+  - Set the fade length in each playlist's Fade Duration. When a body is found and nothing is mapped to it, the music goes silent, and a track you put on yourself stops too.
+- `DRPG.Music.howOrder`
+  - How the order works
+- `DRPG.Music.incidentNote`
+  - Only the players taking part in the murder, and the GMs, hear it.
+- `DRPG.Music.intro`
+  - Pick a playlist for each state.
+- `DRPG.Music.makeFailed`
+  - The playlist could not be created. See the console.
+- `DRPG.Music.makeSituational`
+  - #1: Create the “Aiko” playlist
+  - #2: Create the “Daichi” playlist
+- `DRPG.Music.noPlaylists`
+  - No playlists yet. Make them in the Playlists sidebar.
+- `DRPG.Music.noSituational`
+  - #1: No playlist called “Aiko” yet.
+  - #2: No playlist called “Daichi” yet.
+- `DRPG.Music.noTracks`
+  - This playlist has no tracks
+- `DRPG.Music.notSet`
+  - - not set -
+- `DRPG.Music.orderNote`
+  - The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during a trial uses the Eclipse's.
+- `DRPG.Music.play`
+  - Play
+- `DRPG.Music.playNow`
+  - Put a track on now
+- `DRPG.Music.playNowNote`
+  - #1: Plays a track from “Aiko” on repeat. Stop it, and the music that was playing before comes back.
+  - #2: Plays a track from “Daichi” on repeat. Stop it, and the music that was playing before comes back.
+- `DRPG.Music.playing`
+  - Playing “something the code puts here”.
+- `DRPG.Music.playlist`
+  - Plays
+- `DRPG.Music.reset`
+  - Stop the track
+- `DRPG.Music.saveState.failed`
+  - Not saved. See the console.
+- `DRPG.Music.saveState.saved`
+  - Saved
+- `DRPG.Music.saveState.saving`
+  - Saving...
+- `DRPG.Music.situationalMade`
+  - #1: “Aiko” is ready. Add your scene tracks to it in the Playlists sidebar, and they appear here.
+  - #2: “Daichi” is ready. Add your scene tracks to it in the Playlists sidebar, and they appear here.
+- `DRPG.Music.state.bodyFound`
+  - A body has been found (silence unless mapped)
+- `DRPG.Music.state.eclipse`
+  - Eclipse (placement window)
+- `DRPG.Music.state.murder`
+  - Murder
+- `DRPG.Music.state.paused`
+  - Game on hold
+- `DRPG.Music.state.search`
+  - Investigation
+- `DRPG.Music.state.trialDebate`
+  - Debate
+- `DRPG.Music.state.trialDiscussion`
+  - Discussion
+- `DRPG.Music.state.trialObjection`
+  - Objection
+- `DRPG.Music.track`
+  - Track
+- `DRPG.Music.trialNote`
+  - The higher row wins. A Rebuttal plays the Objection's music.
+- `DRPG.Music.wasReset`
+  - The track stopped, and the music it interrupted picks up where it left off.
+- `DRPG.Music.when`
+  - When
+- `DRPG.Sound.tabEffects`
+  - Effects
+- `DRPG.Sound.tabMusic`
+  - Music
+- `DRPG.Sound.tabPlay`
+  - Play
+- `DRPG.Sound.title`
+  - Sound
+
+## scripts/trial-floor.mjs (entry points no SCREENS row groups) (file:scripts/trial-floor.mjs; reader: unknown)
+
+- `DRPG.Zones.dive.openedBare` (by prefix)
+  - n=0: Question 0 of 0. Students stand in Zone A for 0 or in Zone B for 0. The class has 0 s to choose.
+  - n=1: Question 1 of 1. Students stand in Zone A for 1 or in Zone B for 1. The class has 1 s to choose.
+  - n=2: Question 2 of 2. Students stand in Zone A for 2 or in Zone B for 2. The class has 2 s to choose.
+  - n=5: Question 5 of 5. Students stand in Zone A for 5 or in Zone B for 5. The class has 5 s to choose.
+  - n=12: Question 12 of 12. Students stand in Zone A for 12 or in Zone B for 12. The class has 12 s to choose.
+  - n=22: Question 22 of 22. Students stand in Zone A for 22 or in Zone B for 22. The class has 22 s to choose.
+  - n=25: Question 25 of 25. Students stand in Zone A for 25 or in Zone B for 25. The class has 25 s to choose.
+  - n=112: Question 112 of 112. Students stand in Zone A for 112 or in Zone B for 112. The class has 112 s to choose.
+- `DRPG.Zones.scrum.noVoice`
+  - The camps' voices are not split: “Separate voice in each room” is off or LiveKit is not active. The camps confer the way the table already talks.
+- `DRPG.Zones.scrum.openedBare` (by prefix)
+  - n=0: Students pick a side: Zone A for 0, Zone B for 0. The camps confer in 0 s.
+  - n=1: Students pick a side: Zone A for 1, Zone B for 1. The camps confer in 1 s.
+  - n=2: Students pick a side: Zone A for 2, Zone B for 2. The camps confer in 2 s.
+  - n=5: Students pick a side: Zone A for 5, Zone B for 5. The camps confer in 5 s.
+  - n=12: Students pick a side: Zone A for 12, Zone B for 12. The camps confer in 12 s.
+  - n=22: Students pick a side: Zone A for 22, Zone B for 22. The camps confer in 22 s.
+  - n=25: Students pick a side: Zone A for 25, Zone B for 25. The camps confer in 25 s.
+  - n=112: Students pick a side: Zone A for 112, Zone B for 112. The camps confer in 112 s.
+- `DRPG.Zones.straw.openedBare` (by prefix)
+  - n=0: Students stand in Zone A for 0 or in Zone B for 0. The count comes in 0 s.
+  - n=1: Students stand in Zone A for 1 or in Zone B for 1. The count comes in 1 s.
+  - n=2: Students stand in Zone A for 2 or in Zone B for 2. The count comes in 2 s.
+  - n=5: Students stand in Zone A for 5 or in Zone B for 5. The count comes in 5 s.
+  - n=12: Students stand in Zone A for 12 or in Zone B for 12. The count comes in 12 s.
+  - n=22: Students stand in Zone A for 22 or in Zone B for 22. The count comes in 22 s.
+  - n=25: Students stand in Zone A for 25 or in Zone B for 25. The count comes in 25 s.
+  - n=112: Students stand in Zone A for 112 or in Zone B for 112. The count comes in 112 s.
+
+## scripts/trial-modes.mjs (entry points no SCREENS row groups) (file:scripts/trial-modes.mjs; reader: unknown)
+
+- `DRPG.Reveal.defaultName`
+  - Key Remnant
+- `DRPG.Reveal.noText`
+  - Write what the players read on this Key Remnant first.
+- `DRPG.Reveal.notDone`
+  - The Key Remnant was not revealed.
+- `DRPG.Reveal.notHydrated`
+  - The Key Remnant plan is still loading. Try again in a moment.
+- `DRPG.Reveal.notMissing`
+  - That Key Remnant is not missing: somebody found it, or Monokuma has revealed it.
+- `DRPG.Reveal.pastPaid`
+  - Every Key Remnant that Despair was charged for has been revealed. Confirm to reveal another.
+- `DRPG.Reveal.told`
+  - Monokuma reveals a Key Remnant you never found.
+
+## scripts/trial-scene.mjs (entry points no SCREENS row groups) (file:scripts/trial-scene.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/trial-zones-ui.mjs (entry points no SCREENS row groups) (file:scripts/trial-zones-ui.mjs; reader: unknown)
+
+- `DRPG.Zones.busy`
+  - Another mode holds the floor. End it first, or close the debate.
+- `DRPG.Zones.dive.editor.blank`
+  - Every question needs its words and both answers.
+- `DRPG.Zones.dive.editor.conclusion`
+  - Finding when solved (optional)
+- `DRPG.Zones.dive.editor.count`
+  - n=0: A set holds 1 to 0 questions.
+  - n=1: A set holds 1 to 1 questions.
+  - n=2: A set holds 1 to 2 questions.
+  - n=5: A set holds 1 to 5 questions.
+  - n=12: A set holds 1 to 12 questions.
+  - n=22: A set holds 1 to 22 questions.
+  - n=25: A set holds 1 to 25 questions.
+  - n=112: A set holds 1 to 112 questions.
+- `DRPG.Zones.dive.editor.delete`
+  - Delete
+- `DRPG.Zones.dive.editor.deleteBody`
+  - #1: Delete the set “Aiko”? This cannot be undone.
+  - #2: Delete the set “Daichi”? This cannot be undone.
+- `DRPG.Zones.dive.editor.deleteTitle`
+  - Delete a Logic Dive set
+- `DRPG.Zones.dive.editor.edit`
+  - Edit
+- `DRPG.Zones.dive.editor.editTitle`
+  - Edit a Logic Dive set
+- `DRPG.Zones.dive.editor.listTitle`
+  - Logic Dive sets
+- `DRPG.Zones.dive.editor.name`
+  - Set name
+- `DRPG.Zones.dive.editor.names`
+  - #1: A question or an answer names a student: Aiko, Daichi, and Chie. No question in the zones should ask who did it.
+  - #2: A question or an answer names a student: Aiko and Daichi. No question in the zones should ask who did it.
+  - #3: A question or an answer names a student: Chie. No question in the zones should ask who did it.
+- `DRPG.Zones.dive.editor.new`
+  - New set
+- `DRPG.Zones.dive.editor.newTitle`
+  - New Logic Dive set
+- `DRPG.Zones.dive.editor.noName`
+  - Give the set a name.
+- `DRPG.Zones.dive.editor.noTruth`
+  - Mark the right answer of every question.
+- `DRPG.Zones.dive.editor.question`
+  - n=0: Question 0
+  - n=1: Question 1
+  - n=2: Question 2
+  - n=5: Question 5
+  - n=12: Question 12
+  - n=22: Question 22
+  - n=25: Question 25
+  - n=112: Question 112
+- `DRPG.Zones.dive.editor.save`
+  - Save the set
+- `DRPG.Zones.dive.editor.secret`
+  - Only the GMs see this window. The players see each question and its two answers, never which one is right.
+- `DRPG.Zones.dive.editor.truth`
+  - Right answer
+- `DRPG.Zones.dive.outcome.broken` (by prefix)
+  - a blank question or answer
+- `DRPG.Zones.dive.outcome.played` (by prefix)
+  - played
+- `DRPG.Zones.dive.outcome.skipped` (by prefix)
+  - the last question skipped
+- `DRPG.Zones.dive.outcome.solved` (by prefix)
+  - solved
+- `DRPG.Zones.dive.outcome.stopped` (by prefix)
+  - stopped by the GM
+- `DRPG.Zones.dive.outcome.tie` (by prefix)
+  - a tie
+- `DRPG.Zones.dive.outcome.wrong` (by prefix)
+  - wrong answer
+- `DRPG.Zones.dive.replay`
+  - #1: This set was played before: it ended Morning (something the code puts here). Players may remember it.
+  - #2: This set was played before: it ended Noon (something the code puts here). Players may remember it.
+  - #3: This set was played before: it ended Afternoon (something the code puts here). Players may remember it.
+  - #4: This set was played before: it ended Evening (something the code puts here). Players may remember it.
+  - #5: This set was played before: it ended Night (something the code puts here). Players may remember it.
+- `DRPG.Zones.dive.replayStopped`
+  - n=0: This set was played before: it stopped at question 0, Morning (something the code puts here). It starts again from that question.
+  - n=1: This set was played before: it stopped at question 1, Noon (something the code puts here). It starts again from that question.
+  - n=2: This set was played before: it stopped at question 2, Afternoon (something the code puts here). It starts again from that question.
+  - n=5: This set was played before: it stopped at question 5, Evening (something the code puts here). It starts again from that question.
+  - n=12: This set was played before: it stopped at question 12, Night (something the code puts here). It starts again from that question.
+  - n=22: This set was played before: it stopped at question 22, Morning (something the code puts here). It starts again from that question.
+  - n=25: This set was played before: it stopped at question 25, Noon (something the code puts here). It starts again from that question.
+  - n=112: This set was played before: it stopped at question 112, Afternoon (something the code puts here). It starts again from that question.
+- `DRPG.Zones.findings.add`
+  - Add a Finding
+- `DRPG.Zones.findings.added`
+  - The GM adds a Finding: something the code puts here
+- `DRPG.Zones.findings.confirm`
+  - Monokuma confirms
+- `DRPG.Zones.findings.confirmed`
+  - Monokuma confirms: something the code puts here
+- `DRPG.Zones.findings.confirmedMark`
+  - Monokuma confirms
+- `DRPG.Zones.findings.delete`
+  - Delete
+- `DRPG.Zones.findings.deleted`
+  - The GM takes a Finding off the list: something the code puts here
+- `DRPG.Zones.findings.edit`
+  - Edit
+- `DRPG.Zones.findings.edited`
+  - The GM changes a Finding from “something the code puts here” to “something the code puts here”.
+- `DRPG.Zones.findings.intro`
+  - What the class settled in the zone modes, and what you add. Every change here is told to the table.
+- `DRPG.Zones.findings.none`
+  - No Findings yet in this trial.
+- `DRPG.Zones.findings.save`
+  - Save
+- `DRPG.Zones.findings.text`
+  - Finding
+- `DRPG.Zones.findings.title`
+  - Findings
+- `DRPG.Zones.noZones`
+  - The trial hall has no Zone A and Zone B. Pick them in Season setup.
+- `DRPG.Zones.pick.body`
+  - You have no token in the trial hall. Pick the side you stand on.
+- `DRPG.Zones.pick.done`
+  - You stand in {zone}.
+- `DRPG.Zones.pick.side`
+  - {zone}: {answer}
+- `DRPG.Zones.picker.a`
+  - Zone A's answer
+- `DRPG.Zones.picker.b`
+  - Zone B's answer
+- `DRPG.Zones.picker.editSets`
+  - Logic Dive sets...
+- `DRPG.Zones.picker.hint.dive` (by prefix)
+  - The set's questions come one at a time, 60 s each. A right majority goes on; a wrong answer or a tie ends the set.
+- `DRPG.Zones.picker.hint.scrum` (by prefix)
+  - 45 s to pick sides, 120 s for each camp to confer apart, then the camps speak in turn, the smaller first.
+- `DRPG.Zones.picker.hint.straw` (by prefix)
+  - Everyone has 45 s to stand in a zone, then one count. At least two thirds on one side make a Finding; anything less is a split, which a Scrum Debate can settle.
+- `DRPG.Zones.picker.mode`
+  - Mode
+- `DRPG.Zones.picker.noSets`
+  - No Logic Dive set yet.
+- `DRPG.Zones.picker.question`
+  - Question
+- `DRPG.Zones.picker.set`
+  - Set
+- `DRPG.Zones.picker.start`
+  - Start
+- `DRPG.Zones.picker.thesis`
+  - Thesis (optional)
+- `DRPG.Zones.picker.title`
+  - Hall zones
+
+## scripts/trial-zones.mjs (entry points no SCREENS row groups) (file:scripts/trial-zones.mjs; reader: unknown)
+
+- `DRPG.Zones.busy`
+  - Another mode holds the floor. End it first, or close the debate.
+- `DRPG.Zones.noZones`
+  - The trial hall has no Zone A and Zone B. Pick them in Season setup.
+- `DRPG.Zones.notStarted`
+  - The mode did not start. Check that both answers are filled in and, for a Logic Dive, that a set is picked and each of its questions has words.
+
+## scripts/truth-bullets.mjs (entry points no SCREENS row groups) (file:scripts/truth-bullets.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+
+## scripts/voice-client.mjs (entry points no SCREENS row groups) (file:scripts/voice-client.mjs; reader: unknown)
+
+- `DRPG.Voice.drop.closed`
+  - Your voice connection was closed by the voice server or by another window signed in as you. Reload this page (F5) to join again.
+- `DRPG.Voice.drop.retry`
+  - You are not connected to voice. Reconnecting you now; if you still hear nobody in a minute, reload the page (F5).
+- `DRPG.Voice.drop.title`
+  - Voice disconnected
+
+## scripts/voice.mjs (entry points no SCREENS row groups) (file:scripts/voice.mjs; reader: unknown)
+
+- `DRPG.Diagnostics.title.voice`
+  - Voice plan
+- `DRPG.Panel.gmOnly`
+  - Only a GM can do this.
+- `DRPG.Voice.avDisabled`
+  - 'Separate voice in each room' is on, but Audio/Video is off for this world. Turn it on in Configure Settings.
+- `DRPG.Voice.claimTrial`
+  - the Class Trial, with everybody in one room
+- `DRPG.Voice.contested`
+  - #1: Voice: Aiko owns characters in more than one place (Workshop, Library, and Cinema), so Aiko goes to "Workshop" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.
+  - #2: Voice: Daichi owns characters in more than one place (Library), so Daichi goes to "Library" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.
+  - #3: Voice: Aiko owns characters in more than one place (Workshop, Library, and Cinema), so Aiko goes to "Cinema" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.
+- `DRPG.Voice.deadRoom`
+  - the Spectators' channel
+- `DRPG.Voice.mainRoom`
+  - the main room
+- `DRPG.Voice.needsAvclient`
+  - 'Separate voice in each room' is on, but LiveKit AVClient is not active. Turn it on in Manage Modules, then reload the world.
+- `DRPG.Voice.plan.alone` (by prefix)
+  - ACCOUNTS WITH NO CHARACTER
+- `DRPG.Voice.plan.anotherRow` (by prefix)
+  - another row
+- `DRPG.Voice.plan.applied` (by prefix)
+  - (this one is applied)
+- `DRPG.Voice.plan.avDisabled` (by prefix)
+  - disabled, so nothing can connect
+- `DRPG.Voice.plan.avMode` (by prefix)
+  - A/V mode: something the code puts here
+- `DRPG.Voice.plan.conflicts` (by prefix)
+  - CONFLICTS: these accounts own characters in more than one place.
+- `DRPG.Voice.plan.deadChannel` (by prefix)
+  - the dead channel
+- `DRPG.Voice.plan.deadGroup` (by prefix)
+  - (dead channel)
+- `DRPG.Voice.plan.decision` (by prefix)
+  - This is the decision only; it does not test the audio.
+- `DRPG.Voice.plan.decisionHow` (by prefix)
+  - Whether two of these rooms hear each other needs a second connected client: run game.drpg.diagnoseVoice() there and compare the room it reports with the one named above.
+- `DRPG.Voice.plan.eclipse.ends` (by prefix)
+  - It goes back to normal the moment it ends.
+- `DRPG.Voice.plan.eclipse.noPlayer` (by prefix)
+  - No player is in any voice channel; the GMs share one.
+- `DRPG.Voice.plan.eclipse.running` (by prefix)
+  - An Eclipse is running. Nobody is placed by their token, and the rooms are not even read.
+- `DRPG.Voice.plan.eclipseGroup` (by prefix)
+  - (Eclipse: no player in voice)
+- `DRPG.Voice.plan.ignored` (by prefix)
+  - #1: ← ignored, Aiko is sent with Aiko
+  - #2: ← ignored, Daichi is sent with Daichi
+- `DRPG.Voice.plan.itsAccount` (by prefix)
+  - its account
+- `DRPG.Voice.plan.loop` (by prefix)
+  - This client runs the assignment loop: {answer}
+- `DRPG.Voice.plan.mainGroup` (by prefix)
+  - (main room)
+- `DRPG.Voice.plan.no` (by prefix)
+  - no
+- `DRPG.Voice.plan.noCharacter` (by prefix)
+  - no character
+- `DRPG.Voice.plan.nobody` (by prefix)
+  - nobody
+- `DRPG.Voice.plan.nowhere` (by prefix)
+  - (sent nowhere)
+- `DRPG.Voice.plan.on` (by prefix)
+  - on
+- `DRPG.Voice.plan.oneRoom` (by prefix)
+  - A voice client can only be in one room. Give the spare characters to another account, or leave their tokens off the map.
+- `DRPG.Voice.plan.seeConflicts` (by prefix)
+  - (see CONFLICTS)
+- `DRPG.Voice.plan.setting` (by prefix)
+  - Regional voice setting: something the code puts here
+- `DRPG.Voice.plan.settingOff` (by prefix)
+  - off, so nothing is applied
+- `DRPG.Voice.plan.spectatorGroup` (by prefix)
+  - (Spectators' room)
+- `DRPG.Voice.plan.waiting` (by prefix)
+  - ← sent nothing until the cast arrives
+- `DRPG.Voice.plan.why.deadPublic`
+  - dead, and not back as a Monocub: the Spectators' room
+- `DRPG.Voice.plan.why.deadSecret`
+  - dead, the death not public: the Spectators' room
+- `DRPG.Voice.plan.why.eclipseGm`
+  - Eclipse: the GMs' own channel
+- `DRPG.Voice.plan.why.eclipsePlayer`
+  - Eclipse: in no voice channel
+- `DRPG.Voice.plan.why.kept`
+  - (outside every room: the room it came from)
+- `DRPG.Voice.plan.why.listening`
+  - #1: listening at the door of {into}, from Workshop
+  - #2: listening at the door of {into}, from Library
+  - #3: listening at the door of {into}, from Cinema
+- `DRPG.Voice.plan.why.masked`
+  - behind a "?" after a murder's opening: a silent room of its own
+- `DRPG.Voice.plan.why.noCharacterMain`
+  - no character: the main room
+- `DRPG.Voice.plan.why.noOwner`
+  - no owner is connected
+- `DRPG.Voice.plan.why.noPoolHolder`
+  - no GM holds this Monokuma's Despair pool
+- `DRPG.Voice.plan.why.noRoom`
+  - no room: the token is outside every region, or there is no token
+- `DRPG.Voice.plan.why.notConnected`
+  - #1: Aiko is not connected
+  - #2: Daichi is not connected
+- `DRPG.Voice.plan.why.scrumCamp`
+  - Scrum Debate: Zone {zone} confers in its own room
+- `DRPG.Voice.plan.why.spectatorTalks`
+  - a Spectator, talking with the Spectators
+- `DRPG.Voice.plan.yes` (by prefix)
+  - yes
+- `DRPG.Voice.trialMuteLeft`
+  - #1: Aiko's microphone is still blocked after the trial. Unblock it in “Who you hear” on the voice tile.
+  - #2: Daichi's microphone is still blocked after the trial. Unblock it in “Who you hear” on the voice tile.
+- `DRPG.Voice.warn.dupes`
+  - #1: "School, floor 1" has more than one region named Aiko, Daichi, and Chie, and together they are one voice room.
+  - #2: "School, floor 1" has more than one region named Aiko and Daichi, and together they are one voice room.
+  - #3: "School, floor 1" has more than one region named Chie, and together they are one voice room.
+- `DRPG.Voice.warn.dupesHint`
+  - Intended for a corridor drawn in two pieces; a mistake otherwise.
+- `DRPG.Voice.warn.noRooms`
+  - "School, floor 1" has characters on it and no rooms, so everybody standing there shares the main room.
+- `DRPG.Voice.warn.noRoomsFix`
+  - Name the regions to split them up.
+- `DRPG.Voice.warn.others`
+  - #1: Other active modules that mention voice: Kitchen Knife, Rope, and Chair.
+  - #2: Other active modules that mention voice: Rope.
+- `DRPG.Voice.warn.othersHint`
+  - Worth ruling out first if the rooms below are right and the audio is not.
+- `DRPG.Voice.warn.proximity`
+  - Proximity Voice Chat is also active.
+- `DRPG.Voice.warn.proximityFix`
+  - Turn it off, or set "global listen", unless you use both on purpose.
+- `DRPG.Voice.warn.proximityGlobal`
+  - Its "global listen" setting is on, so it is not muting anybody right now.
+- `DRPG.Voice.warn.proximitySceneOff`
+  - It is switched off on "School, floor 1", so it is not muting anybody there.
+- `DRPG.Voice.warn.proximityVolume`
+  - It sets each participant's volume from token distance, on top of the room this module puts them in. Unconfigured, that volume is zero for everyone.
+
+## Unassigned: the keys no screen reaches
+
+- `DRPG.CaseMap.autopsyNth`
+  - n=0: something the code puts here 0
+  - n=1: something the code puts here 1
+  - n=2: something the code puts here 2
+  - n=5: something the code puts here 5
+  - n=12: something the code puts here 12
+  - n=22: something the code puts here 22
+  - n=25: something the code puts here 25
+  - n=112: something the code puts here 112
+- `DRPG.CaseMap.checkCase`
+  - Check consistency
+- `DRPG.CaseMap.culpritOnly`
+  - Only the culprit holds it, so it does not count.
+- `DRPG.CaseMap.editLabel`
+  - #1: Fields of Aiko
+  - #2: Fields of Daichi
+- `DRPG.CaseMap.hasProblem`
+  - has a problem
+- `DRPG.CaseMap.kind.counter`
+  - Counter
+- `DRPG.CaseMap.kind.deduction`
+  - Deduction
+- `DRPG.CaseMap.kind.remnant`
+  - Remnant
+- `DRPG.CaseMap.kind.slot`
+  - Key Remnant slot
+- `DRPG.CaseMap.kind.solution`
+  - Solution
+- `DRPG.CaseMap.leftBy`
+  - #1: left by Aiko
+  - #2: left by Daichi
+- `DRPG.CaseMap.moveDown`
+  - Move down
+- `DRPG.CaseMap.moveUp`
+  - Move up
+- `DRPG.CaseMap.needs.name`
+  - name
+- `DRPG.CaseMap.needs.recipient`
+  - recipient
+- `DRPG.CaseMap.needs.room`
+  - room
+- `DRPG.CaseMap.noProblems`
+  - Nothing to fix.
+- `DRPG.CaseMap.noSchema`
+  - No deduction yet.
+- `DRPG.CaseMap.nobodyYet`
+  - Nobody yet
+- `DRPG.CaseMap.panelAuthor`
+  - Left by (GMs only)
+- `DRPG.CaseMap.panelMode`
+  - Trial mode
+- `DRPG.CaseMap.panelReach`
+  - Students hold
+- `DRPG.CaseMap.panelRoom`
+  - Room
+- `DRPG.CaseMap.panelState`
+  - State
+- `DRPG.CaseMap.panelWhoHas`
+  - Who has it
+- `DRPG.CaseMap.problem.badMode`
+  - {node} asks for the trial mode “{ref}”, which the trial does not have.
+- `DRPG.CaseMap.problem.culpritOnly`
+  - Only the culprit holds {ref}, an input of {node}, so it does not count.
+- `DRPG.CaseMap.problem.cycle`
+  - {node} is on a loop of inputs, so the map shows nothing until the loop is broken.
+- `DRPG.CaseMap.problem.incomplete`
+  - {node} is missing its {ref}.
+- `DRPG.CaseMap.problem.missing`
+  - {node} refers to “{ref}”, which is gone.
+- `DRPG.CaseMap.problem.noInputs`
+  - {node} rests on nothing.
+- `DRPG.CaseMap.problem.noSolution`
+  - The case has deductions and no solution.
+- `DRPG.CaseMap.problem.noTarget`
+  - {node} refutes nothing.
+- `DRPG.CaseMap.problem.solutionUnreached`
+  - Nothing on the map leads to {node}.
+- `DRPG.CaseMap.problem.tooManyKeys`
+  - The case has more Key Remnants ({ref}) than a chapter allows.
+- `DRPG.CaseMap.problem.twoSolutions`
+  - {node} is a second solution.
+- `DRPG.CaseMap.problemsFound`
+  - n=0: Problems: 0
+  - n=1: Problems: 1
+  - n=2: Problems: 2
+  - n=5: Problems: 5
+  - n=12: Problems: 12
+  - n=22: Problems: 22
+  - n=25: Problems: 25
+  - n=112: Problems: 112
+- `DRPG.CaseMap.reachNo`
+  - n=0: 0/0: the students cannot reach it yet
+  - n=1: 1/1: the students cannot reach it yet
+  - n=2: 2/2: the students cannot reach it yet
+  - n=5: 5/5: the students cannot reach it yet
+  - n=12: 12/12: the students cannot reach it yet
+  - n=22: 22/22: the students cannot reach it yet
+  - n=25: 25/25: the students cannot reach it yet
+  - n=112: 112/112: the students cannot reach it yet
+- `DRPG.CaseMap.reachYes`
+  - n=0: 0/0: the students can reach it
+  - n=1: 1/1: the students can reach it
+  - n=2: 2/2: the students can reach it
+  - n=5: 5/5: the students can reach it
+  - n=12: 12/12: the students can reach it
+  - n=22: 22/22: the students can reach it
+  - n=25: 25/25: the students can reach it
+  - n=112: 112/112: the students can reach it
+- `DRPG.CaseMap.state.held`
+  - Found
+- `DRPG.CaseMap.state.onMap`
+  - On the map
+- `DRPG.CaseMap.state.planned`
+  - Planned
+- `DRPG.CaseMap.state.sent`
+  - Sent
+- `DRPG.CaseMap.sumCounters`
+  - Counters
+- `DRPG.CaseMap.sumDeductions`
+  - Deductions
+- `DRPG.CaseMap.sumEvidence`
+  - Evidence
+- `DRPG.CaseMap.sumHeld`
+  - Found by students
+- `DRPG.CaseMap.sumTied`
+  - Tied to the murder
+- `DRPG.CaseMap.summaryTitle`
+  - n=0: Chapter 0
+  - n=1: Chapter 1
+  - n=2: Chapter 2
+  - n=5: Chapter 5
+  - n=12: Chapter 12
+  - n=22: Chapter 22
+  - n=25: Chapter 25
+  - n=112: Chapter 112
+- `DRPG.CaseTrial.hint`
+  - Supported by the evidence presented
+- `DRPG.CaseTrial.presented`
+  - Presented
+- `DRPG.CaseTrial.ticked`
+  - Ticked
+- `DRPG.Fog.check.adrift.fact`
+  - n=0: 0 squares of border with no wall.
+  - n=1: 1 squares of border with no wall.
+  - n=2: 2 squares of border with no wall.
+  - n=5: 5 squares of border with no wall.
+  - n=12: 12 squares of border with no wall.
+  - n=22: 22 squares of border with no wall.
+  - n=25: 25 squares of border with no wall.
+  - n=112: 112 squares of border with no wall.
+- `DRPG.Fog.check.adrift.problem`
+  - Border runs away from the walls
+- `DRPG.Fog.check.adrift.why`
+  - A border drawn away from the wall it stands for turns that whole side of the room into a doorway: the wall is never found, so nothing closes it.
+- `DRPG.Fog.check.defaultName.problem`
+  - Room still has the name Foundry gave it
+- `DRPG.Fog.check.defaultName.why`
+  - A room is its name: players read it on the map, and keys, stashes, and Room setup all name it. Give it the room's own name before play.
+- `DRPG.Fog.check.isolated.fact`
+  - No room within a square of the border.
+- `DRPG.Fog.check.isolated.problem`
+  - No way out
+- `DRPG.Fog.check.isolated.title`
+  - No way out: no neighbor
+- `DRPG.Fog.check.isolated.why`
+  - The next room is more than a square away, so the two never meet at a doorway. Rooms should touch along the edge they share.
+- `DRPG.Fog.check.lattice.fact`
+  - n=0 (other): 0 corners up to 0 px off.
+  - n=1 (one): 1 corner up to 1 px off.
+  - n=2 (other): 2 corners up to 2 px off.
+  - n=5 (other): 5 corners up to 5 px off.
+  - n=12 (other): 12 corners up to 12 px off.
+  - n=22 (other): 22 corners up to 22 px off.
+  - n=25 (other): 25 corners up to 25 px off.
+  - n=112 (other): 112 corners up to 112 px off.
+- `DRPG.Fog.check.lattice.problem`
+  - Corners off the map's grid
+- `DRPG.Fog.check.lattice.why`
+  - The rest of the map is drawn to a half-square grid. Draw with snapping on: a corner a fraction of a square out is too small to see, yet it can make two rooms overlap or miss.
+- `DRPG.Fog.check.noShape.problem`
+  - No geometry the fog can read
+- `DRPG.Fog.check.noShape.why`
+  - The region exists but its shape came back empty: nothing about this room will be drawn.
+- `DRPG.Fog.check.overlap.deep`
+  - n=0: About 0 squares of floor belong to both rooms, reaching 0 squares in.
+  - n=1: About 1 squares of floor belong to both rooms, reaching 1 squares in.
+  - n=2: About 2 squares of floor belong to both rooms, reaching 2 squares in.
+  - n=5: About 5 squares of floor belong to both rooms, reaching 5 squares in.
+  - n=12: About 12 squares of floor belong to both rooms, reaching 12 squares in.
+  - n=22: About 22 squares of floor belong to both rooms, reaching 22 squares in.
+  - n=25: About 25 squares of floor belong to both rooms, reaching 25 squares in.
+  - n=112: About 112 squares of floor belong to both rooms, reaching 112 squares in.
+- `DRPG.Fog.check.overlap.fact`
+  - n=0: About 0 squares of floor belong to both rooms.
+  - n=1: About 1 squares of floor belong to both rooms.
+  - n=2: About 2 squares of floor belong to both rooms.
+  - n=5: About 5 squares of floor belong to both rooms.
+  - n=12: About 12 squares of floor belong to both rooms.
+  - n=22: About 22 squares of floor belong to both rooms.
+  - n=25: About 25 squares of floor belong to both rooms.
+  - n=112: About 112 squares of floor belong to both rooms.
+- `DRPG.Fog.check.overlap.problem`
+  - Overlaps "something the code puts here"
+- `DRPG.Fog.check.overlap.title`
+  - Rooms overlap
+- `DRPG.Fog.check.overlap.why`
+  - Where two rooms overlap, one room's border runs across the other's floor with no wall near it, and the whole shared border reads as one doorway. Rooms should touch; a sliver thinner than a quarter square is ignored.
+- `DRPG.Fog.check.piecesDiffer.fact`
+  - #1: Differs between pieces: advantage
+  - #2: Differs between pieces: disadvantage
+  - #3: Differs between pieces: Experience
+  - #4: Differs between pieces: Resolve
+  - #5: Differs between pieces: a loaded die (one die set to 12)
+  - #6: Differs between pieces: a flat bonus or penalty
+- `DRPG.Fog.check.piecesDiffer.field.elevation`
+  - height
+- `DRPG.Fog.check.piecesDiffer.field.notShared`
+  - No privacy
+- `DRPG.Fog.check.piecesDiffer.field.owner`
+  - whose bedroom
+- `DRPG.Fog.check.piecesDiffer.problem`
+  - Pieces of this room are set up differently
+- `DRPG.Fog.check.piecesDiffer.why`
+  - A room drawn in several pieces reads each setting from the first piece that has it, so another piece's setting is not the room's. In Room setup change the room's setting, Apply, then set it back and Apply: that gives every piece the same. Set the height in each piece's region settings.
+- `DRPG.Fog.check.sealed.fact`
+  - Every stretch of the border is walled.
+- `DRPG.Fog.check.sealed.problem`
+  - No way out
+- `DRPG.Fog.check.sealed.title`
+  - No way out: walled in
+- `DRPG.Fog.check.sealed.why`
+  - Nothing glows as a doorway. If the room should have a way out, add the missing door.
+- `DRPG.Fog.check.showOnMap`
+  - Show on map
+- `DRPG.Fog.check.unnamed.problem`
+  - Region with no name
+- `DRPG.Fog.check.unnamed.room`
+  - (no name)
+- `DRPG.Fog.check.unnamed.why`
+  - Rooms are matched by name, so a region with none is not a room: it never counts as a neighbor, which is one quiet way to get a doorway that leads nowhere.
+- `DRPG.Fog.checksScenes`
+  - Scenes and rooms
+- `DRPG.Fog.notRoom.passage`
+  - It has a something the code puts here behavior, so it is a passage.
+- `DRPG.Fog.notRoom.player`
+  - A player drew it.
+- `DRPG.Fog.notRoom.problem`
+  - Named, but not a room
+- `DRPG.Fog.notRoom.unmarked`
+  - Not marked as a room (Room setup, the Doors tab, “This is a room”).
+- `DRPG.Fog.notRoom.why`
+  - The fog draws no outline or reveal for a region that is not a room, and no doorway leads into it.
+- `DRPG.Fog.secretDoor.detail`
+  - Any player can open it. In Season setup, press “Convert to passages” on the “No Foundry secret doors” row: the door becomes a wall, and where it stands between two rooms, a secret passage too.
+- `DRPG.Fog.secretDoor.problem`
+  - A Foundry secret door
+- `DRPG.GmStore.claimFailed`
+  - n=0 (other): The GM store could not take over this browser's old "something the code puts here" (0 rows): something the code puts here. The old copy stays here as it was, and the next load tries again.
+  - n=1 (one): The GM store could not take over this browser's old "something the code puts here" (1 row): something the code puts here. The old copy stays here as it was, and the next load tries again.
+  - n=2 (other): The GM store could not take over this browser's old "something the code puts here" (2 rows): something the code puts here. The old copy stays here as it was, and the next load tries again.
+  - n=5 (other): The GM store could not take over this browser's old "something the code puts here" (5 rows): something the code puts here. The old copy stays here as it was, and the next load tries again.
+  - n=12 (other): The GM store could not take over this browser's old "something the code puts here" (12 rows): something the code puts here. The old copy stays here as it was, and the next load tries again.
+  - n=22 (other): The GM store could not take over this browser's old "something the code puts here" (22 rows): something the code puts here. The old copy stays here as it was, and the next load tries again.
+  - n=25 (other): The GM store could not take over this browser's old "something the code puts here" (25 rows): something the code puts here. The old copy stays here as it was, and the next load tries again.
+  - n=112 (other): The GM store could not take over this browser's old "something the code puts here" (112 rows): something the code puts here. The old copy stays here as it was, and the next load tries again.
+- `DRPG.GmStore.openFailed`
+  - The GM store could not open on this browser: something the code puts here. Until it does, an Analyze or a handover of a Truth Bullet is refused. Reload to try again; the console has the details.
+- `DRPG.GmStore.saveFailed`
+  - The GM store could not save "something the code puts here" in this browser: something the code puts here. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back it up now (GM panel, Diagnostics, The case: Back up).
+- `DRPG.GmStore.saveFailedAlone`
+  - The GM store could not save "something the code puts here" in this browser: something the code puts here. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy. Back it up now (GM panel, Diagnostics, The case: Back up).
+- `DRPG.GmStore.syncTimedOut`
+  - #1: The GM store did not hear from Aiko, Daichi, and Chie. It carries on with what this browser holds, and their copy is merged when it arrives.
+  - #2: The GM store did not hear from Aiko and Daichi. It carries on with what this browser holds, and their copy is merged when it arrives.
+  - #3: The GM store did not hear from Chie. It carries on with what this browser holds, and their copy is merged when it arrives.
+- `DRPG.SearchTokens.roomSetupNote`
+  - n=0: Search Tokens: 0 per room, refilled each time of day. The - and + buttons work at once.
+  - n=1: Search Tokens: 1 per room, refilled each time of day. The - and + buttons work at once.
+  - n=2: Search Tokens: 2 per room, refilled each time of day. The - and + buttons work at once.
+  - n=5: Search Tokens: 5 per room, refilled each time of day. The - and + buttons work at once.
+  - n=12: Search Tokens: 12 per room, refilled each time of day. The - and + buttons work at once.
+  - n=22: Search Tokens: 22 per room, refilled each time of day. The - and + buttons work at once.
+  - n=25: Search Tokens: 25 per room, refilled each time of day. The - and + buttons work at once.
+  - n=112: Search Tokens: 112 per room, refilled each time of day. The - and + buttons work at once.
+- `DRPG.Season.note`
+  - Every row is something a season needs, in the order a season is built.
+- `DRPG.Season.resetAdvances`
+  - n=0 (other): 0 Level Ups, and the traits and maxima they raised
+  - n=1 (one): 1 Level Up, and the traits and maxima it raised
+  - n=2 (other): 2 Level Ups, and the traits and maxima they raised
+  - n=5 (other): 5 Level Ups, and the traits and maxima they raised
+  - n=12 (other): 12 Level Ups, and the traits and maxima they raised
+  - n=22 (other): 22 Level Ups, and the traits and maxima they raised
+  - n=25 (other): 25 Level Ups, and the traits and maxima they raised
+  - n=112 (other): 112 Level Ups, and the traits and maxima they raised
+- `DRPG.Season.resetAssigned`
+  - n=0 (other): 0 students assigned by hand
+  - n=1 (one): 1 student assigned by hand
+  - n=2 (other): 2 students assigned by hand
+  - n=5 (other): 5 students assigned by hand
+  - n=12 (other): 12 students assigned by hand
+  - n=22 (other): 22 students assigned by hand
+  - n=25 (other): 25 students assigned by hand
+  - n=112 (other): 112 students assigned by hand
+- `DRPG.Season.resetBreaches`
+  - n=0 (other): 0 breaches, their walls made whole
+  - n=1 (one): 1 breach, its wall made whole
+  - n=2 (other): 2 breaches, their walls made whole
+  - n=5 (other): 5 breaches, their walls made whole
+  - n=12 (other): 12 breaches, their walls made whole
+  - n=22 (other): 22 breaches, their walls made whole
+  - n=25 (other): 25 breaches, their walls made whole
+  - n=112 (other): 112 breaches, their walls made whole
+- `DRPG.Season.resetBullets`
+  - n=0 (other): 0 Truth Bullets, and the answer key behind them
+  - n=1 (one): 1 Truth Bullet, and the answer key behind it
+  - n=2 (other): 2 Truth Bullets, and the answer key behind them
+  - n=5 (other): 5 Truth Bullets, and the answer key behind them
+  - n=12 (other): 12 Truth Bullets, and the answer key behind them
+  - n=22 (other): 22 Truth Bullets, and the answer key behind them
+  - n=25 (other): 25 Truth Bullets, and the answer key behind them
+  - n=112 (other): 112 Truth Bullets, and the answer key behind them
+- `DRPG.Season.resetCards`
+  - n=0 (other): 0 cards this module wrote, and every messenger thread
+  - n=1 (one): 1 card this module wrote, and every messenger thread
+  - n=2 (other): 2 cards this module wrote, and every messenger thread
+  - n=5 (other): 5 cards this module wrote, and every messenger thread
+  - n=12 (other): 12 cards this module wrote, and every messenger thread
+  - n=22 (other): 22 cards this module wrote, and every messenger thread
+  - n=25 (other): 25 cards this module wrote, and every messenger thread
+  - n=112 (other): 112 cards this module wrote, and every messenger thread
+- `DRPG.Season.resetDead`
+  - n=0 (other): 0 deaths and every Monocub, undone
+  - n=1 (one): 1 death and every Monocub, undone
+  - n=2 (other): 2 deaths and every Monocub, undone
+  - n=5 (other): 5 deaths and every Monocub, undone
+  - n=12 (other): 12 deaths and every Monocub, undone
+  - n=22 (other): 22 deaths and every Monocub, undone
+  - n=25 (other): 25 deaths and every Monocub, undone
+  - n=112 (other): 112 deaths and every Monocub, undone
+- `DRPG.Season.resetItems`
+  - n=0 (other): 0 items the cast is carrying or has stowed
+  - n=1 (one): 1 item the cast is carrying or has stowed
+  - n=2 (other): 2 items the cast is carrying or has stowed
+  - n=5 (other): 5 items the cast is carrying or has stowed
+  - n=12 (other): 12 items the cast is carrying or has stowed
+  - n=22 (other): 22 items the cast is carrying or has stowed
+  - n=25 (other): 25 items the cast is carrying or has stowed
+  - n=112 (other): 112 items the cast is carrying or has stowed
+- `DRPG.Season.resetPassageKnowers`
+  - n=0 (other): 0 students who know a secret passage
+  - n=1 (one): 1 student who knows a secret passage
+  - n=2 (other): 2 students who know a secret passage
+  - n=5 (other): 5 students who know a secret passage
+  - n=12 (other): 12 students who know a secret passage
+  - n=22 (other): 22 students who know a secret passage
+  - n=25 (other): 25 students who know a secret passage
+  - n=112 (other): 112 students who know a secret passage
+- `DRPG.Season.resetPassagesBuilt`
+  - n=0 (other): 0 secret passages projects made
+  - n=1 (one): 1 secret passage a project made
+  - n=2 (other): 2 secret passages projects made
+  - n=5 (other): 5 secret passages projects made
+  - n=12 (other): 12 secret passages projects made
+  - n=22 (other): 22 secret passages projects made
+  - n=25 (other): 25 secret passages projects made
+  - n=112 (other): 112 secret passages projects made
+- `DRPG.Season.resetPools`
+  - n=0: every Despair pool to zero (0 not empty), and every Hope back to 0
+  - n=1: every Despair pool to zero (1 not empty), and every Hope back to 1
+  - n=2: every Despair pool to zero (2 not empty), and every Hope back to 2
+  - n=5: every Despair pool to zero (5 not empty), and every Hope back to 5
+  - n=12: every Despair pool to zero (12 not empty), and every Hope back to 12
+  - n=22: every Despair pool to zero (22 not empty), and every Hope back to 22
+  - n=25: every Despair pool to zero (25 not empty), and every Hope back to 25
+  - n=112: every Despair pool to zero (112 not empty), and every Hope back to 112
+- `DRPG.Season.resetPreNotes`
+  - n=0 (other): 0 pre-session notes the GMs wrote
+  - n=1 (one): 1 pre-session note a GM wrote
+  - n=2 (other): 2 pre-session notes the GMs wrote
+  - n=5 (other): 5 pre-session notes the GMs wrote
+  - n=12 (other): 12 pre-session notes the GMs wrote
+  - n=22 (other): 22 pre-session notes the GMs wrote
+  - n=25 (other): 25 pre-session notes the GMs wrote
+  - n=112 (other): 112 pre-session notes the GMs wrote
+- `DRPG.Season.resetProjectTokens`
+  - n=0 (other): 0 project tokens on the maps
+  - n=1 (one): 1 project token on the maps
+  - n=2 (other): 2 project tokens on the maps
+  - n=5 (other): 5 project tokens on the maps
+  - n=12 (other): 12 project tokens on the maps
+  - n=22 (other): 22 project tokens on the maps
+  - n=25 (other): 25 project tokens on the maps
+  - n=112 (other): 112 project tokens on the maps
+- `DRPG.Season.resetProjects`
+  - n=0 (other): 0 projects
+  - n=1 (one): 1 project
+  - n=2 (other): 2 projects
+  - n=5 (other): 5 projects
+  - n=12 (other): 12 projects
+  - n=22 (other): 22 projects
+  - n=25 (other): 25 projects
+  - n=112 (other): 112 projects
+- `DRPG.Season.resetRemnants`
+  - n=0 (other): 0 Remnants on the maps
+  - n=1 (one): 1 Remnant on the maps
+  - n=2 (other): 2 Remnants on the maps
+  - n=5 (other): 5 Remnants on the maps
+  - n=12 (other): 12 Remnants on the maps
+  - n=22 (other): 22 Remnants on the maps
+  - n=25 (other): 25 Remnants on the maps
+  - n=112 (other): 112 Remnants on the maps
+- `DRPG.Season.state.noticeHistory`
+  - Each player's notice history, which starts again on their own browser when the reset clears the clock, the incident, or the chat
+- `DRPG.Sound.volumeNote`
+  - Both volumes only affect this browser.
+- `DRPG.Sound.volumes`
+  - Volume
+- `DRPG.Tables.newTierPool`
+  - New tier pool
+- `DRPG.Tables.newTierPoolNote`
+  - A tier pool's name gives its category and tier, such as “DRPG Tools - Tier 2”. You rarely need to make one by hand: “Install / reinstall” below builds them all.
+- `DRPG.Tables.newTierPoolPlaceholder`
+  - e.g. DRPG Tools - Tier 2
+- `DRPG.Zones.dive.opened`
+  - n=0: Question 0 of 0: {question} Students stand in Zone A for 0 or in Zone B for 0. The class has 0 s to choose.
+  - n=1: Question 1 of 1: {question} Students stand in Zone A for 1 or in Zone B for 1. The class has 1 s to choose.
+  - n=2: Question 2 of 2: {question} Students stand in Zone A for 2 or in Zone B for 2. The class has 2 s to choose.
+  - n=5: Question 5 of 5: {question} Students stand in Zone A for 5 or in Zone B for 5. The class has 5 s to choose.
+  - n=12: Question 12 of 12: {question} Students stand in Zone A for 12 or in Zone B for 12. The class has 12 s to choose.
+  - n=22: Question 22 of 22: {question} Students stand in Zone A for 22 or in Zone B for 22. The class has 22 s to choose.
+  - n=25: Question 25 of 25: {question} Students stand in Zone A for 25 or in Zone B for 25. The class has 25 s to choose.
+  - n=112: Question 112 of 112: {question} Students stand in Zone A for 112 or in Zone B for 112. The class has 112 s to choose.
+- `DRPG.Zones.dive.right`
+  - n=0: The class is right, with 0 in Zone A and 0 in Zone B.
+  - n=1: The class is right, with 1 in Zone A and 1 in Zone B.
+  - n=2: The class is right, with 2 in Zone A and 2 in Zone B.
+  - n=5: The class is right, with 5 in Zone A and 5 in Zone B.
+  - n=12: The class is right, with 12 in Zone A and 12 in Zone B.
+  - n=22: The class is right, with 22 in Zone A and 22 in Zone B.
+  - n=25: The class is right, with 25 in Zone A and 25 in Zone B.
+  - n=112: The class is right, with 112 in Zone A and 112 in Zone B.
+- `DRPG.Zones.dive.skipped`
+  - n=0: The GM skips question 0.
+  - n=1: The GM skips question 1.
+  - n=2: The GM skips question 2.
+  - n=5: The GM skips question 5.
+  - n=12: The GM skips question 12.
+  - n=22: The GM skips question 22.
+  - n=25: The GM skips question 25.
+  - n=112: The GM skips question 112.
+- `DRPG.Zones.dive.solved`
+  - The Logic Dive is solved: {finding}
+- `DRPG.Zones.dive.tie`
+  - n=0: A tie, 0 in Zone A and 0 in Zone B, counts as wrong. The Logic Dive ends here.
+  - n=1: A tie, 1 in Zone A and 1 in Zone B, counts as wrong. The Logic Dive ends here.
+  - n=2: A tie, 2 in Zone A and 2 in Zone B, counts as wrong. The Logic Dive ends here.
+  - n=5: A tie, 5 in Zone A and 5 in Zone B, counts as wrong. The Logic Dive ends here.
+  - n=12: A tie, 12 in Zone A and 12 in Zone B, counts as wrong. The Logic Dive ends here.
+  - n=22: A tie, 22 in Zone A and 22 in Zone B, counts as wrong. The Logic Dive ends here.
+  - n=25: A tie, 25 in Zone A and 25 in Zone B, counts as wrong. The Logic Dive ends here.
+  - n=112: A tie, 112 in Zone A and 112 in Zone B, counts as wrong. The Logic Dive ends here.
+- `DRPG.Zones.dive.wrong`
+  - n=0: The class is wrong, with 0 in Zone A and 0 in Zone B. The Logic Dive ends here.
+  - n=1: The class is wrong, with 1 in Zone A and 1 in Zone B. The Logic Dive ends here.
+  - n=2: The class is wrong, with 2 in Zone A and 2 in Zone B. The Logic Dive ends here.
+  - n=5: The class is wrong, with 5 in Zone A and 5 in Zone B. The Logic Dive ends here.
+  - n=12: The class is wrong, with 12 in Zone A and 12 in Zone B. The Logic Dive ends here.
+  - n=22: The class is wrong, with 22 in Zone A and 22 in Zone B. The Logic Dive ends here.
+  - n=25: The class is wrong, with 25 in Zone A and 25 in Zone B. The Logic Dive ends here.
+  - n=112: The class is wrong, with 112 in Zone A and 112 in Zone B. The Logic Dive ends here.
+- `DRPG.Zones.noAnswers`
+  - Give both answers: one for Zone A and one for Zone B.
+- `DRPG.Zones.noCount`
+  - Nothing to count now: only a running vote can be counted.
+- `DRPG.Zones.noQuestion`
+  - A question in this Logic Dive set is blank.
+- `DRPG.Zones.noQuestionHere`
+  - Skip question works only in a Logic Dive.
+- `DRPG.Zones.noSet`
+  - Pick a Logic Dive set.
+- `DRPG.Zones.noSide`
+  - Pick Zone A or Zone B.
+- `DRPG.Zones.noThesis`
+  - You can give a thesis only during a Scrum Debate turn, and it needs a few words.
+- `DRPG.Zones.open`
+  - Hall zones
+- `DRPG.Zones.panel.counted`
+  - n=0: Counted: Zone A 0, Zone B 0.
+  - n=1: Counted: Zone A 1, Zone B 1.
+  - n=2: Counted: Zone A 2, Zone B 2.
+  - n=5: Counted: Zone A 5, Zone B 5.
+  - n=12: Counted: Zone A 12, Zone B 12.
+  - n=22: Counted: Zone A 22, Zone B 22.
+  - n=25: Counted: Zone A 25, Zone B 25.
+  - n=112: Counted: Zone A 112, Zone B 112.
+- `DRPG.Zones.panel.dive.pause`
+  - n=0: Question 0 of 0 is counted. The answer comes in 0 s.
+  - n=1: Question 1 of 1 is counted. The answer comes in 1 s.
+  - n=2: Question 2 of 2 is counted. The answer comes in 2 s.
+  - n=5: Question 5 of 5 is counted. The answer comes in 5 s.
+  - n=12: Question 12 of 12 is counted. The answer comes in 12 s.
+  - n=22: Question 22 of 22 is counted. The answer comes in 22 s.
+  - n=25: Question 25 of 25 is counted. The answer comes in 25 s.
+  - n=112: Question 112 of 112 is counted. The answer comes in 112 s.
+- `DRPG.Zones.panel.dive.vote`
+  - n=0: Question 0 of 0: 0 s to choose.
+  - n=1: Question 1 of 1: 1 s to choose.
+  - n=2: Question 2 of 2: 2 s to choose.
+  - n=5: Question 5 of 5: 5 s to choose.
+  - n=12: Question 12 of 12: 12 s to choose.
+  - n=22: Question 22 of 22: 22 s to choose.
+  - n=25: Question 25 of 25: 25 s to choose.
+  - n=112: Question 112 of 112: 112 s to choose.
+- `DRPG.Zones.panel.nobody`
+  - nobody
+- `DRPG.Zones.panel.outside`
+  - #1: In neither zone: Aiko, Daichi, and Chie.
+  - #2: In neither zone: Aiko and Daichi.
+  - #3: In neither zone: Chie.
+- `DRPG.Zones.panel.scrum.confer`
+  - n=0: Camps confer: each camp talks in its own voice room, 0 s left.
+  - n=1: Camps confer: each camp talks in its own voice room, 1 s left.
+  - n=2: Camps confer: each camp talks in its own voice room, 2 s left.
+  - n=5: Camps confer: each camp talks in its own voice room, 5 s left.
+  - n=12: Camps confer: each camp talks in its own voice room, 12 s left.
+  - n=22: Camps confer: each camp talks in its own voice room, 22 s left.
+  - n=25: Camps confer: each camp talks in its own voice room, 25 s left.
+  - n=112: Camps confer: each camp talks in its own voice room, 112 s left.
+- `DRPG.Zones.panel.scrum.setup`
+  - n=0: Sides: the camps form, 0 s left.
+  - n=1: Sides: the camps form, 1 s left.
+  - n=2: Sides: the camps form, 2 s left.
+  - n=5: Sides: the camps form, 5 s left.
+  - n=12: Sides: the camps form, 12 s left.
+  - n=22: Sides: the camps form, 22 s left.
+  - n=25: Sides: the camps form, 25 s left.
+  - n=112: Sides: the camps form, 112 s left.
+- `DRPG.Zones.panel.scrum.speak`
+  - n=0: Turn 0 of 0: Aiko speaks for Zone {zone}, 0 s left.
+  - n=1: Turn 1 of 1: Daichi speaks for Zone {zone}, 1 s left.
+  - n=2: Turn 2 of 2: Aiko speaks for Zone {zone}, 2 s left.
+  - n=5: Turn 5 of 5: Daichi speaks for Zone {zone}, 5 s left.
+  - n=12: Turn 12 of 12: Aiko speaks for Zone {zone}, 12 s left.
+  - n=22: Turn 22 of 22: Daichi speaks for Zone {zone}, 22 s left.
+  - n=25: Turn 25 of 25: Aiko speaks for Zone {zone}, 25 s left.
+  - n=112: Turn 112 of 112: Daichi speaks for Zone {zone}, 112 s left.
+- `DRPG.Zones.panel.straw.vote`
+  - n=0: 0 s to the count.
+  - n=1: 1 s to the count.
+  - n=2: 2 s to the count.
+  - n=5: 5 s to the count.
+  - n=12: 12 s to the count.
+  - n=22: 22 s to the count.
+  - n=25: 25 s to the count.
+  - n=112: 112 s to the count.
+- `DRPG.Zones.panel.thesis`
+  - Thesis: something the code puts here
+- `DRPG.Zones.samePick`
+  - You already picked that side.
+- `DRPG.Zones.scrum.begins`
+  - n=0: Zone {zone} speaks first. The camps take turns of 0 s, 0 turns in all.
+  - n=1: Zone {zone} speaks first. The camps take turns of 1 s, 1 turns in all.
+  - n=2: Zone {zone} speaks first. The camps take turns of 2 s, 2 turns in all.
+  - n=5: Zone {zone} speaks first. The camps take turns of 5 s, 5 turns in all.
+  - n=12: Zone {zone} speaks first. The camps take turns of 12 s, 12 turns in all.
+  - n=22: Zone {zone} speaks first. The camps take turns of 22 s, 22 turns in all.
+  - n=25: Zone {zone} speaks first. The camps take turns of 25 s, 25 turns in all.
+  - n=112: Zone {zone} speaks first. The camps take turns of 112 s, 112 turns in all.
+- `DRPG.Zones.scrum.confer`
+  - n=0: The sides are set, 0 in Zone A and 0 in Zone B. Each camp confers apart for 0 s, then the debate begins.
+  - n=1: The sides are set, 1 in Zone A and 1 in Zone B. Each camp confers apart for 1 s, then the debate begins.
+  - n=2: The sides are set, 2 in Zone A and 2 in Zone B. Each camp confers apart for 2 s, then the debate begins.
+  - n=5: The sides are set, 5 in Zone A and 5 in Zone B. Each camp confers apart for 5 s, then the debate begins.
+  - n=12: The sides are set, 12 in Zone A and 12 in Zone B. Each camp confers apart for 12 s, then the debate begins.
+  - n=22: The sides are set, 22 in Zone A and 22 in Zone B. Each camp confers apart for 22 s, then the debate begins.
+  - n=25: The sides are set, 25 in Zone A and 25 in Zone B. Each camp confers apart for 25 s, then the debate begins.
+  - n=112: The sides are set, 112 in Zone A and 112 in Zone B. Each camp confers apart for 112 s, then the debate begins.
+- `DRPG.Zones.scrum.empty`
+  - Zone {zone} is empty. The class thinks: {answer}.
+- `DRPG.Zones.scrum.opened`
+  - n=0: {question} Students pick a side: Zone A for 0, Zone B for 0. The camps confer in 0 s.
+  - n=1: {question} Students pick a side: Zone A for 1, Zone B for 1. The camps confer in 1 s.
+  - n=2: {question} Students pick a side: Zone A for 2, Zone B for 2. The camps confer in 2 s.
+  - n=5: {question} Students pick a side: Zone A for 5, Zone B for 5. The camps confer in 5 s.
+  - n=12: {question} Students pick a side: Zone A for 12, Zone B for 12. The camps confer in 12 s.
+  - n=22: {question} Students pick a side: Zone A for 22, Zone B for 22. The camps confer in 22 s.
+  - n=25: {question} Students pick a side: Zone A for 25, Zone B for 25. The camps confer in 25 s.
+  - n=112: {question} Students pick a side: Zone A for 112, Zone B for 112. The camps confer in 112 s.
+- `DRPG.Zones.scrum.over`
+  - n=0: The Scrum Debate is over: 0 in Zone A, 0 in Zone B.
+  - n=1: The Scrum Debate is over: 1 in Zone A, 1 in Zone B.
+  - n=2: The Scrum Debate is over: 2 in Zone A, 2 in Zone B.
+  - n=5: The Scrum Debate is over: 5 in Zone A, 5 in Zone B.
+  - n=12: The Scrum Debate is over: 12 in Zone A, 12 in Zone B.
+  - n=22: The Scrum Debate is over: 22 in Zone A, 22 in Zone B.
+  - n=25: The Scrum Debate is over: 25 in Zone A, 25 in Zone B.
+  - n=112: The Scrum Debate is over: 112 in Zone A, 112 in Zone B.
+- `DRPG.Zones.scrum.thesis`
+  - Zone {zone}'s thesis: something the code puts here
+- `DRPG.Zones.straw.finding`
+  - n=0: The class thinks: {answer}. The count was 0 in Zone A and 0 in Zone B.
+  - n=1: The class thinks: {answer}. The count was 1 in Zone A and 1 in Zone B.
+  - n=2: The class thinks: {answer}. The count was 2 in Zone A and 2 in Zone B.
+  - n=5: The class thinks: {answer}. The count was 5 in Zone A and 5 in Zone B.
+  - n=12: The class thinks: {answer}. The count was 12 in Zone A and 12 in Zone B.
+  - n=22: The class thinks: {answer}. The count was 22 in Zone A and 22 in Zone B.
+  - n=25: The class thinks: {answer}. The count was 25 in Zone A and 25 in Zone B.
+  - n=112: The class thinks: {answer}. The count was 112 in Zone A and 112 in Zone B.
+- `DRPG.Zones.straw.opened`
+  - n=0: {question} Students stand in Zone A for 0 or in Zone B for 0. The count comes in 0 s.
+  - n=1: {question} Students stand in Zone A for 1 or in Zone B for 1. The count comes in 1 s.
+  - n=2: {question} Students stand in Zone A for 2 or in Zone B for 2. The count comes in 2 s.
+  - n=5: {question} Students stand in Zone A for 5 or in Zone B for 5. The count comes in 5 s.
+  - n=12: {question} Students stand in Zone A for 12 or in Zone B for 12. The count comes in 12 s.
+  - n=22: {question} Students stand in Zone A for 22 or in Zone B for 22. The count comes in 22 s.
+  - n=25: {question} Students stand in Zone A for 25 or in Zone B for 25. The count comes in 25 s.
+  - n=112: {question} Students stand in Zone A for 112 or in Zone B for 112. The count comes in 112 s.
+- `DRPG.Zones.straw.split`
+  - n=0: The class is split, 0 in Zone A and 0 in Zone B. A Scrum Debate can settle it.
+  - n=1: The class is split, 1 in Zone A and 1 in Zone B. A Scrum Debate can settle it.
+  - n=2: The class is split, 2 in Zone A and 2 in Zone B. A Scrum Debate can settle it.
+  - n=5: The class is split, 5 in Zone A and 5 in Zone B. A Scrum Debate can settle it.
+  - n=12: The class is split, 12 in Zone A and 12 in Zone B. A Scrum Debate can settle it.
+  - n=22: The class is split, 22 in Zone A and 22 in Zone B. A Scrum Debate can settle it.
+  - n=25: The class is split, 25 in Zone A and 25 in Zone B. A Scrum Debate can settle it.
+  - n=112: The class is split, 112 in Zone A and 112 in Zone B. A Scrum Debate can settle it.
