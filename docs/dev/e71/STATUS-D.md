@@ -201,3 +201,14 @@ is unchanged here) and is fixed because the check measures the plural rule, not 
 | Q-D-4: one commit per batch (the plan's C1-C19) | one landing commit for B14-B18 together: the five batch files hold each text's before, so a batch can be taken back alone; the fixes of the 15 red tests cross batches |
 | Q-D-5: "Truth Bullets" in Polish (46 uninflected, 19 inflected in lang/pl.json) | B15's texts inflect it (DB4, as B01a's approved afters do); the rest of the file is other batches' |
 | Q-D-6: Dice So Nice's checklist row says "(optional)" while the module does not start without it | answered by the coordinator (14.11): a fact, required. The title is "Dice So Nice is active" / "Dice So Nice jest włączony"; R6551 (red first: [true,true,true], then green) holds module.json's requirement against both titles. The row's `optional` flag stays, as R1132 holds the First session rows (the row is done wherever the module runs). The GM handbook's line 133 may still call the row optional: the handbook line's |
+
+## After groups B and C (14.11.2026)
+
+Merged claude/e71-b at 5425b7b6 and claude/e71-c at 69e4fa50 (one conflict each: a tier-0 fixture of R1156's family,
+each line's own row kept; `Investigation.breakdown` and its tooltip B16's, `unidentified` line C's "Not analyzed" with
+`Chapter.typeless`, which the coordinator allowed; 50-lang line C's comment). B16's batch text of `unidentified`
+records the merge. `Season.safewordNote` (line C's review: telegraph style) is a sentence now, EN; the Polish already was.
+„karta" in group D's Polish: every value is a chat card, a ballot, a card presented at the trial or a browser tab -
+none names the sheet (PL-d), so nothing changed. Tier 1 on the merged tree: 1592 passed, 1 failed (R2001, known),
+16 skipped, 0 red. Waiting for E54: the 31 literals and the Neighbours commit (the coordinator: after E54, one commit
+with group B's Vault keys, `Rooms.renamed` and the GM handbook's quotes).

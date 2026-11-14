@@ -6106,7 +6106,7 @@
       "firstSession": "First session",
       "firstSessionNote": "Set once, before the first session.",
       "safeword": "Safeword",
-      "safewordNote": "The word that stops the scene, shown on each student's sheet. Leave it blank for the default.",
+      "safewordNote": "This word stops the scene, and each student's sheet shows it. Leave it blank for the default.",
       "windows": "The season's windows",
       "checklistTitle": "Season checklist",
       "startHereTitle": "Where to start",
