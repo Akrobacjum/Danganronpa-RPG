@@ -3,6 +3,8 @@
 # line's shape out, each proof run and its result written down). Nothing here pushes.
 #
 #   tools/e54/rebuild.sh --base <sha> --work <new dir> --out <new dir> [--picks <a>..<b>] [--rows <sha>] [--no-sweep]
+#   tools/e54/rebuild.sh --base <sha> --work <its dir> --out <its dir> --continue [--no-sweep]   (on from a pick conflict
+#   a reader resolved in the worktree: the pick finished, the picks after it, then steps 3-7; a row says so)
 #   tools/e54/rebuild.sh --base <sha> --work <its dir> --out <its dir> --end-only [--no-sweep]   (step 7 alone, on a run
 #   that reached step 6 and was cut short - a container restart did that to the first full run; a row says so)
 #
@@ -31,16 +33,20 @@
 set -u
 T=$(cd "$(dirname "$0")" && pwd)
 PREP=$(cd "$T/../.." && pwd)
-BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1 END=0
+BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1 END=0 CONT=0
 while [ $# -gt 0 ]; do case "$1" in
   --base) BASE=$2; shift 2;; --work) WORK=$2; shift 2;; --out) OUT=$2; shift 2;;
   --picks) PICKS=$2; shift 2;; --rows) ROWS=$2; shift 2;; --no-sweep) SWEEP=0; shift;;
   --end-only) END=1; shift;;
+  --continue) CONT=1; shift;;
   *) echo "rebuild: unknown argument $1"; exit 2;; esac; done
 [ -n "$BASE" ] && [ -n "$WORK" ] && [ -n "$OUT" ] || { echo "rebuild: --base, --work and --out, please"; exit 2; }
 if [ $END = 1 ]; then # step 7 alone, on a run's worktree and results (a restart that cut a run short)
   for f in "$WORK/.git" "$OUT/results.md" "$OUT/golden-boxes.json" "$OUT/golden-0.json"; do
     [ -e "$f" ] || { echo "rebuild: --end-only needs $f, from a run that got to step 6"; exit 2; }; done
+elif [ $CONT = 1 ]; then # on from a pick a reader resolved, in a run's worktree and results
+  for f in "$WORK/.git" "$OUT/results.md"; do
+    [ -e "$f" ] || { echo "rebuild: --continue needs $f, from a run stopped in its picks"; exit 2; }; done
 else
   [ -e "$WORK" ] && { echo "rebuild: $WORK exists; a new directory, please"; exit 2; }
   [ -e "$OUT" ] && { echo "rebuild: $OUT exists; a new directory, please"; exit 2; }
@@ -53,7 +59,7 @@ CUTS="sheet windows windows-settings key-remnants cleanup-reshape chapter glass"
 TRAILER="Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01QsWhUcWE5y53y4rU2XXudy"
 R=$OUT/results.md
-[ $END = 0 ] && printf '# E54 rebuild\n\nbase %s, picks %s, rows %s, tools %s (%s)\n\n| Step | Seconds | Read |\n| --- | ---: | --- |\n' \
+[ $END = 0 ] && [ $CONT = 0 ] && printf '# E54 rebuild\n\nbase %s, picks %s, rows %s, tools %s (%s)\n\n| Step | Seconds | Read |\n| --- | ---: | --- |\n' \
   "$BASE" "$PICKS" "$ROWS" "$(git -C "$PREP" rev-parse --short HEAD)" "$(date -u +%FT%TZ)" > "$R"
 row() { printf '| %s | %s | %s |\n' "$1" "$2" "$3" >> "$R"; echo "rebuild: $1 ($2 s): $3"; }
 stop() { row "$1" "${2:-0}" "STOP: $3"; printf '\nStopped at %s.\n' "$1" >> "$R"; exit 1; }
@@ -79,9 +85,21 @@ golden() { # golden <step> <log> <args...>
 
 if [ $END = 0 ]; then
 # 1
-step worktree worktree.txt git -C "$PREP" worktree add -b "e54-rebuild-${BASE:0:8}" "$WORK" "$BASE" || stop worktree $DT "$(tail -1 "$OUT/logs/worktree.txt")"
-WORK=$(cd "$WORK" && pwd); cd "$WORK"
-row worktree $DT "$WORK at $(git rev-parse --short HEAD)"
+if [ $CONT = 0 ]; then
+  step worktree worktree.txt git -C "$PREP" worktree add -b "e54-rebuild-${BASE:0:8}" "$WORK" "$BASE" || stop worktree $DT "$(tail -1 "$OUT/logs/worktree.txt")"
+  WORK=$(cd "$WORK" && pwd); cd "$WORK"
+  row worktree $DT "$WORK at $(git rev-parse --short HEAD)"
+else
+  WORK=$(cd "$WORK" && pwd); cd "$WORK"
+  if [ -e "$(git rev-parse --git-path CHERRY_PICK_HEAD)" ]; then
+    git add -A
+    left=$(git diff --cached --name-only | xargs -r grep -l '^<<<<<<< \|^>>>>>>> ' 2> /dev/null)
+    [ -z "$left" ] || stop continued 0 "conflict markers left in: $left"
+    was=$(git rev-parse --short CHERRY_PICK_HEAD)
+    GIT_EDITOR=true git cherry-pick --continue > "$OUT/logs/continue.txt" 2>&1 || stop continued 0 "the pick would not continue (logs/continue.txt)"
+    row continued 0 "--continue at $(date -u +%FT%TZ): $was's pick finished as resolved by a reader, $(git rev-parse --short HEAD); see the report for how"
+  else row continued 0 "--continue at $(date -u +%FT%TZ), on $(git rev-parse --short HEAD), no pick in progress"; fi
+fi
 if [ ! -d audit/harness/node_modules ]; then
   step "npm ci" npm-ci.txt bash -c "cd audit/harness && npm ci" || stop "npm ci" $DT "see logs/npm-ci.txt"
   row "npm ci" $DT "audit/harness installed"
@@ -89,8 +107,11 @@ fi
 
 # 2
 t0=$SECONDS; n=0
+done_already=$(git rev-list --count "$BASE"..HEAD) # 0 on a fresh run; the picks a --continue finds made
+[ "$done_already" -le "$(git -C "$PREP" rev-list --count "$PICKS")" ] || stop picks 0 "$done_already commits past the base: the picks are done; --end-only, or a new run"
 for c in $(git -C "$PREP" rev-list --reverse "$PICKS"); do
   n=$((n + 1))
+  [ $n -le "$done_already" ] && continue
   if ! git cherry-pick "$c" > "$OUT/logs/pick-$n.txt" 2>&1; then
     regen=0
     for f in $(git diff --name-only --diff-filter=U); do
