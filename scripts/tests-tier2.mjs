@@ -29798,7 +29798,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const gmCopy = said.find(w => w.includes(`${foundry.utils.escapeHTML(who.name)} vs `)) ?? "";
             const threshold = /vs (\d+)/.exec(gmCopy)?.[1] ?? null;
             equal(stableJson([result?.success ?? null, said.some(w => w.includes(planted)),
-                String(trace ? remnants.remnantData(trace)?.note ?? "" : "").includes(`${label}.`), threshold !== null && gmCopy.includes(`≥ ${threshold}`)]),
+                // The note read through its key (E71 rewrote its English, "... to point at {name} ({visibility})."), not a literal.
+                String(trace ? remnants.remnantData(trace)?.note ?? "" : "")
+                    === game.i18n.format("DRPG.Cleanup.trailNote", { name: framed.name, visibility: label, by: who.name }), threshold !== null && gmCopy.includes(`≥ ${threshold}`)]),
                 stableJson([true, true, true, true]),
                 "a misleading trail named its band by the ledger's key, or the GMs' copy did not read the roll against its threshold "
                 + "(success, the player's line, the note, the GMs' copy)");
@@ -55971,7 +55973,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
             return [made.length, doc.includes(title), doc.includes(phrase), made[0]?.whisper ?? null, words.includes(title), words.includes(phrase)];
         };
-        const music = await probe(() => diagnoseMusic(), game.i18n.localize("DRPG.Diagnostics.title.music"), "music follows the game state");
+        // The report's first line names the setting by its own name, read through its key (E71 wrote it as the setting does).
+        const music = await probe(() => diagnoseMusic(), game.i18n.localize("DRPG.Diagnostics.title.music"),
+            game.i18n.localize("DRPG.Settings.musicEnabled.name"));
         // The cast report's starting-resources line: its first line no longer says "Monokumas excluded" (E20 fix round, G-5).
         const season = await probe(() => diagnoseCharacters({ toChat: true }), game.i18n.localize("DRPG.Diagnostics.title.season"),
             game.i18n.localize("DRPG.Diagnostics.cast.starting").split("{")[0]);
@@ -68419,6 +68423,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const R = await import("./rooms.mjs");
         const G = await import("./gm-store.mjs");
         const { ROOM_FLAGS } = await import("./movement.mjs");
+        const { listOf } = await import("./utils.mjs");
         const home = canvas?.scene ?? null;
         const HALL = "SUITE r2-H2 Hall", GATE = "SUITE r2-H2 Gate", PORCH = "SUITE r2-H2 Porch", LIFT = "SUITE r2-H2 Lift";
         const up = [{ type: "teleportToken", name: "Up", system: { destination: null } }];
@@ -68469,7 +68474,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
         });
         equal(stableJson(reading), stableJson([`${GATE}, ${LIFT}, ${PORCH}`,
-            [game.i18n.format("DRPG.Vault.neighboursUnknown", { room: HALL, names: `${GATE}, ${LIFT}` })], [false, true]]),
+            [game.i18n.format("DRPG.Vault.neighboursUnknown", { room: HALL, names: listOf([GATE, LIFT]) })], [false, true]]),
             "Room Setup over a Hall, a Teleport Lift, and a Gate and a Porch nobody decided, Apply with the three typed in the Hall's Neighbours, the "
                 + "Gate's room box cleared and the Porch's ticked ([the list on the Hall's piece, the warnings naming the Gate, the Lift or the Porch, "
                 + "whether the Gate and the Porch are rooms])");
@@ -87506,8 +87511,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const ownSet = Object.getOwnPropertyDescriptor(settings, "set"), realSet = settings.set;
         const ownUpdate = Object.getOwnPropertyDescriptor(who, "update"), realUpdate = who.update;
         const why = game.i18n.localize("DRPG.Trial.objectionNoFloor");
+        // The three whispers' common opening, what the key says before its {why} - read through the key, not by a
+        // separator: E71's rewrite ends that opening with a full stop where it was a colon, and a split at ":" then
+        // kept the whole sentence and found no whisper at all (CI run 542, 14.11.2026).
+        const opening = game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why: "\u0000" }).split("\u0000")[0].trim();
         const said = () => game.messages.filter(m => !seen.has(m.id)).map(m => contentOf(m))
-            .filter(text => text.includes(game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why: "" }).split(":")[0]));
+            .filter(text => String(text ?? "").includes(opening));
         const expect = {
             none: game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why: game.i18n.localize("DRPG.Trial.objectionNoItem") }),
             action: game.i18n.format("DRPG.Trial.objectionRefunded", { why, what: P.priceLabel({ pay: "action", amount: 1 }) }),
