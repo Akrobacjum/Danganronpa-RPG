@@ -1524,7 +1524,7 @@ Obok debaty trzy przyciski wyboru trybu otwierają tryby na głosie debaty: **Te
 | Nonstop Debate | wszyscy | twój budżet | wszyscy | każdy, w tego, kto mówi |
 | Objection, potem rebuttal | wnoszący; potem tych dwoje | 60 s, potem 120 s | wszyscy | nie w minucie Objection; w rebuttalu w jedno z tych dwojga |
 | Testimony | po jednym uczestniku, po kolei | proponowane 60 s na turę, od 30 do 120 s | mówca | w mówcę |
-| Panic Round | po jednym uczestniku, po kolei | 15 s na turę (od 12 uczestników proponowane 10 s), od 10 do 15 s | mówca | nikt |
+| Panic Round | po jednym uczestniku, po kolei | 15 s na turę (proponowane 10 s od 12 uczestników), od 10 do 15 s | mówca | nikt |
 | Closing Argument | mówca, którego zatwierdzisz, wybierzesz albo któremu dasz mówić dalej | 300 s | mówca | w mówcę, każdy poza nim |
 | Straw Poll | wszyscy | 45 s | wszyscy | nikt |
 | Logic Dive | wszyscy | 60 s na pytanie | wszyscy | nikt |

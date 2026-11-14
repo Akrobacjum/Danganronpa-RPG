@@ -46,3 +46,16 @@ to 0. R1058's list of modes changed with them (red before, green after).
 
 R numbers R7060-R7064 were given; none was taken: the detector's change is held by R1058's fixture, and the T8 fix by
 R431. The record of runs is in the report to the coordinator.
+
+## The rules check after the merge
+
+`node tools/check.mjs rules` (tools/rules-parity.mjs, E57 C2) was green at 6cd30a92 and red at the merge of 370ae1e4:
+11 of its anchors were written on the handbooks before the rewrite, and the rewrite reworded those sentences ("no unit
+states it any longer"), and its self-check's two plants looked for old words. Repaired in tools/rules-parity.mjs: each
+anchor written again on the new sentence, capturing the same config numbers in the same order; "crisis.brochure" taken
+out, because the brochure now gives the three crisis thresholds as table rows, which the generated CRISIS_ACTIONS row
+rules read (its plant moved to CRISIS_ACTIONS.leaveClue.threshold); "trial.rounds" reads the Panic Round's row of the
+modes' table, since Testimony's row has its own rule (trial.testimony); the plants are "(Hope najwyżej 6)" in the Polish
+brochure and "4 to 5 actions" in the GM handbook. The Polish GM handbook's Panic Round row gave its numbers in another
+order than the English ("od 12 uczestników proponowane 10 s"); written "proponowane 10 s od 12 uczestników", so the
+check can still see a swapped number. After: 52 rules, 0 problems; self-check 14 of 14 plants seen.
