@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Each statistic (config.mjs TRAITS: Eye, Head, Body, Leg, Hand, Shadow) wears a glyph wherever the six are listed by
  * name: in the wrench's window before its name (dh-settings.mjs, the Details tab's six fields), and on the character
- * sheet's header inside Daggerheart's mark at the left of its name (sheet.mjs `markTraitGlyphs`, the owner's answer of
+ * sheet's header inside Daggerheart's mark at the left of its name (sheet-header.mjs `markTraitGlyphs`, the owner's answer of
  * 12.11.2026). The glyph does not replace the name; it is decorative (`aria-hidden`, `inert`: the name beside it is what
  * a screen reader reads); nothing stored, no field name and no value changes.
  *

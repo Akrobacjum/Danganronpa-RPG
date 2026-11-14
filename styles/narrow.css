@@ -30,7 +30,7 @@
    Two numbers in two places had been one fact - how far down the stack may reach - and a
    later stage that moves it (E23's S12-05) now changes this value and nothing else.
    E23 C4a (07.11.2026; S12-05, E23-21) changed it: 52dvh hid what a player reads first. With the
-   board open under the stack (glass.mjs `stackShapes`), the ceiling is the room the board leaves:
+   board open under the stack (glass-geometry.mjs `stackShapes`), the ceiling is the room the board leaves:
    the stack may reach down as far as leaves the board a third of the screen under it (two thirds
    less the stack's 8 px top), and
    never so far that the notice stack's ceiling falls under its 96 px floor (the screen less the
