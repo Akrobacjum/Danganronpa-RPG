@@ -271,7 +271,7 @@
       "maxSanity": "Sanity (maks.)",
       "newExperience": "Nowe doświadczenie",
       "delete": "Usuń",
-      "coreExperience": "To doświadczenie dał Level Up; nie da się go tu usunąć.",
+      "coreExperience": "To doświadczenie dał Level Up, więc tutaj go nie usuniesz.",
       "name": "Nazwa",
       "value": "Wartość",
       "description": "Opis"
@@ -279,7 +279,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "Wygląd kości przy stole",
-        "hint": "Przy jednym wyglądzie gracze i Asystenci GM-a rzucają w wyglądzie Dice So Nice jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem. Wygląd Daggerheart dodaje kolory Hope i Despair z Daggerhearta.",
+        "hint": "Przy każdej z opcji „Wszyscy”, gracze i Asystenci GM-a rzucają w wyglądzie Dice So Nice jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem. Opcja „Wszyscy: Daggerheart” dodaje kolory Hope i Despair z tego systemu.",
         "choices": {
           "own": "Każdy gracz własny",
           "dsn": "Wszyscy: Dice So Nice",
@@ -291,16 +291,16 @@
         "hint": "Każdy rzut gracza widzi tylko on i GM-owie, a rzut GM-a tylko GM-owie. Wszyscy widzą jedynie rzut z makra GM-a game.drpg.publicRoll."
       },
       "enforceAnonymity": {
-        "name": "Anonimowe karty postaci",
-        "hint": "Karta innego gracza pokazuje tylko imię, portret, Ultimate, Health, to, co trzyma w rękach, i ile ma doświadczeń. Własną kartę każdy widzi w całości."
+        "name": "Anonimowe arkusze postaci",
+        "hint": "Arkusz innego gracza pokazuje tylko imię, portret, Ultimate, Health, to, co trzyma w rękach, i ile ma doświadczeń. Własny arkusz każdy widzi w całości."
       },
       "searchTokensPerRoom": {
-        "name": "Search Tokens na pokój",
+        "name": "Search Tokeny na pokój",
         "hint": "Search Tokeny na pokój na porę dnia, od 0 do 10. Search zużywa jeden; w pokoju bez tokenów nie da się szukać."
       },
       "lockRollDialog": {
         "name": "Zablokuj graczom okno rzutu",
-        "hint": "Gracze nie zmieniają w oknie rzutu kości, statystyki, przewagi, doświadczeń ani premii; te biorą się z akcji, Hope Call albo od GM-a. GM-ów to nie dotyczy."
+        "hint": "W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii; ustala je akcja, Hope Call albo GM. GM-ów to nie dotyczy."
       },
       "roomVisibility": {
         "name": "Gracze widzą tylko osoby w swoim pokoju",
@@ -315,16 +315,16 @@
         "hint": "Gracz widzi swój pokój; odwiedzone prześwitują, reszta jest we mgle."
       },
       "lockPlayerResources": {
-        "name": "Zablokuj graczom zasoby na karcie",
-        "hint": "Akcje, Hope, Health, Sanity i statystyki zmieniają się tylko przez grę. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om; wyłączone: tylko odnotowywane. Przedmioty i efekty są sprawdzane zawsze. GM-ów to nie dotyczy."
+        "name": "Zablokuj graczom zasoby na arkuszu",
+        "hint": "Gdy gracz sam zmieni akcje, Hope, Health, Sanity albo statystykę, moduł cofa zmianę albo zgłasza ją GM-om; po wyłączeniu tylko ją odnotowuje. Przedmioty i efekty sprawdza zawsze. GM-ów to nie dotyczy."
       },
       "autoApproveTraits": {
         "name": "Statystyki graczy bez zatwierdzania",
-        "hint": "Statystyka gracza do Search i projektu przechodzi bez twojego kliknięcia. Resolve nie pyta nikogo."
+        "hint": "Statystykę, którą gracz proponuje do Search albo projektu, moduł zatwierdza bez twojego kliknięcia. Resolve i tak nikogo nie pyta."
       },
       "friskForce": {
         "name": "Frisk: zmuszanie po odmowie",
-        "hint": "Wyłączone: jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy."
+        "hint": "Po wyłączeniu jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy."
       },
       "chargeMovement": {
         "name": "Przejście między pokojami kosztuje Move",
@@ -332,18 +332,18 @@
       },
       "despairFromRolls": {
         "name": "Rzuty dają Despair",
-        "hint": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Podziel uczniów w panelu GM-a, Despair Flow."
+        "hint": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Każdego ucznia przypisz do Monokumy w Despair Flow w panelu GM-a."
       },
       "hideSystemFear": {
         "name": "Zastąp licznik Fear z Daggerheart",
-        "hint": "Ukrywa wspólny pasek Fear z Daggerheart i daje każdemu Monokumie własną pulę Despair. Wyłącz, by wrócić do licznika systemu."
+        "hint": "Ukrywa wspólny pasek Fear z Daggerheart. Każdy Monokuma i tak ma własną pulę Despair. Wyłącz, by znów pokazać pasek."
       },
       "enforceIsoWelcome": {
         "name": "Trzymaj okno powitalne Isometric Perspective zamknięte u wszystkich",
-        "hint": "Okno powitalne Isometric Perspective nie otworzy się nikomu."
+        "hint": "Okno powitalne Isometric Perspective nie otworzy się nikomu, także GM-owi."
       },
       "enforceDhWelcome": {
-        "name": "Trzymaj okno powitalne Daggerheart zamknięte u wszystkich",
+        "name": "Trzymaj dziennik powitalny Daggerheart zamknięty u wszystkich",
         "hint": "Dziennik powitalny Daggerheart nie otworzy się nikomu, także GM-owi."
       },
       "enforcePlayerFiles": {
@@ -356,11 +356,11 @@
       },
       "pixelFont": {
         "name": "Czcionka pikselowa",
-        "hint": "Tylko Monokuma Legacy: Press Start 2P na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju."
+        "hint": "Tylko Monokuma Legacy: Press Start 2P na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju. Dotyczy tylko tej przeglądarki."
       },
       "wideProjectWindows": {
         "name": "Szerokie okna projektów",
-        "hint": "Okna projektów otwierają się szerzej."
+        "hint": "Okna projektów otwierają się szerzej. Dotyczy tylko tej przeglądarki."
       },
       "language": {
         "name": "Język",
@@ -368,31 +368,31 @@
       },
       "documentLanguage": {
         "name": "Język dokumentów",
-        "hint": "Język dokumentów, które moduł zapisuje w tym świecie, jeden dla wszystkich. Okna, karty i arkusz zostają w języku ustawionym w każdej przeglądarce. Ustawia go pierwszy start głównego GM-a, na jego język."
+        "hint": "Język dokumentów, które moduł zapisuje w tym świecie, jeden dla wszystkich. Okna, karty i arkusz zostają w języku ustawionym w każdej przeglądarce. Gdy główny GM pierwszy raz uruchomi grę, moduł ustawia tu język jego przeglądarki."
       },
       "moveAudit": {
-        "name": "Żeton gracza przesunięty przez ścianę",
-        "hint": "Gdy ktoś przesunie żeton gracza przez ścianę.",
+        "name": "Token gracza przesunięty przez ścianę",
+        "hint": "Wybierz, co ma się stać, gdy ktoś przesunie token gracza przez ścianę.",
         "log": "Zapisz to w Dzienniku debugowania",
-        "sendBack": "Cofnij żeton"
+        "sendBack": "Cofnij token"
       },
       "foundryToolWindows": {
         "name": "Okna modułu dla paska bocznego i sterowania sceną Foundry",
-        "hint": "Pasek boczny i narzędzia mapy w dwóch oknach, z przycisku w rogu."
+        "hint": "Przenosi pasek boczny i narzędzia mapy GM-a do dwóch okien, które otwiera przycisk w rogu. Ekran graczy się nie zmienia. Zapisanie przeładowuje Foundry u wszystkich, gdy to potwierdzisz."
       },
       "theme": {
         "name": "Motyw",
-        "hint": "Wygląd modułu.",
+        "hint": "Wygląd modułu. Dotyczy tylko tej przeglądarki.",
         "stainedGlass": "Stained Glass",
         "monokumaLegacy": "Monokuma Legacy"
       },
       "glassPulse": {
         "name": "Puls szkła",
-        "hint": "Powolne ciemnienie wędrujące po ramie. Wyłącz, by zostawić szkło, ale zatrzymać jego oddech. Tylko ten klient."
+        "hint": "Powolne ciemnienie wędrujące po ramie. Wyłącz, by zostawić szkło, ale zatrzymać jego oddech. Dotyczy tylko tej przeglądarki."
       },
       "sequences": {
         "name": "Sekwencje na cały ekran",
-        "hint": "Wejście do Class Trial, werdykt, obroty i błyski zegara oraz plansze dnia na każdym ekranie. Wyłączone: grają tylko dźwięki rozprawy i werdyktu. Esc pomija jedną."
+        "hint": "Wejście do Class Trial, werdykt, obroty i błyski zegara oraz plansze dnia na każdym ekranie. Po wyłączeniu grają tylko dźwięki rozprawy i werdyktu. Esc pomija jedną sekwencję."
       },
       "reducedMotion": {
         "name": "Ograniczone animacje",
@@ -400,7 +400,7 @@
       },
       "hudTicker": {
         "name": "Nazwa stanu za zegarem",
-        "hint": "Blady napis pory dnia za zegarem."
+        "hint": "Blady napis pory dnia za zegarem. Dotyczy tylko tej przeglądarki."
       },
       "bulletSort": {
         "name": "Jak grupowane są Truth Bullets",
@@ -408,11 +408,11 @@
       },
       "glassBlur": {
         "name": "Szkło rozmywa mapę",
-        "hint": "Szkło matowi mapę, która jest za nim. Gdy gra się przycina, wyłącz to najpierw."
+        "hint": "Szkło matowi mapę, która jest za nim. Gdy gra się przycina, wyłącz najpierw to. Dotyczy tylko tej przeglądarki."
       },
       "messengerSound": {
         "name": "Dźwięki komunikatora",
-        "hint": "Trzy dźwięki komunikatora - wysłano, odebrano, pytanie do GM-a. Dotyczy tylko tej przeglądarki."
+        "hint": "Komunikator odtwarza trzy dźwięki: wysłanej wiadomości, odebranej wiadomości i pytania do GM-a. Dotyczy tylko tej przeglądarki."
       },
       "uiScale": {
         "name": "Skala interfejsu",
@@ -431,12 +431,12 @@
         "hint": "Słyszysz tylko osoby ze swojego pokoju. Wymaga LiveKit AVClient."
       },
       "voiceTile": {
-        "name": "Kafel głosu zamiast doku kamer",
-        "hint": "Chowa kamery. Kafel pokazuje, ile osób jest w twoim kanale."
+        "name": "Kafelek głosu zamiast doku kamer",
+        "hint": "Chowa kamery. Kafelek pokazuje, ile osób jest w twoim kanale."
       },
       "highContrast": {
         "name": "Wysoki kontrast",
-        "hint": "Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Rozmiar tekstu ustawia Skala interfejsu, nie ten przełącznik, a mapy to nie dotyczy. Włącza się sam, gdy twój system prosi o większy kontrast. Tylko ten klient."
+        "hint": "Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Gdy twój system prosi o większy kontrast, ten wygląd działa także przy wyłączonym ustawieniu. Dotyczy tylko tej przeglądarki."
       }
     },
     "SettingsWindow": {
@@ -447,17 +447,17 @@
       "save": "Zapisz zmiany",
       "scopeClient": "Tylko ta przeglądarka",
       "scopeWorld": "Cały stół",
-      "uiScaleHint": "Powiększa albo pomniejsza tekst i okna modułu w tej przeglądarce.",
+      "uiScaleHint": "Powiększa albo pomniejsza tekst i okna modułu, a z nimi Foundry, w tej przeglądarce.",
       "scaleNow": "Na tym ekranie: {total}%.",
       "glassOnly": "Tylko Stained Glass: wybierz ten motyw, by to zmienić.",
       "legacyOnly": "Tylko Monokuma Legacy: wybierz ten motyw, by to zmienić.",
       "gameTitle": "Ustawienia gry",
-      "mayNot": "Ustawienia gry otworzy tylko użytkownik, któremu Foundry pozwala zmieniać ustawienia świata.",
+      "mayNot": "Nie masz w Foundry uprawnienia do zmiany ustawień świata, więc nie otworzysz ustawień gry.",
       "gameNote": "To ustawienia całego stołu: zmiana tutaj zmienia grę dla wszystkich.",
-      "liveNote": "Głośność i ustawienia głosu działają od razu; reszta czeka na Zapisz.",
+      "liveNote": "Głośność i ustawienia głosu zmieniają się od razu; resztę zapisuje przycisk „Zapisz zmiany”.",
       "sections": {
         "audio": "Głos",
-        "foundry": "Foundry i system",
+        "foundry": "Foundry, Daggerheart i inne moduły",
         "look": "Wygląd",
         "effects": "Efekty i dostępność",
         "sound": "Dźwięk i głos",
@@ -468,25 +468,25 @@
       }
     },
     "SearchTokens": {
-      "title": "Search Tokens",
+      "title": "Search Tokeny",
       "allFull": {
-        "one": "Każdy pokój wciąż ma komplet: {max} token.",
-        "few": "Każdy pokój wciąż ma komplet: {max} tokeny.",
-        "many": "Każdy pokój wciąż ma komplet: {max} tokenów.",
-        "other": "Każdy pokój wciąż ma komplet: {max} tokenów."
+        "one": "Każdy pokój ma jeszcze {max} token, czyli komplet.",
+        "few": "Każdy pokój ma jeszcze wszystkie {max} tokeny.",
+        "many": "Każdy pokój ma jeszcze wszystkie {max} tokenów.",
+        "other": "Każdy pokój ma jeszcze wszystkie {max} tokenów."
       },
-      "reset": "Search Tokens odnowione.",
+      "reset": "Każdy pokój ma znowu komplet Search Tokenów.",
       "exhausted": "W tym pokoju nie ma już Search Tokenów. Pojawią się znowu o następnej porze dnia.",
       "pickedClean": "Ktoś był tu pierwszy. Akcja przepada.",
-      "timeout": "Przeszukanie nie zostało policzone.",
+      "timeout": "Search się nie liczy. Nie tracisz akcji.",
       "spendOne": "Wydaj jeden",
       "giveOne": "Oddaj jeden",
       "refillRoom": "Odnów ten pokój",
-      "roomSetupNote": "Search Tokens: {max} na pokój, odnawiane z każdą porą dnia. - i + działają od razu.",
+      "roomSetupNote": "Liczba Search Tokenów na pokój to {max}. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.",
       "roomColumn": "Pokój",
       "tokensColumn": "Tokeny",
-      "sealed": "Tego pokoju nie da się przeszukać. Nie ma tu nic do znalezienia i żadna pora dnia tego nie zmieni.",
-      "roomSetupLine": "Search Tokens na pokój: {max}, odnawiane z każdą porą dnia. - i + zmieniają tylko ten pokój.",
+      "sealed": "Tego pokoju nie przeszukasz: nie ma tu nic do znalezienia o żadnej porze dnia.",
+      "roomSetupLine": "Liczba Search Tokenów na pokój to {max}. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.",
       "sealedColumn": "Bez Search",
       "sealedNote": "„Bez Search” zamyka pokój na Search, dopóki tego nie odznaczysz."
     },
@@ -603,17 +603,17 @@
       "eclipseFreePlacement": "Ustaw swój token w dowolnym pokoju"
     },
     "Assign": {
-      "outside": "Poza każdą pulą",
+      "outside": "Bez puli",
       "fallbackOption": "{name} (domyślnie)",
-      "intro": "Rzut zakończony Despair zasila Monokumę tego ucznia.",
+      "intro": "Rzut zakończony Despair zasila pulę Monokumy tego ucznia.",
       "monokuma": "Monokuma",
       "save": "Zapisz",
       "splitEvenly": "Podziel po równo",
-      "splitDone": "Uczniowie podzieleni po równo między Monokumy.",
-      "failed": "Nie udało się zapisać podziału. Zajrzyj do konsoli.",
+      "splitDone": "Uczniowie są teraz podzieleni po równo między Monokumy.",
+      "failed": "Nie udało się zapisać podziału. Zajrzyj do Dziennika debugowania.",
       "noMonokumas": "Nikt nie ma puli Despair: w tym świecie nie ma konta Gamemastera. Nadaj komuś tę rolę i otwórz Despair Flow ponownie.",
       "nobody": "- nikt -",
-      "implicitHint": "Nigdy nie przypisano: ten uczeń zasila pierwszą pulę, dopóki nie wybierzesz innej.",
+      "implicitHint": "Ten uczeń nie ma przypisania i zasila pierwszą pulę, dopóki nie wybierzesz mu puli.",
       "footnote": "Despair z rzutów ucznia trafia do puli tego Monokumy, do którego jest tu przypisany. „(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Przypisania dostaje przeglądarka każdego gracza, więc gracz może odczytać, kto jest ustawiony na „- nikt -”."
     },
     "Despair": {
@@ -1479,28 +1479,28 @@
       "noAnswers": "Podaj obie odpowiedzi: jedną dla Strefy A i jedną dla Strefy B.",
       "noQuestion": "Pytanie Logic Dive nie ma treści.",
       "noSet": "Wybierz zestaw Logic Dive.",
-      "noCount": "Nie ma czego liczyć: wynik już jest.",
+      "noCount": "Nie ma czego liczyć: „Policz teraz” działa tylko podczas głosowania.",
       "noQuestionHere": "Tylko w Logic Dive.",
       "noSide": "Wybierz Strefę A albo Strefę B.",
       "samePick": "Ta strona jest już wybrana.",
       "noThesis": "Tylko mówca, w swojej turze, w kilku słowach.",
-      "notStarted": "Tryb się nie zaczął. Konsola mówi dlaczego, gdy głos albo strefy nie są gotowe.",
+      "notStarted": "Tryb się nie zaczął. Sprawdź, czy obie odpowiedzi są wpisane, a w Logic Dive, czy wybrano zestaw i czy pytanie ma treść.",
       "straw": {
-        "opened": "{question} Stań w Strefie A, jeśli {a}, albo w Strefie B, jeśli {b}. Liczenie za {seconds} s.",
-        "openedBare": "Stań w Strefie A, jeśli {a}, albo w Strefie B, jeśli {b}. Liczenie za {seconds} s.",
-        "finding": "Klasa uważa: {answer}. (Strefa A {a}, Strefa B {b})",
-        "split": "Klasa jest podzielona: Strefa A {a}, Strefa B {b}. Scrum Debate może to rozstrzygnąć."
+        "opened": "{question} Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Liczenie za {seconds} s.",
+        "openedBare": "Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Liczenie za {seconds} s.",
+        "finding": "Klasa uważa: {answer}. W Strefie A policzono {a}, w Strefie B {b}.",
+        "split": "Klasa jest podzielona. W Strefie A policzono {a}, w Strefie B {b}. Scrum Debate może to rozstrzygnąć."
       },
       "dive": {
-        "opened": "Pytanie {n} z {total}: {question} Strefa A: {a}. Strefa B: {b}. {seconds} s na wybór.",
-        "openedBare": "Pytanie {n} z {total}. Strefa A: {a}. Strefa B: {b}. {seconds} s na wybór.",
-        "right": "Dobrze! Strefa A {a}, Strefa B {b}.",
-        "wrong": "Źle. Logic Dive kończy się tutaj. (Strefa A {a}, Strefa B {b})",
-        "tie": "Remis liczy się jako zła odpowiedź. Logic Dive kończy się tutaj. (Strefa A {a}, Strefa B {b})",
+        "opened": "Pytanie {n} z {total}: {question} Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Na wybór jest {seconds} s.",
+        "openedBare": "Pytanie {n} z {total}. Kto wybiera „{a}”, staje w Strefie A, a kto „{b}”, w Strefie B. Na wybór jest {seconds} s.",
+        "right": "Dobra odpowiedź. W Strefie A policzono {a}, w Strefie B {b}.",
+        "wrong": "Zła odpowiedź. W Strefie A policzono {a}, w Strefie B {b}. Logic Dive kończy się tutaj.",
+        "tie": "Remis. W Strefie A policzono {a}, w Strefie B {b}. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.",
         "solved": "Logic Dive rozwiązany: {finding}",
         "skipped": "GM pomija pytanie {n}.",
         "replay": "Ten zestaw już był grany: skończył się {when} ({outcome}). Gracze mogą go pamiętać.",
-        "replayStopped": "Ten zestaw już był grany: zatrzymał się na pytaniu {n}, {when} ({outcome}). Zacznie się tam, chyba że wybierzesz inne pytanie.",
+        "replayStopped": "Ten zestaw już był grany: zatrzymał się na pytaniu {n}, {when} ({outcome}). Po wybraniu zacznie się od tego pytania.",
         "outcome": {
           "played": "zagrany",
           "solved": "rozwiązany",
@@ -1508,7 +1508,7 @@
           "tie": "remis",
           "stopped": "zatrzymany przez GM-a",
           "skipped": "pominięte ostatnie pytanie",
-          "broken": "pytanie bez treści"
+          "broken": "pytanie albo odpowiedź bez treści"
         },
         "editor": {
           "listTitle": "Zestawy Logic Dive",
@@ -1533,12 +1533,12 @@
         }
       },
       "scrum": {
-        "opened": "{question} Wybierzcie stronę: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Obozy naradzą się za {seconds} s.",
-        "openedBare": "Wybierzcie stronę: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Obozy naradzą się za {seconds} s.",
-        "confer": "Strony wybrane: Strefa A {a}, Strefa B {b}. Każdy obóz naradza się osobno przez {seconds} s, potem debata.",
-        "noVoice": "Głosy obozów nie są rozdzielone: głos w pokojach jest wyłączony albo LiveKit nie działa. Obozy naradzają się tak, jak pozwala stół.",
-        "begins": "Pierwsza mówi Strefa {zone}; obozy mówią na zmianę po {seconds} s, do tury {turns}.",
-        "over": "Scrum Debate dobiegła końca: Strefa A {a}, Strefa B {b}.",
+        "opened": "{question} Uczniowie wybierają stronę: kto jest za „{a}”, staje w Strefie A, a kto za „{b}”, w Strefie B. Obozy naradzą się za {seconds} s.",
+        "openedBare": "Uczniowie wybierają stronę: kto jest za „{a}”, staje w Strefie A, a kto za „{b}”, w Strefie B. Obozy naradzą się za {seconds} s.",
+        "confer": "Strony wybrane. W Strefie A policzono {a}, w Strefie B {b}. Każdy obóz naradza się teraz osobno przez {seconds} s, a potem zaczyna się debata.",
+        "noVoice": "Głosy obozów nie są rozdzielone: ustawienie „Głos osobno w każdym pokoju” jest wyłączone albo LiveKit nie działa. Obozy naradzają się tak, jak pozwala stół.",
+        "begins": "Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po {seconds} s, a tura {turns} jest ostatnia.",
+        "over": "Scrum Debate dobiegła końca. W Strefie A policzono {a}, w Strefie B {b}.",
         "empty": "Strefa {zone} jest pusta. Klasa uważa: {answer}.",
         "thesis": "Teza Strefy {zone}: {text}"
       },
@@ -1551,13 +1551,13 @@
           "vote": "{seconds} s do liczenia."
         },
         "dive": {
-          "vote": "Pytanie {n} z {total} - {seconds} s na wybór.",
-          "pause": "Pytanie {n} z {total} policzone - odpowiedź za {seconds} s."
+          "vote": "Pytanie {n} z {total}, {seconds} s na wybór.",
+          "pause": "Pytanie {n} z {total} jest policzone. Odpowiedź za {seconds} s."
         },
         "scrum": {
-          "setup": "Strony: obozy się ustawiają - {seconds} s.",
-          "confer": "Narada obozów: każdy obóz w swoim pokoju głosowym - {seconds} s.",
-          "speak": "Tura {turn} z {turns}: {who} mówi za Strefę {zone} - {seconds} s."
+          "setup": "Strony: obozy się ustawiają jeszcze przez {seconds} s.",
+          "confer": "Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez {seconds} s.",
+          "speak": "Tura {turn} z {turns}: {who} mówi za Strefę {zone} jeszcze przez {seconds} s."
         }
       },
       "confer": {
@@ -1580,15 +1580,15 @@
         "editSets": "Zestawy Logic Dive...",
         "start": "Zacznij",
         "hint": {
-          "straw": "45 s, żeby każdy stanął w strefie, potem jedno liczenie. Dwie trzecie po jednej stronie to Finding.",
-          "dive": "Pytania zestawu po kolei, po 60 s. Większość idzie dalej; zła odpowiedź albo remis kończą zestaw.",
+          "straw": "Każdy ma 45 s, żeby stanąć w strefie, potem następuje jedno liczenie. Co najmniej dwie trzecie policzonych po jednej stronie dają Finding, mniej oznacza podział, a następnym krokiem jest Scrum Debate.",
+          "dive": "Pytania zestawu idą po kolei, każde po 60 s. Gdy większość wybierze dobrą odpowiedź, zestaw idzie dalej; zła odpowiedź albo remis go kończą.",
           "scrum": "45 s na wybór stron, 120 s na osobną naradę obozów, potem obozy mówią na zmianę, mniejszy pierwszy."
         }
       },
       "pick": {
         "body": "Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.",
         "side": "{zone}: {answer}",
-        "done": "Stoisz w: {zone}."
+        "done": "Twoja strona to {zone}."
       },
       "findings": {
         "title": "Findings",
@@ -1603,7 +1603,7 @@
         "text": "Finding",
         "save": "Zapisz",
         "added": "GM dodaje Finding: {text}",
-        "edited": "GM zmienia Finding: {was} - teraz: {text}",
+        "edited": "GM zmienia Finding z „{was}” na „{text}”.",
         "deleted": "GM usuwa Finding z listy: {text}",
         "confirmed": "Monokuma potwierdza: {text}"
       }
@@ -2171,7 +2171,7 @@
       "file": "Plik",
       "rowButtons": "Sprawdź lub wyczyść",
       "notAssigned": "jeszcze nie przypisano",
-      "severalHint": "Jeden plik albo kilka rozdzielonych | - losowany jest jeden, nigdy dwa razy z rzędu ten sam.",
+      "severalHint": "Jeden plik albo kilka rozdzielonych znakiem „|”; każde odtworzenie losuje jeden, nigdy ten sam dwa razy z rzędu.",
       "fileCount": {
         "one": "{n} plik",
         "few": "{n} pliki",
@@ -2179,7 +2179,7 @@
         "other": "{n} plików"
       },
       "varies": "zmienny",
-      "variesHint": "Słyszany ciągle, więc każde odtworzenie lekko zmienia jego tempo.",
+      "variesHint": "Każde odtworzenie ma trochę inne tempo i głośność.",
       "varyLabel": "Różnicuj dźwięki, które słychać często",
       "varyHint": "Częste dźwięki brzmią za każdym razem trochę inaczej.",
       "choose": "Wybierz",
@@ -2365,8 +2365,8 @@
       "notSet": "- nie ustawiono -",
       "intro": "Wybierz playlistę dla każdego stanu.",
       "howOrder": "Jak działa kolejność",
-      "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie - playlist Eclipse.",
-      "trialNote": "Wygrywa wyższy wiersz. Rebuttal gra muzykę Objection.",
+      "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie używa playlist Eclipse.",
+      "trialNote": "Wyższy wiersz ma pierwszeństwo. Podczas Rebuttal nadal słychać muzykę Objection.",
       "incidentNote": "Morderstwo słyszą tylko jego uczestnicy i GM-owie.",
       "fadeNote": "Wyciszenie ustawiasz w Fade Duration playlisty. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
       "when": "Kiedy",
@@ -2394,17 +2394,17 @@
       "playFailed": "Ten utwór nie chciał zagrać. Zajrzyj do konsoli.",
       "noSituational": "Nie ma jeszcze playlisty o nazwie „{name}”.",
       "makeSituational": "Utwórz playlistę „{name}”",
-      "situationalMade": "„{name}” już istnieje. Wrzuć do niej utwory scen z panelu Playlisty - stingery, odkrycia, ciche momenty - i pojawią się tutaj.",
+      "situationalMade": "Playlista „{name}” jest gotowa. W panelu Playlisty dodaj do niej utwory do scen, a pojawią się tutaj.",
       "makeFailed": "Nie udało się utworzyć playlisty. Zajrzyj do konsoli.",
       "saveState": {
         "saving": "Zapisywanie...",
         "saved": "Zapisano",
-        "failed": "Nie zapisano - zajrzyj do konsoli"
+        "failed": "Nie zapisano. Zajrzyj do konsoli."
       },
       "diag": {
         "enabled": "Ustawienie „Muzyka podąża za stanem gry”: {value}",
         "on": "włączone",
-        "off": "WYŁĄCZONE",
+        "off": "wyłączone",
         "yes": "tak",
         "no": "nie",
         "drives": "Ta przeglądarka steruje odtwarzaniem: {value}",
@@ -2413,7 +2413,7 @@
         "playlists": "Playlisty w tym świecie: {n}",
         "cue": "Playlista sygnałów („{name}”): {value}",
         "cueTracks": "utwory: {n}",
-        "cueMissing": "BRAK - przycisk Odtwórz nie ma z czego wybierać",
+        "cueMissing": "brak, więc przycisk „Odtwórz” nie ma z czego wybierać",
         "cueRunning": "Gra sygnał: {value}",
         "cueHolding": ", wstrzymane playlisty: {n}",
         "colState": "stan",
@@ -2422,12 +2422,12 @@
         "testError": "błąd: {message}",
         "playingHere": "gra tutaj",
         "perClient": "osobno",
-        "missingPlaylist": "PRZYPISANA PLAYLISTA NIE ISTNIEJE",
-        "onCue": "{name} - playlista sygnałów, nigdy nie gra dla stanu",
-        "emptyPlaylist": "{name} - PUSTA, nie ma czego grać",
+        "missingPlaylist": "przypisana playlista nie istnieje",
+        "onCue": "{name}: to playlista sygnałów, która nigdy nie gra jako muzyka stanu",
+        "emptyPlaylist": "{name}: playlista jest pusta, nie ma czego grać",
         "wins": " <- wygrywa",
         "randomTrack": " (losowy utwór)",
-        "noState": "Żaden stan nie pasuje - nic nie zagra.",
+        "noState": "Żaden stan nie pasuje, więc muzyka zostaje bez zmian.",
         "unmapped": "„{state}” to aktywny stan, ale nie ma playlisty do grania, więc muzyka zostaje bez zmian. Przypisz ją: panel GM-a, Dźwięk, Muzyka."
       }
     },
@@ -2839,8 +2839,8 @@
       "trackerScore": "{total} wobec {n}"
     },
     "Investigation": {
-      "finalAskTitle": "Postawić Final Truth Remnant?",
-      "finalAskBody": "Dla Final Truth Remnant wybrano pokój, ale okno zamknięto bez Zapisz. Postawić go teraz?",
+      "finalAskTitle": "Postaw Final Truth Remnant",
+      "finalAskBody": "Final Truth Remnant ma już wybrany pokój, ale zamykasz okno, nie klikając Zapisz. Postawić go teraz?",
       "finalAskPlace": "Postaw",
       "plannedRoomGone": "Zaplanowanego pokoju „{room}” nie ma na tej scenie. Wybierz pokój.",
       "plannedRoom": "Zaplanowany pokój",
@@ -2849,22 +2849,22 @@
       "visibility": "Widoczność",
       "filterOrder": "Kolejność",
       "orderRoom": "Wg pokoju",
-      "orderNewest": "Najnowsze najpierw",
-      "filterPlayer": "Zostawił",
+      "orderNewest": "Od najnowszych",
+      "filterPlayer": "Kto zostawił",
       "filterRoom": "Pokój",
       "filterAll": "Wszyscy",
-      "filterAnywhere": "Gdziekolwiek",
+      "filterAnywhere": "Wszędzie",
       "filterChapter": "Rozdział",
-      "filterEveryChapter": "Każdy rozdział",
+      "filterEveryChapter": "Wszystkie rozdziały",
       "chapterN": "Rozdział {n}",
-      "neverOnePerson": "Ślad nigdy nie wskazuje nazwiska: Key Remnant zawęża krąg najwyżej do połowy obsady, inny do 2-4 osób.",
+      "neverOnePerson": "Remnant nigdy nie wskazuje nikogo wprost: Key Remnant zawęża krąg podejrzanych najwyżej do połowy obsady, każdy inny do 2-4 osób.",
       "filterCount": "Pokazano {shown} z {total}.",
       "noneMatch": "Żaden Remnant nie pasuje do tego filtra.",
       "plannerIntro": {
-        "one": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
-        "few": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
-        "many": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
-        "other": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób."
+        "one": "Na rozdział {chapter} przypada {n} trop. Powinien zawęzić krąg podejrzanych do {min}-{max} osób.",
+        "few": "Na rozdział {chapter} przypadają {n} tropy. Razem powinny zawęzić krąg podejrzanych do {min}-{max} osób.",
+        "many": "Na rozdział {chapter} przypada {n} tropów. Razem powinny zawęzić krąg podejrzanych do {min}-{max} osób.",
+        "other": "Na rozdział {chapter} przypada {n} tropów. Razem powinny zawęzić krąg podejrzanych do {min}-{max} osób."
       },
       "notePlaceholder": "Co widzi uczeń",
       "analysisPlaceholder": "Co dodaje laboratorium",
@@ -2880,25 +2880,25 @@
       "notFound": "Nikt go nie znalazł",
       "dashboardTitle": "Investigation",
       "keySummary": "Znaleziono {found} z {total}, {placed} na mapie.",
-      "foundBy": "Znalazł",
+      "foundBy": "Kto znalazł",
       "deleteTrace": "Usuń",
       "deleteTraceTitle": "Usuń Remnant",
       "deleteTraceAsk": "Usunąć Remnant „{name}”? Jego token znika z mapy, a jego wiersz ze sprawy.",
-      "revealedByMonokuma": "Ujawnione przez Monokumę",
+      "revealedByMonokuma": "Ujawniony przez Monokumę",
       "tooThin": {
-        "one": "Znaleziono tylko {found} Key Remnant. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
-        "few": "Znaleziono tylko {found} Key Remnanty. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
-        "many": "Znaleziono tylko {found} Key Remnantów. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
-        "other": "Znaleziono tylko {found} Key Remnantów. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu."
+        "one": "Znaleziono dopiero {found} Key Remnant, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż {min}. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.",
+        "few": "Znaleziono dopiero {found} Key Remnanty, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż {min}. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.",
+        "many": "Znaleziono dopiero {found} Key Remnantów, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż {min}. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.",
+        "other": "Znaleziono dopiero {found} Key Remnantów, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż {min}. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty."
       },
-      "tooThinNone": "Nie znaleziono jeszcze żadnego Key Remnantu. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
+      "tooThinNone": "Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż {min}. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.",
       "whoHasWhat": "Kto co ma",
       "student": "Uczeń",
       "bullets": "Bullets",
       "keysHeld": "Key",
       "unidentified": "Bez analizy",
       "breakdown": "Naprawdę",
-      "breakdownTooltip": "Czym naprawdę jest każdy Truth Bullet według klucza GM-ów - nie to, co pokazano jego posiadaczowi.",
+      "breakdownTooltip": "Czym jest każdy Truth Bullet według klucza GM-ów, niezależnie od tego, co widzi jego posiadacz.",
       "createHere": "Utwórz na mapie",
       "createNote": "Postaw od razu stawia Key Remnant wiersza na mapie, w wybranym pokoju: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju, ze słowami wpisanymi w wierszu. Wiersz, który jest już na mapie, nie ma przycisku Postaw.",
       "tabTraces": "Remnanty",
@@ -2907,8 +2907,8 @@
       "traceText": "Opis dla gracza",
       "traceType": "Czym naprawdę jest",
       "noTraces": "Nigdzie nie ma jeszcze Remnantów.",
-      "keyLimitLine": "Użyto {used} z {limit} w tym rozdziale - minimum to {min}.",
-      "keyLimitOverride": "Utwórz więcej, niż pozwala rzut otwarcia",
+      "keyLimitLine": "Limit Key Remnantów w tym rozdziale: {limit}, użyto {used}. Minimum to {min}.",
+      "keyLimitOverride": "Postaw więcej, niż pozwala rzut otwarcia",
       "finalNotePlaceholder": "Na co wskazuje",
       "tracesSaved": {
         "one": "Zaktualizowano {n} Remnant.",
@@ -2918,41 +2918,41 @@
       },
       "traceImage": "Obraz",
       "savedOver": {
-        "one": "Jedno pole zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisane: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nim teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "few": "{n} pola zmieniły się gdzie indziej, gdy to okno było otwarte, i nie zostały zapisane: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "many": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
-        "other": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Otwórz Investigation ponownie, by zobaczyć, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać."
+        "one": "Jedno pole zmieniło się gdzie indziej podczas twojej edycji, więc go nie zapisano: {list}. Otwórz Investigation ponownie, by zobaczyć jego obecną wartość; jeśli twoja ma zostać, wpisz ją jeszcze raz.",
+        "few": "{n} pola zmieniły się gdzie indziej podczas twojej edycji, więc ich nie zapisano: {list}. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.",
+        "many": "{n} pól zmieniło się gdzie indziej podczas twojej edycji, więc ich nie zapisano: {list}. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.",
+        "other": "{n} pól zmieniło się gdzie indziej podczas twojej edycji, więc ich nie zapisano: {list}. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz."
       },
-      "savedOverItem": "{field} - {row}: „{value}”",
-      "saveStopped": "Zapis zatrzymał się w połowie: {error}. To, co zapisał wcześniej, zostaje, a reszty nie zapisano; Investigation jest znów otwarte na tym, co jest teraz w świecie - wpisz resztę jeszcze raz.",
+      "savedOverItem": "{field} ({row}): „{value}”",
+      "saveStopped": "Zapis zatrzymał się w połowie: {error}. To, co zdążył zapisać, zostaje; Investigation otwiera się znowu z tym, co jest teraz w świecie. Wpisz resztę jeszcze raz.",
       "createHereTitle": "Utwórz tu Key Remnant",
       "createHereIntro": {
-        "one": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia Remnant na mapie i może go podpiąć pod {n} zaplanowany trop.",
-        "few": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów.",
-        "many": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów.",
-        "other": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów."
+        "one": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod {n} zaplanowany trop, jeśli nie ma go jeszcze na mapie.",
+        "few": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, którego nie ma jeszcze na mapie.",
+        "many": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, którego nie ma jeszcze na mapie.",
+        "other": "Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z {n} zaplanowanych tropów, którego nie ma jeszcze na mapie."
       },
-      "whichSlot": "Który zaplanowany trop to jest?",
+      "whichSlot": "Który to zaplanowany trop?",
       "noSlot": "Żaden z {n}",
       "createdHere": "Key Remnant postawiony w pokoju {room}.",
       "unfoundKeys": {
-        "one": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje jednego. {despair} Despair do każdej puli: {who}.",
-        "few": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje {n}. {despair} Despair do każdej puli: {who}.",
-        "many": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje {n}. {despair} Despair do każdej puli: {who}.",
-        "other": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje {n}. {despair} Despair do każdej puli: {who}."
+        "one": "Key Remnanty znalezione w czasie Investigation: {found} z {bar}; brakuje jednego. Do puli każdego Monokumy ({who}) trafia {despair} Despair.",
+        "few": "Key Remnanty znalezione w czasie Investigation: {found} z {bar}; brakuje {n}. Do puli każdego Monokumy ({who}) trafia {despair} Despair.",
+        "many": "Key Remnanty znalezione w czasie Investigation: {found} z {bar}; brakuje {n}. Do puli każdego Monokumy ({who}) trafia {despair} Despair.",
+        "other": "Key Remnanty znalezione w czasie Investigation: {found} z {bar}; brakuje {n}. Do puli każdego Monokumy ({who}) trafia {despair} Despair."
       },
       "keyNoteLabel": "Twoja notatka",
-      "keyNotePlaceholder": "Czyta to tylko GM",
-      "keyPublicNote": "Nazwa i Opis dla gracza trafiają do znalazcy od razu; Co ujawnia analiza czeka na jego Analyze. Te same trzy pola, które edytuje zakładka Remnanty. Twoja notatka zostaje twoja.",
+      "keyNotePlaceholder": "Czytają to tylko GM-owie",
+      "keyPublicNote": "„Nazwa” i „Opis dla gracza” trafiają do znalazcy od razu; „Co ujawnia analiza” czeka na jego Analyze. Te same trzy pola zmienisz w zakładce Remnanty. Twoją notatkę czytają tylko GM-owie.",
       "leftoverKeys": {
         "one": "Na mapie wciąż jest {n} Key Remnant z wcześniejszego rozdziału. Plan tego rozdziału go nie widzi; usuń go na końcu rozdziału albo podepnij tutaj.",
         "few": "Na mapie wciąż są {n} Key Remnanty z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
         "many": "Na mapie wciąż jest {n} Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
         "other": "Na mapie wciąż jest {n} Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj."
       },
-      "finalFoundBy": "Znalazł",
+      "finalFoundBy": "Kto znalazł",
       "finalNobody": "Nikt go nie znalazł",
-      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnia sprawa należała do rozdziału {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnanty, więc nic nie policzono.",
+      "chargeTooLate": "Nie naliczono Despair za nieznalezione Key Remnanty. Zegar jest już w rozdziale {now}, a ostatnia sprawa dotyczyła rozdziału {was}, więc ten rozdział nie ma sprawy, z której można by je policzyć.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {
         "one": "Jeszcze jeden znaleziony Key Remnant jest spoza planu i wlicza się do progu {bar} znalezionych: {names}.",
@@ -2961,18 +2961,18 @@
         "other": "Jeszcze {n} znalezionych Key Remnantów jest spoza planu i wlicza się do progu {bar} znalezionych: {names}."
       },
       "newTraceTitle": "Nowy Remnant",
-      "newTraceIntro": "Trafia w losowe miejsce pokoju; przesuń token, jeśli miejsce ma znaczenie.",
-      "newTraceTied": "Powiązany z tym morderstwem (przetrwa czyszczenie na koniec rozdziału)",
+      "newTraceIntro": "Remnant trafia w losowe miejsce w pokoju; przesuń token, jeśli miejsce ma znaczenie.",
+      "newTraceTied": "Powiązany z tym morderstwem (przetrwa czyszczenie po rozdziale)",
       "newTraceReinforced": "Reinforced (nie do sprzątnięcia)",
-      "newTraceNote": "Nazwę i opis uczeń przeczyta, gdy go znajdzie; to, co ujawnia analiza - dopiero po Analyze. Twoja notatka zostaje twoja.",
+      "newTraceNote": "Nazwę i opis uczeń przeczyta, gdy znajdzie ten Remnant, a to, co ujawnia analiza, dopiero po swoim Analyze. Twoją notatkę czytają tylko GM-owie.",
       "newTraceBadType": "Ten moduł nie zna takiego rodzaju Remnantu.",
       "newTraceDone": "{type} jest teraz w pokoju {room}.",
-      "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić Remnantu. Najpierw narysuj regiony - Ustawienia pokoi wyjaśniają, jak.",
-      "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od tego, gdzie go postawisz, a nie od skali powyżej: {list}. Zwykły dowód na tym samym stopniu widoczności jest trudniejszy o trzy do sześciu. Skala mówi, ile trop zdradza.",
-      "newTraceUnfindable": "Nic nie znajdzie Remnantu tego rodzaju przy tej trudności - Observe nie ma dla niego progu."
+      "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić Remnantu. Najpierw narysuj regiony; jak to zrobić, wyjaśniają Ustawienia pokoi.",
+      "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od jego widoczności: {list}. Zwykły dowód o tej samej widoczności ma próg wyższy o trzy do sześciu. Skala powyżej nie zmienia tego progu; mówi tylko, ile trop zdradza.",
+      "newTraceUnfindable": "Observe nie ma progu dla Remnantu tego rodzaju przy tej widoczności, więc nikt by go nie znalazł. Otwórz Nowy Remnant jeszcze raz i wybierz inny rodzaj albo inną widoczność."
     },
     "Live": {
-      "movedUnder": "Zmienione gdzie indziej na: {value}",
+      "movedUnder": "Gdzie indziej zmieniono to pole na {value}",
       "ticked": "zaznaczone",
       "unticked": "niezaznaczone"
     },
@@ -4993,7 +4993,7 @@
       "unnamed": "bez nazwy"
     },
     "Tables": {
-      "installed": "Tabele przedmiotów gotowe: {created} utworzono, {skipped} już istniało.",
+      "installed": "Tabele przedmiotów są gotowe: utworzono {created}, a {skipped} zostawiono bez zmian.",
       "allPresent": {
         "one": "{n} tabela przedmiotów już istnieje w tym świecie.",
         "few": "Wszystkie {n} tabele przedmiotów już istnieją w tym świecie.",
@@ -5018,55 +5018,55 @@
       "newTierPool": "Nowa pula Tier",
       "newTierPoolPlaceholder": "np. DRPG Tools - Tier 2",
       "newTierPoolNote": "Pulę Tier nazywa się jej kategorią i jej Tier, tak jak „DRPG Tools - Tier 2”. Zwykle nie tworzy się jej ręcznie: „Zainstaluj / przeinstaluj” poniżej buduje wszystkie.",
-      "newTierPoolForms": "„{name}” to nie pula Tier. Nazwij ją kategorią i Tierem, jedną z nazw: {forms} - gdzie N to Tier od {low} do {high}.",
-      "renameOtherPool": "„{name}” to nazwa innej puli. Ta trzyma przedmioty z „{pool}”: zostaw w nazwie jej kategorię i Tier.",
+      "newTierPoolForms": "„{name}” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: {forms}, gdzie N to Tier od {low} do {high}.",
+      "renameOtherPool": "„{name}” to nazwa innej puli. Ta tabela zawiera przedmioty puli „{pool}”, więc zostaw w nazwie jej kategorię i Tier.",
       "tabNewItem": "Nowy przedmiot",
-      "installTabNote": "„Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw - jedną tabelę na kategorię i Tier. Jeśli już istnieją, wybierasz między zachowaniem swoich a przebudową.",
+      "installTabNote": "„Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw, po jednej tabeli na każdą kategorię i Tier. Jeśli tabele już istnieją, wybierzesz, czy zachować swoje, czy je przebudować.",
       "editorIntro": "Wszystko, co może wypaść przy Search. Wybierz tabelę po lewej.",
       "tableEmpty": "W tej tabeli nie ma jeszcze nic.",
       "removeItem": "Usuń z tej tabeli",
       "roomTotal": "Wszystko",
       "roomFilter": "Pokaż",
-      "roomBreakdown": "Posortowane według tego, czym pule Tier nazywają każdą rzecz. Płaska tabela pokoju wciąż odpowiada na dowolną kategorię, o którą pyta Search - nazwij tabelę „Pokój - Narzędzia zbrodni”, by decydowało się to tutaj.",
+      "roomBreakdown": "Pogrupowane według tego, do jakiej kategorii pule Tier zaliczają każdą nazwę. Płaska tabela pokoju odpowiada na każdą kategorię, o którą pyta Search. Nazwij tabelę „Kuchnia - Narzędzia zbrodni”, żeby kategorię jej rzeczy ustalała sama tabela.",
       "unfiled": "W żadnej puli Tier",
-      "unfiledNote": "Żadna pula Tier nie zawiera tych nazw, więc moduł nie umie powiedzieć, czym są ani jak są dobre. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do puli Tier.",
-      "placeTooltip": "Które pule zawierają ten przedmiot",
-      "placeTitle": "Gdzie mieszka {name}?",
+      "unfiledNote": "Żadna pula Tier nie zawiera tych nazw, więc moduł nie zna ich kategorii ani Tieru. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do puli Tier.",
+      "placeTooltip": "Wybierz pule dla tego przedmiotu",
+      "placeTitle": "Pule przedmiotu „{name}”",
       "placeIntro": "Zaznacz każdą pulę, w której ten przedmiot ma być. Zaznaczenie nowej kopiuje go tam, odznaczenie wyjmuje, a odznaczenie puli, na którą patrzysz, przenosi go.",
       "placeRolesNote": "Opis, obrazek i role idą razem z nim. Pula Tier poniżej Tier 2 nie przyjmuje ról, a żadna pula nie przyjmuje roli będącej jej własną kategorią.",
       "placeSave": "Zapisz",
-      "placeNone": "Przedmiot musi mieszkać w co najmniej jednej puli. Użyj ✕ w wierszu, by usunąć go całkiem.",
-      "placeUnchanged": "{name} jest już dokładnie w tych pulach.",
-      "placeDone": "{name}: dodano {added}, usunięto {removed}.",
-      "noneYet": "Nie ma jeszcze tabel przedmiotów - utwórz domyślny zestaw poniżej.",
+      "placeNone": "Przedmiot musi być w co najmniej jednej puli. Żeby usunąć go całkiem, użyj ✕ w wierszu.",
+      "placeUnchanged": "Przedmiot „{name}” jest już dokładnie w tych pulach.",
+      "placeDone": "„{name}”: dodano {added}, usunięto {removed}.",
+      "noneYet": "Nie ma jeszcze tabeli do pokazania.",
       "addItem": "Dodaj przedmiot",
       "picture": "Obrazek",
       "pictureOwn": "Z kategorii",
       "pictureFile": "Inny plik...",
-      "tierTargetIs": "Trafia do tabeli {table}. Wyliczone z kategorii i Tier powyżej.",
-      "tierTargetNone": "Nie ma takiej puli Tier - przedmiot wypadnie tylko w zaznaczonych pokojach. Zainstaluj pule na zakładce Pule Tier.",
+      "tierTargetIs": "Trafia do tabeli {table}, wybranej według kategorii i Tieru powyżej.",
+      "tierTargetNone": "Nie ma takiej puli Tier, więc przedmiot trafi tylko do zaznaczonych tabel pokoi. Zainstaluj pule w zakładce Pule Tier.",
       "roomTargets": "Tabele pokoi, w których też się pojawia:",
-      "noRoomTables": "Nie ma jeszcze tabel pokoi - utwórz jedną na zakładce Pule pokoi.",
-      "rolesTierOnly": "Dwie role zaczynają się od Tier {tier} - tak tani przedmiot robi jedną rzecz.",
+      "noRoomTables": "Nie ma jeszcze tabel pokoi. Utwórz jedną w zakładce Pule pokoi.",
+      "rolesTierOnly": "Poniżej Tier {tier} przedmiot nie służy za nic innego.",
       "rolesNote": "Czym jeszcze może być. Wciąż zajmuje jedno miejsce.",
-      "addNote": "Znalazca dostanie ikonę i opis.",
-      "needsName": "Przedmiot potrzebuje nazwy.",
-      "needsTable": "Wybierz tabelę Tier albo zaznacz co najmniej jedną tabelę pokoju.",
+      "addNote": "Znalazca dostanie obrazek i opis.",
+      "needsName": "Nazwa nie może być pusta.",
+      "needsTable": "Nie ma puli Tier dla tej kategorii i Tieru. Zaznacz co najmniej jedną tabelę pokoju.",
       "itemAdded": {
         "one": "„{name}” dodano do {n} tabeli.",
         "few": "„{name}” dodano do {n} tabel.",
         "many": "„{name}” dodano do {n} tabel.",
         "other": "„{name}” dodano do {n} tabel."
       },
-      "changeIcon": "Zmień ikonę tego przedmiotu",
+      "changeIcon": "Zmień obrazek tego przedmiotu",
       "newPool": "Nowa tabela pokoju",
       "newPoolPlaceholder": "np. Kuchnia",
-      "newPoolNote": "To, co pokój ma na stanie. Przypisz ją w Ustawieniach pokoi, kolumna „Losuje z”.",
-      "newPoolTierName": "Ta nazwa pasuje do wzorca tabeli Tier („DRPG … - Tier N”) - tabela pokoju potrzebuje własnej nazwy.",
+      "newPoolNote": "To, co pokój ma na stanie. Przypisz tabelę pokojowi w Ustawieniach pokoi, w kolumnie „Losuje z”.",
+      "newPoolTierName": "Ta nazwa wygląda jak nazwa puli Tier („DRPG … - Tier N”). Tabela pokoju potrzebuje własnej nazwy.",
       "newPoolExists": "Tabela o nazwie „{name}” już istnieje.",
-      "presetRoomNoTable": "{room} nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska zostały tam.",
-      "presetRoomTier": "{room} nie ma jeszcze tabeli dla tego Tieru: utwórz „{name}” w zakładce Pule pokoi, żeby znaleziska tego Tieru zostały tam.",
-      "poolCreated": "Tabela pokoju „{name}” utworzona. Wskaż ją pokojowi w Ustawieniach pokoi.",
+      "presetRoomNoTable": "Pokój {room} nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska trafiały tam.",
+      "presetRoomTier": "Pokój {room} nie ma jeszcze tabeli dla tego Tieru. Utwórz „{name}” w zakładce Pule pokoi, żeby znaleziska tego Tieru trafiały tam.",
+      "poolCreated": "Utworzono tabelę pokoju „{name}”. Wskaż ją pokojowi w Ustawieniach pokoi.",
       "renameTable": "Zmień nazwę tabeli",
       "deleteTable": "Usuń tabelę",
       "col": {
@@ -5080,13 +5080,13 @@
       "renameNote": "Pula Tier nosi nazwę swojej kategorii i Tieru. Tabela pokoju może mieć każdą inną nazwę.",
       "renamed": "Zmieniono nazwę na „{name}”.",
       "deleteConfirm": {
-        "one": "Usunąć „{name}” i {n} wpis w niej? Tego nie da się cofnąć.",
-        "few": "Usunąć „{name}” i {n} wpisy w niej? Tego nie da się cofnąć.",
-        "many": "Usunąć „{name}” i {n} wpisów w niej? Tego nie da się cofnąć.",
-        "other": "Usunąć „{name}” i {n} wpisów w niej? Tego nie da się cofnąć."
+        "one": "Usunąć tabelę „{name}” razem z {n} przedmiotem? Tego nie da się cofnąć.",
+        "few": "Usunąć tabelę „{name}” razem z {n} przedmiotami? Tego nie da się cofnąć.",
+        "many": "Usunąć tabelę „{name}” razem z {n} przedmiotami? Tego nie da się cofnąć.",
+        "other": "Usunąć tabelę „{name}” razem z {n} przedmiotami? Tego nie da się cofnąć."
       },
       "deleted": "Usunięto „{name}”.",
-      "tierPoolCreated": "Tabela „{name}” jest gotowa i moduł ją rozpoznał: przedmioty w niej dostają jej kategorię i Tier, więc przedmiot użytkowy z niej wylosowany wie, co robi."
+      "tierPoolCreated": "Tabela „{name}” jest gotowa: przedmioty w niej dostają jej kategorię i Tier."
     },
     "Clock": {
       "summary": "Rozdział {chapter} · Dzień {day} · Sesja {session} · {time}",
@@ -5123,16 +5123,16 @@
     "Panel": {
       "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
-      "title": "Danganronpa - panel GM-a",
+      "title": "Panel GM-a",
       "launcher": "Otwórz panel GM-a",
       "gmOnly": "Tylko GM może to zrobić.",
-      "noSceneNamed": "game.drpg.{fn} nie dostało sceny i nie znalazło żadnej, więc nic nie zrobiło: przekaż mu scenę.",
-      "noActorNamed": "game.drpg.{fn} dostało „{value}”, a to nie jest identyfikator ani nazwa żadnego aktora, więc nie miało na kim działać: sprawdź pisownię.",
+      "noSceneNamed": "game.drpg.{fn} nic nie zrobiło: nie dostało sceny i nie znalazło żadnej. Przekaż mu scenę.",
+      "noActorNamed": "game.drpg.{fn} nie znalazło aktora o identyfikatorze ani nazwie „{value}”. Sprawdź pisownię.",
       "actorNameShared": {
-        "one": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktora, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
-        "few": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktorów, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
-        "many": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktorów, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
-        "other": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktora, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi."
+        "one": "Nazwę „{value}” nosi {n} aktor, więc game.drpg.{fn} zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.",
+        "few": "Nazwę „{value}” nosi {n} aktorów, więc game.drpg.{fn} zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.",
+        "many": "Nazwę „{value}” nosi {n} aktorów, więc game.drpg.{fn} zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.",
+        "other": "Nazwę „{value}” nosi {n} aktora, więc game.drpg.{fn} zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi."
       },
       "nextLabel": "Dalej",
       "goMurderButton": "Otwórz incydent",
@@ -5147,8 +5147,8 @@
       "goBodyButton": "Ogłoś ciało",
       "goSeasonChecklistButton": "Lista kontrolna sezonu",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
-      "nextEclipse": "Eclipse trwa. Zamknij go, gdy wszyscy się ustawią.",
-      "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
+      "nextEclipse": "Trwa Eclipse. Zakończ je, gdy wszyscy ustawią swoje tokeny.",
+      "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy stół będzie gotowy.",
       "nextKeysToPlace": {
         "one": "{n} Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnanty okna Investigation.",
         "few": "{n} Key Remnanty tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.",
@@ -5156,25 +5156,25 @@
         "other": "{n} Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation."
       },
       "nextAutopsy": "Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.",
-      "nextBodyAsked": "Uczniowie znaleźli ciało w {room} i czeka ono na twoje słowo: ogłoś je albo na razie zostaw.",
-      "nextBodyWaiting": "Ciało czeka na odnalezienie w miejscu: {room}. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
-      "nextBodyWaitingNoRoom": "Ciało czeka na odnalezienie. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
-      "nextBodyWaitingUnseen": "Ciało czeka na odnalezienie, ale jego żeton jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.",
-      "nextInvestigation": "Investigation. Sprawdź, co znaleziono, a co wciąż czeka.",
+      "nextBodyAsked": "Uczniowie znaleźli ciało w pokoju {room}. Decyzja należy do ciebie: ogłoś je albo na razie zostaw.",
+      "nextBodyWaiting": "Ciało w pokoju {room} czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.",
+      "nextBodyWaitingNoRoom": "Ciało czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.",
+      "nextBodyWaitingUnseen": "Ciało czeka na odnalezienie, ale jego token jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.",
+      "nextInvestigation": "Trwa Investigation. Sprawdź, co już znaleziono, a co wciąż czeka.",
       "nextStillActing": {
         "one": "{n} uczeń ma jeszcze akcje do wydania.",
-        "few": "{n} uczniów ma jeszcze akcje do wydania.",
+        "few": "{n} uczniowie mają jeszcze akcje do wydania.",
         "many": "{n} uczniów ma jeszcze akcje do wydania.",
-        "other": "{n} uczniów ma jeszcze akcje do wydania."
+        "other": "{n} ucznia ma jeszcze akcje do wydania."
       },
-      "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego otwarcie odnawia wszystkim akcje, a zamknięcie przesuwa zegar.",
+      "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego początek odnawia wszystkim akcje, a koniec przesuwa zegar.",
       "nextSeasonSetup": "Do ustawienia: {step}.",
-      "nextSeasonSetupAside": "Lista kontrolna sezonu wciąż czeka na: {step}.",
+      "nextSeasonSetupAside": "Jeszcze do ustawienia: {step}.",
       "advance": "Pomiń Eclipse",
       "advanceTooltip": "Bez Eclipse. Odnawia akcje i Search Tokeny.",
       "advanceOffEclipse": "Trwa Eclipse: jego koniec przesuwa zegar.",
       "advanceOffTrial": "Trwa Class Trial: koniec rozdziału przesuwa zegar.",
-      "advanceDuringEclipse": "Trwa Eclipse - zakończ go strzałką przy zegarze; jego koniec przesuwa zegar.",
+      "advanceDuringEclipse": "Trwa Eclipse: zegar przesunie dopiero jego koniec. Zakończ je strzałką przy zegarze.",
       "jump": "Edytuj kampanię",
       "resetHint": "Daje wszystkim pełne akcje. Przy samej poprawce zostaw wyłączone.",
       "section": {
@@ -5185,27 +5185,27 @@
       },
       "close": "Zamknij",
       "apply": "Zastosuj",
-      "alsoReset": "Odnów też akcje i Search Tokens",
+      "alsoReset": "Odnów też akcje i Search Tokeny",
       "character": "Postać",
       "freeMove": "Free Move",
-      "noCharacters": "W tym świecie nie ma jeszcze postaci.",
+      "noCharacters": "W tym świecie nie ma żywych uczniów.",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
       "clearFaint": "Wyczyść Faint Remnanty",
       "sweepBullets": "Zbierz Truth Bullets",
-      "sweepNone": "Nie ma czego zbierać - każdy Truth Bullet w grze jest Faint albo Final.",
+      "sweepNone": "Nie ma czego zbierać: każdy Truth Bullet w grze jest Faint albo Final.",
       "sweepConfirm": {
         "one": "Usunąć {n} Truth Bullet z ekwipunków uczniów?",
         "few": "Usunąć {n} Truth Bullets z ekwipunków uczniów?",
         "many": "Usunąć {n} Truth Bullets z ekwipunków uczniów?",
         "other": "Usunąć {n} Truth Bullets z ekwipunków uczniów?"
       },
-      "sweepConfirmNote": "Nieodwracalne. {kept} zostaje: Faint, z definicji wątpliwe, i Final Truth, który wskazuje Masterminda przez cały sezon.",
+      "sweepConfirmNote": "Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich {kept}.",
       "sweptBullets": {
         "one": "Zebrano {n} Truth Bullet.",
-        "few": "Zebrano {n} Truth Bullets.",
-        "many": "Zebrano {n} Truth Bullets.",
-        "other": "Zebrano {n} Truth Bullets."
+        "few": "Zebrano {n} Truth Bullety.",
+        "many": "Zebrano {n} Truth Bulletów.",
+        "other": "Zebrano {n} Truth Bulletów."
       },
       "faintCleared": {
         "one": "Wyczyszczono {n} Faint Remnant.",
@@ -5222,10 +5222,10 @@
       },
       "publicRoll": {
         "gmOnly": "Tylko GM może wykonać rzut publiczny.",
-        "badFormula": "\"{formula}\" to nie jest formuła rzutu."
+        "badFormula": "„{formula}” to nie jest formuła rzutu."
       },
-      "failed": "To nie zadziałało. Zajrzyj do konsoli.",
-      "faintNone": "Nie ma Faint Remnantów do wyczyszczenia - każdy Remnant na mapie jest Reinforced albo powiązany ze zbrodnią.",
+      "failed": "To nie zadziałało. Szczegóły znajdziesz w Dzienniku debugowania, w sekcji Diagnostyka.",
+      "faintNone": "Nie ma Faint Remnantów do wyczyszczenia: każdy pozostały Faint Remnant jest Reinforced albo powiązany ze zbrodnią.",
       "faintConfirm": {
         "one": "Usunąć {n} Faint Remnant ze wszystkich scen?",
         "few": "Usunąć {n} Faint Remnanty ze wszystkich scen?",
@@ -5248,17 +5248,17 @@
       "stateUnchanged": "Nic się nie zmieniło.",
       "checksSetup": "Obsada",
       "checksAvVideo": "Ten świat wysyła wideo, którego nikt nie ogląda: ustaw tryb A/V na sam dźwięk.",
-      "checksAvOff": "A/V jest wyłączone, więc kafel głosu nie działa. Włącz A/V albo wyłącz kafel.",
+      "checksAvOff": "A/V jest wyłączone, więc kafelek głosu nie działa. Włącz A/V albo wyłącz kafelek.",
       "checksAvVideoOnly": "Ten świat ma ustawione samo wideo: nikt nie wysyła dźwięku. Ustaw tryb A/V na sam dźwięk.",
       "checksImages": "Zdjęcia pokoi",
-      "checksImagesMissing": "Te zdjęcia pokoi się nie wczytują - wybierz plik jeszcze raz w Ustawieniach pokoi: {rooms}",
-      "checksImagesLarge": "Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli - zmniejsz je do najwyżej {side} px na bok i {mb} MB: {rooms}",
+      "checksImagesMissing": "Te zdjęcia pokoi się nie wczytują: {rooms}. Wybierz plik jeszcze raz w Ustawieniach pokoi.",
+      "checksImagesLarge": "Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: {rooms}. Zmniejsz je do najwyżej {side} px na bok i {mb} MB.",
       "checksImagesUnknown": "Nie udało się odczytać rozmiaru pliku tych zdjęć pokoi: {rooms}",
       "checksImagesLate": {
-        "one": "Te zdjęcia pokoi nie wczytały się w ciągu {s} s, więc ich rozmiaru w pikselach nie sprawdzono - nic nie wskazuje, że ich brakuje; uruchom sprawdzenie jeszcze raz na szybszym łączu: {rooms}",
-        "few": "Te zdjęcia pokoi nie wczytały się w ciągu {s} s, więc ich rozmiaru w pikselach nie sprawdzono - nic nie wskazuje, że ich brakuje; uruchom sprawdzenie jeszcze raz na szybszym łączu: {rooms}",
-        "many": "Te zdjęcia pokoi nie wczytały się w ciągu {s} s, więc ich rozmiaru w pikselach nie sprawdzono - nic nie wskazuje, że ich brakuje; uruchom sprawdzenie jeszcze raz na szybszym łączu: {rooms}",
-        "other": "Te zdjęcia pokoi nie wczytały się w ciągu {s} s, więc ich rozmiaru w pikselach nie sprawdzono - nic nie wskazuje, że ich brakuje; uruchom sprawdzenie jeszcze raz na szybszym łączu: {rooms}"
+        "one": "Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu {s} s, więc nie sprawdzono ich rozmiaru w pikselach: {rooms}. Uruchom sprawdzenie jeszcze raz na szybszym łączu.",
+        "few": "Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu {s} s, więc nie sprawdzono ich rozmiaru w pikselach: {rooms}. Uruchom sprawdzenie jeszcze raz na szybszym łączu.",
+        "many": "Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu {s} s, więc nie sprawdzono ich rozmiaru w pikselach: {rooms}. Uruchom sprawdzenie jeszcze raz na szybszym łączu.",
+        "other": "Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu {s} s, więc nie sprawdzono ich rozmiaru w pikselach: {rooms}. Uruchom sprawdzenie jeszcze raz na szybszym łączu."
       },
       "checksImagesWhere": "{room} ({scene})",
       "checksImagesSized": "{rooms}: {size}",
@@ -5267,16 +5267,16 @@
       "seasonChecks": "Kontrola przed sezonem",
       "foundryReport": "Foundry i moduły",
       "whoIsAlive": "Uczniowie",
-      "whoIsAliveNote": "Stan tylko przestawia flagi, po Zastosuj - narzędzie naprawcze na pomyłkę. Rola zmienia się od razu. Przyciski robią to naprawdę: śmierć niszczy Truth Bullets. Monocub, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
+      "whoIsAliveNote": "Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
       "doColumn": "Zrób",
       "refundCrossing": "Zwróć ostatnie przejście",
       "refundCrossingNote": "{to} z powrotem do {from}",
       "nextChapterEndStopped": "Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.",
       "nextTrialOutlived": "Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.",
-      "refilled": "Akcje i Search Tokens odnowione. Motive, pieczęcie i overflow zostały nietknięte, a na czat nie trafiła karta pory dnia.",
-      "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie.",
+      "refilled": "Odnowiono akcje i Search Tokeny. Motive, pieczęcie i Overflow zostają bez zmian, a na czat nie trafiła karta pory dnia.",
+      "nextReady": "Gracze dostali pytanie, czy już kończą. Otwórz je ponownie.",
       "roleColumn": "Rola",
-      "openSheet": "Otwórz arkusz: {name}",
+      "openSheet": "Otwórz arkusz postaci {name}",
       "openColumn": "Otwórz",
       "role": {
         "student": "Uczeń"
@@ -5501,19 +5501,19 @@
     },
     "Anonymity": {
       "aboveLimited": "Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: {actors}. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.",
-      "blocked": "Zablokowano: każdy gracz byłby właścicielem „{actor}”, a właściciel nigdy nie jest cenzurowany. Daj Właściciela tylko jego jednemu graczowi.",
+      "blocked": "Uprawnień nie podniesiono: każdy gracz byłby właścicielem arkusza „{actor}” i czytałby go w całości. Uprawnienie Właściciela daj tylko graczowi tej postaci.",
       "audit": {
         "title": "Kontrola anonimowości arkuszy",
         "clean": "Żaden arkusz nie jest otwarty w całości dla każdego gracza. Nie ma czego naprawiać.",
-        "exposed": "Należą do każdego gracza, więc nic na tych arkuszach nie jest ukryte i każdy gracz czyta je w całości - napraw te:",
+        "exposed": "Należą do każdego gracza, więc nic na tych arkuszach nie jest ukryte:",
         "fix": "Ustaw je na Obserwatora",
         "fixed": {"one": "{n} arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć, z ukrytymi sekretami.", "few": "{n} arkusze ustawione na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "many": "{n} arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "other": "{n} arkusza ustawionego na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami."},
-        "fixedOpen": {"one": "{n} arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają go w całości.", "few": "{n} arkusze ustawione na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości.", "many": "{n} arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości.", "other": "{n} arkusza ustawionego na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości."},
-        "switchOff": "„Anonimowe karty postaci” są wyłączone, więc nic na tych arkuszach Obserwatora nie jest ukryte i każdy gracz czyta je w całości - włącz to w ustawieniach modułu:",
-        "closed": "Zamknięte dla pozostałych graczy. Nie ma czego naprawiać, ale nikt nie może otworzyć tych arkuszy, więc nikt nie przeszuka ciała, gdy postać zginie:",
-        "assistants": "Należą do Asystenta GM-a. Asystenci czytają każdy arkusz w świecie, co łamie anonimowość - zdegraduj ich do Gracza:",
+        "fixedOpen": {"one": "{n} arkusz ustawiony na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może go otworzyć i przeczytać w całości.", "few": "{n} arkusze ustawione na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.", "many": "{n} arkuszy ustawionych na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.", "other": "{n} arkusza ustawionego na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości."},
+        "switchOff": "Włącz „Anonimowe arkusze postaci” w ustawieniach modułu. Dopóki ta opcja jest wyłączona, każdy gracz czyta w całości te arkusze ustawione na Obserwatora:",
+        "closed": "Zamknięte dla pozostałych graczy. Nie ma czego naprawiać, ale żaden inny gracz nie otworzy tych arkuszy, więc gdy postać zginie, nikt nie skorzysta z Take from the Body:",
+        "assistants": "Należą do Asystenta GM-a. Asystenci czytają każdy arkusz w świecie. Zmień im rolę na Gracza:",
         "shared": "Należą do więcej niż jednego gracza:",
-        "orphaned": "Bez przypisanego właściciela-gracza - oto kto ma dostęp:",
+        "orphaned": "Nie należą do żadnego gracza. Kto ma do nich dostęp:",
         "nobody": "zupełnie nikt"
       },
       "everyone": {
@@ -5534,7 +5534,7 @@
         "gm": "(GM)",
         "assistant": "(Asystent GM-a)"
       },
-      "reverted": "„{actor}” był udostępniony każdemu graczowi jako Owner, więc wszyscy mogli czytać cały arkusz. Wrócił do Observer. Owner daj tylko jego jednemu graczowi."
+      "reverted": "Arkusz „{actor}” był udostępniony każdemu graczowi jako Właściciel, więc wszyscy mogli go czytać w całości. Teraz jest znowu ustawiony na Obserwatora. Uprawnienie Właściciela daj tylko graczowi tej postaci."
     },
     "Errors": {
       "wrongSystem": "Moduł Danganronpa RPG wymaga systemu Daggerheart (Foundryborne), a ten świat działa na systemie {found}.",
@@ -5543,10 +5543,10 @@
     "Requirements": {
       "title": "Danganronpa RPG nie działa",
       "intro": {
-        "one": "Danganronpa RPG potrzebuje tego modułu i nie wystartował: nic z niego nie działa, dopóki moduł nie wróci. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
-        "few": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
-        "many": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
-        "other": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry."
+        "one": "Danganronpa RPG potrzebuje tego modułu i bez niego nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.",
+        "few": "Danganronpa RPG potrzebuje tych {n} modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.",
+        "many": "Danganronpa RPG potrzebuje tych {n} modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.",
+        "other": "Danganronpa RPG potrzebuje tych {n} modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”."
       },
       "state": {
         "absent": "niezainstalowany",
@@ -5555,16 +5555,16 @@
       "reason": {
         "dice-so-nice": "Każdy rzut pada jako kości 3D, które widzą tylko osoby uprawnione do tego rzutu, w jednym stylu kości, który GM ustawia dla całego stołu.",
         "isometric-perspective": "Mapy rysowane do gry izometrycznej wyglądają źle na płaskiej siatce.",
-        "avclient-livekit": "Głos idzie za pokojami: słyszysz osoby z pokoju, w którym jest twoja postać, a przejście do innego pokoju zmienia, kto cię słyszy."
+        "avclient-livekit": "Głos idzie za pokojami: gracz słyszy osoby z pokoju, w którym jest jego postać, a przejście do innego pokoju zmienia, kto go słyszy."
       },
-      "how": "Zainstaluj albo włącz to, co jest na liście, w Zarządzaj modułami (na Forge: w liście modułów gry), potem przeładuj świat. To cała naprawa.",
+      "how": "Zainstaluj albo włącz wymienione moduły w oknie „Zarządzaj modułami” (na Forge: na liście modułów gry), a potem przeładuj świat.",
       "understood": "Rozumiem",
-      "playerNotice": "Danganronpa RPG nie działa: wymaga {modules}. Poproś GM-a o włączenie brakujących.",
-      "newerSystemTitle": "{system} jest nowszy niż wersja, na której ten moduł był mierzony",
-      "newerSystemIntro": "Ten świat działa na {system} {found}. Danganronpa RPG był zweryfikowany na {verified}. Ładuje się mimo to i większość modułu tego nie zauważy - ale okno rzutu, karta postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak {system} jest zbudowany w środku, a nowsza wersja może to zmienić bez słowa. Jeśli coś działa źle, wspomnij o tym najpierw, zgłaszając problem.",
-      "newerSystemPatches": "Tych miejsc w systemie, które moduł zmienia albo na których polega, nie znaleziono tam, gdzie były, więc to, co moduł w nich robi, się nie dzieje:",
-      "newerSystemAllPatches": "Każde miejsce w systemie, które moduł zmienia albo na którym polega, znalazło się tam, gdzie oczekiwał. To dobry znak, nie gwarancja.",
-      "newerSystemSilence": "Nie wspominaj o {found} więcej na tym komputerze",
+      "playerNotice": "Danganronpa RPG nie działa: wymaga {modules}. Poproś GM-a o włączenie brakujących modułów.",
+      "newerSystemTitle": "{system} jest nowszy niż zweryfikowana wersja",
+      "newerSystemIntro": "Ten świat działa na {system} {found}. Danganronpa RPG zweryfikowano na {verified}. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak {system} jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na {system} {found}.",
+      "newerSystemPatches": "Moduł nie znalazł w systemie tych miejsc, które zmienia albo na których polega, więc to, co w nich robi, nie działa:",
+      "newerSystemAllPatches": "Moduł znalazł w systemie każde miejsce, które zmienia albo na którym polega. To zmniejsza ryzyko kłopotów, ale go nie wyklucza.",
+      "newerSystemSilence": "Nie wspominaj więcej o wersji {found} w tej przeglądarce",
       "newerSystemNotice": "{system} {found} jest nowszy niż {verified}, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle."
     },
     "Tamper": {
@@ -5908,13 +5908,13 @@
       "silenceNow": "Wycisz teraz",
       "silenceNowTip": "Przenosi głos tego gracza do Widzów już teraz, zanim ktoś znajdzie ciało.",
       "silenced": "Wyciszony",
-      "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
+      "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}), więc trafia tylko do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij tokeny tych postaci z mapy.",
       "mainRoom": "główny pokój",
       "deadRoom": "kanał Widzów",
-      "claimTrial": "Class Trial - wszyscy w jednym pokoju",
+      "claimTrial": "podczas Class Trial wszyscy są w jednym pokoju",
       "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie: zdejmij blokadę z listy na kafelku głosu.",
-      "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
-      "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
+      "needsAvclient": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.",
+      "avDisabled": "Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
         "one": "Wysłano ponownie pokój głosowy {n} osobie.",
         "few": "Wysłano ponownie pokoje głosowe {n} osobom.",
@@ -5965,7 +5965,7 @@
         "spectator": "Jesteś Widzem: słyszysz pokój, w którym jesteś, a mikrofon masz wyłączony.",
         "spectatorTalk": "Rozmawiasz z innymi Widzami.",
         "gmBlock": "GM zablokował twój mikrofon.",
-        "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
+        "external": "Głos jest w osobnym oknie: użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
         "connecting": "Trwa dołączanie do kanału głosowego.",
         "connected": "Połączono z kanałem głosowym.",
@@ -5980,10 +5980,10 @@
       "list": {
         "open": "Kogo słyszysz",
         "count": {
-          "one": "Słyszysz w kanale: {n}",
-          "few": "Słyszysz w kanale: {n}",
-          "many": "Słyszysz w kanale: {n}",
-          "other": "Słyszysz w kanale: {n}"
+          "one": "Słyszysz w kanale {n} osobę",
+          "few": "Słyszysz w kanale {n} osoby",
+          "many": "Słyszysz w kanale {n} osób",
+          "other": "Słyszysz w kanale {n} osoby"
         },
         "alone": "Poza tobą nikogo nie ma w kanale.",
         "muteAll": "Wycisz wszystkich u siebie",
@@ -5996,7 +5996,7 @@
         "gmUnblock": "Odblokuj mikrofon: {name}",
         "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
         "gmSecretDead": "Ta śmierć jest jeszcze tajemnicą: blokada by ją zdradziła.",
-        "gmNoBlock": "Ta wersja Foundry nie ma uprawnienia do mikrofonu, więc stąd nie da się zablokować żadnego mikrofonu."
+        "gmNoBlock": "Ta wersja Foundry nie ma uprawnienia do mikrofonu, więc stąd nie zablokujesz żadnego mikrofonu."
       },
       "panel": {
         "legend": "Głos",
@@ -6009,7 +6009,70 @@
         "pttKey": "Klawisz mówienia: {key}",
         "pttChange": "Zmień klawisz"
       },
-      "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
+      "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto ma ten sekret, może połączyć się z każdym pokojem głosowym. Żeby sekret nie trafiał do przeglądarek, użyj serwera, który sam wydaje tokeny dostępu, na przykład Tavern.",
+      "plan": {
+        "why": {
+          "noPoolHolder": "żaden GM nie trzyma puli Despair tego Monokumy",
+          "noOwner": "żaden właściciel nie jest połączony",
+          "notConnected": "{name} nie ma połączenia",
+          "eclipseGm": "Eclipse: własny kanał GM-ów",
+          "eclipsePlayer": "Eclipse: poza kanałami głosowymi",
+          "deadSecret": "nie żyje, śmierć nie jest jawna: pokój Widzów",
+          "deadPublic": "nie żyje i nie gra jako Monocub: pokój Widzów",
+          "kept": "(poza wszystkimi pokojami: pokój, z którego wyszedł token)",
+          "noRoom": "brak pokoju: token jest poza wszystkimi regionami albo go nie ma",
+          "scrumCamp": "Scrum Debate: Strefa {zone} naradza się we własnym pokoju",
+          "spectatorTalks": "Widz rozmawia z Widzami",
+          "noCharacterMain": "brak postaci: główny pokój",
+          "listening": "podsłuchuje z pokoju {from} pod drzwiami pokoju {into}",
+          "masked": "za „?” po otwarciu morderstwa: własny cichy pokój"
+        },
+        "setting": "Ustawienie głosu według pokoi: {state}",
+        "on": "włączone",
+        "settingOff": "wyłączone, więc nic nie jest stosowane",
+        "avMode": "Tryb A/V: {mode}",
+        "avDisabled": "wyłączony, więc nikt się nie połączy",
+        "loop": "Ten klient prowadzi pętlę przydziału: {answer}",
+        "yes": "tak",
+        "no": "nie",
+        "eclipse": {
+          "running": "Trwa Eclipse. Nikt nie jest przydzielany według tokenu, a pokoje nie są nawet odczytywane.",
+          "noPlayer": "Żaden gracz nie jest na kanale głosowym; GM-owie mają jeden wspólny.",
+          "ends": "Wszystko wraca do normy, gdy tylko Eclipse się skończy."
+        },
+        "eclipseGroup": "(Eclipse: żaden gracz nie jest na głosie)",
+        "spectatorGroup": "(pokój Widzów)",
+        "mainGroup": "(główny pokój)",
+        "deadGroup": "(kanał zmarłych)",
+        "nowhere": "(nigdzie nie wysłano)",
+        "ignored": "← pominięte, {name} trafia tam, gdzie {actor}",
+        "itsAccount": "jego konto",
+        "anotherRow": "inny wiersz",
+        "seeConflicts": "(zobacz KONFLIKTY)",
+        "waiting": "← nic nie wysłano, dopóki nie dotrze obsada",
+        "nobody": "nikt",
+        "alone": "KONTA BEZ POSTACI",
+        "noCharacter": "brak postaci",
+        "conflicts": "KONFLIKTY: te konta mają postacie w więcej niż jednym miejscu.",
+        "deadChannel": "kanał zmarłych",
+        "applied": "(ta jest stosowana)",
+        "oneRoom": "Klient głosu może być tylko w jednym pokoju. Daj zapasowe postacie innemu kontu albo nie stawiaj ich tokenów na mapie.",
+        "decision": "To tylko decyzja; dźwięku nie sprawdza.",
+        "decisionHow": "Czy dwa z tych pokoi naprawdę się słyszą, sprawdzi tylko drugi połączony klient: uruchom tam game.drpg.diagnoseVoice() i porównaj pokój, który poda, z pokojem wymienionym wyżej."
+      },
+      "warn": {
+        "proximity": "Proximity Voice Chat też jest aktywny.",
+        "proximityVolume": "Ustawia głośność każdego uczestnika według odległości tokenów, niezależnie od pokoju, do którego wstawia go ten moduł. Nieskonfigurowany daje wszystkim głośność zero.",
+        "proximityGlobal": "Jego ustawienie „global listen” jest włączone, więc teraz nikogo nie wycisza.",
+        "proximitySceneOff": "Jest wyłączony na scenie „{scene}”, więc nikogo tam nie wycisza.",
+        "proximityFix": "Wyłącz go albo włącz „global listen”, chyba że używasz obu naraz.",
+        "others": "Inne aktywne moduły, które wspominają o głosie: {modules}.",
+        "othersHint": "Warto je wykluczyć najpierw, jeśli pokoje niżej są dobre, a dźwięk nie.",
+        "noRooms": "„{scene}” ma na sobie postacie, ale nie ma pokoi, więc wszyscy, którzy tam stoją, dzielą główny pokój.",
+        "noRoomsFix": "Nazwij regiony, żeby ich rozdzielić.",
+        "dupes": "„{scene}” ma kilka regionów o nazwie {names}, które razem tworzą jeden pokój głosowy.",
+        "dupesHint": "Przewidziane dla korytarza narysowanego w dwóch częściach; w innym razie to pomyłka."
+      }
     },
     "States": {
       "drpgBreakdown": {
@@ -6209,7 +6272,7 @@
       "hideTraces": "Hide the Traces"
     },
     "Diagnostics": {
-      "pageTinted": "{name} przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne - wyłącz to rozszerzenie dla tej strony.",
+      "pageTinted": "{name} przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne, więc wyłącz to rozszerzenie dla tej strony.",
       "cssMissing": "Arkusz stylów tego modułu nie załadował się na tej stronie, więc interfejs jest bez stylu. Przeładuj; jeśli to się powtarza, uruchom game.drpg.diagnoseStyles().",
       "tracing": {
         "one": "Obserwuję kliknięcia przez {seconds} sekundę. Kliknij kontrolkę, która działa źle.",
@@ -6222,18 +6285,18 @@
         "starting": "Zasoby na start: {hp} Health, {stress} Sanity, {hope} Hope",
         "noCast": "Nie ma jeszcze uczniów: najpierw utwórz obsadę, potem uruchom te sprawdzenia jeszcze raz.",
         "row": "Health maks. {hp}, Sanity maks. {stress}",
-        "notSetUp": "nieprzygotowana",
-        "pending": {"one": "{n} postać nie ma jeszcze zasobów na start.", "few": "{n} postacie nie mają jeszcze zasobów na start.", "many": "{n} postaci nie ma jeszcze zasobów na start.", "other": "{n} postaci nie ma jeszcze zasobów na start."},
+        "notSetUp": "bez zasobów na start",
+        "pending": {"one": "{n} uczeń nie ma jeszcze zasobów na start.", "few": "{n} uczniowie nie mają jeszcze zasobów na start.", "many": "{n} uczniów nie ma jeszcze zasobów na start.", "other": "{n} ucznia nie ma jeszcze zasobów na start."},
         "fix": "Jak to naprawić: otwórz arkusz i naciśnij różdżkę obok imienia.",
         "pendingWhy": "Do tego czasu ich maksymalne Health i Sanity wynoszą zero, więc wyglądają tak samo jak uczniowie pobici do nieprzytomności.",
-        "allSet": "Każda postać ma zasoby na start.",
+        "allSet": "Każdy uczeń ma zasoby na start.",
         "ultimate": "Każdy ma Ultimate",
         "ultimateFix": "Ustaw je na arkuszu, pod imieniem.",
         "experiences": "Każdy ma {n} doświadczenia",
         "experiencesFix": "Każde na +2, ustalone przy tworzeniu postaci.",
         "item": "Każdy nosi swój przedmiot startowy",
-        "itemFix": "Jeden przedmiot poziomu {tier} związany z jego Ultimate: rozdaj go w Daj / zabierz przedmioty.",
-        "pool": "Każdy jest przypisany do puli Despair",
+        "itemFix": "Każdy uczeń zaczyna z jednym przedmiotem poziomu {tier} związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.",
+        "pool": "Każdy ma przypisanie w Despair Flow",
         "poolFix": "Przypisz każdemu z tych uczniów Monokumę ręcznie albo zaznacz, że celowo nie ma żadnego. Zrobisz to w panelu GM-a, w zakładce Despair Flow. Do tego czasu Despair z rzutów ucznia trafia do puli zapasowej, jeśli jej nazwa stoi przy nim; uczeń bez puli zapasowej nie ma żadnej puli, więc jego Despair nie ma dokąd trafić."
       },
       "title": {
@@ -6243,7 +6306,7 @@
       }
     },
     "Tests": {
-      "alreadyRunning": "Pakiet testów już działa na tym kliencie. Poczekaj, aż skończy - drugi przebieg zrobiłby zrzut świata, w którym pierwszy ma jeszcze rozstawione fikstury, i ustawiłby go jako bazę.",
+      "alreadyRunning": "Pakiet testów już działa w tej przeglądarce. Poczekaj, aż skończy.",
       "tier2Title": "Tier 2 zapisuje do świata {title}",
       "tier2What": "Scenariusze budują w tym świecie własne fixture'y i sprzątają po sobie: otwierają i zamykają incydenty, zabijają i wskrzeszają uczniów, zapisują ustawienia świata i usuwają czat, który wytworzą. Po każdym scenariuszu cały świat jest czytany od nowa, a wszystko, co zostało, liczy się jako błąd.",
       "tier2Where": "Świat: {title} ({id})",
@@ -6257,23 +6320,23 @@
       "tier2Run": "Uruchom tier 2 na {title}",
       "cancel": "Anuluj",
       "tier2Cancelled": "Nic nie zostało uruchomione: tier 2 nie został potwierdzony.",
-      "confirmedNotThisWorld": "runTests({ confirmed }) podaje {given}, a ten świat to {id}: pytam w oknie."
+      "confirmedNotThisWorld": "Wartość confirmed w runTests to {given}, a id tego świata to {id}, więc moduł i tak pyta o potwierdzenie w oknie."
     },
     "Season": {
       "missingPool": "jeszcze nie ma puli Despair (ma ją każde pełne konto Gamemastera)",
-      "missingMonokumaActor": "żadna postać nie jest oznaczona jako Monokuma (Despair Flow albo menu pod prawym przyciskiem na liście Actors)",
+      "missingMonokumaActor": "żadna postać nie jest oznaczona jako Monokuma (Rola w oknie Uczniowie albo „Oznacz jako Monokumę” na arkuszu postaci)",
       "title": "Ustawienia sezonu",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć i bez nich.",
-      "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Kontrola przed sezonem sprawdza więcej niż ta lista - obrazy pokoi, głos, kto może otworzyć karty - więc uruchom ją przed pierwszą sesją.",
+      "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Przed pierwszą sesją przeczytaj dalsze sprawdzenia poniżej.",
       "note": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon się buduje.",
       "resourcesButton": "Nadaj zasoby startowe",
       "cursorButton": "Ukryj kursor GM-ów",
       "openIt": "Otwórz",
       "fixed": {
-        "one": "Ustawiono {n} postać z zasobami startowymi.",
-        "few": "Ustawiono {n} postacie z zasobami startowymi.",
-        "many": "Ustawiono {n} postaci z zasobami startowymi.",
-        "other": "Ustawiono {n} postaci z zasobami startowymi."
+        "one": "Nadano zasoby startowe {n} postaci.",
+        "few": "Nadano zasoby startowe {n} postaciom.",
+        "many": "Nadano zasoby startowe {n} postaciom.",
+        "other": "Nadano zasoby startowe {n} postaci."
       },
       "step": {
         "name": "Nazwij kampanię",
@@ -6289,7 +6352,7 @@
         "liveKitSecret": "Sekretu serwera głosu nie ma w świecie",
         "sound": "Pliki dźwiękowe",
         "rooms": "Mapa ma pokoje",
-        "roomsMarked": "Każdy nazwany region rozstrzygnięty: pokój albo nie",
+        "roomsMarked": "O każdym nazwanym regionie zdecydowano: pokój albo nie",
         "scenes": "Szkoła i sala rozpraw są podpięte",
         "cursor": "Kursor GM-a jest prywatny (zalecane)",
         "secretDoors": "Brak sekretnych drzwi Foundry (zalecane)",
@@ -6297,34 +6360,34 @@
         "mastermind": "Mastermind (opcjonalnie)",
         "foundryHeld": "Moduł trzyma ustawienia Foundry (opcjonalnie)",
         "hallTokens": "Sala rozpraw i jej tokeny (opcjonalnie)",
-        "diceSoNice": "Dice So Nice (opcjonalnie)",
+        "diceSoNice": "Dice So Nice jest włączony",
         "roomCount": "Dość pokoi dla obsady",
         "despairSplit": "Uczniowie są podzieleni po równo między pule",
-        "overflow": "Próg overflow pasuje do obsady"
+        "overflow": "Próg Overflow pasuje do obsady"
       },
       "hint": {
-        "name": "Wyświetlana u góry ekranu każdego, nad rozdziałem i zegarem.",
+        "name": "Nazwę widać u góry każdego ekranu, nad rozdziałem i zegarem.",
         "cast": "Jedna postać na ucznia. Monokumy są osobno i tu się nie liczą.",
-        "monokumas": "Monokuma wydaje Despair ze swojej karty. Przy kilku GM-ach podziel uczniów równo.",
+        "monokumas": "Monokuma wydaje Despair ze swojego arkusza. Przy kilku GM-ach podziel uczniów po równo.",
         "resources": "Bez nich postać jest naraz Wounded i w Breakdown.",
         "ultimate": "Wpisz go na arkuszu.",
         "experiences": "Dwa na +2, ustalane przy tworzeniu postaci.",
         "items": "Jeden przedmiot startowy na ucznia.",
         "assignments": "Despair z rzutów ucznia trafia do puli tego Monokumy, do którego przypiszesz go w Despair Flow. Uczeń bez przypisania zasila pierwszą pulę i jest tu wymieniony, dopóki go nie przypiszesz. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC i szablonów. Przeglądarka każdego gracza może odczytać, kto jest tak ustawiony. Ten krok jest gotowy, gdy każdy uczeń ma pulę wybraną ręcznie albo ustawienie „- nikt -”.",
-        "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
-        "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
-        "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
-        "roomsMarked": "Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (karta Drzwi). O tych nazwanych regionach nikt jeszcze nie zdecydował.",
-        "scenes": "Karta Sceny w Ustawieniach pokoi podpina scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.",
+        "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Każdy gracz może to sprawdzić, a jedyny uczeń poza pulami rzuca się w oczy: przypisz go do Monokumy jak każdego innego ucznia.",
+        "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje: pliki są twoje. Przypisz, co chcesz, w oknie Dźwięk; przy zdarzeniu z pustym polem nic nie gra.",
+        "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Move, Search, Listen i każdy incydent rozstrzyga się według pokoi.",
+        "roomsMarked": "Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (zakładka Pokoje). O tych nazwanych regionach nikt jeszcze nie zdecydował.",
+        "scenes": "W zakładce Sceny w Ustawieniach pokoi podpinasz scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.",
         "cursor": "Inaczej gracze widzą, gdzie patrzysz na mapie.",
         "secretDoors": "Każdy gracz może otworzyć sekretne drzwi Foundry. Zamień je na tajne przejścia.",
         "rulers": "Inaczej stół widzi trasę gracza, także przez tajne przejście.",
         "mastermind": "Kto ukrywa się wśród uczniów i co to udowodni. Opcjonalne.",
         "foundryHeld": "Ustawienia Foundry są oddane. Przejmij je znowu, chyba że tak ma zostać.",
-        "hallTokens": "Sala rozpraw podpięta i bez ostrzeżeń na karcie Sceny. Opcjonalne.",
-        "diceSoNice": "Dice So Nice pokazuje kości, gdy padają. Bez niego rzuty są te same, tylko nikt nie widzi kości. Przycisk otwiera listę modułów Foundry, gdzie się go włącza.",
-        "roomCount": "Około półtora pokoju na gracza, bez korytarzy i sypialni.",
-        "despairSplit": "Najwyżej jeden uczeń różnicy między pulami. Tylko rada.",
+        "hallTokens": "Sala rozpraw jest podpięta, a w zakładce Sceny nie ma ostrzeżeń. Ten krok jest opcjonalny.",
+        "diceSoNice": "Dice So Nice pokazuje kości, gdy padają. Bez niego Danganronpa RPG się nie uruchamia.",
+        "roomCount": "Około półtora pokoju na żyjącego ucznia, bez korytarzy i sypialni.",
+        "despairSplit": "Pule mogą się różnić najwyżej o jednego żyjącego ucznia. To tylko rada.",
         "overflow": "Sugerowane: 12 + połowa żyjących uczniów. Próg ustawiasz w Despair Flow."
       },
       "resetTitle": "Zresetuj sezon",
@@ -6367,16 +6430,16 @@
         "other": "{n} Remnantów na mapach"
       },
       "resetBullets": {
-        "one": "{n} Truth Bullet i klucz odpowiedzi za nim",
-        "few": "{n} Truth Bullets i klucz odpowiedzi za nimi",
-        "many": "{n} Truth Bullets i klucz odpowiedzi za nimi",
-        "other": "{n} Truth Bullets i klucz odpowiedzi za nimi"
+        "one": "{n} Truth Bullet razem z kluczem odpowiedzi",
+        "few": "{n} Truth Bullety razem z kluczami odpowiedzi",
+        "many": "{n} Truth Bulletów razem z kluczami odpowiedzi",
+        "other": "{n} Truth Bulletów razem z kluczami odpowiedzi"
       },
       "resetDead": {
-        "one": "{n} śmierć i każdy Monocub, cofnięte",
-        "few": "{n} śmierci i każdy Monocub, cofnięte",
-        "many": "{n} śmierci i każdy Monocub, cofnięte",
-        "other": "{n} śmierci i każdy Monocub, cofnięte"
+        "one": "{n} śmierć do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem",
+        "few": "{n} śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem",
+        "many": "{n} śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem",
+        "other": "{n} śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem"
       },
       "resetAssigned": {
         "one": "{n} uczeń przypisany ręcznie",
@@ -6392,10 +6455,10 @@
         "other": "{n} przedmiotów, które obsada nosi albo schowała"
       },
       "resetAdvances": {
-        "one": "{n} Level Up oraz statystyki i wzrosty, które kupił",
-        "few": "{n} Level Upy oraz statystyki i wzrosty, które kupiły",
-        "many": "{n} Level Upów oraz statystyki i wzrosty, które kupiły",
-        "other": "{n} Level Upów oraz statystyki i wzrosty, które kupiły"
+        "one": "{n} Level Up razem z podniesionymi statystykami i maksimami",
+        "few": "{n} Level Upy razem z podniesionymi statystykami i maksimami",
+        "many": "{n} Level Upów razem z podniesionymi statystykami i maksimami",
+        "other": "{n} Level Upów razem z podniesionymi statystykami i maksimami"
       },
       "resetCards": {
         "one": "{n} karta napisana przez ten moduł i każdy wątek komunikatora",
@@ -6410,22 +6473,22 @@
         "other": "{n} notatek przed sesją napisanych przez GM-ów"
       },
       "resetPools": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}",
-      "resetKeeps": "To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, kto kogo pilnuje, zespół Monokum i nazwa kampanii.",
+      "resetKeeps": "To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, zespół Monokum i nazwa kampanii.",
       "resetType": "Wpisz {word}, by potwierdzić",
       "resetWord": "RESET",
       "resetButton": "Zresetuj sezon",
-      "resetMistyped": "Nie zresetowano - musisz wpisać dokładnie {word}.",
+      "resetMistyped": "Nic nie zresetowano. Następnym razem wpisz dokładnie {word}.",
       "resetDone": "Sezon zaczyna się od nowa. Obsada i mapy zostają bez zmian.",
       "roomGuide": "Narysuj ściany, potem region na każdy pokój i zaznacz „To jest pokój” w Ustawieniach pokoi.",
       "checkRooms": "Sprawdź pokoje na tej scenie",
-      "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
+      "checkClean": "Sprawdzenie pokoi nie znalazło problemów na tej scenie.",
       "waitingForCast": "Czeka na obsadę: najpierw utwórz uczniów.",
-      "hint.npcs": "Postać, której nie gra żaden gracz, to pewnie NPC: oznacz ją na jej karcie jako Poza klasą albo zostaw, jak jest.",
-      "resetNote": "Kasuje przebieg sezonu - projekty, dowody, śmierci, przedmioty, Level Upy - a obsada zostaje. Najpierw zapyta.",
-      "scenesLine": "Szkoła i sala rozpraw, podpinane raz na sezon.",
+      "hint.npcs": "Postać, której nie gra żaden gracz, to pewnie NPC: oznacz ją na jej arkuszu jako „Poza klasą” albo zostaw, jak jest.",
+      "resetNote": "Kasuje przebieg sezonu, w tym projekty, dowody, śmierci, przedmioty i Level Upy, a obsadę zostawia. Najpierw prosi o potwierdzenie.",
+      "scenesLine": "Szkołę i salę rozpraw podpinasz raz na sezon.",
       "scenesHint": "Ustawienia sezonu podpinają scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.",
-      "roomsVision": "{scene}: działa tam jeszcze widzenie tokenów albo mgła Foundry albo jest wyłączone globalne światło, więc gracze mogą widzieć czerń.",
-      "moreChecking": "Sprawdzam zdjęcia pokoi, głos, kości i karty...",
+      "roomsVision": "{scene}: widzenie tokenów lub mgła Foundry są tam nadal włączone albo globalne światło jest wyłączone, więc gracze mogą widzieć czerń.",
+      "moreChecking": "Sprawdzam zdjęcia pokoi, głos, kości i dostęp do arkuszy...",
       "moreFailed": "Nie udało się pokazać dalszych sprawdzeń. Powód podaje Dziennik debugowania w panelu GM-a.",
       "splitUneven": "Nierówny podział: {counts}.",
       "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
@@ -6438,21 +6501,21 @@
         "other": "Sprawdzenie pokoi znalazło {n} problemu na scenie {scene}: popraw je i sprawdź jeszcze raz."
       },
       "roomsJudged": {
-        "one": "Oceniana scena: {scene}. Pokoje ma {n} scena.",
-        "few": "Oceniana scena: {scene}. Pokoje mają {n} sceny.",
-        "many": "Oceniana scena: {scene}. Pokoje ma {n} scen.",
-        "other": "Oceniana scena: {scene}. Pokoje ma {n} sceny."
+        "one": "Ten wiersz ocenia scenę {scene}. Pokoje ma {n} scena.",
+        "few": "Ten wiersz ocenia scenę {scene}. Pokoje mają {n} sceny.",
+        "many": "Ten wiersz ocenia scenę {scene}. Pokoje ma {n} scen.",
+        "other": "Ten wiersz ocenia scenę {scene}. Pokoje ma {n} sceny."
       },
       "noNamedRegions": "Żadna scena nie ma jeszcze nazwanego regionu: najpierw narysuj każdy pokój jako region sceny.",
       "noHall": "Nie podpięto sali rozpraw.",
       "firstSession": "Pierwsza sesja",
       "firstSessionNote": "Ustawiane raz, przed pierwszą sesją.",
       "safeword": "Safeword",
-      "safewordNote": "Słowo, które zatrzymuje scenę. Widać je na każdym arkuszu. Puste - domyślne.",
+      "safewordNote": "Słowo, które zatrzymuje scenę. Widać je na arkuszu każdego ucznia. Gdy pole jest puste, obowiązuje słowo domyślne.",
       "windows": "Okna sezonu",
       "checklistTitle": "Lista kontrolna sezonu",
       "startHereTitle": "Od czego zacząć",
-      "startHereText": "Zacznij tutaj: panel GM-a > Ustawienia sezonu. Jego Lista kontrolna sezonu prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
+      "startHereText": "Otwórz panel GM-a > Ustawienia sezonu. Znajdziesz tam Listę kontrolną sezonu, która prowadzi przez sezon w kolejności budowania, a linia Dalej w panelu GM-a podaje pierwszą rzecz do zrobienia.",
       "fixedCursor": {
         "one": "Wyłączono udostępnianie kursora dla {n} roli.",
         "few": "Wyłączono udostępnianie kursora dla {n} ról.",
@@ -6461,10 +6524,10 @@
       },
       "convertDoors": "Zamień na przejścia",
       "fixedSecretDoors": {
-        "one": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnym przejściem, którego nikt nie zna, dopóki nie dasz go uczniowi na karcie Tajne przejścia.",
-        "few": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna, dopóki nie dasz ich uczniom na karcie Przejścia.",
-        "many": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna, dopóki nie dasz ich uczniom na karcie Przejścia.",
-        "other": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna, dopóki nie dasz ich uczniom na karcie Tajne przejścia."
+        "one": "Zamienione sekretne drzwi: {n}. Jeśli stały między dwoma pokojami, są teraz tajnym przejściem, którego nikt nie zna; daj je uczniowi w zakładce Tajne przejścia.",
+        "few": "Zamienione sekretne drzwi: {n}. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.",
+        "many": "Zamienione sekretne drzwi: {n}. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.",
+        "other": "Zamienione sekretne drzwi: {n}. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia."
       },
       "secretDoorsPlain": {
         "one": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłą ścianą: {n}.",
@@ -6481,30 +6544,30 @@
       "hideRulers": "Ukryj",
       "showRulers": "Pokaż",
       "fixedRulers": {
-        "one": "Linijka ruchu ukryta dla {n} roli.",
-        "few": "Linijka ruchu ukryta dla {n} ról.",
-        "many": "Linijka ruchu ukryta dla {n} ról.",
-        "other": "Linijka ruchu ukryta dla {n} ról."
+        "one": "Linijka ruchu jest teraz ukryta dla {n} roli.",
+        "few": "Linijka ruchu jest teraz ukryta dla {n} ról.",
+        "many": "Linijka ruchu jest teraz ukryta dla {n} ról.",
+        "other": "Linijka ruchu jest teraz ukryta dla {n} ról."
       },
       "undoneRulers": {
-        "one": "Linijka ruchu znów widoczna dla {n} roli.",
-        "few": "Linijka ruchu znów widoczna dla {n} ról.",
-        "many": "Linijka ruchu znów widoczna dla {n} ról.",
-        "other": "Linijka ruchu znów widoczna dla {n} ról."
+        "one": "Linijka ruchu jest znów widoczna dla {n} roli.",
+        "few": "Linijka ruchu jest znów widoczna dla {n} ról.",
+        "many": "Linijka ruchu jest znów widoczna dla {n} ról.",
+        "other": "Linijka ruchu jest znów widoczna dla {n} ról."
       },
       "resetGroupsTitle": "Co znika, a co zostaje",
-      "resetGroupsNote": "Odznacz wszystko, czego ten reset ma nie ruszać. Wybór zostaje zapamiętany na następny reset i wraca odznaczony - zaznacz ponownie, a zniknie.",
-      "resetCastTitle": "Dokąd trafiają żetony obsady",
-      "resetCastNote": "Żeton przenosi się tylko na mapie, na której narysowano jego pokój. Uczeń bez sypialni albo bez żetonu na mapie pokoju, do którego ma trafić, zostaje na miejscu, a raport go wymienia. Ciało zostaje tam, gdzie upadło. Wybór nie jest zapamiętywany: każdy reset zaczyna od pierwszej opcji.",
+      "resetGroupsNote": "Odznacz wszystko, czego ten reset ma nie ruszać. Następny reset otworzy się z tymi samymi grupami odznaczonymi; zaznacz którąś ponownie, a reset przestanie ją pomijać.",
+      "resetCastTitle": "Dokąd trafiają tokeny obsady",
+      "resetCastNote": "Uczeń bez sypialni albo bez tokenu na mapie pokoju, do którego ma trafić, zostaje na miejscu, a raport go wymienia. Ciało zostaje tam, gdzie upadło. Każdy reset otwiera się z zaznaczoną pierwszą opcją.",
       "resetCastStay": "Zostają tam, gdzie stoją",
       "resetCastBedroom": "Każdy uczeń do własnej sypialni, przypisanej w Ustawieniach pokoi",
       "resetCastPoint": "Wszyscy do jednego pokoju:",
       "resetCastNoRooms": "Żadna mapa nie ma jeszcze nazwanego pokoju",
       "resetRemembered": {
-        "one": "Z ostatniego resetu zapamiętano 1 wyjątek - poniżej jest odznaczony.",
-        "few": "Z ostatniego resetu zapamiętano {n} wyjątki - poniżej są odznaczone.",
-        "many": "Z ostatniego resetu zapamiętano {n} wyjątków - poniżej są odznaczone.",
-        "other": "Z ostatniego resetu zapamiętano {n} wyjątków - poniżej są odznaczone."
+        "one": "Poniżej odznaczono 1 wyjątek zapamiętany z ostatniego resetu.",
+        "few": "Poniżej odznaczono {n} wyjątki zapamiętane z ostatniego resetu.",
+        "many": "Poniżej odznaczono {n} wyjątków zapamiętanych z ostatniego resetu.",
+        "other": "Poniżej odznaczono {n} wyjątków zapamiętanych z ostatniego resetu."
       },
       "resetForgotten": {
         "one": "1 zapamiętany wyjątek nie należy już do resetu i został odrzucony.",
@@ -6514,25 +6577,25 @@
       },
       "resetNothing": "Nic nie jest zaznaczone, więc nie ma czego resetować.",
       "resetDoneKept": {
-        "one": "Sezon zresetowany. 1 wyjątek pozostał bez zmian.",
-        "few": "Sezon zresetowany. {n} wyjątki pozostały bez zmian.",
-        "many": "Sezon zresetowany. {n} wyjątków pozostało bez zmian.",
-        "other": "Sezon zresetowany. {n} wyjątków pozostało bez zmian."
+        "one": "Sezon zaczyna się od nowa, a jeden wyjątek zostaje bez zmian.",
+        "few": "Sezon zaczyna się od nowa, a {n} wyjątki zostają bez zmian.",
+        "many": "Sezon zaczyna się od nowa, a {n} wyjątków zostaje bez zmian.",
+        "other": "Sezon zaczyna się od nowa, a {n} wyjątków zostaje bez zmian."
       },
-      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Otwórz reset ponownie: zaznaczone będzie tylko to, co się nie dokończyło.",
-      "failedCast": "Reset nie przeniósł każdego żetonu obsady tam, gdzie wybrano. Przenieś je ręcznie: reset bez niczego zaznaczonego się nie uruchamia, więc nie da się go powtórzyć dla samych żetonów.",
-      "stoppedPrimary": "Reset się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {groups}. To, co się wykonało, zostaje; {name} może dokończyć resztę kolejnym resetem.",
+      "failed": "Reset się nie dokończył: {groups}. Pozostałe zaznaczone grupy wyczyszczono. Uruchom reset jeszcze raz: okno zaznaczy tylko grupy, których nie dokończył.",
+      "failedCast": "Reset nie przeniósł wszystkich tokenów obsady tam, gdzie miały trafić. Przenieś je ręcznie: żaden reset nie przenosi samych tokenów.",
+      "stoppedPrimary": "Reset się zatrzymał, bo głównym GM-em jest teraz {name}. Niewykonane: {groups}. To, co się wykonało, zostaje; {name} może dokończyć resztę kolejnym resetem.",
       "reportCard": {
         "title": "Reset sezonu się nie dokończył",
         "failed": "Niewyczyszczone: {groups}.",
         "done": "Wyczyszczone: {groups}.",
         "kept": "Zostawione, bo odznaczone: {groups}.",
         "notRun": "Niewykonane, bo główny GM zmienił się w trakcie resetu: {groups}.",
-        "cast": "Żetony obsady, zgodnie z wyborem - {where}.",
+        "cast": "Tokeny obsady przeniesiono zgodnie z wyborem ({where}).",
         "titleCast": "Dokąd trafiła obsada po resecie sezonu",
-        "stayed": "Zostali na miejscu: {names}.",
-        "titleLeft": "Co reset sezonu zostawił na kartach",
-        "experiences": "Doświadczenia zostawione na kartach - ich karta startowa została zapisana, zanim moduł odróżniał doświadczenie z awansu od dopisanego przez GM-a, i nie ma w niej żadnego: {list}."
+        "stayed": "Nie przeniesiono: {names}.",
+        "titleLeft": "Co reset sezonu zostawił na arkuszach",
+        "experiences": "Doświadczenia zostawione na arkuszach, bo nie wiadomo, czy dodał je Level Up, czy GM: {list}."
       },
       "section": {
         "case": "Sprawa",
@@ -6542,38 +6605,38 @@
         "world": "Świat"
       },
       "state": {
-        "noticeHistory": "Historia powiadomień każdego gracza - trzymana w jego przeglądarce, zaczyna się od nowa, gdy reset czyści zegar, incydent albo czat"
+        "noticeHistory": "Historia powiadomień w przeglądarce każdego gracza: zaczyna się od nowa, gdy reset czyści zegar, incydent albo czat"
       },
       "group": {
         "remnants": "Remnanty na mapach i to, czym każdy z nich naprawdę był",
-        "bullets": "Truth Bullets w pakietach obsady",
+        "bullets": "Truth Bullety w ekwipunku obsady",
         "incident": "Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności",
         "trialFloor": "Głos w Class Trial",
         "trialProgress": "Postęp Class Trial i jego głosowanie",
         "keyPlan": "Plan Key Remnantów",
-        "searchTokens": "Search Tokens wydane w każdym pokoju",
+        "searchTokens": "Search Tokeny wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
         "bodyFound": "Znalezione ciało, które czeka na odpowiedź, i zapis, czyje ciała znaleziono",
-        "deaths": "Śmierci i Monocuby - zmarli wracają, ciała zostawione na mapie znikają, a Health i Sanity każdego ucznia są znów pełne",
-        "items": "Co nosi obsada - klucz do każdej sypialni od razu wraca do jej właściciela",
-        "advancement": "Level Upy - cechy i maksima z powrotem do startowego arkusza, i doświadczenia, które dodał Level Up",
-        "actions": "Budżet akcji odnowiony, a odpoczynki każdego ucznia wyczyszczone",
+        "deaths": "Śmierci, Monocuby i ciała na mapach, a zmarli wracają i każdy uczeń ma znów pełne Health i Sanity",
+        "items": "Co nosi obsada, a klucz do każdej sypialni wraca do jej właściciela",
+        "advancement": "Level Upy i doświadczenia, które dodały, a statystyki i maksima wracają do arkusza startowego",
+        "actions": "Budżet akcji odnowiony, odpoczynki każdego ucznia wyczyszczone, a każda barykada zdjęta",
         "preNotes": "Notatki przed sesją dla GM-ów",
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Naprawy, projekty i ich Countdowny",
         "mastermind": "Mastermind",
-        "passages": "Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na start sezonu, zna je znowu)",
+        "passages": "Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na początku sezonu, zna je znowu)",
         "seals": "Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut",
         "motive": "Motive",
         "rules": "Stałe zasady Monokumy",
         "doors": "Zamknięte drzwi, z powrotem do stanu z otwarcia sezonu",
-        "eclipseMoves": "Ustawianie w Eclipse",
+        "eclipseMoves": "Wykorzystane przejścia Eclipse",
         "assembly": "Zwołane zgromadzenie, które jeszcze się nie odbyło",
         "cards": "Własne karty tego modułu i komunikator",
         "chatRest": "Reszta dziennika czatu, której ten moduł nie napisał",
         "despair": "Pule Despair i każdy Hope z powrotem do wartości startowej",
-        "assignments": "Podział uczniów między Monokumy w Despair Flow - każdy uczeń wraca do pierwszej puli",
-        "overflow": "Despair overflow i jego zaciemnienie",
+        "assignments": "Podział uczniów między Monokumy w Despair Flow, więc każdy uczeń wraca do pierwszej puli",
+        "overflow": "Overflow i jego zaciemnienie",
         "clock": "Zegar, z powrotem na rozdział 1, dzień 1, rano"
       }
     },
@@ -6648,7 +6711,7 @@
       "title": "Raport diagnostyczny",
       "intro": "Wszystko, co moduł potrafi tu sprawdzić, w jednym tekście. Skopiuj go i wyślij osobie, która ci pomaga.",
       "copy": "Kopiuj raport",
-      "copied": "Raport skopiowany - wklej go (Ctrl+V) tam, gdzie ma trafić.",
+      "copied": "Raport jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.",
       "gmOnly": "Tę część raportu sprawdza tylko przeglądarka GM-a. Zbierz raport w przeglądarce GM-a, żeby ją zobaczyć.",
       "silencesTitle": "Wyciszone przez ciebie ostrzeżenia",
       "showAgain": "Pokaż znowu",
@@ -6658,26 +6721,26 @@
     },
     "Failures": {
       "title": "Dziennik debugowania",
-      "intro": "Wszystko, co nie udało się tej przeglądarce od załadowania strony. Przeładowanie go opróżnia - błąd sprzed przeładowania to nie taki, na który wciąż da się zareagować. Powtórki to jeden wiersz z licznikiem.",
+      "intro": "Błędy i ostrzeżenia tej przeglądarki od załadowania strony. Przeładowanie strony czyści dziennik, a powtarzający się wpis zajmuje jeden wiersz z licznikiem.",
       "none": "Od załadowania strony nic nie poszło źle.",
       "clear": "Wyczyść dziennik",
       "cleared": "Debug log w tej przeglądarce jest teraz pusty.",
       "copy": "Kopiuj do schowka",
-      "copied": "Dziennik skopiowany - wklej go (Ctrl+V) tam, gdzie ma trafić."
+      "copied": "Dziennik jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić."
     },
     "Fog": {
       "scenesPrepared": {
-        "one": "Widoczność oparta na pokojach włączona dla {count} sceny.",
-        "few": "Widoczność oparta na pokojach włączona dla {count} scen.",
-        "many": "Widoczność oparta na pokojach włączona dla {count} scen.",
-        "other": "Widoczność oparta na pokojach włączona dla {count} scen."
+        "one": "Włączono widoczność opartą na pokojach w {count} scenie.",
+        "few": "Włączono widoczność opartą na pokojach w {count} scenach.",
+        "many": "Włączono widoczność opartą na pokojach w {count} scenach.",
+        "other": "Włączono widoczność opartą na pokojach w {count} sceny."
       },
       "scenesFailed": "Nie udało się przełączyć tych scen na widoczność opartą na pokojach: {scenes}",
       "noRoomScenes": "Żadna scena nie ma pokoi (nazwanych regionów, które GM oznaczył jako pokoje), więc żadna nie używa widoczności opartej na pokojach.",
       "checksScenes": "Sceny i pokoje",
       "floors": "Piętra",
       "floorUnnamed": "Piętro {n}",
-      "floorsHint": "Piętra, które możesz oglądać: te, na których stoi twoja postać, i te, na których jest odkryty przez ciebie pokój. Pokój, w którym twoja postać nigdy nie była, na każdym piętrze pozostaje pod mgłą.",
+      "floorsHint": "Możesz oglądać piętra, na których jest twoja postać albo odkryty przez ciebie pokój. Nieodwiedzone pokoje zostają pod mgłą.",
       "notRooms": {
         "one": "{n} nazwany region nie jest pokojem",
         "few": "{n} nazwane regiony nie są pokojami",
@@ -6696,21 +6759,21 @@
       },
       "checkNoRooms": {
         "problem": "Na tej scenie nie ma pokoi",
-        "detail": "Zaznacz „To jest pokój” przy jej regionach w Ustawieniach pokoi (karta Drzwi) i sprawdź jeszcze raz."
+        "detail": "Zaznacz „To jest pokój” przy jej regionach w Ustawieniach pokoi (zakładka Drzwi) i sprawdź jeszcze raz."
       },
       "secretDoor": {
         "problem": "Sekretne drzwi Foundry",
-        "detail": "Każdy gracz może je otworzyć. W Ustawieniach sezonu Zamień na przejścia w wierszu Brak sekretnych drzwi Foundry robi z nich ścianę, a tam, gdzie stoją między dwoma pokojami, także tajne przejście."
+        "detail": "Każdy gracz może je otworzyć. W Ustawieniach sezonu, w wierszu „Brak sekretnych drzwi Foundry”, przycisk „Zamień na przejścia” zmienia je w ścianę, a tam, gdzie stoją między dwoma pokojami, dodaje też tajne przejście."
       },
       "notRoom": {
         "problem": "Ma nazwę, ale nie jest pokojem",
         "passage": "Ma zachowanie {type}: to przejście.",
         "player": "Narysował go gracz.",
-        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, karta Drzwi, „To jest pokój”).",
+        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, zakładka Drzwi, „To jest pokój”).",
         "why": "Mgła nie rysuje obrysu ani odsłonięcia dla regionu, który nie jest pokojem, i nie prowadzą do niego żadne drzwi."
       },
-      "uncoveredShare": "{pct}% mapy nie należy do żadnego pokoju",
-      "uncoveredShareFloor": "{pct}% piętra {floor} nie należy do żadnego pokoju",
+      "uncoveredShare": "{pct}% mapy leży poza pokojami",
+      "uncoveredShareFloor": "{pct}% piętra {floor} leży poza pokojami",
       "sceneFloor": "{scene} ({floor})",
       "check": {
         "showOnMap": "Pokaż na mapie",
@@ -6721,12 +6784,12 @@
         },
         "defaultName": {
           "problem": "Pokój wciąż ma nazwę nadaną przez Foundry",
-          "why": "Pokój to jego nazwa: gracze czytają ją na mapie, a klucze, schowki i Ustawienia pokoi ją podają. Nadaj mu własną nazwę przed grą."
+          "why": "Moduł rozpoznaje pokój po nazwie: gracze widzą ją na mapie, a klucze, skrytki i Ustawienia pokoi się do niej odwołują. Przed grą nadaj pokojowi własną nazwę."
         },
         "piecesDiffer": {
           "problem": "Części tego pokoju są ustawione różnie",
           "fact": "Różni się między częściami: {what}",
-          "why": "Pokój narysowany z kilku części czyta każde ustawienie z pierwszej części, która je ma, więc ustawienie innej części nie jest ustawieniem pokoju. W Ustawieniach pokoi zmień ustawienie pokoju, zastosuj, potem przywróć je i zastosuj: wszystkie części dostaną to samo. Wysokość ustaw w ustawieniach regionu każdej części.",
+          "why": "Pokój narysowany z kilku części bierze każde ustawienie z pierwszej części, która je ma, więc ustawienie innej części nie jest ustawieniem pokoju. W Ustawieniach pokoi zmień ustawienie pokoju i kliknij „Zastosuj”, potem przywróć je i znów kliknij „Zastosuj”: wszystkie części dostaną to samo. Wysokość ustaw w ustawieniach regionu każdej części.",
           "field": {
             "notShared": "Bez prywatności",
             "owner": "czyja sypialnia",
@@ -6735,13 +6798,13 @@
         },
         "noShape": {
           "problem": "Brak kształtu, który mgła umie odczytać",
-          "why": "Region istnieje, ale jego kształt wrócił pusty: nic z tego pokoju nie zostanie narysowane."
+          "why": "Region istnieje, ale ma pusty kształt: z tego pokoju nic nie zostanie narysowane."
         },
         "overlap": {
           "title": "Pokoje na siebie nachodzą",
           "problem": "Nachodzi na „{other}”",
-          "fact": "Około {squares} kratki podłogi należy do obu pokoi.",
-          "deep": "Około {squares} kratki podłogi należy do obu pokoi, sięgając {depth} kratki w głąb.",
+          "fact": "Około {squares} kratki podłogi leży w obu pokojach.",
+          "deep": "Około {squares} kratki podłogi leży w obu pokojach i sięga {depth} kratki w głąb.",
           "why": "Tam, gdzie dwa pokoje na siebie nachodzą, granica jednego biegnie przez podłogę drugiego bez ściany w pobliżu, a cała wspólna granica wygląda jak jedne drzwi. Pokoje powinny się stykać; pasek cieńszy niż ćwierć kratki jest pomijany."
         },
         "adrift": {
@@ -6753,24 +6816,79 @@
           "title": "Brak wyjścia: ściany dookoła",
           "problem": "Brak wyjścia",
           "fact": "Każdy odcinek granicy ma ścianę.",
-          "why": "Nic nie świeci jako drzwi. Jeśli pokój jest zamknięty celowo, zostaw go; jeśli nie, brakuje drzwi."
+          "why": "Nic nie świeci jako drzwi. Jeśli z pokoju ma być wyjście, dodaj drzwi."
         },
         "isolated": {
           "title": "Brak wyjścia: żadnego pokoju obok",
           "problem": "Brak wyjścia",
-          "fact": "Żaden pokój nie leży bliżej niż kratkę od granicy.",
-          "why": "Najbliższy pokój jest dalej niż kratkę, więc te dwa nigdy nie spotykają się w drzwiach. Pokoje powinny się stykać wzdłuż wspólnej krawędzi."
+          "fact": "Żaden pokój nie leży w promieniu kratki od granicy.",
+          "why": "Najbliższy pokój jest dalej niż o kratkę, więc między nimi nie ma drzwi. Pokoje powinny się stykać wzdłuż wspólnej krawędzi."
         },
         "lattice": {
           "problem": "Narożniki poza siatką mapy",
           "fact": {"one": "{n} narożnik przesunięty do {px} px.", "few": "{n} narożniki przesunięte do {px} px.", "many": "{n} narożników przesuniętych do {px} px.", "other": "{n} narożnika przesuniętego do {px} px."},
           "why": "Reszta mapy jest narysowana na siatce co pół kratki. Rysuj z przyciąganiem: narożnik przesunięty o ułamek kratki jest niewidoczny gołym okiem, a wystarczy, żeby dwa pokoje na siebie nachodziły albo się mijały."
         }
+      },
+      "step": {
+        "ledgerRoad": "kanał rejestru odkryć",
+        "doorControls": "przyciski drzwi według pokoi",
+        "tokenRuler": "linijka tokenu w kolorze pory dnia",
+        "sceneVision": "tryb widzenia sceny",
+        "discoveryMirror": "lokalna kopia odkryć",
+        "firstPaint": "pierwsze rysowanie",
+        "floorSwitcher": "przełącznik pięter",
+        "revealOnArrival": "odsłonięcie po przybyciu",
+        "rememberStart": "zapamiętanie, gdzie zaczynamy",
+        "seedDiscovery": "pierwszy zapis odkryć",
+        "repaint": "ponowne rysowanie",
+        "placedArrival": "przybycie postawionego tokenu",
+        "outlineDoor": "obrys przy drzwiach",
+        "outlineWallMade": "obrys przy nowej ścianie",
+        "outlineWallDeleted": "obrys przy usuniętej ścianie",
+        "outlineVeto": "obrys po pieczęci albo łańcuchu",
+        "whereIStand": "gdzie stoją tokeny tej przeglądarki",
+        "prepareScenes": "przygotowanie scen",
+        "heldRooms": "zapamiętanie, które sceny mają pokoje",
+        "regionNames": "zapamiętanie nazw regionów",
+        "roomRenamed": "zmiana nazwy pokoju",
+        "outlineRoomFlag": "obrys po zmianie flagi pokoju",
+        "outlineReshaped": "obrys pokoju po zmianie kształtu",
+        "oldFogRows": "przejęcie starych wierszy mgły z tej przeglądarki",
+        "shareLedger": "udostępnienie albo odbudowa rejestru",
+        "seedDeferred": "pierwszy zapis odkryć (odłożony do załadowania świata)"
+      },
+      "stepFailed": "Mgła: krok „{step}” się nie powiódł; pozostałe kroki działają dalej",
+      "stepFailedLater": "Mgła: krok „{step}” nie powiódł się już po powrocie",
+      "stand": {
+        "notRunYet": "jeszcze nie uruchomiona",
+        "canvasNotReady": "mapa nie jest jeszcze gotowa",
+        "settingOff": "ustawienie „Pokoje decydują, co widzą gracze” jest wyłączone",
+        "noScene": "na mapie nie ma żadnej sceny",
+        "noRoom": "ta scena nie ma pokoju (nazwanego regionu, który GM oznaczył jako pokój), więc nie ma czego zakryć mgłą",
+        "noDimensions": "ta scena nie podaje wymiarów, w których dałoby się rysować",
+        "noPolygons": "regiony są, ale żaden nie ma kształtu, który da się odczytać",
+        "notRendered": "nie udało się wyrenderować tekstury mgły",
+        "notCleared": "stoisz w pokoju „{room}”, ale mgła nie zdołała go odsłonić, więc ustąpiła, zamiast zaczernić mapę",
+        "notMounted": "nie udało się umieścić warstwy mgły na mapie"
+      },
+      "share": {
+        "nobodyAsked": "nikt o to nie prosił",
+        "alreadyAnswered": "ten gracz już odpowiedział"
+      },
+      "diagnosis": {
+        "head": "{module} | diagnoza mgły: {scene}, siatka {grid}",
+        "glow": "poświata: otwory {openings}, rdzeń {core}px, pełna głębokość {span}px, zasięg {reach}px, amplituda {amplitude}px",
+        "opening": "#{n} długość {length}px, w polach siatki {squares}, poświata w głąb {span}px, początek w {x},{y}",
+        "shortened": "<- skrócona, by zmieścić się we własnym przejściu",
+        "rooms": "pokoje, w których stoję: {rooms}",
+        "none": "żaden",
+        "elsewhere": "gdzie indziej"
       }
     },
     "Rooms": {
       "reportTitle": "Oznaczone pokoje",
-      "reportNote": "Od tej wersji region jest pokojem tylko wtedy, gdy GM go tak oznaczy: kolumna „To jest pokój” na karcie Drzwi w Ustawieniach pokoi. Nazwane regiony poniżej oznaczono raz, żeby mapa zachowała pokoje; odznacz te, które pokojami nie są. Region narysowany od teraz oznaczasz sam.",
+      "reportNote": "Od tej wersji region jest pokojem tylko wtedy, gdy GM go tak oznaczy: kolumna „To jest pokój” w zakładce Pokoje w Ustawieniach pokoi. Nazwane regiony poniżej oznaczono raz, żeby mapa zachowała pokoje; odznacz te, które pokojami nie są. Region narysowany od teraz oznaczasz już ręcznie.",
       "migrated": {
         "one": "Oznaczono {n} pokój: {names}.",
         "few": "Oznaczono {n} pokoje: {names}.",
@@ -6778,14 +6896,14 @@
         "other": "Oznaczono {n} pokoju: {names}."
       },
       "stashesTitle": "Skrytki w sypialniach",
-      "stashesNote": "Żadna sypialnia poniżej nie miała skrytki swojego właściciela, więc właściciel każdej dostał otwartą. Jeśli którąś usunięto celowo, usuń ją znowu na karcie Skrytki w Ustawieniach pokoi.",
+      "stashesNote": "Żadna sypialnia poniżej nie miała skrytki swojego właściciela, więc właściciel każdej dostał otwartą. Jeśli którąś usunięto celowo, usuń ją znowu w zakładce Skrytki w Ustawieniach pokoi.",
       "stashesGiven": {
         "one": "{n} sypialnia: {names}.",
         "few": "{n} sypialnie: {names}.",
         "many": "{n} sypialni: {names}.",
         "other": "{n} sypialni: {names}."
       },
-      "skippedBehaviours": "Do Twojej decyzji w Ustawieniach pokoi, bo mają zachowania: {names}.",
+      "skippedBehaviours": "Do twojej decyzji w Ustawieniach pokoi, bo mają zachowania: {names}.",
       "skippedPlayer": "Nigdy nie są pokojami, bo narysował je gracz: {names}.",
       "skippedNoName": {
         "one": "Pominięto {n} region bez nazwy: pokój musi mieć nazwę.",
@@ -6793,23 +6911,23 @@
         "many": "Pominięto {n} regionów bez nazwy: pokój musi mieć nazwę.",
         "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
       },
-      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
-      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”, a to, co wskazywało pokój starą nazwą, wskazuje nową - klucze: {keys}, schowane przedmioty: {items}, notatki o znalezionej skrytce: {found}, postacie, które go odkryły: {cells}, projekty: {projects}, rzeczy zostawione dla pułapki: {plants}, listy Sąsiadów innych pokoi: {lists}, pokój Masterminda: {lair}, zwołane zebranie: {gather}, pieczęć z Despair Call: {sealed}, znalezione tam ciała: {bodies}.",
-      "flagUnjudged": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem, a ten GM nie miał zapisu oznaczenia sprzed zmiany, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi (karta Drzwi).",
-      "renameJoined": "„{room}” na scenie {scene} dostał nazwę „{name}”, którą nosi pokój, który już tam był, więc jest teraz jeszcze jednym kawałkiem tego pokoju. Nic, co wskazywało „{room}”, nie zostało przeniesione: klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „{room}”. Zdjęte z regionu, by nie dodał niczego do „{name}”: {carried}.",
+      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój oznacza tylko GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
+      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”. Przeniesiono na nową nazwę: klucze ({keys}), schowane przedmioty ({items}), notatki o znalezionej skrytce ({found}), odkrycia pokoju ({cells}), projekty ({projects}), rzeczy zostawione dla pułapki ({plants}), listy Sąsiadów innych pokoi ({lists}), pokój Masterminda ({lair}), zwołane zebranie ({gather}), pieczęć nałożona przez Despair Call ({sealed}), znalezione tam ciała ({bodies}).",
+      "flagUnjudged": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Wcześniejsze oznaczenie nie jest znane, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi, w zakładce Pokoje.",
+      "renameJoined": "Region „{room}” na scenie {scene} dostał nazwę „{name}”, a pokój o tej nazwie już tam był, więc region jest teraz kolejnym kawałkiem tego pokoju. Klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „{room}”. Zdjęte z regionu: {carried}.",
       "carriedNothing": "nic",
-      "pieceSplit": "Region „{name}” na scenie {scene} był jednym z kilku kawałków pokoju {room}, dopóki nie zmieniono mu nazwy. To, co niósł dla tego pokoju ({carried}), zostało z niego zdjęte: zatrzymują to pozostałe kawałki pokoju {room}, a „{name}” zaczyna bez niczego z tego."
+      "pieceSplit": "Region „{name}” na scenie {scene} był jednym z kawałków pokoju {room}, dopóki nie zmieniono mu nazwy. Zdjęto z niego to, co niósł dla tego pokoju ({carried}): zostaje to przy pozostałych kawałkach pokoju {room}, a „{name}” zaczyna bez tego."
     },
     "Migrate": {
       "gmOnly": "Tylko GM może uruchomić migrację danych.",
       "done": {
-        "one": "Danganronpa RPG: jedną rzecz w tym świecie zaktualizowano do {version}.",
-        "few": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}.",
-        "many": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}.",
-        "other": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}."
+        "one": "Danganronpa RPG: jedną część danych tego świata zaktualizowano do {version}.",
+        "few": "Danganronpa RPG: {n} części danych tego świata zaktualizowano do {version}.",
+        "many": "Danganronpa RPG: {n} części danych tego świata zaktualizowano do {version}.",
+        "other": "Danganronpa RPG: {n} części danych tego świata zaktualizowano do {version}."
       },
-      "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane, a przy następnym wczytaniu świata spróbuje ponownie; szczegóły w konsoli.",
-      "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em, więc migracja danych niczego nie oznaczyła jako zmigrowane. Przeglądarka głównego GM-a uruchomi ją przy wczytaniu tego świata."
+      "failed": "Danganronpa RPG: migracja danych nie dokończyła się ({clauses}). Ruszy znowu przy następnym wczytaniu tego świata; szczegóły są w konsoli.",
+      "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em. Migrację danych przeprowadzi główny GM, gdy wczyta ten świat."
     },
     "Popup": {
       "moreTip": {
@@ -8215,15 +8333,15 @@
       "backstop": "Strażnik przekaźnika GM-a nie mógł zastąpić słuchacza Daggerhearta {version}, więc każdą zmianę przed wykonaniem sprawdza tryb awaryjny. Prośby graczy nadal są sprawdzane. Daj znać autorowi modułu."
     },
     "GmStore": {
-      "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób ją teraz (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",
-      "syncTimedOut": "Magazyn GM-a nie dostał odpowiedzi od: {names}. Działa dalej na tym, co ma ta przeglądarka, a ich kopia zostanie scalona, gdy dotrze.",
+      "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób teraz kopię zapasową (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",
+      "syncTimedOut": "Magazyn GM-a nie dostał odpowiedzi od tych GM-ów: {names}. Działa dalej na tym, co ma ta przeglądarka, a ich kopię scali, gdy dotrze.",
       "claimFailed": {
-        "one": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersz): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
-        "few": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersze): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
-        "many": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wierszy): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
-        "other": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersza): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest."
+        "one": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersz): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.",
+        "few": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersze): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.",
+        "many": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wierszy): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.",
+        "other": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersza): {error}. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz."
       },
-      "resetPrimaryOnly": "Sezon resetuje tylko główny GM, {name}, żeby o tym, co traci kopia sprawy każdego GM-a, decydowała jedna przeglądarka. Poproś o to GM-a {name} albo zresetuj, gdy będziesz jedynym połączonym GM-em.",
+      "resetPrimaryOnly": "Sezon resetuje tylko główny GM, {name}. Poproś o to GM-a {name} albo zresetuj sezon, gdy będziesz jedynym połączonym GM-em.",
       "resetOfflineGms": {
         "one": "Jeden GM nie jest połączony ({names}): jego przeglądarka usunie to, co czyści ten reset, gdy następnym razem otworzy ten świat.",
         "few": "{n} GM-ów nie jest połączonych ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.",
@@ -8231,7 +8349,7 @@
         "other": "{n} GM-a nie jest połączonego ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat."
       },
       "resetCutFailed": "Reset sezonu nie mógł zaznaczyć w zegarze chwili resetu ({error}). Nic nie zostało wyczyszczone.",
-      "saveFailedAlone": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, by mieć kopię: zrób ją teraz (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",
+      "saveFailedAlone": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, więc nikt nie ma kopii. Zrób teraz kopię zapasową (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).",
       "openFailed": "Magazyn GM-a nie mógł się otworzyć w tej przeglądarce: {error}. Dopóki się nie otworzy, Analyze i przekazanie Truth Bulletu są odrzucane. Przeładuj, aby spróbować ponownie; szczegóły są w konsoli.",
       "notOpen": "Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu {seconds} s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony."
     },
@@ -8296,8 +8414,8 @@
       "castNobody": "- nikt -",
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",
       "backupTitle": "Kopia sprawy",
-      "backupWhat": "Plik zawiera każdy sekret GM-a w tym świecie: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego Remnantu, obsadę otwartego incydentu i Blackened każdego rozdziału, podłożone przedmioty pułapek, oferowane Level Upy i pokoje odkryte przez każdą postać. Trzymaj go tam, gdzie żaden gracz go nie otworzy.",
-      "backupEarly": "Kopia od {names} jeszcze nie dotarła: ta kopia zapasowa zawiera tylko to, co ma ta przeglądarka. Zrobić ją mimo to?",
+      "backupWhat": "Plik zawiera sekrety GM-a z tego świata: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego Remnantu, obsadę otwartego incydentu i Blackened każdego rozdziału, podłożone przedmioty pułapek, oferowane Level Upy i pokoje odkryte przez każdą postać. Trzymaj go tam, gdzie żaden gracz go nie otworzy.",
+      "backupEarly": "Brakuje jeszcze kopii od tych GM-ów: {names}. Ta kopia zapasowa zawiera więc tylko to, co ma ta przeglądarka. Zrobić ją mimo to?",
       "backedUp": {
         "one": "Sprawa zapisana do pliku: {n} wiersz.",
         "few": "Sprawa zapisana do pliku: {n} wiersze.",
@@ -8315,15 +8433,15 @@
         "many": "ostatnia kopia: {n} dni temu",
         "other": "ostatnia kopia: {n} dnia temu"
       },
-      "chapterReminder": "Klucze odpowiedzi, które odsłania koniec rozdziału, żyją w przeglądarkach GM-ów, nie w pliku świata. Zrób kopię sprawy: {when}.",
+      "chapterReminder": "Klucze odpowiedzi, które odsłania koniec rozdziału, przechowują tylko przeglądarki GM-ów. Zrób kopię sprawy ({when}).",
       "refused": {
         "unreadable": "Ten plik nie jest kopią sprawy.",
         "newer": "Ten plik zapisała nowsza wersja modułu (format {version}); ta nie umie go odczytać.",
         "otherWorld": "Ten plik to sprawa innego świata ({title}). Zaznacz pole, by mimo to przywrócić go tutaj.",
-        "malformed": "Tego pliku nie da się przywrócić: jego sekcja {store} jest uszkodzona (konsola wskazuje wiersz). Niczego nie zmieniono."
+        "malformed": "Moduł odrzucił cały plik: sekcja „{store}” jest uszkodzona, a konsola wskazuje, który wiersz. Sprawa zostaje taka, jak była."
       },
       "restored": "Sprawa przywrócona.",
-      "restoredStore": "{store}: zmienione {n}, pominięte pod cięciem resetu {cut}",
+      "restoredStore": "{store}: zmienione {n}, pominięte sprzed resetu {cut}",
       "store": {
         "bullets": "Truth Bullety",
         "remnants": "Remnanty",
@@ -8331,7 +8449,7 @@
         "passageMap": "Tajne przejścia: gdzie jest każde i czy jest otwarte",
         "passageAccess": "Kto zna które tajne przejście i skąd",
         "passageLog": "Co robiono z tajnymi przejściami",
-        "passageSeason": "Tajne przejścia zbudowane w tym sezonie w projektach",
+        "passageSeason": "Tajne przejścia zbudowane w projektach tego sezonu",
         "cast": "Obsada incydentu",
         "blackened": "Rejestr Blackened",
         "trapLedger": "Podłożone przedmioty pułapek",
@@ -8341,7 +8459,7 @@
         "discovery": "Pokoje odkryte przez każdą postać",
         "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia",
         "foundDone": "Ukończone tajne projekty czekające, aż ich znalazcy wrócą",
-        "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
+        "pendingMurders": "Zgłoszenia Direct Murder w czasie Eclipse",
         "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
         "keyPlan": "Plan Key Remnantów, rozdział po rozdziale",
         "trialCast": "Które tokeny sali rozpraw pokazuje Class Trial",
@@ -8349,42 +8467,42 @@
         "notes": "Notatki graczy przed sesją",
         "deaths": "Śmierci, których nikt jeszcze nie odkrył",
         "deferredOffers": "Reinforced Level Upy czekające na klasę",
-        "overflow": "Licznik Despair overflow",
+        "overflow": "Licznik Despair w Overflow",
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
-        "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
-        "lootRolls": "Pierwszy rzut na Hand i Shadow każdej osoby do jej następnego zabrania z każdego ciała",
-        "rifles": "Którą skrytkę każda postać przetrząsnęła, i o jakiej porze dnia",
-        "facilityUses": "Których akcji w pokojach użyła każda postać, i o jakiej porze dnia",
-        "tails": "Kto dziś śledzi kogo, i jak dobrze",
+        "lootTraces": "Co zabrano z każdego ciała i jaki Remnant przy tym został",
+        "lootRolls": "Pierwsze rzuty na Hand i Shadow do następnego Take from the Body, osobno dla każdej postaci i każdego ciała",
+        "rifles": "Którą skrytkę każda postać przetrząsnęła i o jakiej porze dnia",
+        "facilityUses": "Których akcji w pokojach użyła każda postać i o jakiej porze dnia",
+        "tails": "Kto dziś kogo śledzi i jak dobrze",
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
-        "bedroomNotes": "Co działo się z każdą sypialnią pod nieobecność jej właściciela, powiedziane, gdy do niej wróci",
+        "bedroomNotes": "Co działo się w każdej sypialni pod nieobecność właściciela, który usłyszy o tym po powrocie",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
-        "pendingBodies": "Znalezione ciała, które czekają na słowo GM-ów, by je ogłosić",
+        "pendingBodies": "Znalezione ciała, których ogłoszenie czeka na decyzję GM-a",
         "bodiesHeard": "Przy których ciałach każda postać usłyszała dźwięk znalezienia",
-        "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
-        "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju, i którego pokoju może znów posłuchać za darmo",
+        "lockpicks": "Kto może wejść do którego pokoju przez zamek otwarty wytrychem",
+        "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo",
         "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
-        "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
-        "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
+        "clockBeat": "Kiedy główny GM był ostatnio przy stole",
+        "takeBack": "Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",
-        "traceDigest": "Ślady zostawione od ostatniego zestawienia dla GM-ów, podane o następnej porze dnia",
-        "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
+        "traceDigest": "Remnanty zostawione od ostatniego zestawienia dla GM-ów; następne zestawienie przyjdzie o kolejnej porze dnia",
+        "confusions": "Confusion użyte na postaci i czekające na jej rzut",
         "cubs": "Zapis Monocubów: który Monocub był świadkiem zbrodni",
         "cubTargets": "Ile ruchów Monocubów miał każdy uczeń tego dnia",
-        "projectWork": "Kto pracował nad każdym projektem w tej porze dnia",
+        "projectWork": "Kto pracował nad każdym projektem o tej porze dnia",
         "bounties": "Otwarte Bounty na uczniów, dla Monocubów",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
         "rerollJournal": "Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić",
         "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
-        "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
-        "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
+        "sheetMarks": "Co zawierał arkusz każdej postaci, gdy GM-owie ostatnio ocenili zapis na nim",
+        "sheetWrites": "Zapisy na arkuszach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
         "diceLooks": "Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza",
         "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
         "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
-        "trialMute": "Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jej końca",
+        "trialMute": "Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jego końca",
         "closingClaim": "Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów",
         "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz",
         "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
@@ -8404,15 +8522,15 @@
           "other": "{n} Truth Bulletu (z {of}) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone."
         },
         "noAnswer": {
-          "one": "{n} klucz odpowiedzi stracił prawdziwy typ (szkoda po starym scalaniu).",
-          "few": "{n} klucze odpowiedzi straciły prawdziwy typ (szkoda po starym scalaniu).",
-          "many": "{n} kluczy odpowiedzi straciło prawdziwy typ (szkoda po starym scalaniu).",
-          "other": "{n} klucza odpowiedzi straciło prawdziwy typ (szkoda po starym scalaniu)."
+          "one": "{n} klucz odpowiedzi stracił prawdziwy typ.",
+          "few": "{n} klucze odpowiedzi straciły prawdziwy typ.",
+          "many": "{n} kluczy odpowiedzi straciło prawdziwy typ.",
+          "other": "{n} klucza odpowiedzi straciło prawdziwy typ."
         },
         "incident": "Incydent jest otwarty, a ta przeglądarka nie ma jego obsady.",
         "neverHeld": "Ta przeglądarka nigdy nie miała sprawy tego świata, która zaczęła się {date}.",
         "legacyChanged": "Stary magazyn „{store}” zmienił się po aktualizacji (GM wrócił do starszej wersji): przejmij zmiany z diagnostyki.",
-        "claimFailed": "Nie udało się przejąć starego magazynu „{store}” tej przeglądarki: {error}. Nic nie zostało zmienione; następne wczytanie spróbuje ponownie.",
+        "claimFailed": "Ta przeglądarka nie zdołała przejąć swojego starego magazynu „{store}”: {error}. Stare wiersze zostają takie, jak były; następne wczytanie spróbuje ponownie.",
         "unseen": "Ta kontrola nie widzi, kto jest Mastermindem, ofert Level Up ani rejestru Blackened: przeglądarka, która je straciła, o tym nie wie.",
         "left": {
           "one": "{n} stary wiersz zostaje w tej przeglądarce, nieprzejęty: z innego świata albo już nie ze sprawy tego świata.",
@@ -8421,10 +8539,10 @@
           "other": "{n} starego wiersza zostaje w tej przeglądarce, nieprzejętego: z innych światów albo już nie ze sprawy tego świata."
         },
         "clamped": {
-          "one": "{n} stary wiersz miał stempel późniejszy niż chwila, w której ta przeglądarka go przejęła - zegar się spieszył - więc przyjęto go z tą chwilą.",
-          "few": "{n} stare wiersze miały stemple późniejsze niż chwila, w której ta przeglądarka je przejęła - zegar się spieszył - więc przyjęto je z tą chwilą.",
-          "many": "{n} starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła - zegar się spieszył - więc przyjęto je z tą chwilą.",
-          "other": "{n} starego wiersza miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła - zegar się spieszył - więc przyjęto je z tą chwilą."
+          "one": "{n} stary wiersz miał stempel późniejszy niż chwila, w której ta przeglądarka go przejęła, bo zegar się spieszył. Przyjęto go z chwilą przejęcia.",
+          "few": "{n} stare wiersze miały stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.",
+          "many": "{n} starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.",
+          "other": "{n} starego wiersza miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia."
         },
         "skew": "Stemple wyprzedzające zegar tej przeglądarki: {names}.",
         "bytes": "Magazyny GM-a zajmują {stores} KB pamięci tej przeglądarki; moduł łącznie {total} KB, nie licząc historii powiadomień.",
@@ -8432,12 +8550,12 @@
         "lastBackup": "Ostatnia kopia: {when} ({who}).",
         "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii.",
         "traceOrphans": {
-          "one": "{n} klucz odpowiedzi Remnantu nie ma żetonu na żadnej scenie: zostaje, nic go nie czyta.",
-          "few": "{n} klucze odpowiedzi Remnantów nie mają żetonu na żadnej scenie: zostają, nic ich nie czyta.",
-          "many": "{n} kluczy odpowiedzi Remnantów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta.",
-          "other": "{n} klucza odpowiedzi Remnantów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta."
+          "one": "{n} klucz odpowiedzi Remnantu nie ma tokenu na żadnej scenie: zostaje, nic go nie czyta.",
+          "few": "{n} klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.",
+          "many": "{n} kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.",
+          "other": "{n} klucza odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta."
         },
-        "mastermindCleared": "Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono {cleared}, już po tym, jak {picked} wybrano na niego postać {name} - być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść.",
+        "mastermindCleared": "Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono {cleared}, już po tym, jak {picked} wybrano na niego postać {name}, być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść.",
         "traps": {
           "one": "{n} uzbrojona pułapka na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie może zadziałać.",
           "few": "{n} uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
@@ -8456,29 +8574,29 @@
           "many": "{n} notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.",
           "other": "{n} notatki przed sesją jest oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze."
         },
-        "tracesOnToken": {"one": "{n} Remnant na mapie (z {of}) wciąż ma klucz odpowiedzi na swoim żetonie: przenosi się go do rejestru, a nie przywraca.", "few": "{n} Remnanty na mapie (z {of}) wciąż mają klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "many": "{n} Remnantów na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "other": "{n} Remnantu na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca."},
-        "tracesKept": {"one": "{n} Remnant na mapie (z {of}) zachowuje na swoim żetonie, który ma każda przeglądarka, flagi klucza odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o nim GM, a game.drpg.migrateRemnants() go wskazuje.", "few": "{n} Remnanty na mapie (z {of}) zachowują na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o każdym GM, a game.drpg.migrateRemnants() je wskazuje.", "many": "{n} Remnantów na mapie (z {of}) zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o każdym GM, a game.drpg.migrateRemnants() je wskazuje.", "other": "{n} Remnantu na mapie (z {of}) zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o każdym GM, a game.drpg.migrateRemnants() je wskazuje."},
+        "tracesOnToken": {"one": "{n} Remnant na mapie (z {of}) wciąż ma klucz odpowiedzi na swoim tokenie: przenieś go do rejestru.", "few": "{n} Remnanty na mapie (z {of}) wciąż mają klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.", "many": "{n} Remnantów na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.", "other": "{n} Remnantu na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru."},
+        "tracesKept": {"one": "{n} Remnant na mapie (z {of}) zachowuje na swoim tokenie, który ma każda przeglądarka, flagi klucza odpowiedzi. To awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. Decyduje o nim GM, a game.drpg.migrateRemnants() go wskazuje.", "few": "{n} Remnanty na mapie (z {of}) zachowują na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.", "many": "{n} Remnantów na mapie (z {of}) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.", "other": "{n} Remnantu na mapie (z {of}) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje."},
         "leftNotPrimary": {"one": "{n} stary wiersz ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie go game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "few": "{n} stare wiersze ofert lub mgły tego świata zostają w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "many": "{n} starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "other": "{n} starego wiersza ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn)."}
       },
       "healthTitle": "Sprawa w tej przeglądarce",
       "healthIntro": "Tej przeglądarce brakuje części sprawy tego świata:",
-      "healthNote": "Przywróć odtworzy ją z pliku kopii; Dalej działa bez niej, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna.",
+      "healthNote": "„Przywróć z pliku” odtwarza brakującą część z kopii; dopóki sprawa nie będzie kompletna, panel GM-a będzie o tym przypominał.",
       "restoreFromFile": "Przywróć z pliku",
       "continue": "Dalej",
-      "continued": "Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z pliku kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku).",
+      "continued": "Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z kopii (panel GM-a, Diagnostyka, Sprawa).",
       "panelWarning": "Sprawa w tej przeglądarce jest niekompletna:",
       "restoreTitle": "Przywróć sprawę",
       "previewStore": "{store}: nowe {add}, odświeżone {refresh}, nowsze tutaj {kept}, pod cięciem resetu {cut}, usunięte tutaj {remove}",
       "otherWorld": "Ten plik to sprawa innego świata ({title}). Mimo to przywróć go tutaj.",
-      "beforeCut": "Przywróć mimo to wiersze usunięte przez ostatni reset (wrócą ze świeżym stemplem).",
-      "restoreNote": "Przywracanie bierze tylko to, co nowsze niż to, co ma ta przeglądarka - także usunięcia, policzone wyżej. Nigdy nie bierze cięcia resetu z pliku, a plik innego świata nie przynosi żadnych usunięć.",
+      "beforeCut": "Przywróć mimo to wiersze usunięte przez ostatni reset (uzupełnią tylko pola, których brakuje tej przeglądarce).",
+      "restoreNote": "Przywracanie bierze tylko to, co jest nowsze niż w tej przeglądarce, także usunięcia, policzone wyżej. Nigdy nie bierze cięcia resetu z pliku, a plik innego świata nie przynosi żadnych usunięć.",
       "restore": "Przywróć",
-      "answerKeyMissing": "Truth Bullet „{bullet}” postaci {actor} nie ma klucza odpowiedzi w tej przeglądarce, więc jego Analyze zostało odrzucone. Przywróć go z kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku).",
+      "answerKeyMissing": "Truth Bullet „{bullet}” postaci {actor} nie ma klucza odpowiedzi w przeglądarce GM-a, która rozstrzygała to Analyze, więc Analyze zostało odrzucone, a koszt wraca do gracza. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa).",
       "chargeHeld": {
-        "one": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullet nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie.",
-        "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie.",
-        "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie.",
-        "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć je z kopii (panel GM-a, Diagnostyka, Sprawa) i zapytaj ponownie."
+        "one": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullet nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.",
+        "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.",
+        "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.",
+        "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie."
       },
       "fillFromTraces": "Uzupełnij z ich Remnantów ({n})",
       "filled": {
@@ -8492,30 +8610,30 @@
       "clearMastermind": "Wyczyść Masterminda",
       "enterCast": "Wpisz obsadę ręcznie",
       "castTitle": "Obsada incydentu",
-      "castIntro": "Trwa incydent, a ta przeglądarka nie wie, kto w nim jest. Wpisz ich tak, jak jest przy stole; GM, który miał obsadę i wróci później, przyniesie ją ze sobą.",
+      "castIntro": "Trwa incydent, a ta przeglądarka nie wie, kto w nim jest. Wpisz obsadę tak, jak wygląda przy stole.",
       "castKiller": "Zabójca",
       "castVictim": "Ofiara",
       "castThird": "Trzecia osoba, jeśli była",
-      "castEnter": "Wpisz",
-      "previewRecord": "{store}: z innego świata - brane tylko wtedy, gdy zaznaczysz to niżej.",
+      "castEnter": "Wpisz obsadę",
+      "previewRecord": "{store}: z innego świata, brane tylko wtedy, gdy zaznaczysz to niżej.",
       "previewClamped": {"one": "{n} wiersz ma stempel późniejszy, niż pozwala zegar: zostałby przyjęty z tą chwilą.", "few": "{n} wiersze mają stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.", "many": "{n} wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.", "other": "{n} wiersza ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą."},
       "previewNotThisWorld": {"one": "{n} wiersz jest z innego świata i zostaje pominięty.", "few": "{n} wiersze są z innego świata i zostają pominięte.", "many": "{n} wierszy jest z innego świata i zostaje pominiętych.", "other": "{n} wiersza jest z innego świata i zostaje pominiętych."},
-      "otherWorldRecord": "Weź z tego pliku także: {store}. Jest z innego świata i zastępuje dane tego świata tam, gdzie plik ma nowsze.",
+      "otherWorldRecord": "Weź z tego pliku także „{store}”. Te dane są z innego świata i zastępują dane tego świata tam, gdzie plik ma nowsze.",
       "restoredSkipped": "{store}: z innego świata, nie wzięto",
       "restoredClamped": {"one": "{n} wiersz miał stempel późniejszy, niż pozwala zegar, i przyjęto go z tą chwilą.", "few": "{n} wiersze miały stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "many": "{n} wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "other": "{n} wiersza miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą."},
       "moveTraces": "Przenieś je do rejestru",
-      "moveNote": "Przenieś je do rejestru zdejmuje klucz odpowiedzi każdego Remnantu z jego żetonu (game.drpg.migrateRemnants); Dalej działa bez niego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
+      "moveNote": "„Przenieś je do rejestru” przenosi klucz odpowiedzi każdego Remnantu z jego tokenu do rejestru; „Dalej” pozwala grać bez tego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
     },
     "CaseMap": {
       "noDiveSet": "- bez zestawu -",
       "diveSetGone": "(zestaw już usunięty)",
       "autopsySent": "Wysłany uczniom.",
-      "autopsyWhen": "Trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr {n}.",
+      "autopsyWhen": "Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr {n}.",
       "autopsyNth": "{label} {n}",
       "autopsyAt": "Wysyłany przy",
       "autopsyBody": "Ciało nr {n} znalezione",
       "autopsyCount": "Autopsy w tym rozdziale",
-      "autopsyPreset": "Domyślnie: {n}, po jednym na każde ciało.",
+      "autopsyPreset": "Domyślnie {n}: po jednym na każde ciało, ale co najmniej jeden.",
       "autopsyWentOut": {"one": "Zaplanowany Autopsy Truth Bullet trafił do {n} ucznia.", "few": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów.", "many": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów.", "other": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów."},
       "viewSwitch": "Widok śledztwa",
       "editLabel": "Pola: {name}",
@@ -8531,7 +8649,7 @@
       "colEvidence": "Dowody",
       "colDeductions": "Wnioski",
       "colSolution": "Rozwiązanie",
-      "unrelated": "Nie związane z morderstwem: {n}",
+      "unrelated": "Niezwiązane z morderstwem: {n}",
       "kind": {
         "deduction": "Wniosek",
         "counter": "Kontra",
@@ -8547,10 +8665,10 @@
       },
       "slotNumber": "Miejsce {n}",
       "noName": "(bez nazwy)",
-      "leftBy": "zostawił: {name}",
+      "leftBy": "kto zostawił: {name}",
       "panelState": "Stan",
       "panelRoom": "Pokój",
-      "panelAuthor": "Zostawił (tylko GM-owie)",
+      "panelAuthor": "Kto zostawił (tylko GM-owie)",
       "panelWhoHas": "Kto ma",
       "panelMode": "Tryb rozprawy",
       "nobodyYet": "Nikt jeszcze",
@@ -8564,7 +8682,7 @@
       "noMode": "- bez trybu rozprawy -",
       "nothingToRefute": "Nie ma jeszcze wniosku do obalenia.",
       "removeNode": "Usuń ze sprawy",
-      "removeAsk": "Usunąć {name} ze sprawy? Węzeł, który na nim stoi, nadal go wskazuje, a sprawdzenie to pokaże.",
+      "removeAsk": "Usunąć węzeł „{name}” ze sprawy? Węzły, które się do niego odwołują, nadal będą go wskazywać, a sprawdzenie to pokaże.",
       "addDeduction": "Dodaj wniosek",
       "addCounter": "Dodaj kontrę",
       "addSolution": "Dodaj rozwiązanie",
@@ -8573,7 +8691,7 @@
       "sortLabel": "Kolejność w kolumnie",
       "moveUp": "W górę",
       "moveDown": "W dół",
-      "notSaved": "Nie zapisano. Wpisany tekst został w polach.",
+      "notSaved": "Nie udało się zapisać. Twoje zmiany zostały w polach.",
       "field": {
         "img": "Obraz",
         "label": "Nazwa",
@@ -8610,45 +8728,45 @@
       "hasProblem": "ma problem",
       "problem": {
         "noInputs": "{node} nie wynika z niczego.",
-        "cycle": "{node} leży na kole wejść, więc mapa go nie rysuje.",
+        "cycle": "{node} jest w pętli wejść, więc mapa nic nie pokaże, dopóki nie przerwiesz tej pętli.",
         "missing": "{node} wskazuje „{ref}”, a tego już nie ma na mapie.",
         "noTarget": "{node} niczego nie obala.",
         "noSolution": "Sprawa ma wnioski, ale nie ma rozwiązania.",
         "twoSolutions": "{node} to drugie rozwiązanie.",
-        "solutionUnreached": "Nic na mapie nie prowadzi do: {node}.",
-        "badMode": "{node}: rozprawa nie ma takiego trybu, „{ref}”.",
+        "solutionUnreached": "Nic na mapie nie prowadzi do węzła {node}.",
+        "badMode": "{node} wymaga trybu „{ref}”, którego rozprawa nie ma.",
         "culpritOnly": "{ref}, wejście węzła {node}, ma tylko sprawca, więc się nie liczy.",
-        "tooManyKeys": "Key Remnanty w sprawie: {ref}, więcej niż przygotowuje rozdział.",
+        "tooManyKeys": "Sprawa ma więcej Key Remnantów ({ref}), niż przygotowuje rozdział.",
         "incomplete": "Brakuje: {ref} ({node})."
       },
       "needs": {"room": "pokój", "name": "nazwa", "recipient": "odbiorca"},
       "pickRoom": "- wybierz pokój -",
       "noRecipient": "- jeszcze nikt -",
       "bulletGiven": "Wydany.",
-      "finalAskRoomTitle": "Gdzie ma stanąć Final Truth Remnant?",
+      "finalAskRoomTitle": "Pokój dla Final Truth Remnantu",
       "placeOnMap": "Postaw na mapie"
     },
     "CaseRealize": {
       "preview": "Podgląd realizacji",
       "undo": "Cofnij realizację",
       "title": "Realizacja sprawy, rozdział {chapter}",
-      "intro": "Nic się nie zmieni, dopóki nie klikniesz Uruchom realizację. Każde miejsce na Key Remnant, którego nie ma jeszcze na mapie, trafi do wybranego pokoju; miejsce bez pokoju zostaje bez zmian.",
+      "intro": "Nic się nie zmieni, dopóki nie klikniesz Uruchom realizację. Każde miejsce na Key Remnant, którego nie ma jeszcze na mapie i które mieści się w limicie rozdziału, trafi do wybranego pokoju; miejsce bez pokoju zostaje bez zmian.",
       "colWhat": "Co",
       "colSlot": "Miejsce",
       "colName": "Nazwa",
       "colRoom": "Pokój",
       "noRoom": "- zostaw -",
       "run": "Uruchom realizację",
-      "undoNote": "Cofnij realizację usuwa tylko to, czego nikt nie znalazł.",
+      "undoNote": "Cofnij realizację usuwa tylko to, czego nikt nie znalazł i czego Monokuma nie ujawnił.",
       "action": {
         "create": "Postawi",
         "placed": "Na mapie",
         "overLimit": "Ponad limit"
       },
-      "ran": "Realizacja postawiła Key Remnanty: {n}.",
+      "ran": "Key Remnanty postawione przez realizację: {n}.",
       "notRun": "Nic nie postawiono.",
       "nothingMade": "Realizacja niczego w tym rozdziale nie postawiła.",
-      "undoAsk": "Cofnąć to, co postawiła realizacja? Oznaczone Remnanty: {n}; te, które ktoś znalazł, zostaną.",
+      "undoAsk": "Cofnąć realizację? Postawione przez nią Key Remnanty: {n}; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.",
       "undone": "Usunięte: {removed}; zostają (znalezione albo ujawnione): {kept}.",
       "askTitle": "Realizacja sprawy",
       "askBody": "Znaleziono ciało. Sprawa tego rozdziału nie została jeszcze zrealizowana. Nic się nie stanie, dopóki nie wybierzesz.",
@@ -8661,7 +8779,7 @@
       "floorOpen": "Trwa inny tryb. Najpierw go zakończ.",
       "tickLabel": "Zaznaczone: {name}",
       "startLabel": "Zacznij {mode} od węzła {name}",
-      "hint": "Podpowiedź: pokazane dowody to wspierają",
+      "hint": "Pokazane dowody to wspierają",
       "presented": "Pokazany",
       "ticked": "Zaznaczony",
       "unknown": {
@@ -8679,8 +8797,8 @@
       "send": "Wyślij wszystkim",
       "sent": "Podsumowanie wysłane.",
       "already": "Już wysłane w tej rozprawie.",
-      "noVerdict": "Dopiero po werdykcie.",
-      "title": "Rozdział {chapter}: jak rozwiązano sprawę",
+      "noVerdict": "Podsumowanie pokażesz dopiero po werdykcie.",
+      "title": "Podsumowanie sprawy, rozdział {chapter}",
       "speaker": "Podsumowanie sprawy",
       "noSolution": "Klasa zagłosowała źle, więc rozwiązanie zostaje ukryte.",
       "role": {
@@ -8696,13 +8814,13 @@
       "button": "Ujawnij",
       "noTrace": "nie ma go na mapie",
       "title": "Ujawnienie Monokumy",
-      "intro": "Każdy uczestnik rozprawy dostaje {name} jako znaleziony Key Remnant. Analyze kosztuje tyle co zawsze.",
+      "intro": "Każdy uczestnik rozprawy, który go jeszcze nie ma, dostaje Truth Bullet „{name}”, jakby sam znalazł ten Key Remnant. Analyze kosztuje tyle co zawsze.",
       "textLabel": "Co czytają gracze",
       "beyondPaid": "Za ten Key Remnant nie pobrano Despair. Ujawnić mimo to?",
       "told": "Monokuma ujawnia Key Remnant, którego nie udało ci się znaleźć.",
       "defaultName": "Key Remnant",
       "notHydrated": "Plan Key Remnantów jeszcze się wczytuje. Spróbuj za chwilę.",
-      "notMissing": "Ten Key Remnant nie jest brakujący: ktoś go znalazł albo Monokuma już go ujawnił.",
+      "notMissing": "Tego Key Remnantu już nie brakuje: ktoś go znalazł albo Monokuma go ujawnił.",
       "pastPaid": "Ujawniono już każdy Key Remnant, za który pobrano Despair. Potwierdź, aby ujawnić kolejny.",
       "noText": "Najpierw wpisz, co przeczytają gracze na tym Key Remnancie.",
       "notDone": "Key Remnant nie został ujawniony."

@@ -1,0 +1,5610 @@
+# Teksty polskie grupy D (B14-B18), wyrenderowane
+
+Cut on 14.11.2026 from `node tools/text-render.mjs`'s whole-module render (audit/harness/results/text/text-render.pl.md, generated, never committed) to the keys of group D's namespaces (Settings, SettingsWindow, DhSettings, Season, Assign, Requirements, Migrate, Panel, Case, CaseMap, CaseRealize, CaseTrial, CaseSummary, Reveal, Investigation, GmStore, Live, Tables, SearchTokens, Zones, Rooms, Music, Sound, Voice, Fog, Diagnostics, Failures, Tests, Anonymity, Diagnose), screen by screen as the screen map lays them out; a key reached by several screens is under each. Regenerate with the tool and cut again; this file is a reading copy for the owner, not a source.
+
+
+Written by `node tools/text-render.mjs` (E65 C10). Fixtures: tools/text-render.mjs PLACEHOLDERS; n = 0, 1, 2, 5, 12, 22, 25, 112. Placeholders with no fixture are left as `{name}`: alive, amplitude, answer, body, clean, core, counts, cover, cub, d, entered, far, finding, grid, hpMax, into, life, module, node, openings, proposed, question, ref, reward, sanity, sanityMax, span, thief, until, warning, y, zone. HTML is escaped here.
+
+## Room Setup (room-setup; reader: gm; E12)
+
+- `DRPG.Panel.apply`
+  - Zastosuj
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the stashes, every one (game.drpg.inspectVaults) (stash-inspector; reader: gm; E13)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the stash: a character's items and gear (stash; reader: both)
+
+- `DRPG.Panel.checksImagesBytes`
+  - n=0: 0 MB
+  - n=1: 1 MB
+  - n=2: 2 MB
+  - n=5: 5 MB
+  - n=12: 12 MB
+  - n=22: 22 MB
+  - n=25: 25 MB
+  - n=112: 112 MB
+- `DRPG.Panel.checksImagesPixels`
+  - n=0: 0 x 0 px
+  - n=1: 1 x 1 px
+  - n=2: 2 x 2 px
+  - n=5: 5 x 5 px
+  - n=12: 12 x 12 px
+  - n=22: 22 x 22 px
+  - n=25: 25 x 25 px
+  - n=112: 112 x 112 px
+- `DRPG.Rooms.carriedNothing`
+  - nic
+- `DRPG.Rooms.pieceSplit`
+  - #1: Region „Aiko” na scenie Szkoła, piętro 1 był jednym z kawałków pokoju Warsztat, dopóki nie zmieniono mu nazwy. Zdjęto z niego to, co niósł dla tego pokoju (coś, co wstawia kod): zostaje to przy pozostałych kawałkach pokoju Warsztat, a „Aiko” zaczyna bez tego.
+  - #2: Region „Daichi” na scenie Szkoła, piętro 1 był jednym z kawałków pokoju Biblioteka, dopóki nie zmieniono mu nazwy. Zdjęto z niego to, co niósł dla tego pokoju (coś, co wstawia kod): zostaje to przy pozostałych kawałkach pokoju Biblioteka, a „Daichi” zaczyna bez tego.
+  - #3: Region „Aiko” na scenie Szkoła, piętro 1 był jednym z kawałków pokoju Kino, dopóki nie zmieniono mu nazwy. Zdjęto z niego to, co niósł dla tego pokoju (coś, co wstawia kod): zostaje to przy pozostałych kawałkach pokoju Kino, a „Aiko” zaczyna bez tego.
+- `DRPG.Rooms.renameJoined`
+  - #1: Region „Warsztat” na scenie Szkoła, piętro 1 dostał nazwę „Aiko”, a pokój o tej nazwie już tam był, więc region jest teraz kolejnym kawałkiem tego pokoju. Klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „Warsztat”. Zdjęte z regionu: coś, co wstawia kod.
+  - #2: Region „Biblioteka” na scenie Szkoła, piętro 1 dostał nazwę „Daichi”, a pokój o tej nazwie już tam był, więc region jest teraz kolejnym kawałkiem tego pokoju. Klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „Biblioteka”. Zdjęte z regionu: coś, co wstawia kod.
+  - #3: Region „Kino” na scenie Szkoła, piętro 1 dostał nazwę „Aiko”, a pokój o tej nazwie już tam był, więc region jest teraz kolejnym kawałkiem tego pokoju. Klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „Kino”. Zdjęte z regionu: coś, co wstawia kod.
+- `DRPG.SearchTokens.giveOne`
+  - Oddaj jeden
+- `DRPG.SearchTokens.refillRoom`
+  - Odnów ten pokój
+- `DRPG.SearchTokens.roomSetupLine`
+  - n=0: Liczba Search Tokenów na pokój to 0. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+  - n=1: Liczba Search Tokenów na pokój to 1. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+  - n=2: Liczba Search Tokenów na pokój to 2. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+  - n=5: Liczba Search Tokenów na pokój to 5. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+  - n=12: Liczba Search Tokenów na pokój to 12. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+  - n=22: Liczba Search Tokenów na pokój to 22. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+  - n=25: Liczba Search Tokenów na pokój to 25. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+  - n=112: Liczba Search Tokenów na pokój to 112. Tokeny odnawiają się z każdą porą dnia. Przyciski - i + zmieniają tylko pokój w swoim wierszu.
+- `DRPG.SearchTokens.sealedColumn`
+  - Bez Search
+- `DRPG.SearchTokens.sealedNote`
+  - „Bez Search” zamyka pokój na Search, dopóki tego nie odznaczysz.
+- `DRPG.SearchTokens.spendOne`
+  - Wydaj jeden
+- `DRPG.SearchTokens.title`
+  - Search Tokeny
+
+## Season setup (season-setup; reader: gm)
+
+- `DRPG.Anonymity.audit.title`
+  - Kontrola anonimowości arkuszy
+- `DRPG.Assign.save`
+  - Zapisz
+- `DRPG.Fog.sceneFloor`
+  - Szkoła, piętro 1 (Szkoła, piętro 1)
+- `DRPG.Panel.actorNameShared` (by prefix)
+  - n=0 (many): Nazwę „coś, co wstawia kod” nosi 0 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=1 (one): Nazwę „coś, co wstawia kod” nosi 1 aktor, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=2 (few): Nazwę „coś, co wstawia kod” nosi 2 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=5 (many): Nazwę „coś, co wstawia kod” nosi 5 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=12 (many): Nazwę „coś, co wstawia kod” nosi 12 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=22 (few): Nazwę „coś, co wstawia kod” nosi 22 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=25 (many): Nazwę „coś, co wstawia kod” nosi 25 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=112 (many): Nazwę „coś, co wstawia kod” nosi 112 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+- `DRPG.Panel.advance` (by prefix)
+  - Pomiń Eclipse
+- `DRPG.Panel.advanceDuringEclipse` (by prefix)
+  - Trwa Eclipse: zegar przesunie dopiero jego koniec. Zakończ je strzałką przy zegarze.
+- `DRPG.Panel.advanceOffEclipse` (by prefix)
+  - Trwa Eclipse: jego koniec przesuwa zegar.
+- `DRPG.Panel.advanceOffTrial` (by prefix)
+  - Trwa Class Trial: koniec rozdziału przesuwa zegar.
+- `DRPG.Panel.advanceTooltip` (by prefix)
+  - Bez Eclipse. Odnawia akcje i Search Tokeny.
+- `DRPG.Panel.alsoReset`
+  - Odnów też akcje i Search Tokeny
+- `DRPG.Panel.apply` (by prefix)
+  - Zastosuj
+- `DRPG.Panel.character` (by prefix)
+  - Postać
+- `DRPG.Panel.checksAvOff` (by prefix)
+  - A/V jest wyłączone, więc kafelek głosu nie działa. Włącz A/V albo wyłącz kafelek.
+- `DRPG.Panel.checksAvVideo` (by prefix)
+  - Ten świat wysyła wideo, którego nikt nie ogląda: ustaw tryb A/V na sam dźwięk.
+- `DRPG.Panel.checksAvVideoOnly` (by prefix)
+  - Ten świat ma ustawione samo wideo: nikt nie wysyła dźwięku. Ustaw tryb A/V na sam dźwięk.
+- `DRPG.Panel.checksImages`
+  - Zdjęcia pokoi
+- `DRPG.Panel.checksImagesBytes`
+  - n=0: 0 MB
+  - n=1: 1 MB
+  - n=2: 2 MB
+  - n=5: 5 MB
+  - n=12: 12 MB
+  - n=22: 22 MB
+  - n=25: 25 MB
+  - n=112: 112 MB
+- `DRPG.Panel.checksImagesLarge`
+  - n=0: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Warsztat, Biblioteka i Kino. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 0 MB.
+  - n=1: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Biblioteka. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 1 MB.
+  - n=2: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Warsztat, Biblioteka i Kino. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 2 MB.
+  - n=5: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Biblioteka. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 5 MB.
+  - n=12: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Warsztat, Biblioteka i Kino. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 12 MB.
+  - n=22: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Biblioteka. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 22 MB.
+  - n=25: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Warsztat, Biblioteka i Kino. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 25 MB.
+  - n=112: Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli: Biblioteka. Zmniejsz je do najwyżej coś, co wstawia kod px na bok i 112 MB.
+- `DRPG.Panel.checksImagesLate` (by prefix)
+  - n=0 (many): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 0 s, więc nie sprawdzono ich rozmiaru w pikselach: Warsztat, Biblioteka i Kino. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+  - n=1 (one): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 1 s, więc nie sprawdzono ich rozmiaru w pikselach: Biblioteka. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+  - n=2 (few): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 2 s, więc nie sprawdzono ich rozmiaru w pikselach: Warsztat, Biblioteka i Kino. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+  - n=5 (many): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 5 s, więc nie sprawdzono ich rozmiaru w pikselach: Biblioteka. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+  - n=12 (many): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 12 s, więc nie sprawdzono ich rozmiaru w pikselach: Warsztat, Biblioteka i Kino. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+  - n=22 (few): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 22 s, więc nie sprawdzono ich rozmiaru w pikselach: Biblioteka. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+  - n=25 (many): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 25 s, więc nie sprawdzono ich rozmiaru w pikselach: Warsztat, Biblioteka i Kino. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+  - n=112 (many): Te zdjęcia pokoi są na serwerze, ale nie wczytały się w ciągu 112 s, więc nie sprawdzono ich rozmiaru w pikselach: Biblioteka. Uruchom sprawdzenie jeszcze raz na szybszym łączu.
+- `DRPG.Panel.checksImagesMissing`
+  - #1: Te zdjęcia pokoi się nie wczytują: Warsztat, Biblioteka i Kino. Wybierz plik jeszcze raz w Ustawieniach pokoi.
+  - #2: Te zdjęcia pokoi się nie wczytują: Biblioteka. Wybierz plik jeszcze raz w Ustawieniach pokoi.
+- `DRPG.Panel.checksImagesPixels`
+  - n=0: 0 x 0 px
+  - n=1: 1 x 1 px
+  - n=2: 2 x 2 px
+  - n=5: 5 x 5 px
+  - n=12: 12 x 12 px
+  - n=22: 22 x 22 px
+  - n=25: 25 x 25 px
+  - n=112: 112 x 112 px
+- `DRPG.Panel.checksImagesSized`
+  - #1: Warsztat, Biblioteka i Kino: coś, co wstawia kod
+  - #2: Biblioteka: coś, co wstawia kod
+- `DRPG.Panel.checksImagesUnknown`
+  - #1: Nie udało się odczytać rozmiaru pliku tych zdjęć pokoi: Warsztat, Biblioteka i Kino
+  - #2: Nie udało się odczytać rozmiaru pliku tych zdjęć pokoi: Biblioteka
+- `DRPG.Panel.checksImagesWhere`
+  - #1: Warsztat (Szkoła, piętro 1)
+  - #2: Biblioteka (Szkoła, piętro 1)
+  - #3: Kino (Szkoła, piętro 1)
+- `DRPG.Panel.checksSetup` (by prefix)
+  - Obsada
+- `DRPG.Panel.clearFaint` (by prefix)
+  - Wyczyść Faint Remnanty
+- `DRPG.Panel.close` (by prefix)
+  - Zamknij
+- `DRPG.Panel.despairFlow` (by prefix)
+  - Despair Flow
+- `DRPG.Panel.doColumn` (by prefix)
+  - Zrób
+- `DRPG.Panel.failed` (by prefix)
+  - To nie zadziałało. Szczegóły znajdziesz w Dzienniku debugowania, w sekcji Diagnostyka.
+- `DRPG.Panel.faintCleared` (by prefix)
+  - n=0 (many): Wyczyszczono 0 Faint Remnantów.
+  - n=1 (one): Wyczyszczono 1 Faint Remnant.
+  - n=2 (few): Wyczyszczono 2 Faint Remnanty.
+  - n=5 (many): Wyczyszczono 5 Faint Remnantów.
+  - n=12 (many): Wyczyszczono 12 Faint Remnantów.
+  - n=22 (few): Wyczyszczono 22 Faint Remnanty.
+  - n=25 (many): Wyczyszczono 25 Faint Remnantów.
+  - n=112 (many): Wyczyszczono 112 Faint Remnantów.
+- `DRPG.Panel.faintConfirm` (by prefix)
+  - n=0 (many): Usunąć 0 Faint Remnantów ze wszystkich scen?
+  - n=1 (one): Usunąć 1 Faint Remnant ze wszystkich scen?
+  - n=2 (few): Usunąć 2 Faint Remnanty ze wszystkich scen?
+  - n=5 (many): Usunąć 5 Faint Remnantów ze wszystkich scen?
+  - n=12 (many): Usunąć 12 Faint Remnantów ze wszystkich scen?
+  - n=22 (few): Usunąć 22 Faint Remnanty ze wszystkich scen?
+  - n=25 (many): Usunąć 25 Faint Remnantów ze wszystkich scen?
+  - n=112 (many): Usunąć 112 Faint Remnantów ze wszystkich scen?
+- `DRPG.Panel.faintConfirmNote` (by prefix)
+  - Reinforced Remnanty i wszystko powiązane ze zbrodnią zostają w spokoju. Reszta znika na dobre.
+- `DRPG.Panel.faintNone` (by prefix)
+  - Nie ma Faint Remnantów do wyczyszczenia: każdy pozostały Faint Remnant jest Reinforced albo powiązany ze zbrodnią.
+- `DRPG.Panel.foundryReport`
+  - Foundry i moduły
+- `DRPG.Panel.freeMove` (by prefix)
+  - Free Move
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.goAdvanceButton` (by prefix)
+  - Przesuń zegar
+- `DRPG.Panel.goAutopsyButton` (by prefix)
+  - Wydaj sekcję zwłok
+- `DRPG.Panel.goBodyButton` (by prefix)
+  - Ogłoś ciało
+- `DRPG.Panel.goChapterEndButton` (by prefix)
+  - Zakończ rozdział
+- `DRPG.Panel.goEclipseEndButton` (by prefix)
+  - Zakończ Eclipse
+- `DRPG.Panel.goEclipseStartButton` (by prefix)
+  - Zacznij Eclipse
+- `DRPG.Panel.goInvestigationButton` (by prefix)
+  - Otwórz Investigation
+- `DRPG.Panel.goMurderButton` (by prefix)
+  - Otwórz incydent
+- `DRPG.Panel.goSeasonChecklistButton` (by prefix)
+  - Lista kontrolna sezonu
+- `DRPG.Panel.goStartInvestigationButton` (by prefix)
+  - Rozpocznij Investigation
+- `DRPG.Panel.goTrialButton` (by prefix)
+  - Otwórz konsolę trialu
+- `DRPG.Panel.group.monokumas` (by prefix)
+  - Monokumy
+- `DRPG.Panel.group.notInClass` (by prefix)
+  - Poza klasą
+- `DRPG.Panel.group.spectators` (by prefix)
+  - Widzowie
+- `DRPG.Panel.group.students` (by prefix)
+  - Uczniowie
+- `DRPG.Panel.installTables` (by prefix)
+  - Utwórz tabele przedmiotów
+- `DRPG.Panel.jump`
+  - Edytuj kampanię
+- `DRPG.Panel.launcher` (by prefix)
+  - Otwórz panel GM-a
+- `DRPG.Panel.levelUpColumn` (by prefix)
+  - Level Up
+- `DRPG.Panel.nextAllDone` (by prefix)
+  - Wszyscy wydali akcje. Zacznij Eclipse: jego początek odnawia wszystkim akcje, a koniec przesuwa zegar.
+- `DRPG.Panel.nextAutopsy` (by prefix)
+  - Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.
+- `DRPG.Panel.nextBodyAsked` (by prefix)
+  - #1: Uczniowie znaleźli ciało w pokoju Warsztat. Decyzja należy do ciebie: ogłoś je albo na razie zostaw.
+  - #2: Uczniowie znaleźli ciało w pokoju Biblioteka. Decyzja należy do ciebie: ogłoś je albo na razie zostaw.
+  - #3: Uczniowie znaleźli ciało w pokoju Kino. Decyzja należy do ciebie: ogłoś je albo na razie zostaw.
+- `DRPG.Panel.nextBodyFound` (by prefix)
+  - Znaleziono ciało. Rozpocznij Investigation, gdy stół będzie gotowy.
+- `DRPG.Panel.nextBodyWaiting` (by prefix)
+  - #1: Ciało w pokoju Warsztat czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+  - #2: Ciało w pokoju Biblioteka czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+  - #3: Ciało w pokoju Kino czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+- `DRPG.Panel.nextBodyWaitingNoRoom` (by prefix)
+  - Ciało czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+- `DRPG.Panel.nextBodyWaitingUnseen` (by prefix)
+  - Ciało czeka na odnalezienie, ale jego token jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.
+- `DRPG.Panel.nextChapterEndStopped` (by prefix)
+  - Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.
+- `DRPG.Panel.nextEclipse` (by prefix)
+  - Trwa Eclipse. Zakończ je, gdy wszyscy ustawią swoje tokeny.
+- `DRPG.Panel.nextIncident` (by prefix)
+  - Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.
+- `DRPG.Panel.nextInvestigation` (by prefix)
+  - Trwa Investigation. Sprawdź, co już znaleziono, a co wciąż czeka.
+- `DRPG.Panel.nextKeysToPlace` (by prefix)
+  - n=0 (many): 0 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=1 (one): 1 Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnanty okna Investigation.
+  - n=2 (few): 2 Key Remnanty tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=5 (many): 5 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=12 (many): 12 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=22 (few): 22 Key Remnanty tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=25 (many): 25 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=112 (many): 112 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+- `DRPG.Panel.nextLabel` (by prefix)
+  - Dalej
+- `DRPG.Panel.nextReady` (by prefix)
+  - Gracze dostali pytanie, czy już kończą. Otwórz je ponownie.
+- `DRPG.Panel.nextSeasonSetup` (by prefix)
+  - Do ustawienia: coś, co wstawia kod.
+- `DRPG.Panel.nextSeasonSetupAside` (by prefix)
+  - Jeszcze do ustawienia: coś, co wstawia kod.
+- `DRPG.Panel.nextStartTrial` (by prefix)
+  - Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.
+- `DRPG.Panel.nextStillActing` (by prefix)
+  - n=0 (many): 0 uczniów ma jeszcze akcje do wydania.
+  - n=1 (one): 1 uczeń ma jeszcze akcje do wydania.
+  - n=2 (few): 2 uczniowie mają jeszcze akcje do wydania.
+  - n=5 (many): 5 uczniów ma jeszcze akcje do wydania.
+  - n=12 (many): 12 uczniów ma jeszcze akcje do wydania.
+  - n=22 (few): 22 uczniowie mają jeszcze akcje do wydania.
+  - n=25 (many): 25 uczniów ma jeszcze akcje do wydania.
+  - n=112 (many): 112 uczniów ma jeszcze akcje do wydania.
+- `DRPG.Panel.nextTrialOutlived` (by prefix)
+  - Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.
+- `DRPG.Panel.noActorNamed` (by prefix)
+  - game.drpg.openRoomSetupDialog nie znalazło aktora o identyfikatorze ani nazwie „coś, co wstawia kod”. Sprawdź pisownię.
+- `DRPG.Panel.noCharacters` (by prefix)
+  - W tym świecie nie ma żywych uczniów.
+- `DRPG.Panel.noSceneNamed` (by prefix)
+  - game.drpg.openRoomSetupDialog nic nie zrobiło: nie dostało sceny i nie znalazło żadnej. Przekaż mu scenę.
+- `DRPG.Panel.openColumn` (by prefix)
+  - Otwórz
+- `DRPG.Panel.openSheet` (by prefix)
+  - #1: Otwórz arkusz postaci Aiko
+  - #2: Otwórz arkusz postaci Daichi
+- `DRPG.Panel.publicRoll.badFormula` (by prefix)
+  - „coś, co wstawia kod” to nie jest formuła rzutu.
+- `DRPG.Panel.publicRoll.gmOnly` (by prefix)
+  - Tylko GM może wykonać rzut publiczny.
+- `DRPG.Panel.refilled` (by prefix)
+  - Odnowiono akcje i Search Tokeny. Motive, pieczęcie i Overflow zostają bez zmian, a na czat nie trafiła karta pory dnia.
+- `DRPG.Panel.refundCrossing` (by prefix)
+  - Zwróć ostatnie przejście
+- `DRPG.Panel.refundCrossingNote` (by prefix)
+  - #1: Warsztat z powrotem do Warsztat
+  - #2: Biblioteka z powrotem do Biblioteka
+  - #3: Kino z powrotem do Kino
+- `DRPG.Panel.resetHint`
+  - Daje wszystkim pełne akcje. Przy samej poprawce zostaw wyłączone.
+- `DRPG.Panel.role.student` (by prefix)
+  - Uczeń
+- `DRPG.Panel.roleColumn` (by prefix)
+  - Rola
+- `DRPG.Panel.seasonChecks` (by prefix)
+  - Kontrola przed sezonem
+- `DRPG.Panel.section.between` (by prefix)
+  - Między sesjami
+- `DRPG.Panel.section.case` (by prefix)
+  - Sprawa
+- `DRPG.Panel.section.fixes` (by prefix)
+  - Diagnostyka
+- `DRPG.Panel.section.now` (by prefix)
+  - Teraz
+- `DRPG.Panel.settings` (by prefix)
+  - Ustawienia gry
+- `DRPG.Panel.state.alive` (by prefix)
+  - Żyje
+- `DRPG.Panel.state.dead` (by prefix)
+  - Nie żyje
+- `DRPG.Panel.state.monocub` (by prefix)
+  - Monocub
+- `DRPG.Panel.stateColumn` (by prefix)
+  - Stan
+- `DRPG.Panel.stateSaved` (by prefix)
+  - n=0 (many): Zmieniono 0 postaci.
+  - n=1 (one): Zmieniono 1 postać.
+  - n=2 (few): Zmieniono 2 postacie.
+  - n=5 (many): Zmieniono 5 postaci.
+  - n=12 (many): Zmieniono 12 postaci.
+  - n=22 (few): Zmieniono 22 postacie.
+  - n=25 (many): Zmieniono 25 postaci.
+  - n=112 (many): Zmieniono 112 postaci.
+- `DRPG.Panel.stateUnchanged` (by prefix)
+  - Nic się nie zmieniło.
+- `DRPG.Panel.studentsLeft` (by prefix)
+  - n=0 (many): 0 uczniów ma jeszcze akcje
+  - n=1 (one): 1 uczeń ma jeszcze akcje
+  - n=2 (few): 2 uczniowie mają jeszcze akcje
+  - n=5 (many): 5 uczniów ma jeszcze akcje
+  - n=12 (many): 12 uczniów ma jeszcze akcje
+  - n=22 (few): 22 uczniowie mają jeszcze akcje
+  - n=25 (many): 25 uczniów ma jeszcze akcje
+  - n=112 (many): 112 uczniów ma jeszcze akcje
+- `DRPG.Panel.sweepBullets` (by prefix)
+  - Zbierz Truth Bullets
+- `DRPG.Panel.sweepConfirm` (by prefix)
+  - n=0 (many): Usunąć 0 Truth Bullets z ekwipunków uczniów?
+  - n=1 (one): Usunąć 1 Truth Bullet z ekwipunków uczniów?
+  - n=2 (few): Usunąć 2 Truth Bullets z ekwipunków uczniów?
+  - n=5 (many): Usunąć 5 Truth Bullets z ekwipunków uczniów?
+  - n=12 (many): Usunąć 12 Truth Bullets z ekwipunków uczniów?
+  - n=22 (few): Usunąć 22 Truth Bullets z ekwipunków uczniów?
+  - n=25 (many): Usunąć 25 Truth Bullets z ekwipunków uczniów?
+  - n=112 (many): Usunąć 112 Truth Bullets z ekwipunków uczniów?
+- `DRPG.Panel.sweepConfirmNote` (by prefix)
+  - n=0: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 0.
+  - n=1: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 1.
+  - n=2: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 2.
+  - n=5: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 5.
+  - n=12: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 12.
+  - n=22: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 22.
+  - n=25: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 25.
+  - n=112: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 112.
+- `DRPG.Panel.sweepNone` (by prefix)
+  - Nie ma czego zbierać: każdy Truth Bullet w grze jest Faint albo Final.
+- `DRPG.Panel.sweptBullets` (by prefix)
+  - n=0 (many): Zebrano 0 Truth Bulletów.
+  - n=1 (one): Zebrano 1 Truth Bullet.
+  - n=2 (few): Zebrano 2 Truth Bullety.
+  - n=5 (many): Zebrano 5 Truth Bulletów.
+  - n=12 (many): Zebrano 12 Truth Bulletów.
+  - n=22 (few): Zebrano 22 Truth Bullety.
+  - n=25 (many): Zebrano 25 Truth Bulletów.
+  - n=112 (many): Zebrano 112 Truth Bulletów.
+- `DRPG.Panel.title` (by prefix)
+  - Panel GM-a
+- `DRPG.Panel.voiceReset` (by prefix)
+  - Napraw głos
+- `DRPG.Panel.whoIsAlive` (by prefix)
+  - Uczniowie
+- `DRPG.Panel.whoIsAliveNote` (by prefix)
+  - Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.
+- `DRPG.Season.checkClean`
+  - Sprawdzenie pokoi nie znalazło problemów na tej scenie.
+- `DRPG.Season.checkRooms`
+  - Sprawdź pokoje na tej scenie
+- `DRPG.Season.checklistTitle`
+  - Lista kontrolna sezonu
+- `DRPG.Season.convertDoors`
+  - Zamień na przejścia
+- `DRPG.Season.cursorButton`
+  - Ukryj kursor GM-ów
+- `DRPG.Season.fallsBackTo`
+  - #1: Aiko (bez przypisania: trafia do Nóż kuchenny)
+  - #2: Daichi (bez przypisania: trafia do Lina)
+  - #3: Aiko (bez przypisania: trafia do Krzesło)
+- `DRPG.Season.firstSession`
+  - Pierwsza sesja
+- `DRPG.Season.firstSessionNote`
+  - Ustawiane raz, przed pierwszą sesją.
+- `DRPG.Season.fixed` (by prefix)
+  - n=0 (many): Nadano zasoby startowe 0 postaciom.
+  - n=1 (one): Nadano zasoby startowe 1 postaci.
+  - n=2 (few): Nadano zasoby startowe 2 postaciom.
+  - n=5 (many): Nadano zasoby startowe 5 postaciom.
+  - n=12 (many): Nadano zasoby startowe 12 postaciom.
+  - n=22 (few): Nadano zasoby startowe 22 postaciom.
+  - n=25 (many): Nadano zasoby startowe 25 postaciom.
+  - n=112 (many): Nadano zasoby startowe 112 postaciom.
+- `DRPG.Season.fixedCursor` (by prefix)
+  - n=0 (many): Wyłączono udostępnianie kursora dla 0 ról.
+  - n=1 (one): Wyłączono udostępnianie kursora dla 1 roli.
+  - n=2 (few): Wyłączono udostępnianie kursora dla 2 ról.
+  - n=5 (many): Wyłączono udostępnianie kursora dla 5 ról.
+  - n=12 (many): Wyłączono udostępnianie kursora dla 12 ról.
+  - n=22 (few): Wyłączono udostępnianie kursora dla 22 ról.
+  - n=25 (many): Wyłączono udostępnianie kursora dla 25 ról.
+  - n=112 (many): Wyłączono udostępnianie kursora dla 112 ról.
+- `DRPG.Season.fixedRulers` (by prefix)
+  - n=0 (many): Linijka ruchu jest teraz ukryta dla 0 ról.
+  - n=1 (one): Linijka ruchu jest teraz ukryta dla 1 roli.
+  - n=2 (few): Linijka ruchu jest teraz ukryta dla 2 ról.
+  - n=5 (many): Linijka ruchu jest teraz ukryta dla 5 ról.
+  - n=12 (many): Linijka ruchu jest teraz ukryta dla 12 ról.
+  - n=22 (few): Linijka ruchu jest teraz ukryta dla 22 ról.
+  - n=25 (many): Linijka ruchu jest teraz ukryta dla 25 ról.
+  - n=112 (many): Linijka ruchu jest teraz ukryta dla 112 ról.
+- `DRPG.Season.fixedSecretDoors` (by prefix)
+  - n=0 (many): Zamienione sekretne drzwi: 0. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.
+  - n=1 (one): Zamienione sekretne drzwi: 1. Jeśli stały między dwoma pokojami, są teraz tajnym przejściem, którego nikt nie zna; daj je uczniowi w zakładce Tajne przejścia.
+  - n=2 (few): Zamienione sekretne drzwi: 2. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.
+  - n=5 (many): Zamienione sekretne drzwi: 5. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.
+  - n=12 (many): Zamienione sekretne drzwi: 12. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.
+  - n=22 (few): Zamienione sekretne drzwi: 22. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.
+  - n=25 (many): Zamienione sekretne drzwi: 25. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.
+  - n=112 (many): Zamienione sekretne drzwi: 112. Te, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna; daj je uczniom w zakładce Tajne przejścia.
+- `DRPG.Season.hideRulers`
+  - Ukryj
+- `DRPG.Season.hint.assignments` (by prefix)
+  - Despair z rzutów ucznia trafia do puli tego Monokumy, do którego przypiszesz go w Despair Flow. Uczeń bez przypisania zasila pierwszą pulę i jest tu wymieniony, dopóki go nie przypiszesz. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC i szablonów. Przeglądarka każdego gracza może odczytać, kto jest tak ustawiony. Ten krok jest gotowy, gdy każdy uczeń ma pulę wybraną ręcznie albo ustawienie „- nikt -”.
+- `DRPG.Season.hint.cast` (by prefix)
+  - Jedna postać na ucznia. Monokumy są osobno i tu się nie liczą.
+- `DRPG.Season.hint.cursor` (by prefix)
+  - Inaczej gracze widzą, gdzie patrzysz na mapie.
+- `DRPG.Season.hint.despairSplit` (by prefix)
+  - Pule mogą się różnić najwyżej o jednego żyjącego ucznia. To tylko rada.
+- `DRPG.Season.hint.diceSoNice` (by prefix)
+  - Dice So Nice pokazuje kości, gdy padają. Bez niego Danganronpa RPG się nie uruchamia.
+- `DRPG.Season.hint.experiences` (by prefix)
+  - Dwa na +2, ustalane przy tworzeniu postaci.
+- `DRPG.Season.hint.foundryHeld` (by prefix)
+  - Ustawienia Foundry są oddane. Przejmij je znowu, chyba że tak ma zostać.
+- `DRPG.Season.hint.hallTokens` (by prefix)
+  - Sala rozpraw jest podpięta, a w zakładce Sceny nie ma ostrzeżeń. Ten krok jest opcjonalny.
+- `DRPG.Season.hint.items` (by prefix)
+  - Jeden przedmiot startowy na ucznia.
+- `DRPG.Season.hint.mastermind` (by prefix)
+  - Kto ukrywa się wśród uczniów i co to udowodni. Opcjonalne.
+- `DRPG.Season.hint.monokumas` (by prefix)
+  - Monokuma wydaje Despair ze swojego arkusza. Przy kilku GM-ach podziel uczniów po równo.
+- `DRPG.Season.hint.name` (by prefix)
+  - Nazwę widać u góry każdego ekranu, nad rozdziałem i zegarem.
+- `DRPG.Season.hint.nobodyPublic` (by prefix)
+  - Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Każdy gracz może to sprawdzić, a jedyny uczeń poza pulami rzuca się w oczy: przypisz go do Monokumy jak każdego innego ucznia.
+- `DRPG.Season.hint.npcs` (by prefix)
+  - Postać, której nie gra żaden gracz, to pewnie NPC: oznacz ją na jej arkuszu jako „Poza klasą” albo zostaw, jak jest.
+- `DRPG.Season.hint.overflow` (by prefix)
+  - Sugerowane: 12 + połowa żyjących uczniów. Próg ustawiasz w Despair Flow.
+- `DRPG.Season.hint.resources` (by prefix)
+  - Bez nich postać jest naraz Wounded i w Breakdown.
+- `DRPG.Season.hint.roomCount` (by prefix)
+  - Około półtora pokoju na żyjącego ucznia, bez korytarzy i sypialni.
+- `DRPG.Season.hint.rooms` (by prefix)
+  - Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Move, Search, Listen i każdy incydent rozstrzyga się według pokoi.
+- `DRPG.Season.hint.roomsMarked` (by prefix)
+  - Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (zakładka Pokoje). O tych nazwanych regionach nikt jeszcze nie zdecydował.
+- `DRPG.Season.hint.rulers` (by prefix)
+  - Inaczej stół widzi trasę gracza, także przez tajne przejście.
+- `DRPG.Season.hint.scenes` (by prefix)
+  - W zakładce Sceny w Ustawieniach pokoi podpinasz scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.
+- `DRPG.Season.hint.secretDoors` (by prefix)
+  - Każdy gracz może otworzyć sekretne drzwi Foundry. Zamień je na tajne przejścia.
+- `DRPG.Season.hint.sound` (by prefix)
+  - Ten moduł nie zawiera dźwięków i żadnych nie przypisuje: pliki są twoje. Przypisz, co chcesz, w oknie Dźwięk; przy zdarzeniu z pustym polem nic nie gra.
+- `DRPG.Season.hint.ultimate` (by prefix)
+  - Wpisz go na arkuszu.
+- `DRPG.Season.introOutstanding`
+  - n=0: Jeszcze 0 do zrobienia. Sezon może ruszyć i bez nich.
+  - n=1: Jeszcze 1 do zrobienia. Sezon może ruszyć i bez nich.
+  - n=2: Jeszcze 2 do zrobienia. Sezon może ruszyć i bez nich.
+  - n=5: Jeszcze 5 do zrobienia. Sezon może ruszyć i bez nich.
+  - n=12: Jeszcze 12 do zrobienia. Sezon może ruszyć i bez nich.
+  - n=22: Jeszcze 22 do zrobienia. Sezon może ruszyć i bez nich.
+  - n=25: Jeszcze 25 do zrobienia. Sezon może ruszyć i bez nich.
+  - n=112: Jeszcze 112 do zrobienia. Sezon może ruszyć i bez nich.
+- `DRPG.Season.introReady`
+  - Każdy wiersz, którego ta lista wymaga, jest zrobiony. Przed pierwszą sesją przeczytaj dalsze sprawdzenia poniżej.
+- `DRPG.Season.missingMonokumaActor`
+  - żadna postać nie jest oznaczona jako Monokuma (Rola w oknie Uczniowie albo „Oznacz jako Monokumę” na arkuszu postaci)
+- `DRPG.Season.missingPool`
+  - jeszcze nie ma puli Despair (ma ją każde pełne konto Gamemastera)
+- `DRPG.Season.moreChecking`
+  - Sprawdzam zdjęcia pokoi, głos, kości i dostęp do arkuszy...
+- `DRPG.Season.moreFailed`
+  - Nie udało się pokazać dalszych sprawdzeń. Powód podaje Dziennik debugowania w panelu GM-a.
+- `DRPG.Season.noHall`
+  - Nie podpięto sali rozpraw.
+- `DRPG.Season.noNamedRegions`
+  - Żadna scena nie ma jeszcze nazwanego regionu: najpierw narysuj każdy pokój jako region sceny.
+- `DRPG.Season.openIt`
+  - Otwórz
+- `DRPG.Season.overflowNow`
+  - n=0: coś, co wstawia kod Teraz 0.
+  - n=1: coś, co wstawia kod Teraz 1.
+  - n=2: coś, co wstawia kod Teraz 2.
+  - n=5: coś, co wstawia kod Teraz 5.
+  - n=12: coś, co wstawia kod Teraz 12.
+  - n=22: coś, co wstawia kod Teraz 22.
+  - n=25: coś, co wstawia kod Teraz 25.
+  - n=112: coś, co wstawia kod Teraz 112.
+- `DRPG.Season.resetNote`
+  - Kasuje przebieg sezonu, w tym projekty, dowody, śmierci, przedmioty i Level Upy, a obsadę zostawia. Najpierw prosi o potwierdzenie.
+- `DRPG.Season.resetTitle`
+  - Zresetuj sezon
+- `DRPG.Season.resourcesButton`
+  - Nadaj zasoby startowe
+- `DRPG.Season.roomGuide`
+  - Narysuj ściany, potem region na każdy pokój i zaznacz „To jest pokój” w Ustawieniach pokoi.
+- `DRPG.Season.roomsCheckErrors` (by prefix)
+  - n=0 (many): Sprawdzenie pokoi znalazło 0 problemów na scenie Szkoła, piętro 1: popraw je i sprawdź jeszcze raz.
+  - n=1 (one): Sprawdzenie pokoi znalazło 1 problem na scenie Szkoła, piętro 1: popraw go i sprawdź jeszcze raz.
+  - n=2 (few): Sprawdzenie pokoi znalazło 2 problemy na scenie Szkoła, piętro 1: popraw je i sprawdź jeszcze raz.
+  - n=5 (many): Sprawdzenie pokoi znalazło 5 problemów na scenie Szkoła, piętro 1: popraw je i sprawdź jeszcze raz.
+  - n=12 (many): Sprawdzenie pokoi znalazło 12 problemów na scenie Szkoła, piętro 1: popraw je i sprawdź jeszcze raz.
+  - n=22 (few): Sprawdzenie pokoi znalazło 22 problemy na scenie Szkoła, piętro 1: popraw je i sprawdź jeszcze raz.
+  - n=25 (many): Sprawdzenie pokoi znalazło 25 problemów na scenie Szkoła, piętro 1: popraw je i sprawdź jeszcze raz.
+  - n=112 (many): Sprawdzenie pokoi znalazło 112 problemów na scenie Szkoła, piętro 1: popraw je i sprawdź jeszcze raz.
+- `DRPG.Season.roomsJudged` (by prefix)
+  - n=0 (many): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje ma 0 scen.
+  - n=1 (one): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje ma 1 scena.
+  - n=2 (few): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje mają 2 sceny.
+  - n=5 (many): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje ma 5 scen.
+  - n=12 (many): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje ma 12 scen.
+  - n=22 (few): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje mają 22 sceny.
+  - n=25 (many): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje ma 25 scen.
+  - n=112 (many): Ten wiersz ocenia scenę Szkoła, piętro 1. Pokoje ma 112 scen.
+- `DRPG.Season.roomsUncovered`
+  - n=0: 0% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+  - n=1: 1% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+  - n=2: 2% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+  - n=5: 5% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+  - n=12: 12% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+  - n=22: 22% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+  - n=25: 25% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+  - n=112: 112% sceny Szkoła, piętro 1 nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.
+- `DRPG.Season.roomsVision`
+  - Szkoła, piętro 1: widzenie tokenów lub mgła Foundry są tam nadal włączone albo globalne światło jest wyłączone, więc gracze mogą widzieć czerń.
+- `DRPG.Season.safeword`
+  - Safeword
+- `DRPG.Season.safewordNote`
+  - Słowo, które zatrzymuje scenę. Widać je na arkuszu każdego ucznia. Gdy pole jest puste, obowiązuje słowo domyślne.
+- `DRPG.Season.scenesHint`
+  - Ustawienia sezonu podpinają scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.
+- `DRPG.Season.scenesLine`
+  - Szkołę i salę rozpraw podpinasz raz na sezon.
+- `DRPG.Season.secretDoorsPlain` (by prefix)
+  - n=0 (many): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: 0.
+  - n=1 (one): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłą ścianą: 1.
+  - n=2 (few): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: 2.
+  - n=5 (many): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: 5.
+  - n=12 (many): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: 12.
+  - n=22 (few): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: 22.
+  - n=25 (many): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: 25.
+  - n=112 (many): Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: 112.
+- `DRPG.Season.showRulers`
+  - Pokaż
+- `DRPG.Season.splitUneven`
+  - Nierówny podział: {counts}.
+- `DRPG.Season.startHereText`
+  - Otwórz panel GM-a &gt; Ustawienia sezonu. Znajdziesz tam Listę kontrolną sezonu, która prowadzi przez sezon w kolejności budowania, a linia Dalej w panelu GM-a podaje pierwszą rzecz do zrobienia.
+- `DRPG.Season.startHereTitle`
+  - Od czego zacząć
+- `DRPG.Season.step.assignments` (by prefix)
+  - Każdego ucznia pilnuje Monokuma
+- `DRPG.Season.step.cast` (by prefix)
+  - Obsada istnieje
+- `DRPG.Season.step.cursor` (by prefix)
+  - Kursor GM-a jest prywatny (zalecane)
+- `DRPG.Season.step.despairSplit` (by prefix)
+  - Uczniowie są podzieleni po równo między pule
+- `DRPG.Season.step.diceSoNice` (by prefix)
+  - Dice So Nice jest włączony
+- `DRPG.Season.step.experiences` (by prefix)
+  - Każdy ma swoje doświadczenia
+- `DRPG.Season.step.foundryHeld` (by prefix)
+  - Moduł trzyma ustawienia Foundry (opcjonalnie)
+- `DRPG.Season.step.hallTokens` (by prefix)
+  - Sala rozpraw i jej tokeny (opcjonalnie)
+- `DRPG.Season.step.items` (by prefix)
+  - Każdy coś nosi
+- `DRPG.Season.step.liveKitSecret` (by prefix)
+  - Sekretu serwera głosu nie ma w świecie
+- `DRPG.Season.step.mastermind` (by prefix)
+  - Mastermind (opcjonalnie)
+- `DRPG.Season.step.monokumas` (by prefix)
+  - Co najmniej jeden Monokuma
+- `DRPG.Season.step.name` (by prefix)
+  - Nazwij kampanię
+- `DRPG.Season.step.nobodyPublic` (by prefix)
+  - Mastermind zasila pulę Despair
+- `DRPG.Season.step.npcs` (by prefix)
+  - Postacie bez gracza są oznaczone
+- `DRPG.Season.step.overflow` (by prefix)
+  - Próg Overflow pasuje do obsady
+- `DRPG.Season.step.resources` (by prefix)
+  - Startowe Health, Sanity i Hope
+- `DRPG.Season.step.roomCount` (by prefix)
+  - Dość pokoi dla obsady
+- `DRPG.Season.step.rooms` (by prefix)
+  - Mapa ma pokoje
+- `DRPG.Season.step.roomsMarked` (by prefix)
+  - O każdym nazwanym regionie zdecydowano: pokój albo nie
+- `DRPG.Season.step.rulers` (by prefix)
+  - Linijka ruchu graczy jest ukryta (opcjonalnie)
+- `DRPG.Season.step.scenes` (by prefix)
+  - Szkoła i sala rozpraw są podpięte
+- `DRPG.Season.step.secretDoors` (by prefix)
+  - Brak sekretnych drzwi Foundry (zalecane)
+- `DRPG.Season.step.sound` (by prefix)
+  - Pliki dźwiękowe
+- `DRPG.Season.step.ultimate` (by prefix)
+  - Każdy ma Ultimate
+- `DRPG.Season.title`
+  - Ustawienia sezonu
+- `DRPG.Season.undoneRulers` (by prefix)
+  - n=0 (many): Linijka ruchu jest znów widoczna dla 0 ról.
+  - n=1 (one): Linijka ruchu jest znów widoczna dla 1 roli.
+  - n=2 (few): Linijka ruchu jest znów widoczna dla 2 ról.
+  - n=5 (many): Linijka ruchu jest znów widoczna dla 5 ról.
+  - n=12 (many): Linijka ruchu jest znów widoczna dla 12 ról.
+  - n=22 (few): Linijka ruchu jest znów widoczna dla 22 ról.
+  - n=25 (many): Linijka ruchu jest znów widoczna dla 25 ról.
+  - n=112 (many): Linijka ruchu jest znów widoczna dla 112 ról.
+- `DRPG.Season.waitingForCast`
+  - Czeka na obsadę: najpierw utwórz uczniów.
+- `DRPG.Season.windows`
+  - Okna sezonu
+- `DRPG.Voice.liveKitSecret`
+  - LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto ma ten sekret, może połączyć się z każdym pokojem głosowym. Żeby sekret nie trafiał do przeglądarek, użyj serwera, który sam wydaje tokeny dostępu, na przykład Tavern.
+- `DRPG.Voice.panel.legend`
+  - Głos
+
+## the season reset (season-wipe; reader: gm)
+
+- `DRPG.GmStore.resetCutFailed`
+  - Reset sezonu nie mógł zaznaczyć w zegarze chwili resetu (coś, co wstawia kod). Nic nie zostało wyczyszczone.
+- `DRPG.GmStore.resetOfflineGms` (by prefix)
+  - n=0 (many): 0 GM-ów nie jest połączonych (Aiko, Daichi i Chie): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.
+  - n=1 (one): Jeden GM nie jest połączony (Aiko i Daichi): jego przeglądarka usunie to, co czyści ten reset, gdy następnym razem otworzy ten świat.
+  - n=2 (few): 2 GM-ów nie jest połączonych (Chie): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.
+  - n=5 (many): 5 GM-ów nie jest połączonych (Aiko, Daichi i Chie): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.
+  - n=12 (many): 12 GM-ów nie jest połączonych (Aiko i Daichi): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.
+  - n=22 (few): 22 GM-ów nie jest połączonych (Chie): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.
+  - n=25 (many): 25 GM-ów nie jest połączonych (Aiko, Daichi i Chie): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.
+  - n=112 (many): 112 GM-ów nie jest połączonych (Aiko i Daichi): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.
+- `DRPG.GmStore.resetPrimaryOnly`
+  - #1: Sezon resetuje tylko główny GM, Aiko. Poproś o to GM-a Aiko albo zresetuj sezon, gdy będziesz jedynym połączonym GM-em.
+  - #2: Sezon resetuje tylko główny GM, Daichi. Poproś o to GM-a Daichi albo zresetuj sezon, gdy będziesz jedynym połączonym GM-em.
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Season.failed`
+  - #1: Reset się nie dokończył: Nóż kuchenny, Lina i Krzesło. Pozostałe zaznaczone grupy wyczyszczono. Uruchom reset jeszcze raz: okno zaznaczy tylko grupy, których nie dokończył.
+  - #2: Reset się nie dokończył: Lina. Pozostałe zaznaczone grupy wyczyszczono. Uruchom reset jeszcze raz: okno zaznaczy tylko grupy, których nie dokończył.
+- `DRPG.Season.failedCast`
+  - Reset nie przeniósł wszystkich tokenów obsady tam, gdzie miały trafić. Przenieś je ręcznie: żaden reset nie przenosi samych tokenów.
+- `DRPG.Season.group.actions` (by prefix)
+  - Budżet akcji odnowiony, odpoczynki każdego ucznia wyczyszczone, a każda barykada zdjęta
+- `DRPG.Season.group.advancement` (by prefix)
+  - Level Upy i doświadczenia, które dodały, a statystyki i maksima wracają do arkusza startowego
+- `DRPG.Season.group.assembly` (by prefix)
+  - Zwołane zgromadzenie, które jeszcze się nie odbyło
+- `DRPG.Season.group.assignments` (by prefix)
+  - Podział uczniów między Monokumy w Despair Flow, więc każdy uczeń wraca do pierwszej puli
+- `DRPG.Season.group.bodyFound` (by prefix)
+  - Znalezione ciało, które czeka na odpowiedź, i zapis, czyje ciała znaleziono
+- `DRPG.Season.group.bullets` (by prefix)
+  - Truth Bullety w ekwipunku obsady
+- `DRPG.Season.group.cards` (by prefix)
+  - Własne karty tego modułu i komunikator
+- `DRPG.Season.group.chatRest` (by prefix)
+  - Reszta dziennika czatu, której ten moduł nie napisał
+- `DRPG.Season.group.clock` (by prefix)
+  - Zegar, z powrotem na rozdział 1, dzień 1, rano
+- `DRPG.Season.group.deaths` (by prefix)
+  - Śmierci, Monocuby i ciała na mapach, a zmarli wracają i każdy uczeń ma znów pełne Health i Sanity
+- `DRPG.Season.group.despair` (by prefix)
+  - Pule Despair i każdy Hope z powrotem do wartości startowej
+- `DRPG.Season.group.discovered` (by prefix)
+  - Które pokoje zostały odkryte
+- `DRPG.Season.group.doors` (by prefix)
+  - Zamknięte drzwi, z powrotem do stanu z otwarcia sezonu
+- `DRPG.Season.group.eclipseMoves` (by prefix)
+  - Wykorzystane przejścia Eclipse
+- `DRPG.Season.group.incident` (by prefix)
+  - Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności
+- `DRPG.Season.group.items` (by prefix)
+  - Co nosi obsada, a klucz do każdej sypialni wraca do jej właściciela
+- `DRPG.Season.group.keyPlan` (by prefix)
+  - Plan Key Remnantów
+- `DRPG.Season.group.mastermind` (by prefix)
+  - Mastermind
+- `DRPG.Season.group.motive` (by prefix)
+  - Motive
+- `DRPG.Season.group.overflow` (by prefix)
+  - Overflow i jego zaciemnienie
+- `DRPG.Season.group.passages` (by prefix)
+  - Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na początku sezonu, zna je znowu)
+- `DRPG.Season.group.preNotes` (by prefix)
+  - Notatki przed sesją dla GM-ów
+- `DRPG.Season.group.projects` (by prefix)
+  - Naprawy, projekty i ich Countdowny
+- `DRPG.Season.group.remnants` (by prefix)
+  - Remnanty na mapach i to, czym każdy z nich naprawdę był
+- `DRPG.Season.group.rules` (by prefix)
+  - Stałe zasady Monokumy
+- `DRPG.Season.group.seals` (by prefix)
+  - Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut
+- `DRPG.Season.group.searchTokens` (by prefix)
+  - Search Tokeny wydane w każdym pokoju
+- `DRPG.Season.group.stashesFound` (by prefix)
+  - Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta
+- `DRPG.Season.group.trialFloor` (by prefix)
+  - Głos w Class Trial
+- `DRPG.Season.group.trialProgress` (by prefix)
+  - Postęp Class Trial i jego głosowanie
+- `DRPG.Season.reportCard.cast`
+  - Tokeny obsady przeniesiono zgodnie z wyborem (coś, co wstawia kod).
+- `DRPG.Season.reportCard.done` (by prefix)
+  - #1: Wyczyszczone: Nóż kuchenny, Lina i Krzesło.
+  - #2: Wyczyszczone: Lina.
+- `DRPG.Season.reportCard.experiences`
+  - Doświadczenia zostawione na arkuszach, bo nie wiadomo, czy dodał je Level Up, czy GM: coś, co wstawia kod.
+- `DRPG.Season.reportCard.failed` (by prefix)
+  - #1: Niewyczyszczone: Nóż kuchenny, Lina i Krzesło.
+  - #2: Niewyczyszczone: Lina.
+- `DRPG.Season.reportCard.kept` (by prefix)
+  - #1: Zostawione, bo odznaczone: Nóż kuchenny, Lina i Krzesło.
+  - #2: Zostawione, bo odznaczone: Lina.
+- `DRPG.Season.reportCard.notRun`
+  - #1: Niewykonane, bo główny GM zmienił się w trakcie resetu: Nóż kuchenny, Lina i Krzesło.
+  - #2: Niewykonane, bo główny GM zmienił się w trakcie resetu: Lina.
+- `DRPG.Season.reportCard.stayed`
+  - #1: Nie przeniesiono: Aiko, Daichi i Chie.
+  - #2: Nie przeniesiono: Aiko i Daichi.
+  - #3: Nie przeniesiono: Chie.
+- `DRPG.Season.reportCard.title`
+  - Reset sezonu się nie dokończył
+- `DRPG.Season.reportCard.titleCast`
+  - Dokąd trafiła obsada po resecie sezonu
+- `DRPG.Season.reportCard.titleLeft`
+  - Co reset sezonu zostawił na arkuszach
+- `DRPG.Season.resetButton`
+  - Zresetuj sezon
+- `DRPG.Season.resetCastBedroom`
+  - Każdy uczeń do własnej sypialni, przypisanej w Ustawieniach pokoi
+- `DRPG.Season.resetCastNoRooms`
+  - Żadna mapa nie ma jeszcze nazwanego pokoju
+- `DRPG.Season.resetCastNote`
+  - Uczeń bez sypialni albo bez tokenu na mapie pokoju, do którego ma trafić, zostaje na miejscu, a raport go wymienia. Ciało zostaje tam, gdzie upadło. Każdy reset otwiera się z zaznaczoną pierwszą opcją.
+- `DRPG.Season.resetCastPoint`
+  - Wszyscy do jednego pokoju:
+- `DRPG.Season.resetCastStay`
+  - Zostają tam, gdzie stoją
+- `DRPG.Season.resetCastTitle`
+  - Dokąd trafiają tokeny obsady
+- `DRPG.Season.resetDone`
+  - Sezon zaczyna się od nowa. Obsada i mapy zostają bez zmian.
+- `DRPG.Season.resetDoneKept` (by prefix)
+  - n=0 (many): Sezon zaczyna się od nowa, a 0 wyjątków zostaje bez zmian.
+  - n=1 (one): Sezon zaczyna się od nowa, a jeden wyjątek zostaje bez zmian.
+  - n=2 (few): Sezon zaczyna się od nowa, a 2 wyjątki zostają bez zmian.
+  - n=5 (many): Sezon zaczyna się od nowa, a 5 wyjątków zostaje bez zmian.
+  - n=12 (many): Sezon zaczyna się od nowa, a 12 wyjątków zostaje bez zmian.
+  - n=22 (few): Sezon zaczyna się od nowa, a 22 wyjątki zostają bez zmian.
+  - n=25 (many): Sezon zaczyna się od nowa, a 25 wyjątków zostaje bez zmian.
+  - n=112 (many): Sezon zaczyna się od nowa, a 112 wyjątków zostaje bez zmian.
+- `DRPG.Season.resetForgotten` (by prefix)
+  - n=0 (many): 0 zapamiętanych wyjątków nie należy już do resetu i zostało odrzuconych.
+  - n=1 (one): 1 zapamiętany wyjątek nie należy już do resetu i został odrzucony.
+  - n=2 (few): 2 zapamiętane wyjątki nie należą już do resetu i zostały odrzucone.
+  - n=5 (many): 5 zapamiętanych wyjątków nie należy już do resetu i zostało odrzuconych.
+  - n=12 (many): 12 zapamiętanych wyjątków nie należy już do resetu i zostało odrzuconych.
+  - n=22 (few): 22 zapamiętane wyjątki nie należą już do resetu i zostały odrzucone.
+  - n=25 (many): 25 zapamiętanych wyjątków nie należy już do resetu i zostało odrzuconych.
+  - n=112 (many): 112 zapamiętanych wyjątków nie należy już do resetu i zostało odrzuconych.
+- `DRPG.Season.resetGoes`
+  - To znika:
+- `DRPG.Season.resetGroupsNote`
+  - Odznacz wszystko, czego ten reset ma nie ruszać. Następny reset otworzy się z tymi samymi grupami odznaczonymi; zaznacz którąś ponownie, a reset przestanie ją pomijać.
+- `DRPG.Season.resetGroupsTitle`
+  - Co znika, a co zostaje
+- `DRPG.Season.resetKeeps`
+  - To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, zespół Monokum i nazwa kampanii.
+- `DRPG.Season.resetMistyped`
+  - Nic nie zresetowano. Następnym razem wpisz dokładnie coś, co wstawia kod.
+- `DRPG.Season.resetNothing`
+  - Nic nie jest zaznaczone, więc nie ma czego resetować.
+- `DRPG.Season.resetRemembered` (by prefix)
+  - n=0 (many): Poniżej odznaczono 0 wyjątków zapamiętanych z ostatniego resetu.
+  - n=1 (one): Poniżej odznaczono 1 wyjątek zapamiętany z ostatniego resetu.
+  - n=2 (few): Poniżej odznaczono 2 wyjątki zapamiętane z ostatniego resetu.
+  - n=5 (many): Poniżej odznaczono 5 wyjątków zapamiętanych z ostatniego resetu.
+  - n=12 (many): Poniżej odznaczono 12 wyjątków zapamiętanych z ostatniego resetu.
+  - n=22 (few): Poniżej odznaczono 22 wyjątki zapamiętane z ostatniego resetu.
+  - n=25 (many): Poniżej odznaczono 25 wyjątków zapamiętanych z ostatniego resetu.
+  - n=112 (many): Poniżej odznaczono 112 wyjątków zapamiętanych z ostatniego resetu.
+- `DRPG.Season.resetTitle`
+  - Zresetuj sezon
+- `DRPG.Season.resetType`
+  - Wpisz coś, co wstawia kod, by potwierdzić
+- `DRPG.Season.resetUnfinished`
+  - #1: Ostatni reset się nie dokończył: Nóż kuchenny, Lina i Krzesło. Zaznaczone są tylko te grupy, a ten reset nie zmienia zapamiętanych wyjątków.
+  - #2: Ostatni reset się nie dokończył: Lina. Zaznaczone są tylko te grupy, a ten reset nie zmienia zapamiętanych wyjątków.
+- `DRPG.Season.resetWarning`
+  - Tego nie da się cofnąć, ani tym modułem, ani niczym innym.
+- `DRPG.Season.resetWord`
+  - RESET
+- `DRPG.Season.section.board` (by prefix)
+  - Plansza
+- `DRPG.Season.section.case` (by prefix)
+  - Sprawa
+- `DRPG.Season.section.cast` (by prefix)
+  - Obsada
+- `DRPG.Season.section.log` (by prefix)
+  - Dziennik
+- `DRPG.Season.section.world` (by prefix)
+  - Świat
+- `DRPG.Season.stoppedPrimary`
+  - #1: Reset się zatrzymał, bo głównym GM-em jest teraz Aiko. Niewykonane: Nóż kuchenny, Lina i Krzesło. To, co się wykonało, zostaje; Aiko może dokończyć resztę kolejnym resetem.
+  - #2: Reset się zatrzymał, bo głównym GM-em jest teraz Daichi. Niewykonane: Lina. To, co się wykonało, zostaje; Daichi może dokończyć resztę kolejnym resetem.
+
+## the GM panel (gm-panel; reader: gm; E13)
+
+- `DRPG.Case.backupAgo` (by prefix)
+  - n=0 (many): ostatnia kopia: 0 dni temu
+  - n=1 (one): ostatnia kopia: 1 dzień temu
+  - n=2 (few): ostatnia kopia: 2 dni temu
+  - n=5 (many): ostatnia kopia: 5 dni temu
+  - n=12 (many): ostatnia kopia: 12 dni temu
+  - n=22 (few): ostatnia kopia: 22 dni temu
+  - n=25 (many): ostatnia kopia: 25 dni temu
+  - n=112 (many): ostatnia kopia: 112 dni temu
+- `DRPG.Case.backupNever`
+  - ostatnia kopia: nigdy
+- `DRPG.Case.backupToday`
+  - ostatnia kopia: dziś
+- `DRPG.Case.panelWarning`
+  - Sprawa w tej przeglądarce jest niekompletna:
+- `DRPG.Case.tile`
+  - Sprawa
+- `DRPG.Failures.clear`
+  - Wyczyść dziennik
+- `DRPG.Failures.cleared`
+  - Debug log w tej przeglądarce jest teraz pusty.
+- `DRPG.Failures.copied`
+  - Dziennik jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.
+- `DRPG.Failures.copy`
+  - Kopiuj do schowka
+- `DRPG.Failures.intro`
+  - Błędy i ostrzeżenia tej przeglądarki od załadowania strony. Przeładowanie strony czyści dziennik, a powtarzający się wpis zajmuje jeden wiersz z licznikiem.
+- `DRPG.Failures.none`
+  - Od załadowania strony nic nie poszło źle.
+- `DRPG.Failures.title`
+  - Dziennik debugowania
+- `DRPG.Investigation.dashboardTitle`
+  - Investigation
+- `DRPG.Panel.advance`
+  - Pomiń Eclipse
+- `DRPG.Panel.advanceOffEclipse`
+  - Trwa Eclipse: jego koniec przesuwa zegar.
+- `DRPG.Panel.advanceOffTrial`
+  - Trwa Class Trial: koniec rozdziału przesuwa zegar.
+- `DRPG.Panel.advanceTooltip`
+  - Bez Eclipse. Odnawia akcje i Search Tokeny.
+- `DRPG.Panel.apply`
+  - Zastosuj
+- `DRPG.Panel.character`
+  - Postać
+- `DRPG.Panel.doColumn`
+  - Zrób
+- `DRPG.Panel.failed`
+  - To nie zadziałało. Szczegóły znajdziesz w Dzienniku debugowania, w sekcji Diagnostyka.
+- `DRPG.Panel.foundryReport`
+  - Foundry i moduły
+- `DRPG.Panel.freeMove`
+  - Free Move
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.goAdvanceButton`
+  - Przesuń zegar
+- `DRPG.Panel.goAutopsyButton`
+  - Wydaj sekcję zwłok
+- `DRPG.Panel.goBodyButton`
+  - Ogłoś ciało
+- `DRPG.Panel.goChapterEndButton`
+  - Zakończ rozdział
+- `DRPG.Panel.goEclipseEndButton`
+  - Zakończ Eclipse
+- `DRPG.Panel.goEclipseStartButton`
+  - Zacznij Eclipse
+- `DRPG.Panel.goInvestigationButton`
+  - Otwórz Investigation
+- `DRPG.Panel.goMurderButton`
+  - Otwórz incydent
+- `DRPG.Panel.goSeasonChecklistButton`
+  - Lista kontrolna sezonu
+- `DRPG.Panel.goStartInvestigationButton`
+  - Rozpocznij Investigation
+- `DRPG.Panel.goTrialButton`
+  - Otwórz konsolę trialu
+- `DRPG.Panel.group.monokumas` (by prefix)
+  - Monokumy
+- `DRPG.Panel.group.notInClass` (by prefix)
+  - Poza klasą
+- `DRPG.Panel.group.spectators` (by prefix)
+  - Widzowie
+- `DRPG.Panel.group.students` (by prefix)
+  - Uczniowie
+- `DRPG.Panel.launcher`
+  - Otwórz panel GM-a
+- `DRPG.Panel.levelUpColumn`
+  - Level Up
+- `DRPG.Panel.nextAllDone`
+  - Wszyscy wydali akcje. Zacznij Eclipse: jego początek odnawia wszystkim akcje, a koniec przesuwa zegar.
+- `DRPG.Panel.nextAutopsy`
+  - Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.
+- `DRPG.Panel.nextBodyAsked`
+  - #1: Uczniowie znaleźli ciało w pokoju Warsztat. Decyzja należy do ciebie: ogłoś je albo na razie zostaw.
+  - #2: Uczniowie znaleźli ciało w pokoju Biblioteka. Decyzja należy do ciebie: ogłoś je albo na razie zostaw.
+  - #3: Uczniowie znaleźli ciało w pokoju Kino. Decyzja należy do ciebie: ogłoś je albo na razie zostaw.
+- `DRPG.Panel.nextBodyFound`
+  - Znaleziono ciało. Rozpocznij Investigation, gdy stół będzie gotowy.
+- `DRPG.Panel.nextBodyWaiting`
+  - #1: Ciało w pokoju Warsztat czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+  - #2: Ciało w pokoju Biblioteka czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+  - #3: Ciało w pokoju Kino czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+- `DRPG.Panel.nextBodyWaitingNoRoom`
+  - Ciało czeka na odnalezienie. Znajdzie je dwóch świadków, chyba że ogłosisz je wcześniej.
+- `DRPG.Panel.nextBodyWaitingUnseen`
+  - Ciało czeka na odnalezienie, ale jego token jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.
+- `DRPG.Panel.nextChapterEndStopped`
+  - Koniec rozdziału zatrzymał się przed wykonaniem wszystkich kroków. Dokończ go w oknie Zakończ rozdział.
+- `DRPG.Panel.nextEclipse`
+  - Trwa Eclipse. Zakończ je, gdy wszyscy ustawią swoje tokeny.
+- `DRPG.Panel.nextIncident`
+  - Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.
+- `DRPG.Panel.nextInvestigation`
+  - Trwa Investigation. Sprawdź, co już znaleziono, a co wciąż czeka.
+- `DRPG.Panel.nextKeysToPlace` (by prefix)
+  - n=0 (many): 0 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=1 (one): 1 Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnanty okna Investigation.
+  - n=2 (few): 2 Key Remnanty tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=5 (many): 5 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=12 (many): 12 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=22 (few): 22 Key Remnanty tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=25 (many): 25 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+  - n=112 (many): 112 Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.
+- `DRPG.Panel.nextLabel`
+  - Dalej
+- `DRPG.Panel.nextReady`
+  - Gracze dostali pytanie, czy już kończą. Otwórz je ponownie.
+- `DRPG.Panel.nextSeasonSetup`
+  - Do ustawienia: coś, co wstawia kod.
+- `DRPG.Panel.nextSeasonSetupAside`
+  - Jeszcze do ustawienia: coś, co wstawia kod.
+- `DRPG.Panel.nextStartTrial`
+  - Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.
+- `DRPG.Panel.nextStillActing` (by prefix)
+  - n=0 (many): 0 uczniów ma jeszcze akcje do wydania.
+  - n=1 (one): 1 uczeń ma jeszcze akcje do wydania.
+  - n=2 (few): 2 uczniowie mają jeszcze akcje do wydania.
+  - n=5 (many): 5 uczniów ma jeszcze akcje do wydania.
+  - n=12 (many): 12 uczniów ma jeszcze akcje do wydania.
+  - n=22 (few): 22 uczniowie mają jeszcze akcje do wydania.
+  - n=25 (many): 25 uczniów ma jeszcze akcje do wydania.
+  - n=112 (many): 112 uczniów ma jeszcze akcje do wydania.
+- `DRPG.Panel.nextTrialOutlived`
+  - Rozdział poszedł dalej, a Class Trial wciąż trwa. Zakończ Class Trial.
+- `DRPG.Panel.noCharacters`
+  - W tym świecie nie ma żywych uczniów.
+- `DRPG.Panel.openColumn`
+  - Otwórz
+- `DRPG.Panel.openSheet`
+  - #1: Otwórz arkusz postaci Aiko
+  - #2: Otwórz arkusz postaci Daichi
+- `DRPG.Panel.refundCrossing`
+  - Zwróć ostatnie przejście
+- `DRPG.Panel.refundCrossingNote`
+  - #1: Warsztat z powrotem do Warsztat
+  - #2: Biblioteka z powrotem do Biblioteka
+  - #3: Kino z powrotem do Kino
+- `DRPG.Panel.role.student`
+  - Uczeń
+- `DRPG.Panel.roleColumn`
+  - Rola
+- `DRPG.Panel.section.between` (by prefix)
+  - Między sesjami
+- `DRPG.Panel.section.case` (by prefix)
+  - Sprawa
+- `DRPG.Panel.section.fixes` (by prefix)
+  - Diagnostyka
+- `DRPG.Panel.section.now` (by prefix)
+  - Teraz
+- `DRPG.Panel.settings`
+  - Ustawienia gry
+- `DRPG.Panel.state.alive` (by prefix)
+  - Żyje
+- `DRPG.Panel.state.dead` (by prefix)
+  - Nie żyje
+- `DRPG.Panel.state.monocub` (by prefix)
+  - Monocub
+- `DRPG.Panel.stateColumn`
+  - Stan
+- `DRPG.Panel.stateSaved` (by prefix)
+  - n=0 (many): Zmieniono 0 postaci.
+  - n=1 (one): Zmieniono 1 postać.
+  - n=2 (few): Zmieniono 2 postacie.
+  - n=5 (many): Zmieniono 5 postaci.
+  - n=12 (many): Zmieniono 12 postaci.
+  - n=22 (few): Zmieniono 22 postacie.
+  - n=25 (many): Zmieniono 25 postaci.
+  - n=112 (many): Zmieniono 112 postaci.
+- `DRPG.Panel.stateUnchanged`
+  - Nic się nie zmieniło.
+- `DRPG.Panel.studentsLeft` (by prefix)
+  - n=0 (many): 0 uczniów ma jeszcze akcje
+  - n=1 (one): 1 uczeń ma jeszcze akcje
+  - n=2 (few): 2 uczniowie mają jeszcze akcje
+  - n=5 (many): 5 uczniów ma jeszcze akcje
+  - n=12 (many): 12 uczniów ma jeszcze akcje
+  - n=22 (few): 22 uczniowie mają jeszcze akcje
+  - n=25 (many): 25 uczniów ma jeszcze akcje
+  - n=112 (many): 112 uczniów ma jeszcze akcje
+- `DRPG.Panel.title`
+  - Panel GM-a
+- `DRPG.Panel.voiceReset`
+  - Napraw głos
+- `DRPG.Panel.whoIsAlive`
+  - Uczniowie
+- `DRPG.Panel.whoIsAliveNote`
+  - Stan służy do poprawiania pomyłek i zapisuje się po kliknięciu Zastosuj. Rola zmienia się od razu. Przyciski w wierszu działają od razu, ze wszystkimi skutkami: śmierć niszczy Truth Bullety. Wybór Monocuba, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.
+- `DRPG.Season.openIt`
+  - Otwórz
+- `DRPG.Season.step.assignments` (by prefix)
+  - Każdego ucznia pilnuje Monokuma
+- `DRPG.Season.step.cast` (by prefix)
+  - Obsada istnieje
+- `DRPG.Season.step.cursor` (by prefix)
+  - Kursor GM-a jest prywatny (zalecane)
+- `DRPG.Season.step.despairSplit` (by prefix)
+  - Uczniowie są podzieleni po równo między pule
+- `DRPG.Season.step.diceSoNice` (by prefix)
+  - Dice So Nice jest włączony
+- `DRPG.Season.step.experiences` (by prefix)
+  - Każdy ma swoje doświadczenia
+- `DRPG.Season.step.foundryHeld` (by prefix)
+  - Moduł trzyma ustawienia Foundry (opcjonalnie)
+- `DRPG.Season.step.hallTokens` (by prefix)
+  - Sala rozpraw i jej tokeny (opcjonalnie)
+- `DRPG.Season.step.items` (by prefix)
+  - Każdy coś nosi
+- `DRPG.Season.step.liveKitSecret` (by prefix)
+  - Sekretu serwera głosu nie ma w świecie
+- `DRPG.Season.step.mastermind` (by prefix)
+  - Mastermind (opcjonalnie)
+- `DRPG.Season.step.monokumas` (by prefix)
+  - Co najmniej jeden Monokuma
+- `DRPG.Season.step.name` (by prefix)
+  - Nazwij kampanię
+- `DRPG.Season.step.nobodyPublic` (by prefix)
+  - Mastermind zasila pulę Despair
+- `DRPG.Season.step.npcs` (by prefix)
+  - Postacie bez gracza są oznaczone
+- `DRPG.Season.step.overflow` (by prefix)
+  - Próg Overflow pasuje do obsady
+- `DRPG.Season.step.resources` (by prefix)
+  - Startowe Health, Sanity i Hope
+- `DRPG.Season.step.roomCount` (by prefix)
+  - Dość pokoi dla obsady
+- `DRPG.Season.step.rooms` (by prefix)
+  - Mapa ma pokoje
+- `DRPG.Season.step.roomsMarked` (by prefix)
+  - O każdym nazwanym regionie zdecydowano: pokój albo nie
+- `DRPG.Season.step.rulers` (by prefix)
+  - Linijka ruchu graczy jest ukryta (opcjonalnie)
+- `DRPG.Season.step.scenes` (by prefix)
+  - Szkoła i sala rozpraw są podpięte
+- `DRPG.Season.step.secretDoors` (by prefix)
+  - Brak sekretnych drzwi Foundry (zalecane)
+- `DRPG.Season.step.sound` (by prefix)
+  - Pliki dźwiękowe
+- `DRPG.Season.step.ultimate` (by prefix)
+  - Każdy ma Ultimate
+- `DRPG.Season.title`
+  - Ustawienia sezonu
+- `DRPG.SettingsWindow.mayNot`
+  - Nie masz w Foundry uprawnienia do zmiany ustawień świata, więc nie otworzysz ustawień gry.
+- `DRPG.Sound.title`
+  - Dźwięk
+- `DRPG.Tables.editorTitle`
+  - Tabele przedmiotów
+- `DRPG.Voice.resetDone` (by prefix)
+  - n=0 (many): Wysłano ponownie pokoje głosowe 0 osobom.
+  - n=1 (one): Wysłano ponownie pokój głosowy 1 osobie.
+  - n=2 (few): Wysłano ponownie pokoje głosowe 2 osobom.
+  - n=5 (many): Wysłano ponownie pokoje głosowe 5 osobom.
+  - n=12 (many): Wysłano ponownie pokoje głosowe 12 osobom.
+  - n=22 (few): Wysłano ponownie pokoje głosowe 22 osobom.
+  - n=25 (many): Wysłano ponownie pokoje głosowe 25 osobom.
+  - n=112 (many): Wysłano ponownie pokoje głosowe 112 osobom.
+- `DRPG.Voice.resetRefused.livekit`
+  - Nic nie wysłano: LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.
+- `DRPG.Voice.resetRefused.primary`
+  - #1: Pokoje głosowe wysyła ponownie tylko główny GM, Aiko. Poproś o to GM-a Aiko.
+  - #2: Pokoje głosowe wysyła ponownie tylko główny GM, Daichi. Poproś o to GM-a Daichi.
+- `DRPG.Voice.silenceNow`
+  - Wycisz teraz
+- `DRPG.Voice.silenceNowTip`
+  - Przenosi głos tego gracza do Widzów już teraz, zanim ktoś znajdzie ciało.
+- `DRPG.Voice.silenced`
+  - Wyciszony
+
+## the trial console: the GM's controls for a Class Trial (trial-console; reader: gm; E10)
+
+- `DRPG.CaseSummary.show`
+  - Pokaż podsumowanie
+- `DRPG.CaseSummary.shown`
+  - Podsumowanie wysłane
+- `DRPG.Panel.close`
+  - Zamknij
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Reveal.beyondPaid`
+  - Za ten Key Remnant nie pobrano Despair. Ujawnić mimo to?
+- `DRPG.Reveal.button`
+  - Ujawnij
+- `DRPG.Reveal.defaultName`
+  - Key Remnant
+- `DRPG.Reveal.intro`
+  - #1: Każdy uczestnik rozprawy, który go jeszcze nie ma, dostaje Truth Bullet „Aiko”, jakby sam znalazł ten Key Remnant. Analyze kosztuje tyle co zawsze.
+  - #2: Każdy uczestnik rozprawy, który go jeszcze nie ma, dostaje Truth Bullet „Daichi”, jakby sam znalazł ten Key Remnant. Analyze kosztuje tyle co zawsze.
+- `DRPG.Reveal.left`
+  - n=0: Do ujawnienia: 0
+  - n=1: Do ujawnienia: 1
+  - n=2: Do ujawnienia: 2
+  - n=5: Do ujawnienia: 5
+  - n=12: Do ujawnienia: 12
+  - n=22: Do ujawnienia: 22
+  - n=25: Do ujawnienia: 25
+  - n=112: Do ujawnienia: 112
+- `DRPG.Reveal.noTrace`
+  - nie ma go na mapie
+- `DRPG.Reveal.notMissing`
+  - Tego Key Remnantu już nie brakuje: ktoś go znalazł albo Monokuma go ujawnił.
+- `DRPG.Reveal.section`
+  - Brakujące Key Remnanty
+- `DRPG.Reveal.textLabel`
+  - Co czytają gracze
+- `DRPG.Reveal.title`
+  - Ujawnienie Monokumy
+- `DRPG.Zones.busy`
+  - Głos ma inny tryb. Najpierw go zakończ albo zamknij debatę.
+- `DRPG.Zones.confer.conferOver`
+  - Zakończ naradę
+- `DRPG.Zones.confer.sidesSet`
+  - Strony wybrane
+- `DRPG.Zones.end`
+  - Zakończ ten tryb
+- `DRPG.Zones.findings.button`
+  - n=0: Findings (0)
+  - n=1: Findings (1)
+  - n=2: Findings (2)
+  - n=5: Findings (5)
+  - n=12: Findings (12)
+  - n=22: Findings (22)
+  - n=25: Findings (25)
+  - n=112: Findings (112)
+- `DRPG.Zones.noZones`
+  - Sala rozpraw nie ma Strefy A i Strefy B. Wybierz je w Ustawieniach sezonu.
+
+## evidence put in front of the table, and the Objection (trial-evidence; reader: both)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the murder window (murder-window; reader: gm)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the GM's incident tracker (incident-tracker; reader: gm)
+
+- `DRPG.Voice.silenceNow`
+  - Wycisz teraz
+- `DRPG.Voice.silenceNowTip`
+  - Przenosi głos tego gracza do Widzów już teraz, zanim ktoś znajdzie ciało.
+
+## the room tile and the room's window (room-tile; reader: both; E77)
+
+- `DRPG.SearchTokens.sealed`
+  - Tego pokoju nie przeszukasz: nie ma tu nic do znalezienia o żadnej porze dnia.
+
+## the voice tile and its list (voice-tile; reader: both; E78)
+
+- `DRPG.Voice.held.connected`
+  - Połączono z kanałem głosowym.
+- `DRPG.Voice.held.connecting`
+  - Trwa dołączanie do kanału głosowego.
+- `DRPG.Voice.held.cubListen` (by prefix)
+  - Tryb: coś, co wstawia kod. Słuchasz.
+- `DRPG.Voice.held.cubSpeak` (by prefix)
+  - Dyskusja: możesz mówić.
+- `DRPG.Voice.held.cubVote` (by prefix)
+  - Głosowanie: słuchasz.
+- `DRPG.Voice.held.deadAlone` (by prefix)
+  - Twoja postać nie żyje: rozmawiasz z Widzami. Żywi cię nie słyszą.
+- `DRPG.Voice.held.deadMuted` (by prefix)
+  - Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.
+- `DRPG.Voice.held.eclipse`
+  - Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.
+- `DRPG.Voice.held.eclipseHeard`
+  - Eclipse: do powrotu światła nikt cię nie słyszy.
+- `DRPG.Voice.held.external`
+  - Głos jest w osobnym oknie: użyj jego przycisków.
+- `DRPG.Voice.held.gmBlock`
+  - GM zablokował twój mikrofon.
+- `DRPG.Voice.held.listening` (by prefix)
+  - Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.
+- `DRPG.Voice.held.masked` (by prefix)
+  - Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.
+- `DRPG.Voice.held.offline`
+  - Brak połączenia z głosem.
+- `DRPG.Voice.held.ownCase` (by prefix)
+  - Słuchasz: to rozprawa w twojej sprawie.
+- `DRPG.Voice.held.spectator` (by prefix)
+  - Jesteś Widzem: słyszysz pokój, w którym jesteś, a mikrofon masz wyłączony.
+- `DRPG.Voice.held.spectatorTalk` (by prefix)
+  - Rozmawiasz z innymi Widzami.
+- `DRPG.Voice.list.alone`
+  - Poza tobą nikogo nie ma w kanale.
+- `DRPG.Voice.list.count` (by prefix)
+  - n=0 (many): Słyszysz w kanale 0 osób
+  - n=1 (one): Słyszysz w kanale 1 osobę
+  - n=2 (few): Słyszysz w kanale 2 osoby
+  - n=5 (many): Słyszysz w kanale 5 osób
+  - n=12 (many): Słyszysz w kanale 12 osób
+  - n=22 (few): Słyszysz w kanale 22 osoby
+  - n=25 (many): Słyszysz w kanale 25 osób
+  - n=112 (many): Słyszysz w kanale 112 osób
+- `DRPG.Voice.list.gmBlock`
+  - #1: Zablokuj mikrofon: Aiko (u wszystkich)
+  - #2: Zablokuj mikrofon: Daichi (u wszystkich)
+- `DRPG.Voice.list.gmHeld`
+  - Tego mikrofonu nie możesz teraz zablokować.
+- `DRPG.Voice.list.gmNoBlock`
+  - Ta wersja Foundry nie ma uprawnienia do mikrofonu, więc stąd nie zablokujesz żadnego mikrofonu.
+- `DRPG.Voice.list.gmSecretDead`
+  - Ta śmierć jest jeszcze tajemnicą: blokada by ją zdradziła.
+- `DRPG.Voice.list.gmUnblock`
+  - #1: Odblokuj mikrofon: Aiko
+  - #2: Odblokuj mikrofon: Daichi
+- `DRPG.Voice.list.hidden`
+  - Ukryta wcześniej w doku kamer: nie słyszysz tej osoby.
+- `DRPG.Voice.list.muteAll`
+  - Wycisz wszystkich u siebie
+- `DRPG.Voice.list.muteFor`
+  - #1: Wycisz u siebie: Aiko
+  - #2: Wycisz u siebie: Daichi
+- `DRPG.Voice.list.open`
+  - Kogo słyszysz
+- `DRPG.Voice.list.unhide`
+  - Pokaż i słuchaj
+- `DRPG.Voice.list.unmuteFor`
+  - #1: Znów słuchaj: Aiko
+  - #2: Znów słuchaj: Daichi
+- `DRPG.Voice.list.volume`
+  - #1: Głośność: Aiko
+  - #2: Głośność: Daichi
+- `DRPG.Voice.mic.mute`
+  - Wycisz swój mikrofon
+- `DRPG.Voice.mic.ptt`
+  - Naciśnij, aby mówić: przytrzymaj coś, co wstawia kod
+- `DRPG.Voice.mic.pttBadge`
+  - PTT
+- `DRPG.Voice.mic.pttNoKey`
+  - Naciśnij, aby mówić: wybierz dla tego klawisz w sterowaniu Foundry.
+- `DRPG.Voice.mic.unmute`
+  - Włącz z powrotem swój mikrofon
+- `DRPG.Voice.panel.legend` (by prefix)
+  - Głos
+- `DRPG.Voice.panel.mic` (by prefix)
+  - Mikrofon
+- `DRPG.Voice.panel.micNote` (by prefix)
+  - Pozwól przeglądarce używać mikrofonu, potem otwórz to okno ponownie, aby go wybrać.
+- `DRPG.Voice.panel.mode` (by prefix)
+  - Tryb mikrofonu
+- `DRPG.Voice.panel.modeAlways` (by prefix)
+  - Zawsze włączony
+- `DRPG.Voice.panel.modePtt` (by prefix)
+  - Naciśnij, aby mówić
+- `DRPG.Voice.panel.output` (by prefix)
+  - Wyjście dźwięku
+- `DRPG.Voice.panel.pttChange` (by prefix)
+  - Zmień klawisz
+- `DRPG.Voice.panel.pttKey`
+  - Klawisz mówienia: coś, co wstawia kod
+- `DRPG.Voice.tile.hasFloor`
+  - ma głos
+- `DRPG.Voice.tile.label`
+  - Głos
+- `DRPG.Voice.tile.more` (by prefix)
+  - n=0 (many): i jeszcze 0 osób mówi
+  - n=1 (one): i jeszcze 1 osoba mówi
+  - n=2 (few): i jeszcze 2 osoby mówią
+  - n=5 (many): i jeszcze 5 osób mówi
+  - n=12 (many): i jeszcze 12 osób mówi
+  - n=22 (few): i jeszcze 22 osoby mówią
+  - n=25 (many): i jeszcze 25 osób mówi
+  - n=112 (many): i jeszcze 112 osób mówi
+- `DRPG.Voice.tile.nobody`
+  - Nikt nie mówi
+- `DRPG.Voice.tile.speaking`
+  - Mówi
+- `DRPG.Voice.tile.state.blocked`
+  - Zablokowano
+- `DRPG.Voice.tile.state.connected`
+  - Połączono
+- `DRPG.Voice.tile.state.connecting`
+  - Łączenie
+- `DRPG.Voice.tile.state.disconnected`
+  - Rozłączono
+- `DRPG.Voice.tile.state.eclipsed`
+  - Eclipse
+- `DRPG.Voice.tile.state.external`
+  - Osobne okno
+
+## the secret passages as the GMs keep them (passages-gm; reader: gm)
+
+- `DRPG.Season.secretDoorsPutBack` (by prefix)
+  - n=0 (many): 0 sekretnych drzwi zmienionych bez wiedzy GM-a wróciło do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+  - n=1 (one): Sekretne drzwi zmienione bez wiedzy GM-a (1) wróciły do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+  - n=2 (few): 2 sekretne drzwi zmienione bez wiedzy GM-a wróciły do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+  - n=5 (many): 5 sekretnych drzwi zmienionych bez wiedzy GM-a wróciło do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+  - n=12 (many): 12 sekretnych drzwi zmienionych bez wiedzy GM-a wróciło do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+  - n=22 (few): 22 sekretne drzwi zmienione bez wiedzy GM-a wróciły do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+  - n=25 (many): 25 sekretnych drzwi zmienionych bez wiedzy GM-a wróciło do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+  - n=112 (many): 112 sekretnych drzwi zmienionych bez wiedzy GM-a wróciło do stanu, w jakim GM je zostawił: Szkoła, piętro 1 i Sala rozpraw.
+
+## a death: the window and its cards (death-window; reader: gm; E09)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the body discovery (body-discovery; reader: gm; E11)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## a chapter's end and Stage Six (chapter; reader: both)
+
+- `DRPG.Case.backupAgo` (by prefix)
+  - n=0 (many): ostatnia kopia: 0 dni temu
+  - n=1 (one): ostatnia kopia: 1 dzień temu
+  - n=2 (few): ostatnia kopia: 2 dni temu
+  - n=5 (many): ostatnia kopia: 5 dni temu
+  - n=12 (many): ostatnia kopia: 12 dni temu
+  - n=22 (few): ostatnia kopia: 22 dni temu
+  - n=25 (many): ostatnia kopia: 25 dni temu
+  - n=112 (many): ostatnia kopia: 112 dni temu
+- `DRPG.Case.backupNever`
+  - ostatnia kopia: nigdy
+- `DRPG.Case.backupNow`
+  - Kopia sprawy
+- `DRPG.Case.backupToday`
+  - ostatnia kopia: dziś
+- `DRPG.Case.chapterReminder`
+  - #1: Klucze odpowiedzi, które odsłania koniec rozdziału, przechowują tylko przeglądarki GM-ów. Zrób kopię sprawy (Rano).
+  - #2: Klucze odpowiedzi, które odsłania koniec rozdziału, przechowują tylko przeglądarki GM-ów. Zrób kopię sprawy (Południe).
+  - #3: Klucze odpowiedzi, które odsłania koniec rozdziału, przechowują tylko przeglądarki GM-ów. Zrób kopię sprawy (Popołudnie).
+  - #4: Klucze odpowiedzi, które odsłania koniec rozdziału, przechowują tylko przeglądarki GM-ów. Zrób kopię sprawy (Wieczór).
+  - #5: Klucze odpowiedzi, które odsłania koniec rozdziału, przechowują tylko przeglądarki GM-ów. Zrób kopię sprawy (Noc).
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## a key Remnant placed, and the bullets swept (key-remnant; reader: gm; E09)
+
+- `DRPG.Investigation.noRooms`
+  - Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić Remnantu. Najpierw narysuj regiony; jak to zrobić, wyjaśniają Ustawienia pokoi.
+- `DRPG.Investigation.place`
+  - Postaw
+- `DRPG.Investigation.placeTitle`
+  - Postaw ten Key Remnant
+- `DRPG.Investigation.placedMeanwhile`
+  - Inny GM postawił Key Remnant tego wiersza, gdy okno było otwarte, więc nic więcej nie postawiono.
+- `DRPG.Investigation.plannedRoomGone`
+  - #1: Zaplanowanego pokoju „Warsztat” nie ma na tej scenie. Wybierz pokój.
+  - #2: Zaplanowanego pokoju „Biblioteka” nie ma na tej scenie. Wybierz pokój.
+  - #3: Zaplanowanego pokoju „Kino” nie ma na tej scenie. Wybierz pokój.
+- `DRPG.Investigation.room`
+  - Pokój
+- `DRPG.Investigation.visibility`
+  - Widoczność
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.sweepBullets`
+  - Zbierz Truth Bullets
+- `DRPG.Panel.sweepConfirm` (by prefix)
+  - n=0 (many): Usunąć 0 Truth Bullets z ekwipunków uczniów?
+  - n=1 (one): Usunąć 1 Truth Bullet z ekwipunków uczniów?
+  - n=2 (few): Usunąć 2 Truth Bullets z ekwipunków uczniów?
+  - n=5 (many): Usunąć 5 Truth Bullets z ekwipunków uczniów?
+  - n=12 (many): Usunąć 12 Truth Bullets z ekwipunków uczniów?
+  - n=22 (few): Usunąć 22 Truth Bullets z ekwipunków uczniów?
+  - n=25 (many): Usunąć 25 Truth Bullets z ekwipunków uczniów?
+  - n=112 (many): Usunąć 112 Truth Bullets z ekwipunków uczniów?
+- `DRPG.Panel.sweepConfirmNote`
+  - n=0: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 0.
+  - n=1: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 1.
+  - n=2: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 2.
+  - n=5: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 5.
+  - n=12: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 12.
+  - n=22: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 22.
+  - n=25: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 25.
+  - n=112: Tego nie da się cofnąć. Faint i Final Truth zostają; jest ich 112.
+- `DRPG.Panel.sweepNone`
+  - Nie ma czego zbierać: każdy Truth Bullet w grze jest Faint albo Final.
+- `DRPG.Panel.sweptBullets` (by prefix)
+  - n=0 (many): Zebrano 0 Truth Bulletów.
+  - n=1 (one): Zebrano 1 Truth Bullet.
+  - n=2 (few): Zebrano 2 Truth Bullety.
+  - n=5 (many): Zebrano 5 Truth Bulletów.
+  - n=12 (many): Zebrano 12 Truth Bulletów.
+  - n=22 (few): Zebrano 22 Truth Bullety.
+  - n=25 (many): Zebrano 25 Truth Bulletów.
+  - n=112 (many): Zebrano 112 Truth Bulletów.
+
+## the GM's side of an Investigation (investigation; reader: gm)
+
+- `DRPG.Assign.save`
+  - Zapisz
+- `DRPG.Case.chargeHeld` (by prefix)
+  - n=0 (many): Opłata za nieznalezione Key Remnanty jest wstrzymana: 0 Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+  - n=1 (one): Opłata za nieznalezione Key Remnanty jest wstrzymana: 1 Truth Bullet nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+  - n=2 (few): Opłata za nieznalezione Key Remnanty jest wstrzymana: 2 Truth Bullety nie mają klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+  - n=5 (many): Opłata za nieznalezione Key Remnanty jest wstrzymana: 5 Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+  - n=12 (many): Opłata za nieznalezione Key Remnanty jest wstrzymana: 12 Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+  - n=22 (few): Opłata za nieznalezione Key Remnanty jest wstrzymana: 22 Truth Bullety nie mają klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+  - n=25 (many): Opłata za nieznalezione Key Remnanty jest wstrzymana: 25 Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+  - n=112 (many): Opłata za nieznalezione Key Remnanty jest wstrzymana: 112 Truth Bulletów nie ma klucza odpowiedzi w przeglądarce głównego GM-a, więc wynik byłby błędny. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa); opłatę można potem naliczyć ponownie.
+- `DRPG.CaseMap.addCounter`
+  - Dodaj kontrę
+- `DRPG.CaseMap.addDeduction`
+  - Dodaj wniosek
+- `DRPG.CaseMap.addPlan`
+  - Dodaj plan
+- `DRPG.CaseMap.addSolution`
+  - Dodaj rozwiązanie
+- `DRPG.CaseMap.autopsyAt`
+  - Wysyłany przy
+- `DRPG.CaseMap.autopsyBody`
+  - n=0: Ciało nr 0 znalezione
+  - n=1: Ciało nr 1 znalezione
+  - n=2: Ciało nr 2 znalezione
+  - n=5: Ciało nr 5 znalezione
+  - n=12: Ciało nr 12 znalezione
+  - n=22: Ciało nr 22 znalezione
+  - n=25: Ciało nr 25 znalezione
+  - n=112: Ciało nr 112 znalezione
+- `DRPG.CaseMap.autopsyCount`
+  - Autopsy w tym rozdziale
+- `DRPG.CaseMap.autopsyPreset`
+  - n=0: Domyślnie 0: po jednym na każde ciało, ale co najmniej jeden.
+  - n=1: Domyślnie 1: po jednym na każde ciało, ale co najmniej jeden.
+  - n=2: Domyślnie 2: po jednym na każde ciało, ale co najmniej jeden.
+  - n=5: Domyślnie 5: po jednym na każde ciało, ale co najmniej jeden.
+  - n=12: Domyślnie 12: po jednym na każde ciało, ale co najmniej jeden.
+  - n=22: Domyślnie 22: po jednym na każde ciało, ale co najmniej jeden.
+  - n=25: Domyślnie 25: po jednym na każde ciało, ale co najmniej jeden.
+  - n=112: Domyślnie 112: po jednym na każde ciało, ale co najmniej jeden.
+- `DRPG.CaseMap.autopsySent`
+  - Wysłany uczniom.
+- `DRPG.CaseMap.autopsyWhen`
+  - n=0: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 0.
+  - n=1: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 1.
+  - n=2: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 2.
+  - n=5: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 5.
+  - n=12: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 12.
+  - n=22: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 22.
+  - n=25: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 25.
+  - n=112: Jeśli ma nazwę albo tekst i nie przekracza liczby z pola „Autopsy w tym rozdziale”, trafi do każdego żywego ucznia, gdy zostanie znalezione ciało nr 112.
+- `DRPG.CaseMap.bulletGiven`
+  - Wydany.
+- `DRPG.CaseMap.diveSetGone`
+  - (zestaw już usunięty)
+- `DRPG.CaseMap.field.img`
+  - Obraz
+- `DRPG.CaseMap.field.inputs`
+  - Wynika z
+- `DRPG.CaseMap.field.label`
+  - Nazwa
+- `DRPG.CaseMap.field.mode`
+  - Tryb rozprawy
+- `DRPG.CaseMap.field.refutes`
+  - Obala
+- `DRPG.CaseMap.field.text`
+  - Notatka dla GM-ów
+- `DRPG.CaseMap.finalAskRoomTitle`
+  - Pokój dla Final Truth Remnantu
+- `DRPG.CaseMap.graphLabel`
+  - n=0: Mapa sprawy, rozdział 0
+  - n=1: Mapa sprawy, rozdział 1
+  - n=2: Mapa sprawy, rozdział 2
+  - n=5: Mapa sprawy, rozdział 5
+  - n=12: Mapa sprawy, rozdział 12
+  - n=22: Mapa sprawy, rozdział 22
+  - n=25: Mapa sprawy, rozdział 25
+  - n=112: Mapa sprawy, rozdział 112
+- `DRPG.CaseMap.newLabel.bullet` (by prefix)
+  - Nowy Truth Bullet
+- `DRPG.CaseMap.newLabel.counter` (by prefix)
+  - Nowa kontra
+- `DRPG.CaseMap.newLabel.deduction` (by prefix)
+  - Nowy wniosek
+- `DRPG.CaseMap.newLabel.final` (by prefix)
+  - Final Truth Remnant
+- `DRPG.CaseMap.newLabel.incident` (by prefix)
+  - Nowy Remnant
+- `DRPG.CaseMap.newLabel.solution` (by prefix)
+  - Rozwiązanie
+- `DRPG.CaseMap.noDiveSet`
+  - - bez zestawu -
+- `DRPG.CaseMap.noMode`
+  - - bez trybu rozprawy -
+- `DRPG.CaseMap.noName`
+  - (bez nazwy)
+- `DRPG.CaseMap.noRecipient`
+  - - jeszcze nikt -
+- `DRPG.CaseMap.none`
+  - Brak
+- `DRPG.CaseMap.notSaved`
+  - Nie udało się zapisać. Twoje zmiany zostały w polach.
+- `DRPG.CaseMap.nothingToRefute`
+  - Nie ma jeszcze wniosku do obalenia.
+- `DRPG.CaseMap.pickRoom`
+  - - wybierz pokój -
+- `DRPG.CaseMap.placeOnMap`
+  - Postaw na mapie
+- `DRPG.CaseMap.plan.bullet` (by prefix)
+  - Zaplanowany Truth Bullet
+- `DRPG.CaseMap.plan.final` (by prefix)
+  - Zaplanowany Final Truth
+- `DRPG.CaseMap.plan.incident` (by prefix)
+  - Zaplanowany Remnant
+- `DRPG.CaseMap.removeAsk`
+  - #1: Usunąć węzeł „Aiko” ze sprawy? Węzły, które się do niego odwołują, nadal będą go wskazywać, a sprawdzenie to pokaże.
+  - #2: Usunąć węzeł „Daichi” ze sprawy? Węzły, które się do niego odwołują, nadal będą go wskazywać, a sprawdzenie to pokaże.
+- `DRPG.CaseMap.removeNode`
+  - Usuń ze sprawy
+- `DRPG.CaseMap.slotNumber`
+  - n=0: Miejsce 0
+  - n=1: Miejsce 1
+  - n=2: Miejsce 2
+  - n=5: Miejsce 5
+  - n=12: Miejsce 12
+  - n=22: Miejsce 22
+  - n=25: Miejsce 25
+  - n=112: Miejsce 112
+- `DRPG.CaseMap.sort.kind` (by prefix)
+  - Po rodzaju
+- `DRPG.CaseMap.sort.manual` (by prefix)
+  - Ręcznie
+- `DRPG.CaseMap.sort.room` (by prefix)
+  - Po pokoju
+- `DRPG.CaseMap.sort.state` (by prefix)
+  - Po stanie
+- `DRPG.CaseMap.sort.uncrossed` (by prefix)
+  - Mniej skrzyżowań
+- `DRPG.CaseMap.sortLabel`
+  - Kolejność w kolumnie
+- `DRPG.CaseMap.studentBullets`
+  - Truth Bullety
+- `DRPG.CaseMap.studentItems`
+  - Przedmioty
+- `DRPG.CaseMap.toolsLabel`
+  - Narzędzia mapy
+- `DRPG.CaseMap.viewMap`
+  - Mapa
+- `DRPG.CaseMap.viewSwitch`
+  - Widok śledztwa
+- `DRPG.CaseMap.viewTable`
+  - Tabela
+- `DRPG.CaseRealize.noRoom`
+  - - zostaw -
+- `DRPG.CaseRealize.notNow`
+  - Nie teraz
+- `DRPG.CaseRealize.preview`
+  - Podgląd realizacji
+- `DRPG.Investigation.analysisPlaceholder`
+  - Co dodaje laboratorium
+- `DRPG.Investigation.breakdown`
+  - Naprawdę
+- `DRPG.Investigation.breakdownTooltip`
+  - Czym jest każdy Truth Bullet według klucza GM-ów, niezależnie od tego, co widzi jego posiadacz.
+- `DRPG.Investigation.bullets`
+  - Bullets
+- `DRPG.Investigation.chapterN`
+  - n=0: Rozdział 0
+  - n=1: Rozdział 1
+  - n=2: Rozdział 2
+  - n=5: Rozdział 5
+  - n=12: Rozdział 12
+  - n=22: Rozdział 22
+  - n=25: Rozdział 25
+  - n=112: Rozdział 112
+- `DRPG.Investigation.chargeTooLate`
+  - Nie naliczono Despair za nieznalezione Key Remnanty. Zegar jest już w rozdziale coś, co wstawia kod, a ostatnia sprawa dotyczyła rozdziału coś, co wstawia kod, więc ten rozdział nie ma sprawy, z której można by je policzyć.
+- `DRPG.Investigation.createHere`
+  - Utwórz na mapie
+- `DRPG.Investigation.createHereIntro` (by prefix)
+  - n=0 (many): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z 0 zaplanowanych tropów, którego nie ma jeszcze na mapie.
+  - n=1 (one): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod 1 zaplanowany trop, jeśli nie ma go jeszcze na mapie.
+  - n=2 (few): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z 2 zaplanowanych tropów, którego nie ma jeszcze na mapie.
+  - n=5 (many): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z 5 zaplanowanych tropów, którego nie ma jeszcze na mapie.
+  - n=12 (many): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z 12 zaplanowanych tropów, którego nie ma jeszcze na mapie.
+  - n=22 (few): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z 22 zaplanowanych tropów, którego nie ma jeszcze na mapie.
+  - n=25 (many): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z 25 zaplanowanych tropów, którego nie ma jeszcze na mapie.
+  - n=112 (many): Gracz wskazał punkt zainteresowania, a ty uznajesz, że coś tam jest. To okno stawia Key Remnant na mapie i może go podpiąć pod jeden z 112 zaplanowanych tropów, którego nie ma jeszcze na mapie.
+- `DRPG.Investigation.createHereTitle`
+  - Utwórz tu Key Remnant
+- `DRPG.Investigation.createNote`
+  - Postaw od razu stawia Key Remnant wiersza na mapie, w wybranym pokoju: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju, ze słowami wpisanymi w wierszu. Wiersz, który jest już na mapie, nie ma przycisku Postaw.
+- `DRPG.Investigation.createdHere`
+  - #1: Key Remnant postawiony w pokoju Warsztat.
+  - #2: Key Remnant postawiony w pokoju Biblioteka.
+  - #3: Key Remnant postawiony w pokoju Kino.
+- `DRPG.Investigation.dashboardTitle`
+  - Investigation
+- `DRPG.Investigation.deleteTrace`
+  - Usuń
+- `DRPG.Investigation.deleteTraceAsk`
+  - #1: Usunąć Remnant „Aiko”? Jego token znika z mapy, a jego wiersz ze sprawy.
+  - #2: Usunąć Remnant „Daichi”? Jego token znika z mapy, a jego wiersz ze sprawy.
+- `DRPG.Investigation.deleteTraceTitle`
+  - Usuń Remnant
+- `DRPG.Investigation.difficulty`
+  - Trudność
+- `DRPG.Investigation.filterAll`
+  - Wszyscy
+- `DRPG.Investigation.filterAnywhere`
+  - Wszędzie
+- `DRPG.Investigation.filterChapter`
+  - Rozdział
+- `DRPG.Investigation.filterCount`
+  - n=0: Pokazano 0 z 0.
+  - n=1: Pokazano 1 z 1.
+  - n=2: Pokazano 2 z 2.
+  - n=5: Pokazano 5 z 5.
+  - n=12: Pokazano 12 z 12.
+  - n=22: Pokazano 22 z 22.
+  - n=25: Pokazano 25 z 25.
+  - n=112: Pokazano 112 z 112.
+- `DRPG.Investigation.filterEveryChapter`
+  - Wszystkie rozdziały
+- `DRPG.Investigation.filterOrder`
+  - Kolejność
+- `DRPG.Investigation.filterPlayer`
+  - Kto zostawił
+- `DRPG.Investigation.filterRoom`
+  - Pokój
+- `DRPG.Investigation.finalAskBody`
+  - Final Truth Remnant ma już wybrany pokój, ale zamykasz okno, nie klikając Zapisz. Postawić go teraz?
+- `DRPG.Investigation.finalAskPlace`
+  - Postaw
+- `DRPG.Investigation.finalAskTitle`
+  - Postaw Final Truth Remnant
+- `DRPG.Investigation.finalFoundBy`
+  - Kto znalazł
+- `DRPG.Investigation.finalNobody`
+  - Nikt go nie znalazł
+- `DRPG.Investigation.finalNotePlaceholder`
+  - Na co wskazuje
+- `DRPG.Investigation.foundBy`
+  - Kto znalazł
+- `DRPG.Investigation.keyDcNote`
+  - Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od jego widoczności: coś, co wstawia kod. Zwykły dowód o tej samej widoczności ma próg wyższy o trzy do sześciu. Skala powyżej nie zmienia tego progu; mówi tylko, ile trop zdradza.
+- `DRPG.Investigation.keyLimitLine`
+  - n=0: Limit Key Remnantów w tym rozdziale: 0, użyto 0. Minimum to 0.
+  - n=1: Limit Key Remnantów w tym rozdziale: 1, użyto 1. Minimum to 1.
+  - n=2: Limit Key Remnantów w tym rozdziale: 2, użyto 2. Minimum to 2.
+  - n=5: Limit Key Remnantów w tym rozdziale: 5, użyto 5. Minimum to 5.
+  - n=12: Limit Key Remnantów w tym rozdziale: 12, użyto 12. Minimum to 12.
+  - n=22: Limit Key Remnantów w tym rozdziale: 22, użyto 22. Minimum to 22.
+  - n=25: Limit Key Remnantów w tym rozdziale: 25, użyto 25. Minimum to 25.
+  - n=112: Limit Key Remnantów w tym rozdziale: 112, użyto 112. Minimum to 112.
+- `DRPG.Investigation.keyLimitOverride`
+  - Postaw więcej, niż pozwala rzut otwarcia
+- `DRPG.Investigation.keyNoteLabel`
+  - Twoja notatka
+- `DRPG.Investigation.keyNotePlaceholder`
+  - Czytają to tylko GM-owie
+- `DRPG.Investigation.keyOffPlan` (by prefix)
+  - n=0 (many): Jeszcze 0 znalezionych Key Remnantów jest spoza planu i wlicza się do progu 0 znalezionych: Aiko, Daichi i Chie.
+  - n=1 (one): Jeszcze jeden znaleziony Key Remnant jest spoza planu i wlicza się do progu 1 znalezionych: Aiko i Daichi.
+  - n=2 (few): Jeszcze 2 znalezione Key Remnanty są spoza planu i wliczają się do progu 2 znalezionych: Chie.
+  - n=5 (many): Jeszcze 5 znalezionych Key Remnantów jest spoza planu i wlicza się do progu 5 znalezionych: Aiko, Daichi i Chie.
+  - n=12 (many): Jeszcze 12 znalezionych Key Remnantów jest spoza planu i wlicza się do progu 12 znalezionych: Aiko i Daichi.
+  - n=22 (few): Jeszcze 22 znalezione Key Remnanty są spoza planu i wliczają się do progu 22 znalezionych: Chie.
+  - n=25 (many): Jeszcze 25 znalezionych Key Remnantów jest spoza planu i wlicza się do progu 25 znalezionych: Aiko, Daichi i Chie.
+  - n=112 (many): Jeszcze 112 znalezionych Key Remnantów jest spoza planu i wlicza się do progu 112 znalezionych: Aiko i Daichi.
+- `DRPG.Investigation.keyPublicNote`
+  - „Nazwa” i „Opis dla gracza” trafiają do znalazcy od razu; „Co ujawnia analiza” czeka na jego Analyze. Te same trzy pola zmienisz w zakładce Remnanty. Twoją notatkę czytają tylko GM-owie.
+- `DRPG.Investigation.keyRetyped`
+  - Jego Remnant nie jest już Key Remnantem
+- `DRPG.Investigation.keyStatus`
+  - Stan
+- `DRPG.Investigation.keySummary`
+  - n=0: Znaleziono 0 z 0, 0 na mapie.
+  - n=1: Znaleziono 1 z 1, 1 na mapie.
+  - n=2: Znaleziono 2 z 2, 2 na mapie.
+  - n=5: Znaleziono 5 z 5, 5 na mapie.
+  - n=12: Znaleziono 12 z 12, 12 na mapie.
+  - n=22: Znaleziono 22 z 22, 22 na mapie.
+  - n=25: Znaleziono 25 z 25, 25 na mapie.
+  - n=112: Znaleziono 112 z 112, 112 na mapie.
+- `DRPG.Investigation.keysHeld`
+  - Key
+- `DRPG.Investigation.leftoverKeys` (by prefix)
+  - n=0 (many): Na mapie wciąż jest 0 Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.
+  - n=1 (one): Na mapie wciąż jest 1 Key Remnant z wcześniejszego rozdziału. Plan tego rozdziału go nie widzi; usuń go na końcu rozdziału albo podepnij tutaj.
+  - n=2 (few): Na mapie wciąż są 2 Key Remnanty z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.
+  - n=5 (many): Na mapie wciąż jest 5 Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.
+  - n=12 (many): Na mapie wciąż jest 12 Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.
+  - n=22 (few): Na mapie wciąż są 22 Key Remnanty z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.
+  - n=25 (many): Na mapie wciąż jest 25 Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.
+  - n=112 (many): Na mapie wciąż jest 112 Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.
+- `DRPG.Investigation.neverOnePerson`
+  - Remnant nigdy nie wskazuje nikogo wprost: Key Remnant zawęża krąg podejrzanych najwyżej do połowy obsady, każdy inny do 2-4 osób.
+- `DRPG.Investigation.newTraceBadType`
+  - Ten moduł nie zna takiego rodzaju Remnantu.
+- `DRPG.Investigation.newTraceDone`
+  - #1: coś, co wstawia kod jest teraz w pokoju Warsztat.
+  - #2: coś, co wstawia kod jest teraz w pokoju Biblioteka.
+  - #3: coś, co wstawia kod jest teraz w pokoju Kino.
+- `DRPG.Investigation.newTraceIntro`
+  - Remnant trafia w losowe miejsce w pokoju; przesuń token, jeśli miejsce ma znaczenie.
+- `DRPG.Investigation.newTraceNote`
+  - Nazwę i opis uczeń przeczyta, gdy znajdzie ten Remnant, a to, co ujawnia analiza, dopiero po swoim Analyze. Twoją notatkę czytają tylko GM-owie.
+- `DRPG.Investigation.newTraceReinforced`
+  - Reinforced (nie do sprzątnięcia)
+- `DRPG.Investigation.newTraceTied`
+  - Powiązany z tym morderstwem (przetrwa czyszczenie po rozdziale)
+- `DRPG.Investigation.newTraceTitle`
+  - Nowy Remnant
+- `DRPG.Investigation.newTraceUnfindable`
+  - Observe nie ma progu dla Remnantu tego rodzaju przy tej widoczności, więc nikt by go nie znalazł. Otwórz Nowy Remnant jeszcze raz i wybierz inny rodzaj albo inną widoczność.
+- `DRPG.Investigation.noRemnant`
+  - - bez Remnantu -
+- `DRPG.Investigation.noRooms`
+  - Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić Remnantu. Najpierw narysuj regiony; jak to zrobić, wyjaśniają Ustawienia pokoi.
+- `DRPG.Investigation.noSlot`
+  - n=0: Żaden z 0
+  - n=1: Żaden z 1
+  - n=2: Żaden z 2
+  - n=5: Żaden z 5
+  - n=12: Żaden z 12
+  - n=22: Żaden z 22
+  - n=25: Żaden z 25
+  - n=112: Żaden z 112
+- `DRPG.Investigation.noTraces`
+  - Nigdzie nie ma jeszcze Remnantów.
+- `DRPG.Investigation.noneMatch`
+  - Żaden Remnant nie pasuje do tego filtra.
+- `DRPG.Investigation.notFound`
+  - Nikt go nie znalazł
+- `DRPG.Investigation.notPlaced`
+  - Jeszcze nie postawiony
+- `DRPG.Investigation.notePlaceholder`
+  - Co widzi uczeń
+- `DRPG.Investigation.onMap`
+  - Który Remnant
+- `DRPG.Investigation.orderNewest`
+  - Od najnowszych
+- `DRPG.Investigation.orderRoom`
+  - Wg pokoju
+- `DRPG.Investigation.place`
+  - Postaw
+- `DRPG.Investigation.plannedRoom`
+  - Zaplanowany pokój
+- `DRPG.Investigation.plannedRoomGone`
+  - #1: Zaplanowanego pokoju „Warsztat” nie ma na tej scenie. Wybierz pokój.
+  - #2: Zaplanowanego pokoju „Biblioteka” nie ma na tej scenie. Wybierz pokój.
+  - #3: Zaplanowanego pokoju „Kino” nie ma na tej scenie. Wybierz pokój.
+- `DRPG.Investigation.plannerIntro` (by prefix)
+  - n=0 (many): Na rozdział 0 przypada 0 tropów. Razem powinny zawęzić krąg podejrzanych do 0-0 osób.
+  - n=1 (one): Na rozdział 1 przypada 1 trop. Powinien zawęzić krąg podejrzanych do 1-1 osób.
+  - n=2 (few): Na rozdział 2 przypadają 2 tropy. Razem powinny zawęzić krąg podejrzanych do 2-2 osób.
+  - n=5 (many): Na rozdział 5 przypada 5 tropów. Razem powinny zawęzić krąg podejrzanych do 5-5 osób.
+  - n=12 (many): Na rozdział 12 przypada 12 tropów. Razem powinny zawęzić krąg podejrzanych do 12-12 osób.
+  - n=22 (few): Na rozdział 22 przypadają 22 tropy. Razem powinny zawęzić krąg podejrzanych do 22-22 osób.
+  - n=25 (many): Na rozdział 25 przypada 25 tropów. Razem powinny zawęzić krąg podejrzanych do 25-25 osób.
+  - n=112 (many): Na rozdział 112 przypada 112 tropów. Razem powinny zawęzić krąg podejrzanych do 112-112 osób.
+- `DRPG.Investigation.revealedByMonokuma`
+  - Ujawniony przez Monokumę
+- `DRPG.Investigation.room`
+  - Pokój
+- `DRPG.Investigation.saveStopped`
+  - Zapis zatrzymał się w połowie: coś, co wstawia kod. To, co zdążył zapisać, zostaje; Investigation otwiera się znowu z tym, co jest teraz w świecie. Wpisz resztę jeszcze raz.
+- `DRPG.Investigation.savedOver` (by prefix)
+  - n=0 (many): 0 pól zmieniło się gdzie indziej podczas twojej edycji, więc ich nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.
+  - n=1 (one): Jedno pole zmieniło się gdzie indziej podczas twojej edycji, więc go nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć jego obecną wartość; jeśli twoja ma zostać, wpisz ją jeszcze raz.
+  - n=2 (few): 2 pola zmieniły się gdzie indziej podczas twojej edycji, więc ich nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.
+  - n=5 (many): 5 pól zmieniło się gdzie indziej podczas twojej edycji, więc ich nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.
+  - n=12 (many): 12 pól zmieniło się gdzie indziej podczas twojej edycji, więc ich nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.
+  - n=22 (few): 22 pola zmieniły się gdzie indziej podczas twojej edycji, więc ich nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.
+  - n=25 (many): 25 pól zmieniło się gdzie indziej podczas twojej edycji, więc ich nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.
+  - n=112 (many): 112 pól zmieniło się gdzie indziej podczas twojej edycji, więc ich nie zapisano: coś, co wstawia kod. Otwórz Investigation ponownie, by zobaczyć ich obecne wartości; jeśli twoje mają zostać, wpisz je jeszcze raz.
+- `DRPG.Investigation.savedOverItem`
+  - openRoomSetupDialog (openRoomSetupDialog): „coś, co wstawia kod”
+- `DRPG.Investigation.student`
+  - Uczeń
+- `DRPG.Investigation.tabKeyRemnants`
+  - Key Remnanty
+- `DRPG.Investigation.tabTraces`
+  - Remnanty
+- `DRPG.Investigation.tokenGone`
+  - Jego Remnant zniknął z mapy
+- `DRPG.Investigation.tooThin` (by prefix)
+  - n=0 (many): Znaleziono dopiero 0 Key Remnantów, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 0. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=1 (one): Znaleziono dopiero 1 Key Remnant, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 1. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=2 (few): Znaleziono dopiero 2 Key Remnanty, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 2. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=5 (many): Znaleziono dopiero 5 Key Remnantów, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 5. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=12 (many): Znaleziono dopiero 12 Key Remnantów, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 12. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=22 (few): Znaleziono dopiero 22 Key Remnanty, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 22. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=25 (many): Znaleziono dopiero 25 Key Remnantów, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 25. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=112 (many): Znaleziono dopiero 112 Key Remnantów, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 112. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+- `DRPG.Investigation.tooThinNone`
+  - n=0: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 0. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=1: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 1. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=2: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 2. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=5: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 5. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=12: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 12. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=22: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 22. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=25: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 25. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+  - n=112: Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 112. Naprowadź graczy na to, czego jeszcze nie znaleźli, albo zostaw to tak, jak jest: na początku Class Trial każdy Monokuma dostanie do puli Despair za nieznalezione Key Remnanty.
+- `DRPG.Investigation.traceAnalysis`
+  - Co ujawnia analiza
+- `DRPG.Investigation.traceImage`
+  - Obraz
+- `DRPG.Investigation.traceName`
+  - Nazwa
+- `DRPG.Investigation.traceText`
+  - Opis dla gracza
+- `DRPG.Investigation.traceType`
+  - Czym naprawdę jest
+- `DRPG.Investigation.tracesSaved` (by prefix)
+  - n=0 (many): Zaktualizowano 0 Remnantów.
+  - n=1 (one): Zaktualizowano 1 Remnant.
+  - n=2 (few): Zaktualizowano 2 Remnanty.
+  - n=5 (many): Zaktualizowano 5 Remnantów.
+  - n=12 (many): Zaktualizowano 12 Remnantów.
+  - n=22 (few): Zaktualizowano 22 Remnanty.
+  - n=25 (many): Zaktualizowano 25 Remnantów.
+  - n=112 (many): Zaktualizowano 112 Remnantów.
+- `DRPG.Investigation.unfoundKeys` (by prefix)
+  - n=0 (many): Key Remnanty znalezione w czasie Investigation: 0 z 0; brakuje 0. Do puli każdego Monokumy (Aiko) trafia 0 Despair.
+  - n=1 (one): Key Remnanty znalezione w czasie Investigation: 1 z 1; brakuje jednego. Do puli każdego Monokumy (Daichi) trafia 1 Despair.
+  - n=2 (few): Key Remnanty znalezione w czasie Investigation: 2 z 2; brakuje 2. Do puli każdego Monokumy (Aiko) trafia 2 Despair.
+  - n=5 (many): Key Remnanty znalezione w czasie Investigation: 5 z 5; brakuje 5. Do puli każdego Monokumy (Daichi) trafia 5 Despair.
+  - n=12 (many): Key Remnanty znalezione w czasie Investigation: 12 z 12; brakuje 12. Do puli każdego Monokumy (Aiko) trafia 12 Despair.
+  - n=22 (few): Key Remnanty znalezione w czasie Investigation: 22 z 22; brakuje 22. Do puli każdego Monokumy (Daichi) trafia 22 Despair.
+  - n=25 (many): Key Remnanty znalezione w czasie Investigation: 25 z 25; brakuje 25. Do puli każdego Monokumy (Aiko) trafia 25 Despair.
+  - n=112 (many): Key Remnanty znalezione w czasie Investigation: 112 z 112; brakuje 112. Do puli każdego Monokumy (Daichi) trafia 112 Despair.
+- `DRPG.Investigation.unidentified`
+  - Bez analizy
+- `DRPG.Investigation.visibility`
+  - Widoczność
+- `DRPG.Investigation.whichSlot`
+  - Który to zaplanowany trop?
+- `DRPG.Investigation.whoHasWhat`
+  - Kto co ma
+- `DRPG.Live.ticked`
+  - zaznaczone
+- `DRPG.Live.unticked`
+  - niezaznaczone
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Zones.picker.a`
+  - Odpowiedź Strefy A
+- `DRPG.Zones.picker.b`
+  - Odpowiedź Strefy B
+- `DRPG.Zones.picker.editSets`
+  - Zestawy Logic Dive...
+- `DRPG.Zones.picker.question`
+  - Pytanie
+- `DRPG.Zones.picker.set`
+  - Zestaw
+- `DRPG.Zones.picker.thesis`
+  - Teza (opcjonalnie)
+
+## Observe and Analyze (observe; reader: both; E09)
+
+- `DRPG.Case.answerKeyMissing`
+  - #1: Truth Bullet „Nóż kuchenny” postaci Aiko nie ma klucza odpowiedzi w przeglądarce GM-a, która rozstrzygała to Analyze, więc Analyze zostało odrzucone, a koszt wraca do gracza. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa).
+  - #2: Truth Bullet „Lina” postaci Daichi nie ma klucza odpowiedzi w przeglądarce GM-a, która rozstrzygała to Analyze, więc Analyze zostało odrzucone, a koszt wraca do gracza. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa).
+  - #3: Truth Bullet „Krzesło” postaci Aiko nie ma klucza odpowiedzi w przeglądarce GM-a, która rozstrzygała to Analyze, więc Analyze zostało odrzucone, a koszt wraca do gracza. Odtwórz sprawę z kopii (panel GM-a, Diagnostyka, Sprawa).
+
+## Advancement (advancement; reader: both; E10)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the vote and the verdict (vote; reader: both; E10)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Zones.findings.confirmedMark`
+  - Monokuma potwierdza
+- `DRPG.Zones.findings.title`
+  - Findings
+
+## the GM's clock and its corrections (clock; reader: gm; E11)
+
+- `DRPG.Panel.alsoReset`
+  - Odnów też akcje i Search Tokeny
+- `DRPG.Panel.apply`
+  - Zastosuj
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.jump`
+  - Edytuj kampanię
+- `DRPG.Panel.resetHint`
+  - Daje wszystkim pełne akcje. Przy samej poprawce zostaw wyłączone.
+
+## a crisis action rated at tier zero (tier-zero; reader: gm; E13)
+
+- `DRPG.Panel.apply`
+  - Zastosuj
+
+## the GM gives a key or an item (give-items; reader: gm; E14)
+
+- `DRPG.Panel.noCharacters`
+  - W tym świecie nie ma żywych uczniów.
+
+## the GM hands things out and takes them away (gm-items; reader: gm)
+
+- `DRPG.CaseMap.field.img`
+  - Obraz
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.noCharacters`
+  - W tym świecie nie ma żywych uczniów.
+- `DRPG.Tables.rolesTierOnly`
+  - n=0: Poniżej Tier 0 przedmiot nie służy za nic innego.
+  - n=1: Poniżej Tier 1 przedmiot nie służy za nic innego.
+  - n=2: Poniżej Tier 2 przedmiot nie służy za nic innego.
+  - n=5: Poniżej Tier 5 przedmiot nie służy za nic innego.
+  - n=12: Poniżej Tier 12 przedmiot nie służy za nic innego.
+  - n=22: Poniżej Tier 22 przedmiot nie służy za nic innego.
+  - n=25: Poniżej Tier 25 przedmiot nie służy za nic innego.
+  - n=112: Poniżej Tier 112 przedmiot nie służy za nic innego.
+
+## an item table named and its pane (table-names; reader: gm; E14)
+
+- `DRPG.Tables.deleteConfirm` (by prefix)
+  - n=0 (many): Usunąć tabelę „Aiko” razem z 0 przedmiotami? Tego nie da się cofnąć.
+  - n=1 (one): Usunąć tabelę „Daichi” razem z 1 przedmiotem? Tego nie da się cofnąć.
+  - n=2 (few): Usunąć tabelę „Aiko” razem z 2 przedmiotami? Tego nie da się cofnąć.
+  - n=5 (many): Usunąć tabelę „Daichi” razem z 5 przedmiotami? Tego nie da się cofnąć.
+  - n=12 (many): Usunąć tabelę „Aiko” razem z 12 przedmiotami? Tego nie da się cofnąć.
+  - n=22 (few): Usunąć tabelę „Daichi” razem z 22 przedmiotami? Tego nie da się cofnąć.
+  - n=25 (many): Usunąć tabelę „Aiko” razem z 25 przedmiotami? Tego nie da się cofnąć.
+  - n=112 (many): Usunąć tabelę „Daichi” razem z 112 przedmiotami? Tego nie da się cofnąć.
+- `DRPG.Tables.deleteTable`
+  - Usuń tabelę
+- `DRPG.Tables.deleted`
+  - #1: Usunięto „Aiko”.
+  - #2: Usunięto „Daichi”.
+- `DRPG.Tables.needsName`
+  - Nazwa nie może być pusta.
+- `DRPG.Tables.newPoolExists`
+  - #1: Tabela o nazwie „Aiko” już istnieje.
+  - #2: Tabela o nazwie „Daichi” już istnieje.
+- `DRPG.Tables.newPoolTierName`
+  - Ta nazwa wygląda jak nazwa puli Tier („DRPG … - Tier N”). Tabela pokoju potrzebuje własnej nazwy.
+- `DRPG.Tables.newTierPoolForms`
+  - n=0: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 0 do 0.
+  - n=1: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 1 do 1.
+  - n=2: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 2 do 2.
+  - n=5: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 5 do 5.
+  - n=12: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 12 do 12.
+  - n=22: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 22 do 22.
+  - n=25: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 25 do 25.
+  - n=112: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 112 do 112.
+- `DRPG.Tables.renameNote`
+  - Pula Tier nosi nazwę swojej kategorii i Tieru. Tabela pokoju może mieć każdą inną nazwę.
+- `DRPG.Tables.renameOtherPool`
+  - #1: „Aiko” to nazwa innej puli. Ta tabela zawiera przedmioty puli „Nóż kuchenny”, więc zostaw w nazwie jej kategorię i Tier.
+  - #2: „Daichi” to nazwa innej puli. Ta tabela zawiera przedmioty puli „Lina”, więc zostaw w nazwie jej kategorię i Tier.
+  - #3: „Aiko” to nazwa innej puli. Ta tabela zawiera przedmioty puli „Krzesło”, więc zostaw w nazwie jej kategorię i Tier.
+- `DRPG.Tables.renameTable`
+  - Zmień nazwę tabeli
+- `DRPG.Tables.renamed`
+  - #1: Zmieniono nazwę na „Aiko”.
+  - #2: Zmieniono nazwę na „Daichi”.
+
+## the item tables (item-tables; reader: gm)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.installTables`
+  - Utwórz tabele przedmiotów
+- `DRPG.Tables.addItem`
+  - Dodaj przedmiot
+- `DRPG.Tables.addNote`
+  - Znalazca dostanie obrazek i opis.
+- `DRPG.Tables.allPresent` (by prefix)
+  - n=0 (many): Wszystkich 0 tabel przedmiotów już istnieje w tym świecie.
+  - n=1 (one): 1 tabela przedmiotów już istnieje w tym świecie.
+  - n=2 (few): Wszystkie 2 tabele przedmiotów już istnieją w tym świecie.
+  - n=5 (many): Wszystkich 5 tabel przedmiotów już istnieje w tym świecie.
+  - n=12 (many): Wszystkich 12 tabel przedmiotów już istnieje w tym świecie.
+  - n=22 (few): Wszystkie 22 tabele przedmiotów już istnieją w tym świecie.
+  - n=25 (many): Wszystkich 25 tabel przedmiotów już istnieje w tym świecie.
+  - n=112 (many): Wszystkich 112 tabel przedmiotów już istnieje w tym świecie.
+- `DRPG.Tables.changeIcon`
+  - Zmień obrazek tego przedmiotu
+- `DRPG.Tables.col.actions`
+  - Akcje
+- `DRPG.Tables.col.description`
+  - Opis
+- `DRPG.Tables.col.items`
+  - Przedmioty
+- `DRPG.Tables.col.table`
+  - Tabela
+- `DRPG.Tables.createTable`
+  - Utwórz tabelę
+- `DRPG.Tables.deleteTable`
+  - Usuń tabelę
+- `DRPG.Tables.editorIntro`
+  - Wszystko, co może wypaść przy Search. Wybierz tabelę po lewej.
+- `DRPG.Tables.editorTitle`
+  - Tabele przedmiotów
+- `DRPG.Tables.installAction`
+  - Zainstaluj / przeinstaluj
+- `DRPG.Tables.installTabNote`
+  - „Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw, po jednej tabeli na każdą kategorię i Tier. Jeśli tabele już istnieją, wybierzesz, czy zachować swoje, czy je przebudować.
+- `DRPG.Tables.installed`
+  - n=0: Tabele przedmiotów są gotowe: utworzono 0, a 0 zostawiono bez zmian.
+  - n=1: Tabele przedmiotów są gotowe: utworzono 1, a 1 zostawiono bez zmian.
+  - n=2: Tabele przedmiotów są gotowe: utworzono 2, a 2 zostawiono bez zmian.
+  - n=5: Tabele przedmiotów są gotowe: utworzono 5, a 5 zostawiono bez zmian.
+  - n=12: Tabele przedmiotów są gotowe: utworzono 12, a 12 zostawiono bez zmian.
+  - n=22: Tabele przedmiotów są gotowe: utworzono 22, a 22 zostawiono bez zmian.
+  - n=25: Tabele przedmiotów są gotowe: utworzono 25, a 25 zostawiono bez zmian.
+  - n=112: Tabele przedmiotów są gotowe: utworzono 112, a 112 zostawiono bez zmian.
+- `DRPG.Tables.itemAdded` (by prefix)
+  - n=0 (many): „Aiko” dodano do 0 tabel.
+  - n=1 (one): „Daichi” dodano do 1 tabeli.
+  - n=2 (few): „Aiko” dodano do 2 tabel.
+  - n=5 (many): „Daichi” dodano do 5 tabel.
+  - n=12 (many): „Aiko” dodano do 12 tabel.
+  - n=22 (few): „Daichi” dodano do 22 tabel.
+  - n=25 (many): „Aiko” dodano do 25 tabel.
+  - n=112 (many): „Daichi” dodano do 112 tabel.
+- `DRPG.Tables.keep`
+  - Zachowaj moje
+- `DRPG.Tables.needsName`
+  - Nazwa nie może być pusta.
+- `DRPG.Tables.needsTable`
+  - Nie ma puli Tier dla tej kategorii i Tieru. Zaznacz co najmniej jedną tabelę pokoju.
+- `DRPG.Tables.newPool`
+  - Nowa tabela pokoju
+- `DRPG.Tables.newPoolExists`
+  - #1: Tabela o nazwie „Aiko” już istnieje.
+  - #2: Tabela o nazwie „Daichi” już istnieje.
+- `DRPG.Tables.newPoolNote`
+  - To, co pokój ma na stanie. Przypisz tabelę pokojowi w Ustawieniach pokoi, w kolumnie „Losuje z”.
+- `DRPG.Tables.newPoolPlaceholder`
+  - np. Kuchnia
+- `DRPG.Tables.newPoolTierName`
+  - Ta nazwa wygląda jak nazwa puli Tier („DRPG … - Tier N”). Tabela pokoju potrzebuje własnej nazwy.
+- `DRPG.Tables.newTierPoolForms`
+  - n=0: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 0 do 0.
+  - n=1: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 1 do 1.
+  - n=2: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 2 do 2.
+  - n=5: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 5 do 5.
+  - n=12: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 12 do 12.
+  - n=22: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 22 do 22.
+  - n=25: „Aiko” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 25 do 25.
+  - n=112: „Daichi” nie jest nazwą puli Tier. Nazwa musi mieć jedną z postaci: coś, co wstawia kod, gdzie N to Tier od 112 do 112.
+- `DRPG.Tables.noRoomPools`
+  - Nie ma jeszcze pul pokoi. Nazwij jedną poniżej.
+- `DRPG.Tables.noRoomTables`
+  - Nie ma jeszcze tabel pokoi. Utwórz jedną w zakładce Pule pokoi.
+- `DRPG.Tables.noTierPools`
+  - Nie ma jeszcze pul. Naciśnij „Zainstaluj / przeinstaluj”.
+- `DRPG.Tables.noneYet`
+  - Nie ma jeszcze tabeli do pokazania.
+- `DRPG.Tables.picture`
+  - Obrazek
+- `DRPG.Tables.pictureFile`
+  - Inny plik...
+- `DRPG.Tables.pictureOwn`
+  - Z kategorii
+- `DRPG.Tables.placeDone`
+  - n=0: „Aiko”: dodano 0, usunięto 0.
+  - n=1: „Daichi”: dodano 1, usunięto 1.
+  - n=2: „Aiko”: dodano 2, usunięto 2.
+  - n=5: „Daichi”: dodano 5, usunięto 5.
+  - n=12: „Aiko”: dodano 12, usunięto 12.
+  - n=22: „Daichi”: dodano 22, usunięto 22.
+  - n=25: „Aiko”: dodano 25, usunięto 25.
+  - n=112: „Daichi”: dodano 112, usunięto 112.
+- `DRPG.Tables.placeIntro`
+  - Zaznacz każdą pulę, w której ten przedmiot ma być. Zaznaczenie nowej kopiuje go tam, odznaczenie wyjmuje, a odznaczenie puli, na którą patrzysz, przenosi go.
+- `DRPG.Tables.placeNone`
+  - Przedmiot musi być w co najmniej jednej puli. Żeby usunąć go całkiem, użyj ✕ w wierszu.
+- `DRPG.Tables.placeRolesNote`
+  - Opis, obrazek i role idą razem z nim. Pula Tier poniżej Tier 2 nie przyjmuje ról, a żadna pula nie przyjmuje roli będącej jej własną kategorią.
+- `DRPG.Tables.placeSave`
+  - Zapisz
+- `DRPG.Tables.placeTitle`
+  - #1: Pule przedmiotu „Aiko”
+  - #2: Pule przedmiotu „Daichi”
+- `DRPG.Tables.placeTooltip`
+  - Wybierz pule dla tego przedmiotu
+- `DRPG.Tables.placeUnchanged`
+  - #1: Przedmiot „Aiko” jest już dokładnie w tych pulach.
+  - #2: Przedmiot „Daichi” jest już dokładnie w tych pulach.
+- `DRPG.Tables.poolCreated`
+  - #1: Utworzono tabelę pokoju „Aiko”. Wskaż ją pokojowi w Ustawieniach pokoi.
+  - #2: Utworzono tabelę pokoju „Daichi”. Wskaż ją pokojowi w Ustawieniach pokoi.
+- `DRPG.Tables.presetRoomNoTable`
+  - #1: Pokój Warsztat nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska trafiały tam.
+  - #2: Pokój Biblioteka nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska trafiały tam.
+  - #3: Pokój Kino nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska trafiały tam.
+- `DRPG.Tables.presetRoomTier`
+  - #1: Pokój Warsztat nie ma jeszcze tabeli dla tego Tieru. Utwórz „Aiko” w zakładce Pule pokoi, żeby znaleziska tego Tieru trafiały tam.
+  - #2: Pokój Biblioteka nie ma jeszcze tabeli dla tego Tieru. Utwórz „Daichi” w zakładce Pule pokoi, żeby znaleziska tego Tieru trafiały tam.
+  - #3: Pokój Kino nie ma jeszcze tabeli dla tego Tieru. Utwórz „Aiko” w zakładce Pule pokoi, żeby znaleziska tego Tieru trafiały tam.
+- `DRPG.Tables.rebuildNote`
+  - Przebudowa usuwa je i buduje na nowo z własnych list modułu. Wszystko, co edytowano ręcznie, przepada.
+- `DRPG.Tables.recreate`
+  - Usuń i przebuduj
+- `DRPG.Tables.removeItem`
+  - Usuń z tej tabeli
+- `DRPG.Tables.renameOtherPool`
+  - #1: „Aiko” to nazwa innej puli. Ta tabela zawiera przedmioty puli „Nóż kuchenny”, więc zostaw w nazwie jej kategorię i Tier.
+  - #2: „Daichi” to nazwa innej puli. Ta tabela zawiera przedmioty puli „Lina”, więc zostaw w nazwie jej kategorię i Tier.
+  - #3: „Aiko” to nazwa innej puli. Ta tabela zawiera przedmioty puli „Krzesło”, więc zostaw w nazwie jej kategorię i Tier.
+- `DRPG.Tables.renameTable`
+  - Zmień nazwę tabeli
+- `DRPG.Tables.rolesNote`
+  - Czym jeszcze może być. Wciąż zajmuje jedno miejsce.
+- `DRPG.Tables.rolesTierOnly`
+  - n=0: Poniżej Tier 0 przedmiot nie służy za nic innego.
+  - n=1: Poniżej Tier 1 przedmiot nie służy za nic innego.
+  - n=2: Poniżej Tier 2 przedmiot nie służy za nic innego.
+  - n=5: Poniżej Tier 5 przedmiot nie służy za nic innego.
+  - n=12: Poniżej Tier 12 przedmiot nie służy za nic innego.
+  - n=22: Poniżej Tier 22 przedmiot nie służy za nic innego.
+  - n=25: Poniżej Tier 25 przedmiot nie służy za nic innego.
+  - n=112: Poniżej Tier 112 przedmiot nie służy za nic innego.
+- `DRPG.Tables.roomBreakdown`
+  - Pogrupowane według tego, do jakiej kategorii pule Tier zaliczają każdą nazwę. Płaska tabela pokoju odpowiada na każdą kategorię, o którą pyta Search. Nazwij tabelę „Kuchnia - Narzędzia zbrodni”, żeby kategorię jej rzeczy ustalała sama tabela.
+- `DRPG.Tables.roomFilter`
+  - Pokaż
+- `DRPG.Tables.roomTargets`
+  - Tabele pokoi, w których też się pojawia:
+- `DRPG.Tables.roomTotal`
+  - Wszystko
+- `DRPG.Tables.someFailed` (by prefix)
+  - n=0 (many): Nie udało się utworzyć 0 tabel przedmiotów. Zajrzyj do konsoli.
+  - n=1 (one): Nie udało się utworzyć 1 tabeli przedmiotów. Zajrzyj do konsoli.
+  - n=2 (few): Nie udało się utworzyć 2 tabel przedmiotów. Zajrzyj do konsoli.
+  - n=5 (many): Nie udało się utworzyć 5 tabel przedmiotów. Zajrzyj do konsoli.
+  - n=12 (many): Nie udało się utworzyć 12 tabel przedmiotów. Zajrzyj do konsoli.
+  - n=22 (few): Nie udało się utworzyć 22 tabel przedmiotów. Zajrzyj do konsoli.
+  - n=25 (many): Nie udało się utworzyć 25 tabel przedmiotów. Zajrzyj do konsoli.
+  - n=112 (many): Nie udało się utworzyć 112 tabel przedmiotów. Zajrzyj do konsoli.
+- `DRPG.Tables.tabNewItem`
+  - Nowy przedmiot
+- `DRPG.Tables.tabRoomPools`
+  - Pule pokoi
+- `DRPG.Tables.tabTierPools`
+  - Pule Tier
+- `DRPG.Tables.tableEmpty`
+  - W tej tabeli nie ma jeszcze nic.
+- `DRPG.Tables.tierPoolCreated`
+  - #1: Tabela „Aiko” jest gotowa: przedmioty w niej dostają jej kategorię i Tier.
+  - #2: Tabela „Daichi” jest gotowa: przedmioty w niej dostają jej kategorię i Tier.
+- `DRPG.Tables.tierTargetIs`
+  - #1: Trafia do tabeli Nóż kuchenny, wybranej według kategorii i Tieru powyżej.
+  - #2: Trafia do tabeli Lina, wybranej według kategorii i Tieru powyżej.
+  - #3: Trafia do tabeli Krzesło, wybranej według kategorii i Tieru powyżej.
+- `DRPG.Tables.tierTargetNone`
+  - Nie ma takiej puli Tier, więc przedmiot trafi tylko do zaznaczonych tabel pokoi. Zainstaluj pule w zakładce Pule Tier.
+- `DRPG.Tables.unfiled`
+  - W żadnej puli Tier
+- `DRPG.Tables.unfiledNote`
+  - Żadna pula Tier nie zawiera tych nazw, więc moduł nie zna ich kategorii ani Tieru. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do puli Tier.
+- `DRPG.Tables.whereNote`
+  - Search losuje najpierw z tabel pokoju, potem z pul Tier.
+
+## projects and the countdown tray (projects; reader: both; E15)
+
+- `DRPG.Assign.save`
+  - Zapisz
+- `DRPG.GmStore.resetPrimaryOnly`
+  - #1: Sezon resetuje tylko główny GM, Aiko. Poproś o to GM-a Aiko albo zresetuj sezon, gdy będziesz jedynym połączonym GM-em.
+  - #2: Sezon resetuje tylko główny GM, Daichi. Poproś o to GM-a Daichi albo zresetuj sezon, gdy będziesz jedynym połączonym GM-em.
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the Eclipse asked and ended, from the HUD and the panel (eclipse-hud; reader: gm; E17)
+
+- `DRPG.Panel.advanceDuringEclipse`
+  - Trwa Eclipse: zegar przesunie dopiero jego koniec. Zakończ je strzałką przy zegarze.
+- `DRPG.Panel.character`
+  - Postać
+
+## the action tiles and the actions (action-tiles; reader: both; rule texts)
+
+- `DRPG.SearchTokens.exhausted`
+  - W tym pokoju nie ma już Search Tokenów. Pojawią się znowu o następnej porze dnia.
+- `DRPG.SearchTokens.pickedClean`
+  - Ktoś był tu pierwszy. Akcja przepada.
+- `DRPG.SearchTokens.sealed`
+  - Tego pokoju nie przeszukasz: nie ma tu nic do znalezienia o żadnej porze dnia.
+- `DRPG.SearchTokens.timeout`
+  - Search się nie liczy. Nie tracisz akcji.
+
+## the GM stores: back up, restore, the health check (gm-stores; reader: gm)
+
+- `DRPG.Case.backedUp` (by prefix)
+  - n=0 (many): Sprawa zapisana do pliku: 0 wierszy.
+  - n=1 (one): Sprawa zapisana do pliku: 1 wiersz.
+  - n=2 (few): Sprawa zapisana do pliku: 2 wiersze.
+  - n=5 (many): Sprawa zapisana do pliku: 5 wierszy.
+  - n=12 (many): Sprawa zapisana do pliku: 12 wierszy.
+  - n=22 (few): Sprawa zapisana do pliku: 22 wiersze.
+  - n=25 (many): Sprawa zapisana do pliku: 25 wierszy.
+  - n=112 (many): Sprawa zapisana do pliku: 112 wierszy.
+- `DRPG.Case.backup`
+  - Zrób kopię
+- `DRPG.Case.backupEarly`
+  - #1: Brakuje jeszcze kopii od tych GM-ów: Aiko, Daichi i Chie. Ta kopia zapasowa zawiera więc tylko to, co ma ta przeglądarka. Zrobić ją mimo to?
+  - #2: Brakuje jeszcze kopii od tych GM-ów: Aiko i Daichi. Ta kopia zapasowa zawiera więc tylko to, co ma ta przeglądarka. Zrobić ją mimo to?
+  - #3: Brakuje jeszcze kopii od tych GM-ów: Chie. Ta kopia zapasowa zawiera więc tylko to, co ma ta przeglądarka. Zrobić ją mimo to?
+- `DRPG.Case.backupNow`
+  - Kopia sprawy
+- `DRPG.Case.backupTitle`
+  - Kopia sprawy
+- `DRPG.Case.backupWhat`
+  - Plik zawiera sekrety GM-a z tego świata: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego Remnantu, obsadę otwartego incydentu i Blackened każdego rozdziału, podłożone przedmioty pułapek, oferowane Level Upy i pokoje odkryte przez każdą postać. Trzymaj go tam, gdzie żaden gracz go nie otworzy.
+- `DRPG.Case.beforeCut`
+  - Przywróć mimo to wiersze usunięte przez ostatni reset (uzupełnią tylko pola, których brakuje tej przeglądarce).
+- `DRPG.Case.castEnter`
+  - Wpisz obsadę
+- `DRPG.Case.castIntro`
+  - Trwa incydent, a ta przeglądarka nie wie, kto w nim jest. Wpisz obsadę tak, jak wygląda przy stole.
+- `DRPG.Case.castKiller`
+  - Zabójca
+- `DRPG.Case.castNobody`
+  - - nikt -
+- `DRPG.Case.castThird`
+  - Trzecia osoba, jeśli była
+- `DRPG.Case.castTitle`
+  - Obsada incydentu
+- `DRPG.Case.castVictim`
+  - Ofiara
+- `DRPG.Case.clearMastermind`
+  - Wyczyść Masterminda
+- `DRPG.Case.continue`
+  - Dalej
+- `DRPG.Case.continued`
+  - Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z kopii (panel GM-a, Diagnostyka, Sprawa).
+- `DRPG.Case.decideIntro`
+  - Jedna rzecz w tym świecie wymaga decyzji GM-a:
+- `DRPG.Case.enterCast`
+  - Wpisz obsadę ręcznie
+- `DRPG.Case.fillFromTraces`
+  - n=0: Uzupełnij z ich Remnantów (0)
+  - n=1: Uzupełnij z ich Remnantów (1)
+  - n=2: Uzupełnij z ich Remnantów (2)
+  - n=5: Uzupełnij z ich Remnantów (5)
+  - n=12: Uzupełnij z ich Remnantów (12)
+  - n=22: Uzupełnij z ich Remnantów (22)
+  - n=25: Uzupełnij z ich Remnantów (25)
+  - n=112: Uzupełnij z ich Remnantów (112)
+- `DRPG.Case.filled` (by prefix)
+  - n=0 (many): 0 Truth Bulletów wzięło klucze odpowiedzi ze swoich Remnantów.
+  - n=1 (one): 1 Truth Bullet wziął klucz odpowiedzi ze swojego Remnantu.
+  - n=2 (few): 2 Truth Bullety wzięły klucze odpowiedzi ze swoich Remnantów.
+  - n=5 (many): 5 Truth Bulletów wzięło klucze odpowiedzi ze swoich Remnantów.
+  - n=12 (many): 12 Truth Bulletów wzięło klucze odpowiedzi ze swoich Remnantów.
+  - n=22 (few): 22 Truth Bullety wzięły klucze odpowiedzi ze swoich Remnantów.
+  - n=25 (many): 25 Truth Bulletów wzięło klucze odpowiedzi ze swoich Remnantów.
+  - n=112 (many): 112 Truth Bulletów wzięło klucze odpowiedzi ze swoich Remnantów.
+- `DRPG.Case.gmOnly`
+  - Kopię sprawy robi i przywraca tylko GM.
+- `DRPG.Case.healthIntro`
+  - Tej przeglądarce brakuje części sprawy tego świata:
+- `DRPG.Case.healthNote`
+  - „Przywróć z pliku” odtwarza brakującą część z kopii; dopóki sprawa nie będzie kompletna, panel GM-a będzie o tym przypominał.
+- `DRPG.Case.healthTitle`
+  - Sprawa w tej przeglądarce
+- `DRPG.Case.keepMastermind`
+  - Zachowaj Masterminda
+- `DRPG.Case.moveNote`
+  - „Przenieś je do rejestru” przenosi klucz odpowiedzi każdego Remnantu z jego tokenu do rejestru; „Dalej” pozwala grać bez tego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna.
+- `DRPG.Case.moveTraces`
+  - Przenieś je do rejestru
+- `DRPG.Case.otherWorld`
+  - Ten plik to sprawa innego świata (Szkoła, piętro 1). Mimo to przywróć go tutaj.
+- `DRPG.Case.otherWorldRecord`
+  - Weź z tego pliku także „coś, co wstawia kod”. Te dane są z innego świata i zastępują dane tego świata tam, gdzie plik ma nowsze.
+- `DRPG.Case.previewClamped` (by prefix)
+  - n=0 (many): 0 wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.
+  - n=1 (one): 1 wiersz ma stempel późniejszy, niż pozwala zegar: zostałby przyjęty z tą chwilą.
+  - n=2 (few): 2 wiersze mają stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.
+  - n=5 (many): 5 wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.
+  - n=12 (many): 12 wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.
+  - n=22 (few): 22 wiersze mają stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.
+  - n=25 (many): 25 wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.
+  - n=112 (many): 112 wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.
+- `DRPG.Case.previewNotThisWorld` (by prefix)
+  - n=0 (many): 0 wierszy jest z innego świata i zostaje pominiętych.
+  - n=1 (one): 1 wiersz jest z innego świata i zostaje pominięty.
+  - n=2 (few): 2 wiersze są z innego świata i zostają pominięte.
+  - n=5 (many): 5 wierszy jest z innego świata i zostaje pominiętych.
+  - n=12 (many): 12 wierszy jest z innego świata i zostaje pominiętych.
+  - n=22 (few): 22 wiersze są z innego świata i zostają pominięte.
+  - n=25 (many): 25 wierszy jest z innego świata i zostaje pominiętych.
+  - n=112 (many): 112 wierszy jest z innego świata i zostaje pominiętych.
+- `DRPG.Case.previewRecord`
+  - coś, co wstawia kod: z innego świata, brane tylko wtedy, gdy zaznaczysz to niżej.
+- `DRPG.Case.previewStore`
+  - n=0: coś, co wstawia kod: nowe 0, odświeżone 0, nowsze tutaj 0, pod cięciem resetu 0, usunięte tutaj 0
+  - n=1: coś, co wstawia kod: nowe 1, odświeżone 1, nowsze tutaj 1, pod cięciem resetu 1, usunięte tutaj 1
+  - n=2: coś, co wstawia kod: nowe 2, odświeżone 2, nowsze tutaj 2, pod cięciem resetu 2, usunięte tutaj 2
+  - n=5: coś, co wstawia kod: nowe 5, odświeżone 5, nowsze tutaj 5, pod cięciem resetu 5, usunięte tutaj 5
+  - n=12: coś, co wstawia kod: nowe 12, odświeżone 12, nowsze tutaj 12, pod cięciem resetu 12, usunięte tutaj 12
+  - n=22: coś, co wstawia kod: nowe 22, odświeżone 22, nowsze tutaj 22, pod cięciem resetu 22, usunięte tutaj 22
+  - n=25: coś, co wstawia kod: nowe 25, odświeżone 25, nowsze tutaj 25, pod cięciem resetu 25, usunięte tutaj 25
+  - n=112: coś, co wstawia kod: nowe 112, odświeżone 112, nowsze tutaj 112, pod cięciem resetu 112, usunięte tutaj 112
+- `DRPG.Case.refused.malformed` (by prefix)
+  - Moduł odrzucił cały plik: sekcja „coś, co wstawia kod” jest uszkodzona, a konsola wskazuje, który wiersz. Sprawa zostaje taka, jak była.
+- `DRPG.Case.refused.newer` (by prefix)
+  - Ten plik zapisała nowsza wersja modułu (format 1.2.95); ta nie umie go odczytać.
+- `DRPG.Case.refused.otherWorld` (by prefix)
+  - Ten plik to sprawa innego świata (Szkoła, piętro 1). Zaznacz pole, by mimo to przywrócić go tutaj.
+- `DRPG.Case.refused.unreadable` (by prefix)
+  - Ten plik nie jest kopią sprawy.
+- `DRPG.Case.restore`
+  - Przywróć
+- `DRPG.Case.restoreFromFile`
+  - Przywróć z pliku
+- `DRPG.Case.restoreNote`
+  - Przywracanie bierze tylko to, co jest nowsze niż w tej przeglądarce, także usunięcia, policzone wyżej. Nigdy nie bierze cięcia resetu z pliku, a plik innego świata nie przynosi żadnych usunięć.
+- `DRPG.Case.restoreTitle`
+  - Przywróć sprawę
+- `DRPG.Case.restored`
+  - Sprawa przywrócona.
+- `DRPG.Case.restoredClamped` (by prefix)
+  - n=0 (many): 0 wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.
+  - n=1 (one): 1 wiersz miał stempel późniejszy, niż pozwala zegar, i przyjęto go z tą chwilą.
+  - n=2 (few): 2 wiersze miały stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.
+  - n=5 (many): 5 wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.
+  - n=12 (many): 12 wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.
+  - n=22 (few): 22 wiersze miały stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.
+  - n=25 (many): 25 wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.
+  - n=112 (many): 112 wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.
+- `DRPG.Case.restoredSkipped`
+  - coś, co wstawia kod: z innego świata, nie wzięto
+- `DRPG.Case.restoredStore`
+  - n=0: coś, co wstawia kod: zmienione 0, pominięte sprzed resetu 0
+  - n=1: coś, co wstawia kod: zmienione 1, pominięte sprzed resetu 1
+  - n=2: coś, co wstawia kod: zmienione 2, pominięte sprzed resetu 2
+  - n=5: coś, co wstawia kod: zmienione 5, pominięte sprzed resetu 5
+  - n=12: coś, co wstawia kod: zmienione 12, pominięte sprzed resetu 12
+  - n=22: coś, co wstawia kod: zmienione 22, pominięte sprzed resetu 22
+  - n=25: coś, co wstawia kod: zmienione 25, pominięte sprzed resetu 25
+  - n=112: coś, co wstawia kod: zmienione 112, pominięte sprzed resetu 112
+- `DRPG.Case.row.bullets` (by prefix)
+  - n=0 (many): 0 Truth Bulletów (z 0) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=1 (one): 1 Truth Bullet (z 1) nie ma klucza odpowiedzi w tej przeglądarce: jego Analyze zostanie odrzucone.
+  - n=2 (few): 2 Truth Bullety (z 2) nie mają klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=5 (many): 5 Truth Bulletów (z 5) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=12 (many): 12 Truth Bulletów (z 12) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=22 (few): 22 Truth Bullety (z 22) nie mają klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=25 (many): 25 Truth Bulletów (z 25) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=112 (many): 112 Truth Bulletów (z 112) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+- `DRPG.Case.row.bytes`
+  - n=0: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 0 KB, nie licząc historii powiadomień.
+  - n=1: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 1 KB, nie licząc historii powiadomień.
+  - n=2: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 2 KB, nie licząc historii powiadomień.
+  - n=5: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 5 KB, nie licząc historii powiadomień.
+  - n=12: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 12 KB, nie licząc historii powiadomień.
+  - n=22: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 22 KB, nie licząc historii powiadomień.
+  - n=25: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 25 KB, nie licząc historii powiadomień.
+  - n=112: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 112 KB, nie licząc historii powiadomień.
+- `DRPG.Case.row.claimFailed`
+  - Ta przeglądarka nie zdołała przejąć swojego starego magazynu „coś, co wstawia kod”: coś, co wstawia kod. Stare wiersze zostają takie, jak były; następne wczytanie spróbuje ponownie.
+- `DRPG.Case.row.clamped` (by prefix)
+  - n=0 (many): 0 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=1 (one): 1 stary wiersz miał stempel późniejszy niż chwila, w której ta przeglądarka go przejęła, bo zegar się spieszył. Przyjęto go z chwilą przejęcia.
+  - n=2 (few): 2 stare wiersze miały stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=5 (many): 5 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=12 (many): 12 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=22 (few): 22 stare wiersze miały stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=25 (many): 25 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=112 (many): 112 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+- `DRPG.Case.row.incident`
+  - Incydent jest otwarty, a ta przeglądarka nie ma jego obsady.
+- `DRPG.Case.row.lastBackup`
+  - #1: Ostatnia kopia: Rano (Aiko).
+  - #2: Ostatnia kopia: Południe (Daichi).
+  - #3: Ostatnia kopia: Popołudnie (Aiko).
+  - #4: Ostatnia kopia: Wieczór (Daichi).
+  - #5: Ostatnia kopia: Noc (Aiko).
+- `DRPG.Case.row.left` (by prefix)
+  - n=0 (many): 0 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=1 (one): 1 stary wiersz zostaje w tej przeglądarce, nieprzejęty: z innego świata albo już nie ze sprawy tego świata.
+  - n=2 (few): 2 stare wiersze zostają w tej przeglądarce, nieprzejęte: z innych światów albo już nie ze sprawy tego świata.
+  - n=5 (many): 5 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=12 (many): 12 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=22 (few): 22 stare wiersze zostają w tej przeglądarce, nieprzejęte: z innych światów albo już nie ze sprawy tego świata.
+  - n=25 (many): 25 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=112 (many): 112 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+- `DRPG.Case.row.leftNotPrimary` (by prefix)
+  - n=0 (many): 0 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=1 (one): 1 stary wiersz ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie go game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=2 (few): 2 stare wiersze ofert lub mgły tego świata zostają w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=5 (many): 5 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=12 (many): 12 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=22 (few): 22 stare wiersze ofert lub mgły tego świata zostają w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=25 (many): 25 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=112 (many): 112 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+- `DRPG.Case.row.legacyChanged`
+  - Stary magazyn „coś, co wstawia kod” zmienił się po aktualizacji (GM wrócił do starszej wersji): przejmij zmiany z diagnostyki.
+- `DRPG.Case.row.mastermindCleared`
+  - #1: Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono 31.10.2026, już po tym, jak 31.10.2026 wybrano na niego postać Aiko, być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść.
+  - #2: Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono 31.10.2026, już po tym, jak 31.10.2026 wybrano na niego postać Daichi, być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść.
+- `DRPG.Case.row.neverBackedUp`
+  - Ta sprawa nie ma jeszcze żadnej kopii.
+- `DRPG.Case.row.neverHeld`
+  - Ta przeglądarka nigdy nie miała sprawy tego świata, która zaczęła się 31.10.2026.
+- `DRPG.Case.row.noAnswer` (by prefix)
+  - n=0 (many): 0 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=1 (one): 1 klucz odpowiedzi stracił prawdziwy typ.
+  - n=2 (few): 2 klucze odpowiedzi straciły prawdziwy typ.
+  - n=5 (many): 5 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=12 (many): 12 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=22 (few): 22 klucze odpowiedzi straciły prawdziwy typ.
+  - n=25 (many): 25 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=112 (many): 112 kluczy odpowiedzi straciło prawdziwy typ.
+- `DRPG.Case.row.notes` (by prefix)
+  - n=0 (many): 0 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=1 (one): 1 notatka przed sesją jest oznaczona jako napisana, a ta przeglądarka jej nie ma albo ma starszą.
+  - n=2 (few): 2 notatki przed sesją są oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=5 (many): 5 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=12 (many): 12 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=22 (few): 22 notatki przed sesją są oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=25 (many): 25 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=112 (many): 112 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+- `DRPG.Case.row.notices`
+  - n=0: Historia powiadomień zajmuje ponadto 0 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=1: Historia powiadomień zajmuje ponadto 1 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=2: Historia powiadomień zajmuje ponadto 2 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=5: Historia powiadomień zajmuje ponadto 5 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=12: Historia powiadomień zajmuje ponadto 12 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=22: Historia powiadomień zajmuje ponadto 22 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=25: Historia powiadomień zajmuje ponadto 25 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=112: Historia powiadomień zajmuje ponadto 112 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+- `DRPG.Case.row.projectSecrets` (by prefix)
+  - n=0 (many): 0 morderstw pośrednich (z 0) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=1 (one): 1 morderstwo pośrednie (z 1) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: jego pułapka nie może się uzbroić ani zadziałać.
+  - n=2 (few): 2 morderstwa pośrednie (z 2) nie mają w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=5 (many): 5 morderstw pośrednich (z 5) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=12 (many): 12 morderstw pośrednich (z 12) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=22 (few): 22 morderstwa pośrednie (z 22) nie mają w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=25 (many): 25 morderstw pośrednich (z 25) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=112 (many): 112 morderstw pośrednich (z 112) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+- `DRPG.Case.row.skew`
+  - #1: Stemple wyprzedzające zegar tej przeglądarki: Aiko, Daichi i Chie.
+  - #2: Stemple wyprzedzające zegar tej przeglądarki: Aiko i Daichi.
+  - #3: Stemple wyprzedzające zegar tej przeglądarki: Chie.
+- `DRPG.Case.row.traceOrphans` (by prefix)
+  - n=0 (many): 0 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=1 (one): 1 klucz odpowiedzi Remnantu nie ma tokenu na żadnej scenie: zostaje, nic go nie czyta.
+  - n=2 (few): 2 klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=5 (many): 5 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=12 (many): 12 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=22 (few): 22 klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=25 (many): 25 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=112 (many): 112 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+- `DRPG.Case.row.traces` (by prefix)
+  - n=0 (many): 0 Remnantów na mapie (z 0) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=1 (one): 1 Remnant na mapie (z 1) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=2 (few): 2 Remnanty na mapie (z 2) nie mają klucza odpowiedzi w tej przeglądarce.
+  - n=5 (many): 5 Remnantów na mapie (z 5) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=12 (many): 12 Remnantów na mapie (z 12) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=22 (few): 22 Remnanty na mapie (z 22) nie mają klucza odpowiedzi w tej przeglądarce.
+  - n=25 (many): 25 Remnantów na mapie (z 25) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=112 (many): 112 Remnantów na mapie (z 112) nie ma klucza odpowiedzi w tej przeglądarce.
+- `DRPG.Case.row.tracesKept` (by prefix)
+  - n=0 (many): 0 Remnantów na mapie (z 0) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=1 (one): 1 Remnant na mapie (z 1) zachowuje na swoim tokenie, który ma każda przeglądarka, flagi klucza odpowiedzi. To awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. Decyduje o nim GM, a game.drpg.migrateRemnants() go wskazuje.
+  - n=2 (few): 2 Remnanty na mapie (z 2) zachowują na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=5 (many): 5 Remnantów na mapie (z 5) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=12 (many): 12 Remnantów na mapie (z 12) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=22 (few): 22 Remnanty na mapie (z 22) zachowują na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=25 (many): 25 Remnantów na mapie (z 25) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=112 (many): 112 Remnantów na mapie (z 112) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+- `DRPG.Case.row.tracesOnToken` (by prefix)
+  - n=0 (many): 0 Remnantów na mapie (z 0) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=1 (one): 1 Remnant na mapie (z 1) wciąż ma klucz odpowiedzi na swoim tokenie: przenieś go do rejestru.
+  - n=2 (few): 2 Remnanty na mapie (z 2) wciąż mają klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=5 (many): 5 Remnantów na mapie (z 5) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=12 (many): 12 Remnantów na mapie (z 12) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=22 (few): 22 Remnanty na mapie (z 22) wciąż mają klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=25 (many): 25 Remnantów na mapie (z 25) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=112 (many): 112 Remnantów na mapie (z 112) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+- `DRPG.Case.row.traps` (by prefix)
+  - n=0 (many): 0 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=1 (one): 1 uzbrojona pułapka na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie może zadziałać.
+  - n=2 (few): 2 uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=5 (many): 5 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=12 (many): 12 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=22 (few): 22 uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=25 (many): 25 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=112 (many): 112 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+- `DRPG.Case.row.unseen`
+  - Ta kontrola nie widzi, kto jest Mastermindem, ofert Level Up ani rejestru Blackened: przeglądarka, która je straciła, o tym nie wie.
+- `DRPG.Case.store.ballots` (by prefix)
+  - Karty głosowania w Class Trial, przechowywane u GM-ów
+- `DRPG.Case.store.barricades` (by prefix)
+  - Które pokoje są zabarykadowane, przez kogo i jak mocno
+- `DRPG.Case.store.bedroomNotes` (by prefix)
+  - Co działo się w każdej sypialni pod nieobecność właściciela, który usłyszy o tym po powrocie
+- `DRPG.Case.store.blackened` (by prefix)
+  - Rejestr Blackened
+- `DRPG.Case.store.bodiesHeard` (by prefix)
+  - Przy których ciałach każda postać usłyszała dźwięk znalezienia
+- `DRPG.Case.store.bounties` (by prefix)
+  - Otwarte Bounty na uczniów, dla Monocubów
+- `DRPG.Case.store.bullets` (by prefix)
+  - Truth Bullety
+- `DRPG.Case.store.caseSchema` (by prefix)
+  - Mapa sprawy: wnioski, kontry i rozwiązanie każdego rozdziału
+- `DRPG.Case.store.caseTicks` (by prefix)
+  - Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale
+- `DRPG.Case.store.cast` (by prefix)
+  - Obsada incydentu
+- `DRPG.Case.store.cleanupAttempts` (by prefix)
+  - Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć
+- `DRPG.Case.store.clockBeat` (by prefix)
+  - Kiedy główny GM był ostatnio przy stole
+- `DRPG.Case.store.closingClaim` (by prefix)
+  - Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów
+- `DRPG.Case.store.confusions` (by prefix)
+  - Confusion użyte na postaci i czekające na jej rzut
+- `DRPG.Case.store.crossings` (by prefix)
+  - Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił
+- `DRPG.Case.store.cubTargets` (by prefix)
+  - Ile ruchów Monocubów miał każdy uczeń tego dnia
+- `DRPG.Case.store.cubs` (by prefix)
+  - Zapis Monocubów: który Monocub był świadkiem zbrodni
+- `DRPG.Case.store.deaths` (by prefix)
+  - Śmierci, których nikt jeszcze nie odkrył
+- `DRPG.Case.store.deferredOffers` (by prefix)
+  - Reinforced Level Upy czekające na klasę
+- `DRPG.Case.store.despairOwed` (by prefix)
+  - Despair, który każda pula jest winna za zamiany na Hope
+- `DRPG.Case.store.diceLooks` (by prefix)
+  - Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza
+- `DRPG.Case.store.discovery` (by prefix)
+  - Pokoje odkryte przez każdą postać
+- `DRPG.Case.store.diveSets` (by prefix)
+  - Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra
+- `DRPG.Case.store.eavesdrops` (by prefix)
+  - Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo
+- `DRPG.Case.store.eclipseMoves` (by prefix)
+  - Kto ile razy przeszedł w czasie Eclipse
+- `DRPG.Case.store.facilityUses` (by prefix)
+  - Których akcji w pokojach użyła każda postać i o jakiej porze dnia
+- `DRPG.Case.store.foundDone` (by prefix)
+  - Ukończone tajne projekty czekające, aż ich znalazcy wrócą
+- `DRPG.Case.store.keyPlan` (by prefix)
+  - Plan Key Remnantów, rozdział po rozdziale
+- `DRPG.Case.store.lockpicks` (by prefix)
+  - Kto może wejść do którego pokoju przez zamek otwarty wytrychem
+- `DRPG.Case.store.lootRolls` (by prefix)
+  - Pierwsze rzuty na Hand i Shadow do następnego Take from the Body, osobno dla każdej postaci i każdego ciała
+- `DRPG.Case.store.lootTraces` (by prefix)
+  - Co zabrano z każdego ciała i jaki Remnant przy tym został
+- `DRPG.Case.store.masks` (by prefix)
+  - Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token
+- `DRPG.Case.store.mastermind` (by prefix)
+  - Mastermind
+- `DRPG.Case.store.notes` (by prefix)
+  - Notatki graczy przed sesją
+- `DRPG.Case.store.observe` (by prefix)
+  - Deklaracje Observe czekające na rzut
+- `DRPG.Case.store.offers` (by prefix)
+  - Oferowane Level Upy
+- `DRPG.Case.store.overflow` (by prefix)
+  - Licznik Despair w Overflow
+- `DRPG.Case.store.passageAccess` (by prefix)
+  - Kto zna które tajne przejście i skąd
+- `DRPG.Case.store.passageLog` (by prefix)
+  - Co robiono z tajnymi przejściami
+- `DRPG.Case.store.passageMap` (by prefix)
+  - Tajne przejścia: gdzie jest każde i czy jest otwarte
+- `DRPG.Case.store.passageSeason` (by prefix)
+  - Tajne przejścia zbudowane w projektach tego sezonu
+- `DRPG.Case.store.pendingBodies` (by prefix)
+  - Znalezione ciała, których ogłoszenie czeka na decyzję GM-a
+- `DRPG.Case.store.pendingMurders` (by prefix)
+  - Zgłoszenia Direct Murder w czasie Eclipse
+- `DRPG.Case.store.projectSecrets` (by prefix)
+  - Kto buduje każdą pułapkę i co ją uruchamia
+- `DRPG.Case.store.projectWork` (by prefix)
+  - Kto pracował nad każdym projektem o tej porze dnia
+- `DRPG.Case.store.remnants` (by prefix)
+  - Remnanty
+- `DRPG.Case.store.rerollBookmarks` (by prefix)
+  - Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie
+- `DRPG.Case.store.rerollJournal` (by prefix)
+  - Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić
+- `DRPG.Case.store.rifles` (by prefix)
+  - Którą skrytkę każda postać przetrząsnęła i o jakiej porze dnia
+- `DRPG.Case.store.rolls` (by prefix)
+  - Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają
+- `DRPG.Case.store.ruledCards` (by prefix)
+  - Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz
+- `DRPG.Case.store.sheetMarks` (by prefix)
+  - Co zawierał arkusz każdej postaci, gdy GM-owie ostatnio ocenili zapis na nim
+- `DRPG.Case.store.sheetWrites` (by prefix)
+  - Zapisy na arkuszach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę
+- `DRPG.Case.store.tails` (by prefix)
+  - Kto dziś kogo śledzi i jak dobrze
+- `DRPG.Case.store.takeBack` (by prefix)
+  - Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę
+- `DRPG.Case.store.timedEffects` (by prefix)
+  - Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija
+- `DRPG.Case.store.traceDigest` (by prefix)
+  - Remnanty zostawione od ostatniego zestawienia dla GM-ów; następne zestawienie przyjdzie o kolejnej porze dnia
+- `DRPG.Case.store.trapLedger` (by prefix)
+  - Podłożone przedmioty pułapek
+- `DRPG.Case.store.trapPlants` (by prefix)
+  - Przedmioty czekające w pokojach
+- `DRPG.Case.store.trialCast` (by prefix)
+  - Które tokeny sali rozpraw pokazuje Class Trial
+- `DRPG.Case.store.trialMute` (by prefix)
+  - Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jego końca
+- `DRPG.Case.store.usedTools` (by prefix)
+  - Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała
+- `DRPG.Case.store.verdict` (by prefix)
+  - Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie
+- `DRPG.Case.store.watches` (by prefix)
+  - Kto czuwa przez Eclipse, w którym pokoju i co widział
+- `DRPG.Case.tile`
+  - Sprawa
+- `DRPG.GmStore.notOpen`
+  - n=0: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 0 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+  - n=1: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 1 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+  - n=2: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 2 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+  - n=5: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 5 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+  - n=12: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 12 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+  - n=22: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 22 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+  - n=25: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 25 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+  - n=112: Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu 112 s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony.
+- `DRPG.Season.hint.nobodyPublic`
+  - Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Każdy gracz może to sprawdzić, a jedyny uczeń poza pulami rzuca się w oczy: przypisz go do Monokumy jak każdego innego ucznia.
+
+## the GM team panel (Despair Flow) (gm-team; reader: gm)
+
+- `DRPG.Assign.failed`
+  - Nie udało się zapisać podziału. Zajrzyj do Dziennika debugowania.
+- `DRPG.Assign.fallbackOption`
+  - #1: Aiko (domyślnie)
+  - #2: Daichi (domyślnie)
+- `DRPG.Assign.footnote`
+  - Despair z rzutów ucznia trafia do puli tego Monokumy, do którego jest tu przypisany. „(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Przypisania dostaje przeglądarka każdego gracza, więc gracz może odczytać, kto jest ustawiony na „- nikt -”.
+- `DRPG.Assign.implicitHint`
+  - Ten uczeń nie ma przypisania i zasila pierwszą pulę, dopóki nie wybierzesz mu puli.
+- `DRPG.Assign.intro`
+  - Rzut zakończony Despair zasila pulę Monokumy tego ucznia.
+- `DRPG.Assign.monokuma`
+  - Monokuma
+- `DRPG.Assign.noMonokumas`
+  - Nikt nie ma puli Despair: w tym świecie nie ma konta Gamemastera. Nadaj komuś tę rolę i otwórz Despair Flow ponownie.
+- `DRPG.Assign.nobody`
+  - - nikt -
+- `DRPG.Assign.outside`
+  - Bez puli
+- `DRPG.Assign.save`
+  - Zapisz
+- `DRPG.Assign.splitDone`
+  - Uczniowie są teraz podzieleni po równo między Monokumy.
+- `DRPG.Assign.splitEvenly`
+  - Podziel po równo
+- `DRPG.Panel.character`
+  - Postać
+- `DRPG.Panel.despairFlow`
+  - Despair Flow
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.noCharacters`
+  - W tym świecie nie ma żywych uczniów.
+
+## the Mastermind and the Final Trial (mastermind; reader: both)
+
+- `DRPG.Panel.apply`
+  - Zastosuj
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## the GM's reports (diagnostics and the map's checks) (diagnostics; reader: gm)
+
+- `DRPG.Diagnose.copied`
+  - Raport jest w schowku. Wklej go (Ctrl+V) tam, gdzie ma trafić.
+- `DRPG.Diagnose.copy`
+  - Kopiuj raport
+- `DRPG.Diagnose.gmOnly`
+  - Tę część raportu sprawdza tylko przeglądarka GM-a. Zbierz raport w przeglądarce GM-a, żeby ją zobaczyć.
+- `DRPG.Diagnose.intro`
+  - Wszystko, co moduł potrafi tu sprawdzić, w jednym tekście. Skopiuj go i wyślij osobie, która ci pomaga.
+- `DRPG.Diagnose.showAgain`
+  - Pokaż znowu
+- `DRPG.Diagnose.silence.systemWarning`
+  - Ostrzeżenie, że Daggerheart 1.2.95 jest nowszy niż wersja, na której ten moduł sprawdzono.
+- `DRPG.Diagnose.silencesTitle`
+  - Wyciszone przez ciebie ostrzeżenia
+- `DRPG.Diagnose.title`
+  - Raport diagnostyczny
+- `DRPG.Diagnostics.cast.allSet` (by prefix)
+  - Każdy uczeń ma zasoby na start.
+- `DRPG.Diagnostics.cast.experiences` (by prefix)
+  - n=0: Każdy ma 0 doświadczenia
+  - n=1: Każdy ma 1 doświadczenia
+  - n=2: Każdy ma 2 doświadczenia
+  - n=5: Każdy ma 5 doświadczenia
+  - n=12: Każdy ma 12 doświadczenia
+  - n=22: Każdy ma 22 doświadczenia
+  - n=25: Każdy ma 25 doświadczenia
+  - n=112: Każdy ma 112 doświadczenia
+- `DRPG.Diagnostics.cast.experiencesFix` (by prefix)
+  - Każde na +2, ustalone przy tworzeniu postaci.
+- `DRPG.Diagnostics.cast.fix` (by prefix)
+  - Jak to naprawić: otwórz arkusz i naciśnij różdżkę obok imienia.
+- `DRPG.Diagnostics.cast.item` (by prefix)
+  - Każdy nosi swój przedmiot startowy
+- `DRPG.Diagnostics.cast.itemFix` (by prefix)
+  - n=0: Każdy uczeń zaczyna z jednym przedmiotem poziomu 0 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=1: Każdy uczeń zaczyna z jednym przedmiotem poziomu 1 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=2: Każdy uczeń zaczyna z jednym przedmiotem poziomu 2 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=5: Każdy uczeń zaczyna z jednym przedmiotem poziomu 5 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=12: Każdy uczeń zaczyna z jednym przedmiotem poziomu 12 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=22: Każdy uczeń zaczyna z jednym przedmiotem poziomu 22 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=25: Każdy uczeń zaczyna z jednym przedmiotem poziomu 25 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=112: Każdy uczeń zaczyna z jednym przedmiotem poziomu 112 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+- `DRPG.Diagnostics.cast.noCast` (by prefix)
+  - Nie ma jeszcze uczniów: najpierw utwórz obsadę, potem uruchom te sprawdzenia jeszcze raz.
+- `DRPG.Diagnostics.cast.notSetUp` (by prefix)
+  - bez zasobów na start
+- `DRPG.Diagnostics.cast.pending` (by prefix)
+  - n=0 (many): 0 uczniów nie ma jeszcze zasobów na start.
+  - n=1 (one): 1 uczeń nie ma jeszcze zasobów na start.
+  - n=2 (few): 2 uczniowie nie mają jeszcze zasobów na start.
+  - n=5 (many): 5 uczniów nie ma jeszcze zasobów na start.
+  - n=12 (many): 12 uczniów nie ma jeszcze zasobów na start.
+  - n=22 (few): 22 uczniowie nie mają jeszcze zasobów na start.
+  - n=25 (many): 25 uczniów nie ma jeszcze zasobów na start.
+  - n=112 (many): 112 uczniów nie ma jeszcze zasobów na start.
+- `DRPG.Diagnostics.cast.pendingWhy` (by prefix)
+  - Do tego czasu ich maksymalne Health i Sanity wynoszą zero, więc wyglądają tak samo jak uczniowie pobici do nieprzytomności.
+- `DRPG.Diagnostics.cast.pool` (by prefix)
+  - Każdy ma przypisanie w Despair Flow
+- `DRPG.Diagnostics.cast.poolFix` (by prefix)
+  - Przypisz każdemu z tych uczniów Monokumę ręcznie albo zaznacz, że celowo nie ma żadnego. Zrobisz to w panelu GM-a, w zakładce Despair Flow. Do tego czasu Despair z rzutów ucznia trafia do puli zapasowej, jeśli jej nazwa stoi przy nim; uczeń bez puli zapasowej nie ma żadnej puli, więc jego Despair nie ma dokąd trafić.
+- `DRPG.Diagnostics.cast.row` (by prefix)
+  - n=0: Health maks. 0, Sanity maks. 0
+  - n=1: Health maks. 1, Sanity maks. 1
+  - n=2: Health maks. 2, Sanity maks. 2
+  - n=5: Health maks. 5, Sanity maks. 5
+  - n=12: Health maks. 12, Sanity maks. 12
+  - n=22: Health maks. 22, Sanity maks. 22
+  - n=25: Health maks. 25, Sanity maks. 25
+  - n=112: Health maks. 112, Sanity maks. 112
+- `DRPG.Diagnostics.cast.starting` (by prefix)
+  - n=0: Zasoby na start: 0 Health, 0 Sanity, 0 Hope
+  - n=1: Zasoby na start: 1 Health, 1 Sanity, 1 Hope
+  - n=2: Zasoby na start: 2 Health, 2 Sanity, 2 Hope
+  - n=5: Zasoby na start: 5 Health, 5 Sanity, 5 Hope
+  - n=12: Zasoby na start: 12 Health, 12 Sanity, 12 Hope
+  - n=22: Zasoby na start: 22 Health, 22 Sanity, 22 Hope
+  - n=25: Zasoby na start: 25 Health, 25 Sanity, 25 Hope
+  - n=112: Zasoby na start: 112 Health, 112 Sanity, 112 Hope
+- `DRPG.Diagnostics.cast.students` (by prefix)
+  - n=0: Uczniowie: 0, żyjący: 0
+  - n=1: Uczniowie: 1, żyjący: 1
+  - n=2: Uczniowie: 2, żyjący: 2
+  - n=5: Uczniowie: 5, żyjący: 5
+  - n=12: Uczniowie: 12, żyjący: 12
+  - n=22: Uczniowie: 22, żyjący: 22
+  - n=25: Uczniowie: 25, żyjący: 25
+  - n=112: Uczniowie: 112, żyjący: 112
+- `DRPG.Diagnostics.cast.ultimate` (by prefix)
+  - Każdy ma Ultimate
+- `DRPG.Diagnostics.cast.ultimateFix` (by prefix)
+  - Ustaw je na arkuszu, pod imieniem.
+- `DRPG.Diagnostics.cssMissing`
+  - Arkusz stylów tego modułu nie załadował się na tej stronie, więc interfejs jest bez stylu. Przeładuj; jeśli to się powtarza, uruchom game.drpg.diagnoseStyles().
+- `DRPG.Diagnostics.pageTinted`
+  - #1: Aiko przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne, więc wyłącz to rozszerzenie dla tej strony.
+  - #2: Daichi przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne, więc wyłącz to rozszerzenie dla tej strony.
+- `DRPG.Diagnostics.title.season`
+  - Przygotowanie sezonu
+- `DRPG.Diagnostics.tracing` (by prefix)
+  - n=0 (many): Obserwuję kliknięcia przez 0 sekund. Kliknij kontrolkę, która działa źle.
+  - n=1 (one): Obserwuję kliknięcia przez 1 sekundę. Kliknij kontrolkę, która działa źle.
+  - n=2 (few): Obserwuję kliknięcia przez 2 sekundy. Kliknij kontrolkę, która działa źle.
+  - n=5 (many): Obserwuję kliknięcia przez 5 sekund. Kliknij kontrolkę, która działa źle.
+  - n=12 (many): Obserwuję kliknięcia przez 12 sekund. Kliknij kontrolkę, która działa źle.
+  - n=22 (few): Obserwuję kliknięcia przez 22 sekundy. Kliknij kontrolkę, która działa źle.
+  - n=25 (many): Obserwuję kliknięcia przez 25 sekund. Kliknij kontrolkę, która działa źle.
+  - n=112 (many): Obserwuję kliknięcia przez 112 sekund. Kliknij kontrolkę, która działa źle.
+- `DRPG.Season.fallsBackTo`
+  - #1: Aiko (bez przypisania: trafia do Nóż kuchenny)
+  - #2: Daichi (bez przypisania: trafia do Lina)
+  - #3: Aiko (bez przypisania: trafia do Krzesło)
+- `DRPG.Voice.liveKitSecret`
+  - LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto ma ten sekret, może połączyć się z każdym pokojem głosowym. Żeby sekret nie trafiał do przeglądarek, użyj serwera, który sam wydaje tokeny dostępu, na przykład Tavern.
+- `DRPG.Voice.warn.others`
+  - #1: Inne aktywne moduły, które wspominają o głosie: Nóż kuchenny, Lina i Krzesło.
+  - #2: Inne aktywne moduły, które wspominają o głosie: Lina.
+- `DRPG.Voice.warn.othersHint`
+  - Warto je wykluczyć najpierw, jeśli pokoje niżej są dobre, a dźwięk nie.
+- `DRPG.Voice.warn.proximity`
+  - Proximity Voice Chat też jest aktywny.
+- `DRPG.Voice.warn.proximityFix`
+  - Wyłącz go albo włącz „global listen”, chyba że używasz obu naraz.
+- `DRPG.Voice.warn.proximityGlobal`
+  - Jego ustawienie „global listen” jest włączone, więc teraz nikogo nie wycisza.
+- `DRPG.Voice.warn.proximitySceneOff`
+  - Jest wyłączony na scenie „Szkoła, piętro 1”, więc nikogo tam nie wycisza.
+- `DRPG.Voice.warn.proximityVolume`
+  - Ustawia głośność każdego uczestnika według odległości tokenów, niezależnie od pokoju, do którego wstawia go ten moduł. Nieskonfigurowany daje wszystkim głośność zero.
+
+## the character sheet (sheet; reader: both)
+
+- `DRPG.Anonymity.audit.assistants`
+  - Należą do Asystenta GM-a. Asystenci czytają każdy arkusz w świecie. Zmień im rolę na Gracza:
+- `DRPG.Anonymity.audit.clean`
+  - Żaden arkusz nie jest otwarty w całości dla każdego gracza. Nie ma czego naprawiać.
+- `DRPG.Anonymity.audit.closed`
+  - Zamknięte dla pozostałych graczy. Nie ma czego naprawiać, ale żaden inny gracz nie otworzy tych arkuszy, więc gdy postać zginie, nikt nie skorzysta z Take from the Body:
+- `DRPG.Anonymity.audit.exposed`
+  - Należą do każdego gracza, więc nic na tych arkuszach nie jest ukryte:
+- `DRPG.Anonymity.audit.fix`
+  - Ustaw je na Obserwatora
+- `DRPG.Anonymity.audit.fixed` (by prefix)
+  - n=0 (many): 0 arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.
+  - n=1 (one): 1 arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć, z ukrytymi sekretami.
+  - n=2 (few): 2 arkusze ustawione na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.
+  - n=5 (many): 5 arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.
+  - n=12 (many): 12 arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.
+  - n=22 (few): 22 arkusze ustawione na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.
+  - n=25 (many): 25 arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.
+  - n=112 (many): 112 arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.
+- `DRPG.Anonymity.audit.fixedOpen` (by prefix)
+  - n=0 (many): 0 arkuszy ustawionych na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.
+  - n=1 (one): 1 arkusz ustawiony na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może go otworzyć i przeczytać w całości.
+  - n=2 (few): 2 arkusze ustawione na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.
+  - n=5 (many): 5 arkuszy ustawionych na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.
+  - n=12 (many): 12 arkuszy ustawionych na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.
+  - n=22 (few): 22 arkusze ustawione na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.
+  - n=25 (many): 25 arkuszy ustawionych na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.
+  - n=112 (many): 112 arkuszy ustawionych na Obserwatora: „Anonimowe arkusze postaci” są wyłączone, więc każdy gracz może je otworzyć i przeczytać w całości.
+- `DRPG.Anonymity.audit.nobody`
+  - zupełnie nikt
+- `DRPG.Anonymity.audit.orphaned`
+  - Nie należą do żadnego gracza. Kto ma do nich dostęp:
+- `DRPG.Anonymity.audit.shared`
+  - Należą do więcej niż jednego gracza:
+- `DRPG.Anonymity.audit.switchOff`
+  - Włącz „Anonimowe arkusze postaci” w ustawieniach modułu. Dopóki ta opcja jest wyłączona, każdy gracz czyta w całości te arkusze ustawione na Obserwatora:
+- `DRPG.Anonymity.audit.title`
+  - Kontrola anonimowości arkuszy
+- `DRPG.Anonymity.blocked`
+  - #1: Uprawnień nie podniesiono: każdy gracz byłby właścicielem arkusza „Aiko” i czytałby go w całości. Uprawnienie Właściciela daj tylko graczowi tej postaci.
+  - #2: Uprawnień nie podniesiono: każdy gracz byłby właścicielem arkusza „Daichi” i czytałby go w całości. Uprawnienie Właściciela daj tylko graczowi tej postaci.
+- `DRPG.Anonymity.everyone.limited` (by prefix)
+  - pozostali gracze widzą tylko imię i portret
+- `DRPG.Anonymity.everyone.none` (by prefix)
+  - pozostali gracze nie mogą otworzyć arkusza
+- `DRPG.Anonymity.everyone.observer` (by prefix)
+  - każdy gracz może otworzyć arkusz, z ukrytymi sekretami
+- `DRPG.Anonymity.everyone.observerOpen` (by prefix)
+  - każdy gracz może otworzyć arkusz i czyta go w całości
+- `DRPG.Anonymity.everyone.owner` (by prefix)
+  - każdy gracz jest właścicielem arkusza i czyta go w całości
+- `DRPG.Anonymity.level.limited` (by prefix)
+  - widzi tylko imię i portret
+- `DRPG.Anonymity.level.none` (by prefix)
+  - nie może otworzyć arkusza
+- `DRPG.Anonymity.level.observer` (by prefix)
+  - może otworzyć arkusz, z ukrytymi sekretami
+- `DRPG.Anonymity.level.observerOpen` (by prefix)
+  - może otworzyć arkusz i czyta go w całości
+- `DRPG.Anonymity.level.owner` (by prefix)
+  - jest właścicielem arkusza
+- `DRPG.Anonymity.reverted`
+  - #1: Arkusz „Aiko” był udostępniony każdemu graczowi jako Właściciel, więc wszyscy mogli go czytać w całości. Teraz jest znowu ustawiony na Obserwatora. Uprawnienie Właściciela daj tylko graczowi tej postaci.
+  - #2: Arkusz „Daichi” był udostępniony każdemu graczowi jako Właściciel, więc wszyscy mogli go czytać w całości. Teraz jest znowu ustawiony na Obserwatora. Uprawnienie Właściciela daj tylko graczowi tej postaci.
+- `DRPG.Anonymity.role.assistant`
+  - (Asystent GM-a)
+- `DRPG.Anonymity.role.gm`
+  - (GM)
+- `DRPG.SearchTokens.exhausted`
+  - W tym pokoju nie ma już Search Tokenów. Pojawią się znowu o następnej porze dnia.
+- `DRPG.SearchTokens.sealed`
+  - Tego pokoju nie przeszukasz: nie ma tu nic do znalezienia o żadnej porze dnia.
+
+## the HUD (hud; reader: both)
+
+- `DRPG.Voice.held.connected` (by prefix)
+  - Połączono z kanałem głosowym.
+- `DRPG.Voice.held.connecting` (by prefix)
+  - Trwa dołączanie do kanału głosowego.
+- `DRPG.Voice.held.cubListen` (by prefix)
+  - Tryb: coś, co wstawia kod. Słuchasz.
+- `DRPG.Voice.held.cubSpeak` (by prefix)
+  - Dyskusja: możesz mówić.
+- `DRPG.Voice.held.cubVote` (by prefix)
+  - Głosowanie: słuchasz.
+- `DRPG.Voice.held.deadAlone` (by prefix)
+  - Twoja postać nie żyje: rozmawiasz z Widzami. Żywi cię nie słyszą.
+- `DRPG.Voice.held.deadMuted` (by prefix)
+  - Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.
+- `DRPG.Voice.held.eclipse` (by prefix)
+  - Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.
+- `DRPG.Voice.held.eclipseHeard` (by prefix)
+  - Eclipse: do powrotu światła nikt cię nie słyszy.
+- `DRPG.Voice.held.external` (by prefix)
+  - Głos jest w osobnym oknie: użyj jego przycisków.
+- `DRPG.Voice.held.gmBlock` (by prefix)
+  - GM zablokował twój mikrofon.
+- `DRPG.Voice.held.listening` (by prefix)
+  - Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.
+- `DRPG.Voice.held.masked` (by prefix)
+  - Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.
+- `DRPG.Voice.held.offline` (by prefix)
+  - Brak połączenia z głosem.
+- `DRPG.Voice.held.ownCase` (by prefix)
+  - Słuchasz: to rozprawa w twojej sprawie.
+- `DRPG.Voice.held.spectator` (by prefix)
+  - Jesteś Widzem: słyszysz pokój, w którym jesteś, a mikrofon masz wyłączony.
+- `DRPG.Voice.held.spectatorTalk` (by prefix)
+  - Rozmawiasz z innymi Widzami.
+- `DRPG.Zones.confer.apart`
+  - Strefa A i Strefa B naradzają się osobno.
+- `DRPG.Zones.confer.mine`
+  - Naradzasz się ze Strefą {zone}.
+- `DRPG.Zones.confer.name`
+  - Narada obozów
+- `DRPG.Zones.confer.none`
+  - Nie jesteś w żadnym obozie: zostajesz w głosie sali rozpraw.
+
+## Foundry's settings window: the module's settings (settings; reader: both)
+
+- `DRPG.Settings.autoApproveTraits.hint`
+  - Statystykę, którą gracz proponuje do Search albo projektu, moduł zatwierdza bez twojego kliknięcia. Resolve i tak nikogo nie pyta.
+- `DRPG.Settings.autoApproveTraits.name`
+  - Statystyki graczy bez zatwierdzania
+- `DRPG.Settings.bulletSort.hint`
+  - Układa Truth Bullets w twoim ekwipunku według rozdziałów (domyślnie) albo według pokoi. Przełącznik jest w ekwipunku, przy dowodach. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.bulletSort.name`
+  - Jak grupowane są Truth Bullets
+- `DRPG.Settings.chargeMovement.hint`
+  - Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Sprintem. Wyłączone: ruch rozliczasz ręcznie.
+- `DRPG.Settings.chargeMovement.name`
+  - Przejście między pokojami kosztuje Move
+- `DRPG.Settings.debug.hint`
+  - Wypisuj diagnostykę Danganronpa RPG w konsoli przeglądarki. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.debug.name`
+  - Szczegółowe logi w konsoli
+- `DRPG.Settings.despairFromRolls.hint`
+  - Rzut zakończony Despair zasila pulę Monokumy tego ucznia. Każdego ucznia przypisz do Monokumy w Despair Flow w panelu GM-a.
+- `DRPG.Settings.despairFromRolls.name`
+  - Rzuty dają Despair
+- `DRPG.Settings.documentLanguage.hint`
+  - Język dokumentów, które moduł zapisuje w tym świecie, jeden dla wszystkich. Okna, karty i arkusz zostają w języku ustawionym w każdej przeglądarce. Gdy główny GM pierwszy raz uruchomi grę, moduł ustawia tu język jego przeglądarki.
+- `DRPG.Settings.documentLanguage.name`
+  - Język dokumentów
+- `DRPG.Settings.enforceAnonymity.hint`
+  - Arkusz innego gracza pokazuje tylko imię, portret, Ultimate, Health, to, co trzyma w rękach, i ile ma doświadczeń. Własny arkusz każdy widzi w całości.
+- `DRPG.Settings.enforceAnonymity.name`
+  - Anonimowe arkusze postaci
+- `DRPG.Settings.enforceDhWelcome.hint`
+  - Dziennik powitalny Daggerheart nie otworzy się nikomu, także GM-owi.
+- `DRPG.Settings.enforceDhWelcome.name`
+  - Trzymaj dziennik powitalny Daggerheart zamknięty u wszystkich
+- `DRPG.Settings.enforceIsoWelcome.hint`
+  - Okno powitalne Isometric Perspective nie otworzy się nikomu, także GM-owi.
+- `DRPG.Settings.enforceIsoWelcome.name`
+  - Trzymaj okno powitalne Isometric Perspective zamknięte u wszystkich
+- `DRPG.Settings.enforcePlayerFiles.hint`
+  - Gracze nie przeglądają ani nie wysyłają plików, a kliknięcie portretu nic nie otwiera. Obrazy, które już są w świecie, nadal widać.
+- `DRPG.Settings.enforcePlayerFiles.name`
+  - Bez przeglądarki plików dla graczy
+- `DRPG.Settings.forceDiceLook.choices.daggerheart` (by prefix)
+  - Wszyscy: Daggerheart
+- `DRPG.Settings.forceDiceLook.choices.dsn` (by prefix)
+  - Wszyscy: Dice So Nice
+- `DRPG.Settings.forceDiceLook.choices.own` (by prefix)
+  - Każdy gracz własny
+- `DRPG.Settings.forceDiceLook.hint`
+  - Przy każdej z opcji „Wszyscy”, gracze i Asystenci GM-a rzucają w wyglądzie Dice So Nice jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem. Opcja „Wszyscy: Daggerheart” dodaje kolory Hope i Despair z tego systemu.
+- `DRPG.Settings.forceDiceLook.name`
+  - Wygląd kości przy stole
+- `DRPG.Settings.forcePrivateRolls.hint`
+  - Każdy rzut gracza widzi tylko on i GM-owie, a rzut GM-a tylko GM-owie. Wszyscy widzą jedynie rzut z makra GM-a game.drpg.publicRoll.
+- `DRPG.Settings.forcePrivateRolls.name`
+  - Wymuszaj prywatne rzuty graczy
+- `DRPG.Settings.foundryToolWindows.hint`
+  - Przenosi pasek boczny i narzędzia mapy GM-a do dwóch okien, które otwiera przycisk w rogu. Ekran graczy się nie zmienia. Zapisanie przeładowuje Foundry u wszystkich, gdy to potwierdzisz.
+- `DRPG.Settings.foundryToolWindows.name`
+  - Okna modułu dla paska bocznego i sterowania sceną Foundry
+- `DRPG.Settings.friskForce.hint`
+  - Po wyłączeniu jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy.
+- `DRPG.Settings.friskForce.name`
+  - Frisk: zmuszanie po odmowie
+- `DRPG.Settings.glassBlur.hint`
+  - Szkło matowi mapę, która jest za nim. Gdy gra się przycina, wyłącz najpierw to. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.glassBlur.name`
+  - Szkło rozmywa mapę
+- `DRPG.Settings.glassPulse.hint`
+  - Powolne ciemnienie wędrujące po ramie. Wyłącz, by zostawić szkło, ale zatrzymać jego oddech. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.glassPulse.name`
+  - Puls szkła
+- `DRPG.Settings.hideSystemFear.hint`
+  - Ukrywa wspólny pasek Fear z Daggerheart. Każdy Monokuma i tak ma własną pulę Despair. Wyłącz, by znów pokazać pasek.
+- `DRPG.Settings.hideSystemFear.name`
+  - Zastąp licznik Fear z Daggerheart
+- `DRPG.Settings.highContrast.hint`
+  - Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Gdy twój system prosi o większy kontrast, ten wygląd działa także przy wyłączonym ustawieniu. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.highContrast.name`
+  - Wysoki kontrast
+- `DRPG.Settings.hudTicker.hint`
+  - Blady napis pory dnia za zegarem. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.hudTicker.name`
+  - Nazwa stanu za zegarem
+- `DRPG.Settings.isoTokenShield.hint`
+  - Trzyma moduł isometric-perspective z dala od okna konfiguracji tokenu, gdzie psuje edycję. Wyłącz, by dostać się do jego zakładki Isometric.
+- `DRPG.Settings.isoTokenShield.name`
+  - Chroń edycję tokenów przed Isometric Perspective
+- `DRPG.Settings.language.hint`
+  - Język okien, kart i arkusza tego modułu; Foundry ma własne ustawienie. Nazwy gry, jak Truth Bullet, zostają po angielsku. Działa po przeładowaniu. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.language.name`
+  - Język
+- `DRPG.Settings.liveKitInFoundry.hint`
+  - Głos działa w oknie Foundry, bez osobnej karty.
+- `DRPG.Settings.liveKitInFoundry.name`
+  - Głos w oknie Foundry u wszystkich
+- `DRPG.Settings.lockPlayerResources.hint`
+  - Gdy gracz sam zmieni akcje, Hope, Health, Sanity albo statystykę, moduł cofa zmianę albo zgłasza ją GM-om; po wyłączeniu tylko ją odnotowuje. Przedmioty i efekty sprawdza zawsze. GM-ów to nie dotyczy.
+- `DRPG.Settings.lockPlayerResources.name`
+  - Zablokuj graczom zasoby na arkuszu
+- `DRPG.Settings.lockRollDialog.hint`
+  - W oknie rzutu gracze nie mogą zmienić kości, statystyki, przewagi, doświadczeń ani premii; ustala je akcja, Hope Call albo GM. GM-ów to nie dotyczy.
+- `DRPG.Settings.lockRollDialog.name`
+  - Zablokuj graczom okno rzutu
+- `DRPG.Settings.messengerSound.hint`
+  - Komunikator odtwarza trzy dźwięki: wysłanej wiadomości, odebranej wiadomości i pytania do GM-a. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.messengerSound.name`
+  - Dźwięki komunikatora
+- `DRPG.Settings.moveAudit.hint`
+  - Wybierz, co ma się stać, gdy ktoś przesunie token gracza przez ścianę.
+- `DRPG.Settings.moveAudit.log`
+  - Zapisz to w Dzienniku debugowania
+- `DRPG.Settings.moveAudit.name`
+  - Token gracza przesunięty przez ścianę
+- `DRPG.Settings.moveAudit.sendBack`
+  - Cofnij token
+- `DRPG.Settings.musicEnabled.hint`
+  - Zmienia playlistę razem z grą: Eclipse, Class Trial, Investigation, pora dnia, pauza. Najpierw przypisz playlisty w oknie Dźwięk.
+- `DRPG.Settings.musicEnabled.name`
+  - Muzyka podąża za stanem gry
+- `DRPG.Settings.pixelFont.hint`
+  - Tylko Monokuma Legacy: Press Start 2P na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.pixelFont.name`
+  - Czcionka pikselowa
+- `DRPG.Settings.reducedMotion.hint`
+  - Trzymaj interfejs nieruchomo w tej przeglądarce, niezależnie od ustawień systemu. Tylko ten klient.
+- `DRPG.Settings.reducedMotion.name`
+  - Ograniczone animacje
+- `DRPG.Settings.regionFog.hint`
+  - Gracz widzi swój pokój; odwiedzone prześwitują, reszta jest we mgle.
+- `DRPG.Settings.regionFog.name`
+  - Pokoje decydują, co widzą gracze
+- `DRPG.Settings.roomVisibility.hint`
+  - Ukrywa inne postacie, chyba że stoją w tym samym pokoju, także przez luki w ścianach. GM-owie widzą wszystko.
+- `DRPG.Settings.roomVisibility.name`
+  - Gracze widzą tylko osoby w swoim pokoju
+- `DRPG.Settings.searchTokensPerRoom.hint`
+  - Search Tokeny na pokój na porę dnia, od 0 do 10. Search zużywa jeden; w pokoju bez tokenów nie da się szukać.
+- `DRPG.Settings.searchTokensPerRoom.name`
+  - Search Tokeny na pokój
+- `DRPG.Settings.sequences.hint`
+  - Wejście do Class Trial, werdykt, obroty i błyski zegara oraz plansze dnia na każdym ekranie. Po wyłączeniu grają tylko dźwięki rozprawy i werdyktu. Esc pomija jedną sekwencję.
+- `DRPG.Settings.sequences.name`
+  - Sekwencje na cały ekran
+- `DRPG.Settings.theme.hint`
+  - Wygląd modułu. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.theme.monokumaLegacy`
+  - Monokuma Legacy
+- `DRPG.Settings.theme.name`
+  - Motyw
+- `DRPG.Settings.theme.stainedGlass`
+  - Stained Glass
+- `DRPG.Settings.uiScale.hint`
+  - Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 80% do 140%. Mapy nie skaluje. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.uiScale.name`
+  - Skala interfejsu
+- `DRPG.Settings.voiceEnabled.hint`
+  - Słyszysz tylko osoby ze swojego pokoju. Wymaga LiveKit AVClient.
+- `DRPG.Settings.voiceEnabled.name`
+  - Głos osobno w każdym pokoju
+- `DRPG.Settings.voiceTile.hint`
+  - Chowa kamery. Kafelek pokazuje, ile osób jest w twoim kanale.
+- `DRPG.Settings.voiceTile.name`
+  - Kafelek głosu zamiast doku kamer
+- `DRPG.Settings.wideProjectWindows.hint`
+  - Okna projektów otwierają się szerzej. Dotyczy tylko tej przeglądarki.
+- `DRPG.Settings.wideProjectWindows.name`
+  - Szerokie okna projektów
+- `DRPG.SettingsWindow.menuLabel`
+  - Otwórz ustawienia DRPG
+- `DRPG.SettingsWindow.menuName`
+  - Ustawienia DRPG
+- `DRPG.Sound.varyHint`
+  - Częste dźwięki brzmią za każdym razem trochę inaczej.
+- `DRPG.Sound.varyLabel`
+  - Różnicuj dźwięki, które słychać często
+
+## the suite's runner (scripts/tests.mjs, a suite file the map does not read) (suite; reader: gm)
+
+- `DRPG.Tests.alreadyRunning` (by prefix)
+  - Pakiet testów już działa w tej przeglądarce. Poczekaj, aż skończy.
+- `DRPG.Tests.cancel` (by prefix)
+  - Anuluj
+- `DRPG.Tests.confirmedNotThisWorld` (by prefix)
+  - Wartość confirmed w runTests to openRoomSetupDialog, a id tego świata to openRoomSetupDialog, więc moduł i tak pyta o potwierdzenie w oknie.
+- `DRPG.Tests.tier2Advice` (by prefix)
+  - Uruchamiaj go na kopii świata, nigdy na kampanii, w którą ktoś gra. Bez argumentów runTests() uruchamia tylko tiery do odczytu.
+- `DRPG.Tests.tier2Cancelled` (by prefix)
+  - Nic nie zostało uruchomione: tier 2 nie został potwierdzony.
+- `DRPG.Tests.tier2Online` (by prefix)
+  - n=0 (many): 0 innych osób jest teraz połączonych z tym światem.
+  - n=1 (one): 1 inna osoba jest teraz połączona z tym światem.
+  - n=2 (few): 2 inne osoby są teraz połączone z tym światem.
+  - n=5 (many): 5 innych osób jest teraz połączonych z tym światem.
+  - n=12 (many): 12 innych osób jest teraz połączonych z tym światem.
+  - n=22 (few): 22 inne osoby są teraz połączone z tym światem.
+  - n=25 (many): 25 innych osób jest teraz połączonych z tym światem.
+  - n=112 (many): 112 innych osób jest teraz połączonych z tym światem.
+- `DRPG.Tests.tier2Run` (by prefix)
+  - Uruchom tier 2 na Szkoła, piętro 1
+- `DRPG.Tests.tier2Title` (by prefix)
+  - Tier 2 zapisuje do świata Szkoła, piętro 1
+- `DRPG.Tests.tier2What` (by prefix)
+  - Scenariusze budują w tym świecie własne fixture'y i sprzątają po sobie: otwierają i zamykają incydenty, zabijają i wskrzeszają uczniów, zapisują ustawienia świata i usuwają czat, który wytworzą. Po każdym scenariuszu cały świat jest czytany od nowa, a wszystko, co zostało, liczy się jako błąd.
+- `DRPG.Tests.tier2Where` (by prefix)
+  - Świat: Szkoła, piętro 1 (openRoomSetupDialog)
+
+## scripts/api.mjs (entry points no SCREENS row groups) (file:scripts/api.mjs; reader: unknown)
+
+- `DRPG.Anonymity.audit.assistants`
+  - Należą do Asystenta GM-a. Asystenci czytają każdy arkusz w świecie. Zmień im rolę na Gracza:
+- `DRPG.Anonymity.audit.clean`
+  - Żaden arkusz nie jest otwarty w całości dla każdego gracza. Nie ma czego naprawiać.
+- `DRPG.Anonymity.audit.closed`
+  - Zamknięte dla pozostałych graczy. Nie ma czego naprawiać, ale żaden inny gracz nie otworzy tych arkuszy, więc gdy postać zginie, nikt nie skorzysta z Take from the Body:
+- `DRPG.Anonymity.audit.exposed`
+  - Należą do każdego gracza, więc nic na tych arkuszach nie jest ukryte:
+- `DRPG.Anonymity.audit.fix`
+  - Ustaw je na Obserwatora
+- `DRPG.Anonymity.audit.nobody`
+  - zupełnie nikt
+- `DRPG.Anonymity.audit.orphaned`
+  - Nie należą do żadnego gracza. Kto ma do nich dostęp:
+- `DRPG.Anonymity.audit.shared`
+  - Należą do więcej niż jednego gracza:
+- `DRPG.Anonymity.audit.switchOff`
+  - Włącz „Anonimowe arkusze postaci” w ustawieniach modułu. Dopóki ta opcja jest wyłączona, każdy gracz czyta w całości te arkusze ustawione na Obserwatora:
+- `DRPG.Anonymity.audit.title`
+  - Kontrola anonimowości arkuszy
+- `DRPG.Anonymity.role.assistant`
+  - (Asystent GM-a)
+- `DRPG.Anonymity.role.gm`
+  - (GM)
+- `DRPG.Case.row.bullets` (by prefix)
+  - n=0 (many): 0 Truth Bulletów (z 0) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=1 (one): 1 Truth Bullet (z 1) nie ma klucza odpowiedzi w tej przeglądarce: jego Analyze zostanie odrzucone.
+  - n=2 (few): 2 Truth Bullety (z 2) nie mają klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=5 (many): 5 Truth Bulletów (z 5) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=12 (many): 12 Truth Bulletów (z 12) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=22 (few): 22 Truth Bullety (z 22) nie mają klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=25 (many): 25 Truth Bulletów (z 25) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+  - n=112 (many): 112 Truth Bulletów (z 112) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.
+- `DRPG.Case.row.bytes`
+  - n=0: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 0 KB, nie licząc historii powiadomień.
+  - n=1: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 1 KB, nie licząc historii powiadomień.
+  - n=2: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 2 KB, nie licząc historii powiadomień.
+  - n=5: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 5 KB, nie licząc historii powiadomień.
+  - n=12: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 12 KB, nie licząc historii powiadomień.
+  - n=22: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 22 KB, nie licząc historii powiadomień.
+  - n=25: Magazyny GM-a zajmują Nóż kuchenny, Lina i Krzesło KB pamięci tej przeglądarki; moduł łącznie 25 KB, nie licząc historii powiadomień.
+  - n=112: Magazyny GM-a zajmują Lina KB pamięci tej przeglądarki; moduł łącznie 112 KB, nie licząc historii powiadomień.
+- `DRPG.Case.row.claimFailed`
+  - Ta przeglądarka nie zdołała przejąć swojego starego magazynu „coś, co wstawia kod”: coś, co wstawia kod. Stare wiersze zostają takie, jak były; następne wczytanie spróbuje ponownie.
+- `DRPG.Case.row.clamped` (by prefix)
+  - n=0 (many): 0 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=1 (one): 1 stary wiersz miał stempel późniejszy niż chwila, w której ta przeglądarka go przejęła, bo zegar się spieszył. Przyjęto go z chwilą przejęcia.
+  - n=2 (few): 2 stare wiersze miały stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=5 (many): 5 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=12 (many): 12 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=22 (few): 22 stare wiersze miały stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=25 (many): 25 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+  - n=112 (many): 112 starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła, bo zegar się spieszył. Przyjęto je z chwilą przejęcia.
+- `DRPG.Case.row.incident`
+  - Incydent jest otwarty, a ta przeglądarka nie ma jego obsady.
+- `DRPG.Case.row.lastBackup`
+  - #1: Ostatnia kopia: Rano (Aiko).
+  - #2: Ostatnia kopia: Południe (Daichi).
+  - #3: Ostatnia kopia: Popołudnie (Aiko).
+  - #4: Ostatnia kopia: Wieczór (Daichi).
+  - #5: Ostatnia kopia: Noc (Aiko).
+- `DRPG.Case.row.left` (by prefix)
+  - n=0 (many): 0 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=1 (one): 1 stary wiersz zostaje w tej przeglądarce, nieprzejęty: z innego świata albo już nie ze sprawy tego świata.
+  - n=2 (few): 2 stare wiersze zostają w tej przeglądarce, nieprzejęte: z innych światów albo już nie ze sprawy tego świata.
+  - n=5 (many): 5 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=12 (many): 12 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=22 (few): 22 stare wiersze zostają w tej przeglądarce, nieprzejęte: z innych światów albo już nie ze sprawy tego świata.
+  - n=25 (many): 25 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+  - n=112 (many): 112 starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.
+- `DRPG.Case.row.leftNotPrimary` (by prefix)
+  - n=0 (many): 0 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=1 (one): 1 stary wiersz ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie go game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=2 (few): 2 stare wiersze ofert lub mgły tego świata zostają w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=5 (many): 5 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=12 (many): 12 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=22 (few): 22 stare wiersze ofert lub mgły tego świata zostają w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=25 (many): 25 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+  - n=112 (many): 112 starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).
+- `DRPG.Case.row.legacyChanged`
+  - Stary magazyn „coś, co wstawia kod” zmienił się po aktualizacji (GM wrócił do starszej wersji): przejmij zmiany z diagnostyki.
+- `DRPG.Case.row.mastermindCleared`
+  - #1: Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono 31.10.2026, już po tym, jak 31.10.2026 wybrano na niego postać Aiko, być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść.
+  - #2: Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono 31.10.2026, już po tym, jak 31.10.2026 wybrano na niego postać Daichi, być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść.
+- `DRPG.Case.row.neverBackedUp`
+  - Ta sprawa nie ma jeszcze żadnej kopii.
+- `DRPG.Case.row.neverHeld`
+  - Ta przeglądarka nigdy nie miała sprawy tego świata, która zaczęła się 31.10.2026.
+- `DRPG.Case.row.noAnswer` (by prefix)
+  - n=0 (many): 0 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=1 (one): 1 klucz odpowiedzi stracił prawdziwy typ.
+  - n=2 (few): 2 klucze odpowiedzi straciły prawdziwy typ.
+  - n=5 (many): 5 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=12 (many): 12 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=22 (few): 22 klucze odpowiedzi straciły prawdziwy typ.
+  - n=25 (many): 25 kluczy odpowiedzi straciło prawdziwy typ.
+  - n=112 (many): 112 kluczy odpowiedzi straciło prawdziwy typ.
+- `DRPG.Case.row.notes` (by prefix)
+  - n=0 (many): 0 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=1 (one): 1 notatka przed sesją jest oznaczona jako napisana, a ta przeglądarka jej nie ma albo ma starszą.
+  - n=2 (few): 2 notatki przed sesją są oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=5 (many): 5 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=12 (many): 12 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=22 (few): 22 notatki przed sesją są oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=25 (many): 25 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+  - n=112 (many): 112 notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.
+- `DRPG.Case.row.notices`
+  - n=0: Historia powiadomień zajmuje ponadto 0 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=1: Historia powiadomień zajmuje ponadto 1 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=2: Historia powiadomień zajmuje ponadto 2 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=5: Historia powiadomień zajmuje ponadto 5 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=12: Historia powiadomień zajmuje ponadto 12 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=22: Historia powiadomień zajmuje ponadto 22 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=25: Historia powiadomień zajmuje ponadto 25 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+  - n=112: Historia powiadomień zajmuje ponadto 112 KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.
+- `DRPG.Case.row.projectSecrets` (by prefix)
+  - n=0 (many): 0 morderstw pośrednich (z 0) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=1 (one): 1 morderstwo pośrednie (z 1) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: jego pułapka nie może się uzbroić ani zadziałać.
+  - n=2 (few): 2 morderstwa pośrednie (z 2) nie mają w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=5 (many): 5 morderstw pośrednich (z 5) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=12 (many): 12 morderstw pośrednich (z 12) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=22 (few): 22 morderstwa pośrednie (z 22) nie mają w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=25 (many): 25 morderstw pośrednich (z 25) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+  - n=112 (many): 112 morderstw pośrednich (z 112) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.
+- `DRPG.Case.row.skew`
+  - #1: Stemple wyprzedzające zegar tej przeglądarki: Aiko, Daichi i Chie.
+  - #2: Stemple wyprzedzające zegar tej przeglądarki: Aiko i Daichi.
+  - #3: Stemple wyprzedzające zegar tej przeglądarki: Chie.
+- `DRPG.Case.row.traceOrphans` (by prefix)
+  - n=0 (many): 0 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=1 (one): 1 klucz odpowiedzi Remnantu nie ma tokenu na żadnej scenie: zostaje, nic go nie czyta.
+  - n=2 (few): 2 klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=5 (many): 5 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=12 (many): 12 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=22 (few): 22 klucze odpowiedzi Remnantów nie mają tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=25 (many): 25 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+  - n=112 (many): 112 kluczy odpowiedzi Remnantów nie ma tokenu na żadnej scenie: zostają, nic ich nie czyta.
+- `DRPG.Case.row.traces` (by prefix)
+  - n=0 (many): 0 Remnantów na mapie (z 0) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=1 (one): 1 Remnant na mapie (z 1) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=2 (few): 2 Remnanty na mapie (z 2) nie mają klucza odpowiedzi w tej przeglądarce.
+  - n=5 (many): 5 Remnantów na mapie (z 5) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=12 (many): 12 Remnantów na mapie (z 12) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=22 (few): 22 Remnanty na mapie (z 22) nie mają klucza odpowiedzi w tej przeglądarce.
+  - n=25 (many): 25 Remnantów na mapie (z 25) nie ma klucza odpowiedzi w tej przeglądarce.
+  - n=112 (many): 112 Remnantów na mapie (z 112) nie ma klucza odpowiedzi w tej przeglądarce.
+- `DRPG.Case.row.tracesKept` (by prefix)
+  - n=0 (many): 0 Remnantów na mapie (z 0) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=1 (one): 1 Remnant na mapie (z 1) zachowuje na swoim tokenie, który ma każda przeglądarka, flagi klucza odpowiedzi. To awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. Decyduje o nim GM, a game.drpg.migrateRemnants() go wskazuje.
+  - n=2 (few): 2 Remnanty na mapie (z 2) zachowują na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=5 (many): 5 Remnantów na mapie (z 5) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=12 (many): 12 Remnantów na mapie (z 12) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=22 (few): 22 Remnanty na mapie (z 22) zachowują na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=25 (many): 25 Remnantów na mapie (z 25) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+  - n=112 (many): 112 Remnantów na mapie (z 112) zachowuje na swoich tokenach, które ma każda przeglądarka, flagi kluczy odpowiedzi. To awanse Faint Prep, przeciw którym stanęła późniejsza poprawka, flagi bez wiersza w rejestrze, do którego można by je przenieść, albo flagi, których nie udało się zdjąć. O każdym z nich decyduje GM, a game.drpg.migrateRemnants() je wskazuje.
+- `DRPG.Case.row.tracesOnToken` (by prefix)
+  - n=0 (many): 0 Remnantów na mapie (z 0) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=1 (one): 1 Remnant na mapie (z 1) wciąż ma klucz odpowiedzi na swoim tokenie: przenieś go do rejestru.
+  - n=2 (few): 2 Remnanty na mapie (z 2) wciąż mają klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=5 (many): 5 Remnantów na mapie (z 5) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=12 (many): 12 Remnantów na mapie (z 12) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=22 (few): 22 Remnanty na mapie (z 22) wciąż mają klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=25 (many): 25 Remnantów na mapie (z 25) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+  - n=112 (many): 112 Remnantów na mapie (z 112) wciąż ma klucze odpowiedzi na swoich tokenach: przenieś je do rejestru.
+- `DRPG.Case.row.traps` (by prefix)
+  - n=0 (many): 0 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=1 (one): 1 uzbrojona pułapka na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie może zadziałać.
+  - n=2 (few): 2 uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=5 (many): 5 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=12 (many): 12 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=22 (few): 22 uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=25 (many): 25 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+  - n=112 (many): 112 uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.
+- `DRPG.Case.row.unseen`
+  - Ta kontrola nie widzi, kto jest Mastermindem, ofert Level Up ani rejestru Blackened: przeglądarka, która je straciła, o tym nie wie.
+- `DRPG.Case.store.ballots` (by prefix)
+  - Karty głosowania w Class Trial, przechowywane u GM-ów
+- `DRPG.Case.store.barricades` (by prefix)
+  - Które pokoje są zabarykadowane, przez kogo i jak mocno
+- `DRPG.Case.store.bedroomNotes` (by prefix)
+  - Co działo się w każdej sypialni pod nieobecność właściciela, który usłyszy o tym po powrocie
+- `DRPG.Case.store.blackened` (by prefix)
+  - Rejestr Blackened
+- `DRPG.Case.store.bodiesHeard` (by prefix)
+  - Przy których ciałach każda postać usłyszała dźwięk znalezienia
+- `DRPG.Case.store.bounties` (by prefix)
+  - Otwarte Bounty na uczniów, dla Monocubów
+- `DRPG.Case.store.bullets` (by prefix)
+  - Truth Bullety
+- `DRPG.Case.store.caseSchema` (by prefix)
+  - Mapa sprawy: wnioski, kontry i rozwiązanie każdego rozdziału
+- `DRPG.Case.store.caseTicks` (by prefix)
+  - Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale
+- `DRPG.Case.store.cast` (by prefix)
+  - Obsada incydentu
+- `DRPG.Case.store.cleanupAttempts` (by prefix)
+  - Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć
+- `DRPG.Case.store.clockBeat` (by prefix)
+  - Kiedy główny GM był ostatnio przy stole
+- `DRPG.Case.store.closingClaim` (by prefix)
+  - Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów
+- `DRPG.Case.store.confusions` (by prefix)
+  - Confusion użyte na postaci i czekające na jej rzut
+- `DRPG.Case.store.crossings` (by prefix)
+  - Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił
+- `DRPG.Case.store.cubTargets` (by prefix)
+  - Ile ruchów Monocubów miał każdy uczeń tego dnia
+- `DRPG.Case.store.cubs` (by prefix)
+  - Zapis Monocubów: który Monocub był świadkiem zbrodni
+- `DRPG.Case.store.deaths` (by prefix)
+  - Śmierci, których nikt jeszcze nie odkrył
+- `DRPG.Case.store.deferredOffers` (by prefix)
+  - Reinforced Level Upy czekające na klasę
+- `DRPG.Case.store.despairOwed` (by prefix)
+  - Despair, który każda pula jest winna za zamiany na Hope
+- `DRPG.Case.store.diceLooks` (by prefix)
+  - Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza
+- `DRPG.Case.store.discovery` (by prefix)
+  - Pokoje odkryte przez każdą postać
+- `DRPG.Case.store.diveSets` (by prefix)
+  - Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra
+- `DRPG.Case.store.eavesdrops` (by prefix)
+  - Kto podsłuchuje pod którymi drzwiami, z którego pokoju i którego pokoju może znów posłuchać za darmo
+- `DRPG.Case.store.eclipseMoves` (by prefix)
+  - Kto ile razy przeszedł w czasie Eclipse
+- `DRPG.Case.store.facilityUses` (by prefix)
+  - Których akcji w pokojach użyła każda postać i o jakiej porze dnia
+- `DRPG.Case.store.foundDone` (by prefix)
+  - Ukończone tajne projekty czekające, aż ich znalazcy wrócą
+- `DRPG.Case.store.keyPlan` (by prefix)
+  - Plan Key Remnantów, rozdział po rozdziale
+- `DRPG.Case.store.lockpicks` (by prefix)
+  - Kto może wejść do którego pokoju przez zamek otwarty wytrychem
+- `DRPG.Case.store.lootRolls` (by prefix)
+  - Pierwsze rzuty na Hand i Shadow do następnego Take from the Body, osobno dla każdej postaci i każdego ciała
+- `DRPG.Case.store.lootTraces` (by prefix)
+  - Co zabrano z każdego ciała i jaki Remnant przy tym został
+- `DRPG.Case.store.masks` (by prefix)
+  - Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token
+- `DRPG.Case.store.mastermind` (by prefix)
+  - Mastermind
+- `DRPG.Case.store.notes` (by prefix)
+  - Notatki graczy przed sesją
+- `DRPG.Case.store.observe` (by prefix)
+  - Deklaracje Observe czekające na rzut
+- `DRPG.Case.store.offers` (by prefix)
+  - Oferowane Level Upy
+- `DRPG.Case.store.overflow` (by prefix)
+  - Licznik Despair w Overflow
+- `DRPG.Case.store.passageAccess` (by prefix)
+  - Kto zna które tajne przejście i skąd
+- `DRPG.Case.store.passageLog` (by prefix)
+  - Co robiono z tajnymi przejściami
+- `DRPG.Case.store.passageMap` (by prefix)
+  - Tajne przejścia: gdzie jest każde i czy jest otwarte
+- `DRPG.Case.store.passageSeason` (by prefix)
+  - Tajne przejścia zbudowane w projektach tego sezonu
+- `DRPG.Case.store.pendingBodies` (by prefix)
+  - Znalezione ciała, których ogłoszenie czeka na decyzję GM-a
+- `DRPG.Case.store.pendingMurders` (by prefix)
+  - Zgłoszenia Direct Murder w czasie Eclipse
+- `DRPG.Case.store.projectSecrets` (by prefix)
+  - Kto buduje każdą pułapkę i co ją uruchamia
+- `DRPG.Case.store.projectWork` (by prefix)
+  - Kto pracował nad każdym projektem o tej porze dnia
+- `DRPG.Case.store.remnants` (by prefix)
+  - Remnanty
+- `DRPG.Case.store.rerollBookmarks` (by prefix)
+  - Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie
+- `DRPG.Case.store.rerollJournal` (by prefix)
+  - Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić
+- `DRPG.Case.store.rifles` (by prefix)
+  - Którą skrytkę każda postać przetrząsnęła i o jakiej porze dnia
+- `DRPG.Case.store.rolls` (by prefix)
+  - Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają
+- `DRPG.Case.store.ruledCards` (by prefix)
+  - Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz
+- `DRPG.Case.store.sheetMarks` (by prefix)
+  - Co zawierał arkusz każdej postaci, gdy GM-owie ostatnio ocenili zapis na nim
+- `DRPG.Case.store.sheetWrites` (by prefix)
+  - Zapisy na arkuszach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę
+- `DRPG.Case.store.tails` (by prefix)
+  - Kto dziś kogo śledzi i jak dobrze
+- `DRPG.Case.store.takeBack` (by prefix)
+  - Co zmienił ostatni początek pory dnia, zachowane na pięć minut, by GM mógł cofnąć pomyłkę
+- `DRPG.Case.store.timedEffects` (by prefix)
+  - Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija
+- `DRPG.Case.store.traceDigest` (by prefix)
+  - Remnanty zostawione od ostatniego zestawienia dla GM-ów; następne zestawienie przyjdzie o kolejnej porze dnia
+- `DRPG.Case.store.trapLedger` (by prefix)
+  - Podłożone przedmioty pułapek
+- `DRPG.Case.store.trapPlants` (by prefix)
+  - Przedmioty czekające w pokojach
+- `DRPG.Case.store.trialCast` (by prefix)
+  - Które tokeny sali rozpraw pokazuje Class Trial
+- `DRPG.Case.store.trialMute` (by prefix)
+  - Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jego końca
+- `DRPG.Case.store.usedTools` (by prefix)
+  - Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała
+- `DRPG.Case.store.verdict` (by prefix)
+  - Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie
+- `DRPG.Case.store.watches` (by prefix)
+  - Kto czuwa przez Eclipse, w którym pokoju i co widział
+- `DRPG.Diagnostics.cast.allSet` (by prefix)
+  - Każdy uczeń ma zasoby na start.
+- `DRPG.Diagnostics.cast.experiences` (by prefix)
+  - n=0: Każdy ma 0 doświadczenia
+  - n=1: Każdy ma 1 doświadczenia
+  - n=2: Każdy ma 2 doświadczenia
+  - n=5: Każdy ma 5 doświadczenia
+  - n=12: Każdy ma 12 doświadczenia
+  - n=22: Każdy ma 22 doświadczenia
+  - n=25: Każdy ma 25 doświadczenia
+  - n=112: Każdy ma 112 doświadczenia
+- `DRPG.Diagnostics.cast.experiencesFix` (by prefix)
+  - Każde na +2, ustalone przy tworzeniu postaci.
+- `DRPG.Diagnostics.cast.fix` (by prefix)
+  - Jak to naprawić: otwórz arkusz i naciśnij różdżkę obok imienia.
+- `DRPG.Diagnostics.cast.item` (by prefix)
+  - Każdy nosi swój przedmiot startowy
+- `DRPG.Diagnostics.cast.itemFix` (by prefix)
+  - n=0: Każdy uczeń zaczyna z jednym przedmiotem poziomu 0 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=1: Każdy uczeń zaczyna z jednym przedmiotem poziomu 1 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=2: Każdy uczeń zaczyna z jednym przedmiotem poziomu 2 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=5: Każdy uczeń zaczyna z jednym przedmiotem poziomu 5 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=12: Każdy uczeń zaczyna z jednym przedmiotem poziomu 12 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=22: Każdy uczeń zaczyna z jednym przedmiotem poziomu 22 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=25: Każdy uczeń zaczyna z jednym przedmiotem poziomu 25 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+  - n=112: Każdy uczeń zaczyna z jednym przedmiotem poziomu 112 związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.
+- `DRPG.Diagnostics.cast.noCast` (by prefix)
+  - Nie ma jeszcze uczniów: najpierw utwórz obsadę, potem uruchom te sprawdzenia jeszcze raz.
+- `DRPG.Diagnostics.cast.notSetUp` (by prefix)
+  - bez zasobów na start
+- `DRPG.Diagnostics.cast.pending` (by prefix)
+  - n=0 (many): 0 uczniów nie ma jeszcze zasobów na start.
+  - n=1 (one): 1 uczeń nie ma jeszcze zasobów na start.
+  - n=2 (few): 2 uczniowie nie mają jeszcze zasobów na start.
+  - n=5 (many): 5 uczniów nie ma jeszcze zasobów na start.
+  - n=12 (many): 12 uczniów nie ma jeszcze zasobów na start.
+  - n=22 (few): 22 uczniowie nie mają jeszcze zasobów na start.
+  - n=25 (many): 25 uczniów nie ma jeszcze zasobów na start.
+  - n=112 (many): 112 uczniów nie ma jeszcze zasobów na start.
+- `DRPG.Diagnostics.cast.pendingWhy` (by prefix)
+  - Do tego czasu ich maksymalne Health i Sanity wynoszą zero, więc wyglądają tak samo jak uczniowie pobici do nieprzytomności.
+- `DRPG.Diagnostics.cast.pool` (by prefix)
+  - Każdy ma przypisanie w Despair Flow
+- `DRPG.Diagnostics.cast.poolFix` (by prefix)
+  - Przypisz każdemu z tych uczniów Monokumę ręcznie albo zaznacz, że celowo nie ma żadnego. Zrobisz to w panelu GM-a, w zakładce Despair Flow. Do tego czasu Despair z rzutów ucznia trafia do puli zapasowej, jeśli jej nazwa stoi przy nim; uczeń bez puli zapasowej nie ma żadnej puli, więc jego Despair nie ma dokąd trafić.
+- `DRPG.Diagnostics.cast.row` (by prefix)
+  - n=0: Health maks. 0, Sanity maks. 0
+  - n=1: Health maks. 1, Sanity maks. 1
+  - n=2: Health maks. 2, Sanity maks. 2
+  - n=5: Health maks. 5, Sanity maks. 5
+  - n=12: Health maks. 12, Sanity maks. 12
+  - n=22: Health maks. 22, Sanity maks. 22
+  - n=25: Health maks. 25, Sanity maks. 25
+  - n=112: Health maks. 112, Sanity maks. 112
+- `DRPG.Diagnostics.cast.starting` (by prefix)
+  - n=0: Zasoby na start: 0 Health, 0 Sanity, 0 Hope
+  - n=1: Zasoby na start: 1 Health, 1 Sanity, 1 Hope
+  - n=2: Zasoby na start: 2 Health, 2 Sanity, 2 Hope
+  - n=5: Zasoby na start: 5 Health, 5 Sanity, 5 Hope
+  - n=12: Zasoby na start: 12 Health, 12 Sanity, 12 Hope
+  - n=22: Zasoby na start: 22 Health, 22 Sanity, 22 Hope
+  - n=25: Zasoby na start: 25 Health, 25 Sanity, 25 Hope
+  - n=112: Zasoby na start: 112 Health, 112 Sanity, 112 Hope
+- `DRPG.Diagnostics.cast.students` (by prefix)
+  - n=0: Uczniowie: 0, żyjący: 0
+  - n=1: Uczniowie: 1, żyjący: 1
+  - n=2: Uczniowie: 2, żyjący: 2
+  - n=5: Uczniowie: 5, żyjący: 5
+  - n=12: Uczniowie: 12, żyjący: 12
+  - n=22: Uczniowie: 22, żyjący: 22
+  - n=25: Uczniowie: 25, żyjący: 25
+  - n=112: Uczniowie: 112, żyjący: 112
+- `DRPG.Diagnostics.cast.ultimate` (by prefix)
+  - Każdy ma Ultimate
+- `DRPG.Diagnostics.cast.ultimateFix` (by prefix)
+  - Ustaw je na arkuszu, pod imieniem.
+- `DRPG.Diagnostics.title.music`
+  - Diagnostyka muzyki
+- `DRPG.Diagnostics.title.season`
+  - Przygotowanie sezonu
+- `DRPG.Fog.checkNoRooms.detail`
+  - Zaznacz „To jest pokój” przy jej regionach w Ustawieniach pokoi (zakładka Drzwi) i sprawdź jeszcze raz.
+- `DRPG.Fog.checkNoRooms.problem`
+  - Na tej scenie nie ma pokoi
+- `DRPG.Fog.checkNoScene.detail`
+  - Otwórz scenę, którą chcesz sprawdzić, i sprawdź jeszcze raz.
+- `DRPG.Fog.checkNoScene.problem`
+  - Na płótnie nie ma sceny
+- `DRPG.Fog.diagnosis.elsewhere`
+  - gdzie indziej
+- `DRPG.Fog.diagnosis.glow`
+  - poświata: otwory {openings}, rdzeń {core}px, pełna głębokość {span}px, zasięg coś, co wstawia kodpx, amplituda {amplitude}px
+- `DRPG.Fog.diagnosis.head`
+  - {module} \| diagnoza mgły: Szkoła, piętro 1, siatka {grid}
+- `DRPG.Fog.diagnosis.none`
+  - żaden
+- `DRPG.Fog.diagnosis.opening`
+  - n=0: #0 długość coś, co wstawia kodpx, w polach siatki 0, poświata w głąb {span}px, początek w 0,{y}
+  - n=1: #1 długość coś, co wstawia kodpx, w polach siatki 1, poświata w głąb {span}px, początek w 1,{y}
+  - n=2: #2 długość coś, co wstawia kodpx, w polach siatki 2, poświata w głąb {span}px, początek w 2,{y}
+  - n=5: #5 długość coś, co wstawia kodpx, w polach siatki 5, poświata w głąb {span}px, początek w 5,{y}
+  - n=12: #12 długość coś, co wstawia kodpx, w polach siatki 12, poświata w głąb {span}px, początek w 12,{y}
+  - n=22: #22 długość coś, co wstawia kodpx, w polach siatki 22, poświata w głąb {span}px, początek w 22,{y}
+  - n=25: #25 długość coś, co wstawia kodpx, w polach siatki 25, poświata w głąb {span}px, początek w 25,{y}
+  - n=112: #112 długość coś, co wstawia kodpx, w polach siatki 112, poświata w głąb {span}px, początek w 112,{y}
+- `DRPG.Fog.diagnosis.rooms`
+  - #1: pokoje, w których stoję: Warsztat, Biblioteka i Kino
+  - #2: pokoje, w których stoję: Biblioteka
+- `DRPG.Fog.diagnosis.shortened`
+  - &lt;- skrócona, by zmieścić się we własnym przejściu
+- `DRPG.Fog.lastCheckErrors` (by prefix)
+  - n=0 (many): ostatnie sprawdzenie pokoi znalazło 0 problemów
+  - n=1 (one): ostatnie sprawdzenie pokoi znalazło 1 problem
+  - n=2 (few): ostatnie sprawdzenie pokoi znalazło 2 problemy
+  - n=5 (many): ostatnie sprawdzenie pokoi znalazło 5 problemów
+  - n=12 (many): ostatnie sprawdzenie pokoi znalazło 12 problemów
+  - n=22 (few): ostatnie sprawdzenie pokoi znalazło 22 problemy
+  - n=25 (many): ostatnie sprawdzenie pokoi znalazło 25 problemów
+  - n=112 (many): ostatnie sprawdzenie pokoi znalazło 112 problemów
+- `DRPG.Fog.noRoomScenes`
+  - Żadna scena nie ma pokoi (nazwanych regionów, które GM oznaczył jako pokoje), więc żadna nie używa widoczności opartej na pokojach.
+- `DRPG.Fog.notRooms` (by prefix)
+  - n=0 (many): 0 nazwanych regionów nie jest pokojami
+  - n=1 (one): 1 nazwany region nie jest pokojem
+  - n=2 (few): 2 nazwane regiony nie są pokojami
+  - n=5 (many): 5 nazwanych regionów nie jest pokojami
+  - n=12 (many): 12 nazwanych regionów nie jest pokojami
+  - n=22 (few): 22 nazwane regiony nie są pokojami
+  - n=25 (many): 25 nazwanych regionów nie jest pokojami
+  - n=112 (many): 112 nazwanych regionów nie jest pokojami
+- `DRPG.Fog.stand.notRunYet`
+  - jeszcze nie uruchomiona
+- `DRPG.Fog.uncoveredShare`
+  - n=0: 0% mapy leży poza pokojami
+  - n=1: 1% mapy leży poza pokojami
+  - n=2: 2% mapy leży poza pokojami
+  - n=5: 5% mapy leży poza pokojami
+  - n=12: 12% mapy leży poza pokojami
+  - n=22: 22% mapy leży poza pokojami
+  - n=25: 25% mapy leży poza pokojami
+  - n=112: 112% mapy leży poza pokojami
+- `DRPG.Fog.uncoveredShareFloor`
+  - n=0: 0% piętra Szkoła, piętro 1 leży poza pokojami
+  - n=1: 1% piętra Szkoła, piętro 1 leży poza pokojami
+  - n=2: 2% piętra Szkoła, piętro 1 leży poza pokojami
+  - n=5: 5% piętra Szkoła, piętro 1 leży poza pokojami
+  - n=12: 12% piętra Szkoła, piętro 1 leży poza pokojami
+  - n=22: 22% piętra Szkoła, piętro 1 leży poza pokojami
+  - n=25: 25% piętra Szkoła, piętro 1 leży poza pokojami
+  - n=112: 112% piętra Szkoła, piętro 1 leży poza pokojami
+- `DRPG.Music.diag.clock`
+  - #1: Zegar: faza=Rano pora dnia=Rano eclipse=coś, co wstawia kod pauza=coś, co wstawia kod
+  - #2: Zegar: faza=Południe pora dnia=Południe eclipse=coś, co wstawia kod pauza=coś, co wstawia kod
+  - #3: Zegar: faza=Popołudnie pora dnia=Popołudnie eclipse=coś, co wstawia kod pauza=coś, co wstawia kod
+  - #4: Zegar: faza=Wieczór pora dnia=Wieczór eclipse=coś, co wstawia kod pauza=coś, co wstawia kod
+  - #5: Zegar: faza=Noc pora dnia=Noc eclipse=coś, co wstawia kod pauza=coś, co wstawia kod
+- `DRPG.Music.diag.colApplies`
+  - pasuje
+- `DRPG.Music.diag.colPlaylist`
+  - playlista
+- `DRPG.Music.diag.colState`
+  - stan
+- `DRPG.Music.diag.cue`
+  - #1: Playlista sygnałów („Aiko”): coś, co wstawia kod
+  - #2: Playlista sygnałów („Daichi”): coś, co wstawia kod
+- `DRPG.Music.diag.cueHolding`
+  - n=0: , wstrzymane playlisty: 0
+  - n=1: , wstrzymane playlisty: 1
+  - n=2: , wstrzymane playlisty: 2
+  - n=5: , wstrzymane playlisty: 5
+  - n=12: , wstrzymane playlisty: 12
+  - n=22: , wstrzymane playlisty: 22
+  - n=25: , wstrzymane playlisty: 25
+  - n=112: , wstrzymane playlisty: 112
+- `DRPG.Music.diag.cueMissing`
+  - brak, więc przycisk „Odtwórz” nie ma z czego wybierać
+- `DRPG.Music.diag.cueRunning`
+  - Gra sygnał: coś, co wstawia kod
+- `DRPG.Music.diag.cueTracks`
+  - n=0: utwory: 0
+  - n=1: utwory: 1
+  - n=2: utwory: 2
+  - n=5: utwory: 5
+  - n=12: utwory: 12
+  - n=22: utwory: 22
+  - n=25: utwory: 25
+  - n=112: utwory: 112
+- `DRPG.Music.diag.drives`
+  - Ta przeglądarka steruje odtwarzaniem: coś, co wstawia kod
+- `DRPG.Music.diag.emptyPlaylist`
+  - #1: Aiko: playlista jest pusta, nie ma czego grać
+  - #2: Daichi: playlista jest pusta, nie ma czego grać
+- `DRPG.Music.diag.enabled`
+  - Ustawienie „Muzyka podąża za stanem gry”: coś, co wstawia kod
+- `DRPG.Music.diag.missingPlaylist`
+  - przypisana playlista nie istnieje
+- `DRPG.Music.diag.no`
+  - nie
+- `DRPG.Music.diag.noState`
+  - Żaden stan nie pasuje, więc muzyka zostaje bez zmian.
+- `DRPG.Music.diag.off`
+  - wyłączone
+- `DRPG.Music.diag.on`
+  - włączone
+- `DRPG.Music.diag.onCue`
+  - #1: Aiko: to playlista sygnałów, która nigdy nie gra jako muzyka stanu
+  - #2: Daichi: to playlista sygnałów, która nigdy nie gra jako muzyka stanu
+- `DRPG.Music.diag.perClient`
+  - osobno
+- `DRPG.Music.diag.playingHere`
+  - gra tutaj
+- `DRPG.Music.diag.playlists`
+  - n=0: Playlisty w tym świecie: 0
+  - n=1: Playlisty w tym świecie: 1
+  - n=2: Playlisty w tym świecie: 2
+  - n=5: Playlisty w tym świecie: 5
+  - n=12: Playlisty w tym świecie: 12
+  - n=22: Playlisty w tym świecie: 22
+  - n=25: Playlisty w tym świecie: 25
+  - n=112: Playlisty w tym świecie: 112
+- `DRPG.Music.diag.randomTrack`
+  -  (losowy utwór)
+- `DRPG.Music.diag.testError`
+  - błąd: coś, co wstawia kod
+- `DRPG.Music.diag.unmapped`
+  - „coś, co wstawia kod” to aktywny stan, ale nie ma playlisty do grania, więc muzyka zostaje bez zmian. Przypisz ją: panel GM-a, Dźwięk, Muzyka.
+- `DRPG.Music.diag.unset`
+  - (brak)
+- `DRPG.Music.diag.wins`
+  -  &lt;- wygrywa
+- `DRPG.Music.diag.yes`
+  - tak
+- `DRPG.Panel.actorNameShared` (by prefix)
+  - n=0 (many): Nazwę „coś, co wstawia kod” nosi 0 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=1 (one): Nazwę „coś, co wstawia kod” nosi 1 aktor, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=2 (few): Nazwę „coś, co wstawia kod” nosi 2 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=5 (many): Nazwę „coś, co wstawia kod” nosi 5 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=12 (many): Nazwę „coś, co wstawia kod” nosi 12 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=22 (few): Nazwę „coś, co wstawia kod” nosi 22 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=25 (many): Nazwę „coś, co wstawia kod” nosi 25 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+  - n=112 (many): Nazwę „coś, co wstawia kod” nosi 112 aktorów, więc game.drpg.openRoomSetupDialog zadziałało na pierwszym z nich. Przekaż mu identyfikator tego, o którego chodzi.
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Panel.noActorNamed`
+  - game.drpg.openRoomSetupDialog nie znalazło aktora o identyfikatorze ani nazwie „coś, co wstawia kod”. Sprawdź pisownię.
+- `DRPG.Panel.noSceneNamed`
+  - game.drpg.openRoomSetupDialog nic nie zrobiło: nie dostało sceny i nie znalazło żadnej. Przekaż mu scenę.
+- `DRPG.Season.fallsBackTo`
+  - #1: Aiko (bez przypisania: trafia do Nóż kuchenny)
+  - #2: Daichi (bez przypisania: trafia do Lina)
+  - #3: Aiko (bez przypisania: trafia do Krzesło)
+- `DRPG.Season.hint.nobodyPublic`
+  - Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Każdy gracz może to sprawdzić, a jedyny uczeń poza pulami rzuca się w oczy: przypisz go do Monokumy jak każdego innego ucznia.
+- `DRPG.Sound.why.failed`
+  - Foundry nie mogło wczytać tego pliku. Sprawdź jego ścieżkę w kolumnie Plik.
+- `DRPG.Sound.why.interfaceZero`
+  - Głośność interfejsu w samym Foundry stoi na zerze. Podnieś ją i przetestuj ponownie.
+- `DRPG.Sound.why.locked`
+  - Ta przeglądarka nie odtwarza dźwięku, dopóki nie klikniesz strony. Kliknij gdziekolwiek na niej i przetestuj ponownie.
+- `DRPG.Sound.why.noEvent`
+  - Nie ma zdarzenia o takim kluczu. Klucze zdarzeń to coś, co wstawia kod.
+- `DRPG.Sound.why.noFile`
+  - To zdarzenie nie ma jeszcze pliku. Wybierz go w kolumnie Plik.
+- `DRPG.Sound.why.refused`
+  - Dźwięk się nie uruchomił. Przetestuj ponownie.
+- `DRPG.Sound.why.soundZero`
+  - Suwak Dźwięk stoi na zerze. Podnieś go i przetestuj ponownie.
+- `DRPG.Sound.why.timeout`
+  - Plik nie zdążył się wczytać. Sprawdź jego ścieżkę i przetestuj ponownie.
+
+## scripts/case-realize.mjs (entry points no SCREENS row groups) (file:scripts/case-realize.mjs; reader: unknown)
+
+- `DRPG.CaseMap.autopsyWentOut` (by prefix)
+  - n=0 (many): Zaplanowany Autopsy Truth Bullet trafił do 0 uczniów.
+  - n=1 (one): Zaplanowany Autopsy Truth Bullet trafił do 1 ucznia.
+  - n=2 (few): Zaplanowany Autopsy Truth Bullet trafił do 2 uczniów.
+  - n=5 (many): Zaplanowany Autopsy Truth Bullet trafił do 5 uczniów.
+  - n=12 (many): Zaplanowany Autopsy Truth Bullet trafił do 12 uczniów.
+  - n=22 (few): Zaplanowany Autopsy Truth Bullet trafił do 22 uczniów.
+  - n=25 (many): Zaplanowany Autopsy Truth Bullet trafił do 25 uczniów.
+  - n=112 (many): Zaplanowany Autopsy Truth Bullet trafił do 112 uczniów.
+- `DRPG.CaseMap.noName`
+  - (bez nazwy)
+- `DRPG.CaseMap.slotNumber`
+  - n=0: Miejsce 0
+  - n=1: Miejsce 1
+  - n=2: Miejsce 2
+  - n=5: Miejsce 5
+  - n=12: Miejsce 12
+  - n=22: Miejsce 22
+  - n=25: Miejsce 25
+  - n=112: Miejsce 112
+- `DRPG.CaseRealize.action.create` (by prefix)
+  - Postawi
+- `DRPG.CaseRealize.action.overLimit` (by prefix)
+  - Ponad limit
+- `DRPG.CaseRealize.action.placed` (by prefix)
+  - Na mapie
+- `DRPG.CaseRealize.askBody`
+  - Znaleziono ciało. Sprawa tego rozdziału nie została jeszcze zrealizowana. Nic się nie stanie, dopóki nie wybierzesz.
+- `DRPG.CaseRealize.askTitle`
+  - Realizacja sprawy
+- `DRPG.CaseRealize.colName`
+  - Nazwa
+- `DRPG.CaseRealize.colRoom`
+  - Pokój
+- `DRPG.CaseRealize.colSlot`
+  - Miejsce
+- `DRPG.CaseRealize.colWhat`
+  - Co
+- `DRPG.CaseRealize.intro`
+  - Nic się nie zmieni, dopóki nie klikniesz Uruchom realizację. Każde miejsce na Key Remnant, którego nie ma jeszcze na mapie i które mieści się w limicie rozdziału, trafi do wybranego pokoju; miejsce bez pokoju zostaje bez zmian.
+- `DRPG.CaseRealize.noRoom`
+  - - zostaw -
+- `DRPG.CaseRealize.notNow`
+  - Nie teraz
+- `DRPG.CaseRealize.notRun`
+  - Nic nie postawiono.
+- `DRPG.CaseRealize.nothingMade`
+  - Realizacja niczego w tym rozdziale nie postawiła.
+- `DRPG.CaseRealize.ran`
+  - n=0: Key Remnanty postawione przez realizację: 0.
+  - n=1: Key Remnanty postawione przez realizację: 1.
+  - n=2: Key Remnanty postawione przez realizację: 2.
+  - n=5: Key Remnanty postawione przez realizację: 5.
+  - n=12: Key Remnanty postawione przez realizację: 12.
+  - n=22: Key Remnanty postawione przez realizację: 22.
+  - n=25: Key Remnanty postawione przez realizację: 25.
+  - n=112: Key Remnanty postawione przez realizację: 112.
+- `DRPG.CaseRealize.run`
+  - Uruchom realizację
+- `DRPG.CaseRealize.showPreview`
+  - Pokaż podgląd
+- `DRPG.CaseRealize.title`
+  - n=0: Realizacja sprawy, rozdział 0
+  - n=1: Realizacja sprawy, rozdział 1
+  - n=2: Realizacja sprawy, rozdział 2
+  - n=5: Realizacja sprawy, rozdział 5
+  - n=12: Realizacja sprawy, rozdział 12
+  - n=22: Realizacja sprawy, rozdział 22
+  - n=25: Realizacja sprawy, rozdział 25
+  - n=112: Realizacja sprawy, rozdział 112
+- `DRPG.CaseRealize.undo`
+  - Cofnij realizację
+- `DRPG.CaseRealize.undoAsk`
+  - n=0: Cofnąć realizację? Postawione przez nią Key Remnanty: 0; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+  - n=1: Cofnąć realizację? Postawione przez nią Key Remnanty: 1; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+  - n=2: Cofnąć realizację? Postawione przez nią Key Remnanty: 2; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+  - n=5: Cofnąć realizację? Postawione przez nią Key Remnanty: 5; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+  - n=12: Cofnąć realizację? Postawione przez nią Key Remnanty: 12; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+  - n=22: Cofnąć realizację? Postawione przez nią Key Remnanty: 22; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+  - n=25: Cofnąć realizację? Postawione przez nią Key Remnanty: 25; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+  - n=112: Cofnąć realizację? Postawione przez nią Key Remnanty: 112; te, które ktoś znalazł albo ujawnił Monokuma, zostaną.
+- `DRPG.CaseRealize.undoNote`
+  - Cofnij realizację usuwa tylko to, czego nikt nie znalazł i czego Monokuma nie ujawnił.
+- `DRPG.CaseRealize.undone`
+  - n=0: Usunięte: 0; zostają (znalezione albo ujawnione): 0.
+  - n=1: Usunięte: 1; zostają (znalezione albo ujawnione): 1.
+  - n=2: Usunięte: 2; zostają (znalezione albo ujawnione): 2.
+  - n=5: Usunięte: 5; zostają (znalezione albo ujawnione): 5.
+  - n=12: Usunięte: 12; zostają (znalezione albo ujawnione): 12.
+  - n=22: Usunięte: 22; zostają (znalezione albo ujawnione): 22.
+  - n=25: Usunięte: 25; zostają (znalezione albo ujawnione): 25.
+  - n=112: Usunięte: 112; zostają (znalezione albo ujawnione): 112.
+- `DRPG.Investigation.plannedRoomGone`
+  - #1: Zaplanowanego pokoju „Warsztat” nie ma na tej scenie. Wybierz pokój.
+  - #2: Zaplanowanego pokoju „Biblioteka” nie ma na tej scenie. Wybierz pokój.
+  - #3: Zaplanowanego pokoju „Kino” nie ma na tej scenie. Wybierz pokój.
+
+## scripts/case-summary.mjs (entry points no SCREENS row groups) (file:scripts/case-summary.mjs; reader: unknown)
+
+- `DRPG.CaseSummary.already`
+  - Już wysłane w tej rozprawie.
+- `DRPG.CaseSummary.intro`
+  - Gracze dostaną tylko to: co znaleźli, zaznaczone wnioski i kontry, a rozwiązanie, jeśli zagłosowali dobrze.
+- `DRPG.CaseSummary.noSolution`
+  - Klasa zagłosowała źle, więc rozwiązanie zostaje ukryte.
+- `DRPG.CaseSummary.noVerdict`
+  - Podsumowanie pokażesz dopiero po werdykcie.
+- `DRPG.CaseSummary.previewTitle`
+  - Podsumowanie sprawy
+- `DRPG.CaseSummary.role.counter` (by prefix)
+  - Kontry
+- `DRPG.CaseSummary.role.deduction` (by prefix)
+  - Wnioski
+- `DRPG.CaseSummary.role.evidence` (by prefix)
+  - Dowody
+- `DRPG.CaseSummary.role.solution` (by prefix)
+  - Rozwiązanie
+- `DRPG.CaseSummary.send`
+  - Wyślij wszystkim
+- `DRPG.CaseSummary.sent`
+  - Podsumowanie wysłane.
+- `DRPG.CaseSummary.speaker`
+  - Podsumowanie sprawy
+- `DRPG.CaseSummary.title`
+  - n=0: Podsumowanie sprawy, rozdział 0
+  - n=1: Podsumowanie sprawy, rozdział 1
+  - n=2: Podsumowanie sprawy, rozdział 2
+  - n=5: Podsumowanie sprawy, rozdział 5
+  - n=12: Podsumowanie sprawy, rozdział 12
+  - n=22: Podsumowanie sprawy, rozdział 22
+  - n=25: Podsumowanie sprawy, rozdział 25
+  - n=112: Podsumowanie sprawy, rozdział 112
+
+## scripts/case-trial.mjs (entry points no SCREENS row groups) (file:scripts/case-trial.mjs; reader: unknown)
+
+- `DRPG.CaseMap.cameraLabel`
+  - Kamera
+- `DRPG.CaseMap.colDeductions`
+  - Wnioski
+- `DRPG.CaseMap.colEvidence`
+  - Dowody
+- `DRPG.CaseMap.colSolution`
+  - Rozwiązanie
+- `DRPG.CaseMap.unrelated`
+  - n=0: Niezwiązane z morderstwem: 0
+  - n=1: Niezwiązane z morderstwem: 1
+  - n=2: Niezwiązane z morderstwem: 2
+  - n=5: Niezwiązane z morderstwem: 5
+  - n=12: Niezwiązane z morderstwem: 12
+  - n=22: Niezwiązane z morderstwem: 22
+  - n=25: Niezwiązane z morderstwem: 25
+  - n=112: Niezwiązane z morderstwem: 112
+- `DRPG.CaseMap.zoomFit`
+  - Dopasuj do widoku
+- `DRPG.CaseMap.zoomIn`
+  - Przybliż
+- `DRPG.CaseMap.zoomLevel`
+  - Przybliżenie
+- `DRPG.CaseMap.zoomOut`
+  - Oddal
+- `DRPG.CaseTrial.empty`
+  - Brak schematu sprawy. Zbuduj go na Mapie w panelu Investigation.
+- `DRPG.CaseTrial.floorOpen`
+  - Trwa inny tryb. Najpierw go zakończ.
+- `DRPG.CaseTrial.startLabel`
+  - #1: Zacznij coś, co wstawia kod od węzła Aiko
+  - #2: Zacznij coś, co wstawia kod od węzła Daichi
+- `DRPG.CaseTrial.tickLabel`
+  - #1: Zaznaczone: Aiko
+  - #2: Zaznaczone: Daichi
+- `DRPG.CaseTrial.title`
+  - Schemat sprawy
+- `DRPG.CaseTrial.unknown` (by prefix)
+  - n=0 (many): 0 pokazanych kart nie jest na schemacie.
+  - n=1 (one): 1 pokazana karta nie jest na schemacie.
+  - n=2 (few): 2 pokazane karty nie są na schemacie.
+  - n=5 (many): 5 pokazanych kart nie jest na schemacie.
+  - n=12 (many): 12 pokazanych kart nie jest na schemacie.
+  - n=22 (few): 22 pokazane karty nie są na schemacie.
+  - n=25 (many): 25 pokazanych kart nie jest na schemacie.
+  - n=112 (many): 112 pokazanych kart nie jest na schemacie.
+
+## scripts/character.mjs (entry points no SCREENS row groups) (file:scripts/character.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/dh-settings.mjs (entry points no SCREENS row groups) (file:scripts/dh-settings.mjs; reader: unknown)
+
+- `DRPG.DhSettings.coreExperience` (by prefix)
+  - To doświadczenie dał Level Up, więc tutaj go nie usuniesz.
+- `DRPG.DhSettings.delete` (by prefix)
+  - Usuń
+- `DRPG.DhSettings.description` (by prefix)
+  - Opis
+- `DRPG.DhSettings.details` (by prefix)
+  - Szczegóły
+- `DRPG.DhSettings.experiences` (by prefix)
+  - Doświadczenia
+- `DRPG.DhSettings.maxHealth` (by prefix)
+  - Health (maks.)
+- `DRPG.DhSettings.maxSanity` (by prefix)
+  - Sanity (maks.)
+- `DRPG.DhSettings.name` (by prefix)
+  - Nazwa
+- `DRPG.DhSettings.newExperience` (by prefix)
+  - Nowe doświadczenie
+- `DRPG.DhSettings.reserves` (by prefix)
+  - Health i Sanity
+- `DRPG.DhSettings.statistics` (by prefix)
+  - Statystyki
+- `DRPG.DhSettings.title` (by prefix)
+  - Ustawienia postaci
+- `DRPG.DhSettings.value` (by prefix)
+  - Wartość
+
+## scripts/dice-look.mjs (entry points no SCREENS row groups) (file:scripts/dice-look.mjs; reader: unknown)
+
+- `DRPG.Diagnose.copy`
+  - Kopiuj raport
+
+## scripts/enforced.mjs (entry points no SCREENS row groups) (file:scripts/enforced.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/events.mjs (entry points no SCREENS row groups) (file:scripts/events.mjs; reader: unknown)
+
+- `DRPG.Zones.confer.apart`
+  - Strefa A i Strefa B naradzają się osobno.
+- `DRPG.Zones.confer.mine`
+  - Naradzasz się ze Strefą {zone}.
+- `DRPG.Zones.confer.name`
+  - Narada obozów
+- `DRPG.Zones.confer.none`
+  - Nie jesteś w żadnym obozie: zostajesz w głosie sali rozpraw.
+
+## scripts/fog.mjs (entry points no SCREENS row groups) (file:scripts/fog.mjs; reader: unknown)
+
+- `DRPG.Fog.floorUnnamed`
+  - n=0: Piętro 0
+  - n=1: Piętro 1
+  - n=2: Piętro 2
+  - n=5: Piętro 5
+  - n=12: Piętro 12
+  - n=22: Piętro 22
+  - n=25: Piętro 25
+  - n=112: Piętro 112
+- `DRPG.Fog.floors`
+  - Piętra
+- `DRPG.Fog.floorsHint`
+  - Możesz oglądać piętra, na których jest twoja postać albo odkryty przez ciebie pokój. Nieodwiedzone pokoje zostają pod mgłą.
+- `DRPG.Fog.scenesFailed`
+  - Nie udało się przełączyć tych scen na widoczność opartą na pokojach: Szkoła, piętro 1 i Sala rozpraw
+- `DRPG.Fog.scenesPrepared` (by prefix)
+  - n=0 (many): Włączono widoczność opartą na pokojach w 0 scenach.
+  - n=1 (one): Włączono widoczność opartą na pokojach w 1 scenie.
+  - n=2 (few): Włączono widoczność opartą na pokojach w 2 scenach.
+  - n=5 (many): Włączono widoczność opartą na pokojach w 5 scenach.
+  - n=12 (many): Włączono widoczność opartą na pokojach w 12 scenach.
+  - n=22 (few): Włączono widoczność opartą na pokojach w 22 scenach.
+  - n=25 (many): Włączono widoczność opartą na pokojach w 25 scenach.
+  - n=112 (many): Włączono widoczność opartą na pokojach w 112 scenach.
+- `DRPG.Fog.share.alreadyAnswered`
+  - ten gracz już odpowiedział
+- `DRPG.Fog.share.nobodyAsked`
+  - nikt o to nie prosił
+- `DRPG.Fog.stand.canvasNotReady` (by prefix)
+  - mapa nie jest jeszcze gotowa
+- `DRPG.Fog.stand.noDimensions` (by prefix)
+  - ta scena nie podaje wymiarów, w których dałoby się rysować
+- `DRPG.Fog.stand.noPolygons` (by prefix)
+  - regiony są, ale żaden nie ma kształtu, który da się odczytać
+- `DRPG.Fog.stand.noRoom` (by prefix)
+  - ta scena nie ma pokoju (nazwanego regionu, który GM oznaczył jako pokój), więc nie ma czego zakryć mgłą
+- `DRPG.Fog.stand.noScene` (by prefix)
+  - na mapie nie ma żadnej sceny
+- `DRPG.Fog.stand.notCleared` (by prefix)
+  - #1: stoisz w pokoju „Warsztat”, ale mgła nie zdołała go odsłonić, więc ustąpiła, zamiast zaczernić mapę
+  - #2: stoisz w pokoju „Biblioteka”, ale mgła nie zdołała go odsłonić, więc ustąpiła, zamiast zaczernić mapę
+  - #3: stoisz w pokoju „Kino”, ale mgła nie zdołała go odsłonić, więc ustąpiła, zamiast zaczernić mapę
+- `DRPG.Fog.stand.notMounted` (by prefix)
+  - nie udało się umieścić warstwy mgły na mapie
+- `DRPG.Fog.stand.notRendered` (by prefix)
+  - nie udało się wyrenderować tekstury mgły
+- `DRPG.Fog.stand.notRunYet` (by prefix)
+  - jeszcze nie uruchomiona
+- `DRPG.Fog.stand.settingOff` (by prefix)
+  - ustawienie „Pokoje decydują, co widzą gracze” jest wyłączone
+- `DRPG.Fog.step.discoveryMirror` (by prefix)
+  - lokalna kopia odkryć
+- `DRPG.Fog.step.doorControls` (by prefix)
+  - przyciski drzwi według pokoi
+- `DRPG.Fog.step.firstPaint` (by prefix)
+  - pierwsze rysowanie
+- `DRPG.Fog.step.floorSwitcher` (by prefix)
+  - przełącznik pięter
+- `DRPG.Fog.step.heldRooms` (by prefix)
+  - zapamiętanie, które sceny mają pokoje
+- `DRPG.Fog.step.ledgerRoad` (by prefix)
+  - kanał rejestru odkryć
+- `DRPG.Fog.step.oldFogRows` (by prefix)
+  - przejęcie starych wierszy mgły z tej przeglądarki
+- `DRPG.Fog.step.outlineDoor` (by prefix)
+  - obrys przy drzwiach
+- `DRPG.Fog.step.outlineReshaped` (by prefix)
+  - obrys pokoju po zmianie kształtu
+- `DRPG.Fog.step.outlineRoomFlag` (by prefix)
+  - obrys po zmianie flagi pokoju
+- `DRPG.Fog.step.outlineVeto` (by prefix)
+  - obrys po pieczęci albo łańcuchu
+- `DRPG.Fog.step.outlineWallDeleted` (by prefix)
+  - obrys przy usuniętej ścianie
+- `DRPG.Fog.step.outlineWallMade` (by prefix)
+  - obrys przy nowej ścianie
+- `DRPG.Fog.step.placedArrival` (by prefix)
+  - przybycie postawionego tokenu
+- `DRPG.Fog.step.prepareScenes` (by prefix)
+  - przygotowanie scen
+- `DRPG.Fog.step.regionNames` (by prefix)
+  - zapamiętanie nazw regionów
+- `DRPG.Fog.step.rememberStart` (by prefix)
+  - zapamiętanie, gdzie zaczynamy
+- `DRPG.Fog.step.repaint` (by prefix)
+  - ponowne rysowanie
+- `DRPG.Fog.step.revealOnArrival` (by prefix)
+  - odsłonięcie po przybyciu
+- `DRPG.Fog.step.roomRenamed` (by prefix)
+  - zmiana nazwy pokoju
+- `DRPG.Fog.step.sceneVision` (by prefix)
+  - tryb widzenia sceny
+- `DRPG.Fog.step.seedDeferred` (by prefix)
+  - pierwszy zapis odkryć (odłożony do załadowania świata)
+- `DRPG.Fog.step.seedDiscovery` (by prefix)
+  - pierwszy zapis odkryć
+- `DRPG.Fog.step.shareLedger` (by prefix)
+  - udostępnienie albo odbudowa rejestru
+- `DRPG.Fog.step.tokenRuler` (by prefix)
+  - linijka tokenu w kolorze pory dnia
+- `DRPG.Fog.step.whereIStand` (by prefix)
+  - gdzie stoją tokeny tej przeglądarki
+- `DRPG.Fog.stepFailed`
+  - Mgła: krok „coś, co wstawia kod” się nie powiódł; pozostałe kroki działają dalej
+- `DRPG.Fog.stepFailedLater`
+  - Mgła: krok „coś, co wstawia kod” nie powiódł się już po powrocie
+- `DRPG.Rooms.renamed`
+  - n=0: „Warsztat” na scenie Szkoła, piętro 1 nazywa się teraz „Warsztat”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Nóż kuchenny, Lina i Krzesło), notatki o znalezionej skrytce (0), odkrycia pokoju (0), projekty (0), rzeczy zostawione dla pułapki (0), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Warsztat), zwołane zebranie (Warsztat), pieczęć nałożona przez Despair Call (Warsztat), znalezione tam ciała (0).
+  - n=1: „Biblioteka” na scenie Szkoła, piętro 1 nazywa się teraz „Biblioteka”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Lina), notatki o znalezionej skrytce (1), odkrycia pokoju (1), projekty (1), rzeczy zostawione dla pułapki (1), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Biblioteka), zwołane zebranie (Biblioteka), pieczęć nałożona przez Despair Call (Biblioteka), znalezione tam ciała (1).
+  - n=2: „Kino” na scenie Szkoła, piętro 1 nazywa się teraz „Kino”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Nóż kuchenny, Lina i Krzesło), notatki o znalezionej skrytce (2), odkrycia pokoju (2), projekty (2), rzeczy zostawione dla pułapki (2), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Kino), zwołane zebranie (Kino), pieczęć nałożona przez Despair Call (Kino), znalezione tam ciała (2).
+  - n=5: „Warsztat” na scenie Szkoła, piętro 1 nazywa się teraz „Warsztat”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Lina), notatki o znalezionej skrytce (5), odkrycia pokoju (5), projekty (5), rzeczy zostawione dla pułapki (5), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Warsztat), zwołane zebranie (Warsztat), pieczęć nałożona przez Despair Call (Warsztat), znalezione tam ciała (5).
+  - n=12: „Biblioteka” na scenie Szkoła, piętro 1 nazywa się teraz „Biblioteka”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Nóż kuchenny, Lina i Krzesło), notatki o znalezionej skrytce (12), odkrycia pokoju (12), projekty (12), rzeczy zostawione dla pułapki (12), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Biblioteka), zwołane zebranie (Biblioteka), pieczęć nałożona przez Despair Call (Biblioteka), znalezione tam ciała (12).
+  - n=22: „Kino” na scenie Szkoła, piętro 1 nazywa się teraz „Kino”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Lina), notatki o znalezionej skrytce (22), odkrycia pokoju (22), projekty (22), rzeczy zostawione dla pułapki (22), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Kino), zwołane zebranie (Kino), pieczęć nałożona przez Despair Call (Kino), znalezione tam ciała (22).
+  - n=25: „Warsztat” na scenie Szkoła, piętro 1 nazywa się teraz „Warsztat”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Nóż kuchenny, Lina i Krzesło), notatki o znalezionej skrytce (25), odkrycia pokoju (25), projekty (25), rzeczy zostawione dla pułapki (25), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Warsztat), zwołane zebranie (Warsztat), pieczęć nałożona przez Despair Call (Warsztat), znalezione tam ciała (25).
+  - n=112: „Biblioteka” na scenie Szkoła, piętro 1 nazywa się teraz „Biblioteka”. Przeniesiono na nową nazwę: klucze (coś, co wstawia kod), schowane przedmioty (Lina), notatki o znalezionej skrytce (112), odkrycia pokoju (112), projekty (112), rzeczy zostawione dla pułapki (112), listy Sąsiadów innych pokoi (coś, co wstawia kod), pokój Masterminda (Biblioteka), zwołane zebranie (Biblioteka), pieczęć nałożona przez Despair Call (Biblioteka), znalezione tam ciała (112).
+
+## scripts/gm-campaign.mjs (entry points no SCREENS row groups) (file:scripts/gm-campaign.mjs; reader: unknown)
+
+- `DRPG.Panel.refilled`
+  - Odnowiono akcje i Search Tokeny. Motive, pieczęcie i Overflow zostają bez zmian, a na czat nie trafiła karta pory dnia.
+
+## scripts/inventory.mjs (entry points no SCREENS row groups) (file:scripts/inventory.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/live.mjs (entry points no SCREENS row groups) (file:scripts/live.mjs; reader: unknown)
+
+- `DRPG.Live.movedUnder`
+  - Gdzie indziej zmieniono to pole na coś, co wstawia kod
+- `DRPG.Live.ticked`
+  - zaznaczone
+- `DRPG.Live.unticked`
+  - niezaznaczone
+
+## scripts/migrate.mjs (entry points no SCREENS row groups) (file:scripts/migrate.mjs; reader: unknown)
+
+- `DRPG.Anonymity.aboveLimited`
+  - #1: Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: Aiko, Daichi i Chie. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.
+  - #2: Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: Aiko i Daichi. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.
+  - #3: Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: Chie. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.
+- `DRPG.Migrate.done` (by prefix)
+  - n=0 (many): Danganronpa RPG: 0 części danych tego świata zaktualizowano do 1.2.95.
+  - n=1 (one): Danganronpa RPG: jedną część danych tego świata zaktualizowano do 1.2.95.
+  - n=2 (few): Danganronpa RPG: 2 części danych tego świata zaktualizowano do 1.2.95.
+  - n=5 (many): Danganronpa RPG: 5 części danych tego świata zaktualizowano do 1.2.95.
+  - n=12 (many): Danganronpa RPG: 12 części danych tego świata zaktualizowano do 1.2.95.
+  - n=22 (few): Danganronpa RPG: 22 części danych tego świata zaktualizowano do 1.2.95.
+  - n=25 (many): Danganronpa RPG: 25 części danych tego świata zaktualizowano do 1.2.95.
+  - n=112 (many): Danganronpa RPG: 112 części danych tego świata zaktualizowano do 1.2.95.
+- `DRPG.Migrate.failed`
+  - #1: Danganronpa RPG: migracja danych nie dokończyła się (Nóż kuchenny, Lina i Krzesło). Ruszy znowu przy następnym wczytaniu tego świata; szczegóły są w konsoli.
+  - #2: Danganronpa RPG: migracja danych nie dokończyła się (Lina). Ruszy znowu przy następnym wczytaniu tego świata; szczegóły są w konsoli.
+- `DRPG.Migrate.gmOnly`
+  - Tylko GM może uruchomić migrację danych.
+- `DRPG.Migrate.notPrimary`
+  - Danganronpa RPG: nie jesteś głównym GM-em. Migrację danych przeprowadzi główny GM, gdy wczyta ten świat.
+- `DRPG.Rooms.migrated` (by prefix)
+  - n=0 (many): Oznaczono 0 pokoi: Aiko, Daichi i Chie.
+  - n=1 (one): Oznaczono 1 pokój: Aiko i Daichi.
+  - n=2 (few): Oznaczono 2 pokoje: Chie.
+  - n=5 (many): Oznaczono 5 pokoi: Aiko, Daichi i Chie.
+  - n=12 (many): Oznaczono 12 pokoi: Aiko i Daichi.
+  - n=22 (few): Oznaczono 22 pokoje: Chie.
+  - n=25 (many): Oznaczono 25 pokoi: Aiko, Daichi i Chie.
+  - n=112 (many): Oznaczono 112 pokoi: Aiko i Daichi.
+- `DRPG.Rooms.reportNote`
+  - Od tej wersji region jest pokojem tylko wtedy, gdy GM go tak oznaczy: kolumna „To jest pokój” w zakładce Pokoje w Ustawieniach pokoi. Nazwane regiony poniżej oznaczono raz, żeby mapa zachowała pokoje; odznacz te, które pokojami nie są. Region narysowany od teraz oznaczasz już ręcznie.
+- `DRPG.Rooms.reportTitle`
+  - Oznaczone pokoje
+- `DRPG.Rooms.skippedBehaviours`
+  - #1: Do twojej decyzji w Ustawieniach pokoi, bo mają zachowania: Aiko, Daichi i Chie.
+  - #2: Do twojej decyzji w Ustawieniach pokoi, bo mają zachowania: Aiko i Daichi.
+  - #3: Do twojej decyzji w Ustawieniach pokoi, bo mają zachowania: Chie.
+- `DRPG.Rooms.skippedNoName` (by prefix)
+  - n=0 (many): Pominięto 0 regionów bez nazwy: pokój musi mieć nazwę.
+  - n=1 (one): Pominięto 1 region bez nazwy: pokój musi mieć nazwę.
+  - n=2 (few): Pominięto 2 regiony bez nazwy: pokój musi mieć nazwę.
+  - n=5 (many): Pominięto 5 regionów bez nazwy: pokój musi mieć nazwę.
+  - n=12 (many): Pominięto 12 regionów bez nazwy: pokój musi mieć nazwę.
+  - n=22 (few): Pominięto 22 regiony bez nazwy: pokój musi mieć nazwę.
+  - n=25 (many): Pominięto 25 regionów bez nazwy: pokój musi mieć nazwę.
+  - n=112 (many): Pominięto 112 regionów bez nazwy: pokój musi mieć nazwę.
+- `DRPG.Rooms.skippedPlayer`
+  - #1: Nigdy nie są pokojami, bo narysował je gracz: Aiko, Daichi i Chie.
+  - #2: Nigdy nie są pokojami, bo narysował je gracz: Aiko i Daichi.
+  - #3: Nigdy nie są pokojami, bo narysował je gracz: Chie.
+- `DRPG.Rooms.stashesGiven` (by prefix)
+  - n=0 (many): 0 sypialni: Aiko, Daichi i Chie.
+  - n=1 (one): 1 sypialnia: Aiko i Daichi.
+  - n=2 (few): 2 sypialnie: Chie.
+  - n=5 (many): 5 sypialni: Aiko, Daichi i Chie.
+  - n=12 (many): 12 sypialni: Aiko i Daichi.
+  - n=22 (few): 22 sypialnie: Chie.
+  - n=25 (many): 25 sypialni: Aiko, Daichi i Chie.
+  - n=112 (many): 112 sypialni: Aiko i Daichi.
+- `DRPG.Rooms.stashesNote`
+  - Żadna sypialnia poniżej nie miała skrytki swojego właściciela, więc właściciel każdej dostał otwartą. Jeśli którąś usunięto celowo, usuń ją znowu w zakładce Skrytki w Ustawieniach pokoi.
+- `DRPG.Rooms.stashesTitle`
+  - Skrytki w sypialniach
+
+## scripts/module.mjs (entry points no SCREENS row groups) (file:scripts/module.mjs; reader: unknown)
+
+- `DRPG.Voice.mic.keybinding`
+  - Wycisz albo włącz swój mikrofon
+
+## scripts/movement.mjs (entry points no SCREENS row groups) (file:scripts/movement.mjs; reader: unknown)
+
+- `DRPG.Rooms.flagKept`
+  - #1: Konto Aiko zmieniło, czy „Warsztat” na scenie Szkoła, piętro 1 jest pokojem. Pokój oznacza tylko GM, więc oznaczenie zostaje takie, jakie zostawił GM.
+  - #2: Konto Daichi zmieniło, czy „Biblioteka” na scenie Szkoła, piętro 1 jest pokojem. Pokój oznacza tylko GM, więc oznaczenie zostaje takie, jakie zostawił GM.
+  - #3: Konto Aiko zmieniło, czy „Kino” na scenie Szkoła, piętro 1 jest pokojem. Pokój oznacza tylko GM, więc oznaczenie zostaje takie, jakie zostawił GM.
+- `DRPG.Rooms.flagUnjudged`
+  - #1: Konto Aiko zmieniło, czy „Warsztat” na scenie Szkoła, piętro 1 jest pokojem. Wcześniejsze oznaczenie nie jest znane, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi, w zakładce Pokoje.
+  - #2: Konto Daichi zmieniło, czy „Biblioteka” na scenie Szkoła, piętro 1 jest pokojem. Wcześniejsze oznaczenie nie jest znane, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi, w zakładce Pokoje.
+  - #3: Konto Aiko zmieniło, czy „Kino” na scenie Szkoła, piętro 1 jest pokojem. Wcześniejsze oznaczenie nie jest znane, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi, w zakładce Pokoje.
+
+## scripts/music-play.mjs (entry points no SCREENS row groups) (file:scripts/music-play.mjs; reader: unknown)
+
+- `DRPG.Music.noSituational`
+  - #1: Nie ma jeszcze playlisty o nazwie „Aiko”.
+  - #2: Nie ma jeszcze playlisty o nazwie „Daichi”.
+- `DRPG.Music.noTrack`
+  - Najpierw wybierz utwór.
+- `DRPG.Music.playFailed`
+  - Ten utwór nie chciał zagrać. Zajrzyj do konsoli.
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/player-status.mjs (entry points no SCREENS row groups) (file:scripts/player-status.mjs; reader: unknown)
+
+- `DRPG.Panel.state.dead`
+  - Nie żyje
+- `DRPG.Panel.stateColumn`
+  - Stan
+
+## scripts/popup.mjs (entry points no SCREENS row groups) (file:scripts/popup.mjs; reader: unknown)
+
+- `DRPG.Panel.close`
+  - Zamknij
+
+## scripts/private-rolls.mjs (entry points no SCREENS row groups) (file:scripts/private-rolls.mjs; reader: unknown)
+
+- `DRPG.Panel.publicRoll.badFormula`
+  - „coś, co wstawia kod” to nie jest formuła rzutu.
+- `DRPG.Panel.publicRoll.gmOnly`
+  - Tylko GM może wykonać rzut publiczny.
+
+## scripts/remnant-ring.mjs (entry points no SCREENS row groups) (file:scripts/remnant-ring.mjs; reader: unknown)
+
+- `DRPG.Investigation.visibility`
+  - Widoczność
+
+## scripts/remnants.mjs (entry points no SCREENS row groups) (file:scripts/remnants.mjs; reader: unknown)
+
+- `DRPG.Panel.clearFaint`
+  - Wyczyść Faint Remnanty
+- `DRPG.Panel.faintCleared` (by prefix)
+  - n=0 (many): Wyczyszczono 0 Faint Remnantów.
+  - n=1 (one): Wyczyszczono 1 Faint Remnant.
+  - n=2 (few): Wyczyszczono 2 Faint Remnanty.
+  - n=5 (many): Wyczyszczono 5 Faint Remnantów.
+  - n=12 (many): Wyczyszczono 12 Faint Remnantów.
+  - n=22 (few): Wyczyszczono 22 Faint Remnanty.
+  - n=25 (many): Wyczyszczono 25 Faint Remnantów.
+  - n=112 (many): Wyczyszczono 112 Faint Remnantów.
+- `DRPG.Panel.faintConfirm` (by prefix)
+  - n=0 (many): Usunąć 0 Faint Remnantów ze wszystkich scen?
+  - n=1 (one): Usunąć 1 Faint Remnant ze wszystkich scen?
+  - n=2 (few): Usunąć 2 Faint Remnanty ze wszystkich scen?
+  - n=5 (many): Usunąć 5 Faint Remnantów ze wszystkich scen?
+  - n=12 (many): Usunąć 12 Faint Remnantów ze wszystkich scen?
+  - n=22 (few): Usunąć 22 Faint Remnanty ze wszystkich scen?
+  - n=25 (many): Usunąć 25 Faint Remnantów ze wszystkich scen?
+  - n=112 (many): Usunąć 112 Faint Remnantów ze wszystkich scen?
+- `DRPG.Panel.faintConfirmNote`
+  - Reinforced Remnanty i wszystko powiązane ze zbrodnią zostają w spokoju. Reszta znika na dobre.
+- `DRPG.Panel.faintNone`
+  - Nie ma Faint Remnantów do wyczyszczenia: każdy pozostały Faint Remnant jest Reinforced albo powiązany ze zbrodnią.
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/requirements.mjs (entry points no SCREENS row groups) (file:scripts/requirements.mjs; reader: unknown)
+
+- `DRPG.Requirements.how` (by prefix)
+  - Zainstaluj albo włącz wymienione moduły w oknie „Zarządzaj modułami” (na Forge: na liście modułów gry), a potem przeładuj świat.
+- `DRPG.Requirements.intro` (by prefix)
+  - n=0 (many): Danganronpa RPG potrzebuje tych 0 modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+  - n=1 (one): Danganronpa RPG potrzebuje tego modułu i bez niego nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+  - n=2 (few): Danganronpa RPG potrzebuje tych 2 modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+  - n=5 (many): Danganronpa RPG potrzebuje tych 5 modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+  - n=12 (many): Danganronpa RPG potrzebuje tych 12 modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+  - n=22 (few): Danganronpa RPG potrzebuje tych 22 modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+  - n=25 (many): Danganronpa RPG potrzebuje tych 25 modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+  - n=112 (many): Danganronpa RPG potrzebuje tych 112 modułów i bez nich nie wystartował. To, co zmienił w Foundry, kiedy działał, zostaje tak, jak jest, dopóki Danganronpa RPG znów nie zadziała i GM nie naciśnie „Oddaj ustawienia Foundry”.
+- `DRPG.Requirements.newerSystemAllPatches`
+  - Moduł znalazł w systemie każde miejsce, które zmienia albo na którym polega. To zmniejsza ryzyko kłopotów, ale go nie wyklucza.
+- `DRPG.Requirements.newerSystemIntro`
+  - n=0: Ten świat działa na coś, co wstawia kod 0. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 0.
+  - n=1: Ten świat działa na coś, co wstawia kod 1. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 1.
+  - n=2: Ten świat działa na coś, co wstawia kod 2. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 2.
+  - n=5: Ten świat działa na coś, co wstawia kod 5. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 5.
+  - n=12: Ten świat działa na coś, co wstawia kod 12. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 12.
+  - n=22: Ten świat działa na coś, co wstawia kod 22. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 22.
+  - n=25: Ten świat działa na coś, co wstawia kod 25. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 25.
+  - n=112: Ten świat działa na coś, co wstawia kod 112. Danganronpa RPG zweryfikowano na 1.2.95. Moduł ładuje się mimo to, ale okno rzutu, arkusz postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak coś, co wstawia kod jest zbudowany, a nowsza wersja może to zmienić. Gdy będziesz zgłaszać problem, napisz na początku, że świat działa na coś, co wstawia kod 112.
+- `DRPG.Requirements.newerSystemNotice`
+  - n=0: coś, co wstawia kod 0 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+  - n=1: coś, co wstawia kod 1 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+  - n=2: coś, co wstawia kod 2 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+  - n=5: coś, co wstawia kod 5 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+  - n=12: coś, co wstawia kod 12 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+  - n=22: coś, co wstawia kod 22 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+  - n=25: coś, co wstawia kod 25 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+  - n=112: coś, co wstawia kod 112 jest nowszy niż 1.2.95, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle.
+- `DRPG.Requirements.newerSystemPatches`
+  - Moduł nie znalazł w systemie tych miejsc, które zmienia albo na których polega, więc to, co w nich robi, nie działa:
+- `DRPG.Requirements.newerSystemSilence`
+  - n=0: Nie wspominaj więcej o wersji 0 w tej przeglądarce
+  - n=1: Nie wspominaj więcej o wersji 1 w tej przeglądarce
+  - n=2: Nie wspominaj więcej o wersji 2 w tej przeglądarce
+  - n=5: Nie wspominaj więcej o wersji 5 w tej przeglądarce
+  - n=12: Nie wspominaj więcej o wersji 12 w tej przeglądarce
+  - n=22: Nie wspominaj więcej o wersji 22 w tej przeglądarce
+  - n=25: Nie wspominaj więcej o wersji 25 w tej przeglądarce
+  - n=112: Nie wspominaj więcej o wersji 112 w tej przeglądarce
+- `DRPG.Requirements.newerSystemTitle`
+  - coś, co wstawia kod jest nowszy niż zweryfikowana wersja
+- `DRPG.Requirements.playerNotice` (by prefix)
+  - #1: Danganronpa RPG nie działa: wymaga Nóż kuchenny, Lina i Krzesło. Poproś GM-a o włączenie brakujących modułów.
+  - #2: Danganronpa RPG nie działa: wymaga Lina. Poproś GM-a o włączenie brakujących modułów.
+- `DRPG.Requirements.reason.avclient-livekit` (by prefix)
+  - Głos idzie za pokojami: gracz słyszy osoby z pokoju, w którym jest jego postać, a przejście do innego pokoju zmienia, kto go słyszy.
+- `DRPG.Requirements.reason.dice-so-nice` (by prefix)
+  - Każdy rzut pada jako kości 3D, które widzą tylko osoby uprawnione do tego rzutu, w jednym stylu kości, który GM ustawia dla całego stołu.
+- `DRPG.Requirements.reason.isometric-perspective` (by prefix)
+  - Mapy rysowane do gry izometrycznej wyglądają źle na płaskiej siatce.
+- `DRPG.Requirements.state.absent` (by prefix)
+  - niezainstalowany
+- `DRPG.Requirements.state.disabled` (by prefix)
+  - zainstalowany, ale wyłączony
+- `DRPG.Requirements.title` (by prefix)
+  - Danganronpa RPG nie działa
+- `DRPG.Requirements.understood`
+  - Rozumiem
+
+## scripts/rules.mjs (entry points no SCREENS row groups) (file:scripts/rules.mjs; reader: unknown)
+
+- `DRPG.Assign.save`
+  - Zapisz
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/search-tokens.mjs (entry points no SCREENS row groups) (file:scripts/search-tokens.mjs; reader: unknown)
+
+- `DRPG.SearchTokens.allFull` (by prefix)
+  - n=0 (many): Każdy pokój ma jeszcze wszystkie 0 tokenów.
+  - n=1 (one): Każdy pokój ma jeszcze 1 token, czyli komplet.
+  - n=2 (few): Każdy pokój ma jeszcze wszystkie 2 tokeny.
+  - n=5 (many): Każdy pokój ma jeszcze wszystkie 5 tokenów.
+  - n=12 (many): Każdy pokój ma jeszcze wszystkie 12 tokenów.
+  - n=22 (few): Każdy pokój ma jeszcze wszystkie 22 tokeny.
+  - n=25 (many): Każdy pokój ma jeszcze wszystkie 25 tokenów.
+  - n=112 (many): Każdy pokój ma jeszcze wszystkie 112 tokenów.
+- `DRPG.SearchTokens.reset`
+  - Każdy pokój ma znowu komplet Search Tokenów.
+- `DRPG.SearchTokens.roomColumn`
+  - Pokój
+- `DRPG.SearchTokens.title`
+  - Search Tokeny
+- `DRPG.SearchTokens.tokensColumn`
+  - Tokeny
+
+## scripts/settings-window.mjs (entry points no SCREENS row groups) (file:scripts/settings-window.mjs; reader: unknown)
+
+- `DRPG.Settings.forceDiceLook.choices.daggerheart`
+  - Wszyscy: Daggerheart
+- `DRPG.Settings.forceDiceLook.choices.dsn`
+  - Wszyscy: Dice So Nice
+- `DRPG.Settings.forceDiceLook.choices.own`
+  - Każdy gracz własny
+- `DRPG.SettingsWindow.gameNote`
+  - To ustawienia całego stołu: zmiana tutaj zmienia grę dla wszystkich.
+- `DRPG.SettingsWindow.gameTitle`
+  - Ustawienia gry
+- `DRPG.SettingsWindow.glassOnly`
+  - Tylko Stained Glass: wybierz ten motyw, by to zmienić.
+- `DRPG.SettingsWindow.legacyOnly`
+  - Tylko Monokuma Legacy: wybierz ten motyw, by to zmienić.
+- `DRPG.SettingsWindow.liveNote`
+  - Głośność i ustawienia głosu zmieniają się od razu; resztę zapisuje przycisk „Zapisz zmiany”.
+- `DRPG.SettingsWindow.mayNot`
+  - Nie masz w Foundry uprawnienia do zmiany ustawień świata, więc nie otworzysz ustawień gry.
+- `DRPG.SettingsWindow.save`
+  - Zapisz zmiany
+- `DRPG.SettingsWindow.scaleNow`
+  - n=0: Na tym ekranie: 0%.
+  - n=1: Na tym ekranie: 1%.
+  - n=2: Na tym ekranie: 2%.
+  - n=5: Na tym ekranie: 5%.
+  - n=12: Na tym ekranie: 12%.
+  - n=22: Na tym ekranie: 22%.
+  - n=25: Na tym ekranie: 25%.
+  - n=112: Na tym ekranie: 112%.
+- `DRPG.SettingsWindow.scopeClient`
+  - Tylko ta przeglądarka
+- `DRPG.SettingsWindow.scopeWorld`
+  - Cały stół
+- `DRPG.SettingsWindow.sections.audio` (by prefix)
+  - Głos
+- `DRPG.SettingsWindow.sections.effects` (by prefix)
+  - Efekty i dostępność
+- `DRPG.SettingsWindow.sections.foundry` (by prefix)
+  - Foundry, Daggerheart i inne moduły
+- `DRPG.SettingsWindow.sections.gm` (by prefix)
+  - Mapa
+- `DRPG.SettingsWindow.sections.look` (by prefix)
+  - Wygląd
+- `DRPG.SettingsWindow.sections.privacy` (by prefix)
+  - Rzuty i prywatność
+- `DRPG.SettingsWindow.sections.rules` (by prefix)
+  - Zasady przy stole
+- `DRPG.SettingsWindow.sections.sound` (by prefix)
+  - Dźwięk i głos
+- `DRPG.SettingsWindow.sections.tech` (by prefix)
+  - Techniczne
+- `DRPG.SettingsWindow.sectionsLabel`
+  - Sekcje
+- `DRPG.SettingsWindow.title`
+  - Ustawienia DRPG
+- `DRPG.SettingsWindow.uiScaleHint`
+  - Powiększa albo pomniejsza tekst i okna modułu, a z nimi Foundry, w tej przeglądarce.
+
+## scripts/sfx.mjs (entry points no SCREENS row groups) (file:scripts/sfx.mjs; reader: unknown)
+
+- `DRPG.Sound.assigned` (by prefix)
+  - n=0 (many): 0 z 0 zdarzeń ma plik.
+  - n=1 (one): 1 z 1 zdarzeń ma plik.
+  - n=2 (few): 2 z 2 zdarzeń mają plik.
+  - n=5 (many): 5 z 5 zdarzeń ma plik.
+  - n=12 (many): 12 z 12 zdarzeń ma plik.
+  - n=22 (few): 22 z 22 zdarzeń mają plik.
+  - n=25 (many): 25 z 25 zdarzeń ma plik.
+  - n=112 (many): 112 z 112 zdarzeń ma plik.
+- `DRPG.Sound.autosave`
+  - Zapisuje się od razu.
+- `DRPG.Sound.choose`
+  - Wybierz
+- `DRPG.Sound.clear`
+  - Wyczyść
+- `DRPG.Sound.effectsIntro`
+  - Ten moduł nie zawiera dźwięków. Wskaż zdarzeniu własny plik; puste pole oznacza ciszę.
+- `DRPG.Sound.event`
+  - Zdarzenie
+- `DRPG.Sound.file`
+  - Plik
+- `DRPG.Sound.fileCount` (by prefix)
+  - n=0 (many): 0 plików
+  - n=1 (one): 1 plik
+  - n=2 (few): 2 pliki
+  - n=5 (many): 5 plików
+  - n=12 (many): 12 plików
+  - n=22 (few): 22 pliki
+  - n=25 (many): 25 plików
+  - n=112 (many): 112 plików
+- `DRPG.Sound.groupAssigned`
+  - n=0: przypisano 0 z 0
+  - n=1: przypisano 1 z 1
+  - n=2: przypisano 2 z 2
+  - n=5: przypisano 5 z 5
+  - n=12: przypisano 12 z 12
+  - n=22: przypisano 22 z 22
+  - n=25: przypisano 25 z 25
+  - n=112: przypisano 112 z 112
+- `DRPG.Sound.notAssigned`
+  - jeszcze nie przypisano
+- `DRPG.Sound.rowButtons`
+  - Sprawdź lub wyczyść
+- `DRPG.Sound.severalHint`
+  - Jeden plik albo kilka rozdzielonych znakiem „\|”; każde odtworzenie losuje jeden, nigdy ten sam dwa razy z rzędu.
+- `DRPG.Sound.test`
+  - Test
+- `DRPG.Sound.testFailed`
+  - coś, co wstawia kod: coś, co wstawia kod
+- `DRPG.Sound.varies`
+  - zmienny
+- `DRPG.Sound.variesHint`
+  - Każde odtworzenie ma trochę inne tempo i głośność.
+- `DRPG.Sound.why.failed`
+  - Foundry nie mogło wczytać tego pliku. Sprawdź jego ścieżkę w kolumnie Plik.
+- `DRPG.Sound.why.interfaceZero`
+  - Głośność interfejsu w samym Foundry stoi na zerze. Podnieś ją i przetestuj ponownie.
+- `DRPG.Sound.why.locked`
+  - Ta przeglądarka nie odtwarza dźwięku, dopóki nie klikniesz strony. Kliknij gdziekolwiek na niej i przetestuj ponownie.
+- `DRPG.Sound.why.noEvent`
+  - Nie ma zdarzenia o takim kluczu. Klucze zdarzeń to coś, co wstawia kod.
+- `DRPG.Sound.why.noFile`
+  - To zdarzenie nie ma jeszcze pliku. Wybierz go w kolumnie Plik.
+- `DRPG.Sound.why.refused`
+  - Dźwięk się nie uruchomił. Przetestuj ponownie.
+- `DRPG.Sound.why.soundZero`
+  - Suwak Dźwięk stoi na zerze. Podnieś go i przetestuj ponownie.
+- `DRPG.Sound.why.timeout`
+  - Plik nie zdążył się wczytać. Sprawdź jego ścieżkę i przetestuj ponownie.
+
+## scripts/sound-panel.mjs (entry points no SCREENS row groups) (file:scripts/sound-panel.mjs; reader: unknown)
+
+- `DRPG.Music.fadeNote`
+  - Wyciszenie ustawiasz w Fade Duration playlisty. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.
+- `DRPG.Music.howOrder`
+  - Jak działa kolejność
+- `DRPG.Music.incidentNote`
+  - Morderstwo słyszą tylko jego uczestnicy i GM-owie.
+- `DRPG.Music.intro`
+  - Wybierz playlistę dla każdego stanu.
+- `DRPG.Music.makeFailed`
+  - Nie udało się utworzyć playlisty. Zajrzyj do konsoli.
+- `DRPG.Music.makeSituational`
+  - #1: Utwórz playlistę „Aiko”
+  - #2: Utwórz playlistę „Daichi”
+- `DRPG.Music.noPlaylists`
+  - Nie ma jeszcze playlist. Utwórz je w panelu Playlisty.
+- `DRPG.Music.noSituational`
+  - #1: Nie ma jeszcze playlisty o nazwie „Aiko”.
+  - #2: Nie ma jeszcze playlisty o nazwie „Daichi”.
+- `DRPG.Music.noTracks`
+  - Ta playlista nie ma utworów
+- `DRPG.Music.notSet`
+  - - nie ustawiono -
+- `DRPG.Music.orderNote`
+  - Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie używa playlist Eclipse.
+- `DRPG.Music.play`
+  - Odtwórz
+- `DRPG.Music.playNow`
+  - Włącz utwór teraz
+- `DRPG.Music.playNowNote`
+  - #1: Puszcza utwór z „Aiko” w pętli. Wyłącz go, a wróci poprzednia muzyka.
+  - #2: Puszcza utwór z „Daichi” w pętli. Wyłącz go, a wróci poprzednia muzyka.
+- `DRPG.Music.playing`
+  - Gra „coś, co wstawia kod”.
+- `DRPG.Music.playlist`
+  - Gra
+- `DRPG.Music.reset`
+  - Wyłącz utwór
+- `DRPG.Music.saveState.failed`
+  - Nie zapisano. Zajrzyj do konsoli.
+- `DRPG.Music.saveState.saved`
+  - Zapisano
+- `DRPG.Music.saveState.saving`
+  - Zapisywanie...
+- `DRPG.Music.situationalMade`
+  - #1: Playlista „Aiko” jest gotowa. W panelu Playlisty dodaj do niej utwory do scen, a pojawią się tutaj.
+  - #2: Playlista „Daichi” jest gotowa. W panelu Playlisty dodaj do niej utwory do scen, a pojawią się tutaj.
+- `DRPG.Music.state.bodyFound`
+  - Znaleziono ciało (cisza, o ile nie przypisano)
+- `DRPG.Music.state.eclipse`
+  - Eclipse (okno ustawiania)
+- `DRPG.Music.state.murder`
+  - Morderstwo
+- `DRPG.Music.state.paused`
+  - Gra wstrzymana
+- `DRPG.Music.state.search`
+  - Investigation
+- `DRPG.Music.state.trialDebate`
+  - Debata
+- `DRPG.Music.state.trialDiscussion`
+  - Dyskusja
+- `DRPG.Music.state.trialObjection`
+  - Objection
+- `DRPG.Music.track`
+  - Utwór
+- `DRPG.Music.trialNote`
+  - Wyższy wiersz ma pierwszeństwo. Podczas Rebuttal nadal słychać muzykę Objection.
+- `DRPG.Music.wasReset`
+  - Utwór wyłączony, a to, co przerwał, wraca tam, gdzie stanęło.
+- `DRPG.Music.when`
+  - Kiedy
+- `DRPG.Sound.tabEffects`
+  - Efekty
+- `DRPG.Sound.tabMusic`
+  - Muzyka
+- `DRPG.Sound.tabPlay`
+  - Odtwarzanie
+- `DRPG.Sound.title`
+  - Dźwięk
+
+## scripts/trial-floor.mjs (entry points no SCREENS row groups) (file:scripts/trial-floor.mjs; reader: unknown)
+
+- `DRPG.Zones.dive.openedBare` (by prefix)
+  - n=0: Pytanie 0 z 0. Kto wybiera „0”, staje w Strefie A, a kto „0”, w Strefie B. Na wybór jest 0 s.
+  - n=1: Pytanie 1 z 1. Kto wybiera „1”, staje w Strefie A, a kto „1”, w Strefie B. Na wybór jest 1 s.
+  - n=2: Pytanie 2 z 2. Kto wybiera „2”, staje w Strefie A, a kto „2”, w Strefie B. Na wybór jest 2 s.
+  - n=5: Pytanie 5 z 5. Kto wybiera „5”, staje w Strefie A, a kto „5”, w Strefie B. Na wybór jest 5 s.
+  - n=12: Pytanie 12 z 12. Kto wybiera „12”, staje w Strefie A, a kto „12”, w Strefie B. Na wybór jest 12 s.
+  - n=22: Pytanie 22 z 22. Kto wybiera „22”, staje w Strefie A, a kto „22”, w Strefie B. Na wybór jest 22 s.
+  - n=25: Pytanie 25 z 25. Kto wybiera „25”, staje w Strefie A, a kto „25”, w Strefie B. Na wybór jest 25 s.
+  - n=112: Pytanie 112 z 112. Kto wybiera „112”, staje w Strefie A, a kto „112”, w Strefie B. Na wybór jest 112 s.
+- `DRPG.Zones.scrum.noVoice`
+  - Głosy obozów nie są rozdzielone: ustawienie „Głos osobno w każdym pokoju” jest wyłączone albo LiveKit nie działa. Obozy naradzają się tak, jak pozwala stół.
+- `DRPG.Zones.scrum.openedBare` (by prefix)
+  - n=0: Uczniowie wybierają stronę: kto jest za „0”, staje w Strefie A, a kto za „0”, w Strefie B. Obozy naradzą się za 0 s.
+  - n=1: Uczniowie wybierają stronę: kto jest za „1”, staje w Strefie A, a kto za „1”, w Strefie B. Obozy naradzą się za 1 s.
+  - n=2: Uczniowie wybierają stronę: kto jest za „2”, staje w Strefie A, a kto za „2”, w Strefie B. Obozy naradzą się za 2 s.
+  - n=5: Uczniowie wybierają stronę: kto jest za „5”, staje w Strefie A, a kto za „5”, w Strefie B. Obozy naradzą się za 5 s.
+  - n=12: Uczniowie wybierają stronę: kto jest za „12”, staje w Strefie A, a kto za „12”, w Strefie B. Obozy naradzą się za 12 s.
+  - n=22: Uczniowie wybierają stronę: kto jest za „22”, staje w Strefie A, a kto za „22”, w Strefie B. Obozy naradzą się za 22 s.
+  - n=25: Uczniowie wybierają stronę: kto jest za „25”, staje w Strefie A, a kto za „25”, w Strefie B. Obozy naradzą się za 25 s.
+  - n=112: Uczniowie wybierają stronę: kto jest za „112”, staje w Strefie A, a kto za „112”, w Strefie B. Obozy naradzą się za 112 s.
+- `DRPG.Zones.straw.openedBare` (by prefix)
+  - n=0: Kto wybiera „0”, staje w Strefie A, a kto „0”, w Strefie B. Liczenie za 0 s.
+  - n=1: Kto wybiera „1”, staje w Strefie A, a kto „1”, w Strefie B. Liczenie za 1 s.
+  - n=2: Kto wybiera „2”, staje w Strefie A, a kto „2”, w Strefie B. Liczenie za 2 s.
+  - n=5: Kto wybiera „5”, staje w Strefie A, a kto „5”, w Strefie B. Liczenie za 5 s.
+  - n=12: Kto wybiera „12”, staje w Strefie A, a kto „12”, w Strefie B. Liczenie za 12 s.
+  - n=22: Kto wybiera „22”, staje w Strefie A, a kto „22”, w Strefie B. Liczenie za 22 s.
+  - n=25: Kto wybiera „25”, staje w Strefie A, a kto „25”, w Strefie B. Liczenie za 25 s.
+  - n=112: Kto wybiera „112”, staje w Strefie A, a kto „112”, w Strefie B. Liczenie za 112 s.
+
+## scripts/trial-modes.mjs (entry points no SCREENS row groups) (file:scripts/trial-modes.mjs; reader: unknown)
+
+- `DRPG.Reveal.defaultName`
+  - Key Remnant
+- `DRPG.Reveal.noText`
+  - Najpierw wpisz, co przeczytają gracze na tym Key Remnancie.
+- `DRPG.Reveal.notDone`
+  - Key Remnant nie został ujawniony.
+- `DRPG.Reveal.notHydrated`
+  - Plan Key Remnantów jeszcze się wczytuje. Spróbuj za chwilę.
+- `DRPG.Reveal.notMissing`
+  - Tego Key Remnantu już nie brakuje: ktoś go znalazł albo Monokuma go ujawnił.
+- `DRPG.Reveal.pastPaid`
+  - Ujawniono już każdy Key Remnant, za który pobrano Despair. Potwierdź, aby ujawnić kolejny.
+- `DRPG.Reveal.told`
+  - Monokuma ujawnia Key Remnant, którego nie udało ci się znaleźć.
+
+## scripts/trial-scene.mjs (entry points no SCREENS row groups) (file:scripts/trial-scene.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/trial-zones-ui.mjs (entry points no SCREENS row groups) (file:scripts/trial-zones-ui.mjs; reader: unknown)
+
+- `DRPG.Zones.busy`
+  - Głos ma inny tryb. Najpierw go zakończ albo zamknij debatę.
+- `DRPG.Zones.dive.editor.blank`
+  - Każde pytanie potrzebuje treści i obu odpowiedzi.
+- `DRPG.Zones.dive.editor.conclusion`
+  - Finding po rozwiązaniu (opcjonalnie)
+- `DRPG.Zones.dive.editor.count`
+  - n=0: Zestaw ma od 1 do 0 pytań.
+  - n=1: Zestaw ma od 1 do 1 pytań.
+  - n=2: Zestaw ma od 1 do 2 pytań.
+  - n=5: Zestaw ma od 1 do 5 pytań.
+  - n=12: Zestaw ma od 1 do 12 pytań.
+  - n=22: Zestaw ma od 1 do 22 pytań.
+  - n=25: Zestaw ma od 1 do 25 pytań.
+  - n=112: Zestaw ma od 1 do 112 pytań.
+- `DRPG.Zones.dive.editor.delete`
+  - Usuń
+- `DRPG.Zones.dive.editor.deleteBody`
+  - #1: Usunąć zestaw Aiko? Tego nie da się cofnąć.
+  - #2: Usunąć zestaw Daichi? Tego nie da się cofnąć.
+- `DRPG.Zones.dive.editor.deleteTitle`
+  - Usuwanie zestawu Logic Dive
+- `DRPG.Zones.dive.editor.edit`
+  - Edytuj
+- `DRPG.Zones.dive.editor.editTitle`
+  - Edycja zestawu Logic Dive
+- `DRPG.Zones.dive.editor.listTitle`
+  - Zestawy Logic Dive
+- `DRPG.Zones.dive.editor.name`
+  - Nazwa zestawu
+- `DRPG.Zones.dive.editor.names`
+  - #1: Pytanie albo odpowiedź wymienia ucznia: Aiko, Daichi i Chie. Żadne pytanie w strefach nie powinno pytać, kto to zrobił.
+  - #2: Pytanie albo odpowiedź wymienia ucznia: Aiko i Daichi. Żadne pytanie w strefach nie powinno pytać, kto to zrobił.
+  - #3: Pytanie albo odpowiedź wymienia ucznia: Chie. Żadne pytanie w strefach nie powinno pytać, kto to zrobił.
+- `DRPG.Zones.dive.editor.new`
+  - Nowy zestaw
+- `DRPG.Zones.dive.editor.newTitle`
+  - Nowy zestaw Logic Dive
+- `DRPG.Zones.dive.editor.noName`
+  - Nadaj zestawowi nazwę.
+- `DRPG.Zones.dive.editor.noTruth`
+  - Zaznacz dobrą odpowiedź w każdym pytaniu.
+- `DRPG.Zones.dive.editor.question`
+  - n=0: Pytanie 0
+  - n=1: Pytanie 1
+  - n=2: Pytanie 2
+  - n=5: Pytanie 5
+  - n=12: Pytanie 12
+  - n=22: Pytanie 22
+  - n=25: Pytanie 25
+  - n=112: Pytanie 112
+- `DRPG.Zones.dive.editor.save`
+  - Zapisz zestaw
+- `DRPG.Zones.dive.editor.secret`
+  - To okno widzą tylko GM-owie. Gracze widzą każde pytanie i jego dwie odpowiedzi, nigdy to, która jest dobra.
+- `DRPG.Zones.dive.editor.truth`
+  - Dobra odpowiedź
+- `DRPG.Zones.dive.outcome.broken` (by prefix)
+  - pytanie albo odpowiedź bez treści
+- `DRPG.Zones.dive.outcome.played` (by prefix)
+  - zagrany
+- `DRPG.Zones.dive.outcome.skipped` (by prefix)
+  - pominięte ostatnie pytanie
+- `DRPG.Zones.dive.outcome.solved` (by prefix)
+  - rozwiązany
+- `DRPG.Zones.dive.outcome.stopped` (by prefix)
+  - zatrzymany przez GM-a
+- `DRPG.Zones.dive.outcome.tie` (by prefix)
+  - remis
+- `DRPG.Zones.dive.outcome.wrong` (by prefix)
+  - zła odpowiedź
+- `DRPG.Zones.dive.replay`
+  - #1: Ten zestaw już był grany: skończył się Rano (coś, co wstawia kod). Gracze mogą go pamiętać.
+  - #2: Ten zestaw już był grany: skończył się Południe (coś, co wstawia kod). Gracze mogą go pamiętać.
+  - #3: Ten zestaw już był grany: skończył się Popołudnie (coś, co wstawia kod). Gracze mogą go pamiętać.
+  - #4: Ten zestaw już był grany: skończył się Wieczór (coś, co wstawia kod). Gracze mogą go pamiętać.
+  - #5: Ten zestaw już był grany: skończył się Noc (coś, co wstawia kod). Gracze mogą go pamiętać.
+- `DRPG.Zones.dive.replayStopped`
+  - n=0: Ten zestaw już był grany: zatrzymał się na pytaniu 0, Rano (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+  - n=1: Ten zestaw już był grany: zatrzymał się na pytaniu 1, Południe (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+  - n=2: Ten zestaw już był grany: zatrzymał się na pytaniu 2, Popołudnie (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+  - n=5: Ten zestaw już był grany: zatrzymał się na pytaniu 5, Wieczór (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+  - n=12: Ten zestaw już był grany: zatrzymał się na pytaniu 12, Noc (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+  - n=22: Ten zestaw już był grany: zatrzymał się na pytaniu 22, Rano (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+  - n=25: Ten zestaw już był grany: zatrzymał się na pytaniu 25, Południe (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+  - n=112: Ten zestaw już był grany: zatrzymał się na pytaniu 112, Popołudnie (coś, co wstawia kod). Po wybraniu zacznie się od tego pytania.
+- `DRPG.Zones.findings.add`
+  - Dodaj Finding
+- `DRPG.Zones.findings.added`
+  - GM dodaje Finding: coś, co wstawia kod
+- `DRPG.Zones.findings.confirm`
+  - Monokuma potwierdza
+- `DRPG.Zones.findings.confirmed`
+  - Monokuma potwierdza: coś, co wstawia kod
+- `DRPG.Zones.findings.confirmedMark`
+  - Monokuma potwierdza
+- `DRPG.Zones.findings.delete`
+  - Usuń
+- `DRPG.Zones.findings.deleted`
+  - GM usuwa Finding z listy: coś, co wstawia kod
+- `DRPG.Zones.findings.edit`
+  - Edytuj
+- `DRPG.Zones.findings.edited`
+  - GM zmienia Finding z „coś, co wstawia kod” na „coś, co wstawia kod”.
+- `DRPG.Zones.findings.intro`
+  - To, co klasa ustaliła w trybach stref, i to, co dodasz. Każda zmiana tutaj trafia do stołu.
+- `DRPG.Zones.findings.none`
+  - W tej rozprawie nie ma jeszcze Findings.
+- `DRPG.Zones.findings.save`
+  - Zapisz
+- `DRPG.Zones.findings.text`
+  - Finding
+- `DRPG.Zones.findings.title`
+  - Findings
+- `DRPG.Zones.noZones`
+  - Sala rozpraw nie ma Strefy A i Strefy B. Wybierz je w Ustawieniach sezonu.
+- `DRPG.Zones.pick.body`
+  - Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.
+- `DRPG.Zones.pick.done`
+  - Twoja strona to {zone}.
+- `DRPG.Zones.pick.side`
+  - {zone}: {answer}
+- `DRPG.Zones.picker.a`
+  - Odpowiedź Strefy A
+- `DRPG.Zones.picker.b`
+  - Odpowiedź Strefy B
+- `DRPG.Zones.picker.editSets`
+  - Zestawy Logic Dive...
+- `DRPG.Zones.picker.hint.dive` (by prefix)
+  - Pytania zestawu idą po kolei, każde po 60 s. Gdy większość wybierze dobrą odpowiedź, zestaw idzie dalej; zła odpowiedź albo remis go kończą.
+- `DRPG.Zones.picker.hint.scrum` (by prefix)
+  - 45 s na wybór stron, 120 s na osobną naradę obozów, potem obozy mówią na zmianę, mniejszy pierwszy.
+- `DRPG.Zones.picker.hint.straw` (by prefix)
+  - Każdy ma 45 s, żeby stanąć w strefie, potem następuje jedno liczenie. Co najmniej dwie trzecie policzonych po jednej stronie dają Finding, mniej oznacza podział, a następnym krokiem jest Scrum Debate.
+- `DRPG.Zones.picker.mode`
+  - Tryb
+- `DRPG.Zones.picker.noSets`
+  - Nie ma jeszcze zestawu Logic Dive.
+- `DRPG.Zones.picker.question`
+  - Pytanie
+- `DRPG.Zones.picker.set`
+  - Zestaw
+- `DRPG.Zones.picker.start`
+  - Zacznij
+- `DRPG.Zones.picker.thesis`
+  - Teza (opcjonalnie)
+- `DRPG.Zones.picker.title`
+  - Strefy sali
+
+## scripts/trial-zones.mjs (entry points no SCREENS row groups) (file:scripts/trial-zones.mjs; reader: unknown)
+
+- `DRPG.Zones.busy`
+  - Głos ma inny tryb. Najpierw go zakończ albo zamknij debatę.
+- `DRPG.Zones.noZones`
+  - Sala rozpraw nie ma Strefy A i Strefy B. Wybierz je w Ustawieniach sezonu.
+- `DRPG.Zones.notStarted`
+  - Tryb się nie zaczął. Sprawdź, czy obie odpowiedzi są wpisane, a w Logic Dive, czy wybrano zestaw i czy pytanie ma treść.
+
+## scripts/truth-bullets.mjs (entry points no SCREENS row groups) (file:scripts/truth-bullets.mjs; reader: unknown)
+
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+
+## scripts/voice-client.mjs (entry points no SCREENS row groups) (file:scripts/voice-client.mjs; reader: unknown)
+
+- `DRPG.Voice.drop.closed`
+  - Połączenie głosowe zamknął serwer głosu albo inne okno zalogowane na twoje konto. Odśwież tę stronę (F5), żeby dołączyć ponownie.
+- `DRPG.Voice.drop.retry`
+  - Nie masz połączenia głosowego. Łączymy cię ponownie; jeśli za minutę nadal nikogo nie słyszysz, odśwież stronę (F5).
+- `DRPG.Voice.drop.title`
+  - Głos rozłączony
+
+## scripts/voice.mjs (entry points no SCREENS row groups) (file:scripts/voice.mjs; reader: unknown)
+
+- `DRPG.Diagnostics.title.voice`
+  - Plan głosu
+- `DRPG.Panel.gmOnly`
+  - Tylko GM może to zrobić.
+- `DRPG.Voice.avDisabled`
+  - Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.
+- `DRPG.Voice.claimTrial`
+  - podczas Class Trial wszyscy są w jednym pokoju
+- `DRPG.Voice.contested`
+  - #1: Głos: Aiko ma postacie w więcej niż jednym miejscu (Warsztat, Biblioteka i Kino), więc trafia tylko do „Warsztat”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij tokeny tych postaci z mapy.
+  - #2: Głos: Daichi ma postacie w więcej niż jednym miejscu (Biblioteka), więc trafia tylko do „Biblioteka”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij tokeny tych postaci z mapy.
+  - #3: Głos: Aiko ma postacie w więcej niż jednym miejscu (Warsztat, Biblioteka i Kino), więc trafia tylko do „Kino”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij tokeny tych postaci z mapy.
+- `DRPG.Voice.deadRoom`
+  - kanał Widzów
+- `DRPG.Voice.mainRoom`
+  - główny pokój
+- `DRPG.Voice.needsAvclient`
+  - Ustawienie „Głos osobno w każdym pokoju” jest włączone, ale LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat.
+- `DRPG.Voice.plan.alone` (by prefix)
+  - KONTA BEZ POSTACI
+- `DRPG.Voice.plan.anotherRow` (by prefix)
+  - inny wiersz
+- `DRPG.Voice.plan.applied` (by prefix)
+  - (ta jest stosowana)
+- `DRPG.Voice.plan.avDisabled` (by prefix)
+  - wyłączony, więc nikt się nie połączy
+- `DRPG.Voice.plan.avMode` (by prefix)
+  - Tryb A/V: coś, co wstawia kod
+- `DRPG.Voice.plan.conflicts` (by prefix)
+  - KONFLIKTY: te konta mają postacie w więcej niż jednym miejscu.
+- `DRPG.Voice.plan.deadChannel` (by prefix)
+  - kanał zmarłych
+- `DRPG.Voice.plan.deadGroup` (by prefix)
+  - (kanał zmarłych)
+- `DRPG.Voice.plan.decision` (by prefix)
+  - To tylko decyzja; dźwięku nie sprawdza.
+- `DRPG.Voice.plan.decisionHow` (by prefix)
+  - Czy dwa z tych pokoi naprawdę się słyszą, sprawdzi tylko drugi połączony klient: uruchom tam game.drpg.diagnoseVoice() i porównaj pokój, który poda, z pokojem wymienionym wyżej.
+- `DRPG.Voice.plan.eclipse.ends` (by prefix)
+  - Wszystko wraca do normy, gdy tylko Eclipse się skończy.
+- `DRPG.Voice.plan.eclipse.noPlayer` (by prefix)
+  - Żaden gracz nie jest na kanale głosowym; GM-owie mają jeden wspólny.
+- `DRPG.Voice.plan.eclipse.running` (by prefix)
+  - Trwa Eclipse. Nikt nie jest przydzielany według tokenu, a pokoje nie są nawet odczytywane.
+- `DRPG.Voice.plan.eclipseGroup` (by prefix)
+  - (Eclipse: żaden gracz nie jest na głosie)
+- `DRPG.Voice.plan.ignored` (by prefix)
+  - #1: ← pominięte, Aiko trafia tam, gdzie Aiko
+  - #2: ← pominięte, Daichi trafia tam, gdzie Daichi
+- `DRPG.Voice.plan.itsAccount` (by prefix)
+  - jego konto
+- `DRPG.Voice.plan.loop` (by prefix)
+  - Ten klient prowadzi pętlę przydziału: {answer}
+- `DRPG.Voice.plan.mainGroup` (by prefix)
+  - (główny pokój)
+- `DRPG.Voice.plan.no` (by prefix)
+  - nie
+- `DRPG.Voice.plan.noCharacter` (by prefix)
+  - brak postaci
+- `DRPG.Voice.plan.nobody` (by prefix)
+  - nikt
+- `DRPG.Voice.plan.nowhere` (by prefix)
+  - (nigdzie nie wysłano)
+- `DRPG.Voice.plan.on` (by prefix)
+  - włączone
+- `DRPG.Voice.plan.oneRoom` (by prefix)
+  - Klient głosu może być tylko w jednym pokoju. Daj zapasowe postacie innemu kontu albo nie stawiaj ich tokenów na mapie.
+- `DRPG.Voice.plan.seeConflicts` (by prefix)
+  - (zobacz KONFLIKTY)
+- `DRPG.Voice.plan.setting` (by prefix)
+  - Ustawienie głosu według pokoi: coś, co wstawia kod
+- `DRPG.Voice.plan.settingOff` (by prefix)
+  - wyłączone, więc nic nie jest stosowane
+- `DRPG.Voice.plan.spectatorGroup` (by prefix)
+  - (pokój Widzów)
+- `DRPG.Voice.plan.waiting` (by prefix)
+  - ← nic nie wysłano, dopóki nie dotrze obsada
+- `DRPG.Voice.plan.why.deadPublic`
+  - nie żyje i nie gra jako Monocub: pokój Widzów
+- `DRPG.Voice.plan.why.deadSecret`
+  - nie żyje, śmierć nie jest jawna: pokój Widzów
+- `DRPG.Voice.plan.why.eclipseGm`
+  - Eclipse: własny kanał GM-ów
+- `DRPG.Voice.plan.why.eclipsePlayer`
+  - Eclipse: poza kanałami głosowymi
+- `DRPG.Voice.plan.why.kept`
+  - (poza wszystkimi pokojami: pokój, z którego wyszedł token)
+- `DRPG.Voice.plan.why.listening`
+  - #1: podsłuchuje z pokoju Warsztat pod drzwiami pokoju {into}
+  - #2: podsłuchuje z pokoju Biblioteka pod drzwiami pokoju {into}
+  - #3: podsłuchuje z pokoju Kino pod drzwiami pokoju {into}
+- `DRPG.Voice.plan.why.masked`
+  - za „?” po otwarciu morderstwa: własny cichy pokój
+- `DRPG.Voice.plan.why.noCharacterMain`
+  - brak postaci: główny pokój
+- `DRPG.Voice.plan.why.noOwner`
+  - żaden właściciel nie jest połączony
+- `DRPG.Voice.plan.why.noPoolHolder`
+  - żaden GM nie trzyma puli Despair tego Monokumy
+- `DRPG.Voice.plan.why.noRoom`
+  - brak pokoju: token jest poza wszystkimi regionami albo go nie ma
+- `DRPG.Voice.plan.why.notConnected`
+  - #1: Aiko nie ma połączenia
+  - #2: Daichi nie ma połączenia
+- `DRPG.Voice.plan.why.scrumCamp`
+  - Scrum Debate: Strefa {zone} naradza się we własnym pokoju
+- `DRPG.Voice.plan.why.spectatorTalks`
+  - Widz rozmawia z Widzami
+- `DRPG.Voice.plan.yes` (by prefix)
+  - tak
+- `DRPG.Voice.trialMuteLeft`
+  - #1: Mikrofon gracza Aiko jest nadal zablokowany po rozprawie: zdejmij blokadę z listy na kafelku głosu.
+  - #2: Mikrofon gracza Daichi jest nadal zablokowany po rozprawie: zdejmij blokadę z listy na kafelku głosu.
+- `DRPG.Voice.warn.dupes`
+  - #1: „Szkoła, piętro 1” ma kilka regionów o nazwie Aiko, Daichi i Chie, które razem tworzą jeden pokój głosowy.
+  - #2: „Szkoła, piętro 1” ma kilka regionów o nazwie Aiko i Daichi, które razem tworzą jeden pokój głosowy.
+  - #3: „Szkoła, piętro 1” ma kilka regionów o nazwie Chie, które razem tworzą jeden pokój głosowy.
+- `DRPG.Voice.warn.dupesHint`
+  - Przewidziane dla korytarza narysowanego w dwóch częściach; w innym razie to pomyłka.
+- `DRPG.Voice.warn.noRooms`
+  - „Szkoła, piętro 1” ma na sobie postacie, ale nie ma pokoi, więc wszyscy, którzy tam stoją, dzielą główny pokój.
+- `DRPG.Voice.warn.noRoomsFix`
+  - Nazwij regiony, żeby ich rozdzielić.
+- `DRPG.Voice.warn.others`
+  - #1: Inne aktywne moduły, które wspominają o głosie: Nóż kuchenny, Lina i Krzesło.
+  - #2: Inne aktywne moduły, które wspominają o głosie: Lina.
+- `DRPG.Voice.warn.othersHint`
+  - Warto je wykluczyć najpierw, jeśli pokoje niżej są dobre, a dźwięk nie.
+- `DRPG.Voice.warn.proximity`
+  - Proximity Voice Chat też jest aktywny.
+- `DRPG.Voice.warn.proximityFix`
+  - Wyłącz go albo włącz „global listen”, chyba że używasz obu naraz.
+- `DRPG.Voice.warn.proximityGlobal`
+  - Jego ustawienie „global listen” jest włączone, więc teraz nikogo nie wycisza.
+- `DRPG.Voice.warn.proximitySceneOff`
+  - Jest wyłączony na scenie „Szkoła, piętro 1”, więc nikogo tam nie wycisza.
+- `DRPG.Voice.warn.proximityVolume`
+  - Ustawia głośność każdego uczestnika według odległości tokenów, niezależnie od pokoju, do którego wstawia go ten moduł. Nieskonfigurowany daje wszystkim głośność zero.
+
+## Unassigned: the keys no screen reaches
+
+- `DRPG.CaseMap.autopsyNth`
+  - n=0: coś, co wstawia kod 0
+  - n=1: coś, co wstawia kod 1
+  - n=2: coś, co wstawia kod 2
+  - n=5: coś, co wstawia kod 5
+  - n=12: coś, co wstawia kod 12
+  - n=22: coś, co wstawia kod 22
+  - n=25: coś, co wstawia kod 25
+  - n=112: coś, co wstawia kod 112
+- `DRPG.CaseMap.checkCase`
+  - Sprawdź spójność
+- `DRPG.CaseMap.culpritOnly`
+  - Ma go tylko sprawca, więc się nie liczy.
+- `DRPG.CaseMap.editLabel`
+  - #1: Pola: Aiko
+  - #2: Pola: Daichi
+- `DRPG.CaseMap.hasProblem`
+  - ma problem
+- `DRPG.CaseMap.kind.counter`
+  - Kontra
+- `DRPG.CaseMap.kind.deduction`
+  - Wniosek
+- `DRPG.CaseMap.kind.remnant`
+  - Remnant
+- `DRPG.CaseMap.kind.slot`
+  - Miejsce na Key Remnant
+- `DRPG.CaseMap.kind.solution`
+  - Rozwiązanie
+- `DRPG.CaseMap.leftBy`
+  - #1: kto zostawił: Aiko
+  - #2: kto zostawił: Daichi
+- `DRPG.CaseMap.moveDown`
+  - W dół
+- `DRPG.CaseMap.moveUp`
+  - W górę
+- `DRPG.CaseMap.needs.name`
+  - nazwa
+- `DRPG.CaseMap.needs.recipient`
+  - odbiorca
+- `DRPG.CaseMap.needs.room`
+  - pokój
+- `DRPG.CaseMap.noProblems`
+  - Nie ma czego poprawiać.
+- `DRPG.CaseMap.noSchema`
+  - Nie ma jeszcze żadnego wniosku.
+- `DRPG.CaseMap.nobodyYet`
+  - Nikt jeszcze
+- `DRPG.CaseMap.panelAuthor`
+  - Kto zostawił (tylko GM-owie)
+- `DRPG.CaseMap.panelMode`
+  - Tryb rozprawy
+- `DRPG.CaseMap.panelReach`
+  - Uczniowie mają
+- `DRPG.CaseMap.panelRoom`
+  - Pokój
+- `DRPG.CaseMap.panelState`
+  - Stan
+- `DRPG.CaseMap.panelWhoHas`
+  - Kto ma
+- `DRPG.CaseMap.problem.badMode`
+  - {node} wymaga trybu „{ref}”, którego rozprawa nie ma.
+- `DRPG.CaseMap.problem.culpritOnly`
+  - {ref}, wejście węzła {node}, ma tylko sprawca, więc się nie liczy.
+- `DRPG.CaseMap.problem.cycle`
+  - {node} jest w pętli wejść, więc mapa nic nie pokaże, dopóki nie przerwiesz tej pętli.
+- `DRPG.CaseMap.problem.incomplete`
+  - Brakuje: {ref} ({node}).
+- `DRPG.CaseMap.problem.missing`
+  - {node} wskazuje „{ref}”, a tego już nie ma na mapie.
+- `DRPG.CaseMap.problem.noInputs`
+  - {node} nie wynika z niczego.
+- `DRPG.CaseMap.problem.noSolution`
+  - Sprawa ma wnioski, ale nie ma rozwiązania.
+- `DRPG.CaseMap.problem.noTarget`
+  - {node} niczego nie obala.
+- `DRPG.CaseMap.problem.solutionUnreached`
+  - Nic na mapie nie prowadzi do węzła {node}.
+- `DRPG.CaseMap.problem.tooManyKeys`
+  - Sprawa ma więcej Key Remnantów ({ref}), niż przygotowuje rozdział.
+- `DRPG.CaseMap.problem.twoSolutions`
+  - {node} to drugie rozwiązanie.
+- `DRPG.CaseMap.problemsFound`
+  - n=0: Problemy: 0
+  - n=1: Problemy: 1
+  - n=2: Problemy: 2
+  - n=5: Problemy: 5
+  - n=12: Problemy: 12
+  - n=22: Problemy: 22
+  - n=25: Problemy: 25
+  - n=112: Problemy: 112
+- `DRPG.CaseMap.reachNo`
+  - n=0: 0/0: jeszcze nie
+  - n=1: 1/1: jeszcze nie
+  - n=2: 2/2: jeszcze nie
+  - n=5: 5/5: jeszcze nie
+  - n=12: 12/12: jeszcze nie
+  - n=22: 22/22: jeszcze nie
+  - n=25: 25/25: jeszcze nie
+  - n=112: 112/112: jeszcze nie
+- `DRPG.CaseMap.reachYes`
+  - n=0: 0/0: uczniowie mogą do tego dojść
+  - n=1: 1/1: uczniowie mogą do tego dojść
+  - n=2: 2/2: uczniowie mogą do tego dojść
+  - n=5: 5/5: uczniowie mogą do tego dojść
+  - n=12: 12/12: uczniowie mogą do tego dojść
+  - n=22: 22/22: uczniowie mogą do tego dojść
+  - n=25: 25/25: uczniowie mogą do tego dojść
+  - n=112: 112/112: uczniowie mogą do tego dojść
+- `DRPG.CaseMap.state.held`
+  - U graczy
+- `DRPG.CaseMap.state.onMap`
+  - Na mapie
+- `DRPG.CaseMap.state.planned`
+  - W planie
+- `DRPG.CaseMap.state.sent`
+  - Wysłany
+- `DRPG.CaseMap.sumCounters`
+  - Kontry
+- `DRPG.CaseMap.sumDeductions`
+  - Wnioski
+- `DRPG.CaseMap.sumEvidence`
+  - Dowody
+- `DRPG.CaseMap.sumHeld`
+  - Znalezione przez uczniów
+- `DRPG.CaseMap.sumTied`
+  - Związane z morderstwem
+- `DRPG.CaseMap.summaryTitle`
+  - n=0: Rozdział 0
+  - n=1: Rozdział 1
+  - n=2: Rozdział 2
+  - n=5: Rozdział 5
+  - n=12: Rozdział 12
+  - n=22: Rozdział 22
+  - n=25: Rozdział 25
+  - n=112: Rozdział 112
+- `DRPG.CaseTrial.hint`
+  - Pokazane dowody to wspierają
+- `DRPG.CaseTrial.presented`
+  - Pokazany
+- `DRPG.CaseTrial.ticked`
+  - Zaznaczony
+- `DRPG.Fog.check.adrift.fact`
+  - n=0: 0 kratki granicy bez ściany.
+  - n=1: 1 kratki granicy bez ściany.
+  - n=2: 2 kratki granicy bez ściany.
+  - n=5: 5 kratki granicy bez ściany.
+  - n=12: 12 kratki granicy bez ściany.
+  - n=22: 22 kratki granicy bez ściany.
+  - n=25: 25 kratki granicy bez ściany.
+  - n=112: 112 kratki granicy bez ściany.
+- `DRPG.Fog.check.adrift.problem`
+  - Granica odbiega od ścian
+- `DRPG.Fog.check.adrift.why`
+  - Granica narysowana z dala od ściany, którą opisuje, zamienia cały ten bok pokoju w drzwi: ściana nie zostaje znaleziona, więc nic go nie zamyka.
+- `DRPG.Fog.check.defaultName.problem`
+  - Pokój wciąż ma nazwę nadaną przez Foundry
+- `DRPG.Fog.check.defaultName.why`
+  - Moduł rozpoznaje pokój po nazwie: gracze widzą ją na mapie, a klucze, skrytki i Ustawienia pokoi się do niej odwołują. Przed grą nadaj pokojowi własną nazwę.
+- `DRPG.Fog.check.isolated.fact`
+  - Żaden pokój nie leży w promieniu kratki od granicy.
+- `DRPG.Fog.check.isolated.problem`
+  - Brak wyjścia
+- `DRPG.Fog.check.isolated.title`
+  - Brak wyjścia: żadnego pokoju obok
+- `DRPG.Fog.check.isolated.why`
+  - Najbliższy pokój jest dalej niż o kratkę, więc między nimi nie ma drzwi. Pokoje powinny się stykać wzdłuż wspólnej krawędzi.
+- `DRPG.Fog.check.lattice.fact`
+  - n=0 (many): 0 narożników przesuniętych do 0 px.
+  - n=1 (one): 1 narożnik przesunięty do 1 px.
+  - n=2 (few): 2 narożniki przesunięte do 2 px.
+  - n=5 (many): 5 narożników przesuniętych do 5 px.
+  - n=12 (many): 12 narożników przesuniętych do 12 px.
+  - n=22 (few): 22 narożniki przesunięte do 22 px.
+  - n=25 (many): 25 narożników przesuniętych do 25 px.
+  - n=112 (many): 112 narożników przesuniętych do 112 px.
+- `DRPG.Fog.check.lattice.problem`
+  - Narożniki poza siatką mapy
+- `DRPG.Fog.check.lattice.why`
+  - Reszta mapy jest narysowana na siatce co pół kratki. Rysuj z przyciąganiem: narożnik przesunięty o ułamek kratki jest niewidoczny gołym okiem, a wystarczy, żeby dwa pokoje na siebie nachodziły albo się mijały.
+- `DRPG.Fog.check.noShape.problem`
+  - Brak kształtu, który mgła umie odczytać
+- `DRPG.Fog.check.noShape.why`
+  - Region istnieje, ale ma pusty kształt: z tego pokoju nic nie zostanie narysowane.
+- `DRPG.Fog.check.overlap.deep`
+  - n=0: Około 0 kratki podłogi leży w obu pokojach i sięga 0 kratki w głąb.
+  - n=1: Około 1 kratki podłogi leży w obu pokojach i sięga 1 kratki w głąb.
+  - n=2: Około 2 kratki podłogi leży w obu pokojach i sięga 2 kratki w głąb.
+  - n=5: Około 5 kratki podłogi leży w obu pokojach i sięga 5 kratki w głąb.
+  - n=12: Około 12 kratki podłogi leży w obu pokojach i sięga 12 kratki w głąb.
+  - n=22: Około 22 kratki podłogi leży w obu pokojach i sięga 22 kratki w głąb.
+  - n=25: Około 25 kratki podłogi leży w obu pokojach i sięga 25 kratki w głąb.
+  - n=112: Około 112 kratki podłogi leży w obu pokojach i sięga 112 kratki w głąb.
+- `DRPG.Fog.check.overlap.fact`
+  - n=0: Około 0 kratki podłogi leży w obu pokojach.
+  - n=1: Około 1 kratki podłogi leży w obu pokojach.
+  - n=2: Około 2 kratki podłogi leży w obu pokojach.
+  - n=5: Około 5 kratki podłogi leży w obu pokojach.
+  - n=12: Około 12 kratki podłogi leży w obu pokojach.
+  - n=22: Około 22 kratki podłogi leży w obu pokojach.
+  - n=25: Około 25 kratki podłogi leży w obu pokojach.
+  - n=112: Około 112 kratki podłogi leży w obu pokojach.
+- `DRPG.Fog.check.overlap.problem`
+  - Nachodzi na „coś, co wstawia kod”
+- `DRPG.Fog.check.overlap.title`
+  - Pokoje na siebie nachodzą
+- `DRPG.Fog.check.overlap.why`
+  - Tam, gdzie dwa pokoje na siebie nachodzą, granica jednego biegnie przez podłogę drugiego bez ściany w pobliżu, a cała wspólna granica wygląda jak jedne drzwi. Pokoje powinny się stykać; pasek cieńszy niż ćwierć kratki jest pomijany.
+- `DRPG.Fog.check.piecesDiffer.fact`
+  - #1: Różni się między częściami: przewagę
+  - #2: Różni się między częściami: utrudnienie
+  - #3: Różni się między częściami: Experience
+  - #4: Różni się między częściami: Resolve
+  - #5: Różni się między częściami: Loaded Die (jedna kość ustawiona na 12)
+  - #6: Różni się między częściami: stałą premię albo karę
+- `DRPG.Fog.check.piecesDiffer.field.elevation`
+  - wysokość
+- `DRPG.Fog.check.piecesDiffer.field.notShared`
+  - Bez prywatności
+- `DRPG.Fog.check.piecesDiffer.field.owner`
+  - czyja sypialnia
+- `DRPG.Fog.check.piecesDiffer.problem`
+  - Części tego pokoju są ustawione różnie
+- `DRPG.Fog.check.piecesDiffer.why`
+  - Pokój narysowany z kilku części bierze każde ustawienie z pierwszej części, która je ma, więc ustawienie innej części nie jest ustawieniem pokoju. W Ustawieniach pokoi zmień ustawienie pokoju i kliknij „Zastosuj”, potem przywróć je i znów kliknij „Zastosuj”: wszystkie części dostaną to samo. Wysokość ustaw w ustawieniach regionu każdej części.
+- `DRPG.Fog.check.sealed.fact`
+  - Każdy odcinek granicy ma ścianę.
+- `DRPG.Fog.check.sealed.problem`
+  - Brak wyjścia
+- `DRPG.Fog.check.sealed.title`
+  - Brak wyjścia: ściany dookoła
+- `DRPG.Fog.check.sealed.why`
+  - Nic nie świeci jako drzwi. Jeśli z pokoju ma być wyjście, dodaj drzwi.
+- `DRPG.Fog.check.showOnMap`
+  - Pokaż na mapie
+- `DRPG.Fog.check.unnamed.problem`
+  - Region bez nazwy
+- `DRPG.Fog.check.unnamed.room`
+  - (bez nazwy)
+- `DRPG.Fog.check.unnamed.why`
+  - Pokoje rozpoznaje się po nazwie, więc region bez niej nie jest pokojem: nigdy nie liczy się jako sąsiad, a to jeden z cichych sposobów na drzwi, które prowadzą donikąd.
+- `DRPG.Fog.checksScenes`
+  - Sceny i pokoje
+- `DRPG.Fog.notRoom.passage`
+  - Ma zachowanie coś, co wstawia kod: to przejście.
+- `DRPG.Fog.notRoom.player`
+  - Narysował go gracz.
+- `DRPG.Fog.notRoom.problem`
+  - Ma nazwę, ale nie jest pokojem
+- `DRPG.Fog.notRoom.unmarked`
+  - Nie jest oznaczony jako pokój (Ustawienia pokoi, zakładka Drzwi, „To jest pokój”).
+- `DRPG.Fog.notRoom.why`
+  - Mgła nie rysuje obrysu ani odsłonięcia dla regionu, który nie jest pokojem, i nie prowadzą do niego żadne drzwi.
+- `DRPG.Fog.secretDoor.detail`
+  - Każdy gracz może je otworzyć. W Ustawieniach sezonu, w wierszu „Brak sekretnych drzwi Foundry”, przycisk „Zamień na przejścia” zmienia je w ścianę, a tam, gdzie stoją między dwoma pokojami, dodaje też tajne przejście.
+- `DRPG.Fog.secretDoor.problem`
+  - Sekretne drzwi Foundry
+- `DRPG.GmStore.claimFailed`
+  - n=0 (many): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (0 wierszy): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+  - n=1 (one): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (1 wiersz): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+  - n=2 (few): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (2 wiersze): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+  - n=5 (many): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (5 wierszy): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+  - n=12 (many): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (12 wierszy): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+  - n=22 (few): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (22 wiersze): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+  - n=25 (many): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (25 wierszy): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+  - n=112 (many): Magazyn GM-a nie mógł przejąć starego „coś, co wstawia kod” z tej przeglądarki (112 wierszy): coś, co wstawia kod. Stara kopia zostaje tu bez zmian, a przy następnym wczytaniu świata magazyn spróbuje jeszcze raz.
+- `DRPG.GmStore.openFailed`
+  - Magazyn GM-a nie mógł się otworzyć w tej przeglądarce: coś, co wstawia kod. Dopóki się nie otworzy, Analyze i przekazanie Truth Bulletu są odrzucane. Przeładuj, aby spróbować ponownie; szczegóły są w konsoli.
+- `DRPG.GmStore.saveFailed`
+  - Magazyn GM-a nie mógł zapisać „coś, co wstawia kod” w tej przeglądarce: coś, co wstawia kod. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób teraz kopię zapasową (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).
+- `DRPG.GmStore.saveFailedAlone`
+  - Magazyn GM-a nie mógł zapisać „coś, co wstawia kod” w tej przeglądarce: coś, co wstawia kod. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, więc nikt nie ma kopii. Zrób teraz kopię zapasową (panel GM-a, Diagnostyka, Sprawa: Zrób kopię).
+- `DRPG.GmStore.syncTimedOut`
+  - #1: Magazyn GM-a nie dostał odpowiedzi od tych GM-ów: Aiko, Daichi i Chie. Działa dalej na tym, co ma ta przeglądarka, a ich kopię scali, gdy dotrze.
+  - #2: Magazyn GM-a nie dostał odpowiedzi od tych GM-ów: Aiko i Daichi. Działa dalej na tym, co ma ta przeglądarka, a ich kopię scali, gdy dotrze.
+  - #3: Magazyn GM-a nie dostał odpowiedzi od tych GM-ów: Chie. Działa dalej na tym, co ma ta przeglądarka, a ich kopię scali, gdy dotrze.
+- `DRPG.SearchTokens.roomSetupNote`
+  - n=0: Liczba Search Tokenów na pokój to 0. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+  - n=1: Liczba Search Tokenów na pokój to 1. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+  - n=2: Liczba Search Tokenów na pokój to 2. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+  - n=5: Liczba Search Tokenów na pokój to 5. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+  - n=12: Liczba Search Tokenów na pokój to 12. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+  - n=22: Liczba Search Tokenów na pokój to 22. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+  - n=25: Liczba Search Tokenów na pokój to 25. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+  - n=112: Liczba Search Tokenów na pokój to 112. Tokeny odnawiają się z każdą porą dnia, a - i + działają od razu.
+- `DRPG.Season.note`
+  - Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon się buduje.
+- `DRPG.Season.resetAdvances`
+  - n=0 (many): 0 Level Upów razem z podniesionymi statystykami i maksimami
+  - n=1 (one): 1 Level Up razem z podniesionymi statystykami i maksimami
+  - n=2 (few): 2 Level Upy razem z podniesionymi statystykami i maksimami
+  - n=5 (many): 5 Level Upów razem z podniesionymi statystykami i maksimami
+  - n=12 (many): 12 Level Upów razem z podniesionymi statystykami i maksimami
+  - n=22 (few): 22 Level Upy razem z podniesionymi statystykami i maksimami
+  - n=25 (many): 25 Level Upów razem z podniesionymi statystykami i maksimami
+  - n=112 (many): 112 Level Upów razem z podniesionymi statystykami i maksimami
+- `DRPG.Season.resetAssigned`
+  - n=0 (many): 0 uczniów przypisanych ręcznie
+  - n=1 (one): 1 uczeń przypisany ręcznie
+  - n=2 (few): 2 uczniowie przypisani ręcznie
+  - n=5 (many): 5 uczniów przypisanych ręcznie
+  - n=12 (many): 12 uczniów przypisanych ręcznie
+  - n=22 (few): 22 uczniowie przypisani ręcznie
+  - n=25 (many): 25 uczniów przypisanych ręcznie
+  - n=112 (many): 112 uczniów przypisanych ręcznie
+- `DRPG.Season.resetBreaches`
+  - n=0 (many): 0 wyłomów, a ich ściany znów całe
+  - n=1 (one): 1 wyłom, a jego ściana znów cała
+  - n=2 (few): 2 wyłomy, a ich ściany znów całe
+  - n=5 (many): 5 wyłomów, a ich ściany znów całe
+  - n=12 (many): 12 wyłomów, a ich ściany znów całe
+  - n=22 (few): 22 wyłomy, a ich ściany znów całe
+  - n=25 (many): 25 wyłomów, a ich ściany znów całe
+  - n=112 (many): 112 wyłomów, a ich ściany znów całe
+- `DRPG.Season.resetBullets`
+  - n=0 (many): 0 Truth Bulletów razem z kluczami odpowiedzi
+  - n=1 (one): 1 Truth Bullet razem z kluczem odpowiedzi
+  - n=2 (few): 2 Truth Bullety razem z kluczami odpowiedzi
+  - n=5 (many): 5 Truth Bulletów razem z kluczami odpowiedzi
+  - n=12 (many): 12 Truth Bulletów razem z kluczami odpowiedzi
+  - n=22 (few): 22 Truth Bullety razem z kluczami odpowiedzi
+  - n=25 (many): 25 Truth Bulletów razem z kluczami odpowiedzi
+  - n=112 (many): 112 Truth Bulletów razem z kluczami odpowiedzi
+- `DRPG.Season.resetCards`
+  - n=0 (many): 0 kart napisanych przez ten moduł i każdy wątek komunikatora
+  - n=1 (one): 1 karta napisana przez ten moduł i każdy wątek komunikatora
+  - n=2 (few): 2 karty napisane przez ten moduł i każdy wątek komunikatora
+  - n=5 (many): 5 kart napisanych przez ten moduł i każdy wątek komunikatora
+  - n=12 (many): 12 kart napisanych przez ten moduł i każdy wątek komunikatora
+  - n=22 (few): 22 karty napisane przez ten moduł i każdy wątek komunikatora
+  - n=25 (many): 25 kart napisanych przez ten moduł i każdy wątek komunikatora
+  - n=112 (many): 112 kart napisanych przez ten moduł i każdy wątek komunikatora
+- `DRPG.Season.resetDead`
+  - n=0 (many): 0 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+  - n=1 (one): 1 śmierć do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+  - n=2 (few): 2 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+  - n=5 (many): 5 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+  - n=12 (many): 12 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+  - n=22 (few): 22 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+  - n=25 (many): 25 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+  - n=112 (many): 112 śmierci do cofnięcia, a każdy Monocub znów będzie zwykłym uczniem
+- `DRPG.Season.resetItems`
+  - n=0 (many): 0 przedmiotów, które obsada nosi albo schowała
+  - n=1 (one): 1 przedmiot, który obsada nosi albo schowała
+  - n=2 (few): 2 przedmioty, które obsada nosi albo schowała
+  - n=5 (many): 5 przedmiotów, które obsada nosi albo schowała
+  - n=12 (many): 12 przedmiotów, które obsada nosi albo schowała
+  - n=22 (few): 22 przedmioty, które obsada nosi albo schowała
+  - n=25 (many): 25 przedmiotów, które obsada nosi albo schowała
+  - n=112 (many): 112 przedmiotów, które obsada nosi albo schowała
+- `DRPG.Season.resetPassageKnowers`
+  - n=0 (many): 0 uczniów, którzy znają tajne przejście
+  - n=1 (one): 1 uczeń, który zna tajne przejście
+  - n=2 (few): 2 uczniowie, którzy znają tajne przejście
+  - n=5 (many): 5 uczniów, którzy znają tajne przejście
+  - n=12 (many): 12 uczniów, którzy znają tajne przejście
+  - n=22 (few): 22 uczniowie, którzy znają tajne przejście
+  - n=25 (many): 25 uczniów, którzy znają tajne przejście
+  - n=112 (many): 112 uczniów, którzy znają tajne przejście
+- `DRPG.Season.resetPassagesBuilt`
+  - n=0 (many): 0 tajnych przejść zbudowanych w projektach
+  - n=1 (one): 1 tajne przejście zbudowane w projekcie
+  - n=2 (few): 2 tajne przejścia zbudowane w projektach
+  - n=5 (many): 5 tajnych przejść zbudowanych w projektach
+  - n=12 (many): 12 tajnych przejść zbudowanych w projektach
+  - n=22 (few): 22 tajne przejścia zbudowane w projektach
+  - n=25 (many): 25 tajnych przejść zbudowanych w projektach
+  - n=112 (many): 112 tajnych przejść zbudowanych w projektach
+- `DRPG.Season.resetPools`
+  - n=0: każda pula Despair do zera (0 niepustych) i każdy Hope z powrotem do 0
+  - n=1: każda pula Despair do zera (1 niepustych) i każdy Hope z powrotem do 1
+  - n=2: każda pula Despair do zera (2 niepustych) i każdy Hope z powrotem do 2
+  - n=5: każda pula Despair do zera (5 niepustych) i każdy Hope z powrotem do 5
+  - n=12: każda pula Despair do zera (12 niepustych) i każdy Hope z powrotem do 12
+  - n=22: każda pula Despair do zera (22 niepustych) i każdy Hope z powrotem do 22
+  - n=25: każda pula Despair do zera (25 niepustych) i każdy Hope z powrotem do 25
+  - n=112: każda pula Despair do zera (112 niepustych) i każdy Hope z powrotem do 112
+- `DRPG.Season.resetPreNotes`
+  - n=0 (many): 0 notatek przed sesją napisanych przez GM-ów
+  - n=1 (one): 1 notatka przed sesją napisana przez GM-a
+  - n=2 (few): 2 notatki przed sesją napisane przez GM-ów
+  - n=5 (many): 5 notatek przed sesją napisanych przez GM-ów
+  - n=12 (many): 12 notatek przed sesją napisanych przez GM-ów
+  - n=22 (few): 22 notatki przed sesją napisane przez GM-ów
+  - n=25 (many): 25 notatek przed sesją napisanych przez GM-ów
+  - n=112 (many): 112 notatek przed sesją napisanych przez GM-ów
+- `DRPG.Season.resetProjectTokens`
+  - n=0 (many): 0 tokenów projektów na mapach
+  - n=1 (one): 1 token projektu na mapach
+  - n=2 (few): 2 tokeny projektów na mapach
+  - n=5 (many): 5 tokenów projektów na mapach
+  - n=12 (many): 12 tokenów projektów na mapach
+  - n=22 (few): 22 tokeny projektów na mapach
+  - n=25 (many): 25 tokenów projektów na mapach
+  - n=112 (many): 112 tokenów projektów na mapach
+- `DRPG.Season.resetProjects`
+  - n=0 (many): 0 projektów
+  - n=1 (one): 1 projekt
+  - n=2 (few): 2 projekty
+  - n=5 (many): 5 projektów
+  - n=12 (many): 12 projektów
+  - n=22 (few): 22 projekty
+  - n=25 (many): 25 projektów
+  - n=112 (many): 112 projektów
+- `DRPG.Season.resetRemnants`
+  - n=0 (many): 0 Remnantów na mapach
+  - n=1 (one): 1 Remnant na mapach
+  - n=2 (few): 2 Remnanty na mapach
+  - n=5 (many): 5 Remnantów na mapach
+  - n=12 (many): 12 Remnantów na mapach
+  - n=22 (few): 22 Remnanty na mapach
+  - n=25 (many): 25 Remnantów na mapach
+  - n=112 (many): 112 Remnantów na mapach
+- `DRPG.Season.state.noticeHistory`
+  - Historia powiadomień w przeglądarce każdego gracza: zaczyna się od nowa, gdy reset czyści zegar, incydent albo czat
+- `DRPG.Sound.volumeNote`
+  - Oba dotyczą tylko tej przeglądarki.
+- `DRPG.Sound.volumes`
+  - Głośność
+- `DRPG.Tables.newTierPool`
+  - Nowa pula Tier
+- `DRPG.Tables.newTierPoolNote`
+  - Pulę Tier nazywa się jej kategorią i jej Tier, tak jak „DRPG Tools - Tier 2”. Zwykle nie tworzy się jej ręcznie: „Zainstaluj / przeinstaluj” poniżej buduje wszystkie.
+- `DRPG.Tables.newTierPoolPlaceholder`
+  - np. DRPG Tools - Tier 2
+- `DRPG.Zones.dive.opened`
+  - n=0: Pytanie 0 z 0: {question} Kto wybiera „0”, staje w Strefie A, a kto „0”, w Strefie B. Na wybór jest 0 s.
+  - n=1: Pytanie 1 z 1: {question} Kto wybiera „1”, staje w Strefie A, a kto „1”, w Strefie B. Na wybór jest 1 s.
+  - n=2: Pytanie 2 z 2: {question} Kto wybiera „2”, staje w Strefie A, a kto „2”, w Strefie B. Na wybór jest 2 s.
+  - n=5: Pytanie 5 z 5: {question} Kto wybiera „5”, staje w Strefie A, a kto „5”, w Strefie B. Na wybór jest 5 s.
+  - n=12: Pytanie 12 z 12: {question} Kto wybiera „12”, staje w Strefie A, a kto „12”, w Strefie B. Na wybór jest 12 s.
+  - n=22: Pytanie 22 z 22: {question} Kto wybiera „22”, staje w Strefie A, a kto „22”, w Strefie B. Na wybór jest 22 s.
+  - n=25: Pytanie 25 z 25: {question} Kto wybiera „25”, staje w Strefie A, a kto „25”, w Strefie B. Na wybór jest 25 s.
+  - n=112: Pytanie 112 z 112: {question} Kto wybiera „112”, staje w Strefie A, a kto „112”, w Strefie B. Na wybór jest 112 s.
+- `DRPG.Zones.dive.right`
+  - n=0: Dobra odpowiedź. W Strefie A policzono 0, w Strefie B 0.
+  - n=1: Dobra odpowiedź. W Strefie A policzono 1, w Strefie B 1.
+  - n=2: Dobra odpowiedź. W Strefie A policzono 2, w Strefie B 2.
+  - n=5: Dobra odpowiedź. W Strefie A policzono 5, w Strefie B 5.
+  - n=12: Dobra odpowiedź. W Strefie A policzono 12, w Strefie B 12.
+  - n=22: Dobra odpowiedź. W Strefie A policzono 22, w Strefie B 22.
+  - n=25: Dobra odpowiedź. W Strefie A policzono 25, w Strefie B 25.
+  - n=112: Dobra odpowiedź. W Strefie A policzono 112, w Strefie B 112.
+- `DRPG.Zones.dive.skipped`
+  - n=0: GM pomija pytanie 0.
+  - n=1: GM pomija pytanie 1.
+  - n=2: GM pomija pytanie 2.
+  - n=5: GM pomija pytanie 5.
+  - n=12: GM pomija pytanie 12.
+  - n=22: GM pomija pytanie 22.
+  - n=25: GM pomija pytanie 25.
+  - n=112: GM pomija pytanie 112.
+- `DRPG.Zones.dive.solved`
+  - Logic Dive rozwiązany: {finding}
+- `DRPG.Zones.dive.tie`
+  - n=0: Remis. W Strefie A policzono 0, w Strefie B 0. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+  - n=1: Remis. W Strefie A policzono 1, w Strefie B 1. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+  - n=2: Remis. W Strefie A policzono 2, w Strefie B 2. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+  - n=5: Remis. W Strefie A policzono 5, w Strefie B 5. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+  - n=12: Remis. W Strefie A policzono 12, w Strefie B 12. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+  - n=22: Remis. W Strefie A policzono 22, w Strefie B 22. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+  - n=25: Remis. W Strefie A policzono 25, w Strefie B 25. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+  - n=112: Remis. W Strefie A policzono 112, w Strefie B 112. Remis liczy się jako zła odpowiedź, więc Logic Dive kończy się tutaj.
+- `DRPG.Zones.dive.wrong`
+  - n=0: Zła odpowiedź. W Strefie A policzono 0, w Strefie B 0. Logic Dive kończy się tutaj.
+  - n=1: Zła odpowiedź. W Strefie A policzono 1, w Strefie B 1. Logic Dive kończy się tutaj.
+  - n=2: Zła odpowiedź. W Strefie A policzono 2, w Strefie B 2. Logic Dive kończy się tutaj.
+  - n=5: Zła odpowiedź. W Strefie A policzono 5, w Strefie B 5. Logic Dive kończy się tutaj.
+  - n=12: Zła odpowiedź. W Strefie A policzono 12, w Strefie B 12. Logic Dive kończy się tutaj.
+  - n=22: Zła odpowiedź. W Strefie A policzono 22, w Strefie B 22. Logic Dive kończy się tutaj.
+  - n=25: Zła odpowiedź. W Strefie A policzono 25, w Strefie B 25. Logic Dive kończy się tutaj.
+  - n=112: Zła odpowiedź. W Strefie A policzono 112, w Strefie B 112. Logic Dive kończy się tutaj.
+- `DRPG.Zones.noAnswers`
+  - Podaj obie odpowiedzi: jedną dla Strefy A i jedną dla Strefy B.
+- `DRPG.Zones.noCount`
+  - Nie ma czego liczyć: „Policz teraz” działa tylko podczas głosowania.
+- `DRPG.Zones.noQuestion`
+  - Pytanie Logic Dive nie ma treści.
+- `DRPG.Zones.noQuestionHere`
+  - Tylko w Logic Dive.
+- `DRPG.Zones.noSet`
+  - Wybierz zestaw Logic Dive.
+- `DRPG.Zones.noSide`
+  - Wybierz Strefę A albo Strefę B.
+- `DRPG.Zones.noThesis`
+  - Tylko mówca, w swojej turze, w kilku słowach.
+- `DRPG.Zones.open`
+  - Strefy sali
+- `DRPG.Zones.panel.counted`
+  - n=0: Policzono: Strefa A 0, Strefa B 0.
+  - n=1: Policzono: Strefa A 1, Strefa B 1.
+  - n=2: Policzono: Strefa A 2, Strefa B 2.
+  - n=5: Policzono: Strefa A 5, Strefa B 5.
+  - n=12: Policzono: Strefa A 12, Strefa B 12.
+  - n=22: Policzono: Strefa A 22, Strefa B 22.
+  - n=25: Policzono: Strefa A 25, Strefa B 25.
+  - n=112: Policzono: Strefa A 112, Strefa B 112.
+- `DRPG.Zones.panel.dive.pause`
+  - n=0: Pytanie 0 z 0 jest policzone. Odpowiedź za 0 s.
+  - n=1: Pytanie 1 z 1 jest policzone. Odpowiedź za 1 s.
+  - n=2: Pytanie 2 z 2 jest policzone. Odpowiedź za 2 s.
+  - n=5: Pytanie 5 z 5 jest policzone. Odpowiedź za 5 s.
+  - n=12: Pytanie 12 z 12 jest policzone. Odpowiedź za 12 s.
+  - n=22: Pytanie 22 z 22 jest policzone. Odpowiedź za 22 s.
+  - n=25: Pytanie 25 z 25 jest policzone. Odpowiedź za 25 s.
+  - n=112: Pytanie 112 z 112 jest policzone. Odpowiedź za 112 s.
+- `DRPG.Zones.panel.dive.vote`
+  - n=0: Pytanie 0 z 0, 0 s na wybór.
+  - n=1: Pytanie 1 z 1, 1 s na wybór.
+  - n=2: Pytanie 2 z 2, 2 s na wybór.
+  - n=5: Pytanie 5 z 5, 5 s na wybór.
+  - n=12: Pytanie 12 z 12, 12 s na wybór.
+  - n=22: Pytanie 22 z 22, 22 s na wybór.
+  - n=25: Pytanie 25 z 25, 25 s na wybór.
+  - n=112: Pytanie 112 z 112, 112 s na wybór.
+- `DRPG.Zones.panel.nobody`
+  - nikt
+- `DRPG.Zones.panel.outside`
+  - #1: Poza strefami: Aiko, Daichi i Chie.
+  - #2: Poza strefami: Aiko i Daichi.
+  - #3: Poza strefami: Chie.
+- `DRPG.Zones.panel.scrum.confer`
+  - n=0: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 0 s.
+  - n=1: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 1 s.
+  - n=2: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 2 s.
+  - n=5: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 5 s.
+  - n=12: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 12 s.
+  - n=22: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 22 s.
+  - n=25: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 25 s.
+  - n=112: Narada obozów: każdy obóz naradza się w swoim pokoju głosowym jeszcze przez 112 s.
+- `DRPG.Zones.panel.scrum.setup`
+  - n=0: Strony: obozy się ustawiają jeszcze przez 0 s.
+  - n=1: Strony: obozy się ustawiają jeszcze przez 1 s.
+  - n=2: Strony: obozy się ustawiają jeszcze przez 2 s.
+  - n=5: Strony: obozy się ustawiają jeszcze przez 5 s.
+  - n=12: Strony: obozy się ustawiają jeszcze przez 12 s.
+  - n=22: Strony: obozy się ustawiają jeszcze przez 22 s.
+  - n=25: Strony: obozy się ustawiają jeszcze przez 25 s.
+  - n=112: Strony: obozy się ustawiają jeszcze przez 112 s.
+- `DRPG.Zones.panel.scrum.speak`
+  - n=0: Tura 0 z 0: Aiko mówi za Strefę {zone} jeszcze przez 0 s.
+  - n=1: Tura 1 z 1: Daichi mówi za Strefę {zone} jeszcze przez 1 s.
+  - n=2: Tura 2 z 2: Aiko mówi za Strefę {zone} jeszcze przez 2 s.
+  - n=5: Tura 5 z 5: Daichi mówi za Strefę {zone} jeszcze przez 5 s.
+  - n=12: Tura 12 z 12: Aiko mówi za Strefę {zone} jeszcze przez 12 s.
+  - n=22: Tura 22 z 22: Daichi mówi za Strefę {zone} jeszcze przez 22 s.
+  - n=25: Tura 25 z 25: Aiko mówi za Strefę {zone} jeszcze przez 25 s.
+  - n=112: Tura 112 z 112: Daichi mówi za Strefę {zone} jeszcze przez 112 s.
+- `DRPG.Zones.panel.straw.vote`
+  - n=0: 0 s do liczenia.
+  - n=1: 1 s do liczenia.
+  - n=2: 2 s do liczenia.
+  - n=5: 5 s do liczenia.
+  - n=12: 12 s do liczenia.
+  - n=22: 22 s do liczenia.
+  - n=25: 25 s do liczenia.
+  - n=112: 112 s do liczenia.
+- `DRPG.Zones.panel.thesis`
+  - Teza: coś, co wstawia kod
+- `DRPG.Zones.samePick`
+  - Ta strona jest już wybrana.
+- `DRPG.Zones.scrum.begins`
+  - n=0: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 0 s, a tura 0 jest ostatnia.
+  - n=1: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 1 s, a tura 1 jest ostatnia.
+  - n=2: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 2 s, a tura 2 jest ostatnia.
+  - n=5: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 5 s, a tura 5 jest ostatnia.
+  - n=12: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 12 s, a tura 12 jest ostatnia.
+  - n=22: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 22 s, a tura 22 jest ostatnia.
+  - n=25: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 25 s, a tura 25 jest ostatnia.
+  - n=112: Pierwsza mówi Strefa {zone}. Obozy mówią na zmianę po 112 s, a tura 112 jest ostatnia.
+- `DRPG.Zones.scrum.confer`
+  - n=0: Strony wybrane. W Strefie A policzono 0, w Strefie B 0. Każdy obóz naradza się teraz osobno przez 0 s, a potem zaczyna się debata.
+  - n=1: Strony wybrane. W Strefie A policzono 1, w Strefie B 1. Każdy obóz naradza się teraz osobno przez 1 s, a potem zaczyna się debata.
+  - n=2: Strony wybrane. W Strefie A policzono 2, w Strefie B 2. Każdy obóz naradza się teraz osobno przez 2 s, a potem zaczyna się debata.
+  - n=5: Strony wybrane. W Strefie A policzono 5, w Strefie B 5. Każdy obóz naradza się teraz osobno przez 5 s, a potem zaczyna się debata.
+  - n=12: Strony wybrane. W Strefie A policzono 12, w Strefie B 12. Każdy obóz naradza się teraz osobno przez 12 s, a potem zaczyna się debata.
+  - n=22: Strony wybrane. W Strefie A policzono 22, w Strefie B 22. Każdy obóz naradza się teraz osobno przez 22 s, a potem zaczyna się debata.
+  - n=25: Strony wybrane. W Strefie A policzono 25, w Strefie B 25. Każdy obóz naradza się teraz osobno przez 25 s, a potem zaczyna się debata.
+  - n=112: Strony wybrane. W Strefie A policzono 112, w Strefie B 112. Każdy obóz naradza się teraz osobno przez 112 s, a potem zaczyna się debata.
+- `DRPG.Zones.scrum.empty`
+  - Strefa {zone} jest pusta. Klasa uważa: {answer}.
+- `DRPG.Zones.scrum.opened`
+  - n=0: {question} Uczniowie wybierają stronę: kto jest za „0”, staje w Strefie A, a kto za „0”, w Strefie B. Obozy naradzą się za 0 s.
+  - n=1: {question} Uczniowie wybierają stronę: kto jest za „1”, staje w Strefie A, a kto za „1”, w Strefie B. Obozy naradzą się za 1 s.
+  - n=2: {question} Uczniowie wybierają stronę: kto jest za „2”, staje w Strefie A, a kto za „2”, w Strefie B. Obozy naradzą się za 2 s.
+  - n=5: {question} Uczniowie wybierają stronę: kto jest za „5”, staje w Strefie A, a kto za „5”, w Strefie B. Obozy naradzą się za 5 s.
+  - n=12: {question} Uczniowie wybierają stronę: kto jest za „12”, staje w Strefie A, a kto za „12”, w Strefie B. Obozy naradzą się za 12 s.
+  - n=22: {question} Uczniowie wybierają stronę: kto jest za „22”, staje w Strefie A, a kto za „22”, w Strefie B. Obozy naradzą się za 22 s.
+  - n=25: {question} Uczniowie wybierają stronę: kto jest za „25”, staje w Strefie A, a kto za „25”, w Strefie B. Obozy naradzą się za 25 s.
+  - n=112: {question} Uczniowie wybierają stronę: kto jest za „112”, staje w Strefie A, a kto za „112”, w Strefie B. Obozy naradzą się za 112 s.
+- `DRPG.Zones.scrum.over`
+  - n=0: Scrum Debate dobiegła końca. W Strefie A policzono 0, w Strefie B 0.
+  - n=1: Scrum Debate dobiegła końca. W Strefie A policzono 1, w Strefie B 1.
+  - n=2: Scrum Debate dobiegła końca. W Strefie A policzono 2, w Strefie B 2.
+  - n=5: Scrum Debate dobiegła końca. W Strefie A policzono 5, w Strefie B 5.
+  - n=12: Scrum Debate dobiegła końca. W Strefie A policzono 12, w Strefie B 12.
+  - n=22: Scrum Debate dobiegła końca. W Strefie A policzono 22, w Strefie B 22.
+  - n=25: Scrum Debate dobiegła końca. W Strefie A policzono 25, w Strefie B 25.
+  - n=112: Scrum Debate dobiegła końca. W Strefie A policzono 112, w Strefie B 112.
+- `DRPG.Zones.scrum.thesis`
+  - Teza Strefy {zone}: coś, co wstawia kod
+- `DRPG.Zones.straw.finding`
+  - n=0: Klasa uważa: {answer}. W Strefie A policzono 0, w Strefie B 0.
+  - n=1: Klasa uważa: {answer}. W Strefie A policzono 1, w Strefie B 1.
+  - n=2: Klasa uważa: {answer}. W Strefie A policzono 2, w Strefie B 2.
+  - n=5: Klasa uważa: {answer}. W Strefie A policzono 5, w Strefie B 5.
+  - n=12: Klasa uważa: {answer}. W Strefie A policzono 12, w Strefie B 12.
+  - n=22: Klasa uważa: {answer}. W Strefie A policzono 22, w Strefie B 22.
+  - n=25: Klasa uważa: {answer}. W Strefie A policzono 25, w Strefie B 25.
+  - n=112: Klasa uważa: {answer}. W Strefie A policzono 112, w Strefie B 112.
+- `DRPG.Zones.straw.opened`
+  - n=0: {question} Kto wybiera „0”, staje w Strefie A, a kto „0”, w Strefie B. Liczenie za 0 s.
+  - n=1: {question} Kto wybiera „1”, staje w Strefie A, a kto „1”, w Strefie B. Liczenie za 1 s.
+  - n=2: {question} Kto wybiera „2”, staje w Strefie A, a kto „2”, w Strefie B. Liczenie za 2 s.
+  - n=5: {question} Kto wybiera „5”, staje w Strefie A, a kto „5”, w Strefie B. Liczenie za 5 s.
+  - n=12: {question} Kto wybiera „12”, staje w Strefie A, a kto „12”, w Strefie B. Liczenie za 12 s.
+  - n=22: {question} Kto wybiera „22”, staje w Strefie A, a kto „22”, w Strefie B. Liczenie za 22 s.
+  - n=25: {question} Kto wybiera „25”, staje w Strefie A, a kto „25”, w Strefie B. Liczenie za 25 s.
+  - n=112: {question} Kto wybiera „112”, staje w Strefie A, a kto „112”, w Strefie B. Liczenie za 112 s.
+- `DRPG.Zones.straw.split`
+  - n=0: Klasa jest podzielona. W Strefie A policzono 0, w Strefie B 0. Scrum Debate może to rozstrzygnąć.
+  - n=1: Klasa jest podzielona. W Strefie A policzono 1, w Strefie B 1. Scrum Debate może to rozstrzygnąć.
+  - n=2: Klasa jest podzielona. W Strefie A policzono 2, w Strefie B 2. Scrum Debate może to rozstrzygnąć.
+  - n=5: Klasa jest podzielona. W Strefie A policzono 5, w Strefie B 5. Scrum Debate może to rozstrzygnąć.
+  - n=12: Klasa jest podzielona. W Strefie A policzono 12, w Strefie B 12. Scrum Debate może to rozstrzygnąć.
+  - n=22: Klasa jest podzielona. W Strefie A policzono 22, w Strefie B 22. Scrum Debate może to rozstrzygnąć.
+  - n=25: Klasa jest podzielona. W Strefie A policzono 25, w Strefie B 25. Scrum Debate może to rozstrzygnąć.
+  - n=112: Klasa jest podzielona. W Strefie A policzono 112, w Strefie B 112. Scrum Debate może to rozstrzygnąć.

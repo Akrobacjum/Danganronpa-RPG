@@ -1830,11 +1830,12 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         const E = await import("${repoUrl}/scripts/gm-store.mjs");
         return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), hydration: E.gmStoreHydration().state,
             dialogs: globalThis.__dialogLog.filter(d => d.title === game.i18n.localize("DRPG.Case.healthTitle")),
-            warning: Boolean(S.caseWarning()) };`);
+            warning: Boolean(S.caseWarning()),
+            /* The two lines by their keys (E71 group D, 14.11.2026): the texts are the batch's, not a phrase pinned here. */
+            want: [game.i18n.format("DRPG.Case.row.bullets.other", { n: 3, of: 3 }), game.i18n.format("DRPG.Case.row.traces.other", { n: 2, of: 2 })] };`);
     check("Z2: the empty browser, alone and so the primary, opens the health check naming the missing answer keys, and Continue leaves the warning up",
         seenOnGm3.primary && seenOnGm3.hydration === "alone" && seenOnGm3.dialogs.length === 1
-        && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.text ?? "")
-        && /2 traces on the map \(of 2\) have no answer key/.test(seenOnGm3.dialogs[0]?.text ?? "") && seenOnGm3.warning, J(seenOnGm3));
+        && seenOnGm3.want.every(line => !line.startsWith("DRPG.") && (seenOnGm3.dialogs[0]?.text ?? "").includes(line)) && seenOnGm3.warning, J(seenOnGm3));
     /* Z6 (E05 C6, 26.09.2026; audit S11-03): a note p1 saved while no GM was connected was kept on
        p1's browser, unsent, and answered "kept"; gm3, the next primary GM, with an empty browser, is
        sent it once its world has loaded (`drpgPrimaryReady`) and holds it, and p1's copy is sent. */

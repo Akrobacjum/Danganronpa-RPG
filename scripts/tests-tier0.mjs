@@ -19365,7 +19365,7 @@ const REGRESSIONS = [
             kept: /if\s*\(\s*lead\s*\)\s*lastLeadSignature\s*=\s*now\.lead/.test(arrival),
             pool: /poolUserFor\(\s*token\.actor\s*\)\?\.id\s*===\s*me/.test(leads) && /if\s*\(\s*!isMine\(\s*token\s*,\s*gm\s*\)\s*\)\s*return\s+false/.test(leads),
             both: /lastMineSignature\s*=\s*now\.mine/.test(stand) && /lastLeadSignature\s*=\s*now\.lead/.test(stand),
-            canvas: /"remember where we started"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
+            canvas: /"rememberStart"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
             deleted: deleting.length,
             region: /standWhereWeStand\(\s*\{\s*redraw:\s*true\s*\}\s*\)/.test(changed),
             starting: /leadsHere\(\s*token\s*\)/.test(reveal)
@@ -19510,7 +19510,7 @@ const REGRESSIONS = [
                 move: ["That cost an action. You have 1 action left.", "That cost an action. You have 2 actions left.", "That cost an action. You have 5 actions left."],
                 eclipse: ["End this session and open the T Eclipse: a new session begins, and everyone places their token with 1 crossing each", "End this session and open the T Eclipse: a new session begins, and everyone places their token with 2 crossings each"],
                 summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 Remnants left behind"],
-                thin: ["No Key Remnant has been found yet", "Only 2 Key Remnants have been found"],
+                thin: ["No Key Remnant has been found yet, and the trial needs more than 3 to have an honest answer", "Only 2 Key Remnants have been found, and the trial needs more than 3 to have an honest answer"],
                 overflow: ["2 fewer actions each, on top of anything Wounded already took", true],
                 approved: ["You spend 2 Hope; you have 5 Hope left.", "“I” loses durability to Despair"]
             },
@@ -19519,7 +19519,7 @@ const REGRESSIONS = [
                 move: ["To przejście kosztowało akcję. Została ci 1 akcja.", "To przejście kosztowało akcję. Zostały ci 2 akcje.", "To przejście kosztowało akcję. Zostało ci 5 akcji."],
                 eclipse: ["1 przejście)", "2 przejścia)"],
                 summary: ["P: co się u ciebie działo.", "P: co działo się przy stole.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
-                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnanty"],
+                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 3", "Znaleziono dopiero 2 Key Remnanty, a żeby Class Trial miał uczciwe rozwiązanie, trzeba więcej niż 3"],
                 overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
                 approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
             },
