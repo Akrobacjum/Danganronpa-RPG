@@ -174,6 +174,15 @@ X3, X5, X7, X8, X14-X18, X20, X21, N4, N6-N8, V3, and the button, window-title, 
 | A-Q2 | The batch files and `tools/text-render.mjs` `BATCH_FILES` | The coordinator, 14.11: line B makes the list a glob of `docs/dev/text-batch-*.json` and scopes `isOut` to B01a; until that lands this line checks its files with `batchSchema` from a script. |
 | A-Q3 | Q-E71-1 by the map | The coordinator's map (above). |
 
+## Test runs on the tip (876878f5)
+
+| Run | Result |
+| --- | --- |
+| `node run-tests.mjs --tier 1` | 1606 tests ran, 1590 passed, 1 failed (R2001: the known base failure, the coordinator's), 16 skipped, 0 red; 502.5 s |
+| scenario 10-murder | 45/45 checks |
+| scenario 50-lang | 41/45: one check, "plural picks one/few/many", red on all four clients - it expects "Key Remnants" in `DRPG.Chapter.doneKeys`'s Polish, unchanged since 1463f22b ("Key Remnanty", the early pass's DB4 form), so red on the base too; `Chapter` is group C's and the scenario was not edited here |
+| `npm run quick` | green (lint, check 21 parts, gate) |
+
 ## For the owner (each with the default this line ran on)
 
 | Id | Key | Question | Default (what stands now) |
