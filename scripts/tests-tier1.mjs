@@ -27161,6 +27161,26 @@ const INVARIANTS = [
             .filter(([unit, , re]) => !re.test(fnSource(map, unit))).map(([unit, what]) => `${what} not held to the Map in ${unit}()`);
         equal(bad.concat(mapOnly).join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
+    ["R6351 - the Actions family's sites drawn after E102's census draw their tooltips (E102 C12, 14.11.2026; tools/tooltip-census.json's \"E102 C12\" rows outside E54's files): call-pickers.mjs `pickChoice`'s Next carries DRPG.Tips.Actions.nextTooltip, as the two pickers before it do (nothing is paid there; the Call's own confirmation follows), with words in English and in Polish within the guide's 23; the doors' and Tail's picks and Roll are rows with their reasons, as Listen's", async () => {
+        /* Red at 3aae7c72: pickChoice's Next drew no tooltip. */
+        const TIPS = [
+            ["DRPG.Tips.Actions.nextTooltip","call-pickers.mjs","pickChoice"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = fnSource(src.get(f), unit);
+            return !((P.tipPlacement(body, k, f)) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f} ${unit}()`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
     ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
         /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());

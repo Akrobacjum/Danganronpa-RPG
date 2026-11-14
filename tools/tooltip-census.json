@@ -15,7 +15,7 @@
    "kind": "select",
    "key": "DRPG.Infiltrate.force.which",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the label asks which door, the prompt above says what forcing one does, and the list is the rooms next to this one named as Listen names them; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-doors.mjs",
@@ -23,7 +23,7 @@
    "kind": "select",
    "key": "DRPG.Infiltrate.force.which",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the label asks which door, the prompt above says what picking its lock does, and the list is the rooms next to this one named as Listen names them; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-doors.mjs",
@@ -31,7 +31,7 @@
    "kind": "footer",
    "key": "DRPG.Action.roll",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's one action; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-doors.mjs",
@@ -39,7 +39,7 @@
    "kind": "footer",
    "key": "DRPG.Action.roll",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the window's one action; the briefing on the left gives the price, the roll and what each result does, as Listen's window (action-listen.mjs performListen's rows)"
   },
   {
    "file": "scripts/action-listen.mjs",
@@ -127,7 +127,7 @@
    "kind": "select",
    "key": "DRPG.Infiltrate.tail.who",
    "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+   "why": "none needed: the label asks whom, the prompt above says what Shadow decides, and the list names the students in this room"
   },
   {
    "file": "scripts/boundary.mjs",
@@ -160,14 +160,6 @@
    "key": "DRPG.Motive.demandPlaceholder",
    "count": 1,
    "why": "none needed: The label asks the question, the placeholder gives an example and the note under the form says all three answers are announced word for word."
-  },
-  {
-   "file": "scripts/call-pickers.mjs",
-   "unit": "pickChoice",
-   "kind": "footer",
-   "key": "DRPG.Calls.next",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
    "file": "scripts/calls.mjs",
