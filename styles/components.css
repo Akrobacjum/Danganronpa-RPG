@@ -185,6 +185,11 @@ body {
     --drpg-kit-header-ring: currentColor;
     --drpg-kit-focus-ring: var(--drpg-attention);
     --drpg-kit-field-bg: rgba(var(--drpg-ink-rgb), 0.55);
+    /* a checkbox's tick under Legacy, and the one token every rule that sets one reads (E55 K1, 14.11.2026): the kit's
+       rule below (FT-09), the Give, Truth Bullet and item tables windows', the item windows' (danganronpa.css, "The tick
+       in the module's ink") and the settings window's (danganronpa.css, E105 FT batch 3). Their selectors stay as they
+       were: two of them apply under the glass as well and one rule over all four would weigh more than each did, so the
+       order with the glass's drawn checkbox would change; Bone in both themes, as each wrote it. */
     --drpg-kit-check-accent: var(--drpg-bone);
     --drpg-kit-placeholder-ink: var(--drpg-kit-help-ink);
     --drpg-kit-selection-bg: var(--drpg-kit-ink);
@@ -2891,8 +2896,8 @@ body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-window-items:not(
 .application.drpg-ui.drpg-window-items .drpg-give-choice[hidden] { display: none; }
 .application.drpg-ui.drpg-window-items .drpg-give-pane { margin: 0 0 6px; }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-tables) input[type="checkbox"] {
-    accent-color: var(--drpg-bone);
-    --checkbox-checked-color: var(--drpg-bone);
+    accent-color: var(--drpg-kit-check-accent);
+    --checkbox-checked-color: var(--drpg-kit-check-accent);
 }
 body.drpg-theme-monokuma-legacy .application.drpg-ui:is(.drpg-window-give, .drpg-window-items) .drpg-role-label {
     font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1)));

@@ -15108,8 +15108,8 @@ body.drpg-theme-monokuma-legacy #pause.paused {
    checkbox is recalled to read, not read in this repository: whether it is v14's is the owner's live check. */
 .application.dialog:is(.drpg-window-take, .drpg-window-autopsy, .drpg-give-key,
     .drpg-window-items, .drpg-window-tables) input[type="checkbox"] {
-    accent-color: var(--drpg-bone);
-    --checkbox-checked-color: var(--drpg-bone);
+    accent-color: var(--drpg-kit-check-accent);
+    --checkbox-checked-color: var(--drpg-kit-check-accent);
 }
 
 /* THE HUB's footer grid (three tiles of one width, Close under them) left with the window's frame in E21 C2b (the
@@ -18403,7 +18403,7 @@ body.drpg-theme-monokuma-legacy #settings-config :is(input, select, textarea, bu
     outline-offset: 1px;
 }
 body.drpg-theme-monokuma-legacy #settings-config :is(input[type="checkbox"], input[type="range"], range-picker, toggle-switch) {
-    accent-color: var(--drpg-bone);
+    accent-color: var(--drpg-kit-check-accent);
 }
 body.drpg-theme-stained-glass #settings-config :is(input[type="range"], range-picker, toggle-switch) {
     accent-color: var(--drpg-sg-bone);
