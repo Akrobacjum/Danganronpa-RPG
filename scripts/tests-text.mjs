@@ -222,6 +222,79 @@ export function pairParity({ en, pl } = {}) {
     return { found, read };
 }
 
+/* ------------------------------- T9: stale-pl ------------------------------- */
+
+/**
+ * A text's hash as tools/pl-reviewed.json keeps it (E57 C1): FNV-1a over the string's UTF-16 code units, eight hex
+ * digits. A stamp says only "this text, as it stood"; it is not a secret and not a check against tampering, and
+ * eight digits make two different texts of one key read the same about once in four billion.
+ */
+export function textHash(text) {
+    let h = 0x811c9dc5;
+    const s = String(text);
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, "0");
+}
+
+/** The English a Polish key translates: its own English key, config.mjs's English prose, or a .few or .many's family's .other. */
+export function englishOf(key, E, R) {
+    if (E.has(key)) return E.get(key);
+    if (R.has(key)) return R.get(key);
+    const m = key.match(/^(.*)\.(few|many)$/);
+    if (m) return E.get(`${m[1]}.other`) ?? R.get(`${m[1]}.other`);
+    return undefined;
+}
+
+/** A stamp as the file writes it: "<english hash>:<polish hash>", with ":b" where it was the baseline, not a read. */
+export function stampOf(english, polish, baseline = false) {
+    return `${textHash(english)}:${textHash(polish)}${baseline ? ":b" : ""}`;
+}
+
+/**
+ * T9, STALE-PL (E57 C1, 14.11.2026; the plan's C1, docs/dev/e57/PLAN.md section 4). E25's plan named the tool and left
+ * it a report; E57 puts it in the gate. tools/pl-reviewed.json holds, per Polish key, a stamp: the hashes of its English
+ * and its Polish as they stood when the Polish was last read beside the English (tools/stale-pl.mjs `--stamp`). Each
+ * Polish key is then one of:
+ *   - ok        both as stamped;
+ *   - stale     the English moved and the Polish did not: the Polish describes an English that is gone. The finding;
+ *   - rewritten both moved since the stamp: the text was written anew in both languages, and waits for a read
+ *               (`--sheet` lists it), which is not this detector's to judge - so a stage that rewrites a key in both
+ *               files is not red here, and one that changes only the English is;
+ *   - unstamped a Polish key the file holds no stamp for (a new key): waits for a read, not red;
+ * and a stamp no Polish key holds is `gone` (`--stamp` drops it). A stamp ending ":b" is the baseline: the file as
+ * written at E57 C1 from the tree as it stood, before anyone read it (counted `baseline`, among the ok, so `--sheet`
+ * can say how much of the Polish no one has read since); C12's read replaces it. Moving the Polish alone (the English as
+ * stamped) is ok for this detector too: a correction of the Polish needs no new read of the English.
+ */
+export function staleTranslations({ en, pl, prose, reviewed } = {}) {
+    const E = asMap(en), P = asMap(pl), R = asMap(prose);
+    const stamps = reviewed?.keys && typeof reviewed.keys === "object" ? reviewed.keys : {};
+    const found = [];
+    const counts = { ok: 0, stale: 0, rewritten: 0, unstamped: 0, gone: 0, baseline: 0 };
+    let read = 0;
+    for (const [key, polish] of P) {
+        const english = englishOf(key, E, R);
+        if (typeof polish !== "string" || typeof english !== "string") continue;
+        read++;
+        const stamp = stamps[key];
+        if (typeof stamp !== "string") { counts.unstamped++; continue; }
+        const [enAt, plAt, mark] = stamp.split(":");
+        const enSame = enAt === textHash(english), plSame = plAt === textHash(polish);
+        if (enSame) {
+            counts.ok++;
+            if (mark === "b") counts.baseline++;
+        } else if (plSame) {
+            counts.stale++;
+            found.push({ key, kind: "stale", what: `${key}: its English changed since tools/pl-reviewed.json stamped it and its Polish did not - read the Polish beside the English ("${english}"), correct it, then node tools/stale-pl.mjs --stamp --key ${key}` });
+        } else counts.rewritten++;
+    }
+    for (const key of Object.keys(stamps)) if (!P.has(key)) counts.gone++;
+    return { found, read, counts };
+}
+
 /* ------------------------------ the code reader ----------------------------- */
 
 /**
@@ -2459,6 +2532,7 @@ export const MODES = Object.freeze({
     pluralForms: Object.freeze({ test: "T1", mode: "fail", fail: "E65", reads: Object.freeze(["lang"]) }),
     configPlaceholders: Object.freeze({ test: "T1", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "prose"]) }),
     pairParity: Object.freeze({ test: "T2", mode: "fail", fail: "E65", reads: Object.freeze(["lang"]) }),
+    staleTranslations: Object.freeze({ test: "T9", mode: "fail", fail: "E57", reads: Object.freeze(["lang", "reviewed"]), also: Object.freeze(["prose"]) }),
     familyFormats: Object.freeze({ test: "T3", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts"]), lexer: true }),
     dashesIn: Object.freeze({ test: "T6", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts", "docs"]), also: Object.freeze(["prose"]), lexer: true }),
     tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) }),
@@ -2484,7 +2558,7 @@ export const MODES = Object.freeze({
     secondPersonToMany: Object.freeze({ test: "T16", mode: "report", fail: "E71", reads: Object.freeze(["audience", "lang"]), also: Object.freeze(["prose"]) })
 });
 
-export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
+export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, staleTranslations, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
     lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains,
     loanGender, loanDeclension, oxfordComma, telegraph, contractions, mirror, itemQuotes, bareLeft,
     uiLiterals, localeCalls, naturalnessBefore, renderChecks, secondPersonToMany });
@@ -2502,6 +2576,45 @@ export const itemOf = f => `${f.key} ${f.kind}`;
  * as an escape ("\u2013"), never the character (`dashes` reads code).
  */
 export const FIXTURES = Object.freeze({
+    /* T9 (E57 C1): each Polish key's stamp against its English and Polish now. R6600 changes one thing of this input at a
+       time and reads what moves; the stamps are written here with the file's own function, so a change to the hash or
+       the stamp's shape moves every case at once rather than none. */
+    staleTranslations: {
+        flags: ["DRPG.Fx.stale stale"],
+        counts: { ok: 7, stale: 1, rewritten: 1, unstamped: 1, gone: 1, baseline: 1 },
+        input: {
+            en: {
+                "DRPG.Fx.door": "Open the door",                          // as stamped: ok
+                "DRPG.Fx.keep": "Keep it",                                // as stamped, the baseline's stamp: ok, counted baseline
+                "DRPG.Fx.stale": "New words",                             // stamped on "Old words", the Polish not moved: stale
+                "DRPG.Fx.rewritten": "Written again",                     // both moved since the stamp: rewritten
+                "DRPG.Fx.cards.one": "{n} card", "DRPG.Fx.cards.other": "{n} cards",
+                "DRPG.Fx.fresh": "A new line"                             // no stamp: unstamped
+            },
+            pl: {
+                "DRPG.Fx.door": "Otwórz drzwi", "DRPG.Fx.keep": "Zatrzymaj", "DRPG.Fx.stale": "Stare słowa",
+                "DRPG.Fx.rewritten": "Napisane od nowa",
+                "DRPG.Fx.cards.one": "{n} karta", "DRPG.Fx.cards.few": "{n} karty", "DRPG.Fx.cards.many": "{n} kart", "DRPG.Fx.cards.other": "{n} karty",
+                "DRPG.Fx.fresh": "Nowa linia",
+                "DRPG.Config.FX.hint": "Rzuć raz"                          // its English is config.mjs's prose: ok
+            },
+            prose: { "DRPG.Config.FX.hint": "Roll once" },
+            reviewed: {
+                keys: {
+                    "DRPG.Fx.door": stampOf("Open the door", "Otwórz drzwi"),
+                    "DRPG.Fx.keep": stampOf("Keep it", "Zatrzymaj", true),
+                    "DRPG.Fx.stale": stampOf("Old words", "Stare słowa"),
+                    "DRPG.Fx.rewritten": stampOf("Written once", "Napisane raz"),
+                    "DRPG.Fx.cards.one": stampOf("{n} card", "{n} karta"),
+                    "DRPG.Fx.cards.few": stampOf("{n} cards", "{n} karty"),    // a .few is held to its family's .other
+                    "DRPG.Fx.cards.many": stampOf("{n} cards", "{n} kart"),
+                    "DRPG.Fx.cards.other": stampOf("{n} cards", "{n} karty"),
+                    "DRPG.Config.FX.hint": stampOf("Roll once", "Rzuć raz"),
+                    "DRPG.Fx.dropped": stampOf("Gone", "Nie ma")              // no Polish key holds it: gone
+                }
+            }
+        }
+    },
     pluralForms: {
         flags: ["DRPG.Fx.figs.many pl", "DRPG.Fx.figs.other pl", "DRPG.Fx.pears.few pl", "DRPG.Fx.plums.one en"],
         input: {

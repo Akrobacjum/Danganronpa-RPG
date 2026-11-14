@@ -110,7 +110,7 @@
  *             .md git lists under docs/, the handbooks among them; `npm ci` in
  *             audit/harness first, for espree. In this order:
  *             1. The self-check (scripts/tests-text.mjs selfCheck): each of the
- *                26 detectors on its fixture - red when one does not flag
+ *                27 detectors on its fixture - red when one does not flag
  *                exactly its fixture's items, or reads nothing of it - and its
  *                controls, each a broken copy the self-check must see: a
  *                detector stubbed to read nothing, T8 blind to its ledger,
@@ -125,10 +125,15 @@
  *                tools/text-audience.mjs; "screens: ...", "audience: ...", the
  *                audience map also on planted scripts with known answers).
  *             3. Every detector over the files, one line each: its T number,
- *                its mode, what it read, what it found and its counts. The six
+ *                its mode, what it read, what it found and its counts. The
  *                FAIL ones - T1 (pluralForms, configPlaceholders), T2
  *                (pairParity), T3 (familyFormats) and T6 (dashesIn), the last
- *                two with a baseline that only shrinks, T14 (tableWordProblems) - are red
+ *                two with a baseline that only shrinks, T9 (staleTranslations,
+ *                E57 C1: a Polish key whose English moved since its stamp in
+ *                tools/pl-reviewed.json and whose Polish did not; the file
+ *                missing is red, and tools/stale-pl.mjs's self-check runs
+ *                first, a planted English moved alone seen), T14
+ *                (tableWordProblems), T20 and T28 - are red
  *                on a finding their baseline does not hold and on a baseline row
  *                nothing fills ("take it out of the baseline"). The twenty
  *                report ones print their findings, 25 a detector, never red;
@@ -1184,6 +1189,17 @@ async function text() {
         }
     }
     const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables-pools.mjs")), glossary, shipped, budgets };
+    /* T9's stamps (E57 C1): tools/pl-reviewed.json, written by tools/stale-pl.mjs --stamp. Without the file every Polish key
+       reads unstamped and nothing is guarded, so a missing or unreadable file is red. Then the tool's own self-check: its
+       fixture, and this tree's files stamped whole with one English planted moved alone (stale, which must be seen) and
+       one moved with its Polish (rewritten, which must not be red). */
+    try { inputs.reviewed = JSON.parse(read("tools/pl-reviewed.json")); } catch (err) { problems.push(`T9: tools/pl-reviewed.json cannot be read (${err?.message ?? err}) - node tools/stale-pl.mjs --stamp writes it`); }
+    {
+        const stalePl = await import(url.pathToFileURL(path.join(REPO, "tools", "stale-pl.mjs")).href);
+        const self = stalePl.selfCheck();
+        problems.push(...self.problems.map(p => `T9: stale-pl self-check: ${p}`));
+        console.log(`text: T9 stale-pl self-check: ${self.problems.length ? "RED" : "the planted English moved alone was seen, the one moved with its Polish was not red"} (${self.planted.join(", ")})`);
+    }
     /* The screen map and the render (E65 C10): tools/text-map.mjs reads the scripts with espree (a SCREENS row that names
        no unit is red: the hand table is a file E65 writes), tools/text-render.mjs fills every string with its fixtures in
        memory; T15 reads the render, T19 the map's marks (decision 52). The files themselves only by the two tools. */

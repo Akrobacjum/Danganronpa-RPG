@@ -19056,24 +19056,24 @@ const REGRESSIONS = [
         }), JSON.stringify({
             names: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
-                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
             fixtures: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
-                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
             detectors: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
                 "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
-                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "staleTranslations", "tableWordProblems", "telegraph", "uiLiterals"],
             modes: [["bareLeft", "T25", "report"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
                 ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
                 ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
                 ["monokumaVoice", "T21", "report"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
-                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
+                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["staleTranslations", "T9", "fail"], ["tableWordProblems", "T14", "fail"],
                 ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
-                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
+                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["staleTranslations", 1, 1], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
             baselines: [["dashesIn", 9], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
@@ -19086,7 +19086,37 @@ const REGRESSIONS = [
             + "screen map's marks makes]");
     }],
 
-    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11)", async () => {
+    ["R6600 - T9 (staleTranslations) is a FAIL detector: a Polish text whose English moved since tools/pl-reviewed.json stamped it, and whose Polish did not, is red; a key whose English and Polish both moved, a key with no stamp and a stamp no key holds are counted apart and never red; a Polish .few or .many is held to its family's English .other, a DRPG.Config key to config.mjs's English prose; a stamp marked as the baseline is counted as not read (E57 C1)", async () => {
+        /* E57 C1 (14.11.2026). T9 is stale-pl: the plan's guard (docs/dev/e57/PLAN.md section 4, C1), built in
+         * scripts/tests-text.mjs so the self-check and tools/check.mjs text run it and the command tools/stale-pl.mjs
+         * reads the same function. A stamp is two hashes, the English and the Polish as they stood when the stamp was
+         * written; "stale" is the English moved and the Polish not, the one reading that says a Polish text describes
+         * an English that is gone. The fixture's input is the detector's own; each case below changes one thing of it
+         * and reads what moves. Pure data: nothing is fetched or written. */
+        const run = TEXT_DETECTORS.staleTranslations, fx = TEXT_FIXTURES.staleTranslations;
+        must(typeof run === "function" && fx, "T9 (staleTranslations) is no detector of the text lint yet");
+        const base = run(fx.input);
+        const counted = r => JSON.stringify({ found: r.found.map(textItem).sort(), counts: r.counts });
+        const moved = (side, key, text) => ({ ...fx.input, [side]: { ...fx.input[side], [key]: text } });
+        /* The English of a plain key moves: red. Its Polish moves with it: rewritten, not red. */
+        const enMoved = run(moved("en", "DRPG.Fx.door", "Open the door now"));
+        const bothMoved = run({ ...moved("en", "DRPG.Fx.door", "Open the door now"), pl: { ...fx.input.pl, "DRPG.Fx.door": "Otwórz teraz drzwi" } });
+        /* A family's .other moves: its Polish .few and .many follow it. Config prose moves: its Polish follows. */
+        const otherMoved = run(moved("en", "DRPG.Fx.cards.other", "{n} playing cards"));
+        const proseMoved = run(moved("prose", "DRPG.Config.FX.hint", "Roll twice"));
+        equal(JSON.stringify({
+            mode: [TEXT_MODES.staleTranslations?.test, TEXT_MODES.staleTranslations?.mode],
+            base: counted(base),
+            enMoved: enMoved.found.map(textItem).sort(), bothMoved: [bothMoved.found.length, bothMoved.counts.rewritten],
+            otherMoved: otherMoved.found.map(textItem).sort(), proseMoved: proseMoved.found.map(textItem).sort()
+        }), JSON.stringify({
+            mode: ["T9", "fail"],
+            base: counted({ found: [{ key: "DRPG.Fx.stale", kind: "stale" }], counts: { ok: 7, stale: 1, rewritten: 1, unstamped: 1, gone: 1, baseline: 1 } }),
+            enMoved: ["DRPG.Fx.door stale", "DRPG.Fx.stale stale"], bothMoved: [1, 2],
+            otherMoved: ["DRPG.Fx.cards.few stale", "DRPG.Fx.cards.many stale", "DRPG.Fx.cards.other stale", "DRPG.Fx.stale stale"], proseMoved: ["DRPG.Config.FX.hint stale", "DRPG.Fx.stale stale"]
+        }));
+    }],
+    ["R1059 - the text lint's FAIL detectors over the filesthe module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11)", async () => {
         /*
          * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
          * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:

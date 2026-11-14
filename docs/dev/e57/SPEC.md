@@ -19,7 +19,7 @@ command beside it.
 | Units (handbook-facts.mjs `split`) | - | GM 785 (414 paragraphs, 344 rows, 27 notes, 22 sections), player 462 (256, 185, 21, 17), brochure 40 (17, 20, 3, 8); the Polish ids, kinds and lines as the English in all three | `node tools/check.mjs text` |
 | "section N" references | GM EN 124, PL 117 | GM EN 136 ("section N"), PL 122 ("sekcj* N") | `grep -ohE` |
 | Language keys | - | en.json 5794, pl.json 6855 (the 1061 more are config.mjs's prose, 547 strings with their Polish plural forms) | `flatLang`, `walkConfigProse` |
-| `tools/stale-pl.mjs`, `lang/pl.reviewed.json`, rules-parity | not built (E25 C1 was to build stale-pl as a report; E25 has not shipped) | built here, C1 and C2 | - |
+| `tools/stale-pl.mjs`, `tools/pl-reviewed.json`, rules-parity | not built (E25 C1 was to build stale-pl as a report; E25 has not shipped) | built here, C1 and C2 | - |
 
 So F2 and the brochure's half of F3 are fixed on the base (the texts line's early pass); rules-parity (C2) holds the
 first and `opening.victim` the second.
@@ -102,6 +102,6 @@ choice named, the "Tier N." literal) when E54 lands.
 
 | # | Question | Default taken |
 | --- | --- | --- |
-| Q-E57-13 | The first lang/pl.reviewed.json: stamp every Polish key as it stands, or start empty? | Every key stamped, each marked `:b` ("the baseline, not a read"): the gate then catches an English moved from here on, and `--sheet` still lists every key nobody has read. C12's read replaces the marks. Empty would make T9 green over every key and guard nothing |
+| Q-E57-13 | The first tools/pl-reviewed.json: stamp every Polish key as it stands, or start empty? | Every key stamped, each marked `:b` ("the baseline, not a read"): the gate then catches an English moved from here on, and `--sheet` still lists every key nobody has read. C12's read replaces the marks. Empty would make T9 green over every key and guard nothing |
 | Q-E57-14 | A key whose English and Polish both moved since its stamp: red? | No - `rewritten`, listed by `--sheet` for a read. Red would turn the gate red on every merge of the four text lines, which rewrite both languages by namespace; T9's red is the one case that is surely wrong, the English moved alone |
 | Q-E57-15 | rules-parity and a rule number written in words ("four to five actions") | Accepted and counted (3 today), not red: digits for rule numbers is T7's, whose FAIL for the handbooks comes with their rewrite (C12 turns it, with the text lints) |
