@@ -255,6 +255,19 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("p1 and p2: projectMeta holds no killerId, by, condition, trigger or description of the secret project, and no character id of the killer",
         Boolean(made) && [metaP1, metaP2].every(m => m.row && !m.fields.length && !m.killer), JSON.stringify({ p1: metaP1, p2: metaP2 }));
 
+    /* THAT A SECRET PROJECT IS AN INDIRECT MURDER IS NOT IN WORLD DATA (the 1.2.113 line leak-pm, 14.11.2026; E59's
+       trace of GAPS.md's E43 row, docs/dev/e59/LEAK-PROJECT-MARK.md on claude/e59-113). An indirect murder is always
+       secret (projects.mjs `createProject`: `hidden = secret || indirectMurder`), so its `indirectMurder` mark in
+       projectMeta, a world setting every browser holds, told any console that a murder plan exists, and which countdown
+       it is. Read on the two browsers that are not the killer's player's; the row has to be there. Red at 123f8242 on
+       both: {"row":true,"murder":true}. */
+    const markHolds = p => p.eval(`const row = (game.settings.get("${MOD}", "projectMeta") ?? {})["${made ?? "none"}"] ?? null;
+        return { row: Boolean(row), murder: row && typeof row === "object" && Object.hasOwn(row, "indirectMurder") ? row.indirectMurder : "absent" };`);
+    const markP1 = await markHolds(p1), markP2 = await markHolds(p2);
+    check("p1 and p2: projectMeta's row of the secret project holds no indirectMurder mark",
+        Boolean(made) && [markP1, markP2].every(m => m.row && m.murder === "absent"), JSON.stringify({ p1: markP1, p2: markP2 }),
+        { expectedRed: { stage: "E54", why: "the leak-pm line's red first: the mark is still projectMeta's" }, measured: Boolean(made) });
+
     /* A SECRET PROJECT'S NAME AND WHO IS IN ON IT ARE NOT IN DAGGERHEART'S COUNTDOWNS (known leak S17-31; the coordinator's
        task of 12.11.2026, stricter than the marker scan). Daggerheart's world setting Countdowns reaches every browser: on
        the two that are not the killer's player's, the secret project's countdown holds neither its name (the marker) nor an
@@ -379,6 +392,40 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         await new Promise(r => setTimeout(r, 300));
         return { armed: T.diagnoseTraps().armed, complete: P.isComplete(P.allProjects().find(p => p.id === "${made ?? "none"}")) };`, { timeout: 60000 });
     check("gm: the indirect murder's bar is filled and its trap armed", armedTrap.complete === true && armedTrap.armed >= 1, JSON.stringify(armedTrap));
+    /* AND ITS ROOM (the leak-pm line, 14.11.2026): the trap watches Storage. A secret project's room may be in projectMeta
+       only where its token already tells it: a Token document's position reaches every browser, hidden or not (known leak
+       foundry-hidden-tokens, a Foundry limit), so where the token stands the room is the map's to tell whatever the meta
+       says. Read on p1 and p2: the meta's room, and the project's token on the scene. */
+    const roomHolds = (p, id) => p.eval(`const row = (game.settings.get("${MOD}", "projectMeta") ?? {})["${id ?? "none"}"] ?? null;
+        const token = game.scenes.contents.flatMap(s => s.tokens.contents).find(t => t.getFlag("${MOD}", "projectId") === "${id ?? "none"}") ?? null;
+        return { row: Boolean(row), room: row?.room ?? null, token: token ? { hidden: token.hidden, x: token.x, y: token.y } : null };`);
+    const toldByToken = m => m.row && (m.room === null || (m.token !== null && m.token.hidden === false));
+    const roomP1 = await roomHolds(p1, made), roomP2 = await roomHolds(p2, made);
+    check("p1 and p2: projectMeta names no room of the secret murder its token does not already tell",
+        Boolean(made) && [roomP1, roomP2].every(toldByToken), JSON.stringify({ p1: roomP1, p2: roomP2 }));
+    /* The case the E59 line did not measure: a secret project with a room and no token. A GM's deletion of its token keeps
+       it off the map (projects-map.mjs `onProjectTokenDeleted`, `mapHidden`), so nothing on the map tells its room; the
+       meta alone would. A secret project of no murder, in Storage, its token deleted by the GM; read, then deleted. */
+    const offMap = await gm.eval(`${PROJ}
+        const p = await P.createProject({ name: "Canary off-map probe", secret: true, room: "Storage" });
+        if (!p?.id) return { id: null };
+        const until = Date.now() + 10000;
+        let token = null;
+        while (!token && Date.now() < until) {
+            token = game.scenes.contents.flatMap(s => s.tokens.contents).find(t => t.getFlag("${MOD}", "projectId") === p.id) ?? null;
+            if (!token) await new Promise(r => setTimeout(r, 200));
+        }
+        if (token) await token.delete();
+        await new Promise(r => setTimeout(r, 600));
+        return { id: p.id, hadToken: Boolean(token), hidden: Boolean(P.metaFor(p.id).mapHidden), room: P.roomOf(p.id) };`, { timeout: 60000 });
+    await settle(800);
+    const offP1 = await roomHolds(p1, offMap.id), offP2 = await roomHolds(p2, offMap.id);
+    check("p1 and p2: projectMeta names no room of a secret project kept off the map (no token)",
+        Boolean(offMap.id) && offMap.hadToken && offMap.hidden && offMap.room === "Storage" && [offP1, offP2].every(m => m.row && m.token === null && m.room === null),
+        JSON.stringify({ offMap, p1: offP1, p2: offP2 }),
+        { expectedRed: { stage: "E54", why: "the leak-pm line's red first: a secret project's room is projectMeta's" },
+            measured: Boolean(offMap.id) && offMap.hadToken && offMap.hidden && offMap.room === "Storage" });
+    await gm.eval(`${PROJ} if ("${offMap.id ?? ""}") await P.deleteProject("${offMap.id ?? ""}"); return true;`, { timeout: 60000 });
     await scanned("trap", KILLER_CHAT);
     /* The trap's receipt (E06 C8): a veiled thread card. Found on the GM in Chie's player's
        thread by its title, then read by id on p3 - listed in her own thread from the meta its
