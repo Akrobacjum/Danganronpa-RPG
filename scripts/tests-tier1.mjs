@@ -47097,7 +47097,7 @@ const INVARIANTS = [
         // `studentActors(` with or without the GMs' `held` (E24 fix G1: the vote's candidates read the flags as the GMs hold them, R1494).
         const reads = (file, fn) => { const body = cut(file, fn); return body.length > 40 && /\bstudentActors\((?:\)|\{ held: flagsHeldNow \}\))/.test(body) && !/\bgame\.actors\b(?!\.get\()/.test(body); };
         // The Calls' picker since E24 fix G1 (the owner, 09.11: "wylacz takie npc"; the general review's m7).
-        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "verdictHeld"),
+        const source = { candidates: reads("vote.mjs", "candidatesFor"), size: reads("vote.mjs", "picksFor"), survivors: reads("verdict.mjs", "aliveAsTableKnows") && /\baliveAsTableKnows\(/.test(cut("verdict.mjs", "verdictHeld")),
             finalList: reads("verdict.mjs", "openFinalVerdictDialog"), calls: reads("call-pickers.mjs", "pickPlayer") };
         const flags = f => (scope, key) => (scope === MODULE_ID ? f[key] : undefined);
         const player = { id: "R1453player", isGM: false }, gm = { id: "R1453gm", isGM: true };

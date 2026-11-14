@@ -8306,9 +8306,9 @@ const REGRESSIONS = [
             // The secrets one account is in on, read for the observer's first owner.
             "observe.mjs": 1,
             // The Mastermind (actsAsMastermind, the door's row, roomNamerFor's reading of it): one player on purpose.
-            "passages-gm.mjs": 3,
-            // A character's sound to the one connected owner.
-            "sfx-play.mjs": 1
+            "passages-gm.mjs": 3
+            // sfx-play.mjs's character's sound to the one connected owner left the census at E59 on the 1.2.115 line
+            // (CHAINS.md B-S4, R7167): it reaches every owner, as its card does.
         };
         const sources = await moduleSources();
         const found = {};
@@ -9172,6 +9172,7 @@ const REGRESSIONS = [
             ["SHEET trial-progress.mjs#trialSizeNow", "held (E70 fix p1-G2): the trial's size N, a count - `flagsHeldNow(actor)` once per student in one synchronous pass, the Monocub and the death as the GMs hold them, and the trial's list handed in; it writes nothing itself (the reset's step and the primary's settle write it) [1b.2]"],
             ["SHEET vote.mjs#trialParticipants", "judged (C2; `eligibleVoters` until E70 C5): `isDeceased(flagsHeldNow(actor))`, and since E70 C5 the trial's list of the dead (`isMutedDead`, the primary's after its deaths store hydrated) and no Monocub, in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET verdict.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
+            ["SHEET verdict.mjs#aliveAsTableKnows", "judged (E59 on the 1.2.115 line, CHAINS.md B-T3; R7160): the roster less the table's dead, read off the flags the GMs hold (`flagsHeldNow`), as `verdictHeld` read its survivors before; both verdicts' Level Ups read it"],
             ["SHEET verdict.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
             ["SHEET trial-progress.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
             ["SHEET trial-progress.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
@@ -19700,7 +19701,10 @@ const REGRESSIONS = [
             ].map(key => [key, "P"]),
             /* T: a count before „razy”, which every count of 2 and more takes (2, 5, 12, 22 razy) - E71 B10b, line C,
                14.11.2026: level-up.mjs reads Advance.introMany only when its picks are not 1 (introOne is the one). */
-            ...["Advance.introMany"].map(key => [key, "T"])
+            ...["Advance.introMany"].map(key => [key, "T"]),
+            /* G: a range after „do”, which takes the genitive plural for every range („do 2-4 osób”) - E59 on the 1.2.115
+               line, CHAINS.md B-M7: the Traces tab's rule names config's `suspectRange` as {min}-{max}. */
+            ...["Investigation.neverOnePerson"].map(key => [key, "G"])
         ].map(([key, why]) => [`DRPG.${key}`, why]));
         const lang = {};
         for (const code of ["en", "pl"]) {
@@ -19714,7 +19718,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 81, S: 39, R: 28, D: 1, P: 1, T: 1, G: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
