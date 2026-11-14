@@ -66413,6 +66413,36 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{the completion stamped now; the action stands now; and not a day later (its lifetime is one time of day)}");
     }],
 
+    ["a completed project with no room gives its room action wherever a student who knows it stands, and one with a room only in that room (the Facilities report of 14.11.2026, 1.2.115; the coordinator's road 4 and its default, Q-T115-3): \"abstract work anywhere\" has no room to stand in, so `standsAtProject` is false and until 1.2.115 such a project's action showed nowhere; since, a project with no room stands wherever its readers are (`canSee` still decides who), and the GM's run judges a use by the same rows (facilities-gm.mjs `offerAt`)", async () => {
+        /* Red at d949b11d: the roomless project's action was in no row. Read on this GM's browser, for a connected player's
+           character standing in a named room. */
+        const P = await import("./projects.mjs");
+        const F = await import("./facilities.mjs");
+        const { where } = await playerInRoom();
+        const elsewhere = Array.from(where.scene.regions ?? []).map(r => r.name?.trim()).find(n => n && n !== where.room) ?? null;
+        must(elsewhere, `the scene ${where.scene.name} has no second named room - the control would read nothing`);
+        const read = {};
+        const ids = [];
+        try {
+            for (const [name, room] of [["SUITE roomless work", null], ["SUITE work in another room", elsewhere]]) {
+                const id = (await P.createProject({ name, target: 2, room }))?.id ?? null;
+                must(id, "no project was made - this would measure nothing");
+                ids.push(id);
+                await F.setProjectFacility(id, { label: `${name} action`, effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "forever" } });
+                await P.addProgress(id, 2);
+            }
+            await settle();
+            const here = await F.projectActionsAt(where, game.user);
+            read.roomless = here.some(r => r.project.id === ids[0]);
+            read.otherRoom = here.some(r => r.project.id === ids[1]);
+        } finally {
+            for (const id of ids) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ otherRoom: false, roomless: true }),
+            "{where the student stands: the roomless project's action, and not the action of a project in another room}");
+    }],
+
     ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
         /*
          * E12 C5, 11.10.2026; plan-E12 section 4's C5, audit S16-07. The gather's room was looked up

@@ -388,7 +388,7 @@ The **Facilities** tile's window holds the two rests, with no roll, and, after t
 
 The window prices both rests against what you have and names the rooms that allow each.
 
-A room action the GM set is rolled on the statistic and difficulty its row names and costs an action; once anyone has used it this time of day, a failed roll too, it is grayed for everyone until the next. A completed project's action needs no roll, costs an action unless the GM set it to cost none, leaves a Subtle Remnant marked Faint, as a room's own action does, and is yours once each time of day; its row says which project gives it and how long it lasts. The Despair Overflow can shut room actions for a time of day (Lockdown, Power cut), make them dearer (Toll) or harder (Jitters), or take the Short Rest away (Insomnia).
+A room action the GM set is rolled on the statistic and difficulty its row names and costs an action; once anyone has used it this time of day, a failed roll too, it is grayed for everyone until the next. A completed project's action needs no roll, costs an action unless the GM set it to cost none, leaves a Subtle Remnant marked Faint, as a room's own action does, and is yours once each time of day; a project with no room gives its action in whatever room you stand in. Its row says which project gives it and how long it lasts. The Despair Overflow can shut room actions for a time of day (Lockdown, Power cut), make them dearer (Toll) or harder (Jitters), or take the Short Rest away (Insomnia).
 
 ### Infiltrate: Listen - Shadow, 1 action
 
