@@ -6,11 +6,15 @@
  * `CLIENT_SECTIONS`, the one button the module keeps in Foundry's settings window, and the gear),
  * or of the game's settings, a tab of the GM panel (`GAME_SECTIONS`, E49 A1d); internal state is
  * in no window.
+ *
+ * E54 (the plan W3): the slider scaling of a window box (`scaleWindow`, `registerWindows`, the memo and the boxes, the sheet heights) lives in window-scale.mjs, re-exported here; this file keeps the settings.
  */
 
-import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
+import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS } from "./config.mjs";
 import { readMine, gmStoreByName, liveFields } from "./gm-store.mjs";
 import { forgetSceneRoles } from "./rooms.mjs";
+import { rescaleSheets, scaleWindow } from "./window-scale.mjs";
+export { rescaleSheets, actionsTabHeight, callsHeight, scaleMemo, sheetBox, sheetBandFoot, scaleWindow, registerWindows } from "./window-scale.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -120,7 +124,7 @@ export const SETTINGS = {
      * in, a body they found alone). Until 1.2.64 a kill wrote the `deceased` flag, the
      * `dead` status and the Truth Bullets' deletion at once, so every console knew who
      * died from the moment of the killing. `isDeadForGm` reads these; the flag waits
-     * for the publication (chapter.mjs `publishDeath`).
+     * for the publication (death.mjs `publishDeath`).
      */
     gmDeaths: "gmDeaths",
     mineDeaths: "mineDeaths",
@@ -706,7 +710,7 @@ export const SETTINGS = {
      * THE KEY REMNANT PLAN (E05, 1.2.64; audit S01-01, S05-02): a GM store
      * (gm-stores.mjs `keyPlanStore`), a row per chapter and slot,
      * `${chapter}:${slot}` -> { scale, name, text, analysis, note, tokenId,
-     * sceneId } (investigation.mjs `keyPlan`, `setKeyPlan`).
+     * sceneId } (key-remnants.mjs `keyPlan`, `setKeyPlan`).
      *
      * Until 1.2.64 it was the world setting `keyRemnantPlan`, and this comment
      * called that fine: the plan is what the GM intends to make findable, and
@@ -795,7 +799,7 @@ export const SETTINGS = {
      * phase change, so nothing remembered that a body had been found once the Investigation
      * began, and a walk past it after End the trial announced it again. Who walked in is not
      * here (the GMs' log has it): the bodies named are public by the time this is written.
-     * One writer, chapter.mjs `announceBody` (tier 0 R349); cleared with the hold by the
+     * One writer, body.mjs `announceBody` (tier 0 R349); cleared with the hold by the
      * reset's `bodyFound` group.
      */
     bodiesFound: "bodiesFound",
@@ -1112,6 +1116,21 @@ export const SETTINGS = {
      */
     regionFog: "regionFog"
 };
+
+/* Foundry's settings window: the module's row marked. Stands here, under the table, since E54 (W3): at the file's end it
+   followed `registerWindows`, which moves to window-scale.mjs, and a test that cuts a function reads to the next one. */
+Hooks.on("renderSettingsConfig", (_app, element) => {
+    if (!settingsRegistered()) return;
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+    /* THE MODULE'S ROW MARKED (E47-C5, 09.11.2026; audit S01-44): components.css reaches it by this class, since how
+       v14 names a category's section was not read here (a live check, LIVE-E47-06). Since E49 A1 the module's one row
+       there is the DRPG Settings button (`SETTINGS_MENU`): every setting is `config: false`, so the theme's show and
+       hide of the glass-only and the pixel switches went with them (look.mjs `themeOnlyKeys`, read by the window). */
+    for (const field of root.querySelectorAll(`[name^="${MODULE_ID}."], button[data-key^="${MODULE_ID}."]`)) {
+        field.closest(".form-group")?.classList.add("drpg-settings-row");
+    }
+});
 
 /*
  * THE LIFETIME OF EVERY WORLD SETTING (E42 C4, 1.2.97; E42-16; D36 = option 2, Q-E42-2; audit S17-30). Foundry sends every
@@ -2295,7 +2314,7 @@ export function registerSettings() {
         default: {}
     });
     // The discoveries waiting for the GM's word and the bodies each character has heard (1.2.113): no `onChange` - read by
-    // the primary at a walk, at its stores' opening and when a GM leaves (chapter.mjs `askPendingBodies`, `checkBodySound`).
+    // the primary at a walk, at its stores' opening and when a GM leaves (body.mjs `askPendingBodies`, `checkBodySound`).
     game.settings.register(MODULE_ID, SETTINGS.gmPendingBodies, {
         scope: "client",
         config: false,
@@ -3723,7 +3742,7 @@ export function incidentWitness() {
  * TWO PHASES (E05 C10; audit S06-11). A killing in an incident writes only the
  * GMs' store (`deaths`) and the copies of those who may know; the flag, the
  * status and the Truth Bullets' deletion wait for the body to be found or for a
- * GM's hand (chapter.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then
+ * GM's hand (death.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then
  * on the two differ: on a GM a row of the store is a death, on a player a row of
  * their copy (`mineDeaths`) - never another player's secret.
  */
@@ -3789,7 +3808,7 @@ export function deadIn(actor, held) {
 /**
  * The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and
  * season (E11 C1), its `deathId` (fix r1-G1) and the verdict before it (`sinceVerdict`, E70 fix p1-G3) - the fields
- * chapter.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI
+ * death.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI
  * at df6f6fbd, 28.10.2026: "a Finishing Blow leaves the victim unflagged" read the published record with `sinceVerdict`
  * and this one without).
  */
@@ -3978,7 +3997,7 @@ export function setBodyDiscovery({ room = null, victimId = null } = {}) {
  * decision D8). Keyed `<epoch>:<chapter>`, the epoch `seasonEpoch`'s, so a season's chapter 1
  * is not the next season's. The hold above answers "is a discovery waiting on the GM"; these
  * answer "was this body found", which outlives the hold - the watcher reads them so a body
- * announced once is not announced again (chapter.mjs `bodiesToDiscover`).
+ * announced once is not announced again (body.mjs `bodiesToDiscover`).
  */
 function bodiesFoundAll() {
     try {
@@ -4012,7 +4031,7 @@ export function chapterBodyFound(chapter, epoch = seasonEpoch()) {
  * the body the case now open is about (E11 fix r1-G3; early review EARLY-C2-1, goal K1). The
  * chapter's last stamp alone named the first trial's body in a second Investigation of the same
  * chapter, which the GM can open with no new discovery (Edit campaign, `setPhase`). Both stamps
- * are `serverNow()` (a discovery's `at`, chapter.mjs `runDiscovery`; `clock.trialEndedAt`,
+ * are `serverNow()` (a discovery's `at`, body.mjs `runDiscovery`; `clock.trialEndedAt`,
  * `setClock`), so two GMs' machines compare on one clock. A stamp without `at` counts as before
  * any trial: none is written without one. Tier 2 "a chapter's second Investigation reads its own
  * body on the card and in a discard".
@@ -4025,7 +4044,7 @@ export function bodyFoundSinceTrial(clock = getClock(), epoch = seasonEpoch()) {
 /**
  * One discovery's stamp, under the chapter and season the discovery began in - the row's own
  * `chapter` and `epoch`, read before anything was awaited, never the clock's now (tier 2 "a
- * body found is stamped once per chapter and season"). GM-side; chapter.mjs `announceBody`
+ * body found is stamped once per chapter and season"). GM-side; body.mjs `announceBody`
  * is its only caller (tier 0 R349).
  */
 export async function recordBodyFound({ chapter, epoch, ...row } = {}) {
@@ -4427,20 +4446,6 @@ function watchScreen() {
 }
 
 /**
- * Every character sheet standing open, asked again for its box (E21 C5a, 06.11.2026; audit S01-06). A sheet sized on a
- * taller screen kept that height after a resize - the memo `drpgScaled` keyed on the slider alone - so a window dragged
- * to a 768 px screen, or a browser made shorter, left the sheet's foot and the Stop below the screen until the slider
- * moved. Each sheet goes through `scaleWindow`, whose memo (`scaleMemo`) now holds the layout height beside the slider.
- */
-export function rescaleSheets() {
-    for (const app of globalThis.foundry?.applications?.instances?.values?.() ?? []) {
-        if (app?.document?.type !== "character") continue;
-        const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
-        if (el) scaleWindow(app, el);
-    }
-}
-
-/**
  * Is this client asking for more contrast?
  *
  * The switch, or the system asking through `prefers-contrast: more`. READ IN JS
@@ -4583,173 +4588,3 @@ export function applyTheme() {
        later stages take as it is: E18 (the stack into the corner) and E23 (a clock of one height). */
     Hooks.callAll("drpgThemeApplied");
 }
-
-/*
- * THE OTHER THEME'S SWITCHES ARE NOT SHOWN.
- *
- * Three of the look settings only exist under Stained Glass - the pulse, the ticker and
- * the blur - and the pixel face only exists under Monokuma Legacy, which has no second
- * face of its own to swap. Reduced motion is in neither list: it is for both themes since
- * W-3. Whichever theme is on, the other's switches still sat in Foundry's settings window
- * looking live, and changing one did nothing.
- *
- * HIDDEN, not greyed (Dawid, 08.09). They were greyed here and simply absent from the
- * Look window, which builds the same switches from the same settings - so the two
- * windows disagreed about whether a switch existed at all. One of them had to change,
- * and the Look window is the one a player actually opens. The row is hidden, never
- * disabled: a disabled field is left out of the form Foundry submits on Save, and a
- * setting that is merely irrelevant to this theme must keep the value it has.
- *
- * Off the SELECT, not the stored setting. Somebody who picks the other theme in this
- * window has not saved yet, and the switches follow the choice as it is made.
- */
-/* ==========================================================================
-   A WINDOW IS PART OF THE INTERFACE, SO THE SLIDER MOVES IT TOO
-   ==========================================================================
-   The scale multiplies the theme's own type and block sizes, which is what makes the
-   CONTENTS of a window grow - and for a window that sizes itself to its contents that was
-   the whole job. Sheets and dialogs do not: Foundry writes their width and height in pixels
-   from the class's own defaults, so at 140 % the text grew inside a box that did not, and at
-   80 % nothing moved at all ("zawartosc okien poprawnie sie powieksza, ale same okna juz
-   nie", 07.09). The box is scaled here, once per render, from the size the application asked
-   for rather than from whatever it is now - so re-rendering never compounds it, and a window
-   the user has dragged wider keeps that width until it is rendered again.
-   `auto` is left alone: a window that measures itself is already right. */
-
-/**
- * The box a window asks for (`want`, its width and height), scaled by the slider `scale` and held inside a screen of
- * `vw` x `vh` less 48 px: what `scaleWindow` hands `setPosition`. Pure, so the fit sweep's sheet stand-in reads the
- * same numbers (E21 C1c, `sheetBox`). Answers the dimensions it could read, each a whole number of pixels.
- */
-function scaledBox(want, vw, vh, scale) {
-    const size = {};
-    for (const dim of ["width", "height"]) {
-        const n = Number(want?.[dim]);
-        if (Number.isFinite(n) && n > 0) size[dim] = Math.round(n * scale);
-    }
-    /* A window may not be taller than the screen it is on. At 140 % a 1160 px sheet asks for
-       1624, and Foundry will happily place a window whose bottom is off the display. */
-    if (size.height) size.height = Math.min(size.height, Math.round(vh - 48));
-    if (size.width) size.width = Math.min(size.width, Math.round(vw - 48));
-    return size;
-}
-
-/** Daggerheart's own size for a character sheet, as the note in `scaleWindow` reads it (850 x 800): Monokuma Legacy
-    keeps it. Read from the sheet class at a table; here for `sheetBox`, which has no class to read. */
-const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
-
-/**
- * The memo a window's scaled box is kept under (E21 C5a): the slider and the layout height (`layoutHeight`, which an
- * on-screen keyboard does not lower), so a resize that changes the height sizes the window again and a second render
- * at the same numbers writes nothing. Until C5a the key was the slider alone.
- */
-export function scaleMemo(scale, h = layoutHeight()) {
-    return `${scale}@${Math.round(Number(h) || 0)}`;
-}
-
-/**
- * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
- * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
- * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
- */
-export function sheetBox(vw, vh, scale = 1, theme = "glass") {
-    return scaledBox(theme === "glass" ? SHEET_SIZE.glass : DAGGERHEART_SHEET, vw, vh, scale);
-}
-
-/* THE SHEET OPENS BELOW THE CURTAIN'S BAND (S03-30, a B leftover of E49 built in E48 K6's run, 11.11.2026; the audit:
-   "the sheet opens on the curtain and covers the Despair pools, the debate's timer and the incident's turn signal").
-   The band is what stands at the top of the screen in the middle: Despair's pools and the Event panel (the debate's
-   clock, the incident's turn), each where drawn; the sheet's top goes SHEET_BELOW_BAND under the lowest of them, on a
-   first render only, so a sheet a player moved stays where it was put. Null with neither drawn: Foundry's place. A
-   band whose foot is below the screen's middle is no band (a panel down a side), and is left alone. */
-const SHEET_BELOW_BAND = 8;
-export function sheetBandFoot() {
-    const feet = ["#drpg-despair", "#drpg-events"].map(q => document.querySelector(q))
-        .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0).map(e => e.getBoundingClientRect().bottom);
-    return feet.length ? Math.round(Math.max(...feet) + SHEET_BELOW_BAND) : null;
-}
-
-export function scaleWindow(app, element, _context, options) {
-    if (!settingsRegistered()) return;
-    const el = element instanceof HTMLElement ? element : element?.[0];
-    /*
-     * THE BOX IS BOTH THEMES' NOW (W-2, Dawid 19.09).
-     *
-     * It was the glass's alone, so on a Legacy client 140 % grew the type inside a
-     * box that did not move and 80 % moved nothing at all - and because the
-     * sheet's box never changed, the ResizeObserver in sheet.mjs never fired and
-     * the action tiles were never re-measured either. At 100 % this writes the
-     * numbers the window already has, and the `drpgScaled` memo below swallows
-     * the repeat.
-     */
-    if (!el) return;
-    const s = sliderScale();
-    const h = layoutHeight();
-    const key = scaleMemo(s, h);
-    if (el.dataset.drpgScaled === key) return;
-    el.dataset.drpgScaled = key;
-    const want = { ...(app?.constructor?.DEFAULT_OPTIONS?.position ?? {}), ...(app?.options?.position ?? {}) };
-    /* THE CHARACTER SHEET HAS A SIZE OF ITS OWN.
-       Daggerheart opens it at 850 x 800, which was right for its own type; at the theme's
-       floor the five-tile action grid does not fit that width and the last column is cut off
-       at the frame (Dawid's screen, 07.09). The theme states the size the sheet is DRAWN for
-       - the audit page's proportions, one grid wide and one deep - and the interface scale
-       multiplies it like everything else, so 140 % opens a bigger sheet rather than the same
-       box with bigger text in it. */
-    /* AND IT IS A STATEMENT ABOUT THIS THEME ONLY (W-2, 19.09). 1120 x 1160 is
-       VT323 at 17px and a five-tile grid under the glass; handing it to Monokuma
-       Legacy would open a pixel-font sheet two thirds empty and take its resize
-       handle away for a size nobody measured. Legacy keeps Daggerheart's own
-       850 x 800 multiplied by the slider, and keeps the handle - the rule that hides
-       it names the glass.
-
-       AND ABOUT ONE WINDOW, ASKED BY ITS DOCUMENT (UI-09). A class-name match on
-       "actor" also caught Foundry's Actors sidebar tab and any window with the word
-       in its name, and `documentName === "Actor"` caught NPC sheets - all of them
-       were forced to this size and lost their resize handle. */
-    if (document.body.classList.contains("drpg-theme-stained-glass")
-        && app?.document?.type === "character") {
-        /* 1160 high, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and
-           was given 607, so the last row of Hope Calls was simply below the fold - the window
-           was sized for the old, smaller type. The extra 213 px is that shortfall. The numbers
-           live in config.mjs (SHEET_SIZE) beside the Legacy minimum. */
-        want.width = SHEET_SIZE.glass.width;
-        want.height = SHEET_SIZE.glass.height;
-    }
-    const size = scaledBox(want, window.innerWidth, h, s);
-    /* THE SHEET IS NOT RESIZED BY HAND UNDER THE GLASS - its size is a statement of that
-       theme - and the handle is hidden by a THEME RULE in stained-glass.css rather than
-       taken out of the DOM here. Removed here, it stayed gone after a switch to Monokuma
-       Legacy, which keeps Daggerheart's size and was promised its handle (review of
-       stage D): a one-way edit cannot follow a two-way switch, and a rule can. */
-    if (!Object.keys(size).length) return;
-    if (options?.isFirstRender && app?.document?.type === "character") {
-        const foot = sheetBandFoot();
-        if (foot !== null && foot < h / 2) {
-            size.top = foot;
-            if (size.height) size.height = Math.min(size.height, Math.round(h - foot - SHEET_BELOW_BAND));
-        }
-    }
-    /* THROUGH `setPosition`, NOT THE ELEMENT'S STYLE. An ApplicationV2 writes its own
-       `position` onto the element after every render, so an inline width set from the render
-       hook was overwritten a moment later and the box never moved at all. Going through the
-       application means the number it will write IS the scaled one, and it stays through the
-       next re-render and through a drag. */
-    if (typeof app.setPosition === "function") app.setPosition(size);
-    else for (const [k, v] of Object.entries(size)) el.style[k] = v + "px";
-}
-Hooks.on("renderApplicationV2", scaleWindow);
-Hooks.on("renderApplication", scaleWindow);
-
-Hooks.on("renderSettingsConfig", (_app, element) => {
-    if (!settingsRegistered()) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
-    if (!root) return;
-    /* THE MODULE'S ROW MARKED (E47-C5, 09.11.2026; audit S01-44): components.css reaches it by this class, since how
-       v14 names a category's section was not read here (a live check, LIVE-E47-06). Since E49 A1 the module's one row
-       there is the DRPG Settings button (`SETTINGS_MENU`): every setting is `config: false`, so the theme's show and
-       hide of the glass-only and the pixel switches went with them (look.mjs `themeOnlyKeys`, read by the window). */
-    for (const field of root.querySelectorAll(`[name^="${MODULE_ID}."], button[data-key^="${MODULE_ID}."]`)) {
-        field.closest(".form-group")?.classList.add("drpg-settings-row");
-    }
-});

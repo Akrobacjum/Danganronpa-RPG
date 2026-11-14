@@ -942,7 +942,7 @@ export const DrpgApi = {
      *  when a thread has been cleared and a lie is left waiting on nobody.
      *
      *  THE CARD'S ROAD (E09 fix r2-G2, 08.10.2026). These were the ruling itself
-     *  (cleanup.mjs `applyReshapeRuling`, `declineReshapeRuling`), run on whichever
+     *  (cleanup-reshape.mjs `applyReshapeRuling`, `declineReshapeRuling`), run on whichever
      *  GM typed them, so an assistant GM's console claimed the proposal on its own
      *  browser beside the primary's: in scenario 62 before the fix, gm2's console
      *  Approve and the GM's own, made at once, both answered true and the player was

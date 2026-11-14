@@ -740,7 +740,7 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         && J(eclipseH.cross.painted) === J(["74 Porch"]) && eclipseH.end === false,
     J(eclipseH));
 
-    /* Aiko marked dead where she stands (chapter.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which
+    /* Aiko marked dead where she stands (death.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which
        asks for the dead) with actions to walk on, and p1 takes her back into Dorm A; then alive again.
        Since E62 C3b (13.11.2026, the owner's Q-C3b-7, confirmed "E62 c3b wszystko sie zgadza"; merged into 1.2.112 at
        3b0d8075) the death leaves Aiko's own token the corpse, which no player moves, and gives her Spectator a token

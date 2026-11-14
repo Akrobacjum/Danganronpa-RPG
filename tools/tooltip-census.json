@@ -294,7 +294,7 @@
    "why": "E102 C6: Posts this summary in the chat for the whole table, once per Class Trial"
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/death.mjs",
    "unit": "openDeathDialog",
    "kind": "select",
    "key": "DRPG.Chapter.whoDied",
@@ -302,7 +302,7 @@
    "why": "none needed: The label asks it; the button stays shut until a name is chosen."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/death.mjs",
    "unit": "openDeathDialog",
    "kind": "checkbox",
    "key": null,
@@ -310,7 +310,7 @@
    "why": "none needed: The label already says when to tick it, and the note below says the bullets are otherwise destroyed."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/body.mjs",
    "unit": "promoteFaintPrep",
    "kind": "checkbox",
    "key": null,
@@ -318,7 +318,7 @@
    "why": "none needed: The window's intro and note say what ticking one does."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/body.mjs",
    "unit": "openBodyDiscoveryDialog",
    "kind": "select",
    "key": "DRPG.Chapter.whereBody",
@@ -326,7 +326,7 @@
    "why": "none needed: The label asks it, and the note below says everyone is called to that room."
   },
   {
-   "file": "scripts/chapter.mjs",
+   "file": "scripts/body.mjs",
    "unit": "openBodyDiscoveryDialog",
    "kind": "select",
    "key": "DRPG.Chapter.whoseBody",
@@ -350,7 +350,7 @@
    "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
-   "file": "scripts/cleanup.mjs",
+   "file": "scripts/cleanup-reshape.mjs",
    "unit": "askTransform",
    "kind": "footer",
    "key": "DRPG.Cleanup.transformErase",
@@ -810,7 +810,7 @@
    "why": "none needed: Its label already says what tying it does (survives the chapter-end sweep)."
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "select",
    "key": "DRPG.Investigation.visibility",
@@ -818,7 +818,7 @@
    "why": "E102 C6: How hard it is to spot with Observe"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "select",
    "key": "DRPG.Remnant.authorLabel",
@@ -826,7 +826,7 @@
    "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.traceName",
@@ -834,7 +834,7 @@
    "why": "E102 C6: The name a student sees once they find it"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.notePlaceholder",
@@ -842,7 +842,7 @@
    "why": "E102 C6: What a student reads the moment they find it"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
@@ -850,7 +850,7 @@
    "why": "E102 C6: What a student reads only after a successful Analyze"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "input",
    "key": "DRPG.Investigation.keyNotePlaceholder",
@@ -858,7 +858,7 @@
    "why": "none needed: Its label and placeholder (Only you read this) say everything."
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "openKeyRemnantHere",
    "kind": "select",
    "key": "DRPG.Investigation.whichSlot",
@@ -866,7 +866,7 @@
    "why": "E102 C6: The planned clue it fills, so the plan counts it"
   },
   {
-   "file": "scripts/investigation.mjs",
+   "file": "scripts/key-remnants.mjs",
    "unit": "placeKeyRow",
    "kind": "select",
    "key": "DRPG.Investigation.visibility",
@@ -2146,7 +2146,7 @@
    "why": "none needed: Each row shows its label and hint."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-sidebar.mjs",
    "unit": "tidyBiography",
    "kind": "dom:textarea",
    "key": "DRPG.Sheet.biographyPlaceholder",
@@ -2154,7 +2154,7 @@
    "why": "none needed: The legend and the placeholder say what goes in it."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-inventory.mjs",
    "unit": "buildOpenStashSection",
    "kind": "dom:button",
    "key": "DRPG.Vault.rifle",
@@ -2162,7 +2162,7 @@
    "why": "none needed: The note above it says one thing may be taken from each stash, once each time of day."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-inventory.mjs",
    "unit": "bulletSortSwitch",
    "kind": "dom:button",
    "key": "DRPG.Sheet.bulletsByRoom",
@@ -2170,7 +2170,7 @@
    "why": "none needed: A two-button switch under the label 'Group by'."
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-inventory.mjs",
    "unit": "addPresentButton",
    "kind": "dom:button",
    "key": null,
@@ -2182,7 +2182,7 @@
    }
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-actions.mjs",
    "unit": "callButton",
    "kind": "dom:button",
    "key": null,
@@ -2194,7 +2194,7 @@
    }
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-actions.mjs",
    "unit": "actionButton",
    "kind": "dom:button",
    "key": null,
@@ -2206,7 +2206,7 @@
    }
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-sidebar.mjs",
    "unit": "lairBlock",
    "kind": "button",
    "key": "DRPG.Mastermind.lair.open",
@@ -2214,7 +2214,7 @@
    "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
-   "file": "scripts/sheet.mjs",
+   "file": "scripts/sheet-actions.mjs",
    "unit": "injectMonocubPanel",
    "kind": "dom:button",
    "key": "DRPG.Monocub.bribeAccept",
