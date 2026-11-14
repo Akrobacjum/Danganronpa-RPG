@@ -1280,7 +1280,7 @@
       "redeem": "Redeem",
       "ask": "Ask for Hope",
       "redeemUsed": "Redeem wykorzystany dziś. Wraca jutro.",
-      "hopeFull": "Masz pełne Hope.",
+      "hopeFull": "Twój Hope jest pełny.",
       "darkened": "Zaciemnienie blokuje Hope w tej porze dnia.",
       "askStillOpen": "Twoje Ask for Hope wciąż czeka na GM-a.",
       "moveRefused": "Ten ruch teraz nie przechodzi. Nie tracisz akcji ani Hope.",
@@ -1427,7 +1427,7 @@
       "nobody": "- nie ustawiono -",
       "dialogIntro": "Wybierz, który uczeń jest Mastermindem.",
       "hopeReadout": "Mastermind ma teraz {held} Hope.",
-      "noneSet": "Nie ustawiono Masterminda. Najpierw wybierz go w panelu GM-a.",
+      "noneSet": "Nie ustawiono Masterminda. Najpierw wybierz go w Ustawieniach sezonu.",
       "toggleFinalTrial": "Zacznij albo zakończ Final Trial",
       "confirmStart": "Zacząć Final Trial? Ogłoszenie zobaczy cały stół.",
       "confirmEnd": "Zakończyć Final Trial? Stół nie dostanie ogłoszenia; publiczna jest tylko karta werdyktu. Nic, co już zaszło, się nie cofnie.",
@@ -2731,7 +2731,7 @@
       "actionSpent": "Ta jest w tym incydencie już zużyta.",
       "actionDenied": "Ta akcja nie jest teraz dla ciebie dostępna.",
       "failedNothing": "Nic z tego nie wychodzi.",
-      "thresholdShort": "Pobij {n}",
+      "thresholdShort": "Przebij {n}",
       "thresholdDefended": {
         "victim": "Pobij {n} (+{d} za {trait} ofiary)",
         "killer": "Pobij {n} (+{d} za {trait} zabójcy)"
@@ -7209,7 +7209,7 @@
             }
           },
           "hintCritical": {
-            "result": "Zadają ci jedno pytanie - np. „Czy ofiara naprawdę zginęła w tym pokoju?”"
+            "result": "Zadajesz GM-owi jedno pytanie - np. „Czy ofiara naprawdę zginęła w tym pokoju?”"
           },
           "hintFailure": "Bez pomocy."
         },
@@ -7285,7 +7285,7 @@
             }
           },
           "critical": {
-            "result": "Sukces. Cel wymaga projektu naprawy o ukrytej trudności."
+            "result": "Sukces. Cel wymaga projektu naprawy w skali Desperacki."
           },
           "failure": "Nic się nie dzieje."
         }

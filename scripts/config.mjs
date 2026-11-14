@@ -1606,7 +1606,7 @@ export const ACTIONS = {
             { min: 14, result: "A subtle hint - e.g. “You are far from the target.”" },
             { min: 18, result: "A direct hint - e.g. “Search the pool room.”" }
         ],
-        hintCritical: { result: "They ask you one question - e.g. “Did the victim really die in this room?”" },
+        hintCritical: { result: "You ask the GM one question - e.g. “Did the victim really die in this room?”" },
         hintFailure: "No help.",
         /**
          * The third thing behind this tile: finding a hiding place.
@@ -1916,7 +1916,7 @@ export const ACTIONS = {
             { min: 12, result: "Success. The target needs a simple repair project.", remnant: "subtle" },
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
         ],
-        critical: { result: "Success. The target needs a hidden-difficulty repair project.", remnant: "obvious" },
+        critical: { result: "Success. The target needs a Desperate repair project.", remnant: "obvious" },
         /*
          * THE SIMPLE REPAIR IS 2 PROGRESS (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
          * opcje", "Zostaje to co wdrazamy i tylko to"). A hit below the complex band made a Trivial repair, 3: one
@@ -2538,7 +2538,7 @@ export const HOPE_CALLS = {
      */
     bribe: {
         label: "Bribe", icon: "fa-money-bills", cost: 1, target: "monocub", bribe: true,
-        effect: "Offer a Monocub {cost} Hope for a favour. You pay only if they accept; nobody else knows."
+        effect: "Offer a Monocub {cost} Hope for a favor. You pay only if they accept; nobody else knows."
     }
 };
 

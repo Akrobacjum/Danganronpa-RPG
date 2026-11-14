@@ -38084,6 +38084,32 @@ const INVARIANTS = [
             "[report takes free and guards the price line on it; its two calls pass free; the transform road takes it; destroyTools's card joins with \", \" or listOf]");
     }],
 
+    ["R6919 - the texts the handbooks line found untrue say what the code does (needsCode, the handbooks line's list, 14.11.2026; docs/dev/e57/STATUS-HANDBOOKS.md): Analyze's critical hint is a question the player asks, a critical Sabotage needs a Desperate repair (action-project.mjs `sabotageRepairScale`), the Mastermind is picked in Season setup; and the words: Bribe's \"favor\" (EN1), „Przebij {n}”, „Twój Hope jest pełny.”, \"analyzed\" in Chapter.revealKeeps", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md H6, H7, H14, H31, H33, H34 (in part). Red at
+         * 81db3b2d: each text below as the handbooks line read it. H1, the Loaded Die's \"next roll\", is an owner-approved text (B01a): a question, not
+         * changed here. config.mjs's English prose is read off the module's
+         * tables (the harness runs in English), the Polish off lang/pl.json.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const P = key => String(foundry.utils.getProperty(pl.DRPG, key) ?? "");
+        const E = key => String(foundry.utils.getProperty(en.DRPG, key) ?? "");
+        must(C.HOPE_CALLS?.freeCrit && C.ACTIONS?.analyze && C.ACTIONS?.sabotage && pl.DRPG?.Config, "config.mjs's tables or pl.json did not load - this reads nothing");
+        const read = {
+            hint: [/^You ask the GM/.test(C.ACTIONS.analyze.hintCritical.result), /^Zadajesz GM-owi/.test(P("Config.ACTIONS.analyze.hintCritical.result"))],
+            sabotage: [/hidden/.test(C.ACTIONS.sabotage.critical.result), /ukrytej/.test(P("Config.ACTIONS.sabotage.critical.result")),
+                /Desperate/.test(C.ACTIONS.sabotage.critical.result), /Desperacki/.test(P("Config.ACTIONS.sabotage.critical.result"))],
+            favor: /favour/.test(C.HOPE_CALLS.bribe.effect),
+            mastermind: [/GM panel/.test(E("Mastermind.noneSet")), /panelu GM-a/.test(P("Mastermind.noneSet"))],
+            words: [P("Murder.thresholdShort"), P("Monocub.hopeFull"), /analysed/.test(E("Chapter.revealKeeps"))]
+        };
+        equal(stableJson(read), stableJson({ hint: [true, true], sabotage: [false, false, true, true], favor: false,
+            mastermind: [false, false], words: ["Przebij {n}", "Twój Hope jest pełny.", false] }),
+            "[the critical hint EN, PL; Sabotage's critical: hidden EN, PL, Desperate EN, PL; favour; noneSet's GM panel EN, PL; PL thresholdShort, hopeFull; analysed]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

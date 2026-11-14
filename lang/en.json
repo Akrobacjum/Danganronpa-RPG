@@ -1380,7 +1380,7 @@
       "nobody": "- nobody set -",
       "dialogIntro": "Pick them before the season starts, with that player's agreement.",
       "hopeReadout": "The Mastermind has {held} Hope.",
-      "noneSet": "No Mastermind set. Pick one from the GM panel first.",
+      "noneSet": "No Mastermind set. Pick one in Season setup first.",
       "toggleFinalTrial": "Start or end the Final Trial",
       "confirmStart": "Start the Final Trial? Everyone at the table sees it announced.",
       "confirmEnd": "End the Final Trial? The table is not told, and nothing already done changes.",
@@ -2981,7 +2981,7 @@
       "endTitle": "End the chapter",
       "endIntro": "Chapter {chapter} is wrapping up. Tick what should happen.",
       "optReveal": "Reveal the Truth Bullets' real types and readings ({n} to reveal)",
-      "revealKeeps": "Faint Truth Bullets stay hidden, but every Final, Faint or not, shows its kind; both stay, still to be analysed.",
+      "revealKeeps": "Faint Truth Bullets stay hidden, but every Final, Faint or not, shows its kind; both stay, still to be analyzed.",
       "endButton": "End chapter {n}",
       "doneReveal": {
         "one": "Revealed the real type of {n} Truth Bullet.",

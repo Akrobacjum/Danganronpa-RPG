@@ -87,7 +87,7 @@ Przycisk w lewym dolnym rogu arkusza pokazuje słowo twojego stołu: **Safe Word
 
 **Morderstwo.** **Blackened** to uczeń, który zabił. Pułapka prosi cię o rzut na Eye albo Head przeciw 20, a sama ta prośba jest ostrzeżeniem. Direct Murder zaczyna incydent rozgrywany w turach; jeśli jesteś ofiarą, zaczynasz ty. Od twojej drugiej tury każda tura kosztuje ofiarę 1 Sanity, a gdy jesteś sam na sam z pułapką, 2 Sanity; gdy Sanity się skończy, tura kosztuje Health.
 
-| Jeśli jesteś ofiarą | Pobij |
+| Jeśli jesteś ofiarą | Przebij |
 |---|---|
 | **Leave a Clue** | 12 |
 | **Secure a Trace** | 15 |
