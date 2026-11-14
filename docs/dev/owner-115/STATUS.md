@@ -111,3 +111,55 @@ holds every actor, so a console still reaches the name.
   mask over them too.**
 - Q-OWN115-2. The opening on Fear (Despair band) succeeds and opens no mask (the owner's 10.11 (c)). If the owner's roll at
   the table was one of those, the icon showing is the rule, not a bug. **Default: the rule stands; no change.**
+
+## Item 2 - a character's token always drawn over a Remnant
+
+The owner, 14.11.2026, at a real table on 1.2.114: "Gdy token postaci jest w tym samym miejscu co remnant, postac zawsze
+niech bedzie na wierzchu."
+
+### What decides the order, and why a Remnant could end on top
+
+| Source | What it says | Read where |
+| --- | --- | --- |
+| Foundry v14 | the primary group orders what it draws by elevation, then `sortLayer`, then `sort`, then `zIndex`; the layers are SCENE 0, TILES 500, DRAWINGS 600, TOKENS 700, WEATHER 1000 | fvtt-types 14.370.0-beta.20261107215328 (npm `fvtt-types`): `primary/primary-canvas-object.d.mts`:26-52, `groups/primary.d.mts`:256-263. These are types, not v14's source, which is not on this machine |
+| The module | a Remnant is created with `sort: -10` (remnants.mjs:507) and a project token with `sort: -5` (config.mjs:3111 `PROJECT_TOKEN.sort`), meant as "below characters" | this repository |
+| Isometric Perspective 14.0.6 (the release zip of 14.11.2026; the harness pins 14.0.2, not read) | installs a token mixin at `init` on every scene (main.js:336-340), whose `applyRenderFlags` runs `applyDepthSort` on every token's render flags; that writes every TOKENS-layer mesh's `sort`, and the token document's `sort` on that browser, to its rank by depth on the screen (autosorting.js:74-81), ties broken by document id (`sortByDepth`, :263-270) | the zip, read only, not run |
+
+So the module's `sort` was overwritten on every browser, and a Remnant on a character's spot fell above or below it by
+their ids. Not read: Foundry's own Token class (whether it sets the mesh's `sortLayer` once or on every refresh), and
+Daggerheart's token class.
+
+### The fix
+
+remnant-ring.mjs `keepUnderCharacters` (with `traceLayer`), called from the `refreshToken` paint that already tells a
+Remnant or a project token from the rest: the trace's mesh goes to sort layer TOKENS - 1 (699). That is under every
+character, Monokuma and Monocub at its elevation, whatever their sorts, and still above tiles (500) and drawings (600).
+Isometric Perspective depth-sorts only the TOKENS layer, so the traces leave its pass. Elevation is not touched (the
+rooms are read off it). The primary group is asked to sort again only when the layer moved (counter
+`remnantRing.layer`).
+
+### Numbers
+
+| Run | Result |
+| --- | --- |
+| R7400 (tier 1) before the change | FAIL: remnant-ring.mjs had no `keepUnderCharacters` |
+| R7400 after | ok |
+| quick at 7e5cb85e | RED, check part comments: two names of Isometric Perspective's code in backticks, which no code here holds; written plainly since, then green |
+| tier 1 at 7e5cb85e | 1688 passed, 0 failed, 16 skipped, 0 red |
+| scenario 86 at 7e5cb85e | 105/105; `remnantRing.layer` counted in none of its events (30 Remnants refreshed), so the layer is not set again on a refresh |
+| a probe scenario, not kept (placeRemnant on the scene, then another player's step) | the Remnant's mesh on sort layer 699 on the GM's browser and p1's; `remnantRing.layer` 1 on each, still 1 after the step. Characters have no mesh in the harness, so the order against them is the table's (LIVE-OWN115-02) |
+
+### Needs a local Foundry
+
+LIVE-OWN115-02 (audit/AUDIT-1.2.42.md 9.2, row 548): on v14 with Isometric Perspective, on an isometric scene and a flat
+one, both themes, a character on the exact spot of a Remnant and of a project token is drawn over them from every
+direction of approach, after a reload, after selecting and deselecting, and after panning. Also:
+- a trace in front of a wall tile that Isometric Perspective sorts should not vanish under it;
+- `remnantRing.layer` should not count on every refresh. If it does, Foundry puts the layer back each refresh, and the
+  re-sort is paid every time.
+
+### Questions, with the default taken
+
+- Q-OWN115-4. With the traces on their own layer, Isometric Perspective no longer sorts them against the tiles it sorts
+  (those it lifts to the TOKENS layer). A floor trace in front of such a wall tile is drawn under it. **Default: accepted;
+  a trace lies on the floor, and the owner's rule is about characters. LIVE-OWN115-02 looks at it.**
