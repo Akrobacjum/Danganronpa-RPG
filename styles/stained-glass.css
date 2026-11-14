@@ -714,6 +714,8 @@ body.drpg-theme-stained-glass #drpg-events {
     letter-spacing: 0.06em;
     text-align: center;
     pointer-events: auto;
+    /* the drawn width (C-J, below, says why 355 px; its own rule there until E55 S3) */
+    width: var(--drpg-events-w);
 }
 /* A kind with no rule of its own wears Bone, not the hour (E48 K2, D30: the time of day never colours a card). */
 body.drpg-theme-stained-glass .drpg-event {
@@ -2435,10 +2437,8 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign.is-paused > .drpg-hud
 
 /* ---- C-J. The Event panel: the drawn width, and a glyph on every card ---------------------
    355 px, not the rail's 412: the audit page sizes it to the pool bar on a PLAYER's screen,
-   where the rail carries no steppers. The glyph sits above the kicker, centred, as drawn. */
-body.drpg-theme-stained-glass #drpg-events {
-    width: var(--drpg-events-w);
-}
+   where the rail carries no steppers (the panel's box reads it, "the Event panel" above, since E55 S3). The glyph sits
+   above the kicker, centred, as drawn. */
 /* WHICH sprite is in pixel-icons.css, where the sprites are and where both
    themes can reach it; this is how big it is and what colour. */
 body.drpg-theme-stained-glass .drpg-event-glyph {
