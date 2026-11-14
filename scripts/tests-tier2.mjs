@@ -41913,7 +41913,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await glassFetch());
         ok(/drpg-glass-flat/.test(src) && /function glassRoom\(\)/.test(src),
             "the curtain has no gate of its own, so a phone gets a partition cut for a desk");
-        ok(/if \(narrowLayout\(\)\) return stackShapes\(/.test(src),
+        // Since E54 G3/G5 (cc519fd0, 13.11.2026) the stacked page is decided in glass.mjs `curtainPage` and the cut in
+        // glass-geometry.mjs `curtainShapes`, which no longer reads the page: the rule is both lines, read 14.11.2026.
+        ok(/narrowLayout\(\) \? \{ narrow: true, \.\.\.stackPage\(/.test(src) && /return page\.narrow \? stackShapes\(/.test(src),
             "a stacked layout is cut by the desk's partition, which splits the blocks at "
             + "half the height and puts every one of a stack's in the top half - measured "
             + "with it forced on at 820 x 1180: 16 blocks off their pane and 206 edge gaps");
@@ -49244,12 +49246,18 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const M = await import("./murder.mjs");
         const { actionButton } = await import("./sheet.mjs");
         const { performAction } = await import("./action-rolls.mjs");
-        const { ACTIONS } = await import("./config.mjs");
+        const { ACTIONS, ACTION_GRID } = await import("./config.mjs");
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(player);
         must(killer && victim, "two living students with players - this would measure nothing");
-        const keys = Object.keys(ACTIONS);
+        /* Move has no tile since E103 (ea33c4fe, the owner's decision of 13.11.2026: the Monocub's Move tile goes, and
+           `actionButton` lost its Move branch), so its "tile" here was a button no sheet draws; its press passes an
+           Eclipse on purpose (action-rolls.mjs: the crossing is judged by `judgeEclipseCrossing`). Read 14.11.2026: the
+           one disagreement on 6dd02975 was "eclipse/move: tile eclipse, press null". Left out while no tile draws it,
+           and held to that: a Move tile back in the grid fails here. */
+        ok(!ACTION_GRID.includes("move"), "the sheet draws a Move tile again - it belongs in the matrix");
+        const keys = Object.keys(ACTIONS).filter(key => key !== "move");
         const fightTile = game.i18n.localize("DRPG.Murder.tileFightBack");
         const SENTENCES = {
             fight: game.i18n.format("DRPG.Murder.actionsLocked", { tile: fightTile }),
@@ -55341,6 +55349,34 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 },
                 gone: (report, key) => !S.diveSetStore.has(key),
                 back: key => stableJson([S.diveSetStore.get(key)?.name, S.diveSetStore.get(key)?.questions?.[0]?.truth]) === stableJson(["SUITE backed-up set", "b"])
+            },
+            // A listener's eavesdrop, through its store (E69 C6; `backup: true`). Backed up with no fixture here from the merge
+            // of fix-113o (ad89e657), and this test failed naming it (14.11.2026, 6dd02975). An ended row with no user
+            // and no room: it blocks no microphone (`eavesdropMutedIds` reads `userId`), the voice pass places nobody by it
+            // (`listensInForce` reads `active`), and its mark is the time of day now, so no sweep drops it before it is read
+            // back; tier 2's restore takes it back.
+            eavesdrops: {
+                seed: async () => {
+                    const mark = await (await import("./eavesdrop-gm.mjs")).markNow();
+                    await S.eavesdropStore.patch(holder.id, { actorId: holder.id, userId: null, sceneId: "SUITEE69EAVESDRP", from: null,
+                        into: "SUITE backed-up room", mark, active: false, endedAt: 1, at: 1 });
+                    return holder.id;
+                },
+                gone: (report, key) => !S.eavesdropStore.has(key),
+                back: key => stableJson([S.eavesdropStore.get(key)?.into, S.eavesdropStore.get(key)?.active]) === stableJson(["SUITE backed-up room", false])
+            },
+            // A mask, through its store (E69 C8, 04b62b02; `backup: true`). Backed up with no fixture here from the same merge,
+            // and failed the same way. A row with no token and no owner: no token wears a "?" by it and no microphone is
+            // blocked by it (`maskMutedIds` reads `userIds`); tier 2's restore ends it by mask-gm.mjs `endMask`, as it ends
+            // every mask the test left standing.
+            masks: {
+                seed: async () => {
+                    await S.maskStore.patch(holder.id, { killerId: holder.id, victimId: null, userIds: [], mark: "SUITE backed-up mark",
+                        tokens: [], at: 1 });
+                    return holder.id;
+                },
+                gone: (report, key) => !S.maskStore.has(key),
+                back: key => stableJson([S.maskStore.get(key)?.killerId, S.maskStore.get(key)?.mark]) === stableJson([key, "SUITE backed-up mark"])
             },
             bullets: {
                 seed: async () => {
@@ -90913,6 +90949,71 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             emptied: [stableJson([]), stableJson({}), stableJson({}), stableJson({})], cut: true
         }), "a reset with a planted entry whose clear throws did not run it once, stopped another group, did not name it failed on the GMs' card and in its error, "
             + "or lost the cut (planted: the clear's runs; cleared, failed, notRun, kept: the answer; card, error: the words; emptied: rules, assembly, bodyFound, bodiesFound; cut: motive's)");
+    }],
+    ["a season reset while a mask stands gives the killer's tokens their look and their player's microphone back, and leaves no mask", async () => {
+        /*
+         * t2-rest, 14.11.2026; E69 C8 (04b62b02, scripts/mask-gm.mjs). A mask's row in the GMs' store `masks` is the only
+         * record of what the killer's tokens looked like and of whose microphone it blocks, and the reset's `actions`
+         * group cuts that store (gm-stores.mjs `maskStore`, `resetGroup: "actions"`). A mask is put up on the primary GM
+         * (`maskKiller`, as an opening on Hope does) over one student with a player; the reset is run through its own
+         * window with `actions` alone ticked (answered as its Reset button answers, as E42-T6 does). Read: whether any
+         * token of the killer still wears the mask's flag or the "?", whether their player's BROADCAST_AUDIO is still
+         * blocked, and whether a row is left. Read off the code by t2-restore before (its STATUS, "Found, read but not
+         * measured"); measured here. Whatever the reset leaves, the mask is ended in `finally` from the row kept before
+         * it, and the settings, the clock and the cards are put back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "a season reset is the primary GM's, and this browser is not it - this would measure nothing");
+        const Mk = await import("./mask-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { resetSeason } = await import("./season-setup.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const killer = livingStudents().filter(player).find(a => game.scenes.some(sc => sc.tokens.some(t => t.actorId === a.id)));
+        must(killer, "no living student with a player has a token on a scene - this would measure nothing");
+        const user = player(killer);
+        const tokens = () => game.scenes.reduce((out, sc) => out.concat(sc.tokens.filter(t => t.actorId === killer.id)), []);
+        const KEYS = [SETTINGS.facilityClosed, SETTINGS.seasonExceptions, SETTINGS.seasonReset].filter(Boolean);
+        const held = Object.fromEntries(KEYS.map(key => [key, foundry.utils.deepClone(getSetting(key))]));
+        const clock = getClock();
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        const D = foundry.applications.api.DialogV2, heldWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const cardsBefore = new Set(game.messages.map(m => m.id));
+        let row = null, before = null, read = null;
+        try {
+            const up = await Mk.maskKiller({ killerId: killer.id, victimId: null });
+            await settle();
+            row = foundry.utils.deepClone(S.maskStore.get(killer.id) ?? null);
+            before = { masked: tokens().some(t => Mk.isMaskedToken(t)), muted: user.permissions?.BROADCAST_AUDIO === false };
+            must(up && row && before.masked, `no mask went up over ${killer.name} - this would measure nothing: ${stableJson({ up, row, before })}`);
+            D.wait = async cfg => (cfg?.classes ?? []).includes("drpg-window-season-reset")
+                ? { word, ticked: ["actions"], cast: { to: "stay" } } : null;
+            await resetSeason();
+            await gmStoresIdle();
+            await settle();
+            read = {
+                mutedBefore: before.muted,
+                masked: tokens().filter(t => Mk.isMaskedToken(t) || t.name === Mk.MASK_NAME).length,
+                muted: user.permissions?.BROADCAST_AUDIO === false,
+                row: S.maskStore.has(killer.id)
+            };
+        } finally {
+            if (heldWait) Object.defineProperty(D, "wait", heldWait);
+            else delete D.wait;
+            // The mask ended from the row kept before the reset, whatever the reset left of it.
+            if (row && tokens().some(t => Mk.isMaskedToken(t))) {
+                if (!S.maskStore.has(killer.id)) await S.maskStore.patch(killer.id, row);
+            }
+            if (S.maskStore.has(killer.id)) await Mk.endMask(killer.id, "suite");
+            await settle();
+            const made = game.messages.filter(m => !cardsBefore.has(m.id)).map(m => m.id);
+            if (made.length) await ChatMessage.deleteDocuments(made);
+            for (const key of KEYS) await game.settings.set(MODULE_ID, key, held[key]);
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson({ mutedBefore: true, masked: 0, muted: false, row: false }),
+            "a season reset that cut the masks' store left the killer's tokens a \"?\", their player's microphone blocked, or a row (mutedBefore: the mask blocked it first; masked: tokens still masked; muted: BROADCAST_AUDIO false; row: the mask's row)");
     }],
     ["E42-T7 - the reset clears Despair Flow's assignments and the window counts them (E42 C4, E42-15; D36 = 2): ticked alone, the group `assignments` empties `gmAssignments` - a student set to a pool and one set to nobody alike - after the window counted the students assigned by hand; unticked beside another group it keeps the map and is remembered; and the clock's group takes the readiness round and the End of chapter's record with it", async () => {
         /*
