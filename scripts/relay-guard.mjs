@@ -1109,7 +1109,8 @@ export function plainWhat(text) {
  * takes one judge's English whole, and its named groups - the packet's own names and values, read off it as they are - fill
  * `DRPG.Relay.what.<code>`. A fragment after a colon (docs/text-style.md section 14: nominative). A reason no pattern takes
  * is said as `unnamed`, and R7050 holds every refusal of the suite's cases to a pattern. `countdownsOdd` takes the countdowns'
- * changes `judgeCountdowns` lists apart (several joined), named in the console alone.
+ * changes `judgeCountdowns` lists apart (several joined), named in the console alone. A space before a group is `[ ]`:
+ * tier 0's R22 reads a word (or `\s`) before "(" as a call, in a regex too.
  */
 export const RELAY_WHAT = Object.freeze([
     ["transfer", /^an item transfer, which waits for the GM in this game$/],
@@ -1117,28 +1118,28 @@ export const RELAY_WHAT = Object.freeze([
     ["gmEffect", /^an effect applied by the GM's hand$/],
     ["setting", /^the setting "(?<setting>.*)"$/],
     ["unreviewed", /^"(?<name>.*)", which this module has not reviewed$/],
-    ["sceneField", /^"(?<field>[^"]*)" on the scene (?<name>.+)$/],
-    ["partyField", /^"(?<field>[^"]*)" on the party (?<name>.+)$/],
-    ["field", /^"(?<field>[^"]*)" on (?<name>.+)$/],
-    ["noResource", /^"(?<field>[^"]*)", which (?<name>.+) does not have$/],
-    ["overMax", /^(?<field>[\w-]+) on (?<name>.+) set above its maximum$/],
-    ["badValue", /^(?<field>[\w-]+) on (?<name>.+) set to (?<value>.*)$/],
-    ["otherStudent", /^the resources of (?<name>.+), another student$/],
-    ["raisedNoRoll", /^(?<fields>.+) raised on (?<name>.+) with no roll of theirs to give it$/],
+    ["sceneField", /^"(?<field>[^"]*)" on the scene[ ](?<name>.+)$/],
+    ["partyField", /^"(?<field>[^"]*)" on the party[ ](?<name>.+)$/],
+    ["field", /^"(?<field>[^"]*)" on[ ](?<name>.+)$/],
+    ["noResource", /^"(?<field>[^"]*)", which[ ](?<name>.+) does not have$/],
+    ["overMax", /^(?<field>[\w-]+) on[ ](?<name>.+) set above its maximum$/],
+    ["badValue", /^(?<field>[\w-]+) on[ ](?<name>.+) set to[ ](?<value>.*)$/],
+    ["otherStudent", /^the resources of[ ](?<name>.+), another student$/],
+    ["raisedNoRoll", /^(?<fields>.+) raised on[ ](?<name>.+) with no roll of theirs to give it$/],
     ["notHeld", /^(?<name>.+), an item the sender does not hold$/],
-    ["charges", /^the charges of (?<name>.+) set to (?<value>.*)$/],
-    ["quantity", /^the quantity of (?<name>.+) set to (?<value>.*)$/],
-    ["moreOf", /^more of (?<name>.+)$/],
-    ["environments", /^the environments of (?<name>.+), which is not a reordering$/],
-    ["partyUnlisted", /^the party (?<name>.+), whose members this Daggerheart does not list$/],
-    ["partyNotOwn", /^the party (?<name>.+), which has none of the sender's characters$/],
-    ["fear", /^Fear set to (?<value>.*)$/],
+    ["charges", /^the charges of[ ](?<name>.+) set to[ ](?<value>.*)$/],
+    ["quantity", /^the quantity of[ ](?<name>.+) set to[ ](?<value>.*)$/],
+    ["moreOf", /^more of[ ](?<name>.+)$/],
+    ["environments", /^the environments of[ ](?<name>.+), which is not a reordering$/],
+    ["partyUnlisted", /^the party[ ](?<name>.+), whose members this Daggerheart does not list$/],
+    ["partyNotOwn", /^the party[ ](?<name>.+), which has none of the sender's characters$/],
+    ["fear", /^Fear set to[ ](?<value>.*)$/],
     ["countdownsWhole", /^the whole Countdowns setting$/],
     ["newCountdowns", /^new countdowns \((?<names>.*)\)$/],
     ["countdownsOdd", /^(?:(?:the settings of|the project|the countdown|the removal of) .+|"(?:hideNewCountdowns|defaultOwnership)")(?:, .+)?$/],
     ["saveNotOwn", /^a save for a token the sender does not play$/],
-    ["newDocument", /^a new (?<type>.+)$/],
-    ["otherDocument", /^a change to a (?<type>\w+)$/]
+    ["newDocument", /^a new[ ](?<type>.+)$/],
+    ["otherDocument", /^a change to a[ ](?<type>\w+)$/]
 ]);
 
 /** A refusal's reason as the GM's toast says it: its code of `RELAY_WHAT` (or `unnamed`) and the packet's names in it. */
