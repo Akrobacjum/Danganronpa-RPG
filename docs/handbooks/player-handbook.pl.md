@@ -25,7 +25,7 @@ Sześć cech Daggerheart nosi tu inne nazwy. Na arkuszu widzisz:
 | **Body** | BOD | Siła fizyczna | Projects, walka, przenoszenie ciężarów, zmuszanie kogoś do pokazania kieszeni |
 | **Hand** | HAN | Zręczność i precyzja | Search, Palm, Projects, akcje kryzysowe |
 | **Eye** | EYE | Spostrzegawczość i zauważanie rzeczy | Search, Observe, wyczucie pułapki |
-| **Shadow** | SHA | Ukrywanie się i szósty zmysł | Listen, Tamper, pozostanie niezauważonym, zacieranie śladów |
+| **Shadow** | SHA | Ukrywanie się i szósty zmysł | Listen, Tamper, pozostanie niezauważonym, zacieranie Remnantów |
 | **Head** | HEA | Łączenie faktów | Analyze, Projects, wyczucie pułapki |
 
 Przy tworzeniu postaci rozkład to **+2, +1, +1, 0, 0, -1**, rozłożony, jak chcesz.
@@ -40,9 +40,9 @@ Przy tworzeniu postaci rozkład to **+2, +1, +1, 0, 0, -1**, rozłożony, jak ch
 | Akcje na porę dnia | 2 | - |
 | Free Move na porę dnia | 1 | - |
 | Doświadczenia | 2, po +2 każde | - |
-| Przedmiot startowy | jeden przedmiot Tier 2 powiązany z twoim Ultimate, uzgodniony z GMem | - |
+| Przedmiot startowy | jeden przedmiot Tier 2 powiązany z twoim Ultimate, uzgodniony z GM-em | - |
 
-Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty przedmiot, Call, Level Up. Kropki na twojej karcie, na karcie drużyny i na twoim tokenie są do czytania, nie do klikania (jeszcze nie sprawdzone przy stole). Zmianę zrobioną mimo to na karcie ręcznie sprawdza przeglądarka GMa: statystyka, maksimum albo Hope, których nic w grze nie pokrywa, wracają od razu i dostajesz o tym wiadomość; Health, Sanity albo akcje trafiają do GMów, którzy decydują. Zmianę zrobioną, gdy nie jest połączony żaden GM, sprawdza się, gdy któryś wróci.
+Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty przedmiot, Call, Level Up. Kropki na twojej karcie, na karcie drużyny i na twoim tokenie są do czytania, nie do klikania (jeszcze nie sprawdzone przy stole). Zmianę zrobioną mimo to na karcie ręcznie jest sprawdzana: statystyka, maksimum albo Hope, których nic w grze nie pokrywa, wracają od razu i dostajesz o tym wiadomość; Health, Sanity albo akcje trafiają do GM-ów, którzy decydują. Zmianę zrobioną, gdy nie jest połączony żaden GM, sprawdza się, gdy któryś wróci.
 
 ### Dwa stany, których nie chcesz
 
@@ -56,8 +56,8 @@ Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty pr
 
 ### Co mówi twoja karta
 
-- **Co zostało.** Pod każdym z dwóch pasków karta mówi, ile zostało, a nie ile ubyło, a potem ile może być najwięcej: **3 / 4** dla Health, **6 / 6** dla Sanity. Nietknięty uczeń ma dwa pełne paski, a pasek skraca się, gdy cię ranią. Kropki są własne modułu i wyglądają tak samo na ekranie z włączonymi kropkami Daggerheart i na ekranie bez nich (jeszcze nie sprawdzone przy stole: LIVE-E24-02). Przy włączonym *Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk* twoja karta nie ma pola na tę liczbę; przy wyłączonym pole jest, a to, co wpiszesz, jest liczbą tego, co zostało.
-- **Sanity jest tylko twoje.** Inny gracz, który otworzy twoją kartę albo przeczyta twój wiersz na karcie drużyny, czyta twoje Health i **?** w miejscu Sanity; twój token nie pokazuje mu paska Sanity (jeszcze nie sprawdzone przy stole: LIVE-E24-01, LIVE-E24-03). Ty i GMowie czytacie oba. Tyle rysują ekrany: Foundry wysyła dane twojej postaci do każdej przeglądarki, a gracz, który otworzy konsolę przeglądarki, może je przeczytać (pisze o tym podręcznik GMa, sekcja 1).
+- **Co zostało.** Pod każdym z dwóch pasków karta mówi, ile zostało, a nie ile ubyło, a potem ile może być najwięcej: **3 / 4** dla Health, **6 / 6** dla Sanity. Nietknięty uczeń ma dwa pełne paski, a pasek skraca się, gdy cię ranią. Kropki są własne modułu i wyglądają tak samo na ekranie z włączonymi kropkami Daggerheart i na ekranie bez nich (jeszcze nie sprawdzone przy stole: LIVE-E24-02). Przy włączonym *Zablokuj graczom zasoby na karcie* twoja karta nie ma pola na tę liczbę; przy wyłączonym pole jest, a to, co wpiszesz, jest liczbą tego, co zostało.
+- **Sanity jest tylko twoje.** Inny gracz, który otworzy twoją kartę albo przeczyta twój wiersz na karcie drużyny, czyta twoje Health i **?** w miejscu Sanity; twój token nie pokazuje mu paska Sanity (jeszcze nie sprawdzone przy stole: LIVE-E24-01, LIVE-E24-03). Ty i GM-owie czytacie oba. Tyle rysują ekrany: Foundry wysyła dane twojej postaci do każdej przeglądarki, a gracz, który otworzy konsolę przeglądarki, może je przeczytać (pisze o tym podręcznik GM-a, sekcja 1).
 - **Rzut w Breakdown.** Dodatkowa kość na karcie rzutu nazywa się **Disadvantage** i karta nikomu nie mówi nic więcej o przyczynie. Twoje własne okno rzutu i odprawa akcji kryzysowej mówią, skąd się wzięła; inny gracz nie czyta tego na karcie (jeszcze nie sprawdzone przy stole: LIVE-E24-10).
 - **Breakdown i Wounded są na twoim arkuszu, dla wszystkich.** Kto otworzy twój arkusz, czyta pod twoim Health i Sanity plakietkę, gdy jesteś w Breakdown albo Wounded, tak jak czyta twoje imię i Health. Inny gracz, który przeczyta plakietkę Breakdown, wie więc, że twoje Sanity się skończyło, choć nie zna jego liczby. Żaden token nie pokazuje żadnej z tych ikon, także twój; nakładka śmierci nadal jest rysowana na tokenie (jeszcze nie sprawdzone przy stole: LIVE-E95-05).
 - **Twoja przeszłość.** Część biografii na twojej karcie ma pole z podpisem **Przeszłość**, na to, kim twoja postać była przed killing game. Zapisuje się samo, gdy z niego wyjdziesz, przełączysz się na inną kartę albo zamkniesz arkusz; samo otwarcie niczego nie zapisuje, a karta, której nie możesz edytować, pokazuje je tylko do odczytu. Karta innego gracza nie ma Przeszłości (co pokazuje, mówi część Co widzisz, niżej). Jeśli ktoś inny zapisze twoją Przeszłość w trakcie twojego pisania, twój następny zapis niczego nie zapisuje i raz ci o tym mówi: twój tekst zostaje w polu, a ponowne kliknięcie poza nim zapisuje go w miejsce tamtego.
@@ -98,15 +98,15 @@ Trzy fazy:
 | Faza | Czym jest |
 |---|---|
 | **Daily Life** | Żyjecie w zamkniętym miejscu. Dwie akcje na porę dnia. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz. |
-| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nikt nie znajdzie, kosztuje Despair; w Class Trialu Monokuma może to ujawnić. |
+| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nikt nie znajdzie, kosztuje Despair; w Class Trial Monokuma może to ujawnić. |
 | **Class Trial** | Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. |
 
 ### Eclipse
 
 Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 
-- Niczyj ekran nie pokazuje cudzego tokenu, w żadnym pokoju. Żaden gracz nie jest w głosie: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła. (Ciemność jest ekranów: to, gdzie stoi każdy token, i tak dociera do każdej przeglądarki, bo tak wysyła to Foundry.)
-- Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**. Przeglądarka GMa liczy twoje przejścia, gdy je widzi: przejście ponad limit wraca, a gdy żaden GM nie jest połączony, przejście jest odrzucane.
+- Niczyj ekran nie pokazuje cudzego tokenu, w żadnym pokoju. Żaden gracz nie jest w głosie: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła.
+- Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**. Przejście ponad limit wraca, a gdy żaden GM nie jest połączony, przejście jest odrzucane.
 - Twoje akcje są już odnowione, gdy Eclipse się otwiera, ale nic ich nie wydaje poza **Direct Murder**. Żadnych Calli, dopóki nie zapali się światło.
 - Otwiera ci się karta z podsumowaniem pory dnia, która właśnie się skończyła - co znalazłeś, co zostawiłeś. Ta sama karta otwiera się, gdy pora dnia kończy się bez Eclipse, kiedy GM przesuwa zegar dalej; dla każdej pory dnia otwiera się raz, na środku ekranu, gdy zegar się obróci.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM go nie zakończy.
@@ -159,7 +159,7 @@ Zawraca cię:
 | **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu, dopóki nie pozwoli mu akcja kryzysowa: Survive, Escape Together, Finishing Blow albo Averted Eyes, jeśli tylko na nie trafiłeś |
 | **Class Trial** w toku | nikt nie opuszcza sali rozpraw |
 
-To wszystko sprawdza twój ekran i jeszcze raz przeglądarka GMa: ruch do pokoju, który te zasady zamykają, jest cofany tam, gdzie twój token ostatnio stał, i słyszysz, która zasada cię zawróciła; token upuszczony z paska bocznego do takiego pokoju jest usuwany. GM może też oddać ci ostatnie przejście (**Zwróć ostatnie przejście**): token wraca tam, gdzie stał, a to, ile przejście kosztowało, znowu jest twoje.
+Ruch do pokoju, który te zasady zamykają, jest cofany tam, gdzie twój token ostatnio stał, i słyszysz, która zasada cię zawróciła; token upuszczony z paska bocznego do takiego pokoju jest usuwany. GM może też oddać ci ostatnie przejście (**Zwróć ostatnie przejście**): token wraca tam, gdzie stał, a to, ile przejście kosztowało, znowu jest twoje.
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
@@ -171,16 +171,16 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 - Na mapie o kilku piętrach widzisz jedno piętro naraz. Przyciski **Piętra** obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego. Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle.
 - Widzisz ikony drzwi tych pokoi, które widzisz - tego, w którym stoisz, i tych, w których już byłeś - a nie każde drzwi na mapie.
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
-- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GMa albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
+- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GM-a pod nimi i opis od GM-a, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trial kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GM-a albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
 - Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health (i ? w miejscu Sanity), to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej. Hope i Sanity innego ucznia to '?', bez maksimum.
 
 ### Głos
 
-Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tych, którzy stoją z tobą w pokoju, i tych, którzy dopiero co wyszli z niego w drzwi albo na korytarz, który nie jest pokojem (zostają w jego kanale, dopóki nie wejdą do innego pokoju - niżej), a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse żaden gracz nie jest w głosie, a gdy się skończy, wracasz do pokoju, w którym stoi twój token. Podczas Class Trial wszyscy są w jednym pokoju głosowym, także zmarli, gdziekolwiek stoi ich token (rozdział 12). Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz. Gdy stoisz w drzwiach albo na korytarzu, który nie jest pokojem, zostajesz w kanale pokoju, z którego przyszedłeś, dopóki nie wejdziesz do innego pokoju, więc przejście przez drzwi zmienia twój kanał raz.
+Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tych, którzy stoją z tobą w pokoju, i tych, którzy dopiero co wyszli z niego w drzwi albo na korytarz, który nie jest pokojem (zostają w jego kanale, dopóki nie wejdą do innego pokoju - niżej), a twój głos idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse żaden gracz nie jest w głosie, a gdy się skończy, wracasz do pokoju, w którym stoi twój token. Podczas Class Trial wszyscy są w jednym pokoju głosowym, także zmarli, gdziekolwiek stoi ich token (rozdział 12). Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz. Gdy stoisz w drzwiach albo na korytarzu, który nie jest pokojem, zostajesz w kanale pokoju, z którego przyszedłeś, dopóki nie wejdziesz do innego pokoju, więc przejście przez drzwi zmienia twój kanał raz.
 
 **Kafel głosu.** Gdy jesteś w głosie, doku kamer Foundry nie ma na twoim ekranie: zastępuje go mały kafel - pod Stained Glass szyba witrażu przy prawej krawędzi, pod tacką Projects; pod Monokuma Legacy przy prawej krawędzi, nad przyciskami w rogu; na wąskim ekranie w rzędzie obok kafelka pokoju. Pokazuje portret i imię tego, kogo słyszysz mówiącego w twoim własnym kanale głosowym, i nikogo spoza niego, a chwilę po tym, jak ktoś przestanie mówić, gaśnie. Razem z dokiem odchodzą jego obrazy z kamer, jakość połączenia i okna wyskakujące; jeśli GM wyłączy kafel, dok wraca. Gdy nikt nie mówi, kafel mówi jednym słowem, jak stoi twój głos: **Połączono**; **Łączenie**, gdy dołączasz, przechodzisz do innego kanału albo połączenie wraca; **Rozłączono**, gdy głos się zerwał - karta **Głos rozłączony** mówi wtedy, że twoja przeglądarka łączy się ponownie, albo, gdy pomoże tylko przeładowanie, żeby nacisnąć F5; **Eclipse** podczas Eclipse; **Zablokowano**, gdy GM zablokował twój mikrofon; **Osobne okno**, gdy głos działa w osobnym oknie. Wskaż słowo, żeby zobaczyć całe zdanie. Na kaflu są dwa przyciski:
-- **Mikrofon** wycisza i włącza twój własny mikrofon, niczyj inny; to samo robi klawisz w sterowaniu Foundry, gdy go przypiszesz. Przekreślony - jest wyciszony: przez ciebie albo przez GMa, gdy widać na nim małą kłódkę (**GM zablokował twój mikrofon.**). Szary i przekreślony - trzyma go gra podczas Eclipse, z powodem pod spodem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego. W kanale zmarłych zostaje twój - wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś. Z małą kropką - nie jesteś połączony z głosem albo głos działa w osobnym oknie. Świeci, gdy twój mikrofon niesie twój głos. Przy trybie naciśnij, aby mówić nosi **PTT**: przytrzymaj klawisz, żeby mówić. Monocub podczas Eclipse zachowuje mikrofon i dostaje informację, że do powrotu światła nikt go nie słyszy.
+- **Mikrofon** wycisza i włącza twój własny mikrofon, niczyj inny; to samo robi klawisz w sterowaniu Foundry, gdy go przypiszesz. Przekreślony - jest wyciszony: przez ciebie albo przez GM-a, gdy widać na nim małą kłódkę (**GM zablokował twój mikrofon.**). Szary i przekreślony - trzyma go gra podczas Eclipse, z powodem pod spodem; kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego. W kanale zmarłych zostaje twój - wyciszasz go i włączasz sam, a linijka pod nim mówi, gdzie jesteś. Z małą kropką - nie jesteś połączony z głosem albo głos działa w osobnym oknie. Świeci, gdy twój mikrofon niesie twój głos. Przy trybie naciśnij, aby mówić nosi **PTT**: przytrzymaj klawisz, żeby mówić. Monocub podczas Eclipse zachowuje mikrofon i dostaje informację, że do powrotu światła nikt go nie słyszy.
 - **Głośnik** pokazuje, ile innych osób jest w twoim kanale - każdą, która cię słyszy, mówiącą czy nie - i otwiera **Kogo słyszysz**: każdą z nich z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Wszystko to jest tylko twoje - nikt inny nie słyszy różnicy - i ta przeglądarka to pamięta. Escape albo kliknięcie obok zamyka listę.
 
 > [!TIP]
@@ -188,7 +188,7 @@ Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz
 
 ### Search Tokens
 
-Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **3**; GM ustawia od **0 do 10**). Każde Search wydaje jeden. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie. HUD mówi, ile zostało tam, gdzie stoisz. Gdy odpowiedź GMa na twoje Search przychodzi za późno, przeszukanie nie jest liczone, zachowujesz akcję, a pokój odzyskuje token; pokój zapieczętowany przez GMa mówi ci, że nie da się go przeszukać, a akcję zachowujesz.
+Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **3**; GM ustawia od **0 do 10**). Każde Search wydaje jeden. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie. HUD mówi, ile zostało tam, gdzie stoisz. Gdy odpowiedź GM-a na twoje Search przychodzi za późno, przeszukanie nie jest liczone, zachowujesz akcję, a pokój odzyskuje token; pokój zapieczętowany przez GM-a mówi ci, że nie da się go przeszukać, a akcję zachowujesz.
 
 ---
 
@@ -232,7 +232,7 @@ Znajdujesz to, co ma pokój: pokój, który GM zaopatrzył, odpowiada pierwszy, 
 Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Search losuje tylko z pokoju: nigdy nie sięga do czyjejś skrytki, otwartej ani ukrytej.
 
 > [!WARNING]
-> Wzięcie narzędzia zbrodni albo narzędzia do sprzątania **zostawia Prep Remnant** w pokoju - ślad, że ktoś tu zbierał narzędzia. Narzędzie nie zostawia nic, chyba że to, co się znajdzie, jest też bronią.
+> Wzięcie narzędzia zbrodni albo narzędzia do sprzątania **zostawia Prep Remnant** w pokoju - Remnant, że ktoś tu zbierał narzędzia. Narzędzie nie zostawia nic, chyba że to, co się znajdzie, jest też bronią.
 
 ### Observe - Eye, 1 akcja
 
@@ -255,9 +255,9 @@ Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Remnanty powiązane
 Cztery rzeczy za jednym kafelkiem:
 
 - **Zidentyfikuj Truth Bullet.** Zamienia Neutral Truth Bullet w jego prawdziwą kategorię. **Porażka blokuje ten bullet dla ciebie do końca rozdziału** - przekaż kopię komuś innemu, jego kopii twoja porażka nie wiąże.
-- **Poproś o wskazówkę.** Brak dowodów w ręku? Poproś GMa, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
+- **Poproś o wskazówkę.** Brak dowodów w ręku? Poproś GM-a, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
 - **Find Stash.** 16+ otwiera przed tobą jedną skrytkę w tym pokoju. GM się dowiaduje; właściciel nie. Nie w Class Trial.
-- **Find Passage.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz: odcinek jego ściany albo koniec tunelu, na twoim piętrze. Poniżej 16 albo gdy żadnego nie ma, twoja karta mówi "Nie znajdujesz tu tajnego przejścia." GMowie widzą tę samą kartę. Nie w Class Trial.
+- **Find Passage.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz: odcinek jego ściany albo koniec tunelu, na twoim piętrze. Poniżej 16 albo gdy żadnego nie ma, twoja karta mówi "Nie znajdujesz tu tajnego przejścia." GM-owie widzą tę samą kartę. Nie w Class Trial.
 
 ### Projects - statystyka projektu, 1 akcja
 
@@ -309,7 +309,7 @@ Cokolwiek, byle opisane szczegółowo. Możesz zaproponować statystykę, opisuj
 | Wymaga bardzo niszowej wiedzy | 19 | Tier 3 | Hidden |
 
 > [!IMPORTANT]
-> Skala jest odwrócona celowo: im łatwiejsza rzecz, tym głośniejszy ślad.
+> Skala jest odwrócona celowo: im łatwiejsza rzecz, tym głośniejszy Remnant.
 
 ### Rest - bez rzutu, 1 albo 2 akcje
 
@@ -434,7 +434,7 @@ Reinforced ślady nie schodzą nigdy.
 
 ### Direct Murder - 1 akcja, GM decyduje
 
-Zabójstwo twarzą w twarz, uzgodnione wcześniej z GMem i <ins>za zgodą gracza ofiary</ins>. Zgłosić je można tylko **podczas Eclipse** - jedynego momentu, w którym możesz być z kimś sam na sam. Akcja przepada niezależnie od tego, czy się uda. Jeśli GM jej odmówi, dowiesz się od razu; inaczej jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli skończysz z nią sam na sam, a GM pozwoli, incydent się otwiera (rozdział 10).
+Zabójstwo twarzą w twarz, uzgodnione wcześniej z GM-em i <ins>za zgodą gracza ofiary</ins>. Zgłosić je można tylko **podczas Eclipse** - jedynego momentu, w którym możesz być z kimś sam na sam. Akcja przepada niezależnie od tego, czy się uda. Jeśli GM jej odmówi, dowiesz się od razu; inaczej jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli skończysz z nią sam na sam, a GM pozwoli, incydent się otwiera (rozdział 10).
 
 ### Move - za darmo, potem 1 akcja
 
@@ -524,13 +524,13 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
-> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trialu: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trialu nie można niczego wyrzucić.*
+> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie Remnant, a Remnant zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trial: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trial nie można niczego wyrzucić.*
 
 ### Kategorie i ile nosisz
 
 | Kategoria | Limit | Uwagi |
 |---|---|---|
-| **Użytkowe** | 3 | Leczące przywracają Health, uspokajające oczyszczają Sanity. Używasz z wiersza w ekwipunku. |
+| **Użytkowe** | 3 | Leczące przywracają Health, uspokajające przywracają Sanity. Używasz z wiersza w ekwipunku. |
 | **Sprzęt**: narzędzia zbrodni, narzędzia do sprzątania, narzędzia | 2 wspólne miejsca | Tylko **jedno** może być schowane - noszenie dwóch znaczy, że jedno jest w ręku. |
 | **Truth Bullets** | brak | Dowody. To, co wiesz, nie rzecz w szufladzie. |
 | **Klucze do pokoi** | brak | Otwiera jedną sypialnię. |
@@ -557,60 +557,60 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 ## 8. Remnanty i dowody
 
-### Remnants
+### Remnanty
 
-**Remnant** to ślad na mapie. Większość tego, co robisz w pokoju, jakiś zostawia: wzięcie broni, Dynamic Action, sabotaż, praca nad projektem morderstwa, wyrzucenie czegoś, przeszukanie kieszeni ciała, walka, sprzątanie. To, jak trudno go zobaczyć, to jego **widoczność**: Obvious, Evident, Subtle, Hidden. Niektóre są **Reinforced** - nikt nie może ich usunąć.
+**Remnant** to Remnant na mapie. Większość tego, co robisz w pokoju, jakiś zostawia: wzięcie broni, Dynamic Action, sabotaż, praca nad projektem morderstwa, wyrzucenie czegoś, przeszukanie kieszeni ciała, walka, sprzątanie. To, jak trudno go zobaczyć, to jego **widoczność**: Obvious, Evident, Subtle, Hidden. Niektóre są **Reinforced** - nikt nie może ich usunąć.
 
-Ślad pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins> (ślady walki, w której bierzesz udział, widać od chwili, gdy powstają). Na twoim ekranie nosi nazwę i obrazek twojej kopii - na niczyim innym: sam ślad ma jedną neutralną nazwę. Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło - Search, Dynamic Action, projekt, sabotaż, sama walka, sprzątanie, wyrzucona rzecz, przeszukane ciało, ręka samego GMa. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
+Remnant pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins> (Remnanty walki, w której bierzesz udział, widać od chwili, gdy powstają). Na twoim ekranie nosi nazwę i obrazek twojej kopii - na niczyim innym: sam Remnant ma jedną neutralną nazwę. Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło - Search, Dynamic Action, projekt, sabotaż, sama walka, sprzątanie, wyrzucona rzecz, przeszukane ciało, ręka samego GM-a. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
 
 | Remnant | Co znaczy |
 |---|---|
-| **Key Remnant** | Stawiany przez GMów, by sprawa dała się rozwiązać. Nieusuwalny. Staje się Truth Bulletem, którego rodzaj widać w chwili podniesienia; to, co mówi, wymaga Analyze. |
+| **Key Remnant** | Stawiany przez GM-ów, by sprawa dała się rozwiązać. Nieusuwalny. Staje się Truth Bulletem, którego rodzaj widać w chwili podniesienia; to, co mówi, wymaga Analyze. |
 | Prep Remnant | Zostawiony przy przygotowaniu morderstwa albo zbieraniu narzędzi. |
 | Incident Remnant | Zostawiony podczas konfrontacji albo śmierci ofiary. |
 | Tamper Remnant | Zostawiony przez majstrowanie - zbyt czysta plama, rzecz odłożona odrobinę nie tak. |
-| Faint Remnant | Wątpliwy związek ze sprawą. Faint to też znacznik, który może nosić ślad Prep - ten, który zostawia Search za narzędziem, sabotaż albo Misleading Trail. Ślad z nim GM czyści, chyba że jest powiązany z morderstwem; Truth Bullet z nim zostaje u ciebie po końcu rozdziału, nieodczytany, i wciąż można go przeanalizować. |
+| Faint Remnant | Wątpliwy związek ze sprawą. Faint to też znacznik, który może nosić Remnant Prep - ten, który zostawia Search za narzędziem, sabotaż albo Misleading Trail. Remnant z nim GM czyści, chyba że jest powiązany z morderstwem; Truth Bullet z nim zostaje u ciebie po końcu rozdziału, nieodczytany, i wciąż można go przeanalizować. |
 | Autopsy Remnant | Stan ciała. Wydawany na początku Investigation, bez rzutu. |
 | Final Truth Remnant | Jeden na rozdział. Wskazuje Masterminda. Nieusuwalny. |
 
 ### Truth Bullets
 
-**Truth Bullet** to to, co daje Observe: kopia Remnantu w twoim ekwipunku, pod Truth Bullets. Większość przychodzi jako **Neutral** - jeszcze nie wiesz, jaki to rodzaj śladu - i wymaga Analyze. Key albo Final Truth pokazuje swój rodzaj w chwili podniesienia, ale to, co mówi, wciąż czeka na Analyze; w pełni odczytany przychodzi tylko Autopsy.
+**Truth Bullet** to to, co daje Observe: kopia Remnantu w twoim ekwipunku, pod Truth Bullets. Większość przychodzi jako **Neutral** - jeszcze nie wiesz, jaki to rodzaj Remnantu - i wymaga Analyze. Key albo Final Truth pokazuje swój rodzaj w chwili podniesienia, ale to, co mówi, wciąż czeka na Analyze; w pełni odczytany przychodzi tylko Autopsy.
 
 Karta Truth Bulleta pokazuje:
 
 - nazwę,
 - opis, który dostał znalazca,
-- jaki to rodzaj śladu według twojej wiedzy (Faint dopiero po rozpoznaniu),
+- jaki to rodzaj Remnantu według twojej wiedzy (Faint dopiero po rozpoznaniu),
 - jak widoczny był oryginał (Obvious, Evident, Subtle albo Hidden),
 - rozdział,
 - pokój, w którym go podniosłeś,
 - "Analiza na nic", gdy twoja analiza się na nim w tym rozdziale nie powiodła.
 
-Pakiet możesz grupować według Rozdziału albo Lokacji. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trialu.
+Pakiet możesz grupować według Rozdziału albo Lokacji. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trial.
 
-Karta nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu: to, jak rzecz się nazywa, jest częścią dowodu. Zmiana zrobiona mimo to zostaje i jest zapisywana dla GMów - poza Truth Bulletem, na którym przeglądarka GMa ją cofa.
+Karta nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu: to, jak rzecz się nazywa, jest częścią dowodu. Zmiana zrobiona mimo to zostaje i jest zapisywana dla GM-ów - poza Truth Bulletem, na którym zostaje cofnięta.
 
 ### Drabina trudności
 
 Przy rzucie nigdy nie widzisz trudności, ale kształt drabiny nie jest tajemnicą:
 
-| Oryginalny ślad | Observe (żeby zauważyć) | Analyze (żeby odczytać) |
+| Oryginalny Remnant | Observe (żeby zauważyć) | Analyze (żeby odczytać) |
 |---|---|---|
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
 | Coś z Daily Life | 8 / 12 / 18 / 21 | - |
 
-Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje dla czegoś bez śladu za sobą, a orzeka o tym GM. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
+Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Na wierszu Daily Life nie jest też liczony żaden rzut: żaden Remnant nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje dla czegoś bez Remnantu za sobą, a orzeka o tym GM. Wątpliwy Remnant trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
 
 ---
 
 ## 9. Pułapki i projekty, które zabijają
 
-**Morderstwo pośrednie** buduje się jako projekty, tajne dla wszystkich poza budującym i GMami - *Prepare the Weapon* (Standardowy albo Złożony, 4-6 postępu, może wymagać konkretnego pokoju) i *Set the Trap* (Trywialny albo Standardowy, 3-4 postępu, zawsze wymaga konkretnego pokoju). Zaplanuj około **7-10 postępu** łącznie, tyle, ile dają obie części w najmniejszej i największej skali.
+**Morderstwo pośrednie** buduje się jako projekty, tajne dla wszystkich poza budującym i GM-ami - *Prepare the Weapon* (Standardowy albo Złożony, 4-6 postępu, może wymagać konkretnego pokoju) i *Set the Trap* (Trywialny albo Standardowy, 3-4 postępu, zawsze wymaga konkretnego pokoju). Zaplanuj około **7-10 postępu** łącznie, tyle, ile dają obie części w najmniejszej i największej skali.
 
-Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach") - wszyscy w pokoju dowiadują się, że czymś się tam zajmujesz, bez nazwy projektu. W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć ślady:
+Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach") - wszyscy w pokoju dowiadują się, że czymś się tam zajmujesz, bez nazwy projektu. W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć Remnanty:
 
 | Rzut Shadow | Remnant, który zostawia |
 |---|---|
@@ -619,7 +619,7 @@ Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow pr
 | 18+ | Subtle |
 | krytyk | Hidden |
 
-Ukończona pułapka czeka na warunek - ktoś sam w pokoju, ktoś wchodzi, przeszukuje, odpoczywa, szuka skrytki, pracuje nad wskazanym projektem albo go sabotuje, używa podłożonego przedmiotu, a także własny warunek budującego, którego wypatruje sam budujący - opcjonalnie tylko po zmroku (Wieczór, Noc albo każdy Eclipse), i domyślnie nigdy budujący. Moduł pilnuje pozostałych; GM decyduje, czy odpaliła.
+Ukończona pułapka czeka na warunek - ktoś sam w pokoju, ktoś wchodzi, przeszukuje, odpoczywa, szuka skrytki, pracuje nad wskazanym projektem albo go sabotuje, używa podłożonego przedmiotu, a także własny warunek budującego, którego wypatruje sam budujący - opcjonalnie tylko po zmroku (Wieczór, Noc albo każde Eclipse), i domyślnie nigdy budujący. Moduł pilnuje pozostałych; GM decyduje, czy odpaliła.
 
 **Podłożony przedmiot** przychodzi jako to, czego szukał znalazca. Odpala tylko dla kogoś, kto <ins>szukał przedmiotu użytkowego i potem go użył</ins>.
 
@@ -729,14 +729,14 @@ Wejście do pokoju, w którym trwa Direct Murder, daje ci **jeden darmowy wybór
 | Escape Together | Leg, 15 | Oboje wychodzicie; Hope przywraca ofierze Health i Sanity, krytyk dodaje nietykalność na ten i następny rozdział. Przy porażce wychodzisz tylko ty i już nie wracasz. |
 | Double Role Reversal | bez rzutu | Ty i ofiara razem zwracacie się przeciw napastnikowi. To on staje się ofiarą. Nikt nie zostaje uleczony. |
 | Partners in Crime | bez rzutu | Stajesz po stronie napastnika. Ofiara raczej stąd nie wyjdzie. |
-| Averted Eyes | bez rzutu | Wychodzisz, nie bierzesz udziału i już nie wracasz. Nie zostawia po tobie śladu. |
+| Averted Eyes | bez rzutu | Wychodzisz, nie bierzesz udziału i już nie wracasz. Nie zostawia po tobie Remnantu. |
 
 Escape Together kosztuje tyle co akcje rozstrzygnięcia ofiary: 1 Sanity, a gdy Sanity się skończy - 1 Health. Trzy wybory bez rzutu są darmowe. Use an Item nie należy do twoich wyborów.
 
 Jeśli incydent zostawi ciało, możesz potem **zwrócić się przeciw zabójcy** - jeśli stanąłeś po jego stronie albo, w Direct Murder, jeśli zostałeś i niczego nie wybrałeś; nie, jeśli odszedłeś albo próbowałeś Escape Together, i nigdy jako trzecia osoba po stronie ofiary pułapki. Oferta trwa do końca dnia, z Investigation włącznie, ale nie podczas Class Trial. Poza Eclipse to jedyne zabójstwo, które nie wymaga wcześniejszego zgłoszenia; w Eclipse zgłaszasz je jak każdą akcję w nim - kosztuje akcję i otwiera się, gdy Eclipse się skończy. Jeśli nie może się otworzyć, gdy przyjdzie jej czas, dowiesz się dlaczego i zachowasz ofertę, póki trwa dzień. Czwarta osoba wchodząca do pokoju odwołuje incydent: nikt nie ginie, rany zostają.
 
 > [!NOTE]
-> Moduł sam nakłada obrażenia i ślady, prowadzi tury i wykonuje zamianę ról przy Role Reversal, razem z Health i Sanity, które ona przywraca. Resztę tego, co obiecują te tabele, załatwia GM: zabójstwo z krytycznego Role Reversal, Health i Sanity przywracane przez Escape Together, każdą nietykalność i podpowiedź z Survive, kto to był.
+> Moduł sam nakłada obrażenia i Remnanty, prowadzi tury i wykonuje zamianę ról przy Role Reversal, razem z Health i Sanity, które ona przywraca. Resztę tego, co obiecują te tabele, załatwia GM: zabójstwo z krytycznego Role Reversal, Health i Sanity przywracane przez Escape Together, każdą nietykalność i podpowiedź z Survive, kto to był.
 
 ### Następny poranek
 
@@ -751,14 +751,14 @@ Za każdym razem, gdy twoja postać wchodzi do pokoju, w którym leży ciało, s
 ## 11. Investigation
 
 - Każdy żyjący uczeń dostaje **Autopsy Truth Bullet** - godzina odkrycia, przyczyna śmierci, to, co pokazuje ciało. Bez rzutu.
-- **Observe** na śladach na mapie, **Analyze** na tym, co zbierzesz, **Podziel się kopią** z osobami w twoim pokoju. Remnanty powiązane ze zbrodnią pokazywane są pierwsze.
-- GMowie przygotowali do tej sprawy **Key Remnants** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
-- **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia i wciśnij **Take from the Body** pod tym, co miał przy sobie. Okno akcji pokazuje jego rzeczy obok opisu akcji; zaznacz, co bierzesz, i wciśnij *Weź*. To nie kosztuje akcji. Rzucasz **Hand** raz na to, co bierzesz, za każdym razem, gdy bierzesz - liczy się tylko pierwszy rzut wykonany na dane zabranie, a zabranie odrzucone, bo wyszedłeś z pokoju, zachowuje swój rzut na następną próbę: im niższy wynik, tym łatwiej znaleźć ślad, który zostawiasz - poniżej 12 łatwo, od 12 do 17 trudniej, od 18 albo przy krytyku najtrudniej. Gdy ktoś jeszcze jest w pokoju - tak, jak czyta to strona GM-ów, która może policzyć kogoś, kogo twój ekran nie pokazuje - rzucasz też **Shadow** przeciw **16**, żeby nikt nie zauważył: chybienie mówi pozostałym w pokoju i GM-om, że przeszukałeś kieszenie ciała - przy Despair także, co zabrałeś - i nie kosztuje Sanity. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje jeden ślad, że ktoś przeszedł przez kieszenie, ile by rzeczy z niego nie wyszło; kolejne zabrania mogą ten ślad uczynić łatwiejszym do znalezienia, nigdy trudniejszym.
+- **Observe** na Remnantach na mapie, **Analyze** na tym, co zbierzesz, **Podziel się kopią** z osobami w twoim pokoju. Remnanty powiązane ze zbrodnią pokazywane są pierwsze.
+- GM-owie przygotowali do tej sprawy **Key Remnanty** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
+- **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia i wciśnij **Take from the Body** pod tym, co miał przy sobie. Okno akcji pokazuje jego rzeczy obok opisu akcji; zaznacz, co bierzesz, i wciśnij *Weź*. To nie kosztuje akcji. Rzucasz **Hand** raz na to, co bierzesz, za każdym razem, gdy bierzesz - liczy się tylko pierwszy rzut wykonany na dane zabranie, a zabranie odrzucone, bo wyszedłeś z pokoju, zachowuje swój rzut na następną próbę: im niższy wynik, tym łatwiej znaleźć Remnant, który zostawiasz - poniżej 12 łatwo, od 12 do 17 trudniej, od 18 albo przy krytyku najtrudniej. Gdy ktoś jeszcze jest w pokoju - tak, jak czyta to strona GM-ów, która może policzyć kogoś, kogo twój ekran nie pokazuje - rzucasz też **Shadow** przeciw **16**, żeby nikt nie zauważył: chybienie mówi pozostałym w pokoju i GM-om, że przeszukałeś kieszenie ciała - przy Despair także, co zabrałeś - i nie kosztuje Sanity. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje jeden Remnant, że ktoś przeszedł przez kieszenie, ile by rzeczy z niego nie wyszło; kolejne zabrania mogą ten Remnant uczynić łatwiejszym do znalezienia, nigdy trudniejszym.
 - Śledczy i zabójcy jednakowo mogą użyć **Tamper**. Zbyt czysta plama to dowód sprzątania.
-- Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trialu Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
+- Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trial Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
 
 > [!WARNING]
-> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnants sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
+> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnantów sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
 
 ---
 
@@ -872,13 +872,13 @@ Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **
 
 Wszystko, co potrzebuje człowieka, ląduje w tym samym wątku: Observe na punkt zainteresowania, podpowiedź z Analyze, Dynamic Action, propozycja projektu, Search na coś konkretnego, Calle Experience i Ultimate, przedmiot Tier 0, którego chcesz użyć kreatywnie. Widzisz swój rzut, własne słowa i decyzję, gdy przyjdzie. Gdy żaden GM nie jest połączony, nic nie zostaje wysłane: czytasz "Żaden GM nie jest połączony.", a to, co akcja kosztowała, wraca do ciebie.
 
-**Przeczytane tylko wtedy, gdy patrzysz** (od 1.2.94). Wiadomość liczy się jako przeczytana tylko wtedy, gdy okno wątku jest na wierzchu, na zakładce Czat, a karta przeglądarki z grą jest tą, na którą patrzysz. Ta, która przyjdzie, gdy okno leży pod innym, jest na zakładce Notatka albo gdy jesteś na innej karcie przeglądarki, pokazuje swoją kartę i zostaje nieprzeczytana, dopóki nie wysuniesz okna na wierzch. Okno zwinięte do paska tytułu liczy się jak leżące pod innym: to, co przyszło w tym czasie, jest przeczytane, gdy je rozwiniesz (od 1.2.99). Wiadomość, której nie udało się wysłać, zostaje w polu. Odrzucona, zanim wyszła (za długa albo bez połączonego GM-a), mówi tylko dlaczego; ta, która nie wyszła, mówi "Wiadomość nie została wysłana. Nadal jest w polu - spróbuj ponownie.". W trakcie zabójstwa twoją wiadomość publikuje przeglądarka GM-a, a gdy jej odpowiedź nie przyjdzie na czas, zobaczysz "Wiadomość mogła nie zostać wysłana. Nadal jest w polu - zajrzyj do wątku, zanim wyślesz ją ponownie.": GM-owie mogą ją mimo to mieć. Wiadomość, którą GM usunie, znika też z twojego otwartego okna.
+**Przeczytane tylko wtedy, gdy patrzysz**. Wiadomość liczy się jako przeczytana tylko wtedy, gdy okno wątku jest na wierzchu, na zakładce Czat, a karta przeglądarki z grą jest tą, na którą patrzysz. Ta, która przyjdzie, gdy okno leży pod innym, jest na zakładce Notatka albo gdy jesteś na innej karcie przeglądarki, pokazuje swoją kartę i zostaje nieprzeczytana, dopóki nie wysuniesz okna na wierzch. Okno zwinięte do paska tytułu liczy się jak leżące pod innym: to, co przyszło w tym czasie, jest przeczytane, gdy je rozwiniesz. Wiadomość, której nie udało się wysłać, zostaje w polu. Odrzucona, zanim wyszła (za długa albo bez połączonego GM-a), mówi tylko dlaczego; ta, która nie wyszła, mówi "Wiadomość nie została wysłana. Nadal jest w polu - spróbuj ponownie.". W trakcie zabójstwa twoją wiadomość publikuje przeglądarka GM-a, a gdy jej odpowiedź nie przyjdzie na czas, zobaczysz "Wiadomość mogła nie zostać wysłana. Nadal jest w polu - zajrzyj do wątku, zanim wyślesz ją ponownie.": GM-owie mogą ją mimo to mieć. Wiadomość, którą GM usunie, znika też z twojego otwartego okna.
 
-**Pytanie, na które czekasz** - Call Experience albo Ultimate, Dynamic Action, statystyka z kilku, które rzut wymienia, Observe na punkt zainteresowania - mówi na swojej karcie, do kiedy jest otwarte ("Otwarta do 21:40."): pięć minut dla Calla, trzy dla pozostałych. Tę godzinę pisze twoja przeglądarka, w twojej strefie czasowej i twoim języku, tak samo jak zdanie, którym karta się kończy. Jeśli w ciągu ośmiu sekund Calla albo Dynamic Action nie przyjmie żadna przeglądarka GM-a, od razu dowiadujesz się, że GM nie odpowiedział, zamiast czekać do końca karty. Jeśli nikt nie odpowie przed czasem karty, karta kończy się u wszystkich słowami "Nikt nie odpowiedział na czas - zapytaj jeszcze raz." i nic nie zostaje wydane; odpowiedź GM-a dana później nie zostaje zachowana, więc zapytaj jeszcze raz, jeśli nadal chcesz. Karta Calla albo Dynamic Action podaje decyzję dopiero wtedy, gdy twoja przeglądarka ją ma albo gdy jej użyjesz - Call uzbrojony na zgodzie, rzut Dynamic Action na trudności. Trudność, której odbioru twoja przeglądarka nie potwierdziła, kończy się "Odpowiedział: ... - odbiór niepotwierdzony.": obowiązuje, więc nie pytaj jeszcze raz. Jeśli przeładujesz stronę w trakcie czekania, przeglądarka GM-a i tak zakończy kartę chwilę po jej czasie. Jeśli w trakcie czekania przeładuje się przeglądarka GM-a albo stery przejmie inny GM, twoja przeglądarka zapyta jeszcze raz - najwyżej trzy razy - a pytanie zostaje przy swojej jednej karcie.
+**Pytanie, na które czekasz** - Call Experience albo Ultimate, Dynamic Action, statystyka z kilku, które rzut wymienia, Observe na punkt zainteresowania - mówi na swojej karcie, do kiedy jest otwarte ("Otwarta do 21:40."): pięć minut dla Calla, trzy dla pozostałych. Godzina jest w twojej strefie czasowej. Jeśli w ciągu ośmiu sekund Calla albo Dynamic Action nie przyjmie żaden GM, od razu dowiadujesz się, że GM nie odpowiedział, zamiast czekać do końca karty. Jeśli nikt nie odpowie przed czasem karty, karta kończy się u wszystkich słowami "Nikt nie odpowiedział na czas - zapytaj jeszcze raz." i nic nie zostaje wydane; odpowiedź GM-a dana później nie zostaje zachowana, więc zapytaj jeszcze raz, jeśli nadal chcesz. Trudność, która kończy się "Odpowiedział: ... - odbiór niepotwierdzony.", obowiązuje, więc nie pytaj jeszcze raz. Jeśli przeładujesz stronę w trakcie czekania, karta i tak skończy się o swoim czasie; jeśli przeładuje się GM albo stery przejmie inny GM, pytanie pójdzie jeszcze raz - najwyżej trzy razy - i zostanie przy swojej jednej karcie.
 
 **Karty prywatne.** Kartę tylko dla ciebie - odpowiedź z Listen, znalezisko, linię decyzji - czyta każdy gracz, który jest właścicielem twojej postaci, i GM-owie, nigdy gracz, który ją tylko obserwuje. Tak samo prywatne rzuty twojej postaci. Wątek Czatu z GM-em należy do jednego konta: pytanie, które zadajesz i na które czekasz - Call, Dynamic Action, statystyka z kilku, które rzut wymienia, Observe na punkt zainteresowania - ląduje w twoim własnym wątku, a pozostałe karty do GM-a o twojej postaci lądują w wątku tylko jednego właściciela. Jeśli nie było cię, gdy przyszła karta prywatna, albo otwierasz grę w innej przeglądarce, jej treść wraca, gdy połączony jest GM. Karta, której żaden GM nie może uzupełnić, brzmi "Prywatna karta - jej treść trafiła do innej przeglądarki i nie jest przechowywana na serwerze."
 
-Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GMów, do przeczytania przed nią. Jest tylko dla GMów: jej słowa idą do ich przeglądarek i zostają w twojej, a przeglądarka żadnego innego gracza ich nie ma. Zapisana, gdy żaden GM nie jest online, mówi "Czeka tutaj, aż połączy się GM." i idzie, gdy któryś się połączy. Jeśli GM zmienił ją, odkąd ją otworzyłeś, Zapisz zachowuje twój tekst i mówi ci o tym; zapisz jeszcze raz, żeby twój zastąpił jego. Notatka, która czeka tutaj, czeka taka, jak ją napisałeś: gdy połączy się GM, zastępuje to, co GM w międzyczasie zmienił. Szablon zadaje siedem pytań:
+Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GM-ów, do przeczytania przed nią. Czytają ją tylko GM-owie; nikt inny z graczy jej nie widzi. Zapisana, gdy żaden GM nie jest online, mówi "Czeka tutaj, aż połączy się GM." i idzie, gdy któryś się połączy. Jeśli GM zmienił ją, odkąd ją otworzyłeś, Zapisz zachowuje twój tekst i mówi ci o tym; zapisz jeszcze raz, żeby twój zastąpił jego. Notatka, która czeka tutaj, czeka taka, jak ją napisałeś: gdy połączy się GM, zastępuje to, co GM w międzyczasie zmienił. Szablon zadaje siedem pytań:
 
 - czy planujesz zabić i jak,
 - czy jesteś otwarty na śmierć,
@@ -895,7 +895,7 @@ Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GMów, do
 
 ## 15. Safeword
 
-W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyba że twój stół wybrał własne (świat, w który grano już, zanim słowo stało się ustawieniem, zachowuje MISIUBOMBO). Wciśnij, a scena staje. Działa też bez arkusza: przez klawisz, który twój stół może przypisać w ustawieniach sterowania Foundry. Gra się zatrzymuje, każdy GM dowiaduje się, kto wcisnął (i z którego pokoju, jeśli wciśnięto na arkuszu), a wszyscy widzą tę samą kartę: scena zatrzymana, GM to przejmie, gra wznowi się od punktu, na który wszyscy się zgodzą. Dopóki gra stoi na pauzie, panel zdarzeń mówi, że scena jest zatrzymana. Kartę wystawia przeglądarka GMa, więc nie ma na niej imienia żadnego gracza. Gdy żaden GM nie jest połączony, nic nie zatrzyma gry, a kartę wystawia twoja przeglądarka: nie pokazuje imienia, ale zapis karty podaje ciebie jako autora, i konsola to przeczyta. To samo dzieje się, gdy GM jest połączony, ale przeglądarka żadnego GMa nie odpowie w ciągu trzech sekund - na przykład GM przeładowuje stronę: kartę wystawia wtedy jednak twoja przeglądarka, a twoja własna karta ci to mówi. Zawołaj wtedy GMa na kanale tekstowym: GMowie mogą nie wiedzieć, że to ty, a GM, którego przeglądarka jeszcze się ładowała, musi zatrzymać grę ręcznie. Wszyscy słyszą też dźwięk safeword, niezależnie od suwaka *Dźwięk* - przy głośności własnego interfejsu Foundry i dopiero wtedy, gdy od wczytania strony kliknęli w nią gdziekolwiek; kartę widzi na pewno każdy.
+W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyba że twój stół wybrał własne (świat, w który grano już, zanim słowo stało się ustawieniem, zachowuje MISIUBOMBO). Wciśnij, a scena staje. Działa też bez arkusza: przez klawisz, który twój stół może przypisać w ustawieniach sterowania Foundry. Gra się zatrzymuje, każdy GM dowiaduje się, kto wcisnął (i z którego pokoju, jeśli wciśnięto na arkuszu), a wszyscy widzą tę samą kartę: scena zatrzymana, GM to przejmie, gra wznowi się od punktu, na który wszyscy się zgodzą. Dopóki gra stoi na pauzie, panel zdarzeń mówi, że scena jest zatrzymana. Kartę wystawia przeglądarka GM-a, więc nie ma na niej imienia żadnego gracza. Gdy żaden GM nie jest połączony, nic nie zatrzyma gry, a kartę wystawia twoja przeglądarka: nie pokazuje imienia, ale zapis karty podaje ciebie jako autora, i konsola to przeczyta. To samo dzieje się, gdy GM jest połączony, ale przeglądarka żadnego GM-a nie odpowie w ciągu trzech sekund - na przykład GM przeładowuje stronę: kartę wystawia wtedy jednak twoja przeglądarka, a twoja własna karta ci to mówi. Zawołaj wtedy GM-a na kanale tekstowym: GM-owie mogą nie wiedzieć, że to ty, a GM, którego przeglądarka jeszcze się ładowała, musi zatrzymać grę ręcznie. Wszyscy słyszą też dźwięk safeword, niezależnie od suwaka *Dźwięk* - przy głośności własnego interfejsu Foundry i dopiero wtedy, gdy od wczytania strony kliknęli w nią gdziekolwiek; kartę widzi na pewno każdy.
 
 > [!CAUTION]
 > Nie musisz tego uzasadniać, ani teraz, ani później. Nie ma pola na powód. Nikomu innemu nie mówi się, kto wcisnął - tylko że scena stanęła.
@@ -904,24 +904,24 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 ## 16. Wskazówki do interfejsu
 
-**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i pasek utworu: biegnie po nim tytuł utworu, który słyszysz, a gdy nic nie gra, zostaje pustą linią, więc zegar nie zmienia wysokości (od 1.2.101); pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Gdy gra stoi na pauzie, na każdym ekranie w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy; własny napis Foundry na środku ekranu i przygaszenie zostają. Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
+**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i pasek utworu: biegnie po nim tytuł utworu, który słyszysz, a gdy nic nie gra, zostaje pustą linią, więc zegar nie zmienia wysokości; pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trial zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Gdy gra stoi na pauzie, na każdym ekranie w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy; własny napis Foundry na środku ekranu i przygaszenie zostają. Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
 
 **Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska sterowania sceną po lewej, tak jak nie ma paska bocznego. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry; z paskiem odchodzi rysowanie, notatki na mapie i przycisk celowania.
 
-**Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry (od 1.2.99; wcześniej moduł blokował ten gest w każdym oknie). Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, rozwija je z powrotem. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, się nie zwija. Okno, które czeka na twoją odpowiedź - rzut, Observe, deklaracja akcji, głosowanie, Level Up, pytania Class Trial - zostaje nad arkuszem postaci, także gdy klikniesz arkusz albo gdy on się przerysuje (od 1.2.101); pozostałe okna wychodzą na wierzch tak, jak wyciąga je Foundry.
+**Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry. Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, rozwija je z powrotem. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, się nie zwija. Okno, które czeka na twoją odpowiedź - rzut, Observe, deklaracja akcji, głosowanie, Level Up, pytania Class Trial - zostaje nad arkuszem postaci, także gdy klikniesz arkusz albo gdy on się przerysuje; pozostałe okna wychodzą na wierzch tak, jak wyciąga je Foundry.
 
-**Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy. Panel ma jeden rozmiar, cokolwiek pokazuje; karta dłuższa od niego przewija się w środku (od 1.2.101).
+**Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trial, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy. Panel ma jeden rozmiar, cokolwiek pokazuje; karta dłuższa od niego przewija się w środku.
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa - stopa za każde pozostałe przejście albo, gdy możesz wybrać dowolny pokój, jedna pełna stopa, która zostaje dostępna; akcje Monocuba mówią wtedy *Tylko ustawianie.* Stopy Monocuba są zawsze pełne, bo jego przejścia nic nie kosztują. Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
-**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16). Każdy projekt to jeden wiersz, z nazwą i licznikiem w jednej linii; gdy jest ich więcej niż pięć, lista się przewija, a jej dół gaśnie, póki niżej są kolejne (od 1.2.101). Licznik zmienia się na bieżąco, póki któraś z twoich postaci stoi w pokoju projektu; poza nim wiersz pokazuje licznik taki, jaki któraś z nich ostatnio tam widziała, a projekt założony albo naprawa zaczęta od tamtej pory pojawia się, gdy któraś z nich znów będzie w tym pokoju. Projekt, o którym wiesz, ale którego w jego pokoju na tej przeglądarce nie widziano, pokazuje **?** (od 1.2.113).
+**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (jeszcze nie sprawdzone przy stole: LIVE-E79-16). Każdy projekt to jeden wiersz, z nazwą i licznikiem w jednej linii; gdy jest ich więcej niż pięć, lista się przewija, a jej dół gaśnie, póki niżej są kolejne. Licznik zmienia się na bieżąco, póki któraś z twoich postaci stoi w pokoju projektu; poza nim wiersz pokazuje licznik taki, jaki któraś z nich ostatnio tam widziała, a projekt założony albo naprawa zaczęta od tamtej pory pojawia się, gdy któraś z nich znów będzie w tym pokoju. Projekt, o którym wiesz, ale którego w jego pokoju na tej przeglądarce nie widziano, pokazuje **?** (od 1.2.113).
 
 **Wiersze Despair** pokazują każdą pulę i to, jak jest pełna, a pod nimi overflow: "?" w miejscu jego licznika, obok liczby, przy której odpala. Kliknij, by dowiedzieć się, czym jest Despair.
 
-**Na wąskim ekranie** (tablet, telefon, wąskie okno) zegar, kafelek pokoju, wiersze Despair, panel zdarzeń, twój pasek stanu i zasobnik projektów stoją w jednej kolumnie u góry, a plansza pod nią zostaje widoczna i da się na niej grać (od 1.2.101). Twój pasek stanu i zasobnik projektów idą pierwsze, przed wierszami Despair. Gdy kolumna jest dłuższa niż miejsce na nią, przewija się, a jej dół gaśnie, póki niżej jest coś jeszcze.
+**Na wąskim ekranie** (tablet, telefon, wąskie okno) zegar, kafelek pokoju, wiersze Despair, panel zdarzeń, twój pasek stanu i zasobnik projektów stoją w jednej kolumnie u góry, a plansza pod nią zostaje widoczna i da się na niej grać. Twój pasek stanu i zasobnik projektów idą pierwsze, przed wierszami Despair. Gdy kolumna jest dłuższa niż miejsce na nią, przewija się, a jej dół gaśnie, póki niżej jest coś jeszcze.
 
 **Twój arkusz:**
-- *Akcje* - dziesięć kafelków, Hope Calle poniżej; pod Stained Glass kafelek, którego teraz nie możesz użyć albo na który cię nie stać, jest ciemny i ma przerywaną krawędź, bez względu na koszt (od 1.2.101); podczas incydentu kafelek Direct Murder staje się **Broń się** dla ofiary i **Akcje kryzysowe** dla pozostałych i je otwiera; tutaj kafelki Monocuba, gdy nim jesteś (bez kafelka Move: przeciągasz token).
+- *Akcje* - dziesięć kafelków, Hope Calle poniżej; pod Stained Glass kafelek, którego teraz nie możesz użyć albo na który cię nie stać, jest ciemny i ma przerywaną krawędź, bez względu na koszt; podczas incydentu kafelek Direct Murder staje się **Broń się** dla ofiary i **Akcje kryzysowe** dla pozostałych i je otwiera; tutaj kafelki Monocuba, gdy nim jesteś (bez kafelka Move: przeciągasz token).
 - *Ekwipunek* - użytkowe, sprzęt (z *weź do ręki*), Truth Bullets (Analyze, Przedstaw, Podziel się kopią; grupujesz je wg Rozdziału albo Lokacji), klucze do pokoi i twoja skrytka, gdy stoisz w tym pokoju.
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword, w lewym dolnym rogu. Level Up, gdy go zdobyłeś.
@@ -930,11 +930,11 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Książka**, pod nim w prawym dolnym rogu, przy samej krawędzi ekranu, tej samej wielkości co zębatka po jej lewej, otwiera podręczniki w grze: ten Podręcznik gracza i Ulotkę ucznia, w języku wybranym dla modułu. Spis treści po lewej przenosi do dowolnego rozdziału.
 
-**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Pod Stained Glass karty stoją pod każdym oknem, więc okno przeciągnięte na nie je zasłania; pod Monokuma Legacy stoją nad oknami. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną; kliknięcie w "+N" zamyka naraz wszystkie karty poza kartami do przeczytania. Karta "czekamy na GM-a" zamyka się sama, gdy przyjdzie odpowiedź. Zamkniętą kartę można przeczytać jeszcze raz: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień (pod Monokuma Legacy na komputerze pod zegarem, także bez kart; na wąskim ekranie w prawym dolnym rogu najniższej karty, gdy jakaś karta jest na ekranie) otwiera okno **Historia powiadomień** - powiadomienia, które pokazała ci ta przeglądarka, także karty o morderstwie, najnowsze, najwyżej 250. Trzyma je, najwyżej 40 od jednego nadawcy, do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu; karta, którą moduł wycofa, znika i stąd. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a okno mówi, kiedy stanął. Otwiera je też klawisz w ustawieniach sterowania Foundry, jeśli go przypiszesz. **Wyczyść** w tym oknie je opróżnia: zrób to, zanim udostępnisz ekran. Na wspólnym komputerze inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc wyczyść ją, zanim oddasz komputer. Gdy pora dnia się kończy - w Eclipse albo gdy GM przesuwa zegar dalej - otwiera ci się jej podsumowanie. Krótkie komunikaty samego Foundry, na przykład ostrzeżenie, stoją pod Stained Glass na ciemnej płytce pod wierszami Despair (od 1.2.101).
+**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Pod Stained Glass karty stoją pod każdym oknem, więc okno przeciągnięte na nie je zasłania; pod Monokuma Legacy stoją nad oknami. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną; kliknięcie w "+N" zamyka naraz wszystkie karty poza kartami do przeczytania. Karta "czekamy na GM-a" zamyka się sama, gdy przyjdzie odpowiedź. Zamkniętą kartę można przeczytać jeszcze raz: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień (pod Monokuma Legacy na komputerze pod zegarem, także bez kart; na wąskim ekranie w prawym dolnym rogu najniższej karty, gdy jakaś karta jest na ekranie) otwiera okno **Historia powiadomień** - powiadomienia, które pokazała ci ta przeglądarka, także karty o morderstwie, najnowsze, najwyżej 250. Trzyma je, najwyżej 40 od jednego nadawcy, do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu; karta, którą moduł wycofa, znika i stąd. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a okno mówi, kiedy stanął. Otwiera je też klawisz w ustawieniach sterowania Foundry, jeśli go przypiszesz. **Wyczyść** w tym oknie je opróżnia: zrób to, zanim udostępnisz ekran. Na wspólnym komputerze inne konto zalogowane w tej przeglądarce może przeczytać twoją historię, więc wyczyść ją, zanim oddasz komputer. Gdy pora dnia się kończy - w Eclipse albo gdy GM przesuwa zegar dalej - otwiera ci się jej podsumowanie. Krótkie komunikaty samego Foundry, na przykład ostrzeżenie, stoją pod Stained Glass na ciemnej płytce pod wierszami Despair.
 
-**Okno ustawień:** zębatka w prawym dolnym rogu otwiera Ustawienia DRPG, ustawienia, które należą do tej przeglądarki - nikt inny nie widzi ani nie słyszy różnicy; GM ma to samo okno (otwiera je też Configure Settings, DRPG Settings). Wybierz sekcję po lewej; linia pod ustawieniem mówi, co zmienia, a **Zapisz zmiany** je zapisuje - głośność i głos działają od razu, gdy się je przesuwa:
+**Okno ustawień:** zębatka w prawym dolnym rogu otwiera Ustawienia DRPG, twoje własne ustawienia - nikt inny nie widzi ani nie słyszy różnicy; GM ma to samo okno (otwiera je też Configure Settings, DRPG Settings). Wybierz sekcję po lewej; linia pod ustawieniem mówi, co zmienia, a **Zapisz zmiany** je zapisuje - głośność i głos działają od razu, gdy się je przesuwa:
 - **Język** - English albo Polski dla okien, kart i arkusza modułu. Celowo osobno od języka Foundry. Działa po przeładowaniu. Nazwy własne zostają po angielsku w obu.
-- **Motyw** - Stained Glass (obecny wygląd) albo Monokuma Legacy (z przełącznikiem czcionki pikselowej). Pod Stained Glass nowa faza albo pora dnia obraca szkło: nowy kolor przychodzi od środka w około sekundę, a spoiny raz błyskają; tam, gdzie panele muszą się przesunąć, szyby jadą w całości na nowe miejsca, razem z teksturą. Przy **ograniczonych animacjach** szkło od razu przyjmuje nowy stan (od 1.2.101).
+- **Motyw** - Stained Glass (obecny wygląd) albo Monokuma Legacy (z przełącznikiem czcionki pikselowej). Pod Stained Glass nowa faza albo pora dnia obraca szkło: nowy kolor przychodzi od środka w około 1,2 sekundy, a spoiny raz błyskają; tam, gdzie panele muszą się przesunąć, szyby jadą w całości na nowe miejsca, razem z teksturą. Przy **ograniczonych animacjach** szkło od razu przyjmuje nowy stan.
 - **Skala interfejsu** (80% do 140%), a pod Stained Glass **puls szkła**, **nazwa stanu za zegarem** i **szkło rozmywa mapę** (pierwsze do wyłączenia, gdy ekran się przycina).
 - **Ograniczone animacje** i **wysoki kontrast**, pod oboma motywami; każde z nich idzie też za systemem operacyjnym, gdy ten o nie prosi.
 
@@ -943,7 +943,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Głos**, gdy jesteś w głosie - twój mikrofon i wyjście dźwięku, tryb mikrofonu (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia. Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
 
 > [!NOTE]
-> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. GM widzi, jak padają twoje kości, tylko gdy w twoim pokoju stoi jego Monokuma; wynik i tak dociera do GMów. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to rzut publiczny, który wykonuje GM (jeszcze nie sprawdzone przy stole) - remis w głosowaniu, loteria Monokumy (od 1.2.69).
+> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GM-owie. GM widzi, jak padają twoje kości, tylko gdy w twoim pokoju stoi jego Monokuma; wynik i tak dociera do GM-ów. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to rzut publiczny, który wykonuje GM (jeszcze nie sprawdzone przy stole) - remis w głosowaniu, loteria Monokumy.
 
 ---
 

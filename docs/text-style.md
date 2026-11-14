@@ -146,6 +146,31 @@ etykiet)”]
   Example: `DRPG.Observe.specificHint` on page E66-B01A-R1 ended “... picks the Remnant in this room your search finds.
   With no GM online, your action comes back.” / „... Bez GM-a online akcja do ciebie wraca.”; on R2, approved,
   it ends at “your search finds.” (B01a, `docs/dev/text-batch-B01a.json` `removed`).
+- **T29** No overexplaining, and the shortest natural wording. A player reads what their action does - in the fiction
+  and in game terms: what it costs, what happens, what they can do next - never how the module works: no stores,
+  sockets, browsers or clients, "the primary GM", flags, setting keys, ledgers, the console, timings or internal names. A
+  GM reads what matters to run the game - what happened, what to decide, what the players see, what to watch for - and
+  a technical limit a GM must know stays as one plain sentence ("Only the primary GM can ..."), without the reason the
+  code has for it. A sentence that explains the mechanism, repeats the label or justifies a rule is cut; the rule and
+  its effect stay, and no number, rule or promise changes. Of the wordings that keep the facts, the shortest that still
+  reads as natural everyday speech wins, in both languages: no telegraph style (X6), no officialese, no calques from
+  English in the Polish (O17). The handbooks take the same rule: the player handbook most strictly; the GM handbook
+  keeps rules and procedures and moves code detail out of the rule sections into the sections marked for a GM who
+  debugs. No detector yet: T29 is read in review, and a text cut by it is logged "overexplains (T29)". [the owner,
+  12.11.2026, through the coordinator: „upewnienie sie ze teksty nie overexplainuja, tzn nie mowia za duzo o dzialaniu,
+  zwlaszcza graczowi. Gracz ma rozumiec dzialanie tego co robi (np skutki akcji) a nie dzialanie modulu. To samo z gmem -
+  ma czytac to, co istotne, a nie o kodzie”; „Generalnie im krotsze teksty, tym lepiej, przy zachowaniu naturalnosci
+  jezyka codziennego.”]
+  Examples (the texts line's early pass, 12.11.2026):
+  - `DRPG.Hud.nowPlaying` “Playing here: {track}. This is what your own browser is playing, which is not always what
+    somebody else's is.” -> “Playing here: {track}.” / „Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie
+    zawsze to samo, co przeglądarka kogoś innego.” -> „Gra tutaj: {track}.”
+  - `DRPG.Chapter.endPrimaryOnly` (a GM's refusal) “Only the primary GM, {name}, can end the chapter, so that one browser
+    counts it once. Ask {name}, ...” -> “Only the primary GM, {name}, can end the chapter. Ask {name}, ...”: the limit
+    stays, its reason goes.
+  - `DRPG.Vote.notReceived` (a player's card) “No GM has your vote yet. This browser keeps it and sends it when a GM
+    connects.” -> “No GM has your vote yet. It goes out as soon as a GM connects.” / „... Ta przeglądarka go zachowa i
+    wyśle, gdy połączy się GM.” -> „... Trafi do GM-a, gdy tylko się połączy.”
 
 ## 3. Surfaces and the surface matrix
 
@@ -347,6 +372,8 @@ dało się je policzyć.
   zachowanych źródłach); Hope i Despair są męskie (PL-b, D191). [survives: DB4]
   Przykład: `DRPG.Trial.notInTrial` „Dowody przedstawia się w Class Trial.”; znalezione: `DRPG.Action.dcAnalyze`
   „Identyfikacja Truth Bulleta, ...”.
+  Remnant w liczbie mnogiej też po polsku: „Remnanty”, „Remnantów”, także „Key Remnanty”, „Faint Remnanty” - angielskie
+  „Remnants” nie stoi w polskim zdaniu. [the owner, 12.11.2026, through the coordinator: DB4's inflection, as decided]
 - **PL-b** Rodzaj: zasoby, Overflow, Eclipse, fazy i stany nijakie; Class Trial, Free Move, Rebuttal, Truth Bullet,
   Remnant, Search Token męskie; Nonstop Debate żeńska; Objection nijakie, jak dziś w UI. Hope i Despair są męskie i
   nieodmienne („twój Hope”, „cały Despair”): nijaki rodzaj zasobów z DB28 ich nie obejmuje. [survives: DB28; Hope and

@@ -25,7 +25,7 @@ Daggerheart's six traits are renamed. Your sheet shows these:
 | **Body** | BOD | Physical strength | Projects, fighting, moving heavy things, making somebody turn out their pockets |
 | **Hand** | HAN | Dexterity and precise action | Search, Palm, Projects, crisis actions |
 | **Eye** | EYE | Perceptiveness and noticing things | Search, Observe, sensing a trap |
-| **Shadow** | SHA | Hiding and the sixth sense | Listen, Tamper, staying unseen, covering traces |
+| **Shadow** | SHA | Hiding and the sixth sense | Listen, Tamper, staying unseen, covering Remnants |
 | **Head** | HEA | Connecting facts | Analyze, Projects, sensing a trap |
 
 At character creation the spread is **+2, +1, +1, 0, 0, -1**, placed where you like.
@@ -42,7 +42,7 @@ At character creation the spread is **+2, +1, +1, 0, 0, -1**, placed where you l
 | Experiences | 2, at +2 each | - |
 | Starting item | one Tier 2 item tied to your Ultimate, agreed with the GM | - |
 
-Your numbers move through play: an action spent, a roll, a Rest, an item used, a Call, a Level Up. The pips on your sheet, on the Party sheet and on your token are there to read, not to click (not yet checked at a table). A change made to your sheet by hand anyway is checked by the GM's browser: a statistic, a maximum or Hope that nothing in play covers is put back at once and you are told; Health, Sanity or actions go to the GMs, who decide. A change made while no GM is connected is checked when one returns.
+Your numbers move through play: an action spent, a roll, a Rest, an item used, a Call, a Level Up. The pips on your sheet, on the Party sheet and on your token are there to read, not to click (not yet checked at a table). A change made to your sheet by hand anyway is checked: a statistic, a maximum or Hope that nothing in play covers is put back at once and you are told; Health, Sanity or actions go to the GMs, who decide. A change made while no GM is connected is checked when one returns.
 
 ### Two states you do not want
 
@@ -56,7 +56,7 @@ Your numbers move through play: an action spent, a roll, a Rest, an item used, a
 
 ### What your sheet says
 
-- **What is left.** Under each of the two bars the sheet says what is left, not what has gone, then the most there can be: **3 / 4** for Health, **6 / 6** for Sanity. An untouched student has two full bars, and a bar shortens as you are hurt. The pips are the module's own and read the same on a screen with Daggerheart's pips switched on and on one with them off (not yet checked at a table: LIVE-E24-02). With *Players cannot edit Actions, Hope, Health, Sanity or statistics* on, your sheet has no field to type the number in; with it off the field is there, and what you type is the number that is left.
+- **What is left.** Under each of the two bars the sheet says what is left, not what has gone, then the most there can be: **3 / 4** for Health, **6 / 6** for Sanity. An untouched student has two full bars, and a bar shortens as you are hurt. The pips are the module's own and read the same on a screen with Daggerheart's pips switched on and on one with them off (not yet checked at a table: LIVE-E24-02). With *Lock players' resources on the sheet* on, your sheet has no field to type the number in; with it off the field is there, and what you type is the number that is left.
 - **Sanity is yours alone.** Another player who opens your sheet or reads your row on the Party sheet reads your Health and a **?** where your Sanity would be; your token shows them no Sanity bar (not yet checked at a table: LIVE-E24-01, LIVE-E24-03). You and the GMs read both. This is what the screens draw: Foundry sends your character's data to every browser, and a player who opens the browser's console can read it (the GM handbook says so, section 1).
 - **A roll in Breakdown.** The extra die on a roll's card is named **Disadvantage** and the card says no more about why, to anybody. Your own roll window and the briefing of a crisis action tell you the cause; another player does not read it on the card (not yet checked at a table: LIVE-E24-10).
 - **Breakdown and Wounded are on your sheet, for everybody.** Whoever opens your sheet reads a badge under your Health and Sanity when you are in Breakdown or Wounded, as they read your name and Health. So another player who reads the Breakdown badge knows your Sanity is gone, though not its number. No token shows either icon, yours included; the dead overlay is still drawn on a token (not yet checked at a table: LIVE-E95-05).
@@ -89,7 +89,7 @@ When your character dies, you watch the same way, with a Spectator of your own: 
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move and each room's search tokens. When Night ends, the day turns over.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move and each room's Search Tokens. When Night ends, the day turns over.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season runs a single one.
 
@@ -105,8 +105,8 @@ The three phases:
 
 Before each time of day the lights go out. That placement window is the **Eclipse**:
 
-- Nobody's screen shows anybody else's token, in any room. No player is in voice: you hear nobody and nobody hears you until the lights come back. (The dark is the screens': where every token stands still reaches every browser, as Foundry sends it.)
-- You place your token: up to **2 connected room crossings**, doors and gaps still apply. The **Night Eclipse** is the exception - pick **any room on the map**. The GM's browser counts your crossings as it sees them: one past the allowance goes back, and with no GM connected a crossing is refused.
+- Nobody's screen shows anybody else's token, in any room. No player is in voice: you hear nobody and nobody hears you until the lights come back.
+- You place your token: up to **2 connected room crossings**, doors and gaps still apply. The **Night Eclipse** is the exception - pick **any room on the map**. A crossing past the allowance goes back, and with no GM connected a crossing is refused.
 - Your actions are already refilled when the Eclipse opens, but nothing spends them except a **Direct Murder**. No Calls until the lights come up.
 - A summary card of what you did during the time of day that just ended opens for you - what you found, what you left behind. The same card opens when a time of day ends without an Eclipse, as the GM moves the clock on; it opens once for each time of day, in the middle of the screen, once the clock has turned.
 - The Eclipse is the game's one moment of total cover, and it is where a murder usually starts. It is not part of the day: the clock does not move until the GM ends it.
@@ -149,7 +149,7 @@ You are turned back by:
 
 | Cause | Details |
 |---|---|
-| a room that is **not connected** to yours | the refusal names only the neighbouring rooms you have already been in |
+| a room that is **not connected** to yours | the refusal names only the neighboring rooms you have already been in |
 | a **floor** the stairs do not lead to from your room | on a map with stairs, only they take you up or down |
 | a **locked door** | the GM locked the room |
 | a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
@@ -159,7 +159,7 @@ You are turned back by:
 | being in a **murder** while it runs | nobody walks out of an incident until a crisis action lets them: Survive, Escape Together, a Finishing Blow, or Averted Eyes if you only walked in on it |
 | a **Class Trial** in session | nobody leaves the courtroom |
 
-These are checked on your screen and again by the GM's browser: a move into a room they shut is put back to where your token last stood, and you are told which rule turned you back; a token dropped from the sidebar into such a room is removed. The GM can also give your last crossing back (**Refund last crossing**): your token goes back where it stood, and what the crossing cost is yours again.
+A move into a room they shut is put back to where your token last stood, and you are told which rule turned you back; a token dropped from the sidebar into such a room is removed. The GM can also give your last crossing back (**Refund last crossing**): your token goes back where it stood, and what the crossing cost is yours again.
 
 Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
 
@@ -167,28 +167,28 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 
 ### What you can see
 
-- The room you are in is in full colour. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.
+- The room you are in is in full color. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.
 - On a map of several floors you see one floor at a time. The **Floors** buttons beside the HUD offer the floors your character stands on and every floor holding a room you have found, lowest first. A room you have found looks the same on any floor - under the veil, with nobody you can see in it - and a room you have never been in stays fogged on every floor.
 - You see the door controls of the rooms you can see - the one you stand in and the ones you have been in - not every door on the map.
 - You only see the people standing in your room. Nobody else is on the map for you.
-- **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its search tokens with how many Searches are left (**2/3 searches**), **You can work a project here** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows the trial hall: the name, picture and description the GM gave it, or "Class Trial". On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move of several waypoints about a second and a half late.
+- **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its Search Tokens with how many Searches are left (**2/3 searches**), **You can work a project here** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows the trial hall: the name, picture and description the GM gave it, or "Class Trial". On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move of several waypoints about a second and a half late.
 - The clock in the left column can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
 - Another player's sheet opens redacted: name, portrait, Ultimate, Health (and a ? where Sanity would be), what they hold ready and how many Experiences they have. Nothing else. Another student's Hope and Sanity read '?', with no maximum.
 
 ### Voice
 
-With regional voice on, every room is its own voice channel: you hear whoever stands in the room with you, and whoever has just stepped out of it into a doorway or a corridor that is no room (they keep its channel until they enter another room - below), and your voice client follows your token the moment it crosses into another room. During an Eclipse no player is in voice, and when it ends you are back in the room your token stands in. During the Class Trial everybody is in one voice room, the dead too, wherever their token stands (chapter 12). A Monokuma who walks into your room hears you like anyone else, and you see them. Standing in a doorway or in a corridor that is no room, you keep the channel of the room you came from until you step into another room, so walking through a door changes your channel once.
+With regional voice on, every room is its own voice channel: you hear whoever stands in the room with you, and whoever has just stepped out of it into a doorway or a corridor that is no room (they keep its channel until they enter another room - below), and your voice follows your token the moment it crosses into another room. During an Eclipse no player is in voice, and when it ends you are back in the room your token stands in. During the Class Trial everybody is in one voice room, the dead too, wherever their token stands (chapter 12). A Monokuma who walks into your room hears you like anyone else, and you see them. Standing in a doorway or in a corridor that is no room, you keep the channel of the room you came from until you step into another room, so walking through a door changes your channel once.
 
 **The voice tile.** While you are in voice, Foundry's camera dock is not on your screen: a small tile stands in for it - under Stained Glass a pane of the glass at the right edge, under the Projects tray; under Monokuma Legacy at the right edge, over the corner's buttons; on a narrow screen in the row beside the room tile. It shows the portrait and the name of whoever you hear speaking in your own voice channel, and nobody outside it, and fades a moment after they stop. The dock's camera pictures, its connection quality and its pop-out windows go with it; if the GM turns the tile off, the dock comes back. While nobody speaks, the tile says in one word where your voice stands: **Connected**; **Connecting** while you join, move to another channel or the connection comes back; **Disconnected** when voice is lost - a **Voice disconnected** card then says your browser is joining again, or, when only a reload helps, to press F5; **Eclipsed** during an Eclipse; **Blocked** when the GM blocked your microphone; **Own window** when voice runs in its own window. Point at the word for the whole sentence. Two buttons sit on the tile:
-- **The microphone** mutes and unmutes your own microphone and nobody else's; a key in Foundry's Controls does the same, once you bind one. Struck through, it is muted - by you, or by the GM when a small lock shows on it (**The GM blocked your microphone.**). Grey and struck through, the game holds it during an Eclipse, with the reason under it; a click then changes nothing and tells you why. In the channel of the dead it stays yours to mute and unmute, with a line under it saying where you are. With a small dot you are not connected to voice, or voice runs in its own window. It lights up while your microphone carries your voice. With push to talk it wears **PTT**: hold your key to speak. A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back.
+- **The microphone** mutes and unmutes your own microphone and nobody else's; a key in Foundry's Controls does the same, once you bind one. Struck through, it is muted - by you, or by the GM when a small lock shows on it (**The GM blocked your microphone.**). Gray and struck through, the game holds it during an Eclipse, with the reason under it; a click then changes nothing and tells you why. In the channel of the dead it stays yours to mute and unmute, with a line under it saying where you are. With a small dot you are not connected to voice, or voice runs in its own window. It lights up while your microphone carries your voice. With push to talk it wears **PTT**: hold your key to speak. A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back.
 - **The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone - nobody else hears the difference - and this browser keeps it. Escape or a click outside closes the list.
 
 > [!TIP]
 > To find out who is next door without walking in, use **Listen** (chapter 4).
 
-### Search tokens
+### Search Tokens
 
-Every room has a number of **search tokens** per time of day (the default is **3**; the GM sets it anywhere from **0 to 10**). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand. When the GM's answer to your Search comes too late, the search is not counted, you keep the action, and the room gets its token back; a room the GM has sealed tells you it cannot be searched, and you keep the action.
+Every room has a number of **Search Tokens** per time of day (the default is **3**; the GM sets it anywhere from **0 to 10**). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand. When the GM's answer to your Search comes too late, the search is not counted, you keep the action, and the room gets its token back; a room the GM has sealed tells you it cannot be searched, and you keep the action.
 
 ---
 
@@ -206,7 +206,7 @@ The caption under each choice of Search, Analyze, Tamper, Rest, Project, Palm, F
 
 ### Search - Eye, 1 action
 
-Loot the room for something you name. Spends one of the room's search tokens. Eye is its statistic and asks nobody. Any other - Head, Body, Hand, Leg or Shadow, whichever fits how you search - is your proposal: you pick it in the window, say in a line how you search (optional), and the GM approves it, changes it to another statistic or refuses on a card in your thread. Nothing is spent until they answer.
+Loot the room for something you name. Spends one of the room's Search Tokens. Eye is its statistic and asks nobody. Any other - Head, Body, Hand, Leg or Shadow, whichever fits how you search - is your proposal: you pick it in the window, say in a line how you search (optional), and the GM approves it, changes it to another statistic or refuses on a card in your thread. Nothing is spent until they answer.
 
 | Roll | Result |
 |---|---|
@@ -229,10 +229,10 @@ What you can ask for:
 
 What turns up is what the room holds: a room the GM has stocked answers first, so what you find can be another kind of thing than you asked for, or of a lower tier - never of a higher one than your roll earned.
 
-Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. A Search draws from the room alone: it never reaches into somebody's stash, open or hidden.
+Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favors or hinders what you ask for. A Search draws from the room alone: it never reaches into somebody's stash, open or hidden.
 
 > [!WARNING]
-> Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a trace that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
+> Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a Remnant that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
 
 ### Observe - Eye, 1 action
 
@@ -309,7 +309,7 @@ Anything at all, provided you describe it in detail. You may propose the statist
 | Demands very niche expertise | 19 | Tier 3 | Hidden |
 
 > [!IMPORTANT]
-> The scale is upside down on purpose: the easier the thing, the louder the trace.
+> The scale is upside down on purpose: the easier the thing, the louder the Remnant.
 
 ### Rest - no roll, 1 or 2 actions
 
@@ -524,13 +524,13 @@ None of these ever takes you below one action or one search token (a room the GM
 **Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll - Hope, Despair or a critical - and its row says "Single use" instead of showing pips. A used usable is Broken too.
 
 > [!WARNING]
-> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**. Not during a Class Trial: the button is greyed there, and its tooltip says *Nothing can be thrown away during the Class Trial.*
+> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the Remnant is, and the Remnant stays in the room) or put it in your **stash**. Not during a Class Trial: the button is greyed there, and its tooltip says *Nothing can be thrown away during the Class Trial.*
 
 ### Categories and what you can carry
 
 | Category | Limit | Notes |
 |---|---|---|
-| **Usables** | 3 | Healing restores Health, Sanity Relief clears Sanity. Use from the inventory row. |
+| **Usables** | 3 | Healing restores Health, Sanity Relief restores Sanity. Use from the inventory row. |
 | **Gear**: Murder Weapons, Cleaning Tools, Tools | 2 slots shared | Only **one** may be stowed - carrying two means one is in your hand. |
 | **Truth Bullets** | none | Evidence. What you know, not a thing in a drawer. |
 | **Room Keys** | none | Opens one bedroom. |
@@ -559,9 +559,9 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 ### Remnants
 
-A **Remnant** is a trace on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic Action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
+A **Remnant** is a Remnant on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic Action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
 
-A trace appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the traces of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the trace itself keeps one neutral name. It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic Action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
+A Remnant appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the Remnants of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the Remnant itself keeps one neutral name. It wears a question mark until your copy is analyzed, and then the icon of what left it - a Search, a Dynamic Action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the color of what your copy says it is.
 
 | Remnant | What it means |
 |---|---|
@@ -569,19 +569,19 @@ A trace appears on your map <ins>only once you hold a Truth Bullet copied from i
 | Prep Remnant | Left while preparing a murder or gathering tools. |
 | Incident Remnant | Left during the confrontation or the victim's death. |
 | Tamper Remnant | Left by tampering - the too-clean patch, the thing moved back slightly wrong. |
-| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep trace can carry - the one a Search for a tool, a Sabotage or a Misleading Trail leaves. A trace with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
+| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep Remnant can carry - the one a Search for a tool, a Sabotage or a Misleading Trail leaves. A Remnant with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analyzed. |
 | Autopsy Remnant | The state of the body. Handed out at the start of an Investigation, no roll. |
 | Final Truth Remnant | One per chapter. Points at the Mastermind. Unremovable. |
 
 ### Truth Bullets
 
-A **Truth Bullet** is what an Observe gives you: a copy of a Remnant, in your inventory under Truth Bullets. Most arrive **Neutral** - you do not yet know what kind of trace it is - and need an Analyze. A Key or a Final Truth shows its kind the moment you pick it up, but what it says still waits for an Analyze; only the Autopsy arrives fully read.
+A **Truth Bullet** is what an Observe gives you: a copy of a Remnant, in your inventory under Truth Bullets. Most arrive **Neutral** - you do not yet know what kind of Remnant it is - and need an Analyze. A Key or a Final Truth shows its kind the moment you pick it up, but what it says still waits for an Analyze; only the Autopsy arrives fully read.
 
 A Truth Bullet card shows:
 
 - its name,
 - the description the finder was given,
-- what kind of trace it is as far as you know (Faint only once identified),
+- what kind of Remnant it is as far as you know (Faint only once identified),
 - how visible the original was (Obvious, Evident, Subtle or Hidden),
 - the chapter,
 - the room you picked it up in,
@@ -589,20 +589,20 @@ A Truth Bullet card shows:
 
 The pack can be grouped by Chapter or by Location. A Truth Bullet is the only thing you can present at a trial.
 
-Your sheet does not let you rename an item or change its picture or description: what a thing is called is part of the evidence. A change made anyway stays and is recorded for the GMs - except on a Truth Bullet, where the GM's browser puts it back.
+Your sheet does not let you rename an item or change its picture or description: what a thing is called is part of the evidence. A change made anyway stays and is recorded for the GMs - except on a Truth Bullet, where it is put back.
 
 ### Reading the difficulty ladder
 
 You are never shown a difficulty at the roll, but the shape of the ladder is not a secret:
 
-| Original trace | Observe (to spot it) | Analyze (to read it) |
+| Original Remnant | Observe (to spot it) | Analyze (to read it) |
 |---|---|---|
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
 | Something from Daily Life | 8 / 12 / 18 / 21 | - |
 
-Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. No roll is scored on the Daily Life row either: no trace is of that kind. It is the ladder your Observe briefing shows for something with no trace behind it, which the GM rules on. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
+Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. No roll is scored on the Daily Life row either: no Remnant is of that kind. It is the ladder your Observe briefing shows for something with no Remnant behind it, which the GM rules on. A faint Remnant is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
 
 ---
 
@@ -610,7 +610,7 @@ Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladde
 
 An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the Weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the Trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **7-10 progress** in total, what the two parts come to at their smallest and largest scales.
 
-Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes") - everyone in the room is told that you are busy with something there, without the project's name. Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
+Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes") - everyone in the room is told that you are busy with something there, without the project's name. Alone, the project simply gains +1. Every project action also rolls Shadow to hide its Remnants:
 
 | Shadow roll | Remnant it leaves |
 |---|---|
@@ -729,14 +729,14 @@ Crossing into a room where a direct murder is running gives you **one free choic
 | Escape Together | Leg, 15 | Both of you get out; Hope restores the victim's Health and Sanity, a critical adds immunity for this chapter and the next. On a failure only you get out, and you do not come back in. |
 | Double Role Reversal | no roll | You and the victim turn on the attacker together. They become the victim. Nobody is healed. |
 | Partners in Crime | no roll | You side with the attacker. The victim is unlikely to walk out. |
-| Averted Eyes | no roll | You leave and take no part, and do not come back in. It leaves no trace of you. |
+| Averted Eyes | no roll | You leave and take no part, and do not come back in. It leaves no Remnant of you. |
 
 Escape Together costs the same as the victim's resolution actions: 1 Sanity, or 1 Health once your Sanity is gone. The three no-roll choices are free. Use an Item is not one of your choices.
 
 If the incident leaves a body, you may afterwards **turn on the killer** - if you sided with them, or, in a direct murder, if you stayed and chose nothing; not if you walked away or tried Escape Together, and never as a third on the victim's side of a trap. The offer is open until the day ends, the Investigation included, but not during a Class Trial. Outside an Eclipse it is the one killing that needs no declaration in advance; during one it is declared like any action there - it costs an action and opens when the Eclipse ends. If it cannot open when its time comes, you are told why and keep the offer while the day lasts. A fourth person walking in cancels the incident: nobody dies, the wounds stand.
 
 > [!NOTE]
-> The module applies the damage, the traces, the turns, and a Role Reversal's swap with the Health and Sanity it restores. The rest of what these tables promise is the GM's to apply: a critical Role Reversal's kill, the Health and Sanity that Escape Together restores, every immunity, and Survive's hint about who they were.
+> The module applies the damage, the Remnants, the turns, and a Role Reversal's swap with the Health and Sanity it restores. The rest of what these tables promise is the GM's to apply: a critical Role Reversal's kill, the Health and Sanity that Escape Together restores, every immunity, and Survive's hint about who they were.
 
 ### The morning after
 
@@ -751,9 +751,9 @@ Whenever your character walks into a room where a body lies, you hear the discov
 ## 11. Investigation
 
 - Every living student receives an **Autopsy Truth Bullet** - time of discovery, cause of death, what the body shows. No roll.
-- **Observe** the traces on the map, **Analyze** what you collect, **Share** copies with people in your room. Remnants tied to the crime are shown first.
+- **Observe** the Remnants on the map, **Analyze** what you collect, **Share** copies with people in your room. Remnants tied to the crime are shown first.
 - The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name.
-- The **body** can be searched: open the dead student's sheet and press **Take from the Body** under what they carried. The action's window lists their things beside its briefing; tick what you take and press *Take*. It costs no action. You roll **Hand** once for what you take, every time you take - only the first roll thrown for a Take counts, and a Take refused because you had walked out keeps its roll for your next try: the lower the roll, the easier the trace you leave is to find - under 12 it is easy to find, 12 to 17 harder, 18 or more or a critical hardest. With anyone else in the room - as the GMs' side reads it, which can count somebody your screen does not show - you also roll **Shadow** against **16** to go unnoticed: a miss tells the others in the room and the GMs that you went through the body's pockets - after a Despair, what you took - and costs no Sanity. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets one trace that somebody has been through the pockets, however many things leave it; later Takes can make that trace easier to find, never harder.
+- The **body** can be searched: open the dead student's sheet and press **Take from the Body** under what they carried. The action's window lists their things beside its briefing; tick what you take and press *Take*. It costs no action. You roll **Hand** once for what you take, every time you take - only the first roll thrown for a Take counts, and a Take refused because you had walked out keeps its roll for your next try: the lower the roll, the easier the Remnant you leave is to find - under 12 it is easy to find, 12 to 17 harder, 18 or more or a critical hardest. With anyone else in the room - as the GMs' side reads it, which can count somebody your screen does not show - you also roll **Shadow** against **16** to go unnoticed: a miss tells the others in the room and the GMs that you went through the body's pockets - after a Despair, what you took - and costs no Sanity. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets one Remnant that somebody has been through the pockets, however many things leave it; later Takes can make that Remnant easier to find, never harder.
 - Investigators and killers alike can **Tamper**. A too-clean patch is evidence of tidying.
 - A Key Remnant nobody finds costs Despair (below), and at the trial Monokuma may reveal it to everyone taking part as a Key Remnant found - its kind and its text, to Analyze as usual.
 
@@ -872,13 +872,13 @@ The largest of the three buttons in the bottom-right corner, the one on top, ope
 
 Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic Action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. With no GM connected nothing is posted: you are told "No GM is connected." and what the action cost you comes back.
 
-**Read only when you look** (since 1.2.94). A message counts as read only while the thread's window is in front, on its Chat tab, and the game's browser tab is the one you are looking at. One that comes while the window is behind another, on the Note tab, or while you are in another browser tab shows its card and stays unread until you bring the window forward. A window folded to its title bar counts as behind: what came meanwhile is read when you open it again (since 1.2.99). A message that fails to send stays in the box. One refused before it went (too long, no GM connected) says only why; one that did not go says "Your message was not sent. It is still in the box - try again.". During a killing your message is posted by the GM's browser, and when its answer does not come in time you see "Your message may not have been sent. It is still in the box - look at the thread before you send it again.": the GMs may have it all the same. A message a GM deletes leaves your open window too.
+**Read only when you look**. A message counts as read only while the thread's window is in front, on its Chat tab, and the game's browser tab is the one you are looking at. One that comes while the window is behind another, on the Note tab, or while you are in another browser tab shows its card and stays unread until you bring the window forward. A window folded to its title bar counts as behind: what came meanwhile is read when you open it again. A message that fails to send stays in the box. One refused before it went (too long, no GM connected) says only why; one that did not go says "Your message was not sent. It is still in the box - try again.". During a killing your message is posted by the GM's browser, and when its answer does not come in time you see "Your message may not have been sent. It is still in the box - look at the thread before you send it again.": the GMs may have it all the same. A message a GM deletes leaves your open window too.
 
-**A question you wait on** - an Experience or Ultimate Call, a Dynamic Action, the statistic a roll lists several of, an Observe aimed at a point of interest - says on its card until when it is open ("Open until 21:40."): five minutes for a Call, three for the others. The time is written by your own browser, in your time zone and language, and so is the line the card ends with. If no GM's browser takes a Call or a Dynamic Action within eight seconds, you are told at once that the GM did not answer, instead of waiting out the card. If nobody answers before the card's time, the card ends for everyone with "Nobody answered in time - ask again." and nothing is spent; an answer a GM gives after that is not kept, so ask again if you still want it. A Call's or a Dynamic Action's card says a ruling only once your browser has it, or once you have used it - a Call armed on the yes, a Dynamic roll thrown on the difficulty. A difficulty your browser did not confirm ends "Answered by ... - not confirmed as received.": it stands, so do not ask again. If you reload while you wait, the GM's browser still ends the card shortly after its time. If the GM's browser reloads, or another GM takes over, while you wait, your browser asks again - three times at most - and the question keeps its one card.
+**A question you wait on** - an Experience or Ultimate Call, a Dynamic Action, the statistic a roll lists several of, an Observe aimed at a point of interest - says on its card until when it is open ("Open until 21:40."): five minutes for a Call, three for the others. The time is in your own time zone. If no GM takes a Call or a Dynamic Action within eight seconds, you are told at once that the GM did not answer, instead of waiting out the card. If nobody answers before the card's time, the card ends for everyone with "Nobody answered in time - ask again." and nothing is spent; an answer a GM gives after that is not kept, so ask again if you still want it. A difficulty that ends "Answered by ... - not confirmed as received." stands, so do not ask again. If you reload while you wait, the card still ends at its time; if a GM reloads, or another GM takes over, the question is asked again - three times at most - and keeps its one card.
 
 **Private cards.** A card meant for you alone - a Listen's answer, a find, a ruling's line - is read by every player who owns your character and by the GMs, never by a player who only observes it. So do your character's private rolls. GM Chat's thread is one account's: a question you ask and wait on - a Call, a Dynamic Action, the statistic a roll lists several of, an Observe aimed at a point of interest - lands in your own thread, and the other cards to the GM about your character land in one owner's thread only. If you were away when a private card was sent, or open the game in another browser, its words come back once a GM is connected. A card no GM can fill reads "A private card - its words were sent to another browser and are not kept on the server."
 
-The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. It is for the GMs only: its words go to their browsers and stay on yours, and no other player's browser holds them. Saved while no GM is online, it says "Kept here until a GM connects." and goes when one does. If a GM changed it after you opened it, Save keeps your text and tells you; Save again to put yours in place of theirs. A note kept here waits as you wrote it: when a GM connects, it goes in place of whatever a GM changed meanwhile. The template asks seven questions:
+The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. Only the GMs read it; no other player sees it. Saved while no GM is online, it says "Kept here until a GM connects." and goes when one does. If a GM changed it after you opened it, Save keeps your text and tells you; Save again to put yours in place of theirs. A note kept here waits as you wrote it: when a GM connects, it goes in place of whatever a GM changed meanwhile. The template asks seven questions:
 
 - whether you plan to kill and how,
 - whether you are open to dying,
@@ -904,24 +904,24 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 ## 16. Interface tips
 
-**The HUD** (left column): campaign name, chapter, day, phase and time of day, how many minutes of play this time of day has had (a pause, a reload and the break between two sessions add nothing; the line is not shown during an Eclipse), and the track band: the name of the track you are hearing runs along it, and while nothing plays it stays as an empty line, so the clock keeps its height (since 1.2.101); the room you stand in is on the room tile under it (chapter 3). During a trial it shows only the mode (Discussion, Debate, Objection or Rebuttal) in place of the time of day; the minutes line goes, and who holds the floor is on the Event panel. While the game is paused, **On hold** stands in place of the campaign name on every screen until the game runs again; Foundry's own caption in the middle of the screen and the dimming stay. During an Eclipse the phase line names it, *Night Eclipse* for instance. Click it for an explanation of where things stand and the description of your room.
+**The HUD** (left column): campaign name, chapter, day, phase and time of day, how many minutes of play this time of day has had (a pause, a reload and the break between two sessions add nothing; the line is not shown during an Eclipse), and the track band: the name of the track you are hearing runs along it, and while nothing plays it stays as an empty line, so the clock keeps its height; the room you stand in is on the room tile under it (chapter 3). During a trial it shows only the mode (Discussion, Debate, Objection or Rebuttal) in place of the time of day; the minutes line goes, and who holds the floor is on the Event panel. While the game is paused, **On hold** stands in place of the campaign name on every screen until the game runs again; Foundry's own caption in the middle of the screen and the dimming stay. During an Eclipse the phase line names it, *Night Eclipse* for instance. Click it for an explanation of where things stand and the description of your room.
 
 **Foundry's own buttons** are not on a player's screen: there is no bar of scene controls on the left, as there is no sidebar. Your token is selected and dragged as before, and the module changes none of Foundry's keys; what goes with the bar is drawing, map notes and the target button.
 
-**A window's title bar**: a double-click folds the window to its title bar, and a second one opens it again, as everywhere in Foundry (since 1.2.99; until then the module blocked the gesture on every window). A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold. A window that waits for your answer - a roll, Observe, an action you declare, the vote, a Level Up, the trial's questions - stays over your character sheet, also when you click the sheet or it redraws (since 1.2.101); other windows come to the front as Foundry brings them there.
+**A window's title bar**: a double-click folds the window to its title bar, and a second one opens it again, as everywhere in Foundry. A folded window keeps what it held, and the button that opened it opens it again. A short window that asks one question, such as a confirmation, does not fold. A window that waits for your answer - a roll, Observe, an action you declare, the vote, a Level Up, the trial's questions - stays over your character sheet, also when you click the sheet or it redraws; other windows come to the front as Foundry brings them there.
 
-**The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it. The panel keeps one size whatever it holds; a card longer than it scrolls inside it (since 1.2.101).
+**The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it. The panel keeps one size whatever it holds; a card longer than it scrolls inside it.
 
 **The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs - a foot for each crossing left, or, in a placement where you may pick any room, one full foot that stays available; a Monocub's actions read *Placement only.* there. A Monocub's feet are always solid, since its crossings cost nothing. A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 
-**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16). Each project is one row, its name and its count on one line; with more than five, the list scrolls and its foot fades while there are more below (since 1.2.101). The count is live while one of your characters stands in the project's room; away from it, the row shows the count as one of them last saw it there, and a project made or a repair begun since then appears when one of them is next in that room. A project you know of but have not seen in its room on this browser shows **?** (since 1.2.113).
+**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (not yet checked at a table: LIVE-E79-16). Each project is one row, its name and its count on one line; with more than five, the list scrolls and its foot fades while there are more below. The count is live while one of your characters stands in the project's room; away from it, the row shows the count as one of them last saw it there, and a project made or a repair begun since then appears when one of them is next in that room. A project you know of but have not seen in its room on this browser shows **?** (since 1.2.113).
 
 **The Despair rows** show every pool and how full it is, and under them the overflow: "?" where its count would be, beside the number it fires at. Click for what Despair is.
 
-**On a narrow screen** (a tablet, a phone, a narrow window) the clock, the room tile, the Despair rows, the Event panel, your status strip and the Projects tray stand in one column at the top, and the board stays visible and playable under it (since 1.2.101). Your status strip and the Projects tray come first, before the Despair rows. When the column is longer than its room, it scrolls, and its foot fades while there is more below.
+**On a narrow screen** (a tablet, a phone, a narrow window) the clock, the room tile, the Despair rows, the Event panel, your status strip and the Projects tray stand in one column at the top, and the board stays visible and playable under it. Your status strip and the Projects tray come first, before the Despair rows. When the column is longer than its room, it scrolls, and its foot fades while there is more below.
 
 **Your sheet:**
-- *Actions* - the ten tiles, Hope Calls below; under Stained Glass a tile you cannot use or pay for now is dark with a dashed edge, whatever it would cost (since 1.2.101); during an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them; a Monocub's tiles here as a Monocub (no Move tile: you drag your token).
+- *Actions* - the ten tiles, Hope Calls below; under Stained Glass a tile you cannot use or pay for now is dark with a dashed edge, whatever it would cost; during an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them; a Monocub's tiles here as a Monocub (no Move tile: you drag your token).
 - *Inventory* - Usables, Gear (with *hold ready*), Truth Bullets (Analyze, Present, Share; group them by Chapter or Location), Room Keys, and your stash when you stand in that room.
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left. Level Up, when you earned one.
@@ -930,11 +930,11 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 **The book**, under it at the bottom right against the edge of the screen, the size of the gear on its left, opens the handbooks in the game: this Player Handbook and the Student Brochure, in the language you picked for the module. The contents list on the left jumps to any section.
 
-**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. Under Stained Glass the cards stand under every window, so a window dragged over them covers them; under Monokuma Legacy they stand over the windows. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - the notices this browser showed you, the cards about a murder too, the newest of them and 250 at most. It keeps them, 40 at most from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and its window says when it has stopped. A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer another account logged in on this browser can read your history, so clear it before you hand the computer over. When a time of day ends - at an Eclipse, or when the GM moves the clock on - a summary of it opens for you. Foundry's own short messages, such as a warning, stand under Stained Glass on a dark plate under the Despair rows (since 1.2.101).
+**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. Under Stained Glass the cards stand under every window, so a window dragged over them covers them; under Monokuma Legacy they stand over the windows. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - the notices this browser showed you, the cards about a murder too, the newest of them and 250 at most. It keeps them, 40 at most from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and its window says when it has stopped. A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer another account logged in on this browser can read your history, so clear it before you hand the computer over. When a time of day ends - at an Eclipse, or when the GM moves the clock on - a summary of it opens for you. Foundry's own short messages, such as a warning, stand under Stained Glass on a dark plate under the Despair rows.
 
-**The settings window:** the gear in the bottom-right corner opens DRPG Settings, the settings that are this browser's own - nobody else sees or hears the difference; the GM's is the same window (Configure Settings, DRPG Settings, opens it too). Pick a section on the left; a line under each setting says what it changes, and **Save changes** writes them - the volumes and the voice apply as you move them:
+**The settings window:** the gear in the bottom-right corner opens DRPG Settings, your own settings - nobody else sees or hears the difference; the GM's is the same window (Configure Settings, DRPG Settings, opens it too). Pick a section on the left; a line under each setting says what it changes, and **Save changes** writes them - the volumes and the voice apply as you move them:
 - **Language** - English or Polski for the module's windows, cards and sheet. Separate from Foundry's own language on purpose. Takes effect after a reload. The glossary stays English in both.
-- **Theme** - Stained Glass (the current look) or Monokuma Legacy (with its pixel font switch). Under Stained Glass a new phase or time of day turns the glass: the new color arrives from the middle within about a second and the seams flash once, and where the panels must move, the panes slide whole to their new places with their texture; with **reduced motion** the glass takes its new state at once (since 1.2.101).
+- **Theme** - Stained Glass (the current look) or Monokuma Legacy (with its pixel font switch). Under Stained Glass a new phase or time of day turns the glass: the new color arrives from the middle within about 1.2 seconds and the seams flash once, and where the panels must move, the panes slide whole to their new places with their texture; with **reduced motion** the glass takes its new state at once.
 - **Interface scale** (80% to 140%), and under Stained Glass **glass pulse**, **state name behind the clock** and **glass blurs the map** (the first thing to turn off if the screen stutters).
 - **Reduced motion** and **high contrast**, under both themes; each also follows your operating system when it asks for them.
 
@@ -943,7 +943,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - **Voice**, while you are in voice - your microphone and sound output, the microphone's mode (**Always on** or **Push to talk**) and the push-to-talk key. If no microphone is listed, allow the browser to use it and open the window again.
 
 > [!NOTE]
-> **Rolls are private:** every roll you make is seen by you and the GMs alone. A GM sees your dice fall only while that GM's Monokuma stands in your room; the result reaches the GMs either way. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room. The one roll everybody reads is a public roll the GM throws (not yet checked at a table) - a vote's tie, Monokuma's lottery (since 1.2.69).
+> **Rolls are private:** every roll you make is seen by you and the GMs alone. A GM sees your dice fall only while that GM's Monokuma stands in your room; the result reaches the GMs either way. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room. The one roll everybody reads is a public roll the GM throws (not yet checked at a table) - a vote's tie, Monokuma's lottery.
 
 ---
 

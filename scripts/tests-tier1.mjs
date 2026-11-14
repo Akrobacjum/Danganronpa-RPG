@@ -23723,15 +23723,15 @@ const INVARIANTS = [
             game.i18n.translations = own;
             tab.draw();
         }
-        const START = ["Known again after each season reset. Adding a student here does not give them the passage now.",
-            "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu tajnego przejścia teraz."];
+        const START = ["Known after a season reset, not now.",
+            "Znają je po resecie sezonu, nie teraz."];
         const WAY = ["A tunnel or stairs can go one way only: pick it under its Shape. A passage in a wall always goes both ways.",
             "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Tajne przejście w ścianie zawsze prowadzi w obie strony."];
         const ends = (text, i) => typeof text === "string" && text.endsWith(`${START[i]} ${WAY[i]}`);
         equal(J([drawn.slice(0, 3), ends(drawn[3], 0), written, polish?.slice(0, 2), ends(polish?.[2], 1)]),
             J([[[["both", "Both ways", true], ["0", "Only from R902 Dorm to R902 Lab", false], ["1", "Only from R902 Lab to R902 Dorm", false]], false, START[0]], true,
                 [1, [["oneWay", true]], [false, false, true]],
-                [[["both", "W obie strony", false], ["0", "Tylko z: R902 Dorm, do: R902 Lab", false], ["1", "Tylko z: R902 Lab, do: R902 Dorm", true]], START[1]], true]),
+                [[["both", "W obie strony", false], ["0", "Tylko z pokoju R902 Dorm do pokoju R902 Lab", false], ["1", "Tylko z pokoju R902 Lab do pokoju R902 Dorm", true]], START[1]], true]),
             "[drawn: the tunnel's choice as [value, words, chosen], a choice on the wall's row, the column's line; the footnote's two sentences; "
             + "chosen 'from the Lab': the row's way, the log, the choice drawn again; in Polish: the choice, the column's line; the footnote's two sentences]");
     }],
@@ -25800,7 +25800,7 @@ const INVARIANTS = [
         equal(stableJson([held, after, texts, label, code]), stableJson([
             [1, 1], [2, [{ force: true, immediate: true }], 0, 0, 0],
             [[["one", "other"], false, ["livekit", "primary"], true, false], [["few", "many", "one", "other"], false, ["livekit", "primary"], true, false]],
-            ["Re-send everybody's voice room", true],
+            ["Fix voice", true],
             [true, false]]),
         "[the ledger before: settled, in flight], [the reset: its answer, the passes it ran, settled and in flight after, packets it sent itself], "
             + "[EN, PL: resetDone's forms, notActive kept, resetRefused's two, the refusal naming the primary GM, a result saying the main room], "
@@ -37525,13 +37525,13 @@ const INVARIANTS = [
         };
         equal(stableJson(read), stableJson({
             en: {
-                ratio: "{rooms}. Living students: 2 (1.5 rooms each). This season was built on 1.5 per student, so this cast wants 3.",
+                ratio: "{rooms}, 1.5 rooms per student. Living students: 2; this season wants 3 (1.5 each).",
                 ballots: ["0 of 1 ballot back", "1 of 1 ballot back", "2 of 3 ballots back", "5 of 7 ballots back"],
                 pass: `Pass in your first ${pass} s hands the choice back to the GM; after that it ends the Closing Argument.`,
                 note: `This runs out on its own. The bar below cuts it short (Skip), takes or gives ${step} s, or drops straight back to the open debate.`
             },
             pl: {
-                ratio: "{rooms}. Żyjący uczniowie: 2 (1,5 pokoju na głowę). Sezon zbudowano na 1,5 na ucznia, więc ta obsada potrzebuje 3.",
+                ratio: "{rooms}, 1,5 pokoju na ucznia. Żyjący uczniowie: 2; potrzeba 3 (1,5 na ucznia).",
                 ballots: ["0 z 1 głosu wróciło", "1 z 1 głosu wrócił", "2 z 3 głosów wróciły", "5 z 7 głosów wróciło"],
                 pass: `Pasuję w pierwszych ${pass} s oddaje wybór GM-owi; potem kończy Closing Argument.`,
                 note: `To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje ${step} s albo wraca od razu do otwartej debaty.`,
@@ -52328,7 +52328,8 @@ const INVARIANTS = [
             en: [/crime/i, /secret project/i, /left behind/i, /GM/, /GM/],
             pl: [/zbrodni/i, /tajny projekt/i, /zosta/i, /GM/, /GM/]
         };
-        const SWEEP = { en: [/total/i, /sweep/i, null, /sweep/i, /trace/i], pl: [/wynik/i, /rozgl[aą]dani/i, null, /rozgl[aą]dani/i, /[sś]lad/i] };
+        // The texts line, 12.11.2026: "trace"/"ślad" became "Remnant" in sentences (DB15, glossary remnant), anythingHint included.
+        const SWEEP = { en: [/total/i, /sweep/i, null, /sweep/i, /Remnant/], pl: [/wynik/i, /rozgl[aą]dani/i, null, /rozgl[aą]dani/i, /Remnant/] };
         const read = {}, want = {};
         for (const [code, file] of [["en", en], ["pl", pl]]) {
             read[code] = KEYS.map((key, i) => {

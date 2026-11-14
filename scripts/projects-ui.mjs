@@ -30,6 +30,8 @@ import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
+// The scale option's count (E71, 12.11.2026): its own line, so the utils import above stays as other lines edit it.
+import { plural } from "./utils.mjs";
 import {
     leaveIconOnly, keepNarrativeShown, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     addTrayTitle, labelTrayControls, markTrayMore
@@ -929,7 +931,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         .map(([key, s]) => {
             const selected = given ? s.progress === currentTarget : key === "everyday";
             return `<option value="${s.progress}"${selected ? " selected" : ""}>${
-                s.label} - ${s.progress} progress</option>`;
+                plural("DRPG.Project.scaleOption", { label: s.label, n: s.progress })}</option>`;
         }).join("");
 
     // An edited project may sit on a target no scale names - a repair inherits

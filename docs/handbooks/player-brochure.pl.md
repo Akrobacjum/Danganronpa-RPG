@@ -34,11 +34,11 @@
 | Call | Koszt | W skrócie |
 |---|---|---|
 | **Support** | 1 | Przewaga dla kogoś w twoim pokoju. |
-| **Experience** (GM) | 1 | |
-| **Ultimate** (GM) | 1 | |
-| **Contribution** | 2 | |
+| **Experience** (GM) | 1 | Jedno doświadczenie dodane do następnego rzutu. |
+| **Ultimate** (GM) | 1 | Przewaga na następnym rzucie. |
+| **Contribution** | 2 | +1 postępu projektu w twoim pokoju, bez rzutu. |
 | **Sprint** | 2 | Jedno darmowe przejście. |
-| **Reroll** | 3 | |
+| **Reroll** | 3 | Twój ostatni rzut jeszcze raz, akcja rozgrywa się od nowa. |
 | **Resolve** | 2 | Sam wybierasz dowolną statystykę. |
 | **Burst** | 4 | Następna akcja za darmo. |
 | **Relief** | 4 | Short Rest od razu. |
@@ -49,7 +49,7 @@
 **3 użytkowe**; **2 miejsca ekwipunku** wspólne dla narzędzi zbrodni, narzędzi do sprzątania i narzędzi, tylko jedno z nich schowane - **weź narzędzie do ręki, inaczej się nie liczy**. Truth Bullets i klucze bez limitu.
 
 > [!WARNING]
-> Despair na rzucie zużywa narzędzie, którego użyłeś, o 1 punkt, a gdy punkty się skończą, narzędzie się psuje (Tier 0-1: 1 punkt, Tier 2: 2, Tier 3: 3). Zepsute rzeczy zostają w kieszeni, dopóki ich nie schowasz albo nie wyrzucisz (to zostawia ślad).
+> Despair na rzucie zużywa narzędzie, którego użyłeś, o 1 punkt, a gdy punkty się skończą, narzędzie się psuje (Tier 0-1: 1 punkt, Tier 2: 2, Tier 3: 3). Zepsute rzeczy zostają w kieszeni, dopóki ich nie schowasz albo nie wyrzucisz (to zostawia Remnant).
 
 Twoja sypialnia jest zamknięta dla innych bez klucza (klucz otwiera ją temu, kto go trzyma, nawet ukradziony); jej skrytka mieści 3 rzeczy, a otwartą skrytkę przejrzy każdy w pokoju. Przekazuj rzeczy i dziel się kopiami Truth Bulletów z każdym w swoim pokoju, za darmo.
 
@@ -59,14 +59,14 @@ Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **
 
 ## Safeword
 
-W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Safe Word** w nowym świecie; świat grany przed 1.1.39 zachował MISIUBOMBO; GM może je zmienić).
+W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Safe Word**, chyba że twój stół wybrał własne; GM może je zmienić).
 
 > [!CAUTION]
-> Wciśnij, a scena staje, GMowie się dowiadują, wszyscy widzą kartę. Bez powodu, ani teraz, ani później.
+> Wciśnij, a scena staje, GM-owie się dowiadują, wszyscy widzą kartę. Bez powodu, ani teraz, ani później.
 
 ## Gdy idzie źle
 
-- **Morderstwo.** Pułapka prosi cię o rzut (Eye przeciw 20) - sama prośba jest ostrzeżeniem. Bezpośredni atak zaczyna się twoją turą: Leave a Clue (12), Secure a Trace (15), Self-Defense (18, odblokowuje Survive i Role Reversal), Use an Item (15). Każda tura po pierwszej kosztuje Sanity, potem Health. Wejście na incydent daje jeden darmowy wybór: uciec razem, stanąć po stronie albo odwrócić wzrok.
+- **Morderstwo.** Pułapka prosi cię o rzut (Eye albo Head przeciw 20) - sama prośba jest ostrzeżeniem. Bezpośredni atak zaczyna się twoją turą: Leave a Clue (12), Secure a Trace (15), Self-Defense (18, odblokowuje Survive i Role Reversal), Use an Item (15). Każda tura po pierwszej kosztuje Sanity, potem Health. Wejście na incydent daje jeden darmowy wybór: uciec razem, stanąć po stronie albo odwrócić wzrok.
 - **Investigation.** Każdy dostaje Autopsy Truth Bullet. Observe, Analyze, dziel się. Istnieje od trzech do pięciu Key Remnants; razem zawężają podejrzanych do 2-4 osób. To, co ciało ma przy sobie, zabierasz z jego arkusza - bez akcji, jednym rzutem na Hand na całość: dostajesz też Truth Bullet o tym, co wziąłeś, a na ciele zostaje jeden ślad przeszukania, tym łatwiejszy do znalezienia, im niższy był rzut. Czego nikt nie znajdzie, kosztuje Despair, a Monokuma może to ujawnić w Class Trialu.
 - **Class Trial.** Zaczyna się ze świeżym kompletem akcji i nikt nie wychodzi z pokoju; z akcji zostaje tylko Analyze, do tego Hope Calle i przedmioty. Otwarta dyskusja; Przedstawiaj Truth Bullets z ekwipunku, za darmo. Przedstaw pokazuje Truth Bullet z wynikiem twojego Analyze albo bez niego, a każdy inny dostaje kopię tak, jak ją pokazano; w rozprawie nie ma Udostępnij. Gdy GM otworzy Nonstop Debate, **OBJECTION!** na twoim kaflu głosu przerywa temu, kto mówi (albo mówił ostatni); potem masz 30 s na wybór Truth Bulleta, inaczej Objection zostaje wycofane, a cena nie wraca. Potem 60 s tylko ty, potem 120 s rebuttalu z osobą, w którą trafiło. Objection, tak jak Analyze na procesie, kosztuje 1 akcję, a bez niej 1 Hope, a bez tego 1 Sanity. W Testimony i Panic Round każdy mówi po kolei (Gotowe, Pasuję); w Closing Argument GM zatwierdza jednego zgłoszonego na 300 s; w nich dowody przedstawia tylko mówca, a Panic Round nie ma Objection. Potem tajne głosowanie - <ins>więcej niż połowa kart</ins> skazuje, remis liczy się jak pomyłka. Trafnie: Blackened stracony, gdy rozprawa się kończy, ocalali dostają Level Up. Błędnie: oskarżony ginie, gdy rozprawa się kończy, Blackened zostaje z Reinforced Level Up, który czeka na następny Level Up klasy.
 - **Śmierć.** Twoje Truth Bullets giną z tobą, gdy twoja śmierć wyjdzie na jaw; reszta zostaje przy ciele. Dopóki nikt cię nie znajdzie, wiedzą tylko GMowie i ci, którzy tam byli, a po incydencie twój głos jest w kanale tylko dla ciebie, którego nikt inny nie słyszy. Gdy twoja śmierć wyjdzie na jaw, GMowie mogą cię zaprosić do dalszej gry jako Monocub, jeśli przyjmiesz Zasadę Monocuba (nigdy nie mów żywym tego, co wiedzą tylko zmarli): Move, Confusion, Redeem, Ask for Hope, Tinker i Ghost Bet; żywy uczeń może zaproponować ci Bribe.
