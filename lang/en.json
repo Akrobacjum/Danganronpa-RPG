@@ -6923,7 +6923,14 @@
       "noRecipient": "- nobody yet -",
       "bulletGiven": "Given.",
       "finalAskRoomTitle": "Final Truth Remnant's room",
-      "placeOnMap": "Place on the map"
+      "placeOnMap": "Place on the map",
+      "failed": {
+        "add": "The case map could not add a node.",
+        "sort": "The case map could not set the column order.",
+        "move": "The case map could not move a node.",
+        "remove": "The case map could not remove a node.",
+        "place": "The case map could not place a planned Remnant."
+      }
     },
     "CaseRealize": {
       "preview": "Realization preview",

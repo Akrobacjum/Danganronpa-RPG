@@ -8741,7 +8741,14 @@
       "noRecipient": "- jeszcze nikt -",
       "bulletGiven": "Wydany.",
       "finalAskRoomTitle": "Pokój dla Final Truth Remnantu",
-      "placeOnMap": "Postaw na mapie"
+      "placeOnMap": "Postaw na mapie",
+      "failed": {
+        "add": "Mapa sprawy nie dodała węzła.",
+        "sort": "Mapa sprawy nie ustawiła kolejności kolumn.",
+        "move": "Mapa sprawy nie przesunęła węzła.",
+        "remove": "Mapa sprawy nie usunęła węzła.",
+        "place": "Mapa sprawy nie umieściła zaplanowanego Remnantu."
+      }
     },
     "CaseRealize": {
       "preview": "Podgląd realizacji",

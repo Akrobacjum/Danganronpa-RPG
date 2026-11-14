@@ -59199,6 +59199,19 @@ const INVARIANTS = [
         equal(stableJson(sizes), stableJson([[true, false], [true, false]]),
             "[3 MB: Room setup says Pre-season's size, and no \"N.0\"; 2.5 MB: the same]");
     }],
+    ["R6553 - investigation.mjs holds no English literal a screen shows: T13 (uiLiterals) finds nothing in it, the case map's failures read from lang/ (DRPG.CaseMap.failed.*; E71 group D, after E54 split the file, 14.11.2026)", async () => {
+        /*
+         * E71 group D, 14.11.2026, the literals of the E54 files the batches cover. investigation.mjs's case map named
+         * what failed in English ("add a node", ...) inside "The case map could not ..." on the Debug log a GM reads.
+         * Red at c621e842: T13's five findings in investigation.mjs. The same reading as R6550's.
+         */
+        const all = await moduleSources();
+        must(all.has("investigation.mjs"), "investigation.mjs was not read - this would measure nothing");
+        const scripts = new Map(["investigation.mjs", "bridge-guards.mjs"].filter(file => all.has(file)).map(file => [`scripts/${file}`, all.get(file)]));
+        const r = TEXT_DETECTORS.uiLiterals({ scripts, lexer: { blankComments, blankLiterals, callArgs } });
+        equal(stableJson([r.counts.files > 0, r.found.filter(f => f.file === "scripts/investigation.mjs").map(f => f.what)]), stableJson([true, []]),
+            "[investigation.mjs draws UI, so T13 reads it; T13's findings in it]");
+    }],
     ["R4801 - scaleWindow stands once on each of the two render hooks after init (E54 W2): registered by `registerWindows`, and a second call of it changes neither the hooks nor the readers", async () => {
         /*
          * E54 W2, 13.11.2026. Beside R4800's source reading, the hooks as the harness's Foundry holds them after the
