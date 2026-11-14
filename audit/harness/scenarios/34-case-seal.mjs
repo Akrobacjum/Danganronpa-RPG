@@ -25,6 +25,9 @@
  *   E  two writers: the seed GM back, both write one row, gm2 later, and the file holds gm2's value; a second file in
  *      the folder (two first writes that raced) is read and merged with the first, the health check counts both, and
  *      the next write goes to the newer one alone.
+ *   F  Clear the plan: on the primary it takes one chapter's planned Key Remnants, nodes and layout row, and nothing
+ *      else; the second GM, who still held the rows, syncs and holds none; a fresh GM reads the file and holds none
+ *      (the removal is a stamped tombstone the stores' merge carries).
  *
  * What this cannot see: a real v14 server's file routes - its permission checks, its answer for a folder that does
  * not exist, a source other than "data" (The Forge's assets), the static route serving a file to a request that is
@@ -33,7 +36,9 @@
 export const layers = ["ci"];
 
 export const accounts = [
-    { who: "gm2", id: "USERGM2E11100000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }
+    { who: "gm2", id: "USERGM2E11100000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
+    // F: a third computer, empty, that only reads the file.
+    { who: "gm3", id: "USERGM3E11100000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true }
 ];
 
 const MOD = "danganronpa-rpg";
@@ -56,7 +61,7 @@ async function until(read, done, ms = 8000, step = 200) {
 const MARKERS = ["E111-Library-marker", "E111-weapon-marker", "E111slot", "E111node", "E111-the-knife-moved", "E111-gm2-row", "E111-late-value"];
 
 export async function run(api) {
-    const { gm, gm2, p1, check, note, phase, connect, disconnect, storageOf, socketTraffic, serverFiles, fileLog, repoUrl: REPO } = api;
+    const { gm, gm2, gm3, p1, check, note, phase, connect, disconnect, storageOf, socketTraffic, serverFiles, fileLog, repoUrl: REPO } = api;
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const PRE = `const C = ${imp("case-copy.mjs")}; const S = ${imp("gm-stores.mjs")}; const E = ${imp("gm-store.mjs")};`;
     const hydrated = who => who.eval(`${PRE} const end = Date.now() + 15000;
@@ -214,6 +219,45 @@ export async function run(api) {
     check("E3: the next write goes to the newer copy alone: it holds the new row and the older one does not, and no third file is made",
         after === "written" && planOf(second).plan?.E111after?.room === "E111-after" && !planOf(path).plan?.E111after && copies().length === 2,
         J({ after, newer: Boolean(planOf(second).plan?.E111after), older: Boolean(planOf(path).plan?.E111after) }));
+
+    /* ------------------------------------------------------------------ F */
+    phase("F Clear the plan, carried by the other GM and the file");
+    const plantF = await gm.eval(`${PRE} const ch = Number(game.drpg.getClock().chapter); const token = canvas.scene?.tokens?.contents?.[0]?.id ?? null;
+        await S.keyPlanStore.patchMany({ [ch + ":0"]: { name: "E111-F-slot0" }, [ch + ":1"]: { name: "E111-F-placed", tokenId: token },
+            [ch + ":reveal"]: { paid: 1 }, [(ch + 1) + ":0"]: { name: "E111-F-other" } });
+        await S.caseSchemaStore.patchMany({ [ch + ":E111F1"]: { kind: "deduction", label: "E111-F-node" }, [ch + ":meta"]: { sort: "kind" } });
+        await S.caseTickStore.patch(ch + ":E111F1", { ticked: true });
+        await E.gmStoresIdle(); return { ch, token };`);
+    const ch = plantF.ch;
+    const heldF = await until(() => planner(gm2), v => Boolean(v.plan?.[`${ch}:1`] && v.schema?.[`${ch}:meta`]));
+    const keptF = await storageOf("gm2");
+    await disconnect("gm2");
+    const cleared = await gm.eval(`${PRE} const K = ${imp("case-schema.mjs")}; const what = await K.clearChapterPlan(${ch}); await E.gmStoresIdle();
+        const w = await C.writeServerCopy({ explicit: true });
+        return { what, w, tick: S.caseTickStore.get("${ch}:E111F1")?.ticked ?? null, left: Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith("${ch}:")), schema: Object.keys(S.caseSchemaStore.entries()).filter(k => k.startsWith("${ch}:")) };`, { timeout: 30000 });
+    check("F1: Clear the plan on the primary takes the chapter's two planned Key Remnants (one placed), its two nodes (A's and F's) and its layout row, leaves its reveal row, and keeps the trial's tick",
+        Boolean(heldF.plan?.[`${ch}:1`]) && J(cleared.what?.slots) === J([`${ch}:0`, `${ch}:1`]) && cleared.what?.placed === 1 && J(cleared.what?.nodes) === J([`${ch}:E111F1`, `${ch}:E111node`])
+        && J(cleared.what?.meta) === J([`${ch}:meta`]) && J(cleared.left) === J([`${ch}:reveal`]) && J(cleared.schema) === "[]" && cleared.tick === true && cleared.w === "written", J(cleared));
+    await connect("gm2", { storage: keptF });
+    await hydrated(gm2);
+    await hydrated(gm);
+    const afterSync = await until(() => planner(gm2), v => !v.plan?.[`${ch}:0`] && !v.schema?.[`${ch}:E111F1`]);
+    const onGmF = await planner(gm);
+    check("F2: the second GM, who still held the rows, comes back and syncs: its rows are gone and none came back to the first",
+        !afterSync.plan?.[`${ch}:0`] && !afterSync.plan?.[`${ch}:1`] && !afterSync.schema?.[`${ch}:E111F1`] && !afterSync.schema?.[`${ch}:meta`]
+        && !onGmF.plan?.[`${ch}:0`] && !onGmF.schema?.[`${ch}:E111F1`] && afterSync.plan?.[`${ch + 1}:0`]?.name === "E111-F-other", J({ afterSync: Object.keys(afterSync.plan), onGm: Object.keys(onGmF.plan) }));
+    await gm.eval(`${PRE} await E.gmStoresIdle(); return C.writeServerCopy({ explicit: true });`, { timeout: 30000 });
+    await disconnect("gm2");
+    await disconnect("gm");
+    await connect("gm3");
+    await hydrated(gm3);
+    const fresh = await until(() => planner(gm3), v => Boolean(v.plan?.[`${ch + 1}:0`]));
+    const restF = await gm3.eval(`${PRE} return { reveal: S.keyPlanStore.get("${ch}:reveal")?.paid ?? null,
+        token: Boolean(canvas.scene?.tokens?.get(${J(plantF.token)})) };`);
+    check("F3: a fresh GM reads the file: the chapter's plan empty there too, the other chapter's plan, the reveal row and the placed Remnant's token kept",
+        !fresh.plan?.[`${ch}:0`] && !fresh.plan?.[`${ch}:1`] && !fresh.schema?.[`${ch}:E111F1`] && !fresh.schema?.[`${ch}:meta`]
+        && fresh.plan?.[`${ch + 1}:0`]?.name === "E111-F-other" && restF.reveal === 1 && plantF.token !== null && restF.token,
+        J({ fresh: Object.keys(fresh.plan), restF, token: plantF.token }));
 
     const denials = fileLog.filter(f => !f.ok && f.who === "p1").map(f => f.action);
     note("server files: requests by action and outcome", J(fileLog.reduce((m, f) => ({ ...m, [`${f.who} ${f.action} ${f.ok ? "ok" : "refused"}`]: (m[`${f.who} ${f.action} ${f.ok ? "ok" : "refused"}`] ?? 0) + 1 }), {})));

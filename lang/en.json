@@ -1972,6 +1972,11 @@
         "carryItThereTooltip": "Rolls to drag the body into the room you picked",
         "killerTooltip": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not"
       },
+      "CasePlan": {
+        "clearPlanTooltip": "Clears one chapter's planned Key Remnants and case schema, after a question that counts them",
+        "clearPlanChapterTooltip": "The chapter whose plan is cleared",
+        "clearPlanNextTooltip": "Counts what the chapter's plan holds and asks before anything is cleared"
+      },
       "CaseCopy": {
         "writeNowTooltip": "Reads the copy on the server, then writes over it the case this browser holds"
       },
@@ -2969,6 +2974,33 @@
       "trackerScore": "{total} against {n}"
     },
     "Investigation": {
+      "clearPlan": {
+        "button": "Clear the plan",
+        "title": "Clear the plan",
+        "intro": "Clears one chapter's plan: its planned Key Remnants and its case schema. Remnants already on the map, Truth Bullets and the nodes ticked in the Class Trial stay.",
+        "which": "Chapter",
+        "chapter": "Chapter {n}",
+        "next": "Next",
+        "nothing": "Chapter {n} has no plan to clear.",
+        "confirmTitle": "Clear the plan of chapter {n}?",
+        "goes": "This goes, on every GM's browser and in the server copy:",
+        "slots": {
+          "one": "{n} planned Key Remnant",
+          "other": "{n} planned Key Remnants"
+        },
+        "nodes": {
+          "one": "{n} node of the case schema",
+          "other": "{n} nodes of the case schema"
+        },
+        "meta": "the case schema's layout and sort",
+        "placed": {
+          "one": "{n} of them is already placed: its Remnant stays on the map, and only its plan goes.",
+          "other": "{n} of them are already placed: their Remnants stay on the map, and only their plan goes."
+        },
+        "stays": "Other chapters' plans, the Remnants on the map, the Truth Bullets and the nodes ticked in the Class Trial stay. This cannot be undone.",
+        "clear": "Clear",
+        "done": "Chapter {n}'s plan is cleared."
+      },
       "finalAskTitle": "Place the Final Truth Remnant",
       "finalAskBody": "You picked a room for the Final Truth Remnant and closed the window without saving. Place it now?",
       "finalAskPlace": "Place it",

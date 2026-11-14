@@ -9042,7 +9042,8 @@ const INVARIANTS = [
             // The closing word's action "close": the owner's 13.11.2026 ("Nie, ma zapisywac") made it the kit's Close, which
             // keeps an open node's text (bc3445c9; investigation.mjs, the footer). From the planner's review until then it
             // was a Cancel answering "discard" (8d049f99).
-            bar: ["autopsy", "bodyFound", "close", "newTrace", "realize", "save"],
+            // E111 (the owner, 14.11.2026): Clear the plan, one chapter's plan behind its own question (investigation.mjs `openClearPlan`).
+            bar: ["autopsy", "bodyFound", "clearPlan", "close", "newTrace", "realize", "save"],
             endChapter: [true, true],
             trialLog: true,
             undo: [[], ["undo"], true]
@@ -61520,6 +61521,31 @@ const INVARIANTS = [
             window: /action: "writeCopy"/.test(fnSource(stores, "openCaseWindow")) && /writeServerCopy\(\{ explicit: true \}\)/.test(fnSource(stores, "openCaseWindow"))
         }), stableJson({ readMerge: true, writeFile: true, backupFile: true, quietToast: true, quietMark: true, healthRow: true, window: true }),
         "{the read merges through restoreCase quiet; the write uploads caseFileNow, which Back up saves; quiet keeps the toast and the mark off; the health row and the window's button}");
+    }],
+    ["R7349 - Clear the plan takes one chapter's planning and nothing else (the owner, 14.11.2026: \"Brakuje mi tez w planerze zagadki opcji zresetowania zawartosci/wyczyszczenia recznie\"): case-schema.mjs `planToClear`, pure over the two stores' entries, names the chapter's planned Key Remnant slots (counting those placed on the map, by tokenId), its schema nodes and its meta row; never its reveal row, its closed case's keys, another chapter's rows or a row of no chapter", async () => {
+        /* Red at 08eb5c3f: no planToClear. */
+        const K = await import("./case-schema.mjs");
+        must(typeof K.planToClear === "function", "case-schema.mjs has no planToClear");
+        const plan = { "2:0": { name: "a" }, "2:1": { name: "b", tokenId: "TOK" }, "2:12": { name: "c" }, "2:reveal": { paid: 1 }, "2:case": { keys: 3 },
+            "3:0": { name: "other chapter" }, "20:0": { name: "chapter twenty" }, "R7349slot": { room: "no chapter" } };
+        const schema = { "2:node1": { kind: "deduction" }, "2:meta": { sort: "kind" }, "3:node1": { kind: "counter" }, "22:node1": { kind: "solution" } };
+        equal(stableJson(K.planToClear(2, plan, schema)), stableJson({ chapter: 2, slots: ["2:0", "2:1", "2:12"], placed: 1, nodes: ["2:node1"], meta: ["2:meta"] }),
+            "{the chapter's slots, the placed count, its nodes, its meta; nothing of reveal, case, chapters 3, 20, 22 or a row of no chapter}");
+    }],
+    ["R7350 - Clear the plan removes by the stores' own tombstones, a GM's only, behind a question: `clearChapterPlan` refuses a player's browser and drops the rows with `dropMany` on keyPlanStore and caseSchemaStore (so other GMs and the server copy carry the removal); the Investigation dashboard's footer carries \"clearPlan\" (R3967 reads it drawn), which `runDashboardButton` runs through `openClearPlan`, a GM's window that picks the chapter (the clock's by default) and asks with a destructive Clear naming the counts and the placed ones", async () => {
+        /* Red at 08eb5c3f: no clearChapterPlan, no openClearPlan. Source reads. */
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const schema = await src("case-schema.mjs"), inv = await src("investigation.mjs");
+        const clear = fnSource(schema, "clearChapterPlan"), open = fnSource(inv, "openClearPlan");
+        equal(stableJson({
+            gm: /if \(!game\.user\?\.isGM/.test(clear) && /if \(!game\.user\?\.isGM\) return null/.test(open),
+            drops: /keyPlanStore\.dropMany\(what\.slots\)/.test(clear) && /caseSchemaStore\.dropMany\(\[\.\.\.what\.nodes, \.\.\.what\.meta\]\)/.test(clear),
+            noTicks: !/caseTickStore/.test(clear),
+            button: /action: "clearPlan"/.test(fnSource(inv, "openInvestigationDashboard")), runs: /action === "clearPlan"\) return \{ said: await openClearPlan\(\) \}/.test(fnSource(inv, "runDashboardButton")),
+            defaultChapter: /n === now \? " selected" : ""/.test(open), destructive: /role: "destructive"/.test(open),
+            counts: /DRPG\.Investigation\.clearPlan\.slots/.test(open) && /DRPG\.Investigation\.clearPlan\.nodes/.test(open) && /DRPG\.Investigation\.clearPlan\.placed/.test(open)
+        }), stableJson({ gm: true, drops: true, noTicks: true, button: true, runs: true, defaultChapter: true, destructive: true, counts: true }),
+        "{a GM's only, dropped by tombstones on both stores, the ticks untouched, the button, its road, the clock's chapter picked, a destructive yes, the counts named}");
     }],
 ];
 

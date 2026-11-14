@@ -38,7 +38,7 @@ import { plural, wirePortraitPickers, log, workingScene, esc, placeRoomOptions, 
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable, tipAttr, tipText, WINDOW_HELP } from "./ui-kit.mjs";
 // E57 C4 (D35): the header's "?" - its own line, so a line that edits the imports above does not meet it.
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase, planToClear, plannedChapters, clearChapterPlan } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
@@ -1997,7 +1997,55 @@ export async function runDashboardButton(action) {
         const { openRealization } = await import("./case-realize.mjs");
         return { said: await openRealization() };
     }
+    if (action === "clearPlan") return { said: await openClearPlan() };
     return false;
+}
+
+/**
+ * CLEAR THE PLAN (E111, 14.11.2026; the owner: "Brakuje mi tez w planerze zagadki opcji zresetowania
+ * zawartosci/wyczyszczenia recznie"). The chapter first - a list of the chapters this browser holds a plan for and the
+ * clock's, the clock's picked - then a question that counts what goes (case-schema.mjs `planToClear`: the planned Key
+ * Remnants, the schema's nodes, its layout row) and says that a placed Key Remnant's Remnant stays on the map; Clear is
+ * destructive, never the default. Then case-schema.mjs `clearChapterPlan`. Any GM, an Assistant too, as the planner's
+ * writes allow; the button is in no player's window. Answers the dashboard's line, or null.
+ */
+export async function openClearPlan() {
+    if (!game.user?.isGM) return null;
+    const L = key => game.i18n.localize(key);
+    const now = Number(getClock().chapter);
+    const options = plannedChapters().map(n => `<option value="${n}"${n === now ? " selected" : ""}>${esc(game.i18n.format("DRPG.Investigation.clearPlan.chapter", { n }))}</option>`).join("");
+    const chapter = await drpgWindow({
+        title: L("DRPG.Investigation.clearPlan.title"),
+        classes: ["drpg-panel", "drpg-window-clear-plan"],
+        body: `<p>${esc(L("DRPG.Investigation.clearPlan.intro"))}</p>
+            <label>${esc(L("DRPG.Investigation.clearPlan.which"))} <select name="chapter"${tipAttr("DRPG.Tips.CasePlan.clearPlanChapterTooltip")}>${options}</select></label>`,
+        footer: {
+            primary: { action: "next", label: L("DRPG.Investigation.clearPlan.next"), tooltip: tipText("DRPG.Tips.CasePlan.clearPlanNextTooltip"),
+                callback: (e, b, d) => Number(d.element.querySelector("[name=chapter]")?.value) },
+            close: { role: "cancel", action: "cancel" }
+        },
+        rejectClose: false
+    });
+    if (!Number.isInteger(chapter) || chapter < 1) return null;
+    const what = planToClear(chapter, keyPlanStore.entries(), caseSchemaStore.entries());
+    if (!what.slots.length && !what.nodes.length && !what.meta.length) {
+        return game.i18n.format("DRPG.Investigation.clearPlan.nothing", { n: chapter });
+    }
+    const lines = [plural("DRPG.Investigation.clearPlan.slots", { n: what.slots.length }), plural("DRPG.Investigation.clearPlan.nodes", { n: what.nodes.length }),
+        ...(what.meta.length ? [L("DRPG.Investigation.clearPlan.meta")] : [])];
+    const yes = await drpgConfirm({
+        classes: ["drpg-panel", "drpg-window-clear-plan"],
+        title: game.i18n.format("DRPG.Investigation.clearPlan.confirmTitle", { n: chapter }),
+        yes: { label: L("DRPG.Investigation.clearPlan.clear"), role: "destructive" },
+        body: `<p>${esc(L("DRPG.Investigation.clearPlan.goes"))}</p><ul>${lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+            ${what.placed ? `<p>${esc(plural("DRPG.Investigation.clearPlan.placed", { n: what.placed }))}</p>` : ""}
+            <p class="notes">${esc(L("DRPG.Investigation.clearPlan.stays"))}</p>`,
+        rejectClose: false
+    });
+    if (!yes) return null;
+    const done = await clearChapterPlan(chapter);
+    if (!done) return null;
+    return game.i18n.format("DRPG.Investigation.clearPlan.done", { n: chapter });
 }
 
 // The clue first, because it is the half that can fail: a room that no
@@ -2237,7 +2285,9 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                 icon: "fa-solid fa-skull", class: "drpg-state-change" },
             // E97 C10 (Q-C): the realization's preview, in both views; it writes nothing until its own Run. Its undo is
             // in that window since E64-inv (case-realize.mjs `realizationFooter`), shown once a run has placed anything.
-            { action: "realize", label: game.i18n.localize("DRPG.CaseRealize.preview"), tooltip: tipText("DRPG.Tips.Case.realizationPreviewTooltip") }
+            { action: "realize", label: game.i18n.localize("DRPG.CaseRealize.preview"), tooltip: tipText("DRPG.Tips.Case.realizationPreviewTooltip") },
+            // E111 (the owner, 14.11.2026): one chapter's plan cleared by hand, behind its own question (`openClearPlan`).
+            { action: "clearPlan", label: game.i18n.localize("DRPG.Investigation.clearPlan.button"), tooltip: tipText("DRPG.Tips.CasePlan.clearPlanTooltip") }
             ],
             /* NO DESTRUCTIVE ROW, AND NO EVIDENCE LOG (E64-inv, 12.11.2026; the owner's pick of the Investigation review:
                "Na reszte sie zgadzam"). Clear the Faint Remnants and Collect the Truth Bullets were here and in End the

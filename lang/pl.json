@@ -2062,6 +2062,11 @@
         "carryItThereTooltip": "Rzut na przeciągnięcie ciała do wybranego pokoju",
         "killerTooltip": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza"
       },
+      "CasePlan": {
+        "clearPlanTooltip": "Czyści zaplanowane Key Remnanty i schemat sprawy jednego rozdziału, po pytaniu, które je liczy",
+        "clearPlanChapterTooltip": "Rozdział, którego plan zostanie wyczyszczony",
+        "clearPlanNextTooltip": "Liczy, co zawiera plan rozdziału, i pyta, zanim cokolwiek wyczyści"
+      },
       "CaseCopy": {
         "writeNowTooltip": "Odczytuje kopię z serwera, a potem zapisuje na niej sprawę z tej przeglądarki"
       },
@@ -3133,6 +3138,39 @@
       "trackerScore": "{total} wobec {n}"
     },
     "Investigation": {
+      "clearPlan": {
+        "button": "Wyczyść plan",
+        "title": "Wyczyść plan",
+        "intro": "Czyści plan jednego rozdziału: jego zaplanowane Key Remnanty i schemat sprawy. Remnanty już na mapie, Truth Bullety i węzły zaznaczone podczas Class Trial zostają.",
+        "which": "Rozdział",
+        "chapter": "Rozdział {n}",
+        "next": "Dalej",
+        "nothing": "Rozdział {n} nie ma planu do wyczyszczenia.",
+        "confirmTitle": "Wyczyścić plan rozdziału {n}?",
+        "goes": "Zniknie to, w przeglądarce każdego GM-a i w kopii na serwerze:",
+        "slots": {
+          "one": "{n} zaplanowany Key Remnant",
+          "few": "{n} zaplanowane Key Remnanty",
+          "many": "{n} zaplanowanych Key Remnantów",
+          "other": "{n} zaplanowanego Key Remnantu"
+        },
+        "nodes": {
+          "one": "{n} węzeł schematu sprawy",
+          "few": "{n} węzły schematu sprawy",
+          "many": "{n} węzłów schematu sprawy",
+          "other": "{n} węzła schematu sprawy"
+        },
+        "meta": "układ i sortowanie schematu sprawy",
+        "placed": {
+          "one": "{n} z nich jest już postawiony: jego Remnant zostaje na mapie, znika tylko jego plan.",
+          "few": "{n} z nich są już postawione: ich Remnanty zostają na mapie, znika tylko ich plan.",
+          "many": "{n} z nich jest już postawionych: ich Remnanty zostają na mapie, znika tylko ich plan.",
+          "other": "{n} z nich jest już postawionych: ich Remnanty zostają na mapie, znika tylko ich plan."
+        },
+        "stays": "Plany innych rozdziałów, Remnanty na mapie, Truth Bullety i węzły zaznaczone podczas Class Trial zostają. Tego nie da się cofnąć.",
+        "clear": "Wyczyść",
+        "done": "Plan rozdziału {n} wyczyszczony."
+      },
       "finalAskTitle": "Postaw Final Truth Remnant",
       "finalAskBody": "Final Truth Remnant ma już wybrany pokój, ale zamykasz okno, nie klikając Zapisz. Postawić go teraz?",
       "finalAskPlace": "Postaw",
