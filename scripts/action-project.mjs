@@ -39,7 +39,7 @@ import {
     addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel
 } from "./projects.mjs";
 import { callGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, plural, cardHead, esc, easedBy, listOf } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 import {
@@ -984,7 +984,7 @@ export async function performSabotage(actor, def, options, preset = null) {
     if (!targets.length) {
         ui.notifications.warn(withheld.length
             ? game.i18n.format("DRPG.Project.allSabotaged", {
-                  names: withheld.map(p => p.name).join(", ")
+                  names: listOf(withheld.map(p => p.name))
               })
             : game.i18n.localize("DRPG.Project.nothingToSabotage"));
         return null;
@@ -992,7 +992,7 @@ export async function performSabotage(actor, def, options, preset = null) {
 
     if (withheld.length) {
         ui.notifications.warn(game.i18n.format("DRPG.Project.someSabotaged", {
-            names: withheld.map(p => p.name).join(", ")
+            names: listOf(withheld.map(p => p.name))
         }));
     }
 

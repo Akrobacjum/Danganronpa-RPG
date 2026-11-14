@@ -37726,6 +37726,34 @@ const INVARIANTS = [
             "[each site: the keys it no longer names, its joins by hand, calls listOf]");
     }],
 
+    ["R6902 - the rest of the lists group C and D's texts name are joined by utils.mjs `listOf`, and a roll's sources write a negative with \"-\" (needsCode, 14.11.2026; EN2, DB35, the dash rule): roll-dialog.mjs `explainAdvantage` (`RollDialog.stackedAdvantage`, `stackedDisadvantage`), gm-team-dialog.mjs `wireMonokumaLive` (`Monokuma.sharedPool`), action-project.mjs `performSabotage` (`Project.allSabotaged`, `someSabotaged`), enforced.mjs `holdPermissions` (`Enforced.filesFirstHold`: each role's permissions; the roles stay \"; \"-separated), user-match.mjs `tellGms` (`Users.match.*`), season-wipe.mjs `wipeSeason` (`Season.reportCard.stayed`), gm-stores.mjs `backupCase` (`Case.backupEarly`) and `gmStoreHealth` (`Case.row.skew`)", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #33, #34, #79, #82, #86, #87, #106, #122,
+         * #124. Red at 1d2b2125: each joined its names with ", " (\"A, B, C\": no \"and\", no Polish „i”), and
+         * explainAdvantage wrote U+2212 before a negative value. `joins`: what stays joined by hand - in wipeSeason the
+         * console's English log and the report's label lists, in holdPermissions the roles' groups and in user-match the
+         * owners' list after a label.
+         */
+        const sources = new Map(await otherSources());
+        const SITES = [
+            ["roll-dialog.mjs", "explainAdvantage", ["DRPG.RollDialog.source."], 0],
+            ["gm-team-dialog.mjs", "wireMonokumaLive", ["DRPG.Monokuma.sharedPool"], 0],
+            ["action-project.mjs", "performSabotage", ["DRPG.Project.allSabotaged", "DRPG.Project.someSabotaged"], 0],
+            ["enforced.mjs", "holdPermissions", ["DRPG.Enforced.filesFirstHold"], 1],
+            ["user-match.mjs", "tellGms", ["DRPG.Users.match.owned", "DRPG.Users.match.owns"], 0],
+            ["season-wipe.mjs", "wipeSeason", ["DRPG.Season.reportCard.stayed"], 7],
+            ["gm-stores.mjs", "backupCase", ["DRPG.Case.backupEarly"], 0],
+            ["gm-stores.mjs", "gmStoreHealth", ["DRPG.Case.row.skew"], 0]
+        ];
+        const bodies = SITES.map(([file, fn]) => fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
+        must(bodies.every(Boolean), `a site is gone - this reads nothing: ${stableJson(SITES.filter((_, i) => !bodies[i]).map(([file, fn]) => [file, fn]))}`);
+        const read = SITES.map(([file, fn, keys], i) => [file, fn, keys.filter(key => !bodies[i].includes(key)),
+            (bodies[i].match(/\.join\(\s*["'][,;] ["']\s*\)/g) ?? []).length, /\blistOf\(/.test(bodies[i])]);
+        const minus = /\\u2212|\u2212/.test(bodies[0]);
+        equal(stableJson({ read, minus }), stableJson({ read: SITES.map(([file, fn, , joins]) => [file, fn, [], joins, true]), minus: false }),
+            "[each site: the keys it no longer names, its joins by hand, calls listOf; explainAdvantage writes U+2212]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

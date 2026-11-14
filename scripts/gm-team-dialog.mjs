@@ -26,7 +26,7 @@ import {
 import { isMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { MODULE_ID } from "./config.mjs";
-import { dialogContent, error } from "./utils.mjs";
+import { dialogContent, error, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
@@ -652,7 +652,7 @@ function wireMonokumaLive(dialog) {
             ? box("warning", clashes.map(([userId, names]) =>
                   game.i18n.format("DRPG.Monokuma.sharedPool", {
                       name: foundry.utils.escapeHTML(poolLabel(game.users.get(userId))),
-                      actors: foundry.utils.escapeHTML(names.join(", "))
+                      actors: foundry.utils.escapeHTML(listOf(names))
                   })).join("<br>"))
             : "";
         warning.hidden = !clashes.length;

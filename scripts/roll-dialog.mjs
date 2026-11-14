@@ -1137,10 +1137,10 @@ export function explainAdvantage(sign, count, capped, sources) {
                     : "DRPG.RollDialog.forcedByState";
     }
 
-    const list = sources
+    // A negative with "-", the module's one dash (U+2212 until the needsCode line); the list in the page's language (EN2).
+    const list = listOf(sources
         .map(source => `${game.i18n.localize(`DRPG.RollDialog.source.${source.key}`)} ${
-            source.value > 0 ? "+" : "\u2212"}${Math.abs(source.value)}`)
-        .join(", ");
+            source.value > 0 ? "+" : "-"}${Math.abs(source.value)}`));
 
     // THREE SHAPES, NOT TWO. Several sources can still come to one die - a Call
     // against a doubly hostile room is exactly that - and the counting sentence

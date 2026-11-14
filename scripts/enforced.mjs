@@ -65,7 +65,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { warn, error, isPrimaryGm, whisperToGms, esc } from "./utils.mjs";
+import { warn, error, isPrimaryGm, whisperToGms, esc, listOf } from "./utils.mjs";
 import { drpgWindow, box } from "./ui-kit.mjs";
 
 /**
@@ -567,7 +567,7 @@ function holdPermissions(row, { tell = false, first = false } = {}) {
         if (tell) await whisperToGms(`<p>${game.i18n.localize("DRPG.Enforced.filesPutBack")}</p>`);
         else if (first) {
             const lost = permissionsLost(stored, inForce, held, row).map(({ role, permissions }) =>
-                `${game.i18n.localize(LOST_ROLES[role])}: ${permissions.map(name => game.i18n.localize(LOST_PERMISSIONS[name])).join(", ")}`);
+                `${game.i18n.localize(LOST_ROLES[role])}: ${listOf(permissions.map(name => game.i18n.localize(LOST_PERMISSIONS[name])))}`);
             if (lost.length) await whisperToGms(`<p>${game.i18n.format("DRPG.Enforced.filesFirstHold", { lost: lost.join("; ") })}</p>`);
         }
         return true;

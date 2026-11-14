@@ -893,7 +893,7 @@ async function wipeSeason(plan) {
     const castFailed = failed.some(key => RESET_CHOICES.includes(key)) ? game.i18n.localize("DRPG.Season.failedCast") : "";
     // Who stayed where they were, by name (E11 C10b): on the card and in a warning of its own.
     const stayedLine = stayed.length ? game.i18n.format("DRPG.Season.reportCard.stayed",
-        { names: stayed.map(id => game.actors.get(id)?.name ?? id).join(", ") }) : "";
+        { names: listOf(stayed.map(id => game.actors.get(id)?.name ?? id)) }) : "";
     const stoppedLine = notRun.length ? game.i18n.format("DRPG.Season.stoppedPrimary",
         { name: game.users.get(primaryGmId())?.name ?? "?", groups: names(notRun) }) : "";
     /* WHERE THE TOKENS WENT, ON A LINE OF ITS OWN (E11 fix r2-J1; r2-H6's doubt). The cast's step was

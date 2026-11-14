@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat } from "./utils.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat, listOf } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
@@ -2243,7 +2243,7 @@ export async function backupCase({ ask = false } = {}) {
             title: game.i18n.localize("DRPG.Case.backupTitle"),
             // The early copy's warning a kit box since E47-C3 (E21's carried warning site, homed in E47).
             body: `<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
-                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>`) : ""}`,
+                ? box("warning", `<p>${esc(game.i18n.format("DRPG.Case.backupEarly", { names: listOf(waiting) }))}</p>`) : ""}`,
             rejectClose: false
         });
         if (!yes) return null;
@@ -2601,7 +2601,7 @@ export async function gmStoreHealth() {
     const clamped = gmStoreHandles().reduce((n, h) => n + (h.census()?.clamped ?? 0), 0);
     if (clamped) add("clamped", "info", "DRPG.Case.row.clamped", { n: clamped });
     const skew = Object.entries(gmStoreSkew());
-    if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`).join(", ") });
+    if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: listOf(skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`)) });
     const status = gmStoreStatus();
     add("bytes", status.total > 3 * 1024 * 1024 ? "conflict" : "info", "DRPG.Case.row.bytes",
         { stores: Math.round(status.stores / 1024), total: Math.round(status.total / 1024) });
