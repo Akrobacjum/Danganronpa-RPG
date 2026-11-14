@@ -1071,6 +1071,8 @@ Okno historii pokazuje jako przyciski **Wszystkie**, **Dla ciebie** i **Niewykon
 - **Efekty i dostępność**: **Czcionka pikselowa**, **Puls szkła**, **Szkło rozmywa mapę**, **Ograniczone animacje** i **Wysoki kontrast**. Czcionka pikselowa jest tylko pod Monokuma Legacy, puls szkła i rozmycie mapy tylko pod Stained Glass, a ograniczone animacje i wysoki kontrast są pod oboma motywami i każde z nich włącza się też samo, gdy prosi o to system operacyjny.
 - **Dźwięk i głos**: **Dźwięki komunikatora**, głośność **Dźwięk** i **Muzyka** oraz ustawienia głosu. Gdy jesteś w głosie, są tu twój **Mikrofon**, twoje **Wyjście dźwięku**, **Tryb mikrofonu** (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia (**Zmień klawisz**). Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
 
+Niektóre chwile celowo nie grają dźwięku, żeby nic nie mówiło stołowi więcej niż ich karta: zmiana pory dnia, Search, który coś znajduje (krytyk gra własny), Work on a Project, dopóki pasek się nie zapełni, oraz Dash i akcje przy drzwiach dla tego, kto je robi.
+
 **Gdy ekran się przycina**, zmieniaj te ustawienia w oknie ustawień po jednym: najpierw wyłącz **Szkło rozmywa mapę**, potem **Puls szkła** i **Nazwa stanu za zegarem**, potem włącz **Ograniczone animacje**, a na końcu spróbuj motywu **Monokuma Legacy**. Każde z nich zmienia tylko twój ekran. Jeśli GM zapyta, jak szybko działa twój ekran, kroki są w rozdziale 17.
 
 > [!NOTE]

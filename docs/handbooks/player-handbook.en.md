@@ -1071,6 +1071,8 @@ The history's window shows **All**, **For you**, and **Not carried out** as butt
 - **Effects and accessibility**: **Pixel font** (Monokuma Legacy only), **Glass pulse** and **Glass blurs the map** (Stained Glass only), and **Reduced motion** and **High contrast** under both themes; each of the last two also follows your operating system when it asks for them.
 - **Sound and voice**: **Messenger sounds**, the **Sound** and **Music** volumes, and, while you are in voice, your **Microphone**, your **Sound output**, the **Microphone mode** (**Always on** or **Push to talk**), and the push-to-talk key (**Change the key**). If no microphone is listed, allow the browser to use it and open the window again.
 
+Some moments make no sound on purpose, so that nothing tells the table more than their card does: the change of the time of day, a Search that finds something (a critical plays its own), Work on a Project until its bar fills, and Dash and the door actions for the one who does them.
+
 **If the screen stutters**, change these in the settings window one at a time: turn **Glass blurs the map** off first, then **Glass pulse** and **State name behind the clock**, then turn **Reduced motion** on, and last try the theme Monokuma Legacy. Each changes only your own screen. If the GM asks how fast your screen runs, the steps are in section 17.
 
 > [!NOTE]
