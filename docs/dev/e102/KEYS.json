@@ -237,8 +237,8 @@
   },
   "nothingMatchesRefuseTooltip": {
    "key": "DRPG.Tips.Actions.nothingMatchesRefuseTooltip",
-   "en": "The player keeps their action and finds nothing",
-   "pl": "Gracz zachowuje akcję i nic nie znajduje",
+   "en": "None fits their request. The action stays spent, and their roll goes to the GMs to rule on",
+   "pl": "Żaden nie pasuje do prośby. Akcja zostaje wydana, a rzut trafia do GM-ów do rozstrzygnięcia",
    "sites": [
     "observe:627"
    ]
@@ -1319,8 +1319,8 @@
   },
   "aStudentSNameTooltip": {
    "key": "DRPG.Tips.Setup.aStudentSNameTooltip",
-   "en": "Gives this student the passage now; their player is told",
-   "pl": "Od razu daje temu uczniowi tajne przejście; jego gracz się o tym dowie",
+   "en": "Gives this student the passage now. It appears in their Known passages, with no message to the player",
+   "pl": "Od razu daje temu uczniowi tajne przejście. Pojawi się w jego znanych tajnych przejściach, bez wiadomości do gracza",
    "sites": [
     "passages-tab:100"
    ]

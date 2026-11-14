@@ -27258,6 +27258,28 @@ const INVARIANTS = [
         const want = { playNamesStop: true, playSaysReset: false, categoryNamesPicture: true, categorySaysIcon: false };
         equal(stableJson(out), stableJson({ en: want, pl: want }), "{per language: Play's tooltip names Stop the track and not Reset; Category's names Picture and not icon}");
     }],
+    ["R6355 - two tooltips say what the code does (group B's review of DRPG.Tips, 14.11.2026, through the coordinator): Observe's \"Nothing matches - refuse\" does not give the action back - the action is paid before the dice and a refused pick hands the roll already thrown to the GMs as a card (action-observe.mjs `observeSpecific`: `!target.ok` goes to `ruleObserve`, not to `abort`), so its tooltip says the action stays spent and the roll goes to the GMs; and the Passages tab's Who knows gives the passage with no message to the player (passages-gm.mjs `grantPassage` writes the access row and pushes the copies, and whispers nothing), so its tooltip says it appears in their Known passages with no message; in English and in Polish", async () => {
+        /* Red at aa774bd3: "The player keeps their action and finds nothing" / "Gracz zachowuje akcję", and "their player is told" / "jego gracz się o tym dowie". */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const tip = (lang, fam, k) => lang.DRPG?.Tips?.[fam]?.[k] ?? "";
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const [observe, passagesGm] = await Promise.all([read("action-observe.mjs"), read("passages-gm.mjs")]);
+        must(observe.length > 500 && passagesGm.length > 500, "a script read as nothing - this would measure nothing");
+        const specific = fnSource(observe, "observeSpecific"), grant = fnSource(passagesGm, "grantPassage");
+        const refuseEn = tip(en, "Actions", "nothingMatchesRefuseTooltip"), refusePl = tip(pl, "Actions", "nothingMatchesRefuseTooltip");
+        const grantEn = tip(en, "Setup", "aStudentSNameTooltip"), grantPl = tip(pl, "Setup", "aStudentSNameTooltip");
+        must(refuseEn && refusePl && grantEn && grantPl, "a tooltip this reads has no words - this would measure nothing");
+        equal(stableJson({
+            code: { refusedGoesToRuling: /if\s*\(\s*!target\.ok\s*\)\s*return\s+ruleObserve\(/.test(specific), grantTellsNobody: !/whisper|ChatMessage|notifications|callGm/.test(grant) },
+            refuse: { en: [/\bspent\b/i.test(refuseEn), /\bkeeps?\b/i.test(refuseEn), /\bGMs?\b/.test(refuseEn)], pl: [/wydana/i.test(refusePl), /zachowuje/i.test(refusePl), /GM-/.test(refusePl)] },
+            grant: { en: [/no message/i.test(grantEn), /\btold\b/i.test(grantEn)], pl: [/bez wiadomości/i.test(grantPl), /dowie/i.test(grantPl)] }
+        }), stableJson({
+            code: { refusedGoesToRuling: true, grantTellsNobody: true },
+            refuse: { en: [true, false, true], pl: [true, false, true] },
+            grant: { en: [true, false], pl: [true, false] }
+        }), "{the code: a refused pick goes to the GMs' ruling, a grant tells nobody; Refuse's tooltip: spent, not kept, the GMs; Who knows': no message, not told}");
+    }],
     ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
         /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());

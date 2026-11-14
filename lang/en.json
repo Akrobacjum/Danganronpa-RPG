@@ -1929,7 +1929,7 @@
         "onPerRuleTooltip": "Ticked: this can be drawn when the overflow fires",
         "grantAllGrantNoneTooltip": "Gives the Hope and Despair these rolls would have moved",
         "frameStudentTooltip": "The student the false Remnant points at",
-        "nothingMatchesRefuseTooltip": "The player keeps their action and finds nothing",
+        "nothingMatchesRefuseTooltip": "None fits their request. The action stays spent, and their roll goes to the GMs to rule on",
         "indirectMurderWindowTooltip": "Makes the project a murder by trap; saved here, it is always secret",
         "doItCostTooltip": {
           "one": "Spends {n} action and gives you the rest benefits you ticked",
@@ -2030,7 +2030,7 @@
         "applyTooltip": "Spends the Level Up and writes the chosen improvements onto the sheet",
         "handThemOutTooltip": "Gives each Level Up as its row says. Yours open here, one after another.",
         "allThePlayersPickTooltip": "Hands every Level Up to its player, whatever the rows say. One with no player opens here",
-        "aStudentSNameTooltip": "Gives this student the passage now; their player is told",
+        "aStudentSNameTooltip": "Gives this student the passage now. It appears in their Known passages, with no message to the player",
         "aStudentWhoKnowsTooltip": "Takes the passage away from this student. If they are in a room it joins, asks: now or when they leave",
         "aStudentKnownAtTooltip": "Takes this student off the season-start list. What they know now stays.",
         "playlistForAStateTooltip": "The playlist that plays in this state. Saves at once.",
