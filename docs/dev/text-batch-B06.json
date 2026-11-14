@@ -1771,7 +1771,7 @@
    "facts": [
     {
      "fact": "A fragment in the nominative, put after the colon of DRPG.Calls.pendingTooltip and DRPG.Calls.waitsNextRoll (several joined into a list) and standing alone as a badge on the sheet when the armed entry names no Call.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-actions.mjs",
      "fn": "callButton",
      "note": "The badge is built in the sheet's armed-Calls list; the roll window's use is roll-dialog.mjs showWaitingCalls."
     },
@@ -1822,7 +1822,7 @@
    "facts": [
     {
      "fact": "The tooltip of an armed Call's badge on the character's sheet; {what} is the grant (DRPG.Calls.grantsNom.*).",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-actions.mjs",
      "fn": "callButton",
      "note": "Built in the sheet's armed-Calls list."
     },
@@ -2186,7 +2186,7 @@
    "facts": [
     {
      "fact": "The label of the badge on a student's sheet while Silence holds them; its tooltip is DRPG.Calls.silencedNotice.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-header.mjs",
      "fn": "standingEffects",
      "note": null
     }
@@ -2229,7 +2229,7 @@
    "facts": [
     {
      "fact": "The label of the badge on a student's sheet while Chained holds them; its tooltip is DRPG.Calls.chainedNotice.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-header.mjs",
      "fn": "standingEffects",
      "note": null
     }
@@ -2427,7 +2427,7 @@
    "facts": [
     {
      "fact": "The reason on the greyed Experience row of the Talent window when the character has no experiences on the sheet.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-actions.mjs",
      "fn": "runCall",
      "note": null
     }
