@@ -5388,7 +5388,9 @@ const REGRESSIONS = [
         ok(/order:\s*15\s*;/.test(panel[0]),
             "the Event panel's place in #ui-top is stated only for one theme");
 
-        const bare = [...css.matchAll(/([^{}]+)\{[^}]*grid-template-columns:\s*minmax\(0,\s*275px\)/g)]
+        /* E55 D3 (14.11.2026) took out `minmax(0, 275px)`, which lost in both themes to the `body` rule's
+           `minmax(0, calc(275px * var(--drpg-slider-scale, 1)))`; both forms are read, so the rail that is left is held. */
+        const bare = [...css.matchAll(/([^{}]+)\{[^}]*grid-template-columns:\s*minmax\(0,\s*(?:calc\(\s*)?275px\b/g)]
             .map(m => m[1].trim());
         ok(bare.length > 0, "the character sheet's rail rule has gone");
         for (const selector of bare) {
