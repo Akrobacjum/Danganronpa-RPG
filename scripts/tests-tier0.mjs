@@ -25534,6 +25534,31 @@ const REGRESSIONS = [
         const test = fnSource(sfx, "testSfx");
         equal(JSON.stringify({ follows: /\bsoundsFor\(/.test(test), own: /\bsoundFor\(/.test(test) }), JSON.stringify({ follows: true, own: false }), "{testSfx: whether it reads soundsFor, whether it reads the own file alone}");
     }],
+    ["R7170 - the handbooks and the texts say what the voice does (E59 C-115, CHAINS.md B-S2, B-S8, B-S9, B-T5): since E62 C3b the dead talk in the Spectators' room (voice.mjs `SPECTATOR_ROOM`), and since E110 the floor holds a Monocub's microphone as everyone else's (`floorHold`); no handbook and no lang value says \"the dead channel\" (\"kanał zmarłych\"), that the module blocks no Monocub or silences only the dead in the modes; and the GM handbook quotes the Monocub tile's line as each language's lang has it (`DRPG.Voice.held.cubListen`, {mode} as \"name\" / \"nazwa\")", async () => {
+        const voice = stripComments(new Map(await otherSources()).get("voice.mjs") ?? "");
+        ok(/\bSPECTATOR_ROOM\b/.test(fnSource(voice, "voiceTargets")) || /\bSPECTATOR_ROOM\b/.test(voice), "voice.mjs no longer names the Spectators' room - this test reads the wrong code");
+        ok(/\bfloorHold\(/.test(fnSource(voice, "moduleHoldsMic")), "the floor no longer holds a microphone in moduleHoldsMic - this test reads the wrong code");
+        const STALE = [/dead channel/i, /channel of the dead/i, /kana(?:ł|łu|łem|le) zmarłych/i, /blocks no Monocub/i, /never holds a Monocub/i,
+            /nie blokuje żadnego Monocuba/i, /nigdy nie trzyma mikrofonu Monocuba/i, /silences only the dead:/i, /wycisza tylko zmarłych, a tego, kto mówi w danym trybie/i];
+        const found = [];
+        const books = {};
+        for (const name of ["gm-handbook.en", "gm-handbook.pl", "player-handbook.en", "player-handbook.pl", "player-brochure.en", "player-brochure.pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
+            must(res.ok, `docs/handbooks/${name}.md did not load`);
+            books[name] = await lfText(res);
+            for (const re of STALE) if (re.test(books[name])) found.push(`${name}: ${re}`);
+        }
+        const quotes = {};
+        for (const [lang, word] of [["en", "name"], ["pl", "nazwa"]]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            for (const [key, value] of flatLang(text)) for (const re of STALE) if (re.test(String(value))) found.push(`${lang}.json ${key}: ${re}`);
+            const line = foundry.utils.getProperty(text, "DRPG.Voice.held.cubListen");
+            must(typeof line === "string" && line.includes("{mode}"), `${lang}.json has no DRPG.Voice.held.cubListen with {mode}`);
+            quotes[lang] = books[`gm-handbook.${lang}`].includes(`*${line.replace("{mode}", word)}*`);
+        }
+        equal(JSON.stringify(found), "[]", "stale words about the voice in the handbooks or the texts");
+        equal(JSON.stringify(quotes), JSON.stringify({ en: true, pl: true }), "{whether each GM handbook quotes the Monocub tile's listening line as its lang has it}");
+    }],
 ];
 
 
