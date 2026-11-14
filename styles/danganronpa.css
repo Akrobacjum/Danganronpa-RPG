@@ -14101,6 +14101,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
        fixed size right on a 27" monitor runs off a laptop. */
     font-size: clamp(2rem, 7vw, 4.5rem);
     padding: 0.35em 0.9em;
+    position: relative;
 }
 
 /* THE DOUBLE FRAME IS MONOKUMA LEGACY'S, AND ONLY ITS.
@@ -14150,10 +14151,6 @@ body.drpg-pixel-font #pause.paused figcaption {
         transparent
     );
     animation: drpg-pause-breathe 4s ease-in-out infinite;
-}
-
-#pause.paused figcaption {
-    position: relative;
 }
 
 
