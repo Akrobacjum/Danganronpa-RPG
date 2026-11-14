@@ -69,10 +69,12 @@ const glassOn = motionGlassOn;
 
 /**
  * Which token each type borrows. Same assignments the `.drpg-tb-badge.type.*`
- * rules use, so a Remnant reads identically on the map and in the pack.
+ * rules use, so a Remnant reads identically on the map and in the pack. A Key's is
+ * Evidence's since E59 C2 (14.11.2026; R6755): its badge left gold for Evidence in
+ * E48 K1 and this ring stayed gold, which is Hope's alone.
  */
 const TYPE_TOKEN = {
-    key: "--drpg-gold",
+    key: "--drpg-evidence",
     prep: "--drpg-eye",
     incident: "--drpg-crimson",
     resolution: "--drpg-tb-resolution",

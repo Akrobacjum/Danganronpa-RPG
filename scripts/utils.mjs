@@ -1225,8 +1225,9 @@ export function injectSelectPickerSkin() {
         ${GROUP} select option:focus {
             background: color-mix(in srgb, var(--drpg-bone, #e4ded8) 12%, var(--drpg-ink, #1d1a21));
         }
+        /* the chosen option in the attention colour, as every selection since E48 K1 (E59 C2, R6755: it was gold, Hope's) */
         ${GROUP} select option:checked {
-            background: color-mix(in srgb, var(--drpg-gold, #ffd23f) 18%, var(--drpg-ink, #1d1a21));
+            background: color-mix(in srgb, var(--drpg-attention, #e4ded8) 18%, var(--drpg-ink, #1d1a21));
         }
     `;
     document.head.append(style);

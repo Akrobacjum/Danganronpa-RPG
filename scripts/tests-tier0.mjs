@@ -25296,6 +25296,98 @@ const REGRESSIONS = [
         equal(JSON.stringify({ reads, settleVoiceWithoutWall: fiveArgs, stale }), JSON.stringify({ reads: {}, settleVoiceWithoutWall: 0, stale: [] }),
             "{reads: a declaration of the cut's span and the page's or the module's state it names; settleVoiceWithoutWall: the calls that leave the wall to PIN; stale: a listed name that reads nothing any more}");
     }],
+
+    /*
+     * EVERY WINDOW, AS TESTS (E59 C2, 14.11.2026; the plan's point (3)). tests-windows.mjs reads every window the module
+     * opens - 162 by name in 165 sites at 123f8242 (a `drpgWindow`, `drpgConfirm` or `drpgPrompt` call, a `DrpgApp()`
+     * class, and whatever opens a Foundry window outside the kit) - and each rule below judges every one of them, or every
+     * rule of the served sheets, and fails on the planted case its fixture holds (`windowsSelfCheck`). docs/dev/e59/WINDOWS.md
+     * is the census by name (tools/e59/windows.mjs --write). Not a drawn window: R299, 84-viewports and C3's screenshots
+     * are, and LIVE-E59-01 is the real browser's.
+     */
+    ["R6750 - no window without `.drpg-ui` (E59 C2): every window the module opens - each `drpgWindow`, `drpgConfirm` and `drpgPrompt` call and each `DrpgApp()` class, by file and the function it is opened in - is a kit window, and nothing outside ui-kit.mjs opens a DialogV2, builds an ApplicationV2 or opens another Foundry window, but the rows of ROOT_OUTSIDE, each with its reason (the room's picture in Foundry's ImagePopout); the reader finds a DialogV2 planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("root:"))), "[]", "the window census does not read its fixture as written");
+        const sites = W.windowSites(await otherSources());
+        const names = W.windowNames(sites);
+        must(names.length >= 150, `only ${names.length} window(s) read in scripts/ - this would measure too little`);
+        ok(names.includes("notice-history-app.mjs NoticeHistoryApp") && names.includes("trial-floor-ui.mjs confirmReveal"), `the census misses the notice history or the Reveal question (R1044): ${names.slice(0, 8).join(", ")} ...`);
+        const r = W.rootRule(sites);
+        equal(r.read.length, names.length, "the rule did not judge every window it read");
+        const stale = W.ROOT_OUTSIDE.filter(o => !sites.some(s => s.label === o.label && o.kind.test(s.kind))).map(o => o.label);
+        equal(JSON.stringify(stale), "[]", "a ROOT_OUTSIDE row names a window that is no longer opened outside the kit - take it off");
+        equal(JSON.stringify(r.found), "[]", `windows outside the kit, of the ${names.length} read`);
+    }],
+    ["R6751 - `drpg-destructive` is never the default, never autofocus, never under Enter (E59 C2; R1044 held one window, this holds them all): no footer object of scripts/ that holds a `destructive` list names one of its actions as the `default`, no tag written with a destructive class carries `autofocus` or the `default` class, no `roleButton({ role: \"destructive\" })` takes `autofocus`, and no field's `data-drpg-enter` presses a destructive selector; the kit's `footerButtons` throws on a destructive default and `drpgConfirm`'s destructive yes leaves the closing word the default; the reader finds the two faults planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        const K = await import("./ui-kit.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("destructive:"))), "[]", "the destructive reader does not read its fixture as written");
+        const sources = await otherSources();
+        const r = W.destructiveRule(sources);
+        must(r.read.length >= 20 && r.holders.length >= 20, `only ${r.read.length} window(s) and ${r.holders.length} footer builder(s) with a destructive button read - this would measure too little`);
+        ok(r.footers >= 5, `${r.footers} footer(s) with a destructive list and a default read - the reader found none of the windows that name a default beside a destructive button`);
+        equal(JSON.stringify(r.found), "[]", `destructive buttons that Enter or focus would press, of ${r.read.length} window(s) with one`);
+        let threw = null;
+        try { K.footerButtons({ destructive: [{ action: "wipe", label: "Wipe" }], close: "cancel", default: "wipe" }); } catch (err) { threw = err; }
+        ok(/may never be a window's default/.test(threw?.message ?? ""), `footerButtons did not refuse a destructive default: ${threw?.message ?? "no throw"}`);
+        const list = K.footerButtons({ destructive: [{ action: "wipe", label: "Wipe" }], close: "cancel" });
+        equal(JSON.stringify(list.filter(b => b.default).map(b => b.role)), JSON.stringify(["cancel"]), "a footer with a destructive button and a closing word: [the default's role]");
+    }],
+    ["R6752 - one tab system (E59 C2; R1324 holds the old names): outside ui-kit.mjs no module file writes tab markup (a tab role, a `data-tab` attribute on a tag it writes, a `nav` of class `tabs`) or Foundry's own tabs (`static TABS`, `new Tabs`), and every window with tabs takes them from the kit (`drpgWindow({ tabs })`, `kitTabs`, `kitTabBar`, `wireKitTabs`); the reader finds the tab markup planted in its fixture and passes a selector that only reads Daggerheart's sheet tabs", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("tab:"))), "[]", "the tab reader does not read its fixture as written");
+        const r = W.tabRule(await otherSources());
+        must(r.users.length >= 8, `only ${r.users.length} place(s) take the kit's tabs - this would measure too little`);
+        ok(["handbooks.mjs HandbookApp", "room-setup.mjs openRoomSetupDialog"].every(n => r.users.includes(n)), `the handbooks or Room Setup are not read as taking the kit's tabs: ${r.users.join(", ")}`);
+        equal(JSON.stringify(r.found), "[]", `tab markup outside the kit (${r.read.length} window(s) with the kit's tabs read)`);
+    }],
+    ["R6753 - the footer contract, every window (E59 C2; ui-kit.mjs's header): no kit window is handed DialogV2's `buttons`, a literal footer names only the kit's slots, the closing word carries no label of its own (the role's one word), a question's `no` none either, and a `DrpgApp()` class draws a footer only through `footerMarkup` or `liveFooter`, but the three closing words FOOTER_KNOWN lists (a label the kit does not draw, Q-E59-14); each window is read with its footer's shape (slots, built, question, kit footer, no footer); the reader finds the three faults planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("footer:"))), "[]", "the footer reader does not read its fixture as written");
+        const r = W.footerRule(await otherSources());
+        must(r.read.length >= 150, `only ${r.read.length} window(s) read - this would measure too little`);
+        const shapes = {};
+        for (const v of r.shapes.values()) shapes[v] = (shapes[v] ?? 0) + 1;
+        ok((shapes.slots ?? 0) >= 80 && (shapes.question ?? 0) >= 15, `the footers' shapes read ${JSON.stringify(shapes)} - the reader did not find the literal footers`);
+        equal(r.shapes.size, r.read.length, "a window was read without its footer's shape");
+        equal(JSON.stringify(r.stale.map(k => k.label)), "[]", "a FOOTER_KNOWN row names a window whose closing word no longer carries a label - take it off (and its line of GAPS.md)");
+        equal(JSON.stringify(r.found), "[]", `footers off the contract, of ${r.read.length} window(s) (${JSON.stringify(shapes)})`);
+    }],
+    ["R6754 - the 11 px floor (E59 C2): no `font-size` of a served sheet comes under 11 px at the slider's least (0.8 under Monokuma Legacy, `--drpg-legacy-scale`; the rem at 16 px, Foundry's `--font-size-N` at N px), but on the surfaces FLOOR_OUTSIDE names - the sheet, the clock, the status bar, the Event panel, the Despair meter, the voice tile - each a line of docs/dev/e59/GAPS.md; a size of 0 hides a glyph's letter and is no text; the reader finds the size planted in its fixture under a window and reads `max(min(10px, ...), ...)` as 10 px", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("floor:"))), "[]", "the floor reader does not read its fixture as written");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this would read too little`);
+        const r = W.floorRule(sheets);
+        must(r.read.length >= 100, `only ${r.read.length} font size(s) read in the served sheets - this would measure too little`);
+        const stale = r.stale.map(o => o.surface);
+        equal(JSON.stringify(stale), "[]", "a FLOOR_OUTSIDE row names no size under 11 px any longer - take it off (and its line of GAPS.md)");
+        equal(JSON.stringify(r.found), "[]", `sizes under 11 px in a window, of ${r.read.length} read (${r.unread} in em, % or a token Node cannot read)`);
+    }],
+    ["R6755 - gold only for Hope, every window and script (E59 C2; R3410 holds the four meanings): no rule of a served sheet reads a gold token (`--drpg-gold...`, `--drpg-sg-hope`) unless its selector names Hope, and no literal of scripts/ names a gold token on a line with no Hope word, but GOLD_READERS' lists, which paint nothing; the reader finds the focus ring and the script planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("gold:"))), "[]", "the gold reader does not read its fixture as written");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        const r = W.goldRule(sheets, await otherSources());
+        must(r.reads >= 30 && r.read.length >= 20, `only ${r.reads} read(s) of gold in ${r.read.length} rule(s) - this would measure too little`);
+        equal(JSON.stringify(r.found), "[]", `gold outside Hope, of ${r.reads} read(s) in the sheets and ${r.scripts} in scripts/`);
+    }],
+    ["R6756 - red only on the road through the GM, every window (E59 C2; D11, R121's census of the road, R1580's faces): a rule that names a plain role (primary, close, cancel, secondary) reads no red token, the GM's road's own token is red in both themes, and every rule in a window's scope that styles a button and reads a red token (the eye, the crimsons, `--drpg-sg-gm`, the role tokens; followed through the sheets' global custom properties) names the GM's road, a destructive answer or a warning, or a row of RED_KEPT with its reason and a line of GAPS.md; the reader finds the red primary and the red plain button planted in its fixture", async () => {
+        const W = await import("./tests-windows.mjs");
+        equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("red:"))), "[]", "the red reader does not read its fixture as written");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        const r = W.redRule(sheets);
+        must(r.read.length >= 60, `only ${r.read.length} window button rule(s) read - this would measure too little`);
+        const stale = r.stale.map(k => String(k.match));
+        equal(JSON.stringify(stale), "[]", "a RED_KEPT row names no red read any longer - take it off (and its line of GAPS.md)");
+        equal(JSON.stringify(r.found), "[]", `red on a window's button off the GM's road, of ${r.read.length} rule(s) read`);
+    }],
 ];
 
 

@@ -3877,7 +3877,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
     border-radius: 3px;
     color: var(--drpg-bone);
-    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
+    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
     white-space: nowrap;
     cursor: pointer;
 }
@@ -3954,7 +3954,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     /* W-2, Dawid 19.09: every bare size in this sheet takes the Interface scale,
        and the ones 80 % would push under 10px keep a floor. The rest follow this
        pattern with no comment of their own. */
-    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
+    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
     white-space: nowrap;
 }
 
@@ -4030,7 +4030,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 
 .drpg-gm-panel .drpg-gmp-section h4 {
     margin: 0 0 4px;
-    font-size: max(min(10px, 0.78rem), calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.65;
@@ -4098,7 +4098,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-gmp-button span {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: calc(0.84rem * var(--drpg-legacy-scale, 1));
+    font-size: max(11px, calc(0.84rem * var(--drpg-legacy-scale, 1)));
     /* Long labels wrap between words and break only as a last resort, instead
        of spilling out of the tile. */
     overflow-wrap: anywhere;
@@ -4428,7 +4428,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    control, the checkbox and selects are. */
 .drpg-mini-button {
     padding: 2px 8px;
-    font-size: max(min(10px, 0.78rem), calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
     border-radius: 3px;
     cursor: pointer;
     background: rgba(var(--drpg-bone-rgb), 0.18);
@@ -4501,7 +4501,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 }
 
 .drpg-evidence-who {
-    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
+    font-size: max(11px, calc(0.8rem * var(--drpg-legacy-scale, 1)));
     opacity: 0.75;
 }
 
@@ -4592,7 +4592,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 
 .drpg-evidence-hint {
     margin: 0;
-    font-size: calc(0.85rem * var(--drpg-legacy-scale, 1));
+    font-size: max(11px, calc(0.85rem * var(--drpg-legacy-scale, 1)));
     opacity: 0.8;
 }
 
@@ -12917,7 +12917,7 @@ body.drpg-high-contrast .drpg-trace-context {
     margin: 0 0 2px;
     padding-bottom: 2px;
     border-bottom: 1px solid var(--drpg-line);
-    font-size: calc(0.82rem * var(--drpg-legacy-scale, 1));
+    font-size: max(11px, calc(0.82rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -12928,7 +12928,7 @@ body.drpg-high-contrast .drpg-trace-context {
 
 .drpg-room-group > h5 .notes {
     font-variant-numeric: tabular-nums;
-    font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(11px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
 }
 
 .drpg-tables-new {
