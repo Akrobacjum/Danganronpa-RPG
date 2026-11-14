@@ -61353,6 +61353,28 @@ const INVARIANTS = [
         stableJson([60, "row 16", "row 75", 15, true, true, true, "Nothing has failed since this page loaded."]),
             "[rows kept, the oldest kept, the newest kept, rows dropped, record keeps through keepNewest, the dropped count is read, the report names it, an empty log's report]");
     }],
+    ["R7125 - a GM may replay the case summary's board on their own browser (E109, DRPG-Q113 #56, Q-E99-9; the owner, 14.11.2026: \"Budowac\"): sequence.mjs `replayCaseSummary` plays a GM's summary card's board again under a key of its own each time, a player's card plays nothing; the trial console offers \"Replay the summary\" once the summary is out, and case-summary.mjs `replayCaseSummary` plays this trial's card, writing nothing", async () => {
+        /*
+         * Red at 9e7e3d78: there was no replay (E99's STATUS: "there is no board to replay"). Asked with the table's switch
+         * off and no sound (`on: false, sound: false`), so tier 1 draws nothing on a GM's screen and plays nothing; the
+         * road is the one a live replay takes up to the drawing.
+         */
+        const S = await import("./sequence.mjs");
+        ok(typeof S.replayCaseSummary === "function", "sequence.mjs exports no replayCaseSummary - there is no replay to measure");
+        const flag = { at: 7125, chapter: 1, correct: true, nodes: [{ role: "evidence", name: "R7125 knife", text: "" }], links: [] };
+        const card = isGM => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID && key === "caseBoard" ? flag : undefined) });
+        const quiet = { on: false, sound: false };
+        const played = [S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(true), quiet), S.replayCaseSummary(card(false), quiet)];
+        const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
+        const ui = await src("trial-floor-ui.mjs"), cs = await src("case-summary.mjs");
+        const offered = /\.\.\.\(progress\.summaryShown && !finalNow\s*\?\s*\[\{ action: "caseSummaryReplay"/.test(ui);
+        const wired = /caseSummaryReplay: async \(\) => \(await import\("\.\/case-summary\.mjs"\)\)\.replayCaseSummary\(\)/.test(ui);
+        const body = fnSource(cs, "replayCaseSummary");
+        const writes = /setTrialProgress|ChatMessage\.create|\.update\(|setSetting/.test(body);
+        equal(stableJson([game.user.isGM ? played : ["off", "off", null], offered, wired, /summaryShown/.test(body), writes]),
+            stableJson([["off", "off", null], true, true, true, false]),
+            "[the replays of a GM's card twice and of a player's card, the console offers it once the summary is out, the button runs case-summary.mjs's replay, which finds this trial's card, and writes nothing]");
+    }],
 ];
 
 /**

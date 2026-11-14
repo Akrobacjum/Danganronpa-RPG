@@ -783,6 +783,8 @@ wzór; jej „po” zastępuje odpowiedź właściciela z 14.11.
 | `DRPG.Config.ITEM_CATEGORIES.crimeTool.hint` | podpowiedź kategorii (#11) | “when the Tamper stage ends” | „gdy kończy się etap Tamper” | było “when the clean-up ends” / „gdy kończy się sprzątanie” |
 | `DRPG.Config.INDIRECT_MURDER.subProjects.0.note` | Prepare the Weapon (#49, H13: „Tekst zmienic”) | “May need a room with the right equipment.” | „Może wymagać konkretnego pokoju z właściwym sprzętem.” | bez “unless the killer already has the tool”: nic tego nie sprawdza |
 | `DRPG.Analyze.sent` | karta rzutu Analyze, teraz przed kartą wyniku (#40, Q-NC-7: „Zmienic kolejnosc”) | “You analyze {name}. The result comes on a card of its own.” | „Analizujesz Truth Bullet „{name}”. Wynik przyjdzie na osobnej karcie.” | było “The result for {name} is on a card of its own.” / „...Wynik pokazuje osobna karta.”: karta idzie przed wynikiem |
+| `DRPG.CaseSummary.replay` | przycisk konsoli Rozprawy po wysłaniu podsumowania (#56, Q-E99-9: „Budowac”) | “Replay the summary” | „Odtwórz podsumowanie” | nowy; odtwarza tablicę tylko w przeglądarce tego GM-a |
+| `DRPG.CaseSummary.replayNone` | toast, gdy karty podsumowania nie ma na czacie (#56) | “The summary's card is no longer in the chat, so there is nothing to replay.” | „Karty podsumowania nie ma już na czacie, więc nie ma czego odtworzyć.” | nowy |
 
 ## 13. Why so much is rebuilt
 

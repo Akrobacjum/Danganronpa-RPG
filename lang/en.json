@@ -7164,6 +7164,8 @@
       "send": "Send to everyone",
       "sent": "Summary sent.",
       "already": "Already sent for this trial.",
+      "replay": "Replay the summary",
+      "replayNone": "The summary's card is no longer in the chat, so there is nothing to replay.",
       "noVerdict": "The summary goes out only after the verdict.",
       "title": "Case summary, chapter {chapter}",
       "speaker": "Case summary",

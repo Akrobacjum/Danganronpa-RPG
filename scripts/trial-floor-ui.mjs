@@ -1453,6 +1453,10 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // Greyed and named as sent once this trial's summary is out (the record's `summaryShown`), on every GM's console
                 { action: "caseSummary", label: game.i18n.localize(progress.summaryShown ? "DRPG.CaseSummary.shown" : "DRPG.CaseSummary.show"),
                   disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault("caseSummary") },
+                // Once it is out, this GM may play the board again on their own browser (E109, DRPG-Q113 #56; Q-E99-9).
+                ...(progress.summaryShown && !finalNow
+                    ? [{ action: "caseSummaryReplay", label: game.i18n.localize("DRPG.CaseSummary.replay") }]
+                    : []),
                 /* END OF CHAPTER, THE LAST STEP (the owner, 12.11.2026: "Tak samo end the chapter"): only while it is
                    the trial's next step - after the verdict and, in an ordinary trial, the case summary. Never the default
                    since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so the lead names it and Enter
@@ -1550,6 +1554,7 @@ const TRIAL_ACTIONS = {
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     caseSummary: async () => (await import("./case-summary.mjs")).showCaseSummary(),
+    caseSummaryReplay: async () => (await import("./case-summary.mjs")).replayCaseSummary(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
        button opened `openVerdictDialog` whatever the trial was, and in a Final Trial that is the
        ordinary verdict: executions, Level Ups, Despair and a rule, none of which the guide gives the

@@ -8996,6 +8996,8 @@
       "send": "Wyślij wszystkim",
       "sent": "Podsumowanie wysłane.",
       "already": "Już wysłane w tej rozprawie.",
+      "replay": "Odtwórz podsumowanie",
+      "replayNone": "Karty podsumowania nie ma już na czacie, więc nie ma czego odtworzyć.",
       "noVerdict": "Podsumowanie pokażesz dopiero po werdykcie.",
       "title": "Podsumowanie sprawy, rozdział {chapter}",
       "speaker": "Podsumowanie sprawy",
