@@ -710,7 +710,7 @@ export const SETTINGS = {
      * THE KEY REMNANT PLAN (E05, 1.2.64; audit S01-01, S05-02): a GM store
      * (gm-stores.mjs `keyPlanStore`), a row per chapter and slot,
      * `${chapter}:${slot}` -> { scale, name, text, analysis, note, tokenId,
-     * sceneId } (investigation.mjs `keyPlan`, `setKeyPlan`).
+     * sceneId } (key-remnants.mjs `keyPlan`, `setKeyPlan`).
      *
      * Until 1.2.64 it was the world setting `keyRemnantPlan`, and this comment
      * called that fine: the plan is what the GM intends to make findable, and

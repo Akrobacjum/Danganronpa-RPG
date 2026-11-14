@@ -731,7 +731,7 @@ export async function handleAuditDecide(payload, sender) {
     return { reply: await decideWrite(payload.rowId, payload.keep, sender.id) };
 }
 
-/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (investigation.mjs `chargeForUnfoundKeys`), what was paid or null. */
+/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (key-remnants.mjs `chargeForUnfoundKeys`), what was paid or null. */
 export async function handleKeysCharge() {
     const { chargeForUnfoundKeys } = await import("./investigation.mjs");
     return { reply: await chargeForUnfoundKeys() };

@@ -1148,7 +1148,7 @@ export const BRIDGE_ACTIONS = table({
      * THE KEY FEE, CHARGED ON THE PRIMARY GM (E09 fix r1-G3, 08.10.2026; the round-1 goal
      * review's G3a). A Class Trial opens on whichever GM moved the phase (clock.mjs
      * `reconcilePhase`); the fee counts the Key copies by the GMs' marks, which are the
-     * primary's, so another GM asks it here (investigation.mjs `askToChargeForUnfoundKeys`).
+     * primary's, so another GM asks it here (key-remnants.mjs `askToChargeForUnfoundKeys`).
      * Carries nothing: the charge reads the clock, the trial's stamp and the case on this side.
      */
     [ACTION_KEYS_CHARGE]: {

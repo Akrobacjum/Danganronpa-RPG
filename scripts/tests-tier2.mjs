@@ -1177,7 +1177,7 @@ async function closedCriticalCase(M, killer, victim, { body = true } = {}) {
 
 /**
  * THE KEY FEE, ASKED AND READ (E09 C7): the trial's "already charged" stamp cleared, the charge
- * asked as a trial's opening asks it on the primary GM (investigation.mjs `chargeForUnfoundKeys`),
+ * asked as a trial's opening asks it on the primary GM (key-remnants.mjs `chargeForUnfoundKeys`),
  * and what it moved each Monokuma's pool by - one number when every pool moved alike, else each
  * pool's, in `monokumas()` order. The pools are then put back by value and the stamp cleared
  * again, so the next ask starts where this one did. With `stamp`, `{ moved, charged }`: also
@@ -21728,7 +21728,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     ["a Key row's Save of a reshaped trace's reading sends the copies the reading alone", async () => {
         /*
-         * E09 fix r2-G5, 08.10.2026 (sec S2-2); the Key tab's road (investigation.mjs `saveKeyPlan`), the
+         * E09 fix r2-G5, 08.10.2026 (sec S2-2); the Key tab's road (key-remnants.mjs `saveKeyPlan`), the
          * Traces tab's twin beside r2-G1's "a Save of a reshaped trace's reading sends the copies the reading
          * alone". A Key row pointed at a placed trace pushes the words the GM changes on it onto the trace,
          * and until r2-G1 the trace's whole record went on to every copy. The trace copied by the reshaper
@@ -28441,7 +28441,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * rows whole: a fresh season's chapter N read as planned (`plannedChapters()`)
          * before anybody opened the planner this season, and `chargeForUnfoundKeys` billed
          * its unfound slots against a plan nobody made here. `keepOnlyKeyPlanChapter` is
-         * what the reset (season-wipe.mjs `wipeSeason`; investigation.mjs `keepSeasonKeyPlan`, the
+         * what the reset (season-wipe.mjs `wipeSeason`; key-remnants.mjs `keepSeasonKeyPlan`, the
          * keyPlan entry's keep, since E42 C3) calls instead of `clearKeyPlan` when the
          * "keyPlan" group is unticked: the one chapter the clock was on when the reset ran
          * survives, as 1.2.63's single stored plan did, and no other chapter's rows do.
@@ -28719,7 +28719,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["the Key fee is the same with Save and without", async () => {
         /*
          * E09 C7, 08.10.2026; audit S05-16, the plan's V2. A Class Trial's opening charges every Monokuma for the Key
-         * Remnants the investigation did not turn up (investigation.mjs `chargeForUnfoundKeys`), and refused as too
+         * Remnants the investigation did not turn up (key-remnants.mjs `chargeForUnfoundKeys`), and refused as too
          * late where the planner's store held rows of other chapters and none of the clock's - but any Save of the
          * planner writes the clock's chapter a row, so a trial after an earlier chapter's plan charged nothing
          * without a Save and charged after one. A chapter is planned; on the chapter after it a case of three Key
@@ -30920,7 +30920,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     ["planned kinds draw the Truth Bullet glyph by default: a planned Remnant's, a planned Final Truth's and a Key slot's picture field, left empty, shows the module's Truth Bullet drawing (config.mjs `itemIcon(\"truthBullet\")`), the plan keeps its picture empty, the placed Final Truth and a realized Key slot carry it as their Remnant's picture, and a planned Truth Bullet given with no picture carries it (1.2.113; the owner, 13.11.2026: \"let the module choose the already available Truth Bullet glyph by default\")", async () => {
         /*
-         * investigation.mjs `PLANNED_GLYPH`: `schemaEditor`'s planned Remnant and Final Truth, `keyPlanExtras` (a Key slot
+         * key-remnants.mjs `PLANNED_GLYPH`: `schemaEditor`'s planned Remnant and Final Truth, `keyPlanExtras` (a Key slot
          * not yet placed, on the Table), `traceShows` (the Traces tab's row of a placed trace with no picture) and the
          * pickers' starting folder. Fixture plans in the chapter running, none with a picture: their nodes opened on the
          * Map and the picture read, then closed (every close writes the node), and the rows read back; the first Key slot
@@ -64567,7 +64567,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 `the season before does not read its own records as this chapter's - this would measure nothing: ${stableJson(before)}`);
             const next = Math.max(Date.now() - 3600_000, (Number(clockBefore.seasonStartedAt) || 0) + 1);
             await setClock({ seasonStartedAt: next });
-            // The new season's own case: a reset drops the old one's row (investigation.mjs `keepOnlyKeyPlanChapter`).
+            // The new season's own case: a reset drops the old one's row (key-remnants.mjs `keepOnlyKeyPlanChapter`).
             must(await recordCaseKeys(chapter, 1), "could not write the new season's case count");
             await recordBodyFound({ chapter, epoch: next, at: Date.now(), by: "gm", victimIds: [] });
             // Last season's autopsy handed over in the new one: the copy is last season's too.
