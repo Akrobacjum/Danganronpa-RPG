@@ -275,10 +275,6 @@
       "citations": 11,
       "doubledJsdoc": 0
     },
-    "scripts/sheet.mjs": {
-      "citations": 5,
-      "doubledJsdoc": 0
-    },
     "scripts/sound-panel.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
@@ -333,6 +329,26 @@
     },
     "scripts/voice.mjs": {
       "citations": 2,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-repaint.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-fit.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-header.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-sidebar.mjs": {
+      "citations": 1,
+      "doubledJsdoc": 0
+    },
+    "scripts/sheet-actions.mjs": {
+      "citations": 1,
       "doubledJsdoc": 0
     }
   }
