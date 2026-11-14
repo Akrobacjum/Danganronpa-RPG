@@ -64,6 +64,9 @@ a restart loses nothing. Every number says where and how it was measured; what w
 
 ## Gate runs (this machine, 4 cores, 14.11.2026; on the tree committed as this line's first commit)
 
+- **On the tip e1afdd84** (the code commit): `node run-tests.mjs --tier 1` 1707 ran, 1692 passed, 0 failed, 16
+  skipped, 0 red, 545 s wall. The lines below are the runs made on the same tree before it was committed.
+
 - `npm run quick` in audit/harness: lint 0 problems, check 24 parts all green (after `node tools/registry.mjs --write`),
   gate self-test 37/37; `node tools/config-prose.mjs --check lang/pl.json`: missing 0, extra 0.
 - `node run-tests.mjs --tier 1`: 1707 tests ran, 1692 passed, 0 failed, 16 skipped, 0 red, 550.9 s wall. An earlier
