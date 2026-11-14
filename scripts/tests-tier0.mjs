@@ -25515,6 +25515,14 @@ const REGRESSIONS = [
         const shape = Object.fromEntries(["report", "resolveStageSix"].map(name => [name, MISS.test(fnSource(cleanup, name))]));
         equal(JSON.stringify(shape), JSON.stringify({ report: true, resolveStageSix: true }), "{each clean-up result card: whether its miss carries cleanupFailed}");
     }],
+    ["R7167 - a student's own sound goes to the players its card goes to (E59 C-115, CHAINS.md B-S4): utils.mjs `whisperToOwner` whispers every player owner (`ownerIdsOf`), and sfx-play.mjs `playSfxFor` (the Truth Bullet's and the Level Up's sounds) sent the sound to the first owner alone (`ownerOf`), while \"your turn\" and a Monocub's sound reach every owner; `playSfxFor` reads `ownerIdsOf` and sends through `playSfxForUsers`", async () => {
+        const sources = new Map(await otherSources());
+        const card = fnSource(stripComments(sources.get("utils.mjs") ?? ""), "whisperToOwner");
+        ok(/\bownerIdsOf\(/.test(card), "whisperToOwner no longer whispers every owner - this test reads the wrong card");
+        const sound = fnSource(stripComments(sources.get("sfx-play.mjs") ?? ""), "playSfxFor");
+        equal(JSON.stringify({ every: /\bownerIdsOf\(/.test(sound), first: /\bownerOf\(/.test(sound), users: /\bplaySfxForUsers\(/.test(sound) }),
+            JSON.stringify({ every: true, first: false, users: true }), "{playSfxFor: whether it reads every owner, the first alone, and sends through playSfxForUsers}");
+    }],
 ];
 
 
