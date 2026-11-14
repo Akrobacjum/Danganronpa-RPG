@@ -1427,6 +1427,16 @@ async function text() {
        must name). Since C7 (E66-28, 01.11.2026) a text the owner approved ("ok") must read its after in both languages: the
        landed line is red, naming the texts, while one still reads its before or was edited after the approval. */
     const pilotDoc = (() => { try { return JSON.parse(read(PILOT_FILE)); } catch { return null; } })();
+    /* Since E71 C0 (14.11.2026) every docs/dev/text-batch-*.json (text-render.mjs BATCH_FILES, read from the folder). The
+       owner's later word (BATCH_LATER) is held against every file's approved texts together, so a batch with none of them
+       is not red for B01a's; the control runs on each file with a pilot copy to plant in (B01a), and at least one must. */
+    const batchDocs = textRender.BATCH_FILES.map(f => { try { return JSON.parse(read(f)); } catch { return null; } });
+    const laterAll = Object.keys(textRender.BATCH_LATER ?? {});
+    const approvedAll = new Set(batchDocs.flatMap(d => (Array.isArray(d?.texts) ? d.texts : []).filter(t => t?.owner?.verdict === "ok").map(t => t.key)));
+    const strayLater = laterAll.filter(key => !approvedAll.has(key));
+    if (strayLater.length) problems.push(`batch: BATCH_LATER names ${strayLater.join(", ")}, no text of a batch file the owner approved`);
+    if (laterAll.length) console.log(`text: batch: the owner's later word supersedes the approved after of ${laterAll.length} text(s): ${laterAll.map(key => `${key} (${textRender.BATCH_LATER[key].page} ${textRender.BATCH_LATER[key].card}, ${textRender.BATCH_LATER[key].date})`).join(", ")}`);
+    let controls = 0;
     for (const BATCH_FILE of textRender.BATCH_FILES) {
         if (!exists(BATCH_FILE)) { problems.push(`batch: ${BATCH_FILE} is missing - the batch has nothing to render`); continue; }
         let batch = null;
@@ -1444,13 +1454,9 @@ async function text() {
         console.log(`text: batch: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
             + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the batch ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
         const texts = Array.isArray(batch?.texts) ? batch.texts : [];
-        /* A text the owner later asked to change (text-render.mjs BATCH_LATER; E47-FC) is not held to its approved after;
-           each is named, and a key there that is no approved text of this batch is a problem. */
-        const later = Object.keys(textRender.BATCH_LATER ?? {});
-        /* BATCH_LATER's entries are B01a's texts (E47-FC, E68 C13), so a later batch file (E71's) does not answer for them. */
-        const strayLater = BATCH_FILE !== textRender.BATCH_FILES[0] ? [] : later.filter(key => !texts.some(t => t?.key === key && t?.owner?.verdict === "ok"));
-        if (strayLater.length) problems.push(`batch: ${BATCH_FILE}: BATCH_LATER names ${strayLater.join(", ")}, no text of this batch the owner approved`);
-        if (later.length && BATCH_FILE === textRender.BATCH_FILES[0]) console.log(`text: batch: the owner's later word supersedes the approved after of ${later.length} text(s): ${later.map(key => `${key} (${textRender.BATCH_LATER[key].page} ${textRender.BATCH_LATER[key].card}, ${textRender.BATCH_LATER[key].date})`).join(", ")}`);
+        /* A text the owner later asked to change (text-render.mjs BATCH_LATER; E47-FC) is not held to its approved after
+           (named, and held to the batch files' approved texts, above the loop). */
+        const later = laterAll;
         const approved = texts.filter(t => t?.owner?.verdict === "ok" && !later.includes(t.key));
         const unlanded = approved.flatMap(t => {
             const one = textRender.batchState({ texts: [t] }, against);
@@ -1464,6 +1470,8 @@ async function text() {
            schema, which every batch file is read by, so one file is enough (E71: the batches B02-B18 have no pilot copy). */
         if (BATCH_FILE !== textRender.BATCH_FILES[0]) continue;
         const copyOf = texts.findIndex(t => t?.source === "pilot" && typeof t?.en?.before === "string");
+        if (copyOf < 0) continue;
+        controls++;
         const marked = texts.findIndex(t => t?.source === "written" && typeof t?.en?.before === "string" && /\{\w+\}/.test(t.en.before));
         const plain = texts.findIndex((t, i) => t?.source === "written" && typeof t?.en?.before === "string" && i !== marked);
         if (copyOf >= 0 && marked >= 0 && plain >= 0 && texts.length >= 4) {
@@ -1493,6 +1501,22 @@ async function text() {
             const unseen = want.filter(w => !seen.some(p => p.includes(w)));
             if (unseen.length) problems.push(`batch: the schema does not see ${unseen.map(w => JSON.stringify(w)).join(", ")} planted in a copy of ${BATCH_FILE} - it would pass a malformed batch`);
         } else problems.push(`batch: the schema's control has nothing to plant in (${texts.length} text(s); a pilot copy ${copyOf >= 0 ? "found" : "missing"}, a written text with a placeholder ${marked >= 0 ? "found" : "missing"})`);
+    }
+    if (!controls) problems.push(`batch: no batch file carries a pilot copy, so the schema's control planted nothing (${textRender.BATCH_FILES.join(", ") || "no file"})`);
+    /* And the two scopes E71 C0 gave the schema: Appendix C's list read for B01a alone, the folder read for every file. A
+       key Appendix C leaves out must be named in a B01a and passed in any other batch, and the glob must hold B01a. */
+    {
+        const b01 = batchDocs[textRender.BATCH_FILES.indexOf("docs/dev/text-batch-B01a.json")];
+        if (!b01) problems.push(`batch: the folder's read (BATCH_FILES) does not hold docs/dev/text-batch-B01a.json: ${textRender.BATCH_FILES.join(", ") || "no file"}`);
+        else {
+            const outKey = textRender.BATCH_OUT.prefixes.map(p => [...en.keys()].find(k => k.startsWith(p))).find(Boolean);
+            const sample = b01.texts.find(t => typeof t?.en?.before === "string" && t.source === "written");
+            const plant = name => ({ ...b01, batch: name, texts: [{ ...sample, key: outKey, en: { before: en.get(outKey), after: null }, pl: { before: pl.get(outKey) ?? "", after: null }, kept: null, owner: null, reviews: null }] });
+            const against = { en: new Map([...en, ...prose]), pl, surfaces: budgets?.surfaces ?? null, source: f => (exists(f) ? read(f) : null), count: T.wordCount };
+            const said = name => textRender.batchSchema(plant(name), against).some(p => p.includes("Appendix C leaves out"));
+            if (!outKey || !sample) problems.push("batch: the scope control found no key Appendix C leaves out, or no written B01a text, to plant");
+            else if (!said("B01a") || said("B99")) problems.push(`batch: Appendix C's list (BATCH_OUT) read ${said("B01a") ? "" : "not "}in B01a and ${said("B99") ? "" : "not "}in another batch - it must be read in B01a alone (${outKey})`);
+        }
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
     console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `

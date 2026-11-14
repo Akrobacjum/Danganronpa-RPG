@@ -511,7 +511,15 @@ ${body.join("\n")}
  * after, an owner's verdict on no page or on a text not written. Where the texts stand in the files is
  * `batchState`'s reading, printed and never red (C7 lands the afters); `batchSheet` renders it for the readers.
  */
-export const BATCH_FILES = Object.freeze(["docs/dev/text-batch-B01a.json"]);
+/*
+ * Every batch file, by name (E71 C0, 14.11.2026): docs/dev/text-batch-<batch>.json, read from the folder so a batch line
+ * adds its file without touching a list (four lines write batches at once). Sorted, so B01a, the model batch with the
+ * pilot copies the check's control plants in, comes first.
+ */
+export const BATCH_DIR = "docs/dev";
+export const BATCH_NAME = /^text-batch-[\w-]+\.json$/;
+export const BATCH_FILES = Object.freeze(fs.readdirSync(path.join(REPO, BATCH_DIR)).filter(f => BATCH_NAME.test(f)).sort()
+    .map(f => `${BATCH_DIR}/${f}`));
 const BATCH_TOP = Object.freeze(["$comment", "batch", "stage", "texts"]);
 const BATCH_FIELDS = Object.freeze(["key", "group", "surface", "screen", "readers", "source", "pilot", "facts", "kept", "en", "pl",
     "removed", "needsCode", "disagreements", "reviews", "owner"]);
@@ -642,7 +650,8 @@ export function batchSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
         if (!isText(t.key)) { out.push(`${at}: the key is not a text`); return; }
         if (seen.has(t.key)) out.push(`${at}: the key twice`);
         seen.add(t.key);
-        if (isOut(t.key)) out.push(`${at}: a key Appendix C leaves out of B01a (topic A's, E68's, MONOCUB, TRIAL or a table-name label)`);
+        /* Appendix C is B01a's own list (E66 C6); a later batch (E71's B02-B18) takes the keys B01a left out. */
+        if (doc.batch === "B01a" && isOut(t.key)) out.push(`${at}: a key Appendix C leaves out of B01a (topic A's, E68's, MONOCUB, TRIAL or a table-name label)`);
         const now = { en: pilotValue(en, t.key), pl: pilotValue(pl, t.key) };
         if (now.en === undefined) out.push(`${at}: not a key of lang/en.json or config.mjs's English prose${BATCH_RENAMED}`);
         if (now.pl === undefined) out.push(`${at}: not a key of lang/pl.json${BATCH_RENAMED}`);
