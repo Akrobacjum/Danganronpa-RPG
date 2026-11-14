@@ -1,0 +1,4299 @@
+{
+ "$comment": [
+  "B07, an E71 batch of group B (claude/e71-b; E71 C0-C19, the plan's batch list, with E25's content part): every key of its namespaces and of the leaves the coordinator's map of 14.11.2026 gives it was read against its code; this file holds the texts that changed, each written from its facts (O6, M1). The keys read and kept are in docs/dev/e71/STATUS-B.md's batch table.",
+  "Fields as B01a's (text-batch-B01a.json's $comment). An after equal to its before is the side the batch left as it stood. `surface`: the key's budget surface where docs/text-budgets.json's rules place it; else one named in `removed` (\"surface: ...\") that stands in for a window's line. The Polish was written from the facts, the code and the old Polish, without the new English (DB26).",
+  "Held by `node tools/check.mjs text` (tools/text-render.mjs batchSchema); the afters are the text of lang/en.json and lang/pl.json in the same commit."
+ ],
+ "batch": "B07",
+ "stage": "E71",
+ "texts": [
+  {
+   "key": "DRPG.Analyze.noBullets",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The reason shown on the greyed-out first row of the Analyze window when the character holds no Truth Bullet that can be analyzed now (none unidentified, or all locked this chapter by a failed Analyze).",
+     "file": "scripts/action-analyze.mjs",
+     "fn": "askWhatToAnalyze",
+     "note": null
+    },
+    {
+     "fact": "A Truth Bullet counts while it still shows Neutral, or is a Key or Final whose reading is not bought yet, and is not locked this chapter.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "isAnalysable",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "You have nothing left to analyze.",
+    "after": "You have nothing left to analyze."
+   },
+   "pl": {
+    "before": "Nie masz już nic do analizy.",
+    "after": "Nie masz teraz żadnego Truth Bulletu do analizy."
+   },
+   "removed": [
+    "pl: „już” zakładało, że coś było i się skończyło; wiersz jest szary też wtedy, gdy postać nie miała żadnego Truth Bulletu albo wszystkie są zablokowane.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Analyze.sent",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A small line on the player's own roll card (whispered to the character's owner and the GMs) after an Analyze of one Truth Bullet; {name} is that Truth Bullet's name.",
+     "file": "scripts/action-analyze.mjs",
+     "fn": "analyseBullet",
+     "note": null
+    },
+    {
+     "fact": "The line is added only when the GMs' side answered without a refusal; that side scores the roll by the rule (Head against a difficulty read off the bullet's real kind), no person decides.",
+     "file": "scripts/action-analyze.mjs",
+     "fn": "analyseBullet",
+     "note": null
+    },
+    {
+     "fact": "The scoring request waits for its answer, and the result card (identified, or the miss) is whispered by the scoring side before it answers; so this roll card is posted after the result card is already in the chat.",
+     "file": "scripts/bridge-table.mjs",
+     "fn": "ACTION_ANALYZE_RESOLVE",
+     "note": "the request's row has answer \"reply\"; bridge-asks.mjs requestAnalyzeResolve says the request waits for the verdict"
+    },
+    {
+     "fact": "The player does nothing more here; the result card says whether the bullet was identified or locked.",
+     "file": "scripts/analyze.mjs",
+     "fn": "identify",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    3
+   ],
+   "en": {
+    "before": "The GM is working out what {name} really is.",
+    "after": "The result for {name} is on a card of its own."
+   },
+   "pl": {
+    "before": "GM ustala, czym naprawdę jest {name}.",
+    "after": "Analizujesz Truth Bullet „{name}”. Wynik pokazuje osobna karta."
+   },
+   "removed": [
+    "\"The GM is working out\": no person works it out (fact 1), and the result is already posted when this line appears (fact 2); the line now points at the result card. Not said: which side scores it (O19).",
+    "pl: Stary tekst mówił, że GM ustala wynik, a wynik liczy reguła i karta z nim jest już na czacie.",
+    "review: en: taken - present tense, the result card is already in the chat when this line is posted (fact 2; action-analyze.mjs analyseBullet, O15)."
+   ],
+   "needsCode": [
+    "action-analyze.mjs analyseBullet posts this roll card after requestAnalyzeResolve has answered, so it lands under the result card; locateStash and locatePassage post theirs before the request (E80 fix r1-G3, E16 fix e1-G2). Posting it before the request would put the roll before its result; the after reads true either way."
+   ],
+   "disagreements": [
+    "Text against code: the before says the GM is still working the bullet out, while the code posts the line only after the result has been whispered. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Analyze.critPrompt",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The body of the GMs' card after a critical Analyze: {actor} is the character's name, {name} the Truth Bullet's name, {type} the label of its real kind, {a} the article for it.",
+     "file": "scripts/analyze.mjs",
+     "fn": "identify",
+     "note": null
+    },
+    {
+     "fact": "On a critical the bullet is identified, and the rule owes the student a big extra hint as well; the module writes none itself, a GM gives it.",
+     "file": "scripts/analyze.mjs",
+     "fn": "identify",
+     "note": null
+    },
+    {
+     "fact": "The card's buttons: Reply, which sends the GM's hint down the player's thread, and Nothing more to add, which closes it with nothing paid or refunded.",
+     "file": "scripts/analyze.mjs",
+     "fn": "identify",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{actor} identified {name} as {a} {type} on a critical - they have earned a substantial hint on top of it.",
+    "after": "{actor} identified {name} as {a} {type} on a critical, which earns them a substantial hint as well. Write the hint and send it with Reply."
+   },
+   "pl": {
+    "before": "{actor} rozpoznaje {name} jako {type} - i to na krytyku, więc należy się do tego solidna podpowiedź.",
+    "after": "{actor} identyfikuje Truth Bullet „{name}” przy krytyku: to {type}. Krytyk daje też dużą dodatkową podpowiedź; moduł jej nie pisze, więc GM pisze ją i wysyła przyciskiem Odpowiedz."
+   },
+   "removed": [
+    "The dash aside (X4) becomes one sentence; \"Reply with it.\" says what the GM does next (O7), from fact 2.",
+    "pl: X4 (dopisek po myślniku) i X11 („należy się”); {name} w bierniku łamało się przy nazwach żeńskich, więc nazwa stoi w cudzysłowie po „Truth Bullet”.",
+    "review: coldEn: taken in substance - \"Reply with it\" now names the card's own button (analyze.mjs identify: action \"reply\", DRPG.Bridge.reply \"Reply\", which sends the hint down the player's thread, fact 2); not the proposal's \"Send {actor} that hint\", which hides where it goes and repeats {actor}.",
+    "review: coldEn: taken - the dangling \"it\" is now \"the hint\".",
+    "review: pl: taken - „na krytyku” -> „przy krytyku” (PL-q).",
+    "review: pl: taken - the second „daje” goes; the GM's step names the button (DRPG.Bridge.reply „Odpowiedz”) instead of the proposal's „w odpowiedzi”. Third person kept; the group's ruling would allow the imperative on a GM card too."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Analyze.askHintHint",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The hint of the Analyze window's Ask for a hint row, a row marked as going to a GM; read by the player acting.",
+     "file": "scripts/action-analyze.mjs",
+     "fn": "askWhatToAnalyze",
+     "note": null
+    },
+    {
+     "fact": "The roll (Head) goes to the GMs as a card listing the hint thresholds; a GM answers with a hint, and a higher total earns a clearer one; a GM may also refuse, which gives the price back.",
+     "file": "scripts/action-analyze.mjs",
+     "fn": "askForHint",
+     "note": null
+    },
+    {
+     "fact": "The row is offered whether or not the character holds a Truth Bullet, outside a Class Trial only; a box for the question is shown with this row.",
+     "file": "scripts/action-analyze.mjs",
+     "fn": "askWhatToAnalyze",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "No evidence in hand - ask the GM to point you somewhere instead.",
+    "after": "Ask the GM where to look; a higher total gets a clearer hint."
+   },
+   "pl": {
+    "before": "Nie masz w ręku żadnego dowodu. Poproś GM-a o wskazówkę, gdzie szukać.",
+    "after": "Nie masz w ręku żadnego dowodu. Poproś GM-a o wskazówkę, gdzie szukać."
+   },
+   "removed": [
+    "\"No evidence in hand\": the row is offered whether or not a Truth Bullet is held (fact 2), and the dash aside (X4) goes.",
+    "\"a higher total gets a clearer hint\" from fact 1, as the owner-approved Analyze description says.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Analyze.findPassageHint",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The hint of the Find Passage row; {n} is the passage threshold of Analyze from config.",
+     "file": "scripts/action-analyze.mjs",
+     "fn": "askWhatToAnalyze",
+     "note": null
+    },
+    {
+     "fact": "The search beats the threshold or is a critical; then the character learns the oldest open secret passage here they do not know yet.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "resolvePassageSearch",
+     "note": null
+    },
+    {
+     "fact": "A miss, an empty room and the Mastermind read the same card.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "resolvePassageSearch",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Search this room's walls for a hidden way through; {n}+ opens one secret passage to you.",
+    "after": "Search this room's walls for a hidden way through; {n}+ or a critical shows you a secret passage new to you."
+   },
+   "pl": {
+    "before": "Przejrzyj ściany pokoju w poszukiwaniu ukrytej drogi; {n}+ otwiera ci jedno tajne przejście.",
+    "after": "Przejrzyj ściany pokoju w poszukiwaniu ukrytej drogi; przy {n}+ albo krytyku poznajesz nowe tajne przejście."
+   },
+   "removed": [
+    "Added \"or a critical\": a critical finds one whatever the total (fact 1), as the Find Stash hint says.",
+    "pl: „otwiera” mówiło o otwieraniu, a postać tylko poznaje przejście; brakowało krytyku i tego, że to przejście jeszcze nieznane.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - \"opens ... to you\" -> \"shows you\": the character learns the passage, it opens nothing (fact 1, passages-gm.mjs resolvePassageSearch).",
+    "review: en: taken - \"you do not know yet\" restored (fact 1, M4); \"open\" added from the same fact (the oldest open passage).",
+    "review: coldEn: rejected \"a roll of {n}+\" - the sibling held text DRPG.Analyze.findStashHint (owner-approved, not to be touched) writes \"{n}+ or a critical\" on the same window; the two rows keep one shape.",
+    "review: coldEn: taken - \"opens ... to you\" -> \"shows you\" (same as the en point).",
+    "shortened to the owner's caption rule (R3201: at most 116 characters and shorter than at 1.2.103): 108 characters in each language"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "Review against sibling: coldEn asks for \"a roll of {n}+\"; the held DRPG.Analyze.findStashHint on the same window says \"{n}+ or a critical\", so the shape stays for both rows."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Analyze.passageFound",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "passages-gm",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The card of a Find Passage that finds one, whispered to the character's owner and the GMs with the passage sound: {to} is the room the passage leads to, named as that student may name it.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "resolvePassageSearch",
+     "note": null
+    },
+    {
+     "fact": "The character now knows the passage; known passages are drawn on that player's map, and only a known, open passage lets their token through.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "resolvePassageSearch",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "There is a secret passage in this room, to {to}. Where the way is open, your map shows it.",
+    "after": "There is a secret passage in this room, to {to}. You know it now: your map shows it, and while it is open, you can go through it."
+   },
+   "pl": {
+    "before": "W tym pokoju jest tajne przejście do pokoju {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
+    "after": "W tym pokoju jest tajne przejście do pokoju {to}. Znasz je teraz: widać je na twojej mapie, a gdy jest otwarte, możesz nim przejść."
+   },
+   "removed": [
+    "pl: Drugie zdanie („Gdzie droga jest otwarta, mapa ci je pokazuje”) brzmiało nienaturalnie i myliło: mapa pokazuje znane przejścia, a otwarte tylko przepuszcza token.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: coldEn: taken in substance - \"Where the way is open, your map shows it\" was obscure and also wrong: the map shows a known passage, and only an open one lets the token through (fact 1, passages-gm.mjs resolvePassageSearch). Not the proposal's \"shows it while the way is open\", which keeps the error.",
+    "review: coldEn: the reader map, not the voice, is off - the card is whispered to the character's owner and the GMs (fact 0), the player-card convention, so \"your map\" to the finder stands (P2: the one it happened to)."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "Reader map against code: the batch row says readers gm and surface gm-diagnostics, but resolvePassageSearch whispers this card to the character's owner and the GMs (fact 0); the text is written as a player card. Code wins; the row's readers/surface are for the coordinator to correct."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Analyze.stashFound",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "stash",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the finder (and the GMs) when Find Stash opens a stash: {who} is the stash owner's name (the code also passes the room, which this text does not use).",
+     "file": "scripts/stash-reach.mjs",
+     "fn": "resolveStashSearch",
+     "note": null
+    },
+    {
+     "fact": "The stash is remembered as found for this character; while the character stands in that room, the Inventory tab of their sheet draws a panel for it listing its contents and a button to take from it, with no action and no roll.",
+     "file": "scripts/sheet.mjs",
+     "fn": "buildOpenStashSection",
+     "note": null
+    },
+    {
+     "fact": "The panel is drawn only for a stash with something in it.",
+     "file": "scripts/sheet.mjs",
+     "fn": "buildOpenStashSection",
+     "note": null
+    },
+    {
+     "fact": "The stash's owner is not told.",
+     "file": "scripts/stash-reach.mjs",
+     "fn": "resolveStashSearch",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "There is a stash here, and it is {who}'s. You can get into it now - the panel on your Inventory tab lists what is in it.",
+    "after": "You find {who}'s stash here. While you are in this room, your Inventory tab shows what is in it, and you can take from it there with no action or roll."
+   },
+   "pl": {
+    "before": "Znajdujesz tu skrytkę postaci {who}. Możesz się do niej dostać - panel w zakładce Ekwipunek pokazuje, co w niej jest.",
+    "after": "Znajdujesz tu skrytkę postaci {who}. Dopóki stoisz w tym pokoju, a w skrytce coś jest, zakładka Ekwipunek pokazuje jej zawartość i możesz z niej brać bez akcji i bez rzutu. {who} o tym nie wie."
+   },
+   "removed": [
+    "The dash aside (X4) goes; \"You can get into it now\" becomes where and when (fact 1).",
+    "\"There is a stash here, and it is {who}'s\" becomes the result first (O1).",
+    "pl: X4 (myślnik); brakowało warunków panelu (ten pokój, niepusta skrytka), braku kosztu i tego, że właściciel się nie dowiaduje.",
+    "review: en: taken - the cost (no action, no roll) from fact 1 (sheet.mjs buildOpenStashSection; M3, M4)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.general",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label of the Observe row that takes the easiest Remnant to spot here, Remnants tied to the crime first; also named on GM cards as the way of looking declared.",
+     "file": "scripts/action-observe.mjs",
+     "fn": "observeModeLine",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Sweep the room",
+    "after": "Sweep the room"
+   },
+   "pl": {
+    "before": "Rozejrzyj się za czymkolwiek",
+    "after": "Rozejrzyj się po pokoju"
+   },
+   "removed": [
+    "pl: „za czymkolwiek” przeczy faktom (bierze najłatwiejszy Remnant) i myli się z wierszem „anything”, który celuje w coś poza Remnantem.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.anything",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label of the Observe row aimed at something other than a Remnant; a row marked as going to a GM. Also named on GM cards as the way of looking declared.",
+     "file": "scripts/action-observe.mjs",
+     "fn": "observeModeLine",
+     "note": null
+    },
+    {
+     "fact": "The roll is thrown and handed to a GM as a ruling card; the GM may place a Key Remnant there, reply, or answer that nothing was there.",
+     "file": "scripts/action-observe.mjs",
+     "fn": "ruleObserve",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Examine point of interest",
+    "after": "Examine a point of interest"
+   },
+   "pl": {
+    "before": "Zbadaj punkt zainteresowania",
+    "after": "Zbadaj coś, co przykuło twoją uwagę"
+   },
+   "removed": [
+    "The dropped article (X6, telegraph style).",
+    "pl: „punkt zainteresowania” to kalka; etykieta ma mówić, że celujesz w coś poza Remnantem.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.requestPrompt",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label of the box in the Observe window where the player types what they look for, shown with the Focus your gaze and point-of-interest rows; it is filled in before the roll, in the same window.",
+     "file": "scripts/action-observe.mjs",
+     "fn": "askDeclaration",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "What were you looking for?",
+    "after": "What are you looking for?"
+   },
+   "pl": {
+    "before": "Czego szukasz?",
+    "after": "Czego szukasz?"
+   },
+   "removed": [
+    "The past tense: the box is filled in before the dice, not after (O15; fact 0).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.requestSkipped",
+   "group": "window",
+   "surface": "toast",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A notice on the acting player's own screen when they pick Focus your gaze and leave the box empty.",
+     "file": "scripts/action-observe.mjs",
+     "fn": "observeSpecific",
+     "note": null
+    },
+    {
+     "fact": "With nothing named, the Observe is scored as a sweep of the room, the easiest Remnant to spot; the action is still paid and the roll thrown.",
+     "file": "scripts/action-observe.mjs",
+     "fn": "observeSpecific",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Nothing named - read as looking around.",
+    "after": "You named nothing, so this counts as a sweep of the room."
+   },
+   "pl": {
+    "before": "Nic nie nazwano - liczy się jako zwykłe rozejrzenie.",
+    "after": "Nie wpisujesz, czego szukasz, więc Observe liczy się jako rozglądanie się po pokoju. Akcję i tak wydajesz."
+   },
+   "removed": [
+    "The dash (X4) and the dropped subject (X6) become one sentence; \"looking around\" becomes the row's own name for it, a sweep of the room (O14).",
+    "pl: X4 (myślnik) i bezosobowe „Nic nie nazwano”; brakowało, że akcja i tak jest wydana."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.failedStress",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Added after the miss line when a missed Observe cost the observer Sanity: {stress} is how much Sanity was lost (config's miss cost, less if the character is already at the limit).",
+     "file": "scripts/observe.mjs",
+     "fn": "chargeObserveMiss",
+     "note": null
+    },
+    {
+     "fact": "A character who can lose no more Sanity gets no such line.",
+     "file": "scripts/observe.mjs",
+     "fn": "chargeObserveMiss",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "You take {stress} Sanity.",
+    "after": "You lose {stress} Sanity."
+   },
+   "pl": {
+    "before": "Tracisz {stress} Sanity.",
+    "after": "Tracisz {stress} Sanity."
+   },
+   "removed": [
+    "\"take {stress} Sanity\" becomes losing it from the reserve (M7, D5), as the Polish already says.",
+    "surface: whispered to its player (whisperToOwner, read at its code site)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.projectFoundTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The bold heading of the card whispered to the observer when a look past the obvious finds a hidden secret project; it plays the project-found sound.",
+     "file": "scripts/observe.mjs",
+     "fn": "createFind",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Something here is not what it looks like",
+    "after": "Something here is not what it looks like"
+   },
+   "pl": {
+    "before": "Coś tu nie jest tym, na co wygląda",
+    "after": "Coś tu się nie zgadza"
+   },
+   "removed": [
+    "pl: Tytuł miał 8 słów przy celu 5 (T4).",
+    "review: coldEn: rejected - it is the bold heading of a chat card (observe.mjs createFind), not a window title; the body under it names the project at once (DRPG.Observe.projectFound \"... somebody has been building: {name}\"), so the heading need not, and 8 words is within the limit of 8.",
+    "review: coldEn: rejected \"A hidden project\" - it would only repeat the body's first line; the heading's job is the moment of the find."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.critIdentified",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line on the Truth Bullet received card to the observer when the Observe was a critical: the new Truth Bullet shows its real kind at once.",
+     "file": "scripts/observe.mjs",
+     "fn": "mintFindCopy",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "You found it, and you know what kind of Remnant it is.",
+    "after": "You found it, and you know what kind of Remnant it is."
+   },
+   "pl": {
+    "before": "Masz to - i wiesz, jakiego rodzaju to Remnant.",
+    "after": "Przy krytyku od razu rozpoznajesz, jakiego rodzaju to Remnant."
+   },
+   "removed": [
+    "pl: X4 (myślnik) i kalka „Masz to”.",
+    "review: pl: taken - „Na krytyku” -> „Przy krytyku” (PL-q)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.pickNote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note under the GM picker's list, which is sorted with the crime-tied Remnants at the top and then by how easy each is to spot, the easiest first.",
+     "file": "scripts/observe.mjs",
+     "fn": "observeCandidates",
+     "note": null
+    },
+    {
+     "fact": "The player has already rolled, and the total is on no card and not in the picker; the GM picks the Remnant that matches the player's words.",
+     "file": "scripts/observe.mjs",
+     "fn": "chooseObserveTarget",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Remnants tied to the crime first, then easiest to hardest. They have already rolled, and you are not shown the number - pick what matches what they asked for.",
+    "after": "Remnants tied to the crime come first, then the rest, from easiest to spot to hardest. The player has already rolled, and you do not see the total: pick the one that matches what they asked for."
+   },
+   "pl": {
+    "before": "Najpierw Remnanty powiązane ze zbrodnią, potem od najłatwiejszego do najtrudniejszego. Rzut już padł, a ty nie widzisz liczby - wybierz to, co naprawdę pasuje do prośby.",
+    "after": "Na górze listy są Remnanty powiązane ze zbrodnią, dalej pozostałe, od tych, które najłatwiej zauważyć. Gracz już rzucił, ale wyniku nie ma w tym oknie: wybierz Remnant, który pasuje do prośby gracza."
+   },
+   "removed": [
+    "The dash aside (X4) becomes a colon; the list's order is a whole sentence (X6).",
+    "pl: X4 (myślnik); „ty nie widzisz liczby” zamienione na to, gdzie wyniku nie ma.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - \"They\" -> \"The player\".",
+    "review: en: taken - \"the number is hidden from you\" -> \"you do not see the total\" (X11).",
+    "review: coldEn: taken - \"then the rest\"; \"to spot\" added from fact 0 (observe.mjs observeCandidates sorts by how easy each is to spot).",
+    "review: coldEn: taken - the antecedent of \"they\" (same as the en point).",
+    "review: pl: taken - „od tych, które najłatwiej zauważyć”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.pickConfirm",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The primary button of the GM's picker: it lands the Observe on the Remnant chosen in the list.",
+     "file": "scripts/observe.mjs",
+     "fn": "askWhichRemnant",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "That one",
+    "after": "Pick this Remnant"
+   },
+   "pl": {
+    "before": "Ten",
+    "after": "Wybierz ten Remnant"
+   },
+   "removed": [
+    "A button that was no verb (O11) now says what it does to what.",
+    "pl: Samo „Ten” na przycisku nie mówi, co się wybiera.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - the button gets its verb (O11), as the English."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.pickRefuse",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The refusal button of the GM's picker (a GM's own Observe) and of the GMs' Focus your gaze card in the player's thread.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "askObserveByCard",
+     "note": null
+    },
+    {
+     "fact": "Refused, the Observe does not end: the player has already paid and rolled, and the roll goes to a GM's ruling card, where the GM may place a Key Remnant, reply, or say nothing was there.",
+     "file": "scripts/action-observe.mjs",
+     "fn": "observeSpecific",
+     "note": null
+    },
+    {
+     "fact": "On the card, a refusal pressed after another GM answered, or too late, is told so.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "observePickOnPrimary",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Nothing matches - refuse",
+    "after": "Refuse: nothing matches"
+   },
+   "pl": {
+    "before": "Nic nie pasuje - odmów",
+    "after": "Odmów, nic nie pasuje"
+   },
+   "removed": [
+    "The dash (X4) becomes the M8 shape of a GM's decision button, the verb first (O11).",
+    "pl: X4 (myślnik na przycisku); czasownik na początek.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "Not this key's text, but its button's tooltip DRPG.Tips.Actions.nothingMatchesRefuseTooltip (left out of this batch's input) says the player keeps their action and finds nothing; action-observe.mjs observeSpecific pays and rolls before the picker, and a refused target (`!target.ok`) goes to ruleObserve, so the action stays spent and a GM rules on the roll. Code wins; the tooltip wants the same fix. observe.mjs chooseObserveTarget's comment beside the refusal (\"the player keeps their action and nothing is rolled\") is stale the same way."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.cardHint",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The body of that GMs' card: the player's words are shown on the card, the dice were thrown before it was posted, and the total is left off it.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "askObserveByCard",
+     "note": null
+    },
+    {
+     "fact": "The card's Pick a Remnant button opens, on the screen of the GM who presses it alone, a list of the Remnants the character could be shown where they stand; the pick is checked again before it is written.",
+     "file": "scripts/observe.mjs",
+     "fn": "pickFromCard",
+     "note": null
+    },
+    {
+     "fact": "The card is read by every GM; whoever answers first answers it.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "observePickOnPrimary",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "They named what they are looking for and have already rolled; the number is not on this card. Pick a Remnant shows the Remnants where they stand, on your screen alone.",
+    "after": "The player has named what they are looking for and already rolled; the number is not on this card. Pick a Remnant opens a list of the Remnants where the student stands, for the GM who presses it; the first GM to answer settles it."
+   },
+   "pl": {
+    "before": "Gracz powiedział, czego szuka, i już rzucił; liczby nie ma na tej karcie. Wybierz Remnant pokazuje Remnanty tam, gdzie stoi postać, tylko na twoim ekranie.",
+    "after": "Słowa gracza są na tej karcie, a rzut już padł; wyniku tu nie ma. Przycisk Wybierz Remnant otwiera listę Remnantów z miejsca, w którym stoi postać, tylko na ekranie GM-a, który go naciśnie. Odpowiada ten GM, który zrobi to pierwszy."
+   },
+   "removed": [
+    "\"They\" and \"your screen\" on a card every GM reads become the player, the character and the GM who presses (P1, P2).",
+    "pl: Kartę czyta każdy GM, a stary tekst mówił „na twoim ekranie” (P2); brakowało, że odpowiada pierwszy GM.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - \"for the GM who presses it alone\" -> \"opens a list ... for the GM who presses it\" (45 words, at the limit) (fact 1, observe.mjs pickFromCard).",
+    "review: en: taken - fact 2 said: \"the first GM to answer settles it\" (call-gm.mjs observePickOnPrimary; M4).",
+    "review: coldEn: taken - the ambiguous \"alone\" goes (same as the first en point).",
+    "review: coldEn: taken - \"the character\" -> \"the student\" (EN12)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.pickNotThere",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Told to the GM whose pick was not taken: the chosen Remnant is no longer among those the character may be shown in the room of the request; {name} is the character's name; the card stays open.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "observePickOnPrimary",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "That Remnant is no longer one {name} could be shown where they asked - pick again, or refuse.",
+    "after": "That Remnant can no longer be shown to {name} in the room the request came from. Pick again, or refuse."
+   },
+   "pl": {
+    "before": "Tego Remnantu nie można już pokazać postaci {name} tam, gdzie pytano - wybierz jeszcze raz albo odmów.",
+    "after": "Tego Remnantu nie można już pokazać postaci {name} w pokoju, z którego przyszło pytanie. Wybierz inny albo odmów; karta zostaje otwarta."
+   },
+   "removed": [
+    "The dash aside (X4) becomes two sentences.",
+    "pl: X4 (myślnik); brakowało, że karta zostaje otwarta.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken in substance - \"where they asked\" -> \"in the room the request came from\" (fact 0, call-gm.mjs observePickOnPrimary: the room of the request); not \"where they are looking\", which the code does not check."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.pickGone",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Told to a GM who answers a Focus your gaze card that no longer waits: the player stopped waiting, its time ran out, or another GM answered first.",
+     "file": "scripts/call-gm.mjs",
+     "fn": "observePickOnPrimary",
+     "note": null
+    },
+    {
+     "fact": "The thread's card is settled with these words too.",
+     "file": "scripts/messenger-app.mjs",
+     "fn": "rulePickObserveTrace",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Nobody is waiting on this Observe any more: its player stopped waiting, or another GM answered it first.",
+    "after": "Nobody is waiting on this Observe anymore: its player stopped waiting, its time ran out, or another GM answered it first."
+   },
+   "pl": {
+    "before": "Nikt już nie czeka na to Observe: gracz przestał czekać albo inny GM odpowiedział pierwszy.",
+    "after": "Nikt już nie czeka na to Observe: gracz przestał czekać, minął czas albo inny GM odpowiedział pierwszy."
+   },
+   "removed": [
+    "pl: Brakowało przypadku, w którym minął czas.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - \"any more\" -> \"anymore\" (EN1).",
+    "review: added while there: \"its time ran out\" from fact 0 (call-gm.mjs observePickOnPrimary), which the Polish already said (M4)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.describeIntro",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first line of the GM's describe window: {actor} is the observer's name, {room} the room; the GM writes the name and what the character sees.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{actor} found something in {room}. Name it as they would, and say what they see.",
+    "after": "{actor} found something in {room}. Name it as they would, and say what they see."
+   },
+   "pl": {
+    "before": "{actor} coś znajduje w: {room}. Nazwij to tak, jak nazwałaby to ta osoba, i powiedz, co widzi.",
+    "after": "{actor} coś znajduje w pokoju {room}. Nazwij to tak, jak nazwałaby to ta osoba, i powiedz, co widzi."
+   },
+   "removed": [
+    "pl: X12: „w: {room}” na „w pokoju {room}”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.critPrompt",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A bold line in the GM's describe window on a critical Observe, right above the box for the critical's hint.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "A critical identifies the Remnant's kind on the new Truth Bullet at once.",
+     "file": "scripts/observe.mjs",
+     "fn": "mintFindCopy",
+     "note": null
+    },
+    {
+     "fact": "The GM's hint goes onto this finder's Truth Bullet alone, never into the Remnant's description.",
+     "file": "scripts/observe.mjs",
+     "fn": "findTexts",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Critical - the category is identified for them, and they have earned a substantial hint.",
+    "after": "On a critical, the student also learns the Remnant's category and earns a substantial hint: write the hint below."
+   },
+   "pl": {
+    "before": "Krytyk - kategoria rozpoznana od razu, i należy się solidna podpowiedź.",
+    "after": "Krytyk: obserwator od razu rozpoznaje kategorię. Daj solidną podpowiedź."
+   },
+   "removed": [
+    "The dash aside (X4) and the passive \"is identified for them\" (X11) become one sentence that says what the GM does next (O7).",
+    "pl: X4, X11; zastosowana zatwierdzona para N47 (T27).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - the tenses match (\"learns ... earns\").",
+    "review: coldEn: taken - \"write it\" -> \"write the hint\"; \"they\"/\"its\" -> \"the student\"/\"the Remnant's\" (EN12)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.critHintNote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note under the critical's hint box: the hint is stored solely on the copy this student receives; the Remnant's own description, which later finders read, never carries it, and nobody else's copy shows it.",
+     "file": "scripts/observe.mjs",
+     "fn": "findTexts",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Kept on this student's Truth Bullet only. The trace's description, and everyone else who finds it, never show it.",
+    "after": "This hint goes onto this student's Truth Bullet only. The Remnant's description never shows it, and nobody else who finds the Remnant sees it."
+   },
+   "pl": {
+    "before": "Zostaje tylko na Truth Bullecie tego ucznia. Opis śladu i wszyscy inni, którzy go znajdą, nigdy tego nie pokażą.",
+    "after": "Zostaje tylko na Truth Bullecie tego ucznia. Nie trafia do opisu Remnantu ani na Truth Bullety innych, którzy go znajdą."
+   },
+   "removed": [
+    "\"trace\" becomes \"Remnant\" (DB15, the glossary's remnant).",
+    "pl: Słowo „śladu” jest zakazane (PL-r); „nigdy tego nie pokażą” zamienione na to, dokąd podpowiedź nie trafia.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - the two \"it\"s and people who \"show\" (fact 0, observe.mjs findTexts).",
+    "review: en: taken - the first sentence has its subject (X6).",
+    "review: coldEn: taken - the garbled subject (the en proposal, which says the same)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.resolveLost",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning whispered to the GMs when an Observe's roll arrives with no record of what it was aimed at here: {name} is the character's name, {total} the roll.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    },
+    {
+     "fact": "Nothing is found and the miss's Sanity is not taken; the action was paid before the roll and is not given back.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    },
+    {
+     "fact": "The GM's next step: find out from the player which way of looking they chose, and give them the Truth Bullet manually if something was there to find.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{name} rolled {total} on an Observe and this browser has no record of what they were looking at. Nothing was found and nothing was charged - the action is gone. Ask them what they declared, and hand the find over by hand if there was one.",
+    "after": "{name} rolled {total} on an Observe, but this browser holds no record of what they were looking at, so nothing was found and no Sanity was taken; the action stays spent. Ask {name} what they declared, and give them the Truth Bullet by hand if there was something to find."
+   },
+   "pl": {
+    "before": "{name} rzuca {total} na Observe, a ta przeglądarka nie ma zapisu, na co patrzyła ta osoba. Nic nie znaleziono i nic nie pobrano - akcja przepadła. Zapytaj, co było zgłoszone, a jeśli coś było do znalezienia, przekaż to ręcznie.",
+    "after": "{name} rzuca {total} na Observe, a ta przeglądarka nie ma zapisu, na co patrzyła ta osoba. Nic się nie znajduje, Sanity postaci zostaje bez zmian, a wydana akcja nie wraca. Trzeba zapytać gracza, jak się rozglądał, i jeśli było coś do znalezienia, dać mu Truth Bullet ręcznie."
+   },
+   "removed": [
+    "\"nothing was charged - the action is gone\" contradicted itself: the action is spent, only the miss's Sanity is not taken (fact 1); the dash aside (X4) goes.",
+    "pl: X4 (myślnik); „Zapytaj” mówiło w drugiej osobie do wszystkich GM-ów (P2); „nic nie pobrano” niejasne, teraz wprost: bez straty Sanity, akcja nie wraca.",
+    "review: en: taken - \"hand over the find by hand\" -> \"give them the Truth Bullet by hand\" (fact 2, observe.mjs resolveObserve).",
+    "review: en: taken - \"Ask {name}\".",
+    "review: coldEn: taken - the doubled \"hand\" (the en proposal).",
+    "review: coldEn: no change asked by its second point.",
+    "review: pl: taken - „postać nie traci Sanity” -> „Sanity postaci zostaje bez zmian” (O8, X1).",
+    "review: pl: no change asked by its second point."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.resolveLostOwner",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the character's owner alongside the GMs' warning: their Observe had no record of its target, so it was not scored.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    },
+    {
+     "fact": "Nothing is found, no Sanity is lost, and the action stays spent.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    },
+    {
+     "fact": "The player's next step: tell the GM what they declared.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Your Observe could not be scored: the GM's browser has no record of what you were looking at. Nothing was found and nothing was marked. Tell them what you declared.",
+    "after": "Your Observe could not be scored: the GM has no record of what you were looking at. You find nothing and keep your Sanity, but the action stays spent. Tell the GM what you declared."
+   },
+   "pl": {
+    "before": "Nie dało się ocenić twojego Observe: przeglądarka GM-a nie ma zapisu, na co patrzysz. Nic nie znaleziono i nic nie zaznaczono. Powiedz GM-owi, jakie było twoje zgłoszenie.",
+    "after": "Nie dało się ocenić twojego Observe: GM nie ma zapisu, na co patrzysz. Niczego nie znajdujesz i zachowujesz Sanity, ale akcja zostaje wydana. Powiedz GM-owi, jakie było twoje zgłoszenie."
+   },
+   "removed": [
+    "\"the GM's browser\" to a player (O19, T29).",
+    "\"nothing was marked\" becomes what the player keeps (M7, O8, X1); \"the action stays spent\" from fact 1.",
+    "pl: „nic nie zaznaczono” było niejasne (M7); brakowało, że akcja zostaje wydana.",
+    "review: pl: taken - „przeglądarka GM-a” goes from a player's card (O19, T29).",
+    "review: pl: taken - „nie tracisz Sanity” -> „zachowujesz Sanity” (O8, X1)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.rerollLost",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning to the GMs when a Reroll of an Observe arrives with no record of what the Observe was aimed at here.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    },
+    {
+     "fact": "The GM's next step: compare the new total with that Remnant's difficulty manually, and remove the Truth Bullet from the character if the new total no longer earns it.",
+     "file": "scripts/observe.mjs",
+     "fn": "resolveObserve",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
+    "after": "A Reroll arrived for an Observe with no record here. Score the new number against the same Remnant by hand, and take back the Truth Bullet if it no longer fits."
+   },
+   "pl": {
+    "before": "Przyszedł Reroll Observe bez zapisu tutaj. Oceń nową liczbę ręcznie względem tego samego śladu i odbierz Truth Bullet, jeśli już nie pasuje.",
+    "after": "Przychodzi Reroll rzutu na Observe, a ta przeglądarka nie ma zapisu, na co patrzyła postać. Trzeba ręcznie porównać nową liczbę z trudnością tego samego Remnantu i odebrać Truth Bullet, jeśli już się nie należy."
+   },
+   "removed": [
+    "\"trace\" becomes \"Remnant\" (DB15).",
+    "pl: Słowo „śladu” jest zakazane (PL-r); tryb rozkazujący do wielu GM-ów (P2).",
+    "review: pl: taken - „Reroll rzutu na Observe”.",
+    "review: pl: taken - present tense „Przychodzi”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.alreadyHeld",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the observer when the Remnant found is one they have a copy of already: no second copy is made.",
+     "file": "scripts/observe.mjs",
+     "fn": "alreadyHeld",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "You already hold a Truth Bullet of this trace.",
+    "after": "You already hold a Truth Bullet of this Remnant."
+   },
+   "pl": {
+    "before": "Masz już Truth Bullet tego śladu.",
+    "after": "Masz już Truth Bullet z tego Remnantu, więc drugiej kopii nie dostajesz."
+   },
+   "removed": [
+    "\"trace\" becomes \"Remnant\" (DB15).",
+    "pl: Słowo „śladu” jest zakazane (PL-r)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.alreadyDescribed",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note in the GM's describe window when the Remnant was named before; a named Remnant comes to the window only on a critical.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "The name field is read-only there: every finder's Truth Bullet takes the Remnant's one name.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "The critical's hint has its own box below the note, and goes to this finder's Truth Bullet only.",
+     "file": "scripts/observe.mjs",
+     "fn": "findTexts",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "This Remnant already has a name, and every observer is told the same one - two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
+    "after": "This Remnant already has a name, and every finder reads the same one, so you cannot change it here. Write the critical's hint in its own box below."
+   },
+   "pl": {
+    "before": "Ten Remnant ma już nazwę i każdy obserwator słyszy tę samą - dwie nazwy jednego przedmiotu to fałszywa sprzeczność, którą trzeba by potem rozplątywać w Class Trial. Krytyk kupuje większą podpowiedź, nie nową nazwę: dopisz ją poniżej.",
+    "after": "Ten Remnant ma już nazwę i każdy, kto go znajdzie, dostaje Truth Bullet z tą samą nazwą, więc tu jej nie zmienisz. Podpowiedź za krytyk wpisz w polu poniżej: trafi tylko na Truth Bullet tego ucznia."
+   },
+   "removed": [
+    "The reason for one name (the trial's false contradiction) is design rationale (O9, X2) and lives in observe.mjs createFind's comment; the dash aside (X4) and \"not a new name\" (X3) go.",
+    "pl: X4, X11 i uzasadnienie projektowe w tekście (O9, X2); brakowało, że podpowiedź trafia tylko do tego ucznia.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Passage.card.breachHeard",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "passages-gm",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to each student in a room next to either breached room: a crash, never a name; {room} is the breached room beside them as that student may name it.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "tellBreach",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "You hear a heavy crash beyond the wall, from {room}.",
+    "after": "You hear a heavy crash beyond the wall, from {room}."
+   },
+   "pl": {
+    "before": "Słyszysz zza ściany potężny łomot od strony: {room}.",
+    "after": "Słyszysz zza ściany potężny łomot od strony pokoju {room}."
+   },
+   "removed": [
+    "pl: X12: „od strony: {room}” na „od strony pokoju {room}”.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Passage.card.breachForced",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "passages-gm",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A card to the GMs alone when a breach opens a room: {room} is the room beyond the wall.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "tellBreach",
+     "note": null
+    },
+    {
+     "fact": "While the breach stands, nobody is kept out of that room by its lock or its bedroom door; it ends when the breach is closed, by the GMs' Close the breach or by a project that closes it.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "tellBreach",
+     "note": "the closing is Close the breach in the Passages tab and the Close the breach project (lang DRPG.Passage.tab.closeBreach)"
+    },
+    {
+     "fact": "When the breach also lifted a seal, a second sentence follows on the same line.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "tellBreach",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A breach forces {room} open. Until the wall is repaired, its lock and its bedroom door stop nobody.",
+    "after": "A breach forces {room} open. Until the breach is closed, nobody is kept out by its lock or, if it is a bedroom, its door."
+   },
+   "pl": {
+    "before": "Wyłom wyłamuje pokój {room}. Dopóki ściana nie zostanie naprawiona, ani zamek, ani drzwi sypialni nikogo nie zatrzymują.",
+    "after": "Wyłom otwiera drogę do pokoju {room}. Dopóki GM albo projekt go nie zamknie, ani zamek, ani drzwi sypialni tego pokoju nikogo nie zatrzymają."
+   },
+   "removed": [
+    "\"the wall is repaired\" becomes the name of what ends it, closing the breach (O14, the glossary's breach).",
+    "pl: „Wyłom wyłamuje pokój” brzmiało nienaturalnie; brakowało, kto zamyka wyłom.",
+    "review: coldEn: taken in substance - the bedroom door is a bedroom's (passages-gm.mjs tellBreach: the room beyond may have an owner, doors-gm.mjs noteBedroom), so the text says \"if it is a bedroom\"; not the proposal's bare \"door\", which loses that (fact 1, M4)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Passage.card.passageBuiltShared",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "passages-gm",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered, with the passage sound, to each student a finished Secret Passage project was shared with: {from} and {to} are the two rooms it joins, as that student may name them.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "tellPassageBuilt",
+     "note": null
+    },
+    {
+     "fact": "They now know the passage; no builder's name is on the card.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "tellPassageBuilt",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A secret passage opens to you: {from} - {to}.",
+    "after": "You now know of a secret passage between {from} and {to}."
+   },
+   "pl": {
+    "before": "Poznajesz tajne przejście: {from} - {to}.",
+    "after": "Poznajesz tajne przejście między pokojami {from} i {to}."
+   },
+   "removed": [
+    "\"{from} - {to}\" after a colon (X4's find) becomes a sentence.",
+    "pl: X4: myślnik między nazwami pokoi.",
+    "review: coldEn: taken - \"know of\".",
+    "review: coldEn: the reader map, not the voice, is off - passages-gm.mjs tellPassageBuilt whispers it to each student the project was shared with (fact 0); second person to that student stands."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "Reader map against code: the batch row says readers gm, but tellPassageBuilt whispers this card to each student the finished project was shared with (fact 0); its surface player-card is right. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Passage.gm.found",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "passages-gm",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A notice on the primary GM's screen when a Find Passage finds one: {actor} is the character's name, {from} and {to} the two rooms the passage joins.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "resolvePassageSearch",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{actor} finds the secret passage {from} - {to}.",
+    "after": "{actor} finds the secret passage between {from} and {to}."
+   },
+   "pl": {
+    "before": "{actor} znajduje tajne przejście {from} - {to}.",
+    "after": "{actor} znajduje tajne przejście między pokojami {from} i {to}."
+   },
+   "removed": [
+    "\"{from} - {to}\" (X4's find) becomes \"between {from} and {to}\".",
+    "pl: X4: myślnik między nazwami pokoi.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Passage.pick.tunnelHint",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "passages-gm",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The note after the passage note: a tunnel takes one click inside each of two rooms, which may be on different floors.",
+     "file": "scripts/passages-gm.mjs",
+     "fn": "startPassagePick",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "A tunnel: a click in each of two rooms.",
+    "after": "A tunnel: click once in each of the two rooms it joins, which may be on different floors."
+   },
+   "pl": {
+    "before": "Tunel: po kliknięciu w każdym z dwóch pokoi.",
+    "after": "Tunel to jedno kliknięcie w każdym z dwóch pokoi, także na różnych piętrach."
+   },
+   "removed": [
+    "pl: Styl telegraficzny z dwukropkiem (X6); brakowało, że pokoje mogą być na różnych piętrach.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: coldEn: taken - a verb for the GM and \"the two rooms it joins\" (X6); \"which may be on different floors\" added from fact 0 (passages-gm.mjs startPassagePick), as the Polish says."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.noneToTake",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "In the GM's Take window filtered to Truth Bullets, the item list's only entry when the chosen student holds none. {actor} is that student's name; the GM can pick another student in the same window.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "takeItemDialog",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{actor} is not carrying any Truth Bullets.",
+    "after": "{actor} is not carrying any Truth Bullets."
+   },
+   "pl": {
+    "before": "{actor} nie nosi żadnych Truth Bullets.",
+    "after": "{actor} nie ma żadnego Truth Bulletu."
+   },
+   "removed": [
+    "pl: „nosi” nie pasuje do Truth Bulletu, który jest wiedzą (N34); dopełniacz po polsku (PL-a).",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.remnantNote",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM-only note under the From a Remnant pane of Give a Truth Bullet.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletExistingPane",
+     "note": null
+    },
+    {
+     "fact": "The Truth Bullet made here copies the picked Remnant's words, kind and visibility.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletFromRemnant",
+     "note": null
+    },
+    {
+     "fact": "The name field starts with the Remnant's name; if the GM changes it, the new name is written back onto the Remnant first, so later copies of that Remnant carry the same name.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletFromRemnant",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "The bullet copies the Remnant. Renaming it renames the Remnant too.",
+    "after": "The Truth Bullet copies the Remnant. A new name here renames the Remnant too."
+   },
+   "pl": {
+    "before": "Bullet kopiuje Remnant. Zmiana nazwy zmienia też nazwę Remnantu.",
+    "after": "Truth Bullet przejmuje treść, typ i widoczność Remnantu. Zmieniona nazwa trafia najpierw na Remnant, więc kolejne kopie też ją dostaną."
+   },
+   "removed": [
+    "\"The bullet\" -> \"The Truth Bullet\": one name for the thing (O14, glossary truth-bullet).",
+    "pl: Samo „Bullet”; nie mówiło, co kopia przejmuje ani że kolejne kopie dostają nową nazwę.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.remnantEmpty",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Shown to the GM in the From a Remnant pane when no Remnant lies on any scene, and as the reason the hub's Give button is off in that case.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletExistingPane",
+     "note": null
+    },
+    {
+     "fact": "The GM can place a Remnant on a map by hand, or switch to the other choice, Write a new one, and write the Truth Bullet there.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "wireHubGive",
+     "note": null
+    },
+    {
+     "fact": "In the Give a Truth Bullet window the choice is a tab; in the hub's Give tab it is a button of a bar, so 'the other tab' was not true everywhere.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "hubGivePane",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "No Remnants on any scene. Place one on a map, or write a bullet by hand on the other tab.",
+    "after": "No Remnants on any scene. Place one on a map, or choose “Write a new one” and write the Truth Bullet there."
+   },
+   "pl": {
+    "before": "Brak Remnantów na żadnej scenie. Postaw jakiś na mapie albo napisz bullet ręcznie w drugiej zakładce.",
+    "after": "Na żadnej scenie nie ma Remnantów. Umieść Remnant na mapie albo wybierz „Napisz nowy” i wpisz Truth Bullet ręcznie."
+   },
+   "removed": [
+    "\"on the other tab\": in the hub it is a bar's button, not a tab; the text names the choice by its label instead (fact 2).",
+    "\"a bullet by hand\" -> \"the Truth Bullet\" (O14).",
+    "pl: „w drugiej zakładce” nie jest prawdą w hubie, gdzie wybór to przycisk paska; „bullet” małą literą i bez nazwy.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: en: taken - the choice, then the act (fact 1, gm-items.mjs wireHubGive).",
+    "review: coldEn: taken - the label in quotes, as DRPG.Remnant.deathTied quotes “Not tied” and the Polish „Napisz nowy” (label DRPG...tabWriteNew \"Write a new one\")."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.gave",
+   "group": "window",
+   "surface": "toast",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM after a Truth Bullet was given: {actor} is the receiver, {item} the Truth Bullet's name, in quotes (DB31).",
+     "file": "scripts/gm-items.mjs",
+     "fn": "giveBulletNow",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{actor} received the Truth Bullet “{item}”.",
+    "after": "{actor} received the Truth Bullet “{item}”."
+   },
+   "pl": {
+    "before": "{actor} dostaje Truth Bullet: „{item}”.",
+    "after": "{actor} dostaje Truth Bullet „{item}”."
+   },
+   "removed": [
+    "pl: Dwukropek przed nazwą w cudzysłowie w środku zdania (X12); nazwa i tak stoi w „...” (PL-g)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.name",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "investigation",
+   "readers": [
+    "both",
+    "gm",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label of a Truth Bullet's name field in the GM's windows: Give a Truth Bullet (both panes), the Autopsy window, the case Map's planned bullet and Autopsy, Observe's describe window, and the GM's Remnant card.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletCreatePane",
+     "note": null
+    },
+    {
+     "fact": "The name is what the player sees on the Truth Bullet in their inventory.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "tellBulletGiven",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Name - this is what the player sees",
+    "after": "Name (what the player sees)"
+   },
+   "pl": {
+    "before": "Nazwa - to widzi gracz",
+    "after": "Nazwa widoczna dla gracza"
+   },
+   "removed": [
+    "The dash aside (X4): the same words now stand in brackets, as the field \"What it really is (GM only)\" beside it writes its aside.",
+    "pl: Myślnik doklejający dopowiedzenie (X4).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.shownAuto",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "investigation",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first option of the select of what the player sees: let the rules decide. Key, Autopsy, and Final bullets then show their kind at once (a Key's or a Final's reading still waits for Analyze); every other kind shows as Neutral.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletShownSelect",
+     "note": null
+    },
+    {
+     "fact": "The kinds that name themselves on pickup are SELF_EVIDENT.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "SELF_EVIDENT",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "By the rules",
+    "after": "By the rules"
+   },
+   "pl": {
+    "before": "Wg zasad",
+    "after": "Według zasad"
+   },
+   "removed": [
+    "pl: Skrót „Wg” w etykiecie opcji; pełne słowo czyta się naturalniej.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.shownNeutral",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "investigation",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The second option of the select of what the player sees: the bullet shows as Neutral and is not identified, whatever its real kind, so the holder has to Analyze it to learn it.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletShownSelect",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Neutral - they must analyze it",
+    "after": "Neutral (they must analyze it)"
+   },
+   "pl": {
+    "before": "Neutral - muszą to przeanalizować",
+    "after": "Neutral, posiadacz musi użyć Analyze"
+   },
+   "removed": [
+    "The dash aside (X4): the same words in brackets.",
+    "pl: Myślnik (X4); „muszą to” to liczba mnoga zamiast posiadacza (X13), a Analyze jako nazwa akcji (PL-k).",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.shownReal",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "investigation",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The third option of the select of what the player sees: the bullet shows its real kind and is already identified and read, so no Analyze is needed.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletFromForm",
+     "note": "bulletFromForm sets analyzed true for this option"
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "The real type - no analysis needed",
+    "after": "The real type (no analysis needed)"
+   },
+   "pl": {
+    "before": "Prawdziwy typ - bez analizy",
+    "after": "Prawdziwy typ, już zidentyfikowany"
+   },
+   "removed": [
+    "The dash aside (X4): the same words in brackets.",
+    "pl: Myślnik (X4); „bez analizy” nie mówiło, że Truth Bullet jest od razu zidentyfikowany i odczytany.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.faintField",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "investigation",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A checkbox in Write a new one and on a planned Truth Bullet: the bullet is Faint.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "bulletCreatePane",
+     "note": null
+    },
+    {
+     "fact": "A Faint Truth Bullet is a doubtful link to the case, and the chapter's end sweep leaves it with its holder, while other bullets are collected.",
+     "file": "scripts/chapter.mjs",
+     "fn": "faintOf",
+     "note": "the sweep's spares (Faint, Final) are named in chapter.mjs's header and around its sweep"
+    },
+    {
+     "fact": "The mechanic's name is Faint (D14); the same window's badge and the Remnants table's column say Faint.",
+     "file": null,
+     "fn": null,
+     "note": "D14: Faint stays; no glossary entry of its own; read in docs/glossary.json, a document with no function"
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Doubtful (stays after the chapter ends)",
+    "after": "Faint (stays after the chapter ends)"
+   },
+   "pl": {
+    "before": "Wątpliwy (zostaje po końcu rozdziału)",
+    "after": "Faint (zostaje u posiadacza po zakończeniu rozdziału)"
+   },
+   "removed": [
+    "\"Doubtful\" -> \"Faint\": the checkbox names the mechanic as its badge and the Remnants table do (O14, D14); \"doubtful\" stays only in the badge's tooltip, which says what Faint means.",
+    "pl: Mechanika nazywa się Faint (D14), a plakietka i kolumna mówią Faint; „Wątpliwy” rozjeżdżał się z nimi.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: pl: taken - „po zakończeniu rozdziału”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.faintTooltip",
+   "group": "window",
+   "surface": "tooltip",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the Faint badge on a Truth Bullet's inventory row; the badge shows only once the bullet is identified. Player and GM.",
+     "file": "scripts/sheet.mjs",
+     "fn": "bulletBadges",
+     "note": null
+    },
+    {
+     "fact": "Faint means a doubtful link to the case.",
+     "file": null,
+     "fn": null,
+     "note": "the handbook's Faint Remnant row: 'Doubtful connection to the case'; read in docs/handbooks/player-handbook.en.md, a document with no function"
+    },
+    {
+     "fact": "At the chapter's end the GM's sweep collects Truth Bullets, but a Faint one stays with its holder.",
+     "file": "scripts/chapter.mjs",
+     "fn": "faintOf",
+     "note": "chapter.mjs's header: the evidence is cleared out, Faint excepted"
+    },
+    {
+     "fact": "The old text said it survives into the next session; what it survives is the chapter's end, not a session.",
+     "file": "scripts/chapter.mjs",
+     "fn": "faintOf",
+     "note": null
+    }
+   ],
+   "kept": [
+    1,
+    2
+   ],
+   "en": {
+    "before": "Doubtful. Survives into the next session and can be analyzed again.",
+    "after": "A doubtful link to the case. This Truth Bullet stays with its holder when the chapter ends."
+   },
+   "pl": {
+    "before": "Wątpliwy. Przetrwa do następnej sesji i można go analizować ponownie.",
+    "after": "Wątpliwy związek ze sprawą. Gdy na koniec rozdziału GM zbiera Truth Bullets, ten zostaje u posiadacza."
+   },
+   "removed": [
+    "\"Survives into the next session\": wrong; it is the chapter's end it stays through (fact 3).",
+    "\"and can be analyzed again\": a passive that hides the reader (X11), and on an identified bullet, the only one this badge is drawn on, there is no Analyze left to make; whether a locked bullet can be tried again next chapter is the locked badge's tooltip.",
+    "pl: Mówiło o następnej sesji, a chodzi o koniec rozdziału; ponowna analiza nie wynika z Faint.",
+    "review: en: taken - \"with you\" -> \"with its holder\" on a tooltip the GM also reads (P1, P2).",
+    "review: en: taken - the holder from fact 2 (chapter.mjs faintOf)."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The old text tied Faint to the next session; the code keeps a Faint Truth Bullet through the chapter's end sweep (chapter.mjs). Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.locked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A badge on a Truth Bullet's inventory row when its holder's Analyze of it missed this chapter; the Analyze button is gone until the next chapter.",
+     "file": "scripts/sheet.mjs",
+     "fn": "bulletBadges",
+     "note": null
+    },
+    {
+     "fact": "The lock is the chapter of the miss: the bullet can be analyzed again once the chapter changes.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "isAnalysable",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Analyzed in vain",
+    "after": "Analyzed in vain"
+   },
+   "pl": {
+    "before": "Analiza na nic",
+    "after": "Nieudana analiza"
+   },
+   "removed": [
+    "pl: „Analiza na nic” brzmi potocznie i nie jak plakietka.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.lockedTooltip",
+   "group": "window",
+   "surface": "tooltip",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the locked badge on a Truth Bullet's row; player and GM.",
+     "file": "scripts/sheet.mjs",
+     "fn": "bulletBadges",
+     "note": null
+    },
+    {
+     "fact": "A missed Analyze locks that bullet for its holder for the rest of the chapter; from the next chapter it can be analyzed again.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "isAnalysable",
+     "note": null
+    },
+    {
+     "fact": "A copy handed to another student is not locked for them and can be analyzed.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "READ_ON_ANALYZE",
+     "note": "the comment above READ_ON_ANALYZE: a copy handed to somebody else can still be read"
+    }
+   ],
+   "kept": [
+    1,
+    2
+   ],
+   "en": {
+    "before": "Analysis failed this chapter. Try next chapter, or hand a copy on.",
+    "after": "This Truth Bullet's holder missed on Analyze. They can try again next chapter, and another student given a copy can analyze it."
+   },
+   "pl": {
+    "before": "Analiza nie powiodła się w tym rozdziale. Spróbuj w następnym albo przekaż kopię dalej.",
+    "after": "Po pudle na Analyze ten Truth Bullet jest zablokowany tylko do końca rozdziału. Kopię przekazaną innemu uczniowi można analizować od razu."
+   },
+   "removed": [
+    "Telegraph style (X6): \"Analysis failed this chapter. Try next chapter\" written as whole sentences to the reader (O4).",
+    "pl: Druga osoba w tooltipie, który czyta też GM; „przekaż kopię dalej” brzmiało jak rada, a fakt to, że cudza kopia nie jest zablokowana.",
+    "review: en: taken in substance - the holder, not \"you\" (P1, P2); not the proposal's wording, which is 25 words over the tooltip limit of 23 - this is 22.",
+    "review: en: taken - fact 2 said: another student given a copy can analyze it (truth-bullets.mjs READ_ON_ANALYZE).",
+    "review: pl: taken - 26 -> 21 words (T4 limit 23), both facts kept.",
+    "review: pl: taken - no second person.",
+    "review: pl: taken - no second person (third point, same)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.playerTextPlaceholder",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "investigation",
+   "readers": [
+    "both",
+    "gm",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The example in the empty box of words the finder reads, in Write a new one, Observe's describe window and the GM's Remnant card; GM only.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "What the person who found it actually sees.",
+    "after": "What the player who finds it sees."
+   },
+   "pl": {
+    "before": "Co naprawdę widzi osoba, która to znalazła.",
+    "after": "Co naprawdę widzi osoba, która to znalazła."
+   },
+   "removed": [
+    "\"actually\": a filler (X10, T5's finding); nothing set against appearance here.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - \"the player\" as the sibling field says, present \"finds\" for a placeholder written before any find."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.analyzedTextNote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM note under the reading box in Observe's describe window and on the GM's Remnant card.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "The box is optional; left empty, Analyze still names the bullet's category.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "A holder reads the reading after a hit on Analyze, or at once when the Observe that found the Remnant was a critical (the copy is made analyzed).",
+     "file": "scripts/observe.mjs",
+     "fn": "createFind",
+     "note": "createFind passes analyzed: isCritical ? true : null"
+    },
+    {
+     "fact": "Nobody else reads it: it waits in the bullet's secret.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "createTruthBullet",
+     "note": null
+    }
+   ],
+   "kept": [
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "Optional. Only a student who passes Analyze on this trace ever reads it; leave it empty and Analyze still names the category.",
+    "after": "Optional. Only the holder of a Truth Bullet from this Remnant reads it: on a hit on Analyze, or at once if they found the Remnant on a critical. If the box is empty, Analyze still names the category."
+   },
+   "pl": {
+    "before": "Pole opcjonalne. Przeczyta to tylko uczeń, któremu uda się Analyze na tym śladzie. Puste nie psuje niczego - Analyze i tak nazwie kategorię.",
+    "after": "Pole nieobowiązkowe. Czyta je tylko posiadacz kopii: po trafieniu na Analyze albo od razu, jeśli znalazł Remnant przy krytyku na Observe. Puste pole niczego nie psuje, bo Analyze i tak poda kategorię."
+   },
+   "removed": [
+    "\"trace\" -> \"Remnant\" (DB15, EN15, glossary remnant).",
+    "The critical find added (fact 2): the old text said only Analyze reads it, and a critical Observe's copy is read at once.",
+    "pl: Słowo „ślad” (PL-r, DB15) i myślnik (X4); brakowało krytyka na Observe.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - \"passes Analyze\" -> \"on a hit on Analyze\" (EN8, DB18).",
+    "review: en: taken - Analyze is made on the holder's Truth Bullet, not on the Remnant: \"the holder of a Truth Bullet from this Remnant\" (fact 2-3, observe.mjs createFind, truth-bullets.mjs createTruthBullet); not the proposal's \"a student who ... analyzes it\", which again puts the Analyze on the Remnant.",
+    "review: pl: taken - „krytykiem” -> „przy krytyku” (PL-q)."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The old text named Analyze as the only road to the reading; observe.mjs createFind makes a critical find's copy analyzed, so it is read at once. Code wins; the text now says both."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.secretNote",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note at the foot of Give a Truth Bullet and of the hub's Give tab when Truth Bullet is chosen; GM only.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "hubGivePane",
+     "note": null
+    },
+    {
+     "fact": "The real kind and the GM's note go into the bullet's secret, which only GMs hold; the kind the player is shown, and the words for the player, are on the item.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "createTruthBullet",
+     "note": null
+    },
+    {
+     "fact": "Several GMs may share a table: every GM sees them, not one.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "createTruthBullet",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Only the GM sees the type and the note.",
+    "after": "Only GMs see what it really is and the GM's note."
+   },
+   "pl": {
+    "before": "Typ i notatkę widzi tylko GM.",
+    "after": "Prawdziwy typ i notatkę GM-a widzą tylko GM-owie. Gracz widzi typ, który mu pokazano, i opis dla gracza."
+   },
+   "removed": [
+    "\"the type\" -> \"what it really is\": the player does see a type (the shown one); only the real one is the GMs' (fact 1).",
+    "\"the GM\" -> \"GMs\": every GM of the table holds the secret (fact 2).",
+    "pl: „tylko GM” brzmiało jak jeden GM przy stole, przy którym może być kilku; nie mówiło, co widzi gracz.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.reallyTooltip",
+   "group": "window",
+   "surface": "tooltip",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the GM-only real-kind badge, used when the bullet has no GM's note (with a note, the note is the tooltip).",
+     "file": "scripts/sheet.mjs",
+     "fn": "bulletBadges",
+     "note": null
+    },
+    {
+     "fact": "The badge is drawn only for a GM, and only while the real kind differs from what the player is shown.",
+     "file": "scripts/sheet.mjs",
+     "fn": "bulletBadges",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "GM only - what this Truth Bullet actually is.",
+    "after": "What this Truth Bullet really is. Only GMs see this."
+   },
+   "pl": {
+    "before": "Tylko GM - czym ten Truth Bullet naprawdę jest.",
+    "after": "Czym ten Truth Bullet jest naprawdę. Widzi to tylko GM."
+   },
+   "removed": [
+    "The dash aside (X4): \"GM only\" is a sentence of its own.",
+    "\"actually\" -> \"really\", the badge's own word (X10's finding).",
+    "pl: Myślnik doklejający dopowiedzenie (X4)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.autopsyHint",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The note at the top of the GM's Autopsy window.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "issueAutopsyDialog",
+     "note": null
+    },
+    {
+     "fact": "An Autopsy Truth Bullet tells the state of the body: when it was found and the cause of death. It is handed over, never rolled for, and arrives identified and tied to the murder.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "issueAutopsy",
+     "note": null
+    },
+    {
+     "fact": "The window lists every student; the living are ticked, the dead start unticked. Each ticked student gets a copy and a card.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "issueAutopsyDialog",
+     "note": null
+    },
+    {
+     "fact": "When the case plan holds an Autopsy not sent yet, the window opens filled in with it, and sending it from here marks it sent.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "issueAutopsyDialog",
+     "note": null
+    },
+    {
+     "fact": "Planned Autopsies are also sent on their own when their body is found, to every living student, with no GM click.",
+     "file": "scripts/case-realize.mjs",
+     "fn": "sendPlannedAutopsy",
+     "note": null
+    },
+    {
+     "fact": "The old text said everyone is ticked and asked the GM to untick the victim; the code already leaves the dead unticked.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "issueAutopsyDialog",
+     "note": null
+    }
+   ],
+   "kept": [
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "The state of the body - the time it was discovered, and the cause of death. Handed out at the start of every Investigation, never rolled for. Everyone is ticked; untick the victim.",
+    "after": "The state of the body: when it was found and how the victim died. It is handed over, never rolled for. Each ticked student gets a copy; the living start ticked, the dead unticked. When the case plan holds an Autopsy not yet sent, this window opens filled in with it, and sending it from here marks it sent."
+   },
+   "pl": {
+    "before": "Stan ciała - godzina odkrycia i przyczyna śmierci. Wydawany na początku każdego Investigation, nigdy nie rzuca się o niego. Wszyscy są zaznaczeni; odznacz ofiarę.",
+    "after": "Autopsy Truth Bullet opisuje stan ciała: kiedy je znaleziono i co było przyczyną śmierci. Wydajesz go bez rzutu; trafia do uczniów już zidentyfikowany i powiązany z morderstwem. Na początku zaznaczeni są żywi uczniowie, a każdy zaznaczony dostaje kopię i kartę. Jeśli plan sprawy ma jeszcze niewysłany Autopsy Truth Bullet, okno otwiera się nim wypełnione, a wysłanie go stąd oznacza go jako wysłany. Gdy ktoś znajdzie ciało, zaplanowany Autopsy Truth Bullet wychodzi sam do żywych uczniów."
+   },
+   "removed": [
+    "\"Handed out at the start of every Investigation\": the window is opened by hand at any time, and planned Autopsies go out on their own at the body's discovery (fact 4); the GM handbook carries that.",
+    "\"Everyone is ticked; untick the victim\": wrong, the dead are already unticked (fact 5).",
+    "The dash after the first phrase (X4) is a colon.",
+    "pl: Myślnik (X4); „na początku każdego Investigation” nie wynika z kodu; kazało odznaczać ofiarę, a zmarli już są odznaczeni.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: en: taken - fact 3 whole: the condition (the case plan holds one not sent) and that sending it from here marks it sent (gm-items.mjs issueAutopsyDialog).",
+    "review: en: taken - \"Each ticked student gets a copy\" (fact 2, M4).",
+    "review: coldEn: taken - what the tick means (each ticked student gets a copy).",
+    "review: coldEn: taken - the noun pile becomes a clause with its condition.",
+    "review: pl: taken - the case: „Wydajesz go bez rzutu; trafia do uczniów już zidentyfikowany i powiązany”.",
+    "review: pl: taken - „Na początku zaznaczeni są żywi uczniowie” (fact 2).",
+    "review: pl: taken - „jeszcze niewysłany”, and, beyond the proposal, the condition and the marking as sent of fact 3, as the English."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The old text said every student is ticked and the GM should untick the victim; gm-items.mjs issueAutopsyDialog ticks the living only (isDeadForGm). Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.autopsyIssue",
+   "group": "window",
+   "surface": "toast",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The main button of the Autopsy window: it gives one Autopsy Truth Bullet to each ticked student and whispers each a card.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "issueAutopsyDialog",
+     "note": null
+    },
+    {
+     "fact": "A button is a verb with its object (O11).",
+     "file": null,
+     "fn": null,
+     "note": "O11; read in docs/text-style.md, a document with no function"
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Issue",
+    "after": "Issue the Autopsy"
+   },
+   "pl": {
+    "before": "Wydaj",
+    "after": "Wydaj Autopsy"
+   },
+   "removed": [
+    "The bare verb gets its object (O11).",
+    "pl: Przycisk bez dopełnienia (O11).",
+    "surface: a notification (ui.notifications, read at its code site)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.autopsyIssued",
+   "group": "window",
+   "surface": "toast",
+   "screen": "gm-items",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM after the Autopsy window gave its bullets; {n} is how many students got one (a plural family; zero takes this form).",
+     "file": "scripts/gm-items.mjs",
+     "fn": "issueAutopsyDialog",
+     "note": null
+    },
+    {
+     "fact": "Only students are listed in the window (studentActors), and the character in the fiction is a student (DB24, EN12).",
+     "file": "scripts/gm-items.mjs",
+     "fn": "issueAutopsyDialog",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": {
+     "one": "Autopsy Truth Bullet issued to {n} character.",
+     "other": "Autopsy Truth Bullet issued to {n} characters."
+    },
+    "after": {
+     "one": "Autopsy Truth Bullet issued to {n} student.",
+     "other": "Autopsy Truth Bullet issued to {n} students."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Autopsy Truth Bullet wydany {n} postaci.",
+     "few": "Autopsy Truth Bullet wydany {n} postaciom.",
+     "many": "Autopsy Truth Bullet wydany {n} postaciom.",
+     "other": "Autopsy Truth Bullet wydany {n} postaciom."
+    },
+    "after": {
+     "one": "Autopsy Truth Bullet trafia do {n} ucznia.",
+     "few": "Autopsy Truth Bullet trafia do {n} uczniów.",
+     "many": "Autopsy Truth Bullet trafia do {n} uczniów.",
+     "other": "Autopsy Truth Bullet trafia do {n} ucznia."
+    }
+   },
+   "removed": [
+    "\"characters\" -> \"students\" (EN12, DB24).",
+    "pl: „postaci” zamiast ucznia (PL-s); imiesłów „wydany” bez orzeczenia w rodzinie (PL7).",
+    "review: pl: taken - one predicate with Truth Bullet as subject, the count in the genitive after „do” (PL7), right for zero (many) as for every other n."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.migratedTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "file:scripts/truth-bullets.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The heading of a card whispered to the GMs once, when the migration brings Truth Bullets made by an older version of the module up to the current shape; a list of each bullet's holder, name and visibility follows.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "migrateTruthBullets",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Truth Bullets brought up to date",
+    "after": "Truth Bullets updated"
+   },
+   "pl": {
+    "before": "Truth Bullets zaktualizowane",
+    "after": "Aktualizacja Truth Bullets"
+   },
+   "removed": [
+    "Six words for a title over the window-title target of five (T4).",
+    "pl: Imiesłów bez orzeczenia jako tytuł karty brzmiał telegraficznie (X6)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.migrated",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/truth-bullets.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The line of the GMs' migration card; {n} is how many Truth Bullets were brought up to date (a plural family).",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "migrateTruthBullets",
+     "note": null
+    },
+    {
+     "fact": "Each now has a kind, a visibility and a chapter; the visibility is recovered exactly from the old tier field.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "migrateTruthBullets",
+     "note": null
+    },
+    {
+     "fact": "Their real kinds cannot be recovered, so each is written as Neutral in the secret; the card lists them below.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "migrateTruthBullets",
+     "note": null
+    },
+    {
+     "fact": "To give one its real kind, the GM takes it away and gives one with that kind, from Give / take items.",
+     "file": "scripts/gm-items.mjs",
+     "fn": "takeItemDialog",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": {
+     "one": "{n} Truth Bullet made before this version now carries a type, a visibility, and a chapter. Its real type could not be recovered, so it is recorded as Neutral - correct it from Give / take items if it matters.",
+     "other": "{n} Truth Bullets made before this version now carry a type, a visibility, and a chapter. Their real type could not be recovered, so each is recorded as Neutral - correct the ones that matter from Give / take items."
+    },
+    "after": {
+     "one": "{n} Truth Bullet from an older version now has a type, a visibility, and a chapter. Its real type was lost, so it is recorded as Neutral. If that matters, take it away and give one with its real type in Give / take items.",
+     "other": "{n} Truth Bullets from an older version now have a type, a visibility, and a chapter. Their real types were lost, so each is recorded as Neutral. Where that matters, take one away and give one with its real type in Give / take items."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "{n} Truth Bullet sprzed tej wersji ma teraz typ, widoczność i rozdział. Jego prawdziwego typu nie dało się odzyskać, więc zapisano go jako Neutral - popraw w Daj / zabierz przedmioty, jeśli to ważne.",
+     "few": "{n} Truth Bullets sprzed tej wersji mają teraz typ, widoczność i rozdział. Ich prawdziwych typów nie dało się odzyskać, więc każdy zapisano jako Neutral - popraw te, które mają znaczenie, w Daj / zabierz przedmioty.",
+     "many": "{n} Truth Bullets sprzed tej wersji ma teraz typ, widoczność i rozdział. Ich prawdziwych typów nie dało się odzyskać, więc każdy zapisano jako Neutral - popraw te, które mają znaczenie, w Daj / zabierz przedmioty.",
+     "other": "{n} Truth Bullets sprzed tej wersji ma teraz typ, widoczność i rozdział. Ich prawdziwych typów nie dało się odzyskać, więc każdy zapisano jako Neutral - popraw te, które mają znaczenie, w Daj / zabierz przedmioty."
+    },
+    "after": {
+     "one": "{n} Truth Bullet ze starszej wersji modułu ma teraz typ, widoczność i rozdział. Widoczność odtworzono dokładnie, ale prawdziwego typu nie, więc zapisano go jako Neutral. Żeby nadać mu prawdziwy typ, GM zabiera go w Daj / zabierz przedmioty i daje nowy z tym typem.",
+     "few": "{n} Truth Bullety ze starszej wersji modułu mają teraz typ, widoczność i rozdział. Widoczność odtworzono dokładnie, ale prawdziwych typów nie, więc każdy zapisano jako Neutral; lista jest poniżej. Żeby nadać któremuś prawdziwy typ, GM zabiera go w Daj / zabierz przedmioty i daje nowy z tym typem.",
+     "many": "{n} Truth Bulletów ze starszej wersji modułu ma teraz typ, widoczność i rozdział. Widoczność odtworzono dokładnie, ale prawdziwych typów nie, więc każdy zapisano jako Neutral; lista jest poniżej. Żeby nadać któremuś prawdziwy typ, GM zabiera go w Daj / zabierz przedmioty i daje nowy z tym typem.",
+     "other": "{n} Truth Bulletu ze starszej wersji modułu ma teraz typ, widoczność i rozdział. Widoczność odtworzono dokładnie, ale prawdziwych typów nie, więc każdy zapisano jako Neutral; lista jest poniżej. Żeby nadać któremuś prawdziwy typ, GM zabiera go w Daj / zabierz przedmioty i daje nowy z tym typem."
+    }
+   },
+   "removed": [
+    "The dash aside (X4) is a sentence.",
+    "\"correct the ones that matter from Give / take items\": the hub only takes and gives (fact 3).",
+    "pl: Myślnik (X4); „popraw” w drugiej osobie na karcie dla wszystkich GM-ów (P2); nie mówiło, jak się poprawia typ (zabrać i dać nowy).",
+    "review: pl: taken - the counted noun inflected (PL-a), „Truth Bullety / Truth Bulletów / Truth Bulletu”, as pl.json writes it elsewhere; predicates unchanged."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "As .one: no correction field exists; take and give anew. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.editReverted",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/truth-bullets.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A card whispered to the GMs when a player changed a guarded field of a Truth Bullet they hold (its name, its words, its kind) and the module put the old value back.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "revertPlayerBulletEdit",
+     "note": null
+    },
+    {
+     "fact": "{player} is the player's name, {bullet} the bullet's name (the restored one).",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "revertPlayerBulletEdit",
+     "note": null
+    },
+    {
+     "fact": "Only a GM writes a Truth Bullet's contents; a player's edit is undone.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "revertPlayerBulletEdit",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{player} changed their Truth Bullet “{bullet}” - what it says or what it is. The change was put back: only a GM writes on evidence.",
+    "after": "{player} changed what their Truth Bullet “{bullet}” says or what it is. The change was undone: only a GM can change evidence."
+   },
+   "pl": {
+    "before": "{player} zmienił swój Truth Bullet „{bullet}” - to, co mówi, albo to, czym jest. Zmiana została cofnięta: dowody zapisuje tylko GM.",
+    "after": "{player} zmienia nazwę, opis albo typ swojego Truth Bulletu „{bullet}”. Moduł cofnął tę zmianę, bo treść Truth Bulletu zapisuje tylko GM."
+   },
+   "removed": [
+    "The dash aside (X4) folded into the sentence.",
+    "pl: Myślnik (X4); „zmienił” w czasie przeszłym nie zgadza się z imieniem kobiety (PL17)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.TruthBullet.editUnrestored",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/truth-bullets.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A card whispered to the GMs when a player changed a guarded field of a Truth Bullet and the module held no earlier value of that field to restore.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "revertPlayerBulletEdit",
+     "note": null
+    },
+    {
+     "fact": "The change stays on that one copy as the player wrote it; it is never carried up to the Remnant or to other copies.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "revertPlayerBulletEdit",
+     "note": null
+    },
+    {
+     "fact": "{player} is the player's name, {bullet} the bullet's name. The GMs are told to check it themselves.",
+     "file": "scripts/truth-bullets.mjs",
+     "fn": "revertPlayerBulletEdit",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{player} changed the Truth Bullet “{bullet}”, and there was no record of it to put it back from. The change stayed on that one copy and went no further. Check it by hand.",
+    "after": "{player} changed the Truth Bullet “{bullet}”. There is no record of what it said before, so the change stays on that copy alone. Check it by hand."
+   },
+   "pl": {
+    "before": "Truth Bullet „{bullet}” został zmieniony przez: {player}, a nie było zapisu, z którego dałoby się go przywrócić. Zmiana została na tej jednej kopii i nie poszła dalej. Sprawdź go ręcznie.",
+    "after": "{player} zmienia Truth Bullet „{bullet}”, a moduł nie ma wcześniejszej wersji, którą mógłby przywrócić. Zmiana zostaje tylko na tej kopii i nie trafia do Remnantu ani do innych kopii. Trzeba ją sprawdzić ręcznie."
+   },
+   "removed": [
+    "\"there was no record of it to put it back from\" and \"went no further\" said shorter (T29, O2).",
+    "pl: „przez: {player}” (X12); „Sprawdź” w drugiej osobie na karcie dla wszystkich GM-ów (P2).",
+    "review: coldEn: taken - \"There is no record of what it said before\", and the needless comma goes (facts 0-1, truth-bullets.mjs revertPlayerBulletEdit)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.reinforced",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/remnants.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM when a removal of a Remnant (removeRemnant, the module's API) is refused because the Remnant is Reinforced; the Remnant and its row stay.",
+     "file": "scripts/remnants.mjs",
+     "fn": "removeRemnant",
+     "note": null
+    },
+    {
+     "fact": "Reinforced is a mechanic's name and capitalized, as in Incident Remnant (Evident, Reinforced) (EN18, DB6).",
+     "file": null,
+     "fn": null,
+     "note": "EN18; read in docs/text-style.md, a document with no function"
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "That Remnant is reinforced and cannot be removed.",
+    "after": "That Remnant is Reinforced, so it stays on the map."
+   },
+   "pl": {
+    "before": "Ten Remnant jest Reinforced i nie da się go usunąć.",
+    "after": "Ten Remnant jest Reinforced, więc nie można go usunąć. Zostaje na mapie i w tabeli."
+   },
+   "removed": [
+    "\"cannot be removed\": a passive (X11); the result is said instead (what the GM keeps, O8).",
+    "pl: Nie mówiło, że Remnant i jego wiersz zostają."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.foundTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The heading of a card whispered to the GMs at once (out of the digest) when a student copies a Remnant as a Truth Bullet and no GM has written that Remnant's words yet.",
+     "file": "scripts/remnants.mjs",
+     "fn": "revealRemnantToFinder",
+     "note": null
+    },
+    {
+     "fact": "The player is waiting for the GM to describe it; a Remnant a GM has edited stays in the digest.",
+     "file": "scripts/remnants.mjs",
+     "fn": "whisperTraceNow",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A Remnant was copied, and nobody has said what it is",
+    "after": "A found Remnant no GM has described"
+   },
+   "pl": {
+    "before": "Skopiowano Remnant, a nikt nie powiedział, czym jest",
+    "after": "Skopiowany Remnant bez opisu"
+   },
+   "removed": [
+    "Eleven words over the window-title limit of eight (T4); \"was copied\" is said by \"found\".",
+    "pl: Tytuł ponad budżet (T4: 8 słów przy 5)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.reinforcedShort",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A tag after a middle dot on the small line of a Remnant's card in the GMs' digest, when the Remnant is Reinforced (no student can erase or reshape it).",
+     "file": "scripts/remnants.mjs",
+     "fn": "traceCard",
+     "note": null
+    },
+    {
+     "fact": "Reinforced is a mechanic's name, capitalized (EN18), as the Remnants table's column writes it.",
+     "file": "scripts/investigation.mjs",
+     "fn": "caseTraceCells",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "reinforced",
+    "after": "Reinforced"
+   },
+   "pl": {
+    "before": "Reinforced",
+    "after": "Reinforced"
+   },
+   "removed": [
+    "Lowercase -> Title Case for the mechanic's name (EN6, EN13, EN18).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.faintKept",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/remnants.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM who unticked the Faint box of a Remnant whose kind is Faint Remnant: a Faint Remnant is always Faint, so the box is written ticked again.",
+     "file": "scripts/remnants.mjs",
+     "fn": "writeKind",
+     "note": null
+    },
+    {
+     "fact": "To have the box off, the GM changes the Remnant's kind first.",
+     "file": "scripts/remnants.mjs",
+     "fn": "writeKind",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A Faint Remnant is always Faint, so its Faint box was ticked again. To untick it, give the Remnant another kind.",
+    "after": "A Faint Remnant is always Faint, so the box is ticked again. To untick it, change the Remnant's kind."
+   },
+   "pl": {
+    "before": "Faint Remnant jest zawsze Faint, więc jego pole Faint zostało zaznaczone z powrotem. Żeby je odznaczyć, nadaj Remnantowi inny rodzaj.",
+    "after": "Faint Remnant jest zawsze Faint, więc pole Faint znów jest zaznaczone. Żeby je odznaczyć, najpierw zmień rodzaj Remnantu."
+   },
+   "removed": [
+    "Twenty-one words over the toast target (T4): \"its Faint box\" -> \"the box\", \"give the Remnant another kind\" -> \"change the Remnant's kind\".",
+    "pl: „zostało zaznaczone z powrotem” i „nadaj inny rodzaj” brzmiały jak kalka; brak „najpierw”.",
+    "review: pl: taken - the kind's name alone as the subject."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.deathTied",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A card whispered to the GMs when a victim of the chapter dies: every Remnant of that chapter whose tie nobody had decided is tied to the murder; {n} is how many.",
+     "file": "scripts/remnants.mjs",
+     "fn": "tieChapterTraces",
+     "note": null
+    },
+    {
+     "fact": "A Remnant set to Not tied is left alone; the GM sets the unrelated ones to Not tied in the Investigation's Remnants table.",
+     "file": "scripts/investigation.mjs",
+     "fn": "TIE_OPTIONS",
+     "note": null
+    },
+    {
+     "fact": "While the death is kept secret, the students' copies learn the tie only when the body is found.",
+     "file": "scripts/remnants.mjs",
+     "fn": "tieChapterTraces",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": {
+     "one": "The victim is dead: {n} Remnant from this chapter nobody had decided about is now marked as tied to the murder. Set the accidental ones to “Not tied” in the Investigation. The students' copies learn the tie when the body is found.",
+     "other": "The victim is dead: {n} Remnants from this chapter nobody had decided about are now marked as tied to the murder. Set the accidental ones to “Not tied” in the Investigation. The students' copies learn the tie when the body is found."
+    },
+    "after": {
+     "one": "The victim is dead, so {n} Remnant of this chapter whose tie was undecided is now tied to the murder. If it is unrelated, set it to “Not tied” in the Investigation. While the death is kept secret, students' copies show the tie only once the body is found.",
+     "other": "The victim is dead, so {n} Remnants of this chapter whose tie was undecided are now tied to the murder. Set the unrelated ones to “Not tied” in the Investigation. While the death is kept secret, students' copies show the tie only once the body is found."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Ofiara nie żyje: {n} Remnant z tego rozdziału, o którym nikt nie zdecydował, jest teraz oznaczony jako powiązany z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+     "few": "Ofiara nie żyje: {n} Remnanty z tego rozdziału, o których nikt nie zdecydował, są teraz oznaczone jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+     "many": "Ofiara nie żyje: {n} Remnantów z tego rozdziału, o których nikt nie zdecydował, jest teraz oznaczonych jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+     "other": "Ofiara nie żyje: {n} Remnantów z tego rozdziału, o których nikt nie zdecydował, jest teraz oznaczonych jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione."
+    },
+    "after": {
+     "one": "Ofiara nie żyje, więc {n} Remnant z tego rozdziału, o którego powiązaniu nikt nie zdecydował, jest teraz powiązany z morderstwem. Remnanty oznaczone jako „Niepowiązany” zostają bez zmian. GM może tak oznaczyć Remnant bez związku ze sprawą w zakładce Remnanty panelu Investigation. Jeśli śmierć jest tajemnicą, kopie uczniów poznają powiązanie dopiero, gdy ktoś znajdzie ciało.",
+     "few": "Ofiara nie żyje, więc {n} Remnanty z tego rozdziału, o których powiązaniu nikt nie zdecydował, są teraz powiązane z morderstwem. Remnanty oznaczone jako „Niepowiązany” zostają bez zmian. GM może tak oznaczyć Remnant bez związku ze sprawą w zakładce Remnanty panelu Investigation. Jeśli śmierć jest tajemnicą, kopie uczniów poznają powiązanie dopiero, gdy ktoś znajdzie ciało.",
+     "many": "Ofiara nie żyje, więc {n} Remnantów z tego rozdziału, o których powiązaniu nikt nie zdecydował, jest teraz powiązanych z morderstwem. Remnanty oznaczone jako „Niepowiązany” zostają bez zmian. GM może tak oznaczyć Remnant bez związku ze sprawą w zakładce Remnanty panelu Investigation. Jeśli śmierć jest tajemnicą, kopie uczniów poznają powiązanie dopiero, gdy ktoś znajdzie ciało.",
+     "other": "Ofiara nie żyje, więc {n} Remnantu z tego rozdziału, o których powiązaniu nikt nie zdecydował, jest teraz powiązane z morderstwem. Remnanty oznaczone jako „Niepowiązany” zostają bez zmian. GM może tak oznaczyć Remnant bez związku ze sprawą w zakładce Remnanty panelu Investigation. Jeśli śmierć jest tajemnicą, kopie uczniów poznają powiązanie dopiero, gdy ktoś znajdzie ciało."
+    }
+   },
+   "removed": [
+    "Shorter, as .one; 42 words over the gm-card target (T4, report only).",
+    "pl: „Przypadkowym ustaw” w drugiej osobie na karcie dla wszystkich GM-ów (P2); kopie miały poznać powiązanie zawsze przy znalezieniu ciała, a to dotyczy tylko śmierci trzymanej w tajemnicy; brak „Niepowiązany zostaje bez zmian”.",
+    "review: en: taken - the condition of fact 2: only while the death is kept secret (remnants.mjs tieChapterTraces, M4).",
+    "review: coldEn: taken - \"whose tie was undecided\"; its proposal's unconditional last sentence not taken (fact 2).",
+    "review: pl: taken - GM as the subject at the head of the sentence.",
+    "review: pl: no change asked by its second point.",
+    "review: The imperative on this GM card stays in the English (group B's ruling: a whisperToGms card may say what to do); the Polish keeps its third person, which the ruling also allows."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.noToken",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/remnants.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast on the browser where an action that leaves a Remnant ran, when the acting student has no token on any scene: no Remnant is placed. {actor} is that student.",
+     "file": "scripts/remnants.mjs",
+     "fn": "dropRemnant",
+     "note": null
+    },
+    {
+     "fact": "At the same moment a warning card goes to the GMs naming the student and the action, so they can place one by hand.",
+     "file": "scripts/remnants.mjs",
+     "fn": "dropRemnant",
+     "note": null
+    },
+    {
+     "fact": "The reader is usually the acting player (the action runs on their browser).",
+     "file": "scripts/remnants.mjs",
+     "fn": "dropRemnant",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{actor} has no token on any scene, so the Remnant could not be left. Tell the GM.",
+    "after": "{actor} has no token on any scene, so no Remnant was left. A note about it went to the GM."
+   },
+   "pl": {
+    "before": "{actor} nie ma tokenu na żadnej scenie, więc nie dało się zostawić Remnantu. Powiedz GM-owi.",
+    "after": "{actor} nie ma tokenu na żadnej scenie, więc Remnant nie powstał. GM dostał o tym wiadomość i może go położyć ręcznie."
+   },
+   "removed": [
+    "\"Tell the GM\": the GMs are already told by a card at the same moment (fact 1); the text says so instead of asking the reader to do it.",
+    "\"could not be left\": a passive (X11).",
+    "pl: „Powiedz GM-owi”, choć GM-owie dostają kartę w tej samej chwili."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.noTokenGm",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/remnants.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The warning card whispered to the GMs when an action that should leave a Remnant ran for a student with no token on any scene; no Remnant was placed. {actor} is the student, {action} the action.",
+     "file": "scripts/remnants.mjs",
+     "fn": "dropRemnant",
+     "note": null
+    },
+    {
+     "fact": "{action} is passed as the action's internal id (search, sabotage, dynamic ...), not its localized name, so the card shows the raw id.",
+     "file": "scripts/remnants.mjs",
+     "fn": "dropRemnant",
+     "note": "dropRemnant formats with action: escapeHTML(action); actionLabel/actionLabelOf exist beside it"
+    },
+    {
+     "fact": "The GM can place a Remnant by hand if it matters.",
+     "file": "scripts/remnants.mjs",
+     "fn": "dropRemnant",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{actor} performed “{action}” with no token anywhere, so no Remnant was placed. Place one by hand if it matters.",
+    "after": "{actor} performed “{action}” with no token anywhere, so no Remnant was placed. Place one by hand if it matters."
+   },
+   "pl": {
+    "before": "{actor} - akcja „{action}” bez tokenu gdziekolwiek, więc nie postawiono Remnantu. Postaw go ręcznie, jeśli to ważne.",
+    "after": "{actor} wykonuje akcję „{action}” bez tokenu na żadnej scenie, więc Remnant nie powstał. Jeśli to ważne, GM może go położyć ręcznie."
+   },
+   "removed": [
+    "pl: Myślnik (X4); „Postaw” w drugiej osobie na karcie dla wszystkich GM-ów (P2)."
+   ],
+   "needsCode": [
+    "dropRemnant passes {action} as the raw id (\"search\", \"resolution\" ...); it should pass actionLabelOf(action) (remnants.mjs), the name the Remnant card's Action row shows, so the card reads the action's name in either language."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.leftBy",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A row label on the GMs' Remnant digest card (before a colon) and the head of the report's column: who left the Remnant.",
+     "file": "scripts/remnants.mjs",
+     "fn": "traceCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Left by",
+    "after": "Left by"
+   },
+   "pl": {
+    "before": "Zostawił",
+    "after": "Kto zostawił"
+   },
+   "removed": [
+    "pl: „Zostawił” przed imieniem kobiety nie zgadza się w rodzaju (PL17); „kto” zawsze łączy się z formą męską."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.authorLabel",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "investigation",
+   "readers": [
+    "gm",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The label of the who-left-it select on a planned Final and Key Remnant and in the Investigation; that field is the GMs' alone.",
+     "file": "scripts/investigation.mjs",
+     "fn": "keyPlanExtras",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Left by (GMs only)",
+    "after": "Left by (GMs only)"
+   },
+   "pl": {
+    "before": "Zostawił (tylko GM-owie)",
+    "after": "Kto zostawił (tylko GM-owie)"
+   },
+   "removed": [
+    "pl: „Zostawił” przed wybranym imieniem kobiety nie zgadza się w rodzaju (PL17).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.authorReplace",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/remnant-ring.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The question of that confirm window; {was} is the student the Remnant names now (or the unknown word), {now} the one the GM picked.",
+     "file": "scripts/remnant-ring.mjs",
+     "fn": "wireCardEditing",
+     "note": null
+    },
+    {
+     "fact": "A student a GM sets as the one who left it counts as a player-left author: Observe's preference for one's own Remnants, an incident's tie, and Tamper read it.",
+     "file": "scripts/remnant-ring.mjs",
+     "fn": "wireCardEditing",
+     "note": "the comment above the author select: acts as a player's (Q2)"
+    },
+    {
+     "fact": "Answering no puts the select back; yes writes the author.",
+     "file": "scripts/remnant-ring.mjs",
+     "fn": "wireCardEditing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "This Remnant names {was} as the one who left it. Name {now} instead? It counts as theirs from now on, as a Remnant a player left would: Observe, an incident's tie, and Tamper read it.",
+    "after": "This Remnant names {was} as the one who left it. Name {now} instead? Observe, Tamper, and an incident's tie then treat it as left by {now}."
+   },
+   "pl": {
+    "before": "Ten Remnant przypisano postaci {was}. Przypisać go zamiast tego postaci {now}? Od teraz liczy się jako Remnant tej osoby, tak jak Remnant zostawiony przez gracza: czytają go Observe, wiązanie z incydentem i Tamper.",
+    "after": "Ten Remnant jest przypisany postaci {was}. Przypisać go postaci {now}? Wtedy liczy się jak Remnant zostawiony przez gracza: uwzględniają go Observe, powiązanie z incydentem i Tamper."
+   },
+   "removed": [
+    "\"It counts as theirs from now on, as a Remnant a player left would\" said shorter (T29, O2); the three readers kept, with the Oxford comma (EN2).",
+    "pl: „Remnant tej osoby, tak jak...” było rozwlekłe; „czytają go” zmienione na „uwzględniają go”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.revealWarning",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/remnants.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A toast to the GM who reveals a Remnant's token on the map: the token is the GM's note, and revealing it shows it to everyone at the table; the reveal still goes ahead.",
+     "file": "scripts/remnants.mjs",
+     "fn": "revealRemnant",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Remnants are your notes. Revealing this puts it on the map for everyone.",
+    "after": "Remnants are your notes. Revealing this puts it on the map for everyone."
+   },
+   "pl": {
+    "before": "Remnanty to twoje notatki. Ujawnienie tego stawia go na mapie dla wszystkich.",
+    "after": "Token Remnantu to twoja notatka. Po ujawnieniu widzą go wszyscy przy stole."
+   },
+   "removed": [
+    "pl: „Ujawnienie tego stawia go na mapie” było niejasne; token już stoi na mapie, ujawnienie pokazuje go wszystkim."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.dynamicNote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The note written on the Remnant a Dynamic Action leaves, read by the GMs on the Remnant card and the digest; {actor} the student, {room} the room, {total} the roll, {what} the player's description of what they did.",
+     "file": "scripts/action-dynamic.mjs",
+     "fn": "performDynamic",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{actor} did something in {room} (roll {total}): {what}",
+    "after": "{actor} did something in {room} (roll {total}): {what}"
+   },
+   "pl": {
+    "before": "{actor} coś zrobił w pokoju {room} (rzut {total}): {what}",
+    "after": "{actor} robi coś w pokoju {room} (rzut {total}): {what}"
+   },
+   "removed": [
+    "pl: „zrobił” w czasie przeszłym nie zgadza się z imieniem kobiety (PL17).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.searchNote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The note on the Remnant a Search leaves (a find that counts as a Murder Weapon or a cleaning tool), read by the GMs on the Remnant card and the digest.",
+     "file": "scripts/action-search.mjs",
+     "fn": "leaveSearchTrace",
+     "note": null
+    },
+    {
+     "fact": "{actor} the searcher, {room} the room, {category} the category searched for, {total} the roll, {item} the thing found, in quotes, {tier} its tier. Written again on a Reroll.",
+     "file": "scripts/reroll.mjs",
+     "fn": "settleSearch",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{actor} searched {room} for a {category} (rolled {total}) and came away with “{item}” - Tier {tier}.",
+    "after": "{actor} searched {room} for a {category} (rolled {total}) and came away with “{item}”, Tier {tier}."
+   },
+   "pl": {
+    "before": "{actor} - przeszukanie: {room} ({category}, rzut {total}), wynik: „{item}” - Tier {tier}.",
+    "after": "{actor} przeszukuje pokój {room} ({category}, rzut {total}) i znajduje „{item}” (Tier {tier})."
+   },
+   "removed": [
+    "The dash before the tier (X4) is a comma.",
+    "pl: Myślniki (X4) i „przeszukanie: {room}” (X12).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.sabotageFailed",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The outcome sentence of the Sabotage note on a miss: the project is untouched; the Remnant the note sits on was still left.",
+     "file": "scripts/action-project.mjs",
+     "fn": "dropSabotageTrace",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "It failed - the project is untouched, but the attempt left a Remnant.",
+    "after": "It failed: the project is untouched, but the attempt still left this Remnant."
+   },
+   "pl": {
+    "before": "Nie udało się - projekt nietknięty, ale próba zostawiła Remnant.",
+    "after": "Nie udało się. Projekt jest nietknięty, ale próba i tak zostawiła Remnant."
+   },
+   "removed": [
+    "The dash aside (X4) is a colon; \"a Remnant\" -> \"this Remnant\", since the note is on it.",
+    "pl: Myślnik doklejający dopowiedzenie (X4).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.cardPlayer",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/remnant-ring.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The text of the card a player sees on a Remnant token they hold no copy of (a revealed or found Remnant on the map).",
+     "file": "scripts/remnant-ring.mjs",
+     "fn": "playerRemnantCard",
+     "note": null
+    },
+    {
+     "fact": "Its meaning is not given: the player learns it by using Observe in that room, which copies a Remnant there as a Truth Bullet.",
+     "file": "scripts/observe.mjs",
+     "fn": "createFind",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Something here is out of place. What it means is not obvious from looking - Observe the room to work it out.",
+    "after": "Something here is out of place, and looking at it does not tell you what it means. Observe the room to find out."
+   },
+   "pl": {
+    "before": "Coś tu nie pasuje. Co to znaczy, nie widać na pierwszy rzut oka - użyj Observe w tym pokoju, by to ustalić.",
+    "after": "Coś tu nie pasuje, ale nie widać od razu, co to znaczy. Użyj Observe w tym pokoju: przy trafieniu dostaniesz Remnant stąd jako Truth Bullet."
+   },
+   "removed": [
+    "The dash aside (X4) is a sentence of its own.",
+    "pl: Myślnik (X4); nie mówiło, że Observe kopiuje Remnant jako Truth Bullet.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.cardUnread",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/remnant-ring.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note on a player's Remnant card when their copy shows its kind (a Key or a Final) but its reading still waits for an Analyze.",
+     "file": "scripts/remnant-ring.mjs",
+     "fn": "playerRemnantCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Not analysed yet. Analyze it to read the rest.",
+    "after": "Not analyzed yet. Analyze it to read the rest."
+   },
+   "pl": {
+    "before": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę.",
+    "after": "Typ już znasz, ale resztę odczytasz dopiero po Analyze."
+   },
+   "removed": [
+    "\"analysed\" -> \"analyzed\" (EN1, DB9, glossary analyze).",
+    "pl: „przeanalizowane” w rodzaju nijakim nie zgadza się z kopią (Truth Bullet, Remnant są męskie, PL-b); nie mówiło, że typ już widać.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.keptOnTokens",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/remnants.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The same notification for several tokens; {n} is how many.",
+     "file": "scripts/remnants.mjs",
+     "fn": "migrateRemnantsOnce",
+     "note": null
+    },
+    {
+     "fact": "Token flags are held by every browser at the table, players' included.",
+     "file": "scripts/remnants.mjs",
+     "fn": "migrateRemnantsOnce",
+     "note": null
+    },
+    {
+     "fact": "The console's warning names each token; game.drpg.migrateRemnants() takes them once a GM has set each Remnant in the Investigation.",
+     "file": "scripts/remnants.mjs",
+     "fn": "migrateRemnantsOnce",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": {
+     "one": "{n} Remnant keeps flags of its answer key on its token, which every browser holds: the migration had no row to carry them into, or a later correction stood against them. game.drpg.migrateRemnants() in the console names it.",
+     "other": "{n} Remnants keep flags of their answer keys on their tokens, which every browser holds: the migration had no row to carry them into, or a later correction stood against them. game.drpg.migrateRemnants() in the console names each."
+    },
+    "after": {
+     "one": "{n} Remnant still keeps part of its answer key on its token, which players can read. The console names it: set it in the Investigation, then run game.drpg.migrateRemnants().",
+     "other": "{n} Remnants still keep part of their answer keys on their tokens, which players can read. The console names each: set them in the Investigation, then run game.drpg.migrateRemnants()."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "{n} Remnant zachowuje na swoim żetonie, który ma każda przeglądarka, flagi klucza odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli go wskazuje.",
+     "few": "{n} Remnanty zachowują na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli wskazuje każdy.",
+     "many": "{n} Remnantów zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli wskazuje każdy.",
+     "other": "{n} Remnantu zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli wskazuje każdy."
+    },
+    "after": {
+     "one": "{n} Remnant ma na tokenie flagi klucza odpowiedzi, a tokeny widzi każda przeglądarka, także graczy. Konsola podaje jego scenę i id; gdy zapiszesz go w Investigation, game.drpg.migrateRemnants() je przeniesie.",
+     "few": "{n} Remnanty mają na tokenach flagi klucza odpowiedzi, a tokeny widzi każda przeglądarka, także graczy. Konsola podaje scenę i id każdego; gdy zapiszesz je w Investigation, game.drpg.migrateRemnants() przeniesie flagi.",
+     "many": "{n} Remnantów ma na tokenach flagi klucza odpowiedzi, a tokeny widzi każda przeglądarka, także graczy. Konsola podaje scenę i id każdego; gdy zapiszesz je w Investigation, game.drpg.migrateRemnants() przeniesie flagi.",
+     "other": "{n} Remnantu ma na tokenach flagi klucza odpowiedzi, a tokeny widzi każda przeglądarka, także graczy. Konsola podaje scenę i id każdego; gdy zapiszesz je w Investigation, game.drpg.migrateRemnants() przeniesie flagi."
+    }
+   },
+   "removed": [
+    "The reason cut (T29), kept in the console's warning; 37 words over the toast limit of 30 (T4): now 28.",
+    "pl: Ponad limit toastu (T4: 33 słowa przy 30); „żeton” zamiast „token”; nie mówiło, że migrateRemnants() działa dopiero po ustawieniu Remnantu w Investigation.",
+    "review: pl: taken - „Konsola podaje scenę i id”.",
+    "review: pl: no change asked by its second point."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.cardEditNote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/remnant-ring.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM note under the editable player's half of the GM's Remnant card.",
+     "file": "scripts/remnant-ring.mjs",
+     "fn": "gmRemnantCard",
+     "note": null
+    },
+    {
+     "fact": "Each field is saved when the GM leaves it.",
+     "file": "scripts/remnant-ring.mjs",
+     "fn": "wireCardEditing",
+     "note": null
+    },
+    {
+     "fact": "A change is copied to every Truth Bullet already copied from this Remnant (only the field changed).",
+     "file": "scripts/remnants.mjs",
+     "fn": "setRemnantPublic",
+     "note": null
+    },
+    {
+     "fact": "The token is not given the words: it keeps its neutral name and icon, and a write puts them back if it said more.",
+     "file": "scripts/remnants.mjs",
+     "fn": "propagatePublic",
+     "note": null
+    }
+   ],
+   "kept": [
+    1,
+    2
+   ],
+   "en": {
+    "before": "Saved when you leave the field, and copied onto the token and every Truth Bullet taken from this Remnant.",
+    "after": "Saved when you leave the field. Every Truth Bullet copied from this Remnant takes the change."
+   },
+   "pl": {
+    "before": "Zapisywane, gdy opuścisz pole, i kopiowane na token oraz każdy Truth Bullet wzięty z tego Remnantu.",
+    "after": "Każde pole zapisuje się, gdy je opuścisz. Zmiana trafia do każdego Truth Bulletu skopiowanego już z tego Remnantu, a token zachowuje neutralną nazwę i ikonę."
+   },
+   "removed": [
+    "\"copied onto the token\": wrong, the token keeps its neutral name (fact 3).",
+    "pl: Mówiło, że treść trafia na token, a token zachowuje neutralną nazwę.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "The old text said the words are copied onto the token; remnants.mjs propagatePublic keeps the token's neutral name and icon. Code wins."
+   ],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.report.reinforcedNote",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The legend under the report: a star after a Remnant marks it Reinforced.",
+     "file": "scripts/remnants.mjs",
+     "fn": "reportRemnants",
+     "note": null
+    },
+    {
+     "fact": "A Reinforced Remnant cannot be erased (Erase a Trace) or reshaped by anyone, not the killer alone.",
+     "file": "scripts/config.mjs",
+     "fn": "CLEANUP",
+     "note": "the approved hints DRPG.Config.ACTIONS.tamper.hint and DRPG.Cleanup.transformActionHint: unless it is Reinforced; non-Reinforced"
+    },
+    {
+     "fact": "Reinforced is a mechanic's name, capitalized (EN18).",
+     "file": null,
+     "fn": null,
+     "note": "EN18; read in docs/text-style.md, a document with no function"
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "★ = reinforced, and the killer cannot remove it.",
+    "after": "★ marks a Reinforced Remnant: no student can erase or reshape it."
+   },
+   "pl": {
+    "before": "★ = Reinforced, zabójca nie może go usunąć.",
+    "after": "★ oznacza Reinforced: takiego Remnantu nikt nie usunie ani nie przekształci."
+   },
+   "removed": [
+    "\"the killer cannot remove it\": anybody's Tamper is refused on it, not the killer's alone (fact 1).",
+    "pl: Mówiło, że nie może go usunąć zabójca, a Reinforced chroni przed każdym i także przed przekształceniem."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.report.noneScene",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The report's only line when the scene asked for holds no Remnant.",
+     "file": "scripts/remnants.mjs",
+     "fn": "reportRemnants",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "None on this scene.",
+    "after": "None on this scene."
+   },
+   "pl": {
+    "before": "Brak na tej scenie.",
+    "after": "Na tej scenie nie ma Remnantów."
+   },
+   "removed": [
+    "pl: „Brak na tej scenie.” bez rzeczownika brzmiało telegraficznie (X6)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.report.noneAnywhere",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The report's only line when no scene holds a Remnant.",
+     "file": "scripts/remnants.mjs",
+     "fn": "reportRemnants",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "None anywhere.",
+    "after": "None anywhere."
+   },
+   "pl": {
+    "before": "Brak gdziekolwiek.",
+    "after": "Na żadnej scenie nie ma Remnantów."
+   },
+   "removed": [
+    "pl: „Brak gdziekolwiek.” nie jest naturalnym polskim zdaniem."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Remnant.discardNote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/use-items.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The note on the Remnant left when a student throws away a broken item, read by the GMs; {actor} the student, {item} the item's name, {room} the room, {total} the roll.",
+     "file": "scripts/use-items.mjs",
+     "fn": "discardBroken",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{actor} threw away {item} in {room} (rolled {total}).",
+    "after": "{actor} threw away “{item}” in {room} (rolled {total})."
+   },
+   "pl": {
+    "before": "{actor} - wyrzucone {item} w: {room} (rzut {total}).",
+    "after": "{actor} wyrzuca „{item}” w pokoju {room} (rzut {total})."
+   },
+   "removed": [
+    "The item's name in quotes (EN17, DB31; T23's finding).",
+    "pl: Myślnik (X4), „w: {room}” (X12) i nazwa przedmiotu bez cudzysłowu (PL-g, T23).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.describeTitle",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The title of the GM's window that opens after a student's Observe finds a Remnant nobody has described: the GM names what the student found and writes what the student sees; on a critical the GM also writes the critical's hint.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "The window body already names the student and the room (Observe.describeIntro); the title names the window's subject.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "Read by the GM only.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Observe - what do they see?",
+    "after": "Observe: what the student sees"
+   },
+   "pl": {
+    "before": "Observe - co widać?",
+    "after": "Znalezisko z Observe"
+   },
+   "removed": [
+    "The dash and the question (X4, a dash that tacks an aside on; a window title is not a sentence, section 3). \"they\" had no person named in the title: \"the student\" (EN12).",
+    "pl: A dash and a question (X4, X21) in a GM's window title; the title now names the window's subject.",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Observe.describeConfirm",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "observe",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The primary button of the GM's describe window after an Observe: it confirms the name, the text the player reads and, optionally, what analysis reveals and the critical's hint.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "What the GM confirms becomes the finder's Truth Bullet, a copy of the Remnant in the finder's inventory; closing the window does not block the result (the code makes the find with defaults).",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    },
+    {
+     "fact": "Read by the GM only.",
+     "file": "scripts/observe.mjs",
+     "fn": "describeFind",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Hand it over",
+    "after": "Give the Truth Bullet"
+   },
+   "pl": {
+    "before": "Przekaż",
+    "after": "Przekaż Truth Bullet"
+   },
+   "removed": [
+    "\"it\": a button is a verb with its object (O11); the object is now named.",
+    "pl: „Przekaż” did not say what the button makes; what the GM confirms becomes the finder's Truth Bullet.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl: taken - „Przekaż Truth Bullet”, the old verb with its object (O11).",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  }
+ ]
+}
