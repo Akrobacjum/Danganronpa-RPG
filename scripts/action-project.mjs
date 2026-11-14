@@ -195,7 +195,8 @@ export async function startProject(actor) {
     const rooms = allRooms(locateActor(actor)?.scene);
 
     const scaleOptions = Object.entries(PROJECT_SCALE)
-        .map(([key, s]) => `<option value="${s.progress}"${key === "everyday" ? " selected" : ""}>${s.label} - ${s.progress} progress</option>`)
+        // In the page's language, as projects-ui.mjs writes them (the needsCode line, R6906): "progress" stood here in English.
+        .map(([key, s]) => `<option value="${s.progress}"${key === "everyday" ? " selected" : ""}>${esc(plural("DRPG.Project.scaleOption", { label: s.label, n: s.progress }))}</option>`)
         .join("");
     const roomOptions = [
         `<option value="">${game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
@@ -397,7 +398,7 @@ export async function startProject(actor) {
 
     const summary = [
         `<strong>${esc(result.name)}</strong>`,
-        `${esc(scaleLabel)} · ${result.target} progress`,
+        esc(plural("DRPG.Project.scaleOption", { label: scaleLabel, n: result.target })),
         result.room ? esc(result.room) : game.i18n.localize("DRPG.Project.anyRoom"),
         TRAITS[result.trait].label,
         ...(presetLine ? [esc(presetLine)] : [])

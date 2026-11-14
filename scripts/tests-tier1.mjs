@@ -37827,6 +37827,22 @@ const INVARIANTS = [
             stableJson([true, false, false]), "[performCubAbility: priceOf asked; row.hopeCost read; row.cost read]");
     }],
 
+    ["R6906 - a project's scale and a picture's size are written in the page's language (needsCode, 14.11.2026; T20): action-project.mjs `startProject` builds its Scale options with `plural(\"DRPG.Project.scaleOption\")`, as projects-ui.mjs does, and its proposal's summary with the same, not \"<label> - <n> progress\" in English; room-setup.mjs `pictureWarning` fills `Panel.checksImagesBytes`'s {mb} through utils.mjs `localeFormat`, not `toFixed(1)`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #83, #114. Red at 173256af: the player's
+         * Start a project window and the proposal card the GM reads said \"progress\" in English on a Polish page, and
+         * Room setup's picture warning read \"2.5\" where Pre-season checks read \"2,5\" (season-setup.mjs's `mb`).
+         */
+        const sources = new Map(await otherSources());
+        const start = fnSource(stripComments(sources.get("action-project.mjs") ?? ""), "startProject") ?? "";
+        const warn = fnSource(stripComments(sources.get("room-setup.mjs") ?? ""), "pictureWarning") ?? "";
+        must(start && warn.includes("DRPG.Panel.checksImagesBytes"), "startProject or pictureWarning is gone - this reads nothing");
+        equal(stableJson({ english: /\d*\}? progress[`<]/.test(start) || /\$\{s\.progress\} progress/.test(start) || /\$\{result\.target\} progress/.test(start),
+            plural: (start.match(/plural\("DRPG\.Project\.scaleOption"/g) ?? []).length, toFixed: /toFixed\(/.test(warn), locale: /localeFormat\("number"/.test(warn) }),
+            stableJson({ english: false, plural: 2, toFixed: false, locale: true }),
+            "[startProject: \"progress\" typed in English; plural(scaleOption) calls; pictureWarning: toFixed, localeFormat]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
@@ -49360,7 +49376,7 @@ const INVARIANTS = [
         await settle();
         const after = said();
         const L = (k, d) => game.i18n.format(k, d);
-        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9.0" })}` });
+        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: (await import("./utils.mjs")).localeFormat("number", 9, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}` });
         const facts = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 200, bytes: ROOM_IMAGE_LIMITS.bytes + 1 }) });
         const missing = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 404, bytes: null }) });
         const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "wirePictureWarnings")

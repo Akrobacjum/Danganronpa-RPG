@@ -34,7 +34,7 @@ import { SEARCH_FLAGS, SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, plural, workingScene,
+    dialogContent, plural, workingScene, localeFormat,
     forcedDeletion, wirePortraitPickers, listOf
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
@@ -761,7 +761,7 @@ export function pictureWarning(facts) {
     if (facts.gone) return game.i18n.localize("DRPG.Vault.imageBroken");
     const sizes = [];
     if (facts.pixels) sizes.push(game.i18n.format("DRPG.Panel.checksImagesPixels", { width: facts.width, height: facts.height }));
-    if (facts.heavy) sizes.push(game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: (facts.bytes / 1048576).toFixed(1) }));
+    if (facts.heavy) sizes.push(game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: localeFormat("number", facts.bytes / 1048576, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }));
     return sizes.length ? game.i18n.format("DRPG.Vault.imageLarge", { size: sizes.join(", ") }) : "";
 }
 
