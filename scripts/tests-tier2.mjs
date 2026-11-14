@@ -3114,7 +3114,7 @@ async function cleanupFixture(who, note, place = {}) {
  */
 /*
  * A RULING AS A CARD MAKES IT (E09 C10, 08.10.2026). The card carries the attempt alone and the ruling
- * reads the proposal off the attempt's row (cleanup.mjs `claimRuling`), so a test that rules names the
+ * reads the proposal off the attempt's row (cleanup-reshape.mjs `claimRuling`), so a test that rules names the
  * attempt the GMs hold for that character (`heldAttempt`). `approveHeld` approves it, with `proposal`'s
  * fields written over the row's first - a tie the killer's reshape would carry, on a fixture whose
  * Tamper is not the killer's. `proposeOnRow` writes a row of its own for a trace no clean-up touched and
@@ -21371,7 +21371,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["the undo of an approved reshape unties it", async () => {
         /*
          * E08+E28 C3, 03.10.2026; audit S05-44. A killer's reshape ties an untied trace (the
-         * ruling's `tie`, cleanup.mjs `reshapeTrace`), and the receipt's snapshot held the type
+         * ruling's `tie`, cleanup-reshape.mjs `reshapeTrace`), and the receipt's snapshot held the type
          * and the band and not the tie, so a Reroll that took the reshape back left the trace
          * tied - the chapter's Faint sweep spares it, the dashboard files it under the murder. A
          * Tamper that succeeds, the GM's approval with the tie, then a Reroll that misses. Read:
@@ -22762,7 +22762,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     ["Enter in a reshape's window moves to the next field and never erases, and an unfinished one asks again", async () => {
         /*
-         * E09 C11, 08.10.2026; audit S05-50. The critical's window (cleanup.mjs `askTransform`) had Erase
+         * E09 C11, 08.10.2026; audit S05-50. The critical's window (cleanup-reshape.mjs `askTransform`) had Erase
          * as its first button and its default, so Enter in the name field - a player moving on to the
          * description - erased the trace; one field filled and "Leave something else" pressed warned and
          * answered null, which is the same erase. The Tamper's window (`askTransformChange`) sent its
@@ -40150,7 +40150,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["a reshape's ruling is the GM's, reads the trace as it stands, bounds the words and refunds nothing on a decline (E40 item 4: R92's ruling half, driven; was R92)", async () => {
         /*
          * E40 item 4, slice B, 13.11.2026. R92 (tier 0, trimmed in E40 to the writers' census and the card's keys) read
-         * cleanup.mjs `applyReshapeRuling` and `declineReshapeRuling` as text: the GM gate, `findRemnantToken(tokenId)`,
+         * cleanup-reshape.mjs `applyReshapeRuling` and `declineReshapeRuling` as text: the GM gate, `findRemnantToken(tokenId)`,
          * `if (data.reinforced)`, `plainText(name,` and `plainText(text,`, no refund in the decline's first 900
          * characters. It passed a mutant that kept every one of those and handed the proposal's raw name to `reshapeTrace`
          * (`name: String(name)` where `name: safeName` stood). N-3, Dawid 21.09: bounding is not ruling, and the ruling
@@ -93467,7 +93467,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ drawn: true, cancel: true, answer: false, added: [], cards: 0 }),
             "[the rule's window drawn; its Cancel found; askBlackenedRule's answer after Cancel; the rules it added; the cards posted]");
     }],
-    ["E22-T3 - a Reshape's two windows put the reshape on the GM's road (E22 C5c; A4, audit S02-25, S05-49): cleanup.mjs `askTransform` (the critical's) and `askTransformChange` (the Tamper's) drawn on the GM as a player's browser draws them - Leave something else and Reshape it red, on the GM's road and first in the tree; Erase and Cancel plain; each window's note names the GM; the GM's road pressed answers the words and changes nothing in the world (the trace waits for the GM's yes: \"a reshaped trace does not change until the GM says so\", beside this test)", async () => {
+    ["E22-T3 - a Reshape's two windows put the reshape on the GM's road (E22 C5c; A4, audit S02-25, S05-49): cleanup-reshape.mjs `askTransform` (the critical's) and `askTransformChange` (the Tamper's) drawn on the GM as a player's browser draws them - Leave something else and Reshape it red, on the GM's road and first in the tree; Erase and Cancel plain; each window's note names the GM; the GM's road pressed answers the words and changes nothing in the world (the trace waits for the GM's yes: \"a reshaped trace does not change until the GM says so\", beside this test)", async () => {
         /*
          * E22 C5c, 07.11.2026; A4. Since N-3 a reshape goes to a GM (`proposeReshape`), and its windows' buttons were the
          * module's ordinary primary: nothing on them said a person would rule. The windows are drawn here (`__dialogWindows`)
