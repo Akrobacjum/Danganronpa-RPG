@@ -2705,13 +2705,12 @@ export async function migrateRemnants() {
         }
     }
 
-    const line = `Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
+    log(`Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
         + `${counts.already} already done, ${counts.noRow} left alone (no ledger row on this browser), `
         + `${carried.length} Faint Prep promotion(s) carried${carried.length ? ` (${carried.join("; ")})` : ""}, `
         + `${notCarried.length} not carried over a later correction${notCarried.length ? ` (${notCarried.join("; ")})` : ""}, `
         + `${stripped} tokens stripped, ${publicSeeded} \`public\` record(s) backfilled, `
-        + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`;
-    log(line);
+        + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`);
     if (carried.length) {
         warn(`Faint Prep promotions carried from their tokens into the ledger (a GM who had set one back on purpose `
             + `sets it again in the Investigation dashboard): ${carried.join("; ")}`);
@@ -2726,8 +2725,12 @@ export async function migrateRemnants() {
         warn(`Traces left as they were - answer-key flags, no type, and no ledger row on this browser to carry them into: ${leftAlone.join("; ")}`);
     }
     if (failed.length) warn(`Remnants still carrying their answer key after the migration: ${failed.join("; ")}`);
-    if (carried.length || notCarried.length || leftAlone.length || failed.length) ui.notifications.warn(line);
-    else ui.notifications.info(line);
+    /* The GM's toast in the GM's language (E57 T13, 14.11.2026): the four counts, and how many of the tokens the console's
+       lines above name; the English line, with every token's details, stays the console's. */
+    const toast = game.i18n.format("DRPG.Remnant.migrated", { moved: counts.moved, filled: counts.filled, kept: counts.kept, already: counts.already });
+    const look = carried.length + notCarried.length + leftAlone.length + failed.length;
+    if (look) ui.notifications.warn(`${toast} ${plural("DRPG.Remnant.migratedCheck", { n: look })}`);
+    else ui.notifications.info(toast);
     return { ...counts, stripped, failed, carried, notCarried, leftAlone, publicSeeded, deltaCleaned };
 }
 

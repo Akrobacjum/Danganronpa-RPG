@@ -300,7 +300,7 @@ export async function newerSystemFindings({
         missing = diagnosePatches()
             // `present: null` is a probe that cannot tell (a hook's class not registered yet): not named as missing.
             .filter(row => row.owner === game.system?.id && row.present === false)
-            .map(row => row.target);
+            .map(row => row.shownTarget ?? row.target);
     } catch (err) {
         error("Could not probe the patches against this Daggerheart", err);
     }
