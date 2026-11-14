@@ -25341,7 +25341,7 @@ const REGRESSIONS = [
         ok(["handbooks.mjs HandbookApp", "room-setup.mjs openRoomSetupDialog"].every(n => r.users.includes(n)), `the handbooks or Room Setup are not read as taking the kit's tabs: ${r.users.join(", ")}`);
         equal(JSON.stringify(r.found), "[]", `tab markup outside the kit (${r.read.length} window(s) with the kit's tabs read)`);
     }],
-    ["R6753 - the footer contract, every window (E59 C2; ui-kit.mjs's header): no kit window is handed DialogV2's `buttons`, a literal footer names only the kit's slots, the closing word carries no label of its own (the role's one word), a question's `no` none either, and a `DrpgApp()` class draws a footer only through `footerMarkup` or `liveFooter`, but the three closing words FOOTER_KNOWN lists (a label the kit does not draw, Q-E59-14); each window is read with its footer's shape (slots, built, question, kit footer, no footer); the reader finds the three faults planted in its fixture", async () => {
+    ["R6753 - the footer contract, every window (E59 C2; ui-kit.mjs's header): no kit window is handed DialogV2's `buttons`, a literal footer names only the kit's slots, and a `DrpgApp()` class draws a footer only through `footerMarkup` or `liveFooter` (a closing word may carry its own word since E102 C6, 7386194a); each window is read with its footer's shape (slots, built, question, kit footer, no footer, outside the kit); the reader finds the two faults planted in its fixture", async () => {
         const W = await import("./tests-windows.mjs");
         equal(JSON.stringify(W.windowsSelfCheck().filter(p => p.startsWith("footer:"))), "[]", "the footer reader does not read its fixture as written");
         const r = W.footerRule(await otherSources());
@@ -25350,7 +25350,6 @@ const REGRESSIONS = [
         for (const v of r.shapes.values()) shapes[v] = (shapes[v] ?? 0) + 1;
         ok((shapes.slots ?? 0) >= 80 && (shapes.question ?? 0) >= 15, `the footers' shapes read ${JSON.stringify(shapes)} - the reader did not find the literal footers`);
         equal(r.shapes.size, r.read.length, "a window was read without its footer's shape");
-        equal(JSON.stringify(r.stale.map(k => k.label)), "[]", "a FOOTER_KNOWN row names a window whose closing word no longer carries a label - take it off (and its line of GAPS.md)");
         equal(JSON.stringify(r.found), "[]", `footers off the contract, of ${r.read.length} window(s) (${JSON.stringify(shapes)})`);
     }],
     ["R6754 - the 11 px floor (E59 C2): no `font-size` of a served sheet comes under 11 px at the slider's least (0.8 under Monokuma Legacy, `--drpg-legacy-scale`; the rem at 16 px, Foundry's `--font-size-N` at N px), but on the surfaces FLOOR_OUTSIDE names - the sheet, the clock, the status bar, the Event panel, the Despair meter, the voice tile - each a line of docs/dev/e59/GAPS.md; a size of 0 hides a glyph's letter and is no text; the reader finds the size planted in its fixture under a window and reads `max(min(10px, ...), ...)` as 10 px", async () => {

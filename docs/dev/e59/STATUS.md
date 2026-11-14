@@ -26,8 +26,16 @@ Fixed (commit d2f9c54b, each red first in R6753-R6755):
   Evidence's.
 
 Kept, each with its reason in tests-windows.mjs and a question below: the room picture in Foundry's ImagePopout
-(ROOT_OUTSIDE); three closing words whose label the kit never draws (FOOTER_KNOWN); 21 sizes under 11 px outside the
+(ROOT_OUTSIDE); 21 sizes under 11 px outside the
 windows (FLOOR_OUTSIDE); Monokuma Legacy's red "on" state and the GM panel's red tiles (RED_KEPT).
+
+## After the report (the coordinator, 14.11.2026)
+
+- **A secret project's indirect-murder mark** (GAPS.md's E43 row): measured red in 72-canary on p1 and p2, not a Foundry
+  limit, the fix not small - LEAK-PROJECT-MARK.md holds the trace, which field is which, the proposed patch and the two
+  checks (not committed red).
+- **Q-E59-14**: claude/e102-c6 at 764cfc0b merged (d1f37e51); R6750-R6756 hold on the merge (8 passed); R6753 adjusted
+  to the new contract.
 
 ## Owner's questions (each with the default this line took)
 
@@ -36,7 +44,7 @@ windows (FLOOR_OUTSIDE); Monokuma Legacy's red "on" state and the GM panel's red
 | Q-E59-11 | The room's picture opens in Foundry's own ImagePopout, the one window without `.drpg-ui` (room-tile.mjs `openRoomImage`). Move it onto the kit? | Keep it as Foundry's picture viewer; R6750 names it in ROOT_OUTSIDE |
 | Q-E59-12 | Does the 11 px floor hold off the windows too - the sheet's pixel-font rows (9-10 px), the clock, the status bar, the Event panel, the Despair meter, the voice tile (6.4-7.2 px at 80 %)? | No: the floor is the windows' (the plan's point (3)); the 21 sizes are listed for the release notes |
 | Q-E59-13 | Under Monokuma Legacy a pressed mode, a chosen node and the GM panel's tiles are drawn in the eye's red. Is that "red only on the GM's road"? | Yes for now: a state's colour under Legacy and the GM's own window; listed for a fix window if the owner says otherwise |
-| Q-E59-14 | Three windows name their closing word "Not now" / "Not yet", and the kit draws "Close" (ui-kit.mjs:128 writes the role's own word). The GM handbook (gm-handbook.en.md:864) and LIVE-E113-01 say **Not yet**. Which word stands? | The kit's: one word closes a window. The dead labels and their lang keys go in a fix window with the handbook line, on the text lines (R6753 holds them in FOOTER_KNOWN until then) |
+| Q-E59-14 | Three windows name their closing word "Not now" / "Not yet", and the kit drew "Close". | Closed by E102 C6 (7386194a on claude/e102-c6, merged here at d1f37e51): the kit draws a caller's own closing word. R6753 no longer reads the label and FOOTER_KNOWN is gone. Left: ui-kit.mjs:35-36's header still says "the role's own key, never a caller's label" (E102's file, for its line) |
 | Q-E59-15 | A known leak that is a Foundry limit prints as "expected red" in a scenario's summary (run-all.mjs). Call it "Foundry limit" there? | Yes, in a fix window; it is a word, not a marker |
 | Q-E59-16 | The gate names "runContract on 2.10.5"; module.json now says Daggerheart minimum 2.6.5, verified 2.12.8. Which version is the contract run owed on? | The verified one, 2.12.8, at E83's local gate |
 

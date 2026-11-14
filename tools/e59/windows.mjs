@@ -60,16 +60,13 @@ window (LIVE-E59-01 is the drawn one).
 | no window without \`.drpg-ui\` | R6750 | ${root.read.length} windows | ${root.found.length} | ${W.ROOT_OUTSIDE.map(o => `\`${o.label}\``).join(", ")} |
 | \`drpg-destructive\` never the default, autofocus or under Enter | R6751 | ${de.read.length} windows with a destructive button, ${de.holders.length} footer builders, ${de.footers} footers with a default | ${de.found.length} | ${de.unread} default read only at run time (the kit throws) |
 | one tab system | R6752 | ${tab.read.length} windows with the kit's tabs (${tab.users.length} places) | ${tab.found.length} | - |
-| the footer contract | R6753 | ${foot.read.length} windows | ${foot.found.length} | ${foot.held.length} (FOOTER_KNOWN) |
+| the footer contract | R6753 | ${foot.read.length} windows | ${foot.found.length} | - |
 | the 11 px floor | R6754 | ${floor.read.length} sizes (${floor.unread} not readable in Node) | ${floor.found.length} | ${floor.kept.length} outside windows (FLOOR_OUTSIDE) |
 | gold only for Hope | R6755 | ${gold.reads} reads in ${gold.read.length} rules, ${gold.scripts} in scripts/ | ${gold.found.length} | ${W.GOLD_READERS.length} (GOLD_READERS) |
 | red only on the GM's road | R6756 | ${red.read.length} button rules in a window's scope | ${red.found.length} | ${red.held.length} (RED_KEPT) |
 
 ### Found
 ${list([...root.found, ...de.found, ...tab.found, ...foot.found, ...floor.found, ...gold.found, ...red.found])}
-
-### Kept: the footer (FOOTER_KNOWN)
-${list(foot.held)}
 
 ### Kept: sizes under 11 px outside windows (FLOOR_OUTSIDE)
 ${list(floor.kept)}

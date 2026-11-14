@@ -27,7 +27,7 @@ of it (the versions are the owner's).
 | --- | --- | --- | --- |
 | C3, the second screenshot rating, is not done | the plan's point (2); Q-E59-4 | needs a local Foundry: LIVE-E59-01 (AUDIT 9.2 item 529) | release notes |
 | The room's picture is the one window without `.drpg-ui` (Foundry's ImagePopout) | room-tile.mjs:551; R6750 ROOT_OUTSIDE | open, kept (Q-E59-11) | release notes |
-| Three closing words name "Not now" / "Not yet", and the kit draws "Close" (the caller's label is never read); the GM handbook and LIVE-E113-01 say **Not yet** | ui-kit.mjs:128; investigation.mjs:2067, case-realize.mjs:234, body.mjs:929; gm-handbook.en.md:864 | open (Q-E59-14); R6753 holds them in FOOTER_KNOWN | fix window (the text lines: the dead labels, their two keys, the handbook line) |
+| The kit's header still says a closing word is "the role's own key, never a caller's label", though since E102 C6 (7386194a) the kit draws a caller's word ("Not now", "Not yet") | ui-kit.mjs:35-36, :131 | open (E102's file; the three windows themselves are right since the merge d1f37e51) | fix window |
 | 21 sizes under 11 px off the windows: the sheet's pixel-font rows (9-10 px), the clock and the Overflow caption, the status bar, the Event panel, the Despair meter, the voice tile (6.4 and 7.2 px at the slider's 80 %) | R6754 FLOOR_OUTSIDE; WINDOWS.md | open (Q-E59-12) | release notes |
 | Under Monokuma Legacy a pressed mode, a chosen case node and the GM panel's tiles are drawn in the eye's red | components.css `--drpg-kit-btn-on-bg` and `-on-edge` (Legacy `body`), the GM panel rules; R6756 RED_KEPT | open (Q-E59-13) | release notes, or a fix window if the owner says red is the road's alone there too |
 | A Foundry-limit known leak prints as "expected red" in a scenario's summary | run-all.mjs:281-283 | open (Q-E59-15) | fix window |
@@ -96,7 +96,7 @@ S17-31 (the killer's identity, high) is closed in this base: no known-leaks entr
 
 | Gap | Where read | Status | Verdict |
 | --- | --- | --- | --- |
-| A secret project's image and its `indirectMurder` flag stay on world data; the plan's item 1, D37 and E05 Q4 ask for name, image and both flags; 72 checks only the name and the levels | projects.mjs:1567; projects-secrecy.mjs:72 | open, read not run | fix window (for the owner against D27's "plans") |
+| A secret project's `indirectMurder` mark stays in projectMeta, world data: measured on p1 and p2 in 72-canary (LEAK-PROJECT-MARK.md); not a Foundry limit; its room is also told by the project token's position (`foundry-hidden-tokens`); the countdown's `img` is the GM's pick | projects-secrecy.mjs:171; projects.mjs:67, :990, :2212; traps.mjs:202; gm-stores.mjs:2550 | open, red, the fix not small (a proposed patch in LEAK-PROJECT-MARK.md) | fix window (D27's "plans": blocks unless the owner rules) |
 | The whole-season canary is not built: 72 walks one chapter, and plants no closingClaims, diveSets, claimTicket or passage keys | 72-canary.mjs | open (STATUS: carried to E58) | release notes |
 | The fuzz and the matrix run in the ci layer only | 30-security.mjs:7139-7145; 33-bridge-paths.mjs:2158 | needs a local Foundry: the fuzz on the 30099 sandbox (LIVE-E43-01) | release notes |
 | LIVE-E43-01 and -02 are not in AUDIT 9.2 | grep | needs a local Foundry: (02) a bystander's Countdowns on v14 show no secret project's name | release notes |

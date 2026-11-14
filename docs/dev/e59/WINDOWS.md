@@ -19,18 +19,13 @@ window (LIVE-E59-01 is the drawn one).
 | no window without `.drpg-ui` | R6750 | 162 windows | 0 | `room-tile.mjs openRoomImage` |
 | `drpg-destructive` never the default, autofocus or under Enter | R6751 | 45 windows with a destructive button, 27 footer builders, 14 footers with a default | 0 | 1 default read only at run time (the kit throws) |
 | one tab system | R6752 | 9 windows with the kit's tabs (17 places) | 0 | - |
-| the footer contract | R6753 | 162 windows | 0 | 3 (FOOTER_KNOWN) |
+| the footer contract | R6753 | 162 windows | 0 | - |
 | the 11 px floor | R6754 | 160 sizes (320 not readable in Node) | 0 | 21 outside windows (FLOOR_OUTSIDE) |
 | gold only for Hope | R6755 | 58 reads in 41 rules, 2 in scripts/ | 0 | 1 (GOLD_READERS) |
 | red only on the GM's road | R6756 | 110 button rules in a window's scope | 0 | 10 (RED_KEPT) |
 
 ### Found
 - none
-
-### Kept: the footer (FOOTER_KNOWN)
-- body.mjs:922 promptPendingBodies: the closing word carries a label of its own
-- case-realize.mjs:230 askAtBody: the closing word carries a label of its own
-- investigation.mjs:2062 offerFinalOnClose: the closing word carries a label of its own
 
 ### Kept: sizes under 11 px outside windows (FLOOR_OUTSIDE)
 - styles/danganronpa.css: .character-header-sheet .experience-value, .experience-chip .label { font-size: var(--font-size-10, 0.625rem) } comes to 10 px (the character sheet)
@@ -101,8 +96,8 @@ window (LIVE-E59-01 is the drawn one).
 | `enforced.mjs openGiveBackFoundry` | 954 | drpgWindow | slots |  |  |
 | `enforced.mjs askHoldAgain` | 998 | drpgWindow | slots |  |  |
 | `explain.mjs explainer` | 51 | drpgWindow | slots |  |  |
-| `facility-editor.mjs editRoomActions` | 104 | drpgWindow | slots |  |  |
-| `facility-editor.mjs editProjectFacility` | 153 | drpgWindow | slots |  |  |
+| `facility-editor.mjs editRoomActions` | 106 | drpgWindow | slots |  |  |
+| `facility-editor.mjs editProjectFacility` | 155 | drpgWindow | slots |  |  |
 | `frisk.mjs openAskWindow` | 1122 | drpgWindow | slots |  |  |
 | `frisk.mjs askToForce` | 1159 | drpgWindow | slots |  |  |
 | `gm-campaign.mjs confirmCorrection` | 67 | drpgWindow | slots |  | yes |
@@ -158,8 +153,8 @@ window (LIVE-E59-01 is the drawn one).
 | `murder-ui.mjs openMurderDialog` | 210 | drpgWindow | slots |  |  |
 | `murder-ui.mjs openIncidentTracker` | 739, 794 | drpgWindow, drpgConfirm | built |  | yes |
 | `notice-history-app.mjs NoticeHistoryApp` | 161, 589 | DrpgApp, drpgConfirm | kit footer |  | yes |
-| `observe.mjs askWhichRemnant` | 609 | drpgWindow | slots |  |  |
-| `observe.mjs describeFind` | 1181 | drpgWindow | slots |  |  |
+| `observe.mjs askWhichRemnant` | 612 | drpgWindow | slots |  |  |
+| `observe.mjs describeFind` | 1184 | drpgWindow | slots |  |  |
 | `palm.mjs chooseStolenItem` | 478 | drpgWindow | slots |  |  |
 | `passages-gm.mjs pickPrompt` | 2765 | drpgWindow | slots |  |  |
 | `passages-tab.mjs askRevoke` | 262 | drpgWindow | slots |  | yes |
@@ -224,8 +219,8 @@ window (LIVE-E59-01 is the drawn one).
 | `trial.mjs repointDialog` | 1516 | drpgWindow | slots |  |  |
 | `trial.mjs openObjectionLog` | 1665 | drpgWindow | slots |  |  |
 | `ui-columns.mjs wideWindow` | 66 | drpgWindow | no footer |  |  |
-| `ui-kit.mjs drpgConfirm` | 1460 | drpgWindow | built |  | yes |
-| `ui-kit.mjs drpgPrompt` | 1474 | drpgWindow | built |  |  |
+| `ui-kit.mjs drpgConfirm` | 1466 | drpgWindow | built |  | yes |
+| `ui-kit.mjs drpgPrompt` | 1480 | drpgWindow | built |  |  |
 | `use-items.mjs askWhichResource` | 634 | drpgWindow | slots |  |  |
 | `use-items.mjs confirmUse` | 694 | drpgConfirm | question |  |  |
 | `use-items.mjs discardBroken` | 907 | drpgConfirm | question |  | yes |

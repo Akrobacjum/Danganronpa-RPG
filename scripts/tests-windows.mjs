@@ -231,25 +231,13 @@ export const FOOTER_SLOTS = Object.freeze(["primary", "gmRoute", "close", "secon
 /**
  * Every kit window's footer by the contract (ui-kit.mjs's header): a `drpgWindow` call hands its buttons as `footer`
  * slots, never as DialogV2's `buttons` (which the kit's own `buttons` replaces without a word); a literal footer names
- * only slots; the closing word carries no `label` (one word closes a window, the role's own key); a `drpgConfirm`'s
- * `no` is a role or `{ role, action, callback }`, with no label. A `DrpgApp` class draws a footer only through
+ * only slots. A closing word may carry its own `label` since E102 C6 (7386194a, 14.11.2026: the kit draws a caller's
+ * word, "Not now" or "Not yet", where it drew the role's), so that is not read here. A `DrpgApp` class draws a footer only through
  * `footerMarkup` or `liveFooter` - no `<footer` and no `form-footer` written by hand in its file - or none. Each window
  * is read with the shape its footer is in: "slots" (a literal), "built" (an expression the kit judges at run time),
  * "question" (drpgConfirm, drpgPrompt), "kit footer" or "no footer" (a DrpgApp).
  */
-/**
- * The closing words that carry a label the kit does not draw (ui-kit.mjs `footerButtons` writes the role's own word, so
- * each of these windows shows Close where its code names "Not now" or "Not yet"), read at 123f8242 and kept until the
- * owner says which word stands (Q-E59-14 in GAPS.md): the label is dead code, and taking it off orphans its lang key,
- * which the text lines hold. A row matches a finding by its window's label.
- */
-export const FOOTER_KNOWN = Object.freeze([
-    Object.freeze({ label: "investigation.mjs offerFinalOnClose", what: "the closing word carries a label of its own", why: "\"Not now\" (DRPG.CaseRealize.notNow) drawn as Close" }),
-    Object.freeze({ label: "case-realize.mjs askAtBody", what: "the closing word carries a label of its own", why: "\"Not now\" (DRPG.CaseRealize.notNow) drawn as Close" }),
-    Object.freeze({ label: "body.mjs promptPendingBodies", what: "the closing word carries a label of its own", why: "\"Not yet\" (DRPG.Chapter.pendingNotYet) drawn as Close" })
-]);
-
-export function footerRule(sources, sites = windowSites(sources), known = FOOTER_KNOWN) {
+export function footerRule(sources, sites = windowSites(sources)) {
     const found = [], shapes = new Map();
     for (const s of sites) {
         const text = lfOf(sourceOf(sources, s.file));
@@ -269,8 +257,6 @@ export function footerRule(sources, sites = windowSites(sources), known = FOOTER
         if (s.kind !== "drpgWindow") {
             shapes.set(s.label, shapes.get(s.label) ?? "question");
             if (opts?.keys.has("buttons")) found.push(`${at}: a question handed DialogV2's \`buttons\``);
-            const no = opts?.keys.get("no");
-            if (no && /\blabel\s*:/.test(text.slice(no.start, no.end))) found.push(`${at}: the question's closing word carries a label of its own`);
             continue;
         }
         if (!opts) { shapes.set(s.label, shapes.get(s.label) ?? "built"); continue; }
@@ -280,15 +266,10 @@ export function footerRule(sources, sites = windowSites(sources), known = FOOTER
         if (footer && ftext.trim().startsWith("{")) {
             const fo = objectAt(blank, footer.start + blank.slice(footer.start, footer.end).indexOf("{"));
             for (const k of fo.keys.keys()) if (!k.startsWith("...") && !FOOTER_SLOTS.includes(k)) found.push(`${at}: the footer's "${k}" is no slot of the kit`);
-            const close = fo.keys.get("close");
-            if (close && /\blabel\s*:/.test(text.slice(close.start, close.end))) found.push(`${at}: the closing word carries a label of its own`);
             shapes.set(s.label, shapes.get(s.label) === "built" ? "built" : "slots");
         } else shapes.set(s.label, footer ? "built" : (shapes.get(s.label) ?? "no footer"));
     }
-    const isKnown = f => known.find(k => f.includes(` ${k.label.split(" ")[1]}: ${k.what}`) && f.startsWith(k.label.split(" ")[0] + ":"));
-    const held = found.filter(isKnown);
-    const stale = known.filter(k => !held.some(f => isKnown(f) === k));
-    return { read: windowNames(sites), found: found.filter(f => !isKnown(f)), held, stale, shapes };
+    return { read: windowNames(sites), found, shapes };
 }
 
 /* ---- R6754: the 11 px floor -------------------------------------------------------------------------------------- */
@@ -549,8 +530,8 @@ export function windowsSelfCheck() {
     const tab = tabRule(F.tab);
     if (tab.found.length !== 2 || !tab.found.every(f => /plantedTabs/.test(f))) p.push(`tab: not the planted tag's two findings alone: ${JSON.stringify(tab.found)}`);
     const foot = footerRule(F.footer);
-    const want = ["buttons", "\"extra\"", "label of its own"];
-    if (foot.found.length !== 3 || !want.every(w => foot.found.some(f => f.includes(w) && /plantedButtons/.test(f)))) p.push(`footer: not the planted buttons, slot and label alone: ${JSON.stringify(foot.found)}`);
+    const want = ["buttons", "\"extra\""];
+    if (foot.found.length !== 2 || !want.every(w => foot.found.some(f => f.includes(w) && /plantedButtons/.test(f)))) p.push(`footer: not the planted buttons and slot alone: ${JSON.stringify(foot.found)}`);
     if (foot.shapes.get("planted.mjs controlSlots") !== "slots") p.push(`footer: the control's footer is not read as slots: ${foot.shapes.get("planted.mjs controlSlots")}`);
     const fl = floorRule(F.floor, [{ match: /#drpg-hud/, surface: "hud", why: "fixture" }]);
     if (fl.found.length !== 1 || !/planted-small/.test(fl.found[0] ?? "") || fl.kept.length !== 1 || fl.unread !== 1 || fl.read.length !== 3) p.push(`floor: not the planted small size alone (found ${JSON.stringify(fl.found)}, kept ${fl.kept.length}, unread ${fl.unread}, read ${fl.read.length})`);
