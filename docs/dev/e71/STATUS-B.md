@@ -12,6 +12,7 @@ Branch `claude/e71-b`, from `claude/fervent-sagan-gme4vt` at 1463f22b (14.11.202
 | 8f3d53ae | B09 (its message names "Look's neighbors" among B09's namespaces: Look is B06's) |
 | d0669dc1 | this file and the batch table |
 | 3edf9359 | Observe's two labels back for the handbooks (scenario 62), „Truth Bullet” inflected in three Polish texts |
+| 4c82415c | X16 allow rows for ten Sequence keys (its message says T5 allowed 72 -> 82; measured, 62 -> 82: the ten rows count in both languages) |
 
 ## C0, group B's part: the census (measured on 1463f22b)
 
