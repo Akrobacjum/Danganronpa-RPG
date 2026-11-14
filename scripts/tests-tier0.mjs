@@ -25643,6 +25643,12 @@ const REGRESSIONS = [
             ok(typeof shut.whyEclipse === "string" && typeof shut.whyBedroom === "string" && typeof shut.whyDoors?.other === "string", `${lang}.json lacks Shut the Door's row reasons`);
         }
     }],
+    ["R7174 - a discovery waiting for the GM's word announces the body where it lies (E59 C-115, CHAINS.md B-M2): two witnesses write the waiting row with the room they saw the body in (body.mjs `checkBodyFound`), the killers may still be in Stage 6, and Move the Body (cleanup.mjs `applyMoveBody`) does not touch the row; body.mjs `promptPendingBodies` named the row's room in its question and handed it to `discoverBody`, so the card and the gather named the old room with the body elsewhere; it reads the body's place now (body-tile.mjs `bodyPlaceOf`) for both, the row's room only where no place is read", async () => {
+        const body = stripComments(new Map(await otherSources()).get("body.mjs") ?? "");
+        const prompt = fnSource(body, "promptPendingBodies");
+        ok(/\bbodyPlaceOf\(/.test(prompt), "promptPendingBodies does not read where the body lies now");
+        ok(!/discoverBody\(\{\s*room:\s*row\.room\b/.test(prompt) && !/room:\s*esc\(row\.room\)/.test(prompt), "promptPendingBodies still names or announces the room the row was written with");
+    }],
 ];
 
 
