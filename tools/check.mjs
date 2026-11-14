@@ -1318,6 +1318,9 @@ async function text() {
             + `the rest have no surface - a reading, no floor (FAIL from ${m.fail ?? "no stage"})`);
         /* A detector that reads a file E65 writes carries that file's faults (T27: the guide's pairs table, E65 C9): red. */
         if (Array.isArray(r.faults)) problems.push(...r.faults.map(f => `pairs: docs/text-style.md: ${f}`));
+        /* An allow row of a report detector that no longer holds what it names is red now (T13's UI_LITERAL_ALLOW, E57 rest):
+           a row stands for literals read at the code, and a stale one would let a new literal pass unread under it. */
+        if (m.mode !== "fail") problems.push(...r.found.filter(f => f.kind === "allow").map(f => `${m.test} (${name}): ${f.what}`));
         if (!(r.read > 0)) problems.push(`${name} read nothing of ${m.reads.join(" and ")}${LANG_DIR === null ? "" : ` (the language files of ${where})`} - it has proved nothing`);
         const live = b ? b.left : r.found;
         if (m.mode === "fail") {
