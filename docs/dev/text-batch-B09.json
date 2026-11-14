@@ -3128,7 +3128,7 @@
    "facts": [
     {
      "fact": "The note on a Call drawer of the sheet while an Eclipse runs: every Call is grey, whatever Hope or Despair the character holds; they unlock when the Eclipse ends.",
-     "file": "scripts/sheet.mjs",
+     "file": "scripts/sheet-actions.mjs",
      "fn": "callLockNote",
      "note": null
     },
@@ -3287,7 +3287,7 @@
     },
     {
      "fact": "The automatic discovery (two students in the room with the body) never happens during an Eclipse either.",
-     "file": "scripts/chapter.mjs",
+     "file": "scripts/body.mjs",
      "fn": "runDiscovery",
      "note": null
     }
