@@ -89,40 +89,41 @@ const sec = ms => ms / 1000;
  */
 export const RULES = Object.freeze([
     { id: "starting", book: "brochure", n: C => [C.STARTING.hp, C.STARTING.stress, C.STARTING.hope, C.STARTING.hopeMax],
-        anchor: /Health (\d+), Sanity (\d+), Hope (\d+) \(max (\d+)\)/g },
+        anchor: /Health (\d+), Sanity (\d+), and Hope (\d+) \(Hope at most (\d+)\)/g },
     { id: "search.tiers", book: "brochure", n: C => C.ACTIONS.search.thresholds.map(t => t.min),
         anchor: /(\d+)\+ Tier 0, (\d+)\+ Tier 1, (\d+)\+ Tier 2/g },
     { id: "palm.brochure", book: "brochure",
         n: C => [C.ACTIONS.palm.threshold, C.ACTIONS.palm.unseen.threshold, C.ACTIONS.palm.plant.threshold, C.ACTIONS.palm.plant.unseen,
             C.ACTIONS.palm.frisk.threshold, C.ACTIONS.palm.rummage.unseen, C.ACTIONS.palm.rummage.threshold],
-        anchor: /Take \((\d+)\+, unseen (\d+)\+\) or plant \((\d+)\+, unseen (\d+)\+\).*?Body (\d+)\+ after a refusal; unseen Shadow (\d+)\+ then Hand (\d+)\+/g },
+        anchor: /Take \((\d+)\+, unseen (\d+)\+\) something from somebody's pockets, or plant \((\d+)\+, unseen (\d+)\+\).*?Body (\d+)\+ after a refusal; unseen Shadow (\d+)\+ then Hand (\d+)\+/g },
     { id: "palm.gm", book: "gm",
         n: C => [C.ACTIONS.palm.threshold, C.ACTIONS.palm.unseen.threshold, C.ACTIONS.palm.plant.threshold, C.ACTIONS.palm.plant.unseen,
             sec(C.TIMING.friskAnswerMs), C.ACTIONS.palm.frisk.threshold, C.ACTIONS.palm.rummage.unseen, C.ACTIONS.palm.rummage.threshold],
-        anchor: /Take: (\d+) to succeed, (\d+) on Shadow to stay unseen\. Plant: (\d+), unseen (\d+)\. Frisk: .*?answers within (\d+) s.*?Body (\d+) after a refusal or no answer, unseen Shadow (\d+) then Hand (\d+)/g },
+        anchor: /Take: (\d+) to succeed, (\d+) on Shadow to stay unseen\. Plant: (\d+), unseen (\d+);.*?answers within (\d+) s.*?Body (\d+) after a refusal or no answer.*?unseen Shadow (\d+) then Hand (\d+)/g },
     { id: "rest.brochure", book: "brochure", n: C => [C.REST.short.actionCost, C.REST.short.picks, C.REST.long.actionCost, C.REST.long.picks],
-        anchor: /Short: (\d+) actions?, pick (\d+), once per time of day\. Long: (\d+) actions?, pick (\d+), once per session/g },
+        anchor: /Short Rest: (\d+) actions?, pick (\d+), once per time of day\. Long Rest: (\d+) actions?, pick (\d+), once per session/g },
     { id: "rest.gm", book: "gm", n: C => [C.REST.long.actionCost, C.REST.long.picks, C.REST.short.actionCost, C.REST.short.picks],
-        anchor: /A Long Rest costs (\d+) actions?, picks (\d+) of the three options, once per session\. A Short Rest costs (\d+) actions?, picks (\d+), once per time of day/g },
+        anchor: /A Long Rest costs (\d+) actions?, picks (\d+) of the three options and can be taken once per session; a Short Rest costs (\d+) actions?, picks (\d+), once per time of day/g },
     { id: "conceal.intent", book: "gm", n: C => [C.INDIRECT_MURDER.concealIntent.threshold],
         anchor: /rolls Shadow against (\d+) to conceal their intent/g },
     { id: "opening.killer", book: "gm", n: C => [C.MURDER_OPENING.killer.threshold],
         anchor: /opens on the killer's roll: Body or Hand against (\d+)/g },
     { id: "opening.victim", book: "brochure", n: C => [C.MURDER_OPENING.victim.threshold],
         anchor: /A trap asks you to roll \(Eye or Head vs (\d+)\)/g },
-    { id: "crisis.brochure", book: "brochure", n: C => [C.CRISIS_ACTIONS.leaveClue.threshold, C.CRISIS_ACTIONS.secureTrace.threshold, C.CRISIS_ACTIONS.selfDefence.threshold],
-        anchor: /Leave a Clue \((\d+)\), Secure a Trace \((\d+)\), Self-Defense \((\d+)/g },
+    /* "crisis.brochure" (Leave a Clue, Secure a Trace, Self-Defense in one sentence) is gone with the sentence: since E57's
+       rewrite (370ae1e4) the brochure gives them as table rows, which rowRules' CRISIS_ACTIONS rows read. */
     { id: "trap.keyRemnants", book: "gm", n: C => [C.KEY_REMNANTS.prepared],
-        anchor: /A trap always leaves the case its full (\d+) Key Remnants/g },
+        anchor: /a trap always leaves the case its full (\d+)/g },
     { id: "overflow.threshold", book: "gm", n: C => [C.OVERFLOW.threshold, C.OVERFLOW.range.min, C.OVERFLOW.range.max],
-        anchor: /At the threshold \(default (\d+), editable between (\d+) and (\d+)/g },
+        anchor: /The threshold is (\d+) by default, and you can set it from (\d+) to (\d+)/g },
     { id: "trial.debate", book: "gm", n: C => [C.TRIAL.speakSeconds, C.TRIAL.debateMinSeconds],
-        anchor: /Open Debate with a budget in seconds \(default (\d+), at least (\d+)/g },
+        anchor: /Open the debate takes a budget in seconds \(default (\d+), at least (\d+)/g },
     { id: "trial.testimony", book: "gm", n: C => [C.TRIAL.modes.round.testimony.offered, C.TRIAL.modes.round.testimony.min, C.TRIAL.modes.round.testimony.max],
         anchor: /\| Testimony \| one participant at a time, in order \| (\d+) s a turn offered, (\d+) to (\d+) s \|/g },
     { id: "trial.rounds", book: "gm",
-        n: C => { const r = C.TRIAL.modes.round; return [r.testimony.offered, r.testimony.min, r.testimony.max, r.panic.offered, r.panic.small, r.panic.smallFrom, r.panic.min, r.panic.max]; },
-        anchor: /offers the seconds a turn - (\d+) s for Testimony at every size of table, typed again at each start, (\d+) to (\d+) s; (\d+) s for a Panic Round, (\d+) s from (\d+) participants on, (\d+) to (\d+) s/g },
+        /* Since E57's rewrite the Panic Round's numbers stand in its row of the modes' table; Testimony's row is trial.testimony. */
+        n: C => { const r = C.TRIAL.modes.round; return [r.panic.offered, r.panic.small, r.panic.smallFrom, r.panic.min, r.panic.max]; },
+        anchor: /\| Panic Round \| one participant at a time, in order \| (\d+) s a turn \((\d+) s offered from (\d+) participants on\), (\d+) to (\d+) s \|/g },
     { id: "trap.budget", book: "gm",
         n: C => { const p = C.INDIRECT_MURDER.subProjects; return [p.reduce((s, x) => s + Math.min(...x.progress), 0), p.reduce((s, x) => s + Math.max(...x.progress), 0)]; },
         anchor: /The card advises about (\d+)-(\d+) progress in total/g }
@@ -158,7 +159,7 @@ export const COMPOSED = Object.freeze([
             const text = m.indirectCostText();
             return { text, n: (text.match(/\d+/g) ?? []).map(Number) };
         },
-        anchor: /The card advises about (\d+)-(\d+) progress in total, the two parts' sums at their smallest and largest scales, (\w+) to (\w+) actions/g }
+        anchor: /The card advises about (\d+)-(\d+) progress in total, the two parts' sums at their smallest and largest scales, roughly (\w+) to (\w+) actions/g }
 ]);
 
 /** The six handbooks, split and in plain text: `books.gm.en` is the list of units, each `{ id, text, row }`. */
@@ -302,7 +303,7 @@ export async function selfCheck(C, books, composed) {
         ["rest.gm", c => { c.REST.long.actionCost += 1; }],
         ["conceal.intent", c => { c.INDIRECT_MURDER.concealIntent.threshold += 1; }],
         ["opening.killer", c => { c.MURDER_OPENING.killer.threshold += 1; }],
-        ["crisis.brochure", c => { c.CRISIS_ACTIONS.leaveClue.threshold += 1; }],
+        ["CRISIS_ACTIONS.leaveClue.threshold", c => { c.CRISIS_ACTIONS.leaveClue.threshold += 1; }],
         ["overflow.threshold", c => { c.OVERFLOW.range.max += 1; }],
         ["trial.rounds", c => { c.TRIAL.modes.round.panic.smallFrom += 1; }],
         ["trap.budget", c => { c.INDIRECT_MURDER.subProjects[0].progress[0] += 1; }],
@@ -317,14 +318,14 @@ export async function selfCheck(C, books, composed) {
     }
     /* And a Polish number changed where its English unit states it, beside an equal number that stays ("6" twice). */
     const brochure = fs.readFileSync(path.join(REPO, "docs", "handbooks", "player-brochure.pl.md"), "utf8");
-    const changed = brochure.replace("(maks. 6)", "(maks. 7)");
-    if (changed === brochure) missed.push("the Polish brochure has no \"(maks. 6)\" to plant over");
+    const changed = brochure.replace("(Hope najwyżej 6)", "(Hope najwyżej 7)");
+    if (changed === brochure) missed.push("the Polish brochure has no \"(Hope najwyżej 6)\" to plant over");
     else if (!parity(C, readBooks(undefined, { "player-brochure.pl.md": changed }), composed).problems.some(p => p.startsWith("starting:"))) {
-        missed.push("a Polish number changed in the brochure (maks. 6 -> 7) was not seen");
+        missed.push("a Polish number changed in the brochure (Hope najwyżej 6 -> 7) was not seen");
     }
     const gm = fs.readFileSync(path.join(REPO, "docs", "handbooks", "gm-handbook.en.md"), "utf8");
-    const back = gm.replace(/four to five actions/, "four to six actions");
-    if (back === gm) missed.push("the GM handbook has no \"four to five actions\" to plant the old words over");
+    const back = gm.replace(/4 to 5 actions/, "4 to 6 actions");
+    if (back === gm) missed.push("the GM handbook has no \"4 to 5 actions\" to plant the old words over");
     else {
         const r = parity(C, readBooks(undefined, { "gm-handbook.en.md": back }), composed);
         if (!r.problems.some(p => p.startsWith("murder-ui.indirectCostText:"))) missed.push("the trap card's \"four to six actions\" planted back was not seen");

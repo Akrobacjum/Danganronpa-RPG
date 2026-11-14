@@ -1622,6 +1622,15 @@ const CLAUSE_END = /[.!?;:,()|]|\s-\s/u;
 const PAST_FORM = /^\p{Ll}{2,}(ł|ła|ło|li|ły)$/u, PARTICIPLE = /^\p{Ll}{3,}(?:an|on|ęt|yt|it|ut|art|ert|ort)(y|a|e|i)$/u;
 const PREDICATE_SKIP = new Set("nie już jeszcze się wciąż teraz zawsze też także nigdy właśnie znów znowu dopiero jest są będzie będą zostanie zostaje zostają staje bywa".split(" "));
 const PAST_GENDER = Object.freeze({ "ł": ["m"], "ła": ["f"], "ło": ["n"], li: ["pl"], "ły": ["pl"] });
+/* Words ending in "-ła"/"-ło" that are no past form: the body's "ciała"/"ciało" and the present "działa" (E57 T11, held by R1058's fixture,
+   14.11: "Remnant ciała" and "Truth Bullet ciała" were read as a feminine predicate). */
+const NOT_PAST = new Set("ciała ciało działa".split(" "));
+/* "whose": a "który" form in the genitive before a term agrees with the noun before it, never with the term ("kopia, której
+   Remnant zniknął"); it proves nothing about the term's gender (E57 T11, held by R1058's fixture). */
+const WHOSE = new Set("której których".split(" "));
+/* The endings of the noun a "który" form after a term's comma may belong to instead of the term: a term right after a noun
+   of the relative's gender is that noun's complement ("pulę Despair, która", "zmiana Hope, która"; E57 T11, held by R1058's fixture). */
+const NOUN_ENDS = Object.freeze({ f: /\p{L}*[aęą]$/u, n: /\p{L}*[oe]$/u });
 const PARTICIPLE_GENDER = Object.freeze({ y: ["m"], a: ["f"], e: ["n", "pl"], i: ["pl"] });
 const shownGenders = set => [...set].map(g => GENDER_NAMES[g]).join(" or ");
 
@@ -1657,15 +1666,18 @@ export function loanGender(bag = {}) {
             const clause = before.split(CLAUSE_END).pop();
             const words = clause.trim().split(/\s+/).filter(Boolean);
             const prev = words.at(-1)?.toLowerCase();
-            if (prev && MODIFIERS.has(prev) && disagrees(MODIFIERS.get(prev))) hit("before", words.at(-1), MODIFIERS.get(prev));
+            if (prev && MODIFIERS.has(prev) && !WHOSE.has(prev) && disagrees(MODIFIERS.get(prev))) hit("before", words.at(-1), MODIFIERS.get(prev));
             const after = u.text.slice(s.end);
             const which = after.match(/^\s*,\s*(któr\p{L}*)(?!\p{L})/u);
-            if (which && MODIFIERS.has(which[1].toLowerCase()) && disagrees(MODIFIERS.get(which[1].toLowerCase()))) hit("which", which[1], MODIFIERS.get(which[1].toLowerCase()));
+            const whichGenders = which ? MODIFIERS.get(which[1].toLowerCase()) : null;
+            const ownsWhich = whichGenders && prev && !MODIFIERS.has(prev) && !OPENERS.has(prev)
+                && [...whichGenders].some(g => NOUN_ENDS[g]?.test(prev));
+            if (whichGenders && !ownsWhich && disagrees(whichGenders)) hit("which", which[1], whichGenders);
             if (!words.every(w => OPENERS.has(w.toLowerCase()) || MODIFIERS.has(w.toLowerCase()))) continue;
             const rest = after.split(CLAUSE_END)[0];
             for (const w of rest.trim().split(/\s+/).filter(Boolean).slice(0, 5)) {
                 if (PREDICATE_SKIP.has(w.toLowerCase())) continue;
-                const past = w.match(PAST_FORM), part = past ? null : w.match(PARTICIPLE);
+                const past = NOT_PAST.has(w.toLowerCase()) ? null : w.match(PAST_FORM), part = past ? null : w.match(PARTICIPLE);
                 if (past || part) {
                     const genders = new Set(past ? PAST_GENDER[past[1]] : PARTICIPLE_GENDER[part[1]]);
                     if (disagrees(genders)) hit("after", w, genders);
@@ -2559,7 +2571,7 @@ export const MODES = Object.freeze({
     familyFormats: Object.freeze({ test: "T3", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts"]), lexer: true }),
     dashesIn: Object.freeze({ test: "T6", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts", "docs"]), also: Object.freeze(["prose"]), lexer: true }),
     tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) }),
-    glossaryHits: Object.freeze({ test: "T8", mode: "report", fail: "E25", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
+    glossaryHits: Object.freeze({ test: "T8", mode: "fail", fail: "E25", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
     retiredHits: Object.freeze({ test: "T28", mode: "fail", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
     lengthOver: Object.freeze({ test: "T4", mode: "report", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
@@ -2568,8 +2580,8 @@ export const MODES = Object.freeze({
     monokumaVoice: Object.freeze({ test: "T21", mode: "fail", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
     /* FAIL since E57 C12 (14.11.2026): after the text lines, two readouts allowed (COLON_CHAIN_ALLOW) and one sentence split. */
     colonChains: Object.freeze({ test: "T24", mode: "fail", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
-    loanGender: Object.freeze({ test: "T11", mode: "report", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
-    loanDeclension: Object.freeze({ test: "T12", mode: "report", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
+    loanGender: Object.freeze({ test: "T11", mode: "fail", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
+    loanDeclension: Object.freeze({ test: "T12", mode: "fail", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
     oxfordComma: Object.freeze({ test: "T17", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     telegraph: Object.freeze({ test: "T18", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "glossary", "budgets"]) }),
     contractions: Object.freeze({ test: "T19", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
@@ -3121,7 +3133,14 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.n": "Nowe Hope.",                                            // passes
                 "DRPG.Fx.o": "Nonstop Debate nie została zamknięta.",                 // "nie" passed over: passes
                 "DRPG.Fx.p": "Hope nie jest wydany.",                                 // "nie jest" passed over: flagged
-                "DRPG.Fx.q": "Class Trial zaczyna się."                               // "zaczyna" is a verb, no participle: passes
+                "DRPG.Fx.q": "Class Trial zaczyna się.",                              // "zaczyna" is a verb, no participle: passes
+                /* The handbooks' false readings of 14.11 (E57 T11, held by R1058's fixture): "która" after a term that is a feminine noun's
+                   complement belongs to that noun ("pulę Despair, która"); "której" before a term is "whose", agreeing
+                   with the noun before it ("kopia, której Remnant"); "ciała" and "działa" end in "-ła" and are no past form. */
+                "DRPG.Fx.r": "Każdy ma zmianę Class Trial, która trwa.",             // "która" is the change's: passes
+                "DRPG.Fx.s": "To kopia, której Truth Bullet zniknął.",               // "której" is "whose": passes
+                "DRPG.Fx.t": "Truth Bullet ciała leży na stole.",                    // "ciała" is the body's: passes
+                "DRPG.Fx.u": "Truth Bullet działa od razu."                          // "działa" is a present verb: passes
             },
             docs: {
                 "docs/handbooks/fx.pl.md": "**Nowa** Class Trial zaczyna się.",       // the markup blanked: flagged
