@@ -5,6 +5,8 @@
 #   tools/e54/rebuild.sh --base <sha> --work <new dir> --out <new dir> [--picks <a>..<b>] [--rows <sha>] [--no-sweep]
 #   tools/e54/rebuild.sh --base <sha> --work <its dir> --out <its dir> --continue [--no-sweep]   (on from a pick conflict
 #   a reader resolved in the worktree: the pick finished, the picks after it, then steps 3-7; a row says so)
+#   --from <cut>, with --continue: steps 2-4 are taken as done, the cuts before <cut> too, and in <cut> and after
+#   a split, repoint or sweep already committed is not run again (a row says so); the budget and the proofs always run
 #   --known-fail <R id>, as often as wanted: a tier run whose failures are exactly such tests reads as passing, a row
 #   naming them - for a red the base itself carries, read failing on the base alone first (run-tests --only <id>)
 #   tools/e54/rebuild.sh --base <sha> --work <its dir> --out <its dir> --end-only [--no-sweep]   (step 7 alone, on a run
@@ -35,19 +37,21 @@
 set -u
 T=$(cd "$(dirname "$0")" && pwd)
 PREP=$(cd "$T/../.." && pwd)
-BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1 END=0 CONT=0 KNOWN=
+BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1 END=0 CONT=0 KNOWN= FROM=
 while [ $# -gt 0 ]; do case "$1" in
   --base) BASE=$2; shift 2;; --work) WORK=$2; shift 2;; --out) OUT=$2; shift 2;;
   --picks) PICKS=$2; shift 2;; --rows) ROWS=$2; shift 2;; --no-sweep) SWEEP=0; shift;;
   --end-only) END=1; shift;;
   --continue) CONT=1; shift;;
   --known-fail) KNOWN="$KNOWN $2"; shift 2;;
+  --from) FROM=$2; shift 2;;
   *) echo "rebuild: unknown argument $1"; exit 2;; esac; done
 [ -n "$BASE" ] && [ -n "$WORK" ] && [ -n "$OUT" ] || { echo "rebuild: --base, --work and --out, please"; exit 2; }
 if [ $END = 1 ]; then # step 7 alone, on a run's worktree and results (a restart that cut a run short)
   for f in "$WORK/.git" "$OUT/results.md" "$OUT/golden-boxes.json" "$OUT/golden-0.json"; do
     [ -e "$f" ] || { echo "rebuild: --end-only needs $f, from a run that got to step 6"; exit 2; }; done
 elif [ $CONT = 1 ]; then # on from a pick a reader resolved, in a run's worktree and results
+  [ -z "$FROM" ] || [ -e "$OUT/tables/$FROM.json" ] || { echo "rebuild: --from $FROM needs $OUT/tables/$FROM.json, from a run past step 4"; exit 2; }
   for f in "$WORK/.git" "$OUT/results.md"; do
     [ -e "$f" ] || { echo "rebuild: --continue needs $f, from a run stopped in its picks"; exit 2; }; done
 else
@@ -112,6 +116,7 @@ if [ ! -d audit/harness/node_modules ]; then
   row "npm ci" $DT "audit/harness installed"
 fi
 
+if [ -z "$FROM" ]; then
 # 2
 t0=$SECONDS; n=0
 done_already=$(git rev-list --count "$BASE"..HEAD) # 0 on a fresh run; the picks a --continue finds made
@@ -149,11 +154,17 @@ cp "$T"/{sheet,windows,windows-settings,key-remnants,cleanup-reshape,chapter,gla
 step "sweep tables" sweep-build.txt node "$T/sweep-build.mjs" --base "$WORK" --out "$OUT/tables" --work "$OUT/sweep-work" \
   || stop "sweep tables" $DT "logs/sweep-build.txt"
 row "sweep tables" $DT "$(grep -o 'base [0-9a-f]*:.*' "$OUT/logs/sweep-build.txt" | tail -1 | cut -c1-200)"
+fi # --from <cut>: steps 2-4 were a run's before it
 
 # 5
 D=$OUT/tables
+has() { git log --format=%s "$BASE"..HEAD | grep -qxF "$1"; } # a step a --continue finds committed
+skipping=$([ -n "$FROM" ] && echo 1 || echo 0)
 for cut in $CUTS; do
+  [ "$cut" = "$FROM" ] && skipping=0
+  [ $skipping = 1 ] && continue
   src=$(node -e "console.log(require('$D/$cut.json').source)")
+  if has "E54 $cut: the split (tools/e54/$cut.json, tools/e54/split.mjs) [skip ci]"; then row "$cut split" 0 "committed before this --continue"; else
   step "$cut split" "split-$cut.txt" node "$T/split.mjs" --manifest "$D/$cut.json" --repo "$WORK"
   grep -q "e54-split: done" "$OUT/logs/split-$cut.txt" || stop "$cut split" $DT "refused (logs/split-$cut.txt)"
   files=$(grep -o "wrote scripts/[a-z-]*\.mjs ([0-9]* lines)" "$OUT/logs/split-$cut.txt" | sed 's/wrote //' | paste -sd, - | sed 's/,/, /g')
@@ -174,6 +185,8 @@ EOF
   sum=$(grep "^lines: [0-9]" "$OUT/logs/moved-only-$cut.txt" | cut -c1-200)
   git log -1 --format=%B | sed "s|^Wrote: |Measured: moved-only HEAD~1, 8 parts all green ($sum).\nWrote: |" > "$OUT/msg.txt" && git commit -q --amend -F "$OUT/msg.txt"
   row "$cut split" $DT "$files; moved-only 8 parts green"
+  fi
+  if has "E54 $cut: the suite's readers pointed at the family (tools/e54/repoint.mjs) [skip ci]"; then row "$cut repoint" 0 "committed before this --continue"; else
   step "$cut repoint" "repoint-$cut.txt" node "$T/repoint.mjs" --manifest "$D/$cut.json" --repo "$WORK"
   grep -q "e54-repoint: done" "$OUT/logs/repoint-$cut.txt" || stop "$cut repoint" $DT "refused: $(grep -m1 REFUSED "$OUT/logs/repoint-$cut.txt" | cut -c1-160) (logs/repoint-$cut.txt)"
   rw=$(grep -o "[0-9]* rewrites" "$OUT/logs/repoint-$cut.txt" | head -1)
@@ -187,6 +200,8 @@ register and the census documents only; no module code. $rw.
 $TRAILER
 EOF
   row "$cut repoint" $DT "$rw"
+  fi
+  if has "E54 $cut: the comment sweep - comments and test names say where the code stands (tools/e54/sweep.mjs) [skip ci]"; then row "$cut sweep" 0 "committed before this --continue"; else
   step "$cut sweep" "sweep-$cut.txt" node "$T/sweep.mjs" --manifest "$D/$cut.json" --repo "$WORK"
   grep -q "e54-sweep: done" "$OUT/logs/sweep-$cut.txt" || stop "$cut sweep" $DT "refused (logs/sweep-$cut.txt)"
   if [ -n "$(git status --porcelain)" ]; then
@@ -202,6 +217,23 @@ $TRAILER
 EOF
     row "$cut sweep" $DT "${rows:-written}"
   else row "$cut sweep" $DT "nothing to write"; fi
+  fi
+  step "$cut budget" "budget-$cut.txt" node "$T/budget.mjs" --manifest "$D/$cut.json" --repo "$WORK" \
+    || stop "$cut budget" $DT "$(grep -m1 REFUSED "$OUT/logs/budget-$cut.txt" | cut -c1-200) (logs/budget-$cut.txt)"
+  if [ -n "$(git status --porcelain)" ]; then
+    bl=$(grep -o "before .*; [0-9]* row(s) written" "$OUT/logs/budget-$cut.txt" | head -1)
+    commit <<EOF
+E54 $cut: the comment budget follows the moved comments (tools/e54/budget.mjs) [skip ci]
+
+What it reads: the sweep before it, and tools/comments-lint.mjs's counts
+of the cut's source and new files: a pure move carries a comment and its
+citation with it, so each file of the family gets its row at its count
+(none at zero), the family's total never above its rows before. $bl.
+
+$TRAILER
+EOF
+    row "$cut budget" $DT "$bl"
+  else row "$cut budget" $DT "nothing to move"; fi
   proofs "$cut"
 done
 
