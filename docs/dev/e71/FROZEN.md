@@ -22,7 +22,9 @@ Read at origin/main 421f2395 on 13.11.2026.
 | e93 | bfed7ead | 421f2395 |
 | e72 | 92559c7d | 4dfac3a9 |
 | e64 | 7ceb4f5c | 4dfac3a9 |
-| gaps-a | 2338c823 | fa73b601 |
+| gaps-a (released 14.11.2026) | 2338c823 | fa73b601 |
+
+**gaps-a released (14.11.2026, the coordinator).** claude/gaps-a (2338c823, 12.11.2026) was never merged and is superseded on claude/fervent-sagan-gme4vt at 123f8242: its G1 (`Chapter.lastChapter`) reads a newer text there, G3 (the a11y Details) came through gaps-111 (b), R4930, and G4 (the Event panel kept as an empty region) was reverted by the owner's decision (e40dc285, "the Event panel keeps hiding while empty"). Every row frozen for gaps-a is released; the rows stay, marked "(released)". The first texts written under the release: the six `DRPG.Contract.instead` values with "arkusz" and their copies in gm-handbook.pl.md section 20 (E71 group D).
 
 ## Handbook sections
 
@@ -33,11 +35,11 @@ Read at origin/main 421f2395 on 13.11.2026.
 | gm-handbook.en.md | ## 11. Projects and traps | e101b, e64, e93, project-token-icon, r112 |
 | gm-handbook.en.md | ## 14. Investigation | e64, e64-inv, e93, e97-98 |
 | gm-handbook.en.md | ## 15. The Class Trial | e64, e72, e97-98 |
-| gm-handbook.en.md | ## 16. End of chapter and season reset | gaps-a |
+| gm-handbook.en.md | ## 16. End of chapter and season reset | gaps-a (released) |
 | gm-handbook.en.md | ## 17. Sound and SFX | e101, e101b, r112 |
 | gm-handbook.en.md | ## 18. The settings window, themes and the Language setting | e100, e101, e101b, r112 |
 | gm-handbook.en.md | ## 2. The season setup checklist | e101, e101b, r112 |
-| gm-handbook.en.md | ## 20. Troubleshooting | dh-212b, e100, e101, e101b, gaps-a, r112 |
+| gm-handbook.en.md | ## 20. Troubleshooting | dh-212b, e100, e101, e101b, gaps-a (released), r112 |
 | gm-handbook.en.md | ## 3. The GM panel | e101, e101b, e72, r112 |
 | gm-handbook.en.md | ## 4. The clock | e100, r112 |
 | gm-handbook.en.md | ## 5. Actions and budgets | e64 |
@@ -59,11 +61,11 @@ Read at origin/main 421f2395 on 13.11.2026.
 | gm-handbook.pl.md | ## 11. Projekty i pułapki | e101b, e64, e93, project-token-icon, r112 |
 | gm-handbook.pl.md | ## 14. Investigation | e64, e64-inv, e93, e97-98 |
 | gm-handbook.pl.md | ## 15. Class Trial | e64, e72, e97-98 |
-| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | gaps-a |
+| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | gaps-a (released) |
 | gm-handbook.pl.md | ## 17. Dźwięk i efekty | e101, e101b, r112 |
 | gm-handbook.pl.md | ## 18. Okno Ustawień, motywy i ustawienie Język | e100, e101, e101b, r112 |
 | gm-handbook.pl.md | ## 2. Lista kontrolna sezonu | e101, e101b, r112 |
-| gm-handbook.pl.md | ## 20. Rozwiązywanie problemów | dh-212b, e100, e101, e101b, gaps-a, r112 |
+| gm-handbook.pl.md | ## 20. Rozwiązywanie problemów | dh-212b, e100, e101, e101b, gaps-a (released), r112 |
 | gm-handbook.pl.md | ## 3. Panel GMa | e101, e101b, e72, r112 |
 | gm-handbook.pl.md | ## 4. Zegar | e100, r112 |
 | gm-handbook.pl.md | ## 5. Akcje i budżety | e64 |
@@ -222,10 +224,10 @@ Read at origin/main 421f2395 on 13.11.2026.
 | `DRPG.Chapter.endButton` | e64, e64-inv |
 | `DRPG.Chapter.endIntro` | e64, e64-inv |
 | `DRPG.Chapter.endNote` | e64, e64-inv |
-| `DRPG.Chapter.lastChapter` | gaps-a, gaps-radio |
-| `DRPG.Chapter.optNextChapter` | gaps-a, gaps-radio |
-| `DRPG.Chapter.optNextMorning` | gaps-a, gaps-radio |
-| `DRPG.Chapter.optNextSession` | gaps-a, gaps-radio |
+| `DRPG.Chapter.lastChapter` | gaps-a (released), gaps-radio |
+| `DRPG.Chapter.optNextChapter` | gaps-a (released), gaps-radio |
+| `DRPG.Chapter.optNextMorning` | gaps-a (released), gaps-radio |
+| `DRPG.Chapter.optNextSession` | gaps-a (released), gaps-radio |
 | `DRPG.Chapter.optReveal` | e64, e64-inv |
 | `DRPG.Chapter.revealKeeps` | e64, e64-inv |
 | `DRPG.Cleanup.bodyNowhere` | e64 |
@@ -283,11 +285,11 @@ Read at origin/main 421f2395 on 13.11.2026.
 | `DRPG.Despair.removePoolAsk` | e101, e101b, r112 |
 | `DRPG.Despair.revokeFrom` | e101, e101b, r112 |
 | `DRPG.Despair.widgetTitle` | e101, e101b, r112 |
-| `DRPG.Events` | e72, gaps-a |
-| `DRPG.Events.bodySubRoom` | e72, gaps-a |
-| `DRPG.Events.bodyTitle` | e72, gaps-a |
+| `DRPG.Events` | e72, gaps-a (released) |
+| `DRPG.Events.bodySubRoom` | e72, gaps-a (released) |
+| `DRPG.Events.bodyTitle` | e72, gaps-a (released) |
 | `DRPG.Events.incidentTitle` | e72 |
-| `DRPG.Events.overflowMetaGm` | e72, gaps-a |
+| `DRPG.Events.overflowMetaGm` | e72, gaps-a (released) |
 | `DRPG.Events.ticker.assembly` | e72 |
 | `DRPG.Events.ticker.motive` | e72 |
 | `DRPG.Events.ticker.trial` | e72 |
@@ -296,7 +298,7 @@ Read at origin/main 421f2395 on 13.11.2026.
 | `DRPG.Explain.status.actionsWhat` | e64 |
 | `DRPG.Explain.status.actionsWounded` | e64 |
 | `DRPG.Explain.status.moveTitle` | e64 |
-| `DRPG.Floor.endClosing` | gaps-a |
+| `DRPG.Floor.endClosing` | gaps-a (released) |
 | `DRPG.Floor.lead.chapterEnd` | e97-98 |
 | `DRPG.Floor.lead.closing` | e97-98 |
 | `DRPG.Floor.lead.finishElsewhere` | e97-98 |
