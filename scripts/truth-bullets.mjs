@@ -42,7 +42,7 @@ import {
     whisperToOwner, whisperToGms, isPrimaryGm, primaryGmId, ownerIdsOf, forcedDeletion, log, warn, error, plural
 } from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
-import { bulletStore, bulletRefCopy, lootTraceStore, deathStore } from "./gm-stores.mjs";
+import { bulletStore, bulletRefCopy, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible, stableJson } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
 import { itemMarkedBefore, itemsWritten, judgedFor, reachOf } from "./sheet-audit.mjs";
@@ -229,12 +229,16 @@ function tallySeasonBullets() {
 
 registerSeasonState({ group: "bullets", clear: clearSeasonBullets, tally: tallySeasonBullets });
 
-/*
- * The answer key's own backup and import until E04 are gm-stores.mjs `backupCase` and `restoreCase` now, which write
- * every GM store to one file and read this ledger's old export as its bullets. The macros and handbooks that call the
- * old names reach them through the console (api.mjs: `game.drpg.exportLedger`, `game.drpg.importLedger`); this file's
- * own two wrappers of the same names, which nothing imported, went in E56 part 2 (14.11.2026).
+/**
+ * The answer key's own import until E04: gm-stores.mjs `restoreCase` now, which reads this ledger's old export as its
+ * bullets. The macros and handbooks that call the old names reach `backupCase` and `restoreCase` through the console
+ * (api.mjs: `game.drpg.exportLedger`, `game.drpg.importLedger`). This wrapper stays for tier 2's "a younger partial
+ * Truth Bullet entry never erases an older full one", which imports through it; its twin `exportLedger`, which
+ * nothing read, went in E56 part 2 (14.11.2026).
  */
+export function importLedger(json, opts = {}) {
+    return restoreCase(json, opts);
+}
 
 /* ==========================================================================
  * CREATION
