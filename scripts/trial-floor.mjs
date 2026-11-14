@@ -27,12 +27,15 @@
  *   rebuttal    the objector AND the person they aimed at, for two minutes.
  *               Nobody else. Then it returns to open debate by itself.
  *
- * SILENCE IS ENFORCED SOCIALLY, NOT TECHNICALLY. The module does not mute
- * anybody on Discord or in LiveKit, because the talking happens outside
- * Foundry. What the code owes the table is that the state is unmistakable and
- * identical on every screen at once: the bar says which mode is running, who
- * holds the floor and how long is left, and the Objection button is refused to
- * everyone it is not currently for.
+ * SILENCE WAS ENFORCED SOCIALLY, AND SINCE E110 C2 (14.11.2026) IT IS FOUNDRY'S
+ * MICROPHONE BLOCK TOO. The owner: "Tryby class trial ... niech wycisza
+ * automatycznie graczy, ktorych nie dopuszczaja do glosu". While a mode gives
+ * the floor to somebody (floor-machine.mjs `floorSpeakers`), the primary GM
+ * turns BROADCAST_AUDIO off for every other player and gives it back as the
+ * floor moves on (voice.mjs `settleTrialVoices`). A table that talks on Discord
+ * is still held socially: the bar says which mode is running, who holds the
+ * floor and how long is left, and the Objection button is refused to everyone
+ * it is not currently for.
  *
  * The countdown is derived from `startedAt` rather than ticked down and
  * stored, exactly as it was before this rewrite and for the same reason: a
@@ -669,6 +672,8 @@ async function postFloorCard(card, prev) {
         const { trialEventCard } = await import("./trial-floor-ui.mjs");
         const { announce, esc } = await import("./utils.mjs");
         const name = esc(game.actors.get(card.actorId ?? "")?.name ?? "-");
+        // The redirect's new target (E110 C1): "The GM redirects {name}'s Objection to {target}."
+        const target = esc(game.actors.get(card.targetId ?? "")?.name ?? "-");
         const mode = game.i18n.localize(`DRPG.Floor.mode.${card.mode ?? prev?.mode ?? "debate"}`);
         // A round's own card (a pass, the round's end) is titled by its mode, not as the GM's step (E70 C7).
         // The Closing's "{name} continues the Closing Argument ({time})." (E70 C8): the seconds the stretch starts with, m:ss.
@@ -678,7 +683,7 @@ async function postFloorCard(card, prev) {
         // A zone mode's card (E73) carries its own words, escaped (trial-zones.mjs `zoneCardWords`), and may name a sound.
         const words = card.raw ? (card.words ?? {}) : zoneCardWords(card.words ?? {});
         const flags = card.sfx ? { flags: { [MODULE_ID]: { sfx: card.sfx } } } : {};
-        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time, seconds, ...words })), ...flags });
+        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, target, mode, time, seconds, ...words })), ...flags });
     } catch (err) {
         error("Could not post the card of the GM's change of the floor", err);
     }
@@ -764,7 +769,8 @@ export function maySpeak(actorId, floor = trialFloor()) {
  * discussion and listens in a mode and from the vote's opening on, and listens through a trial about its own death
  * (voice.mjs `cubVoice`; DC4, DC28, DC29). The living - a convict among them until the trial ends (DC36) - speak as the
  * mode's row says (`modeAllows`: the objector alone, the two in a rebuttal), and listen otherwise. A display and the
- * tile's line read it (voice.mjs `micHold`); the module silences only the listed (the block, `settleTrialVoices`).
+ * tile's line read it (voice.mjs `micHold`); the module silences the listed, and since E110 C2 whoever the floor's
+ * speakers leave out (floor-machine.mjs `floorSpeakers`; the block, `settleTrialVoices`).
  * The facts can be handed in, so tier 1 R1034 asks it a table without a world; `drpgTrialStep` follows each step.
  */
 export function trialVoice(actorId, { clock = getClock(), floor, record, epoch, actor = game.actors?.get(actorId ?? "") ?? null } = {}) {
@@ -1205,8 +1211,9 @@ async function withdrawObjectionInStep(objectorId, messageId) {
 
 /**
  * A GM points the running Objection at somebody else (E79 C16; the trial console's Re-point, run on the primary
- * through `floor.repoint`): the target alone changes, the clock does not. Refused - null, nothing written - with no
- * Objection on the floor or a target `targetRefusal` turns down.
+ * through `floor.repoint` or the GMs' "trial.gm" op `repoint`): the target alone changes, the clock does not. Since
+ * E110 C1 in the Rebuttal as well as the Objection's minute. Refused - null, nothing written - with no exchange on the
+ * floor or a target `repointRefusal` turns down.
  *
  * @returns {Promise<object|null>}
  */
@@ -1215,13 +1222,44 @@ export async function repointObjection(targetId) {
     return floorStep("repoint", { targetId });
 }
 
-/** `repointObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary. */
+/**
+ * WHO AN OBJECTION MAY BE REDIRECTED AT (E110 C1, 14.11.2026; Q-E110-1), as a fresh Objection's target is judged: not
+ * the objector, one of the trial's participants (alive, `trialParticipants`), and present - a player of theirs
+ * connected (`absentOf`), since the target is who answers in the Rebuttal. Judged as on the Objection's own minute,
+ * whose row lets it be aimed at anybody: in the Rebuttal the pair rule (`target: "pair"`) is a rule for a third
+ * party's cut-in, not for the GM's redirect. A DRPG key, or null. `taking` and `absent` are handed in by tier 1 R7101.
+ */
+export function repointRefusal(floor, targetId, { taking = null, absent = null } = {}) {
+    if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return "DRPG.Floor.bar.noExchange";
+    if (targetId && targetId === floor.targetId) return "DRPG.Floor.repointSame";
+    if (!targetId || targetId === floor.holderId) return "DRPG.Trial.objectionSelf";
+    if (targetRefusal(floor.holderId, targetId, { ...floor, mode: FLOOR_MODES.objection }, { taking })) return "DRPG.Trial.objectionNotParticipant";
+    if ((absent ?? absentOf([targetId])).includes(targetId)) return "DRPG.Floor.repointAbsent";
+    return null;
+}
+
+/**
+ * `repointObjection`'s judgement and writes, in a step of `SEIZE_KEY` on the primary (E110 C1): the floor (the machine's
+ * `repoint` row, its public card posted by `commitFloor`), then in the same step every copy of the target the trial
+ * keeps - the Objection's card, its flags and the receipt (trial.mjs `repointCopies`). Both GM roads, "floor.repoint"
+ * and "trial.gm", end here, one step at a time, and a second press of the same redirect finds the target already set
+ * and writes nothing.
+ */
 async function repointObjectionInStep(targetId) {
     const floor = trialFloor();
-    if (floor?.mode !== FLOOR_MODES.objection) return null;
-    if (targetRefusal(floor.holderId, targetId, floor)) return null;
-    // The stack's entry stays: it is the same Objection, aimed elsewhere.
-    return commitFloor(floor, nextFloor(floor, { type: "repoint", targetId }, { now: serverNow() }), "repoint");
+    if (repointRefusal(floor, targetId)) return null;
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    const target = livingStudentsForGm().find(student => student.id === targetId) ?? null;
+    if (!target) return null;
+    const written = await commitFloor(floor, nextFloor(floor, { type: "repoint", targetId }, { now: serverNow() }), "repoint");
+    if (!written) return null;
+    try {
+        const { repointCopies } = await import("./trial.mjs");
+        await repointCopies(written, target);
+    } catch (err) {
+        error("Could not carry the redirected Objection's target to its card and receipt", err);
+    }
+    return written;
 }
 
 /**
@@ -1371,7 +1409,8 @@ export function barRefusal(op, floor = trialFloor(), { running = inClassTrial(),
     // Asked before the floor: an Objection whose exchange is over is overruled with no floor at all (E70 C2).
     if (op === "overrule") return overruleTarget({ floor, ...overruleRecord(record), running }).refused ?? null;
     if (!floor) return "DRPG.Floor.bar.noMode";
-    if (op === "repoint") return floor.mode === FLOOR_MODES.objection ? null : "DRPG.Floor.bar.noObjection";
+    // In the Objection's minute and, since E110 C1, its Rebuttal.
+    if (op === "repoint") return floor.mode === FLOOR_MODES.objection || floor.mode === FLOOR_MODES.rebuttal ? null : "DRPG.Floor.bar.noExchange";
     if ((op === "minus" || op === "plus") && !modeAllows(floor, "adjust")) return "DRPG.Floor.bar.noAdjust";
     const event = barEvent(op, seconds, floor);
     if (!event) return "DRPG.Floor.bar.noMode";

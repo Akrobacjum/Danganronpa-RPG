@@ -9694,7 +9694,7 @@ const INVARIANTS = [
         const box = document.createElement("div");
         box.innerHTML = html;
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vote.mjs`).then(r => (r.ok ? lfText(r) : "")));
-        const none = "DRPG.Floor.bar.noOverrule", back = "DRPG.Floor.bar.noMode", rep = "DRPG.Floor.bar.noObjection";
+        const none = "DRPG.Floor.bar.noOverrule", back = "DRPG.Floor.bar.noMode", rep = "DRPG.Floor.bar.noExchange";
         const base = { skip: null, minus: null, plus: null, overrule: none, endMode: null, back, repoint: rep };
         equal(stableJson({ read, fns, items: [...box.querySelectorAll("li")].map(li => li.textContent.replace(/\s+/g, " ").trim()), bold: box.querySelectorAll("b").length,
             card: /findingsHtml\(progress\?\.findings\)/.test(fnSource(src, "openRound")) }), stableJson({
@@ -31375,16 +31375,17 @@ const INVARIANTS = [
             order: OPS,
             outside: all("DRPG.Floor.bar.notTrial"),
             none: { ...all("DRPG.Floor.bar.noMode"), overrule: none },
-            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
-            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            // E110 C1 (14.11.2026): Re-point in the Rebuttal too, its greying "noExchange" elsewhere - changed on purpose.
+            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noExchange" },
+            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noExchange" },
             pending: open,
             objection: open,
-            rebuttal: { ...open, repoint: "DRPG.Floor.bar.noObjection" },
+            rebuttal: open,
             after: { ...all("DRPG.Floor.bar.noMode"), overrule: null }
         }), "the bar's order, or a button's greying on a state, is not what the GM was promised (per state: each op's reason, null where it may be pressed)");
         const lang = {};
         for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.bar ?? {});
-        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noAdjust", "noOverrule", "skip", "minus", "plus", "overrule", "endMode", "label"];
+        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noExchange", "noAdjust", "noOverrule", "skip", "minus", "plus", "overrule", "endMode", "label"];
         equal(JSON.stringify(reasons.filter(k => !lang.en[k] || !lang.pl[k])), "[]", "a reason or a label of the bar has no words in English or Polish");
     }],
 
@@ -59404,6 +59405,113 @@ const INVARIANTS = [
         const manifest = JSON.parse(await lfText(res));
         must((manifest.relationships?.systems ?? []).length > 0, "module.json names no system");
         equal(stableJson(faults(manifest)), "[]", "module.json's compatibility (D1)");
+    }],
+    ["R7100 - the GM redirects an Objection in its minute and in its Rebuttal (E110 C1, 14.11.2026; the owner: \"dajmy opcje przekierowania objection gmowi, tzn zmiany celu trwajacego objection\"): floor-machine.mjs `repoint` moves the target alone - mode, holder, start, seconds and the stack as they were - and hands the table one public card naming the objector and the new target; it refuses a debate, a round and no floor, the objector, an empty id and the target the floor already has", async () => {
+        /* Pure, at a fixed `now`. Red at 6dd02975: the Rebuttal was moved (no refusal) and no card was handed. */
+        const M = await import("./floor-machine.mjs");
+        const NOW = 1_000_000;
+        const debate = M.nextFloor(null, { type: "start", seconds: 300 }, { now: NOW - 60_000 }).floor;
+        must(debate?.mode === "debate", "the fixture's debate did not open");
+        const objection = M.nextFloor(debate, { type: "objection", holderId: "O", targetId: "B", cardId: "card1" }, { now: NOW - 20_000 }).floor;
+        const rebuttal = M.nextFloor(objection, { type: "rebuttal" }, { now: NOW - 10_000 }).floor;
+        must(objection?.mode === "objection" && rebuttal?.mode === "rebuttal", "the fixture's exchange did not open");
+        const kept = f => [f.mode, f.holderId, f.startedAt, f.seconds, JSON.stringify(f.before)];
+        const read = {};
+        for (const [name, floor] of [["objection", objection], ["rebuttal", rebuttal]]) {
+            const out = M.nextFloor(floor, { type: "repoint", targetId: "T" }, { now: NOW });
+            read[name] = { target: out.floor?.targetId ?? null, kept: out.floor ? JSON.stringify(kept(out.floor)) === JSON.stringify(kept(floor)) : false,
+                cards: (out.cards ?? []).map(c => [c.key, c.actorId, c.targetId]) };
+        }
+        read.refused = [
+            M.nextFloor(debate, { type: "repoint", targetId: "T" }, { now: NOW }).refused ?? null,
+            M.nextFloor(objection, { type: "repoint", targetId: "O" }, { now: NOW }).refused ?? null,
+            M.nextFloor(objection, { type: "repoint", targetId: "" }, { now: NOW }).refused ?? null,
+            M.nextFloor(rebuttal, { type: "repoint", targetId: "B" }, { now: NOW }).refused ?? null,
+            M.nextFloor(null, { type: "repoint", targetId: "T" }, { now: NOW }).refused ?? null
+        ];
+        const card = [["DRPG.Floor.repointed", "O", "T"]];
+        equal(stableJson(read), stableJson({
+            objection: { target: "T", kept: true, cards: card }, rebuttal: { target: "T", kept: true, cards: card },
+            refused: ["DRPG.Floor.bar.noExchange", "DRPG.Trial.objectionSelf", "DRPG.Trial.objectionSelf", "DRPG.Floor.repointSame", "DRPG.Floor.bar.noMode"]
+        }), "{objection, rebuttal: the new target, the rest kept, the card [key, objector, target]; refused: a debate, the objector, an empty id, the same target, no floor}");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        equal(JSON.stringify(["repointed", "repointSame", "repointAbsent"].filter(k => !lang.en[k] || !lang.pl[k] || !String(lang.en.repointed).includes("{target}"))), "[]",
+            "a redirect's words are missing in English or Polish, or its card names no target");
+    }],
+    ["R7101 - who a running Objection may be redirected at (E110 C1; Q-E110-1): trial-floor.mjs `repointRefusal` answers, on an Objection and on its Rebuttal alike, the same as for a fresh Objection's target - not the objector, a participant of the trial - and the target present (a player connected); the target it already has and a floor with no exchange are refused; the bar's Re-point is open in the Rebuttal", async () => {
+        /* Pure but for the localised words `targetRefusal` builds, at a fixed floor. Red at 6dd02975: no repointRefusal, and the bar greyed Re-point in the Rebuttal. */
+        const F = await import("./trial-floor.mjs");
+        must(typeof F.repointRefusal === "function", "trial-floor.mjs has no repointRefusal");
+        const objection = { active: true, mode: "objection", holderId: "O", targetId: "B", startedAt: 0, seconds: 60, before: [] };
+        const rebuttal = { ...objection, mode: "rebuttal" };
+        const ask = (floor, id) => F.repointRefusal(floor, id, { taking: ["O", "B", "T", "A"], absent: ["A"] });
+        const read = [objection, rebuttal].map(floor => [ask(floor, "T"), ask(floor, "O"), ask(floor, "X"), ask(floor, "A"), ask(floor, "B")]);
+        read.push([ask({ ...objection, mode: "debate" }, "T"), ask(null, "T")]);
+        read.push([F.barRefusal("repoint", rebuttal, { running: true, now: 0, record: { objections: {} } }),
+            F.barRefusal("repoint", { ...objection, mode: "debate" }, { running: true, now: 0, record: { objections: {} } })]);
+        const np = "DRPG.Trial.objectionNotParticipant";
+        const row = [null, "DRPG.Trial.objectionSelf", np, "DRPG.Floor.repointAbsent", "DRPG.Floor.repointSame"];
+        equal(stableJson(read), stableJson([row, row, ["DRPG.Floor.bar.noExchange", "DRPG.Floor.bar.noExchange"], [null, "DRPG.Floor.bar.noExchange"]]),
+            "[objection, rebuttal: at T, the objector, a non-participant, an absent player's, the same target], [a debate, no floor], [the bar's Re-point in a Rebuttal, in a debate]");
+    }],
+    ["R7102 - who holds the floor, for the microphones (E110 C2, 14.11.2026; the owner: \"Tryby class trial ... niech wycisza automatycznie graczy, ktorych nie dopuszczaja do glosu\"): floor-machine.mjs `floorSpeakers` names the objector in an Objection (pending too), the pair in a Rebuttal, the speaker in Testimony, a Panic Round, the Closing's speech and a Scrum turn - each the ids trial-floor.mjs `modeAllows(floor, \"speak\")` lets speak - and null where all speak (Debate, Straw Poll, Logic Dive), in every phase with no speaker (the Closing's volunteers, choice and decision; a Scrum's Sides and Confer), on an ended floor and with none", async () => {
+        /* Pure. Red at 6dd02975: no floorSpeakers. */
+        const M = await import("./floor-machine.mjs");
+        const F = await import("./trial-floor.mjs");
+        must(typeof M.floorSpeakers === "function", "floor-machine.mjs has no floorSpeakers");
+        const ids = ["O", "B", "T", "X"];
+        const base = { active: true, startedAt: 0, seconds: 60, before: [], holderId: "O", targetId: "B" };
+        const closing = phase => ({ ...base, mode: "closing", holderId: phase === "speak" ? "O" : null, targetId: null, closing: { phase, step: 1 } });
+        const zone = (mode, phase, holderId = null) => ({ ...base, mode, holderId, targetId: null, zone: { phase, question: "Q", answers: { a: "A", b: "B" }, step: 1 } });
+        const floors = {
+            debate: { ...base, mode: "debate", holderId: null, targetId: null }, objection: { ...base, mode: "objection" },
+            pending: { ...base, mode: "objection", pending: true, messageId: "m" }, rebuttal: { ...base, mode: "rebuttal" },
+            testimony: { ...base, mode: "testimony", targetId: null, round: { mode: "testimony", order: ids, index: 0, step: 1 } },
+            panic: { ...base, mode: "panic", targetId: null, round: { mode: "panic", order: ids, index: 0, step: 1 } },
+            closingVolunteer: closing("volunteer"), closingChoice: closing("choice"), closingDecide: closing("decide"), closingSpeak: closing("speak"),
+            straw: zone("straw", "vote"), dive: zone("dive", "vote"), scrumSides: zone("scrum", "setup"), scrumConfer: zone("scrum", "confer"),
+            scrumSpeak: zone("scrum", "speak", "T"), ended: { ...base, mode: "objection", active: false }, none: null
+        };
+        const read = {}, agree = [];
+        for (const [name, floor] of Object.entries(floors)) {
+            const got = M.floorSpeakers(floor);
+            read[name] = got;
+            if (got) {
+                const allowed = ids.filter(id => F.modeAllows(floor, "speak", id));
+                if (JSON.stringify([...got].sort()) !== JSON.stringify(allowed.sort())) agree.push(name);
+            }
+        }
+        equal(stableJson(read), stableJson({ debate: null, objection: ["O"], pending: ["O"], rebuttal: ["O", "B"], testimony: ["O"], panic: ["O"],
+            closingVolunteer: null, closingChoice: null, closingDecide: null, closingSpeak: ["O"], straw: null, dive: null, scrumSides: null,
+            scrumConfer: null, scrumSpeak: ["T"], ended: null, none: null }), "each floor's speakers for the microphones");
+        equal(JSON.stringify(agree), "[]", "a floor whose speakers are not the ones modeAllows lets speak");
+    }],
+    ["R7103 - the HUD and the voice line say why the microphone is held (E110 C2): voice.mjs `floorHold` answers \"floorHeld\" with the holder's name to a voice character the floor's speakers leave out, \"floorHeldPair\" with both names in a Rebuttal, and nothing to a speaker, on a floor with no speaker, outside the trial or before a road entered it (no list in the record); both lines are in English and Polish with their names; voice.mjs settles the voices on every write of the floor", async () => {
+        /* Pure over the facts handed in, then the words and the trigger read. Red at 6dd02975: no floorHold, no line, no trigger. */
+        const V = await import("./voice.mjs");
+        must(typeof V.floorHold === "function", "voice.mjs has no floorHold");
+        const clock = { phase: "classTrial", chapter: 1 };
+        const record = { chapter: 1, mutedDead: [] };
+        const objection = { active: true, mode: "objection", holderId: "O", targetId: "B", startedAt: 0, seconds: 60 };
+        const facts = (floor, over = {}) => ({ clock, floor, record, epoch: 0, ...over });
+        const a = id => ({ id });
+        const pick = r => (r ? [r.reason, r.held, Object.keys(r.data ?? {}).sort()] : null);
+        const read = [
+            pick(V.floorHold(a("X"), facts(objection))), pick(V.floorHold(a("O"), facts(objection))),
+            pick(V.floorHold(a("X"), facts({ ...objection, mode: "rebuttal" }))), pick(V.floorHold(a("B"), facts({ ...objection, mode: "rebuttal" }))),
+            pick(V.floorHold(a("X"), facts({ ...objection, mode: "debate", holderId: null }))),
+            pick(V.floorHold(a("X"), facts(objection, { clock: { phase: "dailyLife", chapter: 1 } }))),
+            pick(V.floorHold(a("X"), facts(objection, { record: { chapter: 1 } })))
+        ];
+        equal(stableJson(read), stableJson([["floorHeld", true, ["name"]], null, ["floorHeldPair", true, ["name", "target"]], null, null, null, null]),
+            "[a listener in an Objection, its objector, a listener in a Rebuttal, its target, a debate, outside the trial, no list yet]");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Voice?.held ?? {});
+        const words = code => [String(lang[code].floorHeld ?? "").includes("{name}"), String(lang[code].floorHeldPair ?? "").includes("{target}")];
+        equal(stableJson([words("en"), words("pl")]), stableJson([[true, true], [true, true]]), "the two lines in [English, Polish]: [the holder named, the pair named]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        ok(/SETTINGS\.trialQueue/.test(fnSource(src, "registerTrialVoices")), "voice.mjs does not settle the voices on a write of the floor (registerTrialVoices names no trialQueue)");
     }],
 ];
 

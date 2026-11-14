@@ -56,6 +56,8 @@ import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialW
 import { alreadyOpen } from "./live.mjs";
 // A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
 import { conferCamps } from "./zone-machine.mjs";
+// Who holds the floor, for the microphones (E110 C2): floor-machine.mjs is pure and imports config.mjs and zone-machine.mjs alone.
+import { floorSpeakers } from "./floor-machine.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 
@@ -1330,6 +1332,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
     // browser in the room it listens into.
     if (listening && room === listening) return { reason: "listening", held: true };
+    // The floor is somebody else's (E110 C2): HELD, named before the block the trial's settle wrote for it.
+    const floorLine = speaker && !isMonocub(speaker) && !spectatorAccount(user, { actors }) ? floorHold(speaker, trial) : null;
+    if (floorLine) return floorLine;
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
@@ -1366,6 +1371,8 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     // nor while it talks in the Spectators' room (E92 C6), where the block is lifted.
     if (spectatorAccount(user, { actors })) return { reason: spectatorTalks(user, { actors }) ? "spectatorTalk" : "spectator", held: true };
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
+    // The floor's block (E110 C2): the trial's to put back, so the GM's own is not offered over it.
+    if (actor && !row.monokuma && trial && !isMonocub(actor) && floorHold(actor, trialFacts())) return { reason: "floorHeld", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
 }
@@ -1504,7 +1511,25 @@ export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() 
     const speaker = accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null;
     if (!speaker) return null;
     if (isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
-    return isMonocub(speaker) ? cubLine(speaker, trial) : null;
+    if (isMonocub(speaker)) return cubLine(speaker, trial);
+    return spectatorAccount(user, { actors }) ? null : floorHold(speaker, trial);
+}
+
+/**
+ * THE FLOOR IS SOMEBODY ELSE'S (E110 C2, 14.11.2026): `{ reason: "floorHeld" | "floorHeldPair", held: true, data }` when
+ * the floor the trial's facts hold (`trialFacts`) gives the floor to others and not to `actor` (floor-machine.mjs
+ * `floorSpeakers`), else null. Only once a road entered the trial - the record holds the trial's list (`mutedDead`), as
+ * `settleTrialVoices` blocks only then (Q-E110-7) - so the line never says a microphone is held that nothing holds.
+ * `data` names who has the floor: `name`, and `target` for a Rebuttal's pair. Pure over the facts handed in (R7103).
+ */
+export function floorHold(actor, trial) {
+    if (!actor || trial?.clock?.phase !== "classTrial" || !Object.hasOwn(trial?.record ?? {}, "mutedDead")) return null;
+    const speakers = floorSpeakers(trial.floor);
+    if (!speakers?.length || speakers.includes(actor.id)) return null;
+    const nameOf = id => game.actors?.get?.(id ?? "")?.name ?? "-";
+    return speakers.length > 1
+        ? { reason: "floorHeldPair", held: true, data: { name: nameOf(speakers[0]), target: nameOf(speakers[1]) } }
+        : { reason: "floorHeld", held: true, data: { name: nameOf(speakers[0]) } };
 }
 
 /** `micHold`'s line for a Monocub in the trial: information only, never held. */
@@ -1681,10 +1706,18 @@ export async function settleTrialVoices({ release = false } = {}) {
             await vote.writeTrialProgressInStep({ mutedDead: undefined }, { chapter: stored.chapter ?? null });
         }
         const listed = new Set(list ?? []);
+        /* THE FLOOR'S SPEAKERS (E110 C2, 14.11.2026): while a floor with a speaker stands in a trial a road entered, every
+           player whose voice character the mode does not give the floor is blocked by the same write and the same row, and
+           given back when the floor, the turn or the trial moves on. Never a GM (skipped below), a Monocub (the design's P6,
+           Q-E110-5) or a Spectator's account (its talk switch decides, `watching`); a GM's own block is left alone by
+           `blockForTrial`. Only a user whose answer changes is written (`row?.wrote`), so a Panic turn writes the speaker who
+           stops and the one who starts. */
+        const queue = getSetting(SETTINGS.trialQueue) ?? {};
+        const speakers = inTrial ? floorSpeakers(queue.active ? queue : null) : null;
         const out = { list, blocked: [], restored: [] };
         for (const user of game.users) {
             if (user.isGM) continue;
-            const voice = listed.size ? trialVoiceActorOf(user, game.actors, list) : null;
+            const voice = listed.size || speakers ? trialVoiceActorOf(user, game.actors, list ?? []) : null;
             const row = trialMuteStore.get(user.id);
             // A Spectator's account is blocked in every phase, by the same write and the same row (E92 C2), so the
             // trial's exit and a role given back put back exactly what the block found; `release` gives it back too.
@@ -1692,7 +1725,9 @@ export async function settleTrialVoices({ release = false } = {}) {
             const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
             const masked = !release && mask.maskMutedIds().has(user.id);
-            if (watching || listening || masked || (voice && listed.has(voice.id))) {
+            const floorHeld = Boolean(speakers && voice && !listed.has(voice.id) && !speakers.includes(voice.id)
+                && !flagsHeldNow(voice).getFlag?.(MODULE_ID, FLAGS.monocub) && !spectatorAccount(user, { held: flagsHeldNow }));
+            if (watching || listening || masked || floorHeld || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }
@@ -1742,7 +1777,8 @@ function registerTrialVoices() {
         if (changes?.flags?.[MODULE_ID] || "ownership" in (changes ?? {})) scheduleTrialVoices();
     });
     Hooks.on("updateSetting", setting => {
-        if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) scheduleTrialVoices();
+        // And every write of the floor (E110 C2): a mode opened, a turn passed, a redirect, the floor's end.
+        if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}` || setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) scheduleTrialVoices();
     });
     Hooks.on("drpgPrimaryReady", () => scheduleTrialVoices());
     // Listen's eavesdrop (E69 C6): its block written and lifted by the same settle, whatever else is pending.
