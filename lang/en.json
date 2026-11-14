@@ -7163,6 +7163,7 @@
           "notGm": "Only a GM can write the copy of the case.",
           "notPrimary": "Only the primary GM writes the copy of the case.",
           "notHydrated": "The other GMs' copies of the case have not arrived yet. Try again in a moment.",
+          "quiet": "The module's own tests hold the case right now. Try again when they end.",
           "list": "This browser could not list the case's folder on the server. The console has the details.",
           "failed": "The copy of the case could not be written. The console has the details."
         }

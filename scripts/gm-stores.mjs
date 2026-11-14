@@ -2425,13 +2425,20 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
         }
         if (!quiet) handle.markRestored();
         counts[name] = { changed, filled, beforeCut: beforeCut ? 0 : preview.beforeCut, clamped };
+        /* A quiet read that took nothing (E111: the server copy, read before every write and at every GM's load) sends
+           no player anything and runs no Faint pass: it changed nothing, and a GM reading the copy it wrote itself would
+           otherwise send every connected player their copies again at every write. */
+        if (quiet && !changed && !filled) continue;
         try { await handle.spec.afterRestore?.(); }
         catch (err) { error(`After restoring "${name}", the players' copies could not be sent again`, err); }
     }
-    try {
-        const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
-        await migrateFaintIntoSecrets();
-    } catch (err) { error("After a restore, the Faint pass did not finish", err); }
+    const tookAny = Object.values(counts).some(c => c.changed || c.filled);
+    if (!quiet || tookAny) {
+        try {
+            const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
+            await migrateFaintIntoSecrets();
+        } catch (err) { error("After a restore, the Faint pass did not finish", err); }
+    }
     const lines = Object.entries(counts).map(([name, c]) => (c.skipped
         ? game.i18n.format("DRPG.Case.restoredSkipped", { store: storeLabel(name) })
         : game.i18n.format("DRPG.Case.restoredStore", { store: storeLabel(name), n: c.changed + c.filled, cut: c.beforeCut })));

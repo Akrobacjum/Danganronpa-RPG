@@ -43089,8 +43089,9 @@ const INVARIANTS = [
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 // E64-inv (the owner's pick of the Investigation review, 12.11.2026): no evidence log, no destructive row (R3967).
                 // Close, which keeps an open node's text, since the owner's 13.11.2026 (a discarding Cancel before it)
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", close: "close" },
-                ["save", "newTrace", "autopsy", "bodyFound", "realize", "close"]],
+                // E111: Clear the plan, a secondary of its own (investigation.mjs `openClearPlan` asks with a destructive Clear).
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", clearPlan: "secondary", close: "close" },
+                ["save", "newTrace", "autopsy", "bodyFound", "realize", "clearPlan", "close"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */
@@ -61479,7 +61480,7 @@ const INVARIANTS = [
         }), stableJson({ held: null, off: "switchOff", playerBrowse: "roles", trustedUpload: "roles", account: "account", gmGrant: null, readsRow: true }),
         "{each table's refusal; filesPrivate reads the playerFiles row and the permissions in force}");
     }],
-    ["R7346 - an empty browser never writes before it has read: case-copy.mjs `copyRefusal` answers \"notGm\", \"notPrimary\", the files' refusal before anything else a GM is asked, and \"notHydrated\" for a GM whose stores have not heard the other GMs; and `writeServerCopy` lists and merges every copy in the folder (`readServerCopies`) before it builds the case it uploads, asks the hydration again after that read, and uploads over the newest copy's name or a new one", async () => {
+    ["R7346 - an empty browser never writes before it has read: case-copy.mjs `copyRefusal` answers \"notGm\", \"notPrimary\", the files' refusal before anything else a GM is asked, \"quiet\" while the suite holds the stores or stands in another world (and `readServerCopies` reads nothing then), and \"notHydrated\" for a GM whose stores have not heard the other GMs; and `writeServerCopy` lists and merges every copy in the folder (`readServerCopies`) before it builds the case it uploads, asks the hydration again after that read, and uploads over the newest copy's name or a new one", async () => {
         /* Red at 18df17c4: no case-copy.mjs. */
         const C = await import("./case-copy.mjs");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-copy.mjs`).then(r => (r.ok ? lfText(r) : "")));
@@ -61489,10 +61490,11 @@ const INVARIANTS = [
         equal(stableJson({
             ok: C.copyRefusal(base), notGm: C.copyRefusal({ ...base, isGM: false }), notPrimary: C.copyRefusal({ ...base, primary: false }),
             unhydrated: C.copyRefusal({ ...base, hydrated: false }), filesFirst: C.copyRefusal({ ...base, hydrated: false, files: "roles" }),
+            quiet: C.copyRefusal({ ...base, quiet: true }), readQuiet: /if \(gmStoresQuiet\(\)\) return \{ refused: "quiet" \}/.test(fnSource(src, "readServerCopies")),
             readBeforeBuild: at(/await readServerCopies\(\)/) > 0 && at(/await readServerCopies\(\)/) < at(/await caseFileNow\(\)/),
             hydratedAfterRead: at(/await readServerCopies\(\)/) < at(/if \(!SEAL_DEPS\.hydrated\(\)\)/),
             uploadLast: at(/await caseFileNow\(\)/) < at(/FP\.upload\("data", copyFolder\(\)/), newestName: /seen\.newest \? seen\.newest\.slice/.test(w)
-        }), stableJson({ ok: null, notGm: "notGm", notPrimary: "notPrimary", unhydrated: "notHydrated", filesFirst: "roles",
+        }), stableJson({ ok: null, notGm: "notGm", notPrimary: "notPrimary", unhydrated: "notHydrated", filesFirst: "roles", quiet: "quiet", readQuiet: true,
             readBeforeBuild: true, hydratedAfterRead: true, uploadLast: true, newestName: true }),
         "{the refusals in order; the write reads the folder, asks the hydration again, builds, then uploads over the newest name}");
     }],
@@ -61508,7 +61510,7 @@ const INVARIANTS = [
         stableJson({ a: true, differ: true, folder: "worlds/R7347WORLD/drpg-case", pattern: true, writes: 0, dataOnly: 3 }),
         "{the name's shape, two names differ, the folder, the pattern, no road a player reads, every file call in the data source}");
     }],
-    ["R7348 - the server copy is read with Restore's own merge and written from the backup's own file: `readServerCopies` calls gm-stores.mjs `restoreCase` quiet with no health check of its own for every copy it fetched; `writeServerCopy` uploads `caseFileNow`, which `backupCase` saves too; `restoreCase` with `quiet` neither toasts nor marks a store restored; and the health check and the case window name the copy (`caseCopy` row, `copyLineText`, the button \"writeCopy\")", async () => {
+    ["R7348 - the server copy is read with Restore's own merge and written from the backup's own file: `readServerCopies` calls gm-stores.mjs `restoreCase` quiet with no health check of its own for every copy it fetched; `writeServerCopy` uploads `caseFileNow`, which `backupCase` saves too; `restoreCase` with `quiet` neither toasts nor marks a store restored, and a quiet read that took nothing sends no player anything and runs no Faint pass; and the health check and the case window name the copy (`caseCopy` row, `copyLineText`, the button \"writeCopy\")", async () => {
         /* Red at 18df17c4: no case-copy.mjs, no caseFileNow, no quiet. */
         const src = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : "")));
         const copy = await src("case-copy.mjs"), stores = await src("gm-stores.mjs");
@@ -61517,9 +61519,10 @@ const INVARIANTS = [
             readMerge: /restoreCase\(file,\s*\{\s*quiet:\s*true,\s*recheck:\s*false\s*\}\)/.test(fnSource(copy, "readServerCopies")),
             writeFile: /await caseFileNow\(\)/.test(fnSource(copy, "writeServerCopy")), backupFile: /await caseFileNow\(\)/.test(fnSource(stores, "backupCase")),
             quietToast: /if \(!quiet\) ui\.notifications\.info\(/.test(restore), quietMark: /if \(!quiet\) handle\.markRestored\(\)/.test(restore),
+            quietNothing: /if \(quiet && !changed && !filled\) continue;/.test(restore) && /if \(!quiet \|\| tookAny\)/.test(restore),
             healthRow: /add\("caseCopy"/.test(fnSource(stores, "gmStoreHealth")),
             window: /action: "writeCopy"/.test(fnSource(stores, "openCaseWindow")) && /writeServerCopy\(\{ explicit: true \}\)/.test(fnSource(stores, "openCaseWindow"))
-        }), stableJson({ readMerge: true, writeFile: true, backupFile: true, quietToast: true, quietMark: true, healthRow: true, window: true }),
+        }), stableJson({ readMerge: true, writeFile: true, backupFile: true, quietToast: true, quietMark: true, quietNothing: true, healthRow: true, window: true }),
         "{the read merges through restoreCase quiet; the write uploads caseFileNow, which Back up saves; quiet keeps the toast and the mark off; the health row and the window's button}");
     }],
     ["R7349 - Clear the plan takes one chapter's planning and nothing else (the owner, 14.11.2026: \"Brakuje mi tez w planerze zagadki opcji zresetowania zawartosci/wyczyszczenia recznie\"): case-schema.mjs `planToClear`, pure over the two stores' entries, names the chapter's planned Key Remnant slots (counting those placed on the map, by tokenId), its schema nodes and its meta row; never its reveal row, its closed case's keys, another chapter's rows or a row of no chapter", async () => {

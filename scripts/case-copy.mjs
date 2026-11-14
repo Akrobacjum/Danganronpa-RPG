@@ -34,7 +34,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { isPrimaryGm, warn, error } from "./utils.mjs";
-import { gmStoresHydrated, gmStoreHandles, onGmStoresHydrated, stableJson } from "./gm-store.mjs";
+import { gmStoresHydrated, gmStoreHandles, onGmStoresHydrated, stableJson, gmStoresQuiet } from "./gm-store.mjs";
 import { caseFileNow, restoreCase, caseMark } from "./gm-stores.mjs";
 import { ENFORCED, permissionsInForce } from "./enforced.mjs";
 
@@ -85,12 +85,14 @@ export function filesPrivate() {
 /**
  * Why this browser may not write a copy now, or null (pure over what it is handed): "notGm", "notPrimary" (a
  * debounced write is the primary's; a GM's own press is `primary: true`), "notHydrated" (its stores have not heard
- * the other GMs: what it holds may be less than the case), or a `filesRefusal` reason.
+ * the other GMs: what it holds may be less than the case), "quiet" (the suite holds the stores or stands in another
+ * world - `gmStoresQuiet`: what they answer then is a fixture's, never this world's case), or a `filesRefusal` reason.
  */
-export function copyRefusal({ isGM, primary, hydrated, files }) {
+export function copyRefusal({ isGM, primary, hydrated, files, quiet = false }) {
     if (!isGM) return "notGm";
     if (!primary) return "notPrimary";
     if (files) return files;
+    if (quiet) return "quiet";
     if (!hydrated) return "notHydrated";
     return null;
 }
@@ -135,6 +137,8 @@ async function fetchCopy(path) {
  */
 export async function readServerCopies() {
     if (!game.user?.isGM) return { refused: "notGm" };
+    // Never into a world the suite stands in, nor while it holds the stores (`copyRefusal`'s "quiet").
+    if (gmStoresQuiet()) return { refused: "quiet" };
     let paths;
     try { paths = await listCopies(); }
     catch (err) { warn("The case's server copy: the folder could not be listed", String(err?.message ?? err)); return { refused: "list" }; }
@@ -162,7 +166,7 @@ export async function readServerCopies() {
 export async function writeServerCopy({ explicit = false } = {}) {
     if (state.running) await state.running.catch(() => {});
     const why = copyRefusal({ isGM: Boolean(game.user?.isGM), primary: explicit || isPrimaryGm(), hydrated: SEAL_DEPS.hydrated(),
-        files: game.user?.isGM ? filesPrivate() : null });
+        files: game.user?.isGM ? filesPrivate() : null, quiet: gmStoresQuiet() });
     if (why) {
         state.refused[why] = (state.refused[why] ?? 0) + 1;
         state.last = why;
@@ -172,8 +176,9 @@ export async function writeServerCopy({ explicit = false } = {}) {
     const run = (async () => {
         const seen = await readServerCopies();
         if (seen.refused) return (state.last = seen.refused);
-        // Read again just before the write: a hydration that went while the folder was read.
+        // Read again just before the write: a hydration that went while the folder was read, or the suite's hold.
         if (!SEAL_DEPS.hydrated()) return (state.last = "notHydrated");
+        if (gmStoresQuiet()) return (state.last = "quiet");
         const file = await caseFileNow();
         if (seen.newestFile && stableJson(seen.newestFile.stores ?? {}) === stableJson(file.stores ?? {})) return (state.last = "same");
         const name = seen.newest ? seen.newest.slice(seen.newest.lastIndexOf("/") + 1) : newCopyName();
