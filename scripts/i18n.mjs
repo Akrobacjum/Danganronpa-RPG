@@ -42,7 +42,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import * as CONFIG_TABLES_SOURCE from "./config.mjs";
-import { walkConfigProse } from "./i18n-config.mjs";
+import { walkConfigProse, keepEnglish } from "./i18n-config.mjs";
 import { LANGUAGES, SETTINGS, moduleLanguage, pageLanguage, setPageLanguage, documentLanguage, setSetting } from "./settings.mjs";
 import { log, error, isPrimaryGm } from "./utils.mjs";
 
@@ -118,7 +118,8 @@ function localizeConfig() {
     walkConfigProse(CONFIG_TABLES_SOURCE, (key, value, set) => {
         if (!game.i18n.has(key)) return;
         const next = game.i18n.localize(key);
-        if (next && next !== value && next !== key) { set(next); swapped += 1; }
+        // The English first (E57 C3): a document written in an English world from this page reads it.
+        if (next && next !== value && next !== key) { keepEnglish(key, value); set(next); swapped += 1; }
     });
     return swapped;
 }

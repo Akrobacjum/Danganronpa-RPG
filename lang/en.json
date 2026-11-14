@@ -1882,7 +1882,8 @@
       }
     },
     "Help": {
-      "gm": "Open the GM Handbook at section {section}"
+      "gm": "Open the GM Handbook at section {section}",
+      "documentLanguageUnset": "Not set yet"
     },
     "Kit": {
       "close": "Close",

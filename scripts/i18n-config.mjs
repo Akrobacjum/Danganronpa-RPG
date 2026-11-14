@@ -50,6 +50,32 @@ function isProse(value) {
  * i18n key (`DRPG.Config.ACTIONS.search.label`), `set(next)` writes a
  * replacement into the table in place. Arrays use their index as a segment.
  */
+/*
+ * THE ENGLISH OF CONFIG PROSE (E57 C3, D34). A page in another language swaps config.mjs's prose for its own in place
+ * (i18n.mjs `localizeConfig`), and lang/en.json holds none of it, so once swapped the English is nowhere - and a document
+ * written in an English world from a Polish page needs it (utils.mjs `worldLocalize`). `localizeConfig` keeps each value
+ * here before it swaps it, the first value a key had (the table's own English: a second swap of the same page writes the
+ * same words). A leaf's map: utils.mjs reads it and cannot import i18n.mjs.
+ */
+const ENGLISH = new Map();
+
+/** Keep `value` as the English of `key`, unless a value is kept already. */
+export function keepEnglish(key, value) {
+    if (typeof value === "string" && !ENGLISH.has(key)) ENGLISH.set(key, value);
+}
+
+/** The English kept for a config prose key, or undefined where the page never swapped it. */
+export function configEnglish(key) {
+    return ENGLISH.get(key);
+}
+
+/** A config prose key's value in the tables as they stand now (the page's words once swapped), or undefined. */
+export function configProseOf(config, key) {
+    let found;
+    walkConfigProse(config, (k, value) => { if (k === key) found = value; });
+    return found;
+}
+
 export function walkConfigProse(config, visit) {
     const walk = (node, keyPath) => {
         if (Array.isArray(node)) {

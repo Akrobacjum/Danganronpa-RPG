@@ -168,7 +168,29 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         await settle(100);
     }
 
-    // ---- 4. put the clients back: every window answers again as it did ------------------------------------------
+    // ---- 4. D34 (E57 C3): a world document in the world's language, whichever page writes it ----------------------
+    // The Polish GM's tables are Polish by now (localizeConfig swapped them) and the English kept; p1's are English.
+    // Each page writes an item's tier line (inventory.mjs tierDescription, what grantItem writes) with the world in
+    // English, then in Polish; the two pages must write the same line each time, and it must be the world's. Put back.
+    const was = await gm.eval(`return game.settings.get("${MOD}", "documentLanguage");`);
+    const line = c => c.eval(`const I = await import("${REPO}/scripts/inventory.mjs"); return I.tierDescription({ category: "usable", kind: null, tier: 1 });`);
+    const tables = await p1.eval(`const C = await import("${REPO}/scripts/config.mjs"); return C.TIER_EFFECTS.usable[1];`);
+    const swapped = await gm.eval(`const C = await import("${REPO}/scripts/config.mjs"); return C.TIER_EFFECTS.usable[1];`);
+    check("D34: the Polish GM's tables hold the Polish tier sentence and p1's the English, so the two lines below can differ", tables !== swapped, JSON.stringify({ tables, swapped }));
+    try {
+        for (const world of ["en", "pl"]) {
+            await gm.eval(`await game.settings.set("${MOD}", "documentLanguage", "${world}"); return true;`);
+            await settle(300);
+            const fromGm = await line(gm), fromP1 = await line(p1);
+            const want = world === "en" ? tables : swapped;
+            check(`D34: with the world's documents in ${world === "en" ? "English" : "Polish"}, the Polish GM and the English p1 write one tier line, in the world's language`,
+                fromGm === fromP1 && fromGm.includes(want), JSON.stringify({ fromGm, fromP1, want }));
+        }
+    } finally {
+        await gm.eval(`await game.settings.set("${MOD}", "documentLanguage", ${JSON.stringify(was)}); return true;`);
+    }
+
+    // ---- 5. put the clients back: every window answers again as it did ------------------------------------------
     for (const c of clients) {
         await c.eval(`globalThis.__dialogAuto = globalThis.__e57was?.auto; globalThis.__dialogWindows = globalThis.__e57was?.windows; return true;`);
     }

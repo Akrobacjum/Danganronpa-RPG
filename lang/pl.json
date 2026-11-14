@@ -1970,7 +1970,8 @@
       }
     },
     "Help": {
-      "gm": "Otwórz Podręcznik GM w sekcji {section}"
+      "gm": "Otwórz Podręcznik GM w sekcji {section}",
+      "documentLanguageUnset": "Jeszcze nieustawiony"
     },
     "Kit": {
       "close": "Zamknij",

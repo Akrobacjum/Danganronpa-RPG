@@ -11,9 +11,9 @@ R6600-R6699. Kept current as the line goes; the coordinator's ledger is the reco
 | C0 spec and inventory | done | fb4f3a47 | none (a book) |
 | C1 guards: stale-pl `--check`, `--sheet`, `--stamp`, `tools/pl-reviewed.json`, T9 FAIL | done | 78e4576e | R6600; R1058 widened; `check text` with T9 and the tool's self-check (a planted English moved alone seen) |
 | C2 rules-parity, check part `rules` | done | e66f01dc | the part's 14 planted faults |
-| C3 D34 | waits for E54 (settings.mjs, utils.mjs) | - | - |
+| C3 D34: worldLocalize reads config prose itself, the English kept when a page swaps it; the tier line through it; the setting shown (Q-E57-18) | done | (this commit) | R6603; R3420 widened; 51-lang-mixed 38/38 twice; a mutant (the English not kept) red in R6603 and 51 |
 | C4 D35 "?" in six windows (GM panel 3, Season setup 2, Room setup 9.1, The case 14, the trial console 15, Edit campaign 4); "section N" references made jumps | done | a93cc6f1 | R6601, R6602, R111's layout part; AUDIT 9.2 529-531 (LIVE-E57-01..03) |
-| C4 the Investigation dashboard's "?" (its tabs share it, Q-E57-17; section 14) | done | (this commit) | R6601 widened to seven windows |
+| C4 the Investigation dashboard's "?" (its tabs share it, Q-E57-17; section 14) | done | c6b00847 | R6601 widened to seven windows |
 | C5 window registry (Q-E57-16: SCREENS' window rows) and scenario 51-lang-mixed | done | fb70d2c3 | 51-lang-mixed 35/35, twice; a mutant (Edit campaign's title key gone) red on that window alone |
 | C12 last pass, text lints to their final modes | waits for the text and handbook lines | - | - |
 

@@ -6,6 +6,9 @@
 
 import { MODULE_ID, epochClock, fillProse } from "./config.mjs";
 import { SETTINGS, pageLanguage, documentLanguage } from "./settings.mjs";
+// E57 C3: config prose in the world's language - the tables and the English kept of them; its own line.
+import * as CONFIG_SOURCE from "./config.mjs";
+import { configEnglish, configProseOf } from "./i18n-config.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -153,13 +156,22 @@ const worldFiles = new Map();
  * has only its Polish), this is `game.i18n.format` in the page's language. `{name}` placeholders are filled from
  * `data` as `game.i18n.format` fills them; a placeholder `data` lacks stays as written.
  *
- * NO SITE CALLS IT IN E66. The helper and its setting are D196's, pinned here; the documents that should be written
- * through it - S02-74, config prose written into world documents in the creating client's language - are E57's
- * (row 1.2.124), which switches them over. The interface windows, cards and the sheet stay in each browser's own
- * language and never go through it.
+ * E57 C3 (14.11.2026; S02-74) switched the documents over: an item's tier line (inventory.mjs `tierDescription`, which
+ * `grantItem` and the tier 3 rewrite write). CONFIG PROSE, `DRPG.Config.*`, is read from config.mjs itself: lang/en.json
+ * holds none of it, so `game.i18n` on an English page answers the raw key, and a Polish page has swapped the tables to
+ * Polish in place. In the page's language it is the tables as they stand; in English, the English i18n-config.mjs kept
+ * when the page swapped it (`configEnglish`), or the table where it was never swapped; in another language, that
+ * language's file, as for any key. `lang` (E57 C3) stands in for the setting where a caller or a test names one. The
+ * interface windows, cards and the sheet stay in each browser's own language and never go through it.
  */
-export async function worldLocalize(key, data = {}) {
-    const lang = documentLanguage();
+export async function worldLocalize(key, data = {}, { lang = documentLanguage() } = {}) {
+    const fill = template => template.replace(/{[^}]+}/g, k => (Object.hasOwn(data ?? {}, k.slice(1, -1)) ? String(data[k.slice(1, -1)]) : k));
+    const config = String(key).startsWith("DRPG.Config.");
+    const here = config ? configProseOf(CONFIG_SOURCE, key) : undefined;
+    if (config && typeof here === "string") {
+        if (!lang || lang === pageLanguage()) return fill(here);
+        if (lang === "en") return fill(configEnglish(key) ?? here);
+    }
     if (!lang || lang === pageLanguage()) return game.i18n.format(key, data);
     let file = worldFiles.get(lang);
     if (!file) {
@@ -171,8 +183,8 @@ export async function worldLocalize(key, data = {}) {
     const json = await file;
     if (!json) worldFiles.delete(lang);
     const template = json ? (json[key] ?? foundry.utils.getProperty(json, key)) : undefined;
-    if (typeof template !== "string") return game.i18n.format(key, data);
-    return template.replace(/{[^}]+}/g, k => (Object.hasOwn(data ?? {}, k.slice(1, -1)) ? String(data[k.slice(1, -1)]) : k));
+    if (typeof template !== "string") return typeof here === "string" ? fill(here) : game.i18n.format(key, data);
+    return fill(template);
 }
 
 /** The window event camera-view.mjs `measureCameraDock` sends when the camera dock's lift (`--drpg-av-lift`) changes,

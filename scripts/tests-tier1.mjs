@@ -2148,6 +2148,49 @@ const INVARIANTS = [
         }
     }],
 
+    ["R6603 - D34 (E57 C3): config.mjs's prose written into a world document is in the world's document language, not the page's - worldLocalize gives a DRPG.Config key in English from config.mjs (the English a Polish page swapped out kept by i18n-config.mjs, the table itself on an English page), in Polish from lang/pl.json, never the raw key; an item's tier line (inventory.mjs tierDescription, which grantItem and the tier 3 rewrite write) follows it; and the setting is in the game's settings window with its empty choice named", async () => {
+        /*
+         * E57 C3 (14.11.2026; D34, S02-74; text-style.md 13, "What E66 handed to E57"). Until C3 no site wrote through
+         * worldLocalize, and it formatted a DRPG.Config key in the page's language whatever the setting held - and on an
+         * English page that is the raw key, since lang/en.json holds no config prose. The harness's page is English;
+         * the Polish page's half (the English kept when the tables are swapped) is held on a planted key here and on
+         * real clients by 51-lang-mixed. `lang` is worldLocalize's third argument, so nothing writes the world setting.
+         */
+        const U = await import("./utils.mjs");
+        const C = await import("./config.mjs");
+        const IC = await import("./i18n-config.mjs");
+        const inv = await import("./inventory.mjs");
+        must(typeof IC.keepEnglish === "function" && typeof IC.configEnglish === "function" && typeof inv.tierDescription === "function",
+            "the English of config prose is kept nowhere yet (i18n-config.mjs keepEnglish, configEnglish; inventory.mjs tierDescription)");
+        const key = "DRPG.Config.TIER_EFFECTS.usable.1";
+        const pl = foundry.utils.expandObject(JSON.parse(await lfText(await fetch(`/modules/${MODULE_ID}/lang/pl.json`))));
+        const polish = foundry.utils.getProperty(pl, key);
+        ok(typeof polish === "string" && polish !== C.TIER_EFFECTS.usable[1], "pl.json has no Polish of the tier sentence this test reads");
+        equal(await U.worldLocalize(key, {}, { lang: "pl" }), polish, "a Polish world's document does not get the Polish of config prose");
+        equal(await U.worldLocalize(key, {}, { lang: "en" }), C.TIER_EFFECTS.usable[1], "an English world's document does not get config.mjs's English");
+        equal(await U.worldLocalize(key, {}, { lang: "" }), C.TIER_EFFECTS.usable[1], "a world with no document language yet does not get the page's words for config prose");
+        /* The English a Polish page swaps out is kept, once: the first value is the table's English. */
+        IC.keepEnglish("DRPG.Config.R6603.probe", "English words");
+        IC.keepEnglish("DRPG.Config.R6603.probe", "Polskie słowa");
+        equal(IC.configEnglish("DRPG.Config.R6603.probe"), "English words", "the English kept for a key is not the first value it had");
+        ok(/keepEnglish\(key, value\)/.test(fnSource(await lfText(await fetch(`/modules/${MODULE_ID}/scripts/i18n.mjs`)), "localizeConfig")),
+            "localizeConfig swaps config prose without keeping its English");
+        /* The two sites: one helper, and both call it. */
+        const tierLine = (lang, n) => inv.tierDescription({ category: "usable", kind: null, tier: n, lang });
+        equal(await tierLine("pl", 1), `<p>${foundry.utils.getProperty(pl, "DRPG.Items.tierN").replace("{n}", "1")}. ${polish}</p>`, "a Polish world's item has no Polish tier line");
+        equal(await tierLine("en", 1), `<p>${game.i18n.format("DRPG.Items.tierN", { n: 1 })}. ${C.TIER_EFFECTS.usable[1]}</p>`, "an English world's item has no English tier line");
+        const invSource = await lfText(await fetch(`/modules/${MODULE_ID}/scripts/inventory.mjs`));
+        ok(/tierDescription\(/.test(fnSource(invSource, "grantItem")) && /tierDescription\(/.test(fnSource(invSource, "refreshTierThreeWording")),
+            "grantItem or the tier 3 rewrite does not write its tier line through tierDescription");
+        /* The setting shown, its empty choice named. */
+        const W = await import("./settings-window.mjs");
+        ok(W.GAME_SECTIONS.some(s => s.keys.includes("documentLanguage")), "the document language is not in the game's settings window");
+        const choice = game.settings.settings.get(`${MODULE_ID}.documentLanguage`)?.choices?.[""];
+        equal(choice, "DRPG.Help.documentLanguageUnset", "the setting's empty choice is not named");
+        const words = game.i18n.localize(choice ?? "");
+        ok(words && !words.startsWith("DRPG."), "the empty choice's name has no words in the page's language");
+    }],
+
     ["R131 - a held setting of a module that is not here writes nothing", async () => {
         /*
          * E27, 24.09.2026; the review of E27. The stage's verify list asks that with

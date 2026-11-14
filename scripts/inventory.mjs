@@ -13,6 +13,8 @@ import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS
     BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
+// E57 C3 (D34): an item's tier line in the world's document language; its own line.
+import { worldLocalize } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 
 /** Flag keys stored on every item this module creates. */
@@ -713,6 +715,20 @@ export function carriedFor(actor, role) {
 }
 
 /**
+ * An item's tier line as its description is written (E57 C3, D34; S02-74): "Tier N. " and what the tier does for its
+ * kind (`USABLE_KIND_EFFECTS`, else `TIER_EFFECTS`), in the world's document language (`lang`, utils.mjs
+ * `worldLocalize`), not the language of the browser that made the item: a description is read by everyone. The shape is
+ * the one `grantItem` wrote before C3, "<p>Tier 2. ...</p>", and an empty sentence leaves "Tier 2. " as it did.
+ */
+export async function tierDescription({ category, kind = null, tier, lang = undefined }) {
+    const options = lang === undefined ? {} : { lang };
+    const key = USABLE_KIND_EFFECTS[kind]?.[tier] !== undefined ? `DRPG.Config.USABLE_KIND_EFFECTS.${kind}.${tier}`
+        : TIER_EFFECTS[category]?.[tier] !== undefined ? `DRPG.Config.TIER_EFFECTS.${category}.${tier}` : null;
+    const effect = key ? await worldLocalize(key, {}, options) : "";
+    return `<p>${await worldLocalize("DRPG.Items.tierN", { n: tier }, options)}. ${effect}</p>`;
+}
+
+/**
  * THE OLD TIER 3 WORDING ON ITEMS ALREADY MADE (E14 fix e1-G5, 24.10.2026; the review's E14R-08). C5 changed what a tier
  * 3 usable does (3 of its kind, no choice and no Hope: the owner of 15.10), and `grantItem` writes the effect into an
  * item's description once, when it is made - so a world upgraded with tier 3 usables made before C5 kept "Restores 2
@@ -734,9 +750,9 @@ export async function refreshTierThreeWording() {
         for (const item of items ?? []) {
             if (item.getFlag(MODULE_ID, ITEM_FLAGS.category) !== "usable" || Number(item.getFlag(MODULE_ID, ITEM_FLAGS.tier)) !== 3) continue;
             if (!stale.has(item.system?.description)) continue;
-            const effect = USABLE_KIND_EFFECTS[item.getFlag(MODULE_ID, ITEM_FLAGS.kind)]?.[3] ?? TIER_EFFECTS.usable?.[3] ?? "";
             try {
-                await trustedWrite(item, { "system.description": `<p>Tier 3. ${effect}</p>` }, { reason: "gmRuling" });
+                const description = await tierDescription({ category: "usable", kind: item.getFlag(MODULE_ID, ITEM_FLAGS.kind) ?? null, tier: 3 });
+                await trustedWrite(item, { "system.description": description }, { reason: "gmRuling" });
                 rewritten++;
             } catch (err) {
                 error(`Could not bring "${item.name}"'s tier 3 wording up to date`, err);
@@ -842,14 +858,14 @@ export async function grantItem(actor, {
     }
 
     const type = category === "usable" ? "consumable" : "loot";
-    const effect = USABLE_KIND_EFFECTS[kind]?.[tier] ?? TIER_EFFECTS[category]?.[tier] ?? "";
 
     // The tier line is a fallback for things that HAVE a tier. A Truth Bullet
     // does not, and passing `tier: null` through the old unconditional template
     // wrote "Tier null." into the description of every bullet issued without
     // player text.
     const hasTier = tier !== null && tier !== undefined;
-    const fallbackDescription = hasTier ? `<p>Tier ${tier}. ${effect}</p>` : "";
+    // In the world's document language (E57 C3), and only where no description was given.
+    const fallbackDescription = !description && hasTier ? await tierDescription({ category, kind, tier }) : "";
 
     try {
         const [item] = await trustedCreate(actor, [{
