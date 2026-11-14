@@ -2259,7 +2259,7 @@
           "newItemRoomTableTooltip": "Also puts the item in this room table when you add it",
           "newItemNameTooltip": "The name the item carries on the sheet of whoever finds it",
           "newItemDescriptionTooltip": "What the student who finds the item reads in its description. You can leave it empty",
-          "renameTableTooltip": "Renames the shown table. A room drawing from its old name stops until you pick it again in Room setup",
+          "renameTableTooltip": "Renames the shown table. The rooms that draw from it go on drawing from it under the new name",
           "tabRoomPoolsTooltip": "Your own tables. In Room setup, each room can be set to draw from one of them",
           "tabNewItemTooltip": "Makes one item and adds it to its tier table and any room tables you tick"
         },

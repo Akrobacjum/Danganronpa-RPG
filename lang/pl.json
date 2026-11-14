@@ -2349,7 +2349,7 @@
           "newItemRoomTableTooltip": "Przy dodawaniu wkłada przedmiot także do tej tabeli pokoju",
           "newItemNameTooltip": "Nazwa, pod którą przedmiot trafi na arkusz postaci znalazcy",
           "newItemDescriptionTooltip": "To, co znalazca przeczyta w opisie przedmiotu. Możesz zostawić to pole puste",
-          "renameTableTooltip": "Zmienia nazwę widocznej tabeli. Pokój, który losował z niej pod starą nazwą, przestaje, dopóki nie wybierzesz jej znowu w Ustawieniach pokoi",
+          "renameTableTooltip": "Zmienia nazwę widocznej tabeli. Pokoje, które z niej losują, losują dalej, już pod nową nazwą",
           "tabRoomPoolsTooltip": "Twoje własne tabele. W Ustawieniach pokoi każdy pokój może losować z jednej z nich",
           "tabNewItemTooltip": "Tworzy jeden przedmiot i dodaje go do jego tabeli Tier i do zaznaczonych tabel pokoi"
         },
