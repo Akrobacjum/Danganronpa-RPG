@@ -3471,7 +3471,9 @@
         "noneScene": "None on this scene.",
         "noneAnywhere": "None anywhere."
       },
-      "discardNote": "{actor} threw away “{item}” in {room} (rolled {total})."
+      "discardNote": "{actor} threw away “{item}” in {room} (rolled {total}).",
+      "migrated": "Remnants migrated: {moved} moved into the ledger, {filled} filled in, {kept} kept as they were, {already} moved before.",
+      "migratedCheck": { "one": "{n} Remnant needs a look; the browser console lists it.", "other": "{n} Remnants need a look; the browser console lists them." }
     },
     "Infiltrate": {
       "force": {

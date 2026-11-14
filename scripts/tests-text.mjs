@@ -2074,8 +2074,13 @@ const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*(?::|=(?![=>]))[^,;{}]*$/;
    message, a Symbol's description is no text, and so are a run of markup attributes cut by a placeholder
    (` disabled data-tooltip="`), a selector cut by one (`footer button[data-action="`), a border's CSS value
    (`1px solid `) and a font list. The same group added passages-gm.mjs's closed list (`reasonTableOf`) beside
-   bridge-guards.mjs's, and reads a same-file why-function's call after a spread (`{ ...refuseAs(...) }`). */
-const REFUSAL_NAME = /^(?:[\w$]*Refusal|refuses)$/;
+   bridge-guards.mjs's, and reads a same-file why-function's call after a spread (`{ ...refuseAs(...) }`); then a judge's
+   GM half (`cubAbilityRefusalOnGm`), bridge-guards.mjs's own `guard...` functions, a logger's alias (`report = (text, err)
+   => error(text, err)`, bridge-guards.mjs `request`) and a reason's chain longer than the 160 characters read before it
+   (monocub.mjs `offerBribeOnGm`: 400 now, still cut at a comma, a semicolon or a brace). */
+const REFUSAL_NAME = /^(?:[\w$]*Refusal(?:OnGm)?|refuses)$/;
+/* bridge-guards.mjs's guards, which `judge` asks in order and which answer an English reason or null (`firstRefusal`). */
+const GUARD_NAME = /^guard[A-Z][\w$]*$/;
 const ATTRIBUTE_RUN = /^\s*(?:[a-z][\w:-]*(?:\s*=\s*(?:"[^"]*"?|'[^']*'?))?\s*)+$/i;
 const CSS_VALUE = /^\s*(?:\d+(?:\.\d+)?(?:px|r?em|%)?\s+)+(?:solid|dashed|dotted|double)\s*$/;
 const FONT_LIST = /^\s*(?:(?:\\?"[^"\\]+\\?"|'[^']+'|[\w-]+)\s*,\s*)+(?:serif|sans-serif|monospace|cursive|fantasy|system-ui)\s*$/;
@@ -2220,13 +2225,15 @@ export function uiLiterals(bag = {}) {
         const logs = [...callSpans(lx, blank, LOG_CALL), ...(errors.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$.])new\\s+(?:${errors.join("|")})\\s*\\(`, "g")) : [])];
         const reasons = [...callSpans(lx, blank, REASON_CALL),
             ...(ownWhy.length ? callSpans(lx, blank, new RegExp(`(?<![\\w$])(?<![^.]\\.)(?:${[...new Set(ownWhy)].join("|")})\\s*\\(`, "g")) : [])];
-        const judges = fns.filter(f => REFUSAL_NAME.test(f.name));
+        const judges = fns.filter(f => REFUSAL_NAME.test(f.name) || (file === "scripts/bridge-guards.mjs" && GUARD_NAME.test(f.name)));
+        const aliases = fns.filter(f => f.expression && new RegExp(`^\\s*${LOG_CALL.source}`).test(blank.slice(...f.body))).map(f => f.name);
+        if (aliases.length) logs.push(...callSpans(lx, blank, new RegExp(`(?<![\\w$.])(?:${[...new Set(aliases)].join("|")})\\s*\\(`, "g")));
         const inside = (spans, s) => spans.some(([a, b]) => s.start > a && s.end <= b);
         /* A judge's answer: in an arrow's expression, or after a `return` in its block, inside no function of its own. */
         const answered = s => judges.some(f => {
             const [a, b] = f.body;
             if (!(s.start > a && s.end <= b)) return false;
-            if (fns.some(g => g !== f && g.body[0] > a && g.body[1] <= b && s.start > g.body[0] && s.end <= g.body[1] && !REFUSAL_NAME.test(g.name))) return false;
+            if (fns.some(g => g !== f && g.body[0] > a && g.body[1] <= b && s.start > g.body[0] && s.end <= g.body[1] && !judges.includes(g))) return false;
             return f.expression || /\breturn\b[^;{}]*$/.test(blank.slice(a, s.start));
         });
         const has = [...blank.matchAll(/\bgame\s*\??\.\s*i18n\s*\??\.\s*has\s*(?:\?\.\s*)?\(/g)].map(m => m.index);
@@ -2240,7 +2247,7 @@ export function uiLiterals(bag = {}) {
             if (inside(logs, s)) { counts.log++; continue; }
             const head = heads.get(s.start) ?? s.start;
             const before = blank.slice(Math.max(0, s.start - 40), s.start), after = blank.slice(s.end, s.end + 6);
-            const opening = blank.slice(Math.max(0, head - 160), head);
+            const opening = blank.slice(Math.max(0, head - 400), head);
             if (REASON_PROPERTY.test(opening) || inside(reasons, s) || answered(s) || closedList.some(p => p.test(raw)) || passageReasons.has(raw)) { counts.reasons++; continue; }
             if (/(?:[!=]==?|\bcase)\s*$/.test(before) || /^\s*[!=]==?/.test(after)) { counts.compared++; continue; }
             if (/\bSymbol\s*\(\s*$/.test(before) || fragmentOf(shown)) { counts.notText++; continue; }
@@ -3462,7 +3469,10 @@ export const FIXTURES = Object.freeze({
                     "function doorLabel(d) { return d.open ? \"the door is open now\" : null; }",                     // a label, no refusal: flagged
                     "const spread = { ...refuseAs(\"fx\", \"a transfer nobody asked for\"), once: true };",          // a why-parameter's call, spread: passes
                     "const said2 = \"that wall is a door.\";",                                                       // the passages' table takes it: passes
-                    "const near2 = \"that wall is a door, and shut.\";"                                              // the table takes it not: flagged
+                    "const near2 = \"that wall is a door, and shut.\";",                                             // the table takes it not: flagged
+                    "async function abilityRefusalOnGm(x) { return x ? \"the cub has no action left\" : null; }",      // a refusal's GM half: passes
+                    "function sendFx({ report = (text, err) => error(text, err) } = {}) { report(\"Could not send the fx packet\"); }", // a logger's alias: passes
+                    "why = !payer || payer.dead || payer.away || payer.gone || payer.elsewhere || payer.asleep || payer.hidden || payer.frozen || payer.lost || payer.missing ? \"the payer is gone now\" : payer.hope < cost || payer.spent || payer.locked ? \"the payer has not the Hope for it\" : null;" // a long chain: passes
                 ].join("\n"),
                 "scripts/passages-gm.mjs": [
                     "const WALL_GONE = \"the wall it was cut from is gone.\";",
@@ -3473,6 +3483,7 @@ export const FIXTURES = Object.freeze({
                 "scripts/diagnostics.mjs": "ui.notifications.info(\"The console report says so\");",                  // DB12's console: counted apart
                 "scripts/bridge-guards.mjs": [
                     "export function gmOnly(why) { return why; }",
+                    "export function guardFx(sender) { if (!sender) ui.notifications.warn(\"DRPG.Fx.k\"); return sender?.isGM ? null : \"the sender is nobody here\"; }", // a guard's answer: passes
                     "export const REASON_PATTERNS = Object.freeze([[\"tooOld\", /^that roll is too old to settle anything$/]]);"
                 ].join("\n")
             }

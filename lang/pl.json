@@ -3738,7 +3738,9 @@
         "noneAnywhere": "Na żadnej scenie nie ma Remnantów."
       },
       "discardNote": "{actor} wyrzuca „{item}” w pokoju {room} (rzut {total}).",
-      "cardUnread": "Typ już znasz, ale resztę odczytasz dopiero po Analyze."
+      "cardUnread": "Typ już znasz, ale resztę odczytasz dopiero po Analyze.",
+      "migrated": "Migracja Remnantów skończona: do rejestru przeniesiono {moved}, uzupełniono {filled}, bez zmian zostawiono {kept}, a wcześniej przeniesiono już {already}.",
+      "migratedCheck": { "one": "{n} Remnant wymaga uwagi; wymienia go konsola przeglądarki.", "few": "{n} Remnanty wymagają uwagi; wymienia je konsola przeglądarki.", "many": "{n} Remnantów wymaga uwagi; wymienia je konsola przeglądarki.", "other": "{n} Remnantu wymaga uwagi; wymienia je konsola przeglądarki." }
     },
     "Infiltrate": {
       "force": {
