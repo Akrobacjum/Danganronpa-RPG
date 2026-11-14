@@ -5799,7 +5799,7 @@
         "allSet": "Every student has the starting resources.",
         "ultimate": "Everybody has an Ultimate",
         "ultimateFix": "Set it on the sheet, under the name.",
-        "experiences": "Everybody has {n} experiences",
+        "experiences": { "one": "Everybody has {n} experience", "other": "Everybody has {n} experiences" },
         "experiencesFix": "Each at +2, agreed at character creation.",
         "item": "Everybody carries their opening item",
         "itemFix": "One Tier {tier} item tied to their Ultimate: hand it out from “Give / take items”.",
@@ -5977,7 +5977,7 @@
         "one": "{n} pre-session note a GM wrote",
         "other": "{n} pre-session notes the GMs wrote"
       },
-      "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
+      "resetPools": { "one": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}", "other": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}" },
       "resetKeeps": "What stays: the cast with their names, portraits, and Ultimates, the maps, the rooms and who owns them, the Monokuma team, and the campaign name.",
       "resetGroupsTitle": "What goes, and what stays",
       "resetGroupsNote": "Untick anything this reset should leave alone. The next reset remembers it and opens with it unticked; tick it again to include it in the reset.",

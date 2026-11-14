@@ -6268,7 +6268,7 @@
         "allSet": "Każdy uczeń ma zasoby na start.",
         "ultimate": "Każdy ma Ultimate",
         "ultimateFix": "Ustaw je na arkuszu, pod imieniem.",
-        "experiences": "Każdy ma {n} doświadczenia",
+        "experiences": { "one": "Każdy ma {n} doświadczenie", "few": "Każdy ma {n} doświadczenia", "many": "Każdy ma {n} doświadczeń", "other": "Każdy ma {n} doświadczenia" },
         "experiencesFix": "Każde na +2, ustalone przy tworzeniu postaci.",
         "item": "Każdy nosi swój przedmiot startowy",
         "itemFix": "Każdy uczeń zaczyna z jednym przedmiotem poziomu {tier} związanym ze swoim Ultimate. Rozdaj je przyciskiem „Daj / zabierz przedmioty”.",
@@ -6447,7 +6447,7 @@
         "many": "{n} notatek przed sesją napisanych przez GM-ów",
         "other": "{n} notatek przed sesją napisanych przez GM-ów"
       },
-      "resetPools": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}",
+      "resetPools": { "one": "każda pula Despair do zera ({n} niepusta) i każdy Hope z powrotem do {hope}", "few": "każda pula Despair do zera ({n} niepuste) i każdy Hope z powrotem do {hope}", "many": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}", "other": "każda pula Despair do zera ({n} niepustej) i każdy Hope z powrotem do {hope}" },
       "resetKeeps": "To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, zespół Monokum i nazwa kampanii.",
       "resetType": "Wpisz {word}, by potwierdzić",
       "resetWord": "RESET",

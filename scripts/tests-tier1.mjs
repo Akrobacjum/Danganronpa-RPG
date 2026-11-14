@@ -37843,6 +37843,27 @@ const INVARIANTS = [
             "[startProject: \"progress\" typed in English; plural(scaleOption) calls; pictureWarning: toFixed, localeFormat]");
     }],
 
+    ["R6907 - a count before a Polish noun is a plural family (needsCode, 14.11.2026; PL-b): `Season.resetPools` (despair.mjs `tallySeasonDespair`, the pools not empty) and `Diagnostics.cast.experiences` (diagnostics.mjs `diagnoseCharacters`, STARTING.experiences) are one/other in English and one/few/many/other in Polish, read through utils.mjs `plural`", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #105, #144. Red at 4522d6f7: both were one
+         * string, so the Polish read „(1 niepustych)” for one pool, and „{n} doświadczenia” is right for 2-4 alone (5 wants
+         * „doświadczeń”) - right today only because STARTING.experiences is 2.
+         */
+        const sources = new Map(await otherSources());
+        const tally = fnSource(stripComments(sources.get("despair.mjs") ?? ""), "tallySeasonDespair") ?? "";
+        const diag = stripComments(sources.get("diagnostics.mjs") ?? "");
+        must(tally && diag.includes("experiencesFix"), "tallySeasonDespair or the cast's check is gone - this reads nothing");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const forms = (file, key) => { const v = foundry.utils.getProperty(file, key); return v && typeof v === "object" ? Object.keys(v).sort() : typeof v; };
+        const KEYS = ["DRPG.Season.resetPools", "DRPG.Diagnostics.cast.experiences"];
+        equal(stableJson({ callers: [/plural\("DRPG\.Season\.resetPools"/.test(tally), /plural\("DRPG\.Diagnostics\.cast\.experiences"/.test(diag)],
+            en: KEYS.map(k => forms(en, k)), pl: KEYS.map(k => forms(pl, k)),
+            words: [foundry.utils.getProperty(pl, "DRPG.Season.resetPools.one"), foundry.utils.getProperty(pl, "DRPG.Diagnostics.cast.experiences.many")].map(v => /niepusta\)|doświadczeń/.test(String(v))) }),
+            stableJson({ callers: [true, true], en: [["one", "other"], ["one", "other"]], pl: [["few", "many", "one", "other"], ["few", "many", "one", "other"]], words: [true, true] }),
+            "[the callers use plural; the English forms; the Polish forms; PL one pool „niepusta”, many experiences „doświadczeń”]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
