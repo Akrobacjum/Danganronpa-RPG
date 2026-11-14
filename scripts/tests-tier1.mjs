@@ -38041,6 +38041,22 @@ const INVARIANTS = [
             stableJson({ asks: true, note: [true, true] }), "[askRecipient tells a key by its flag and gives it shareKeyNote; the key's note in en, pl, with no Analyze]");
     }],
 
+    ["R6918 - a planned room not picked yet reads as \"no room yet\", not \"leave it\" (needsCode, 14.11.2026, after E54): investigation.mjs `caseKeyCells` (the Key plan's planned room) and `schemaEditor` (a planned Remnant's room) open their room select on `Investigation.noRoomYet`; `CaseRealize.noRoom` (\"- leave it -\") stays case-realize.mjs's, where a row is left as it is", async () => {
+        /*
+         * The needsCode line (claude/needscode-113): docs/dev/e71/NEEDSCODE.md #127, held for E54's split of
+         * investigation.mjs. Red at 16fbae2a: both selects reused CaseRealize.noRoom, whose \"- leave it -\" /
+         * „- zostaw -” reads oddly where it means that no room is planned yet.
+         */
+        const src = stripComments((await otherSources()).find(([name]) => name === "investigation.mjs")?.[1] ?? "");
+        const cells = fnSource(src, "caseKeyCells") ?? "", editor = fnSource(src, "schemaEditor") ?? "";
+        must(cells.includes("<select") && editor.includes("<select"), "caseKeyCells or schemaEditor is gone - this reads nothing");
+        const realize = stripComments((await otherSources()).find(([name]) => name === "case-realize.mjs")?.[1] ?? "");
+        equal(stableJson([[cells, editor].map(b => b.includes("DRPG.CaseRealize.noRoom")), [cells, editor].map(b => b.includes("DRPG.Investigation.noRoomYet")),
+            realize.includes("DRPG.CaseRealize.noRoom"), game.i18n.has("DRPG.Investigation.noRoomYet")]),
+            stableJson([[false, false], [true, true], true, true]),
+            "[caseKeyCells, schemaEditor say leave it; they say no room yet; case-realize keeps leave it; the key exists]");
+    }],
+
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
         /*
          * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its

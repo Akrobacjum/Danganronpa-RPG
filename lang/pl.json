@@ -2883,6 +2883,7 @@
       "bullets": "Bullets",
       "keysHeld": "Key",
       "unidentified": "Bez analizy",
+      "noRoomYet": "- bez pokoju -",
       "breakdown": "Naprawdę",
       "breakdownTooltip": "Czym jest każdy Truth Bullet według klucza GM-ów, niezależnie od tego, co widzi jego posiadacz.",
       "createHere": "Utwórz na mapie",

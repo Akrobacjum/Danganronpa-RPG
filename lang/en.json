@@ -2710,6 +2710,7 @@
       "bullets": "Truth Bullets",
       "keysHeld": "Key",
       "unidentified": "Not analyzed",
+      "noRoomYet": "- no room yet -",
       "breakdown": "Answer key",
       "breakdownTooltip": "What each Truth Bullet is by the GMs' answer key, whatever its holder was shown.",
       "createHere": "Create on the map",

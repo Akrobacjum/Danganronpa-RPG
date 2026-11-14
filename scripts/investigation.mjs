@@ -886,7 +886,7 @@ function caseKeyCells({ plan, status, placed, limit }) {
                 </select>
                 ${here ? "" : `<label class="drpg-key-plan-field"><span class="notes">${esc(game.i18n.localize("DRPG.Investigation.plannedRoom"))}</span><select name="keyroom:${i}"${
                     aria("DRPG.Investigation.plannedRoom")} data-drpg-scene-drawn="${esc(shows.scene ?? "")}"><option value="">${
-                    esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room, sceneId: shows.scene })}</select></label>`}
+                    esc(game.i18n.localize("DRPG.Investigation.noRoomYet"))}</option>${placeRoomOptions({ room: shows.room, sceneId: shows.scene })}</select></label>`}
                 ${here ? "" : keyPlanExtras(i, shows, aria)}
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
@@ -1429,7 +1429,7 @@ function schemaEditor(graph, node) {
         const img = node.img || "";
         return [
             editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}" data-drpg-scene-drawn="${esc(node.scene ?? "")}"><option value="">${
-                esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: node.room, sceneId: node.scene })}</select>`),
+                esc(L("DRPG.Investigation.noRoomYet"))}</option>${placeRoomOptions({ room: node.room, sceneId: node.scene })}</select>`),
             editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}">${types}</select>`),
             editRow(L("DRPG.Remnant.authorLabel"), `<select name="${esc(name("author"))}">${authorOptions(node.author || null, studentActors())}</select>`),
             editRow(L("DRPG.Investigation.visibility"), `<select name="${esc(name("vis"))}">${vis}</select>`),
