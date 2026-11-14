@@ -2181,14 +2181,9 @@ body.drpg-theme-stained-glass {
    always empty and the real notices - `#drpg-popups` - floated over the map in the middle of
    the screen with no glass under them. The cards move onto their pane: bottom-left, the
    width the pane is cut for, and rising rather than falling because they now sit at the
-   bottom. Foundry's own toasts (#notifications) have their own rule since E23 C5b (B1b, below). */
-body.drpg-theme-stained-glass #drpg-popups {
-    right: auto;
-    transform: none;
-    align-items: stretch;
-    width: calc(var(--drpg-note-w) * var(--drpg-note-scale));
-    max-width: calc(100vw - 32px);
-}
+   bottom. Foundry's own toasts (#notifications) have their own rule since E23 C5b (B1b, below).
+   The cards' rule is the notice tile's one rule (Milestone 13's "3. The notice tile is one piece of glass", below) since
+   E55 S3 (14.11.2026), where this section's own place and width now stand. */
 /* ---- B1b. Foundry's toasts stand under the Despair panel, on a plate ------------------------
    (E23 C5b, 07.11.2026; audit S11-22.) Every Foundry warning fell on the curtain's Despair pools at the top of the
    screen: a translucent amber card the skulls and "12/12" read through, white VT323 on amber at about 2.9:1, its
@@ -3397,15 +3392,6 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button.drpg-hud-objection:hove
     border-color: rgba(var(--drpg-crimson-rgb), 1);
     background: rgba(var(--drpg-crimson-rgb), 0.45);
 }
-/* the notice tile is always there, at the audit page's place; the cards land on it. Its foot
-   is fitted onto Foundry's gauge by glass.mjs (`fitNoteTile`, 21.09); 100 on the geometry
-   scale is where it stood before that, and where it stands until a pass has run. */
-body.drpg-theme-stained-glass #drpg-popups {
-    top: auto !important;
-    bottom: var(--drpg-note-foot, calc(100px * var(--drpg-note-scale))) !important;
-    left: 16px !important;
-}
-
 /* ==========================================================================
    Milestone 13: the map takes clicks, the colour fades, the tile is constant (1.2.38)
    ========================================================================== */
@@ -3431,6 +3417,20 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-row { width: max-conte
    (glass.mjs reads the same two): the stack is as tall as the tile, the newest at the bottom,
    and a card that would not fit is retired by popup.mjs. */
 body.drpg-theme-stained-glass #drpg-popups {
+    /* B1 (above): bottom-left on the pane the curtain cuts for the notices, its width, rising (a rule of its own there
+       until E55 S3) */
+    right: auto;
+    transform: none;
+    align-items: stretch;
+    width: calc(var(--drpg-note-w) * var(--drpg-note-scale));
+    max-width: calc(100vw - 32px);
+    /* the notice tile is always there, at the audit page's place; the cards land on it. Its foot
+       is fitted onto Foundry's gauge by glass.mjs (`fitNoteTile`, 21.09); 100 on the geometry
+       scale is where it stood before that, and where it stands until a pass has run. (A rule of
+       its own at Milestone 12's end until E55 S3.) */
+    top: auto !important;
+    bottom: var(--drpg-note-foot, calc(100px * var(--drpg-note-scale))) !important;
+    left: 16px !important;
     height: calc(var(--drpg-note-fit, var(--drpg-note-h)) * var(--drpg-note-scale)) !important;
     max-height: none;
     overflow: hidden;
