@@ -772,8 +772,6 @@ body:not(.drpg-theme-stained-glass) .drpg-kit-empty { font-size: var(--drpg-kit-
 .drpg-notices-more { height: 26px; font: inherit; max-width: 100%; }
 .drpg-notices-search { display: flex; }
 .drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; }
-/* the ink under the glass is its field rule's */
-body:not(.drpg-theme-stained-glass) .drpg-notices-search input { font-size: var(--drpg-kit-notice-sm-size); color: inherit; }
 .drpg-notices-banner {
     display: flex;
     align-items: center;
@@ -992,8 +990,11 @@ body:not(.drpg-theme-stained-glass) .application:is(.drpg-ui.drpg-panel:not(.dia
 
 /* FT-04: the notice history's search under Legacy - the panels' field (danganronpa.css "THE PROJECT WINDOWS": that
    rule names no search field, and the window's parts are styled here alone, R1330), the edge's colour and style only;
-   its ink is the window's (above, `color: inherit`), its ring the focus rule's below. */
+   its ink is the window's (`color: inherit`), its ring the focus rule's below; the ink under the glass is its field
+   rule's. Its size and ink were a rule of their own beside the history's other parts until E55 S3 (14.11.2026). */
 body:not(.drpg-theme-stained-glass) .drpg-notices-search input {
+    font-size: var(--drpg-kit-notice-sm-size);
+    color: inherit;
     background-color: var(--drpg-kit-field-bg);
     border-style: solid;
     border-color: var(--drpg-kit-btn-edge);
