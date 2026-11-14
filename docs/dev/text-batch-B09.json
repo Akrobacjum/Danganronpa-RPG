@@ -1,0 +1,5286 @@
+{
+ "$comment": [
+  "B09, an E71 batch of group B (claude/e71-b; E71 C0-C19, the plan's batch list, with E25's content part): every key of its namespaces and of the leaves the coordinator's map of 14.11.2026 gives it was read against its code; this file holds the texts that changed, each written from its facts (O6, M1). The keys read and kept are in docs/dev/e71/STATUS-B.md's batch table.",
+  "Fields as B01a's (text-batch-B01a.json's $comment). An after equal to its before is the side the batch left as it stood. `surface`: the key's budget surface where docs/text-budgets.json's rules place it; else one named in `removed` (\"surface: ...\") that stands in for a window's line. The Polish was written from the facts, the code and the old Polish, without the new English (DB26).",
+  "Held by `node tools/check.mjs text` (tools/text-render.mjs batchSchema); the afters are the text of lang/en.json and lang/pl.json in the same commit."
+ ],
+ "batch": "B09",
+ "stage": "E71",
+ "texts": [
+  {
+   "key": "DRPG.Listen.eavesdrop.gmLine",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "voice-tile",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "One line per eavesdrop under way, on a GM's voice list: {name} is the listening character, {into} the room listened into, {from} the room they stand in.",
+     "file": "scripts/voice-tile.mjs",
+     "fn": "paintEavesdroppers",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name} listens at {into}, from {from}",
+    "after": "{name} listens in on {into} from {from}"
+   },
+   "pl": {
+    "before": "{name} słucha: {into}, z: {from}",
+    "after": "{name} podsłuchuje pokój {into} z pokoju {from}"
+   },
+   "removed": [
+    "pl: X12: „słucha: {into}, z: {from}” to łańcuch etykiet z dwukropkami.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - 'listens in on {into}' reads with a room name; the comma before 'from {from}' is gone. The Polish already reads 'podsłuchuje pokój {into} z pokoju {from}'."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Listen.eavesdrop.started",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A card whispered to the listener after a good Listen roll (or a free repeat on the same room this time of day) once the GM moved their voice into that room's channel: they hear the room, their microphone is blocked so nobody there hears them. {room} is the room as the listener knows it (a number for an unexplored room).",
+     "file": "scripts/action-listen.mjs",
+     "fn": "tellEavesdrop",
+     "note": null
+    },
+    {
+     "fact": "The button to end it is on the listener's voice tile.",
+     "file": "scripts/voice-tile.mjs",
+     "fn": "paintStopListening",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "You listen at the door of {room}: you hear the room, and nobody there hears you. Stop listening is on the voice tile.",
+    "after": "You listen at the door of {room}: you hear the room, and nobody there hears you. Stop listening is on the voice tile."
+   },
+   "pl": {
+    "before": "Słuchasz pod drzwiami: {room}. Słyszysz pokój, a nikt tam nie słyszy ciebie. Przestań słuchać jest na kaflu głosu.",
+    "after": "Słuchasz pod drzwiami pokoju {room}. Słyszysz, co się tam dzieje, ale twój mikrofon jest zablokowany, więc nikt cię tam nie słyszy. Przycisk „Przestań słuchać” jest na twoim kafelku głosu."
+   },
+   "removed": [
+    "pl: Słowniczek: „kaflu głosu” jest zakazane (kafelek głosu); „pod drzwiami: {room}” to X12; brakowało, że mikrofon jest zablokowany.",
+    "review: pl: taken - „nikt cię tam nie słyszy” (enclitic) for „nikt tam ciebie nie słyszy”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Listen.anonymous",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line on Listen's result card, whispered to the player who listened (and the GMs), on a roll that reaches the lower threshold but not the naming one: how many people are in the chosen room, without who. {n} is the count, {room} the room as the listener knows it (a number for an unexplored room).",
+     "file": "scripts/action-listen.mjs",
+     "fn": "performListen",
+     "note": null
+    },
+    {
+     "fact": "A Reroll of Listen rebuilds the same line from the new total.",
+     "file": "scripts/reroll.mjs",
+     "fn": "listenLines",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": {
+     "one": "{n} person in {room}. You cannot tell who.",
+     "other": "{n} people in {room}. You cannot tell who."
+    },
+    "after": {
+     "one": "There is {n} person in {room}, but you cannot tell who.",
+     "other": "There are {n} people in {room}, but you cannot tell who."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "W pokoju {room} jest {n} osoba, ale nie poznajesz, kto to.",
+     "few": "W pokoju {room} są {n} osoby, ale nie poznajesz, kto to.",
+     "many": "W pokoju {room} jest {n} osób, ale nie poznajesz, kto to.",
+     "other": "W pokoju {room} jest {n} osób, ale nie poznajesz, kto to."
+    },
+    "after": {
+     "one": "W pokoju {room} jest {n} osoba, ale nie poznajesz, kto to.",
+     "few": "W pokoju {room} są {n} osoby, ale nie poznajesz, kto to.",
+     "many": "W pokoju {room} jest {n} osób, ale nie poznajesz, kto to.",
+     "other": "W pokoju {room} jest {n} osób, ale nie poznajesz, kto to."
+    }
+   },
+   "removed": [
+    "The label-like opening '{n} people in {room}.' (X6, telegraph) is now a whole sentence; the contraction per EN3.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "en: \"can't\" written in full (DB8, T19)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Listen.emptyRoom",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line on Listen's result card, to the player who listened, on a roll that reaches the lower threshold when nobody is in the chosen room. {room} is the room as the listener knows it. A Reroll builds it too.",
+     "file": "scripts/action-listen.mjs",
+     "fn": "performListen",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{room} sounds empty.",
+    "after": "{room} sounds empty."
+   },
+   "pl": {
+    "before": "{room} brzmi na pusty.",
+    "after": "W pokoju {room} panuje cisza. Nikogo tam nie słychać."
+   },
+   "removed": [
+    "pl: „{room} brzmi na pusty” to kalka, a „pusty” ma rodzaj męski i nie zgadza się z pokojem rodzaju żeńskiego lub nijakiego.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Listen.named",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line on Listen's result card, to the player who listened, on a roll at the naming threshold: the room and who is in it. {room} is the room as the listener knows it, {who} the names joined with commas, or the word for empty when nobody is there. A Reroll builds it too.",
+     "file": "scripts/action-listen.mjs",
+     "fn": "performListen",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "In {room}: {who}",
+    "after": "In {room}: {who}"
+   },
+   "pl": {
+    "before": "W: {room}: {who}",
+    "after": "W pokoju {room}: {who}"
+   },
+   "removed": [
+    "pl: X12: „W: {room}” to kształt zakazany, właściciel wybrał „w pokoju {room}”.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.rewind",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "hud",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the GM's left-hand clock control outside an Eclipse; only GMs see it. Pressing it moves the clock back one time of day (at Morning, back to the previous day's Night, and the session and day back by one).",
+     "file": "scripts/clock.mjs",
+     "fn": "rewindTimeOfDay",
+     "note": null
+    },
+    {
+     "fact": "It refills no actions. Within a few minutes of the step forward, it puts back what that step had given (actions, Free Moves, Search Tokens, seals); the toast that follows says so.",
+     "file": "scripts/clock.mjs",
+     "fn": "rewindTimeOfDay",
+     "note": null
+    },
+    {
+     "fact": "It also cancels a called assembly and gives the Motive's deadline its time of day back.",
+     "file": "scripts/clock.mjs",
+     "fn": "rewindTimeOfDay",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Step back one time of day. A correction - it refills nothing",
+    "after": "Step back one time of day. It refills nothing."
+   },
+   "pl": {
+    "before": "Cofnij o jedną porę dnia. Korekta - niczego nie odnawia",
+    "after": "Cofnij zegar o jedną porę dnia. To korekta, więc akcje się nie odnawiają."
+   },
+   "removed": [
+    "'A correction - ' (X4, a dash aside): the design reason, a correction for a misclick, stays in clock.mjs's comment (O9). The take-back within a few minutes is said by DRPG.Clock.takenBack when it happens (O3).",
+    "pl: X4: myślnik dokleja dopowiedzenie; „niczego nie odnawia” jest szersze niż fakt (akcje).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.rewindEclipse",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "hud",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the GM's left-hand clock control while an Eclipse runs; pressing then refuses, because the Eclipse has not moved the clock yet. The GM ends the Eclipse first.",
+     "file": "scripts/hud.mjs",
+     "fn": "buildTimeRow",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "An Eclipse is running. End it first.",
+    "after": "An Eclipse is running. End it first."
+   },
+   "pl": {
+    "before": "Trwa Eclipse. Najpierw go zakończ.",
+    "after": "Trwa Eclipse. Najpierw je zakończ."
+   },
+   "removed": [
+    "pl: PL-b: Eclipse jest nijakie, „go” było męskie.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.eclipseAsk",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "eclipse-hud",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The question in the window a GM gets on pressing the control that starts an Eclipse (and in the GM panel's start); No is the default, Enter and closing answer no. {name} is the Eclipse's name, for example the Afternoon Eclipse.",
+     "file": "scripts/boundary.mjs",
+     "fn": "askEclipse",
+     "note": null
+    },
+    {
+     "fact": "On yes: every student's actions refill, the Sprint and Burst grants bought for this time of day end, and the Eclipse opens for the whole table (the lights go out).",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Start the {name} now? Everyone's actions refill, the Calls bought for this time of day end and the lights go out for the whole table.",
+    "after": "Start the {name} now? Every student's actions refill, what Sprint and Burst bought for this time of day ends, and the lights go out for the whole table."
+   },
+   "pl": {
+    "before": "Zacząć teraz {name}? Akcje wszystkich się odnawiają, Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
+    "after": "Zacząć teraz {name}? Wszyscy uczniowie odzyskują akcje, przepada to, co dały Sprint i Burst kupione na tę porę dnia, a dla całego stołu gaśnie światło."
+   },
+   "removed": [
+    "Adds the Oxford comma before the list's last 'and' (EN2/DB35).",
+    "pl: „Calle kupione” było mgliste: kończy się to, co dały Sprint i Burst.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: en 1: taken - Sprint and Burst named, as F1 (boundary.mjs/eclipse.mjs startEclipse) and the Polish after have them.",
+    "review: en 2: taken - 'Every student's actions' (F1; a Monokuma has no actions)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.eclipseAskRefilled",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "eclipse-hud",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The question in the window a GM gets on pressing the control that starts an Eclipse (and in the GM panel's start); No is the default, Enter and closing answer no. {name} is the Eclipse's name, for example the Afternoon Eclipse.",
+     "file": "scripts/boundary.mjs",
+     "fn": "askEclipse",
+     "note": null
+    },
+    {
+     "fact": "Used instead when this boundary was already refilled (an Eclipse for it was ended without advancing, more than a few minutes ago): on yes nobody is refilled a second time, but the grants bought since still end and the Eclipse opens for the whole table.",
+     "file": "scripts/boundary.mjs",
+     "fn": "eclipseQuestion",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Start the {name} now? The actions were refilled for it already and are not refilled again; the Calls bought for this time of day end and the lights go out for the whole table.",
+    "after": "Start the {name} now? Every student's actions were already refilled for it and won't refill again. What Sprint and Burst bought since then ends, and the lights go out for the whole table."
+   },
+   "pl": {
+    "before": "Zacząć teraz {name}? Akcje zostały już na nie odnowione i drugi raz się nie odnowią; Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
+    "after": "Zacząć teraz {name}? Akcje zostały już odnowione na tę porę dnia, więc drugi raz się nie odnowią. Przepada to, co dały Sprint i Burst kupione od tamtej chwili, a dla całego stołu gaśnie światło."
+   },
+   "removed": [
+    "One long sentence split in two at its semicolon (O2), and the Oxford comma before the last 'and' (EN2/DB35).",
+    "pl: Średnik i „na nie” były ciężkie; „Calle kupione na tę porę dnia” nie mówiło, że chodzi o te kupione od pierwszego odnowienia.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: en 1: taken - what ends is what Sprint and Burst bought since the refill (boundary.mjs eclipseQuestion), as the Polish after says.",
+    "review: en 2: taken - 'won't refill again' (EN3, a short question).",
+    "review: coldEn 1: taken - whose actions is named, 'Every student's' (en's reading of F1, rather than 'Everyone's').",
+    "review: coldEn 2: taken - the future 'won't'; 'The Calls bought for this time of day' from coldEn's proposal not taken, it is the vaguer text en's point 1 replaces."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.startEclipseFree",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "hud",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the GM's right-hand clock control before the free-placement Eclipse (the Night Eclipse, config ECLIPSE_FREE_PLACEMENT): it opens the Eclipse, the lights go out and every student may place their token in any room on the map. {time} is the time of day it places for.",
+     "file": "scripts/hud.mjs",
+     "fn": "buildTimeRow",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Start the {time} Eclipse - lights out, everyone picks any room on the map",
+    "after": "Start the {time} Eclipse: the lights go out, and everyone places their token in any room on the map"
+   },
+   "pl": {
+    "before": "Zacznij Eclipse ({time}) - gaśnie światło, każdy wybiera dowolny pokój na mapie",
+    "after": "Zacznij Eclipse ({time}): gaśnie światło, a każdy uczeń stawia swój token w dowolnym pokoju na mapie"
+   },
+   "removed": [
+    "The dash aside (X4) is a colon now; 'picks any room' says what the table does with its token, as the other two tooltips of the control say it (places their token).",
+    "pl: X4: myślnik doklejał dopowiedzenie.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - both halves after the colon are clauses (X6)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.startEclipseNewSession",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "hud",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the GM's right-hand clock control at Night, before the Eclipse that leads into Morning: the Eclipse ends this session, and the next one starts with everyone placing their token. {time} is the time of day it places for (Morning), {n} the crossings each student may make (two, fewer under an Overflow's darkness).",
+     "file": "scripts/hud.mjs",
+     "fn": "buildTimeRow",
+     "note": null
+    },
+    {
+     "fact": "The day and the session move on when this Eclipse ends and the clock advances.",
+     "file": "scripts/clock.mjs",
+     "fn": "applyTimeOfDayChange",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": {
+     "one": "End the session and open the {time} Eclipse - a new session, and everyone places their token ({n} crossing)",
+     "other": "End the session and open the {time} Eclipse - a new session, and everyone places their token ({n} crossings)"
+    },
+    "after": {
+     "one": "End this session and open the {time} Eclipse: a new session begins, and everyone places their token with {n} crossing each",
+     "other": "End this session and open the {time} Eclipse: a new session begins, and everyone places their token with {n} crossings each"
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejście)",
+     "few": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejścia)",
+     "many": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejść)",
+     "other": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token ({n} przejść)"
+    },
+    "after": {
+     "one": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejście)",
+     "few": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejścia)",
+     "many": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejść)",
+     "other": "Zacznij Eclipse ({time}), które zamyka sesję; gdy się skończy, zaczyna się nowy dzień i nowa sesja. Każdy uczeń ustawia swój token ({n} przejść)"
+    }
+   },
+   "removed": [
+    "The dash aside (X4) is a colon; 'a new session' as a clause with its verb (X6).",
+    "pl: X4: myślnik; brakowało, że dzień i sesja zmieniają się po końcu tego Eclipse.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn 1-2: taken - the bracket is gone; '{n} crossings each' says it is each student's allowance (hud.mjs buildTimeRow, eclipse.mjs eclipseAllowance). The Polish bracket „({n} przejście)” was passed by the PL review and is left; it can take the same shape if the owner wants the two alike."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.eclipseRunningTooltip",
+   "group": "window",
+   "surface": "tooltip",
+   "screen": "hud",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the HUD's time label while an Eclipse runs, for everyone: the Eclipse is the placement before the time of day it is named after; every student places their token.",
+     "file": "scripts/hud.mjs",
+     "fn": "buildTimeRow",
+     "note": null
+    },
+    {
+     "fact": "During an Eclipse no action can be spent except on a Direct Murder, and no Call can be made.",
+     "file": "scripts/calls.mjs",
+     "fn": "callBarred",
+     "note": "callBarred and hopeCallRefusal refuse a Call while isEclipse(); the tooltip names only the action part."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Placement before this time of day. Only a Direct Murder spends an action now.",
+    "after": "Everyone places their token before this time of day. Actions pay only for a Direct Murder, and no Call can be made."
+   },
+   "pl": {
+    "before": "Ustawianie przed tą porą dnia. Tylko Direct Murder wydaje teraz akcję.",
+    "after": "Trwa Eclipse: uczniowie ustawiają tokeny przed tą porą dnia. Akcję można wydać tylko na Direct Murder, a Calli nie da się użyć."
+   },
+   "removed": [
+    "'Placement before this time of day.' (X6, a label with no verb) as a sentence that says who places.",
+    "pl: „Ustawianie przed tą porą dnia” to telegrafia (X6) bez podmiotu; nie mówiło, że Calle są zablokowane.",
+    "review: en 1: taken - the Calls named (F1, calls.mjs callBarred), as in the Polish; worded 'Actions pay only for a Direct Murder' to match Eclipse.actionsMurderOnly ('an action can only pay for a Direct Murder') rather than a Direct Murder spending (the PL review's point, same in English). 22 words, tooltip limit 23.",
+    "review: en 2: noted - within the limit.",
+    "review: pl: taken - „Akcję można wydać tylko na Direct Murder”: the student spends, on a Direct Murder; the proposal's „teraz” dropped, as „Trwa Eclipse” already says it, to stay under the tooltip limit (22 of 23)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.assignHint",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line at the top of the state explainer's Where you are section, for a player (never a GM) who owns more than one student and has none assigned: the window shows the student the module picked (the controlled one, else the first by name). {name} is that student. Assigning a character in Foundry's User Configuration settles it.",
+     "file": "scripts/explain.mjs",
+     "fn": "roomBlock",
+     "note": null
+    },
+    {
+     "fact": "Whether to show it is decided by owning more than one student with none assigned.",
+     "file": "scripts/monokuma.mjs",
+     "fn": "viewerNeedsAssigning",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "You play more than one character and none is assigned, so this shows {name}. Assign a character in User Configuration to choose.",
+    "after": "You play more than one character and none is assigned, so this shows {name}. To choose another, assign a character in User Configuration."
+   },
+   "pl": {
+    "before": "Grasz więcej niż jedną postacią i żadna nie jest przypisana, więc tu widać {name}. Przypisz postać w konfiguracji użytkownika, żeby wybrać.",
+    "after": "Masz więcej niż jedną postać, a żadna nie jest do ciebie przypisana, więc okno pokazuje postać {name}. Żeby wybrać inną, przypisz postać w Konfiguracji użytkownika."
+   },
+   "removed": [
+    "pl: „widać {name}” wymaga biernika, a imię wchodzi w mianowniku („widać Anna”); „postać {name}” jest dobra dla każdego imienia.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - 'To choose another' gives 'choose' its object, as the Polish „Żeby wybrać inną” does."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Hud.trial.debate",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "hud",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The short name of the trial's Nonstop Debate floor (everyone may speak, the debate's clock runs, a player may raise an Objection) on the HUD's time row during a Class Trial and as the title of the Event panel's trial card; everyone reads it.",
+     "file": "scripts/utils.mjs",
+     "fn": "trialModeLabel",
+     "note": null
+    },
+    {
+     "fact": "The trial console names the same mode by its full name (DRPG.Floor.mode.debate); the glossary has one name for it.",
+     "file": "docs/glossary.json",
+     "fn": "nonstop-debate",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Debate",
+    "after": "Nonstop Debate"
+   },
+   "pl": {
+    "before": "Debata",
+    "after": "Nonstop Debate"
+   },
+   "removed": [
+    "The short form 'Debate' replaced by the mode's one name (O14, glossary nonstop-debate), as the HUD's other modes (Closing Argument, Scrum Debate) already stand whole.",
+    "pl: Słowniczek: tryb ma jedną nazwę, Nonstop Debate, jak w konsoli rozprawy; „Debata” myliła się ze Scrum Debate.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.phase.eclipse",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The paragraph under the Eclipse heading in the state explainer, for everyone: the lights are out, every student places their token, and nobody sees who went where. {reach} is a phrase saying how many connected rooms a token may cross (from the Eclipse's crossings, fewer under an Overflow's darkness); in the Night Eclipse placement is anywhere on the map.",
+     "file": "scripts/explain.mjs",
+     "fn": "eclipseExplanation",
+     "note": null
+    },
+    {
+     "fact": "Actions were refilled when the Eclipse opened; during it no action can be spent except on a Direct Murder, and no Call can be made.",
+     "file": "scripts/calls.mjs",
+     "fn": "callBarred",
+     "note": "callBarred refuses a Call while isEclipse() returns true."
+    },
+    {
+     "fact": "A Direct Murder is declared during an Eclipse.",
+     "file": "scripts/config.mjs",
+     "fn": "ACTIONS.directMurder",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "The lights are out. Everyone places their token - {reach}, or anywhere at night - and nobody can see who went where. Your actions are already refilled, but nothing spends them except a Direct Murder, and nobody makes a Call until the lights come up. It is the game's one moment of total cover, and it is where a murder usually starts.",
+    "after": "The lights are out. Everyone places their token, {reach} or anywhere at night, and nobody sees who went where. Your actions are already refilled, but you can spend them only on a Direct Murder, and nobody makes a Call until the lights come up."
+   },
+   "pl": {
+    "before": "Światła zgaszone. Każdy ustawia swój token - {reach} albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale nic ich nie wydaje poza Direct Murder i nikt nie rzuca Calla, dopóki światła nie wrócą. To jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
+    "after": "Światła są zgaszone. Każdy ustawia swój token: można przejść {reach}, a nocą gdziekolwiek na mapie. Nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale do powrotu świateł można je wydać tylko na Direct Murder i nikt nie używa Calli."
+   },
+   "removed": [
+    "The pair of dashes around '{reach}, or anywhere at night' (X4) is a pair of commas; nothing else changed.",
+    "pl: X4: myślnik wokół {reach}; „rzuca Calla” to zły czasownik; „jedyny moment pełnej osłony” i „zwykle” nie wynikają z faktów.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: en 1: taken - 'places' again (O14; F0, the before and every Eclipse text).",
+    "review: en 2: taken - 'the game's one moment of total cover ... usually starts' cut (O9, M2); F2 (config.mjs ACTIONS.directMurder: declared during an Eclipse) is carried by 'you can spend them only on a Direct Murder'; the Polish after's last sentence („Właśnie w Eclipse zgłasza się Direct Murder.”) said the same again and is cut too (O2, M4), to keep the text well under the limit.",
+    "review: coldEn 1: taken - 44 words with {reach} as one; {reach} is 4 words ('up to {n} connected rooms'), so 47 rendered, under the 60 limit. Polish 41 words, 44 rendered („do 2 połączonych pokoi”).",
+    "review: coldEn 2: taken - 'you can spend them only on a Direct Murder' instead of 'nothing spends them except'.",
+    "review: coldEn 3: taken in substance - the flavour sentence is gone; coldEn's 'moves' and 'This is where a murder usually starts' rejected: en's points 1 and 2 (O14, M2).",
+    "review: pl: taken - „można je wydać tylko na Direct Murder” (the PL review's proposal, word for word)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.phase.dailyLife",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The paragraph under the Daily Life heading in the state explainer, after the phase's short hint. {actions} is a count of actions with its unit: the shown character's own maximum (the strip's 'of'), or the rule's base count when no character is shown.",
+     "file": "scripts/explain.mjs",
+     "fn": "phaseExplanation",
+     "note": null
+    },
+    {
+     "fact": "Since the count is the character's own maximum, a sheet with a different budget already gets its own number.",
+     "file": "scripts/explain.mjs",
+     "fn": "actionsOf",
+     "note": null
+    },
+    {
+     "fact": "Daily Life is the phase before a body is found in the chapter.",
+     "file": "scripts/config.mjs",
+     "fn": "PHASES",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    2
+   ],
+   "en": {
+    "before": "Ordinary days inside the school. You have {actions} each time of day, unless your sheet says otherwise, to search rooms, work on projects, rest, talk, and prepare. Nobody has died yet this chapter - this is the part where you decide who you trust.",
+    "after": "Ordinary days inside the school. You have {actions} each time of day to search rooms, work on projects, rest, talk, and prepare. No body has been found yet this chapter, and this is when you decide who you trust."
+   },
+   "pl": {
+    "before": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia, chyba że karta mówi inaczej, by przeszukiwać pokoje, pracować nad projektami, odpoczywać, rozmawiać i przygotowywać się. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz.",
+    "after": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia: na przeszukiwanie pokoi, pracę nad projektami, odpoczynek, rozmowy i przygotowania. W tym rozdziale nie znaleziono jeszcze ciała. To czas, w którym decydujesz, komu ufasz."
+   },
+   "removed": [
+    "'unless your sheet says otherwise': {actions} is the character's own maximum since E100 item 7 (actionsOf), so the qualifier no longer applies (M2).",
+    "The dash aside (X4) is joined with 'and'.",
+    "pl: „chyba że karta mówi inaczej” jest nieprawdą (liczba to już maksimum postaci) i łamie PL-d (karta tylko dla czatu); X4 przy myślniku.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: en: taken - F2 (config.mjs PHASES): Daily Life is before a body is found, not before a death; the Polish after already says „nie znaleziono jeszcze ciała”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.time.position",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first line of the time-of-day section: {time} is the current time of day, {n} its place in the day (1 to 5), {of} the number of times of day. A strip of all five follows with the current one marked.",
+     "file": "scripts/explain.mjs",
+     "fn": "timeOfDayBlock",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{time} - {n} of {of}",
+    "after": "{time} ({n} of {of})"
+   },
+   "pl": {
+    "before": "{time} - {n} z {of}",
+    "after": "{time} ({n} z {of})"
+   },
+   "removed": [
+    "The dash (X4) between the time and its place in the day: brackets, as a heading reads it.",
+    "pl: X4: myślnik między porą a jej miejscem w dniu.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.room.noActor",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "room-tile",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Shown when the reader has no character to describe (a player with none assigned or owned, a GM with no token selected and no character): as the room tile's heading, as the explainer's Where you are section, and as the status explainer's Right now section.",
+     "file": "scripts/explain.mjs",
+     "fn": "roomBlock",
+     "note": null
+    },
+    {
+     "fact": "A player assigns a character in Foundry's User Configuration.",
+     "file": "scripts/monokuma.mjs",
+     "fn": "viewerNeedsAssigning",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "No character is assigned to you, so there is nothing to say about where you are standing.",
+    "after": "No character is selected or assigned to you."
+   },
+   "pl": {
+    "before": "Nie masz przypisanej postaci, więc nie ma nic do powiedzenia o tym, gdzie stoisz.",
+    "after": "Żadna postać nie jest wybrana ani przypisana, więc nie ma czego tu pokazać."
+   },
+   "removed": [
+    "', so there is nothing to say about where you are standing' (T29, overexplains): the text also heads the room tile and the status window's Right now section, where the clause did not fit.",
+    "pl: Tekst mówił tylko o przypisaniu, a dotyczy też GM-a bez wybranego tokenu; „nie ma nic do powiedzenia o tym, gdzie stoisz” to kalka.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: en 1: taken in substance - true for a player with none assigned or owned and for a GM with no token selected and no character (F0, explain.mjs roomBlock), as the Polish after; shorter than the proposal and without its label-colon opening, since the line also heads the room tile (T29).",
+    "review: en 2: kept short (8 words)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.despair.what",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first line of the Despair window, for players and GMs: Despair is what the Monokuma side spends.",
+     "file": "scripts/explain.mjs",
+     "fn": "despairExplainerBody",
+     "note": null
+    },
+    {
+     "fact": "A roll that lands with Despair feeds the pool of that student's Monokuma (when the GM's setting for it is on).",
+     "file": "scripts/despair-award.mjs",
+     "fn": "awardRollDespair",
+     "note": "Gated by the despairFromRolls world setting."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Despair is the GM side's currency. It fills when rolls at the table come up with Despair rather than Hope - which is to say, it is fed by your bad luck and your risks.",
+    "after": "Despair is the currency of the Monokuma side. When a student's roll lands with Despair, it feeds the pool of that student's Monokuma, if the GM has turned this on."
+   },
+   "pl": {
+    "before": "Despair to waluta strony GM-a. Rośnie, gdy rzuty przy stole wypadają z Despair zamiast z Hope - czyli karmi go wasz pech i wasze ryzyko.",
+    "after": "Despair wydaje strona Monokumy. Gdy rzut ucznia wypada z Despair, Despair trafia do puli jego Monokumy, jeśli GM włączył to w ustawieniach."
+   },
+   "removed": [
+    "'- which is to say,' (X4, a dash aside) is a sentence of its own; 'come up with Despair rather than Hope' is the guide's 'lands with Despair' (EN8).",
+    "pl: „waluta strony GM-a” nie zgadza się z faktem (strona Monokumy); X4; „karmi go wasz pech” mówi do wielu.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: en: taken - 'the Monokuma side' (F0, explain.mjs despairExplainerBody), as the Polish after.",
+    "review: coldEn 1-2: taken - 'a student's roll ... that student's Monokuma' gives the pronoun its antecedent: the rolling student (despair-award.mjs awardRollDespair). coldEn's 'GMs' side' rejected: F0.",
+    "review: Also: the condition the Polish after names (the despairFromRolls setting, F1's note) added to the English (M4); 'so your bad luck and your risks fill it' cut as a restatement (O2), as the Polish after has none."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.despair.spent",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The second line of the Despair window: a Monokuma spends Despair on Despair Calls, which make life harder for the students; the fuller the pools, the more can be done to them.",
+     "file": "scripts/explain.mjs",
+     "fn": "despairExplainerBody",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "It is spent on Despair Calls: the moves that make life harder - pushing a scene, hardening a room, turning a screw. The more of it there is, the more the school can do to you.",
+    "after": "It is spent on Despair Calls, the moves that make life harder for the students. The more of it there is, the more the school can do to you."
+   },
+   "pl": {
+    "before": "Wydawany jest na Despair Calls: ruchy, które utrudniają życie - pchnięcie sceny, zamknięcie pokoju, dokręcenie śruby. Im więcej go jest, tym więcej szkoła może wam zrobić.",
+    "after": "Strona Monokumy wydaje Despair na Despair Calls, które utrudniają uczniom życie. Im pełniejsze są pule, tym więcej można uczniom zrobić."
+   },
+   "removed": [
+    "The dash before the examples (X4) is a colon after the noun it lists.",
+    "pl: X4; przykłady po myślniku nie wynikają z faktów; „wam” mówi do wielu.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: en 1-2: taken - the three examples named no Despair Call of the module (M2) and are cut, as in the Polish; 'harder for the students' is F0's."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.despair.masked",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line for players only, under the pool rows of the Despair window (one row per Monokuma pool, held / max): every pool's count is shown to everyone; only the Overflow's count is hidden from players.",
+     "file": "scripts/explain.mjs",
+     "fn": "despairExplainerBody",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Every pool's count is public - the rows show how full each one is. Only the overflow's count is hidden from you.",
+    "after": "Every pool's count is public, and the rows above show how full each one is. Only the Overflow's count is hidden from you."
+   },
+   "pl": {
+    "before": "Stan każdej puli jest jawny - wiersze pokazują, jak pełna jest każda z nich. Ukryty przed tobą jest tylko licznik overflow.",
+    "after": "Stan każdej puli widzą wszyscy. Przed tobą ukryty jest tylko licznik Overflow."
+   },
+   "removed": [
+    "The dash aside (X4) joined with 'and'; 'overflow' capitalized as the mechanic's name (EN13, glossary overflow).",
+    "pl: X4; Overflow to nazwa z wielkiej litery (słowniczek).",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.status.actionsWhat",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first line of the actions section: {actions} is the shown character's actions per time of day with its unit (the rule's base count with no character); {short} and {long} are what a Short Rest and a Long Rest cost, with the unit, from config REST.",
+     "file": "scripts/explain.mjs",
+     "fn": "actionsExplained",
+     "note": null
+    },
+    {
+     "fact": "Searching a room, working on a project, Observe (which copies a Remnant as a Truth Bullet) and Analyze each cost one action.",
+     "file": "scripts/config.mjs",
+     "fn": "ACTIONS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{actions} each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs {short}, a Long Rest {long}.",
+    "after": "{actions} each time of day. Searching a room, working on a project, observing a Remnant, and analyzing a Truth Bullet each cost one. A Short Rest costs {short}, a Long Rest {long}."
+   },
+   "pl": {
+    "before": "{actions} na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje {short}, Long Rest {long}.",
+    "after": "{actions} na każdą porę dnia. Po jednej akcji kosztują przeszukanie pokoju, praca nad projektem, Observe na Remnancie i Analyze na Truth Bullecie. Short Rest kosztuje {short}, Long Rest {long}."
+   },
+   "removed": [
+    "'observing a trace': the glossary's remnant entry (stage E71, DB15) forbids 'trace' for the thing - now 'a Remnant'.",
+    "The dash before 'each of those is one' (X4): the list is the subject of its sentence, with the Oxford comma (EN2).",
+    "pl: PL-r: „ślad” jest zakazany, to Remnant; X4 przy myślniku.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: pl 1: taken - „Po jednej akcji kosztują ...” for „Każde z tych kosztuje akcję:”.",
+    "review: pl 2: noted - the locatives and {short}/{long} in the accusative (DRPG.Unit.actionAcc) stand."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.status.moveWhat",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The Free Move section's line, for everyone: moving inside a room is free; each time of day the first crossing into another room uses the Free Move; each crossing after that costs an action, or one of the extra crossings bought with the Sprint Call.",
+     "file": "scripts/config.mjs",
+     "fn": "ACTIONS.move",
+     "note": null
+    },
+    {
+     "fact": "The GMs can turn the movement charge off (a world setting).",
+     "file": "scripts/config.mjs",
+     "fn": "ACTIONS.move",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "One move between rooms each time of day that costs you nothing. After that, changing rooms costs an action like anything else.",
+    "after": "Each time of day, your first crossing into another room is free. After that, each crossing costs an action, or one of the extra crossings you bought with Sprint."
+   },
+   "pl": {
+    "before": "Jedno przejście między pokojami na porę dnia, które nic nie kosztuje. Potem zmiana pokoju kosztuje akcję jak wszystko inne.",
+    "after": "Ruch w obrębie pokoju nic nie kosztuje. Pierwsze przejście do innego pokoju o danej porze dnia zużywa Free Move, a każde kolejne kosztuje akcję albo jedno z przejść kupionych Callem Sprint. GM może wyłączyć opłaty za ruch w ustawieniach."
+   },
+   "removed": [
+    "'like anything else' (filler); the crossing bought with Sprint added, as the Move tile's approved hint says it (M2, pilot pair 4).",
+    "pl: Brakowało, że kolejne przejście może opłacić Sprint i że GM może wyłączyć opłaty; „zmiana pokoju” zamiast przejścia.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: pl 1-2: taken - „Callem Sprint” (PL-a: of the Calls only Reroll and Burst inflect), „jedno z przejść kupionych” for the pool Sprint gives.",
+    "review: pl 3 (lang/pl.json:331, the setting's hint, „Sprintem”): outside this batch; left for E71 at that key."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": {
+     "verdict": "change",
+     "points": [
+      "Outside the batch: the movement setting's hint (lang/pl.json line 331) still writes „Sprintem”; PL-a wants „Callem Sprint” there too - for E71 at that key."
+     ]
+    },
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.status.moveSpent",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "In the Right now section, when the character has used this time of day's Free Move: the next crossing costs an action, or a crossing bought with Sprint.",
+     "file": "scripts/explain.mjs",
+     "fn": "openStatusExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Your Free Move is gone this time of day - moving now costs an action.",
+    "after": "You have used your Free Move this time of day. Your next crossing costs an action, or a crossing you bought with Sprint."
+   },
+   "pl": {
+    "before": "Twój Free Move w tej porze dnia zużyty - ruch kosztuje teraz akcję.",
+    "after": "O tej porze dnia twój Free Move jest już zużyty. Następne przejście kosztuje akcję albo przejście kupione Callem Sprint."
+   },
+   "removed": [
+    "The dash aside (X4) is a second sentence; the Sprint crossing added (M2), as in moveWhat.",
+    "pl: X4 i telegrafia („zużyty -”); brakowało Sprintu.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: pl: taken - „Callem Sprint” (PL-a)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.status.hopeWhat",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The Hope section's line: Hope belongs to the student and is spent on Hope Calls; among them Support (advantage on another student's roll), Experience, Ultimate and Reroll, and others (Contribution, Sprint, Burst, Relief).",
+     "file": "scripts/config.mjs",
+     "fn": "HOPE_CALLS",
+     "note": null
+    },
+    {
+     "fact": "A roll that lands with Hope gives the roller Hope.",
+     "file": null,
+     "fn": null,
+     "note": "Daggerheart's duality rule; the system, not this module, gives the Hope, so no function of the module was read for it."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Hope is yours, and it is spent on Hope Calls: helping somebody else's roll, leaning on an Experience, invoking your Ultimate, rerolling. It comes back when rolls go your way.",
+    "after": "Hope is yours, and you spend it on Hope Calls, such as helping another student's roll, leaning on an Experience, invoking your Ultimate, or taking a Reroll. When your roll lands with Hope, you gain more."
+   },
+   "pl": {
+    "before": "Hope należy do ciebie i wydajesz go na Hope Calls: pomoc przy cudzym rzucie, oparcie się na doświadczeniu, przywołanie Ultimate, Reroll. Wraca, gdy rzuty idą po twojej myśli.",
+    "after": "Hope jest twój i wydajesz go na Hope Calls, na przykład Support (przewaga przy rzucie innego ucznia), Experience, Ultimate albo Reroll. Każdy twój rzut, który wypada z Hope, daje ci Hope."
+   },
+   "removed": [
+    "The list read as complete; 'such as' marks it as examples (M2), and it ends with 'or' and the Oxford comma (EN2). 'when rolls go your way' is the outcome's name, 'lands with Hope' (EN8).",
+    "pl: PL-k: nazwy Calli po angielsku (Support, Experience), nie opisy; „gdy rzuty idą po twojej myśli” nie mówi, że chodzi o rzut z Hope.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: en 1 and coldEn: taken - 'or taking a Reroll' makes the list parallel.",
+    "review: en 2: taken - 'When your roll lands with Hope, you gain more' (F1: the roller gains Hope), as the Polish „Każdy twój rzut”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.status.monokumaActions",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "In the Right now section for a Monokuma's sheet: a Monokuma has no actions; the refill at each time of day skips them and nothing they do spends one.",
+     "file": "scripts/explain.mjs",
+     "fn": "openStatusExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "You have no action economy. A Monokuma is skipped when actions are refilled, and spends none.",
+    "after": "You have no actions: none are refilled for you, and nothing you do spends one."
+   },
+   "pl": {
+    "before": "Nie masz ekonomii akcji. Monokuma jest pomijany przy odnawianiu akcji i żadnych nie wydaje.",
+    "after": "Jako Monokuma nie masz akcji: nie odnawiają ci się na początku pory dnia i nic, co robisz, ich nie wydaje."
+   },
+   "removed": [
+    "'You have no action economy' (jargon) and the third-person 'A Monokuma is skipped when actions are refilled' after a 'you' (V1): one sentence to the reader.",
+    "pl: Mieszało drugą i trzecią osobę; „ekonomia akcji” to kalka.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: pl: taken in substance - the reader as the one skipped, without the verbal noun as subject; the proposal's „nic ci się nie odnawia” rejected because it reads as nothing at all refilling, while F0 (explain.mjs openStatusExplainer) is about actions alone; „ich nie wydaje” avoids the repeated „akcji”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.status.monokumaMove",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "For a Monokuma: crossing between rooms costs nothing and they have no Free Move.",
+     "file": "scripts/explain.mjs",
+     "fn": "openStatusExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Movement costs you nothing and grants you nothing - there is no Free Move to keep track of.",
+    "after": "Moving costs you nothing, and you have no Free Move to keep track of."
+   },
+   "pl": {
+    "before": "Ruch nic cię nie kosztuje i nic nie daje - nie ma Free Move do śledzenia.",
+    "after": "Przejście do innego pokoju nic cię nie kosztuje i nie masz Free Move."
+   },
+   "removed": [
+    "'and grants you nothing' and the dash aside (X4) joined into one sentence.",
+    "pl: X4; „nic nie daje” i „do śledzenia” nie wynikają z faktów.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.projects.what",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first line: a project is a job that takes several actions (building, repairing, poisoning, digging through something); each belongs to one room and advances only when somebody works on it there (or adds to it there with the Contribution Call).",
+     "file": "scripts/explain.mjs",
+     "fn": "openProjectsExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "A project is something that takes longer than one action: building it, fixing it, poisoning it, digging through it. Each one lives in a room and only moves when somebody works on it there.",
+    "after": "A project is a job that takes several actions: building, fixing, poisoning, or digging through something. Each one belongs to a room and moves forward only when somebody works on it there or adds to it with the Contribution Call."
+   },
+   "pl": {
+    "before": "Projekt to coś, co trwa dłużej niż jedną akcję: budowa, naprawa, zatrucie, przekopanie się. Każdy mieszka w pokoju i posuwa się tylko, gdy ktoś tam nad nim pracuje.",
+    "after": "Projekt to praca na kilka akcji: budowa, naprawa, zatrucie albo przekopanie się przez coś. Każdy projekt należy do swojego pokoju i posuwa się naprzód tylko wtedy, gdy ktoś na miejscu nad nim pracuje albo dokłada się do niego Callem Contribution."
+   },
+   "removed": [
+    "'longer than one action' (T7, a rule's number as a word) is 'several actions'; the list ends with 'or' and the Oxford comma (EN2).",
+    "pl: T7: „jedną akcję” to liczba reguły słowem; „mieszka w pokoju” to kalka; brakowało Contribution.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "review: en: taken - Contribution added (F0, explain.mjs openProjectsExplainer), so 'only' is true; 'the Contribution Call' names it as a Call (O14), as the Polish „Callem Contribution”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.projects.progress",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The second line: each Work on a project costs an action and a roll; the roll decides how much progress it adds; when the bar is full the project is finished.",
+     "file": "scripts/config.mjs",
+     "fn": "ACTIONS.project",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Working on a project is an action, and a roll - how well it goes decides how much progress it takes. When the bar fills, the thing is done.",
+    "after": "Working on a project costs an action and a roll, and the roll decides how much progress it makes. When the bar fills, the project is finished."
+   },
+   "pl": {
+    "before": "Praca nad projektem to akcja i rzut - to, jak pójdzie, decyduje, ile postępu przyniesie. Gdy pasek się zapełni, rzecz jest gotowa.",
+    "after": "Każda praca nad projektem to akcja i rzut. Od rzutu zależy, ile postępu przybędzie, a gdy pasek się zapełni, projekt jest gotowy."
+   },
+   "removed": [
+    "The dash aside (X4) is joined with 'and'; 'the thing is done' names the project.",
+    "pl: X4 przy myślniku; „rzecz jest gotowa” zamiast projektu.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.projects.secret",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The third line: some projects are secret, known only to the people working on them (and the GMs); the list below shows only the projects this reader knows of, as the Projects tray shows them.",
+     "file": "scripts/explain.mjs",
+     "fn": "openProjectsExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Some projects are private to the people working on them. If you cannot see one, it is not on your list.",
+    "after": "Some projects are secret, known only to the people working on them. Your list shows only the projects you know of."
+   },
+   "pl": {
+    "before": "Niektóre projekty są prywatne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.",
+    "after": "Niektóre projekty są tajne: wiedzą o nich tylko osoby, które nad nimi pracują, i GM-owie. Lista poniżej pokazuje tylko projekty, o których wiesz."
+   },
+   "removed": [
+    "'If you cannot see one, it is not on your list' said what the list shows backwards; the list is the tray's, the projects this reader has seen (projectsAsSeen).",
+    "pl: „prywatne dla osób” to kalka; brakowało GM-ów; drugie zdanie było tautologią.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.projects.none",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Shown in place of that list when the reader knows of no project.",
+     "file": "scripts/explain.mjs",
+     "fn": "openProjectsExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Nothing yet - no project is visible to you.",
+    "after": "You don't know of any project yet."
+   },
+   "pl": {
+    "before": "Jeszcze nic - żaden projekt nie jest dla ciebie widoczny.",
+    "after": "Nie znasz jeszcze żadnego projektu."
+   },
+   "removed": [
+    "The dash aside (X4): one sentence to the reader.",
+    "pl: X4 przy myślniku i telegrafia („Jeszcze nic”).",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.bribeWaitLine",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A waiting Bribe's line when another state leads the Monocub's one card; {name} is who offers the Bribe.",
+     "file": "scripts/events.mjs",
+     "fn": "bribeWaitCard",
+     "note": null
+    },
+    {
+     "fact": "The lines of the other states are listed under the first state's own line.",
+     "file": "scripts/events.mjs",
+     "fn": "cubCardOf",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A Bribe waits, from {name}.",
+    "after": "A Bribe from {name} is waiting."
+   },
+   "pl": {
+    "before": "Bribe czeka, od: {name}.",
+    "after": "Czeka Bribe od postaci {name}."
+   },
+   "removed": [
+    "pl: X12: „od: {name}”, a preposition before a colon and a placeholder",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - the sender inside the phrase; the Polish „Czeka Bribe od postaci {name}.” already reads so."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.bodyMeta",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The body card's meta while the Investigation phase runs, for players; a GM reads the count of Key Remnants instead when a Key Remnant plan exists, and this line when none does.",
+     "file": "scripts/events.mjs",
+     "fn": "bodyCard",
+     "note": null
+    },
+    {
+     "fact": "The body card is drawn on every browser: from the discovery (the hold) through the Investigation; in a Class Trial and the Daily Life after it the card is gone.",
+     "file": "scripts/events.mjs",
+     "fn": "bodyCard",
+     "note": null
+    },
+    {
+     "fact": "The phase is named the Investigation, with a capital, in the sibling line for the hold (DRPG.Events.bodyHoldMeta) and on the GM panel's Start the Investigation button.",
+     "file": null,
+     "fn": null,
+     "note": "Read in lang/en.json."
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "The investigation is open",
+    "after": "The Investigation is under way"
+   },
+   "pl": {
+    "before": "Investigation otwarte",
+    "after": "Trwa Investigation"
+   },
+   "removed": [
+    "\"investigation\" in lower case: the phase's name is capitalized (EN13), as the sibling line and the GM panel write it; \"is open\" becomes \"is under way\", the phrase the opening card uses.",
+    "pl: „Investigation otwarte” read as a state label; the phase runs",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.bodyMetaGm",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "GM only: the body card's meta during the Investigation when a Key Remnant plan exists. Plural on {total}: {found} is how many Key Remnants have been found, off-plan finds included; {total} is how many the plan holds.",
+     "file": "scripts/events.mjs",
+     "fn": "bodyCard",
+     "note": null
+    },
+    {
+     "fact": "No player may read this number.",
+     "file": "scripts/events.mjs",
+     "fn": "bodyCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": {
+     "one": "{found} of {total} Key Remnant found",
+     "other": "{found} of {total} Key Remnants found"
+    },
+    "after": {
+     "one": "{found} of {total} Key Remnant found",
+     "other": "{found} of {total} Key Remnants found"
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Znaleziono {found} z {total} Key Remnantów",
+     "few": "Znaleziono {found} z {total} Key Remnantów",
+     "many": "Znaleziono {found} z {total} Key Remnantów",
+     "other": "Znaleziono {found} z {total} Key Remnantów"
+    },
+    "after": {
+     "one": "Znaleziono {found} z {total} Key Remnantu",
+     "few": "Znaleziono {found} z {total} Key Remnantów",
+     "many": "Znaleziono {found} z {total} Key Remnantów",
+     "other": "Znaleziono {found} z {total} Key Remnantów"
+    }
+   },
+   "removed": [
+    "pl: The one form (total 1) needs the genitive singular „z 1 Key Remnantu”, not „Remnantów”",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.bodyHoldMeta",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Players' meta on the body card during the hold: a body has been found and the clock is not yet in the Investigation. The card's title already says a body is discovered, and its sub-line names the victim and the room.",
+     "file": "scripts/events.mjs",
+     "fn": "bodyCard",
+     "note": null
+    },
+    {
+     "fact": "Nothing else is held after a discovery: actions still work; only the Class Trial holds them (the owner's Q4, E11 C3). The line must not say that anything stopped.",
+     "file": "scripts/tests-tier0.mjs",
+     "fn": "R375",
+     "note": "R375 reads the shipped value: it must say the Investigation has not started and match none of stop, halt, frozen, everything, nobody, action."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The body has been found. The Investigation has not started yet.",
+    "after": "The Investigation has not started yet."
+   },
+   "pl": {
+    "before": "Ciało zostało znalezione. Investigation jeszcze nie trwa.",
+    "after": "Investigation jeszcze nie trwa. Rozpocznie je GM."
+   },
+   "removed": [
+    "The first sentence, that the body has been found: the card's title says it (O2, O3).",
+    "pl: Repeated the card's title („Ciało zostało znalezione”); now says only that the Investigation has not started and who starts it (R375's words kept)",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.ticker.body",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A card's ticker: one word, repeated as a faint texture behind the card (hidden from screen readers), naming the kind of card; not drawn under a running trial clock.",
+     "file": "scripts/events.mjs",
+     "fn": "cardTicker",
+     "note": null
+    },
+    {
+     "fact": "This word is the ticker of the body card.",
+     "file": "scripts/events.mjs",
+     "fn": "cardTicker",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Body found",
+    "after": "Body found"
+   },
+   "pl": {
+    "before": "Znaleziono ciało",
+    "after": "Ciało"
+   },
+   "removed": [
+    "pl: A ticker is one word; „Znaleziono ciało” was two and repeated the title",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.openingMeta",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The opening card's meta: the incident is in its opening roll, whose result decides how the incident starts.",
+     "file": "scripts/events.mjs",
+     "fn": "openingCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "The opening roll decides how it begins",
+    "after": "The opening roll decides how it begins"
+   },
+   "pl": {
+    "before": "Rzut otwarcia decyduje, jak się zaczyna",
+    "after": "Rzut otwarcia zdecyduje, jak zacznie się incydent"
+   },
+   "removed": [
+    "pl: „jak się zaczyna” had no subject: what starts was left out",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.safewordMeta",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The safeword's card stands while the game is paused by a safeword (the chat holds the safeword's announcement within 15 seconds of the pause); drawn on every screen, marked as waiting on a person. Who called it is never shown.",
+     "file": "scripts/events.mjs",
+     "fn": "safewordCard",
+     "note": null
+    },
+    {
+     "fact": "Players' meta: the game stays paused until it is picked back up (a GM unpauses Foundry).",
+     "file": "scripts/events.mjs",
+     "fn": "safewordCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Nothing moves until the table picks it back up.",
+    "after": "Nothing moves until the table picks it back up."
+   },
+   "pl": {
+    "before": "Nic się nie dzieje, dopóki stół nie podejmie gry z powrotem.",
+    "after": "Gra stoi, dopóki GM jej nie wznowi."
+   },
+   "removed": [
+    "pl: „stół nie podejmie gry z powrotem” was a calque, and the game is resumed by a GM, not the table",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.safewordMetaGm",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The safeword's card stands while the game is paused by a safeword (the chat holds the safeword's announcement within 15 seconds of the pause); drawn on every screen, marked as waiting on a person. Who called it is never shown.",
+     "file": "scripts/events.mjs",
+     "fn": "safewordCard",
+     "note": null
+    },
+    {
+     "fact": "GM's meta: the GM unpauses the game when everyone at the table is ready.",
+     "file": "scripts/events.mjs",
+     "fn": "safewordCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Unpause when everyone is ready, and not before.",
+    "after": "Unpause when everyone is ready, and not before."
+   },
+   "pl": {
+    "before": "Wznów, kiedy wszyscy będą gotowi - nie wcześniej.",
+    "after": "Wznów grę, gdy wszyscy przy stole będą gotowi."
+   },
+   "removed": [
+    "pl: X4: the dash added „nie wcześniej”",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.voteSub",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "While the Class Trial's vote is open (the world's trial record, for the clock's chapter), the trial card shows the vote. A player whose ballot the primary GM holds sees a card saying their vote is in; a player still to vote sees the call to vote, marked waiting; a GM sees the count of ballots back.",
+     "file": "scripts/events.mjs",
+     "fn": "trialCard",
+     "note": null
+    },
+    {
+     "fact": "The sub-line of the open vote's card for a player whose ballot is not in, and for a GM: the table names who it believes is the Blackened. Blackened is the role's name, capitalized elsewhere (Edit campaign's note on End the chapter, the handbooks).",
+     "file": "scripts/events.mjs",
+     "fn": "trialCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Name the blackened.",
+    "after": "The students name who they believe is the Blackened."
+   },
+   "pl": {
+    "before": "Wskaż blackened.",
+    "after": "Klasa wskazuje, kto jej zdaniem jest Blackened."
+   },
+   "removed": [
+    "\"blackened\" in lower case: the role's name is capitalized (EN6, EN13), as the module writes it elsewhere.",
+    "pl: „blackened” in lower case; the card stands on every still-voting player's and the GMs' screens, so third person (P1)",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken in substance - third person to the several still-voting players and the GMs (P1, P2), as the Polish „Klasa wskazuje ...”; 'The students' (EN12, the fiction) for the proposal's 'The table', which is the people at the table."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.voteMeta",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "While the Class Trial's vote is open (the world's trial record, for the clock's chapter), the trial card shows the vote. A player whose ballot the primary GM holds sees a card saying their vote is in; a player still to vote sees the call to vote, marked waiting; a GM sees the count of ballots back.",
+     "file": "scripts/events.mjs",
+     "fn": "trialCard",
+     "note": null
+    },
+    {
+     "fact": "Meta for players, and for a GM whose count cannot be read: the trial waits for the ballots.",
+     "file": "scripts/events.mjs",
+     "fn": "trialCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The trial waits on the ballots.",
+    "after": "The trial waits on the ballots."
+   },
+   "pl": {
+    "before": "Trial czeka na głosy.",
+    "after": "Class Trial czeka na głosy."
+   },
+   "removed": [
+    "pl: „Trial” alone is not the glossary's name; Class Trial",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.voteCast",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "While the Class Trial's vote is open (the world's trial record, for the clock's chapter), the trial card shows the vote. A player whose ballot the primary GM holds sees a card saying their vote is in; a player still to vote sees the call to vote, marked waiting; a GM sees the count of ballots back.",
+     "file": "scripts/events.mjs",
+     "fn": "trialCard",
+     "note": null
+    },
+    {
+     "fact": "The sub-line of a player whose ballot this round the primary GM has said it holds; the card no longer waits on them.",
+     "file": "scripts/vote.mjs",
+     "fn": "ballotInHere",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Your vote is in.",
+    "after": "Your vote is in."
+   },
+   "pl": {
+    "before": "Twój głos oddany.",
+    "after": "Twój głos jest oddany."
+   },
+   "removed": [
+    "pl: X6: telegraph, no verb",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.trialDiscussionMeta",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The trial card when no vote and no verdict's card stand: the title is the floor's mode (Discussion when nobody holds the floor), the sub-line the speaker or the debate's question, the meta what a player does in that mode.",
+     "file": "scripts/events.mjs",
+     "fn": "trialFloorCard",
+     "note": null
+    },
+    {
+     "fact": "Meta during the trial's discussion (no mode open): the students talk it through, and the GM opens the debate. Also the fallback meta of every mode with no line of its own; a zone mode must not show it.",
+     "file": "scripts/events.mjs",
+     "fn": "trialFloorCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Talk it through - the GM opens the debate",
+    "after": "The students talk it through until the GM opens the debate"
+   },
+   "pl": {
+    "before": "Omówcie to - GM otworzy debatę",
+    "after": "Uczniowie omawiają sprawę. Debatę otworzy GM."
+   },
+   "removed": [
+    "The dash that tacked the GM's part on (X4, T5's find), now a semicolon.",
+    "pl: X4 (dash), and „Omówcie” addressed many readers at once (P2); the card is on every screen",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en 1-2: taken - third person to every screen (P1, P2), and no semicolon; F1 (events.mjs trialFloorCard)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.trialNext",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The trial card when no vote and no verdict's card stand: the title is the floor's mode (Discussion when nobody holds the floor), the sub-line the speaker or the debate's question, the meta what a player does in that mode.",
+     "file": "scripts/events.mjs",
+     "fn": "trialFloorCard",
+     "note": null
+    },
+    {
+     "fact": "Meta during a Testimony or a Panic Round: {name} is the student who speaks next, from the order fixed at the round's start.",
+     "file": "scripts/events.mjs",
+     "fn": "trialFloorCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Next: {name}",
+    "after": "Next: {name}"
+   },
+   "pl": {
+    "before": "Następny: {name}",
+    "after": "Potem mówi {name}"
+   },
+   "removed": [
+    "pl: „Następny: {name}” is masculine before a woman's name (PL17)",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.trialZone.dive.vote",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/events.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "In a zone mode (Straw Poll, Logic Dive, Scrum Debate) the meta is the line of the mode's current phase, a key per mode and phase; {n} is the question's number (from 1), {total} the questions in the set, {turn} and {turns} the Scrum's turn and its count, {zone} the side's letter in capitals (A or B).",
+     "file": "scripts/events.mjs",
+     "fn": "trialFloorCard",
+     "note": null
+    },
+    {
+     "fact": "Logic Dive, voting phase: question {n} of {total}; each student stands in the zone of their answer.",
+     "file": "scripts/events.mjs",
+     "fn": "trialFloorCard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Question {n} of {total} - stand in your answer's zone",
+    "after": "Question {n} of {total}: stand in your answer's zone"
+   },
+   "pl": {
+    "before": "Pytanie {n} z {total} - stań w strefie swojej odpowiedzi",
+    "after": "Pytanie {n} z {total}: stań w strefie swojej odpowiedzi"
+   },
+   "removed": [
+    "The dash before the instruction (X4, T5's find), now a colon.",
+    "pl: X4: the dash; a colon now",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Events.waitingFor",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "sheet",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first meta line of the incident card for a seat on the killers' side while it is not their turn: it names who acts now. {name} is the acting student's name (the victim, or the other killer when two share the side).",
+     "file": "scripts/events.mjs",
+     "fn": "incidentTurnText",
+     "note": null
+    },
+    {
+     "fact": "The same sentence is the sheet's budget row during a fight, for that seat.",
+     "file": "scripts/events.mjs",
+     "fn": "incidentTurnText",
+     "note": null
+    },
+    {
+     "fact": "The victim's side, waiting, reads a line that names nobody (DRPG.Murder.theirTurn); a seat whose turn it is reads DRPG.Murder.yourTurn.",
+     "file": "scripts/events.mjs",
+     "fn": "incidentTurnText",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Incident - waiting for {name}",
+    "after": "Incident: waiting for {name}"
+   },
+   "pl": {
+    "before": "Incydent - ruch ma {name}",
+    "after": "W incydencie ruch ma teraz {name}"
+   },
+   "removed": [
+    "The dash after the label (X4, T5's find), now a colon.",
+    "pl: X4: „Incydent - ruch ma”",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.bodyFirst",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "hud",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Only a GM starts an Eclipse (the HUD's chevron, the GM panel's Next line, the API); a refusal is a warning on that GM's browser, and the HUD dims its chevron with the same words.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    },
+    {
+     "fact": "Refused while a body's discovery holds the game (a body found, the clock not in the Investigation); the GM starts the Investigation first (the GM panel's Start the Investigation).",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startRefusalOf",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A body has been found - start the Investigation first.",
+    "after": "A body has been found. Start the Investigation first."
+   },
+   "pl": {
+    "before": "Znaleziono ciało - najpierw rozpocznij Investigation.",
+    "after": "Znaleziono ciało. Najpierw rozpocznij Investigation."
+   },
+   "removed": [
+    "The dash before the instruction (X4, T5's find), now a full stop.",
+    "pl: X4: the dash",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.incidentFirst",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "hud",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Only a GM starts an Eclipse (the HUD's chevron, the GM panel's Next line, the API); a refusal is a warning on that GM's browser, and the HUD dims its chevron with the same words.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    },
+    {
+     "fact": "Refused while an incident runs and has not reached its resolution stage (Stage 6, when the Eclipse may start); the GM ends the incident first, from the incident tracker.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startRefusalOf",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "An incident is running - close it first.",
+    "after": "An incident is running. Close it first."
+   },
+   "pl": {
+    "before": "Trwa incydent - najpierw go zamknij.",
+    "after": "Trwa incydent. Najpierw go zakończ."
+   },
+   "removed": [
+    "The dash before the instruction (X4, T5's find), now a full stop.",
+    "pl: X4: the dash",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.trialFirst",
+   "group": "window",
+   "surface": "toast",
+   "screen": "hud",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Only a GM starts an Eclipse (the HUD's chevron, the GM panel's Next line, the API); a refusal is a warning on that GM's browser, and the HUD dims its chevron with the same words.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    },
+    {
+     "fact": "Refused during a Class Trial, and the clock's own write refuses an Eclipse beginning in a trial with the same words.",
+     "file": "scripts/clock.mjs",
+     "fn": "setClock",
+     "note": null
+    },
+    {
+     "fact": "The reason in the code: a trial puts everybody in one voice room, and an Eclipse would split it room by room.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startRefusalOf",
+     "note": "Design rationale (O9): kept out of the text, it is in the code and the GM handbook."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "A Class Trial is running, so no Eclipse was started: in the trial everybody is in one voice room. End the trial first.",
+    "after": "A Class Trial is running, so the Eclipse cannot start. End the trial first."
+   },
+   "pl": {
+    "before": "Trwa Class Trial, więc Eclipse nie może się zacząć: na rozprawie wszyscy są w jednym pokoju głosowym. Najpierw zakończ rozprawę.",
+    "after": "Trwa Class Trial, więc Eclipse nie może się zacząć. Najpierw zakończ rozprawę."
+   },
+   "removed": [
+    "The voice-room reason (O9, design rationale; in the code's comment); fixes T4 (23 words over the toast target of 20). \"no Eclipse was started\" becomes \"the Eclipse cannot start\", as the owner's pair N55 says it in Polish.",
+    "pl: O9: the voice-room rationale is the code's and the handbook's, not the toast's"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.announce",
+   "group": "window",
+   "surface": "world-voice",
+   "screen": "file:scripts/eclipse.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Posted when the Eclipse opens, as an announcement with no whisper list: every player and GM reads it. Before it the overflow is checked and every character's actions are refilled.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    },
+    {
+     "fact": "Each student gets the Eclipse's allowance of room crossings between connected rooms (two; one fewer under the Overflow's Darkness, with a floor of one). Monocubs cross free and are not counted.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "eclipseAllowance",
+     "note": null
+    },
+    {
+     "fact": "During an Eclipse nobody sees anybody else's token, in any room; the clock does not move until the Eclipse ends.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "eclipseLabel",
+     "note": "The rule is the file's header (eclipse.mjs, lines 9-15)."
+    },
+    {
+     "fact": "{n} is the allowance of crossings for this Eclipse.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": {
+     "one": "Lights out. Everyone places their token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
+     "other": "Lights out. Everyone places their token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."
+    },
+    "after": {
+     "one": "Lights out. Everyone can cross into one connected room to place their token. Nobody sees anyone else until the Eclipse ends.",
+     "other": "Lights out. Everyone can make up to {n} crossings between connected rooms to place their token. Nobody sees anyone else until the Eclipse ends."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Gasną światła. Każdy ustawia swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+     "few": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+     "many": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+     "other": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy."
+    },
+    "after": {
+     "one": "Gasną światła. Każdy uczeń ma jedno przejście do połączonego pokoju. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów.",
+     "few": "Gasną światła. Każdy uczeń ma {n} przejścia między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów.",
+     "many": "Gasną światła. Każdy uczeń ma {n} przejść między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów.",
+     "other": "Gasną światła. Każdy uczeń ma {n} przejść między połączonymi pokojami. Dopóki trwa Eclipse, nikt nie widzi tokenów pozostałych uczniów."
+    }
+   },
+   "removed": [
+    "The dash aside (X4, T5's find).",
+    "pl: X3 and X4; „do {n} połączonych pokoi” said a reach in rooms, the allowance is in crossings"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.yourMoves",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/eclipse.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to each living acting student's owners (and the GMs) as the Eclipse opens; {room} is the room the student stands in, or -.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    },
+    {
+     "fact": "Each student gets the Eclipse's allowance of room crossings between connected rooms (two; one fewer under the Overflow's Darkness, with a floor of one). Monocubs cross free and are not counted.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "eclipseAllowance",
+     "note": null
+    },
+    {
+     "fact": "Crossings still follow the map: only into a connected room, through doors and gaps, up or down only by the stairs; a locked door or sealed room still refuses.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "judgeEclipseCrossing",
+     "note": null
+    },
+    {
+     "fact": "{n} is the allowance of crossings.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": {
+     "one": "One room crossing. You are in {room}. Drag your token - doors and gaps still apply.",
+     "other": "{n} room crossings. You are in {room}. Drag your token - doors and gaps still apply."
+    },
+    "after": {
+     "one": "You are in {room} and have one room crossing. Drag your token into a connected room; locked doors and sealed rooms still stop you.",
+     "other": "You are in {room} and have {n} room crossings. Drag your token into a connected room; locked doors and sealed rooms still stop you."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "Jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
+     "few": "{n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
+     "many": "{n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
+     "other": "{n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują."
+    },
+    "after": {
+     "one": "Masz jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
+     "few": "Masz {n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
+     "many": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą.",
+     "other": "Masz {n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token do połączonego pokoju; zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą."
+    }
+   },
+   "removed": [
+    "The dash before the rule (X4, T5's find), now a semicolon; the bare count becomes a sentence (X6).",
+    "pl: X4: the dash; and the form had no verb for the count („{n} przejść między pokojami.”)",
+    "review: coldEn 1: taken in substance - 'doors and gaps' replaced by what the reader meets: into a connected room, and locked doors and sealed rooms still refuse (F2, eclipse.mjs judgeEclipseCrossing), as the Polish after says it („zamknięte drzwi i zapieczętowane pokoje wciąż cię nie wpuszczą”).",
+    "review: coldEn 2: taken - where the student is comes first, in one sentence with the count."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.noMovesLeft",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/eclipse.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Said (a warning on the walker's browser) when a crossing in an Eclipse finds no crossing left; the crossing is refused there.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "judgeEclipseCrossing",
+     "note": null
+    },
+    {
+     "fact": "Said by the drag's own check before the token moves at all: the token update is refused, so the token never leaves the room it was in.",
+     "file": "scripts/movement.mjs",
+     "fn": "crossingVerdict",
+     "note": null
+    },
+    {
+     "fact": "Said when the primary GM sees a crossing past the allowance that already landed: the token is moved back to where it was.",
+     "file": "scripts/movement.mjs",
+     "fn": "eclipseSighting",
+     "note": null
+    },
+    {
+     "fact": "In every case the token ends where it was before the refused crossing, and no action is spent.",
+     "file": "audit/harness/scenarios/70-movement.mjs",
+     "fn": "check",
+     "note": "Scenario 70's eclipse check: the token stays in the room it reached and keeps its actions."
+    },
+    {
+     "fact": "A sentence for a spent Eclipse must differ from the bridge's DRPG.Bridge.why.eclipseSpent (R614).",
+     "file": "scripts/tests-tier1.mjs",
+     "fn": "eclipseSpent",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "Your Eclipse crossings are used up. Your token has been put back.",
+    "after": "Your Eclipse crossings are used up, so your token stays where it was."
+   },
+   "pl": {
+    "before": "Przejścia Eclipse wyczerpane. Twój token wrócił na miejsce.",
+    "after": "W tym Eclipse nie masz już przejść. Token stoi tam, gdzie stał wcześniej, a akcje zostają."
+   },
+   "removed": [
+    "\"Your token has been put back.\": false where the drag's check refuses before the move (movement.mjs crossingVerdict; E25's S07-39) - the token never left. \"stays where it was\" is true on all three roads.",
+    "pl: „Twój token wrócił” is false when the drag check refuses before the token moves; and the actions kept were not said",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.actionsLocked",
+   "group": "window",
+   "surface": "toast",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "During an Eclipse only Move and a Direct Murder pass: every other action is refused, and so is every Hope Call, every Despair Call (a GM's), a handover and a Monocub's ability; each refusal is a warning before anything is paid.",
+     "file": "scripts/action-rolls.mjs",
+     "fn": "performAction",
+     "note": null
+    },
+    {
+     "fact": "The same sentence answers a Hope Call or a Despair Call during an Eclipse.",
+     "file": "scripts/calls.mjs",
+     "fn": "callBarred",
+     "note": null
+    },
+    {
+     "fact": "A Monocub's abilities are shut by it in an Eclipse.",
+     "file": "scripts/monocub.mjs",
+     "fn": "CUB_LOCKS",
+     "note": null
+    },
+    {
+     "fact": "A handover asks who is here and is refused during an Eclipse.",
+     "file": "scripts/handover.mjs",
+     "fn": "askWhoIsHere",
+     "note": null
+    },
+    {
+     "fact": "The actions are refilled when the Eclipse opens, so the budget is full during it; a Direct Murder declared in the dark spends one of them.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "en": {
+    "before": "Placement only. Actions are already back; nothing spends them but a Direct Murder until the lights come up.",
+    "after": "During an Eclipse, only Move and a Direct Murder are allowed; everything else waits until the Eclipse ends. Actions are already refilled."
+   },
+   "pl": {
+    "before": "Tylko ustawianie. Akcje już wróciły; nic ich nie wydaje poza Direct Murder, dopóki nie zapali się światło.",
+    "after": "Podczas Eclipse działają tylko Move i Direct Murder. Reszta czeka, aż zapali się światło, a akcje są już odnowione."
+   },
+   "removed": [
+    "\"Placement only.\" as a fragment (X6), made a sentence; \"until the lights come up\" becomes \"until it ends\", the plain end the other locks name.",
+    "pl: „Tylko ustawianie” and „nic ich nie wydaje” spoke of actions alone, and the same sentence answers Calls, a handover and a Monocub's ability",
+    "review: en 1: taken in substance - the sentence answers Hope and Despair Calls, a handover and a Monocub's ability too (F0-F3), so it names what passes (Move and a Direct Murder) and that everything else waits, as the Polish after; the proposal's 'you can only move your token or declare a Direct Murder' rejected because a GM's Despair Call and a Monocub, who commits no murder, get the same line.",
+    "review: en 2: taken - 'already refilled' (F4, eclipse.mjs startEclipse); 'Your' dropped, since a GM's refused Despair Call also gets the line. The Polish after gains the same clause (M4).",
+    "review: en 3: 21 words, within the toast limit of 30.",
+    "review: coldEn 1: taken - 'until the Eclipse ends', no 'it'.",
+    "review: coldEn 2: taken - no 'nothing spends them except'."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.movesColumn",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "eclipse-hud",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The third column's header in the GM's placement table: crossings made of the allowance (made / allowance), or in a free placement the count of crossings made.",
+     "file": "scripts/boundary.mjs",
+     "fn": "placementTable",
+     "note": null
+    },
+    {
+     "fact": "The window's prompt says the dimmed rows have not crossed a room (DRPG.Eclipse.endPrompt).",
+     "file": "scripts/boundary.mjs",
+     "fn": "placementTable",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Placed",
+    "after": "Crossings"
+   },
+   "pl": {
+    "before": "Ustawieni",
+    "after": "Przejścia"
+   },
+   "removed": [
+    "\"Placed\" names a yes or no, where the column counts crossings (made of the allowance).",
+    "pl: „Ustawieni” named people; the column counts crossings made",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.yourMovesFree",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/eclipse.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to each living acting student's owners (and the GMs) as the Eclipse opens; {room} is the room the student stands in, or -.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "startEclipse",
+     "note": null
+    },
+    {
+     "fact": "The Night Eclipse is a free placement: any room on the map, no count and no connection; the Overflow's Darkness turns it back to the ordinary crossings, and then the ordinary texts are used.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "isFreePlacement",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Any room on the map. You are in {room}. Drag your token wherever you want to start.",
+    "after": "You can pick any room on the map. You are in {room}. Drag your token to where you want to start."
+   },
+   "pl": {
+    "before": "Dowolny pokój na mapie. Jesteś w pokoju {room}. Przeciągnij token tam, gdzie chcesz zacząć.",
+    "after": "Możesz stanąć w dowolnym pokoju na mapie. Jesteś w pokoju {room}. Przeciągnij token do pokoju, w którym chcesz być."
+   },
+   "removed": [
+    "The fragment \"Any room on the map.\" made a sentence (X6).",
+    "pl: „Dowolny pokój na mapie.” had no verb, and „tam, gdzie chcesz zacząć” left unsaid what starts"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.movedFree",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/eclipse.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the student's owners alone after a crossing in a free placement; {room} is the room crossed into. No count: a free placement has none.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "countCrossingInStep",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Now in {room}.",
+    "after": "You are now in {room}."
+   },
+   "pl": {
+    "before": "Jesteś teraz w pokoju {room}.",
+    "after": "Jesteś teraz w pokoju {room}."
+   },
+   "removed": [
+    "The fragment made the pilot's sentence (DRPG.Move.entered, DRPG.Eclipse.moved; X6)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.murderOnlyInEclipse",
+   "group": "window",
+   "surface": "toast",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A Direct Murder is refused outside an Eclipse, with a warning to the player who pressed it; the tile is dimmed with the same sentence as its reason.",
+     "file": "scripts/action-rolls.mjs",
+     "fn": "performAction",
+     "note": null
+    },
+    {
+     "fact": "The Direct Murder tile's dim reason when no incident runs and no Eclipse is on.",
+     "file": "scripts/sheet.mjs",
+     "fn": "actionButton",
+     "note": null
+    },
+    {
+     "fact": "Why the rule is so (the lights out is the one moment to be alone with somebody) is the handbook's.",
+     "file": null,
+     "fn": null,
+     "note": "docs/handbooks/player-handbook.en.md, the Direct Murder paragraph."
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Only during an Eclipse. The lights are out and everyone is crossing the map - that is the one moment you can be alone with somebody.",
+    "after": "A Direct Murder can only be declared during an Eclipse."
+   },
+   "pl": {
+    "before": "Tylko podczas Eclipse. Światła są zgaszone i wszyscy przemierzają mapę - to jedyny moment, w którym możesz być z kimś sam na sam.",
+    "after": "Direct Murder można zgłosić tylko podczas Eclipse."
+   },
+   "removed": [
+    "The reason (the lights out, the one moment to be alone): design rationale (O9), in the player handbook's Direct Murder paragraph; fixes T4 (25 words) and the dash (X4).",
+    "pl: X4 and O9: the reason for the rule is the handbook's; T4: 22 words for a toast of 20"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.actionsMurderOnly",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/player-status.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The tooltip of the actions row on the player's status strip during an Eclipse, for a student: the only thing an action pays for then is a Direct Murder.",
+     "file": "scripts/player-status.mjs",
+     "fn": "actionsTooltip",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Placement is running. The only thing an action buys right now is a Direct Murder.",
+    "after": "During an Eclipse, an action can only pay for a Direct Murder."
+   },
+   "pl": {
+    "before": "Trwa ustawianie. Jedyne, co teraz kupuje akcja, to Direct Murder.",
+    "after": "Trwa Eclipse. Akcję możesz teraz wydać tylko na Direct Murder."
+   },
+   "removed": [
+    "\"Placement is running.\": the phase's own word in place of the Eclipse's name, cut into the sentence (O14).",
+    "pl: „Trwa ustawianie” and „kupuje akcja” read as a calque",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.placementOnly",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/player-status.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The same tooltip for a Monocub, who commits no murder: during an Eclipse no action is spent until it ends.",
+     "file": "scripts/player-status.mjs",
+     "fn": "actionsTooltip",
+     "note": null
+    },
+    {
+     "fact": "The text must not name a Direct Murder (R-test at tests-tier1.mjs:30878).",
+     "file": "scripts/tests-tier1.mjs",
+     "fn": "placementOnly",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Placement only. Nothing spends an action until the lights come up.",
+    "after": "You cannot spend actions during an Eclipse."
+   },
+   "pl": {
+    "before": "Tylko ustawianie. Dopóki nie zapali się światło, nic nie wydaje akcji.",
+    "after": "Podczas Eclipse nie wydajesz akcji."
+   },
+   "removed": [
+    "\"Placement only.\" as a fragment (X6); \"the lights come up\" becomes the Eclipse's end.",
+    "pl: „nic nie wydaje akcji” put the reader out of the sentence; and „Tylko ustawianie” was telegraph style",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en 1: taken - one time frame.",
+    "review: en 2: kept - no Direct Murder named (tests-tier1.mjs placementOnly).",
+    "review: coldEn 1-2: taken - no 'until it ends' that reads as a deferred cost; the full 'cannot' for a rule (EN3); the Polish „Podczas Eclipse nie wydajesz akcji.” already says the same."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.callsLocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "sheet",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The note on a Call drawer of the sheet while an Eclipse runs: every Call is grey, whatever Hope or Despair the character holds; they unlock when the Eclipse ends.",
+     "file": "scripts/sheet.mjs",
+     "fn": "callLockNote",
+     "note": null
+    },
+    {
+     "fact": "Calls are refused while the Eclipse flag is on; it is cleared when the Eclipse ends, with or without the clock's advance.",
+     "file": "scripts/calls.mjs",
+     "fn": "hopeCallRefusal",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Locked while the Eclipse runs. Every Call unlocks with the next time of day - this is not about what you hold.",
+    "after": "Every Call is locked until the Eclipse ends, whatever Hope or Despair you hold."
+   },
+   "pl": {
+    "before": "Zablokowane, dopóki trwa Eclipse. Każdy Call odblokuje się z następną porą dnia - to nie zależy od tego, ile masz.",
+    "after": "Podczas Eclipse wszystkie Calle są zablokowane, bez względu na twój Hope i Despair. Odblokują się, gdy Eclipse się skończy."
+   },
+   "removed": [
+    "\"with the next time of day\": a GM can end the Eclipse without advancing, and the Calls unlock then too (the flag, not the clock); the dash aside (X4).",
+    "pl: Fact error: the Calls unlock when the Eclipse ends, not with the next time of day; and X4",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: taken - what is held named: Hope or Despair (F0, sheet.mjs callLockNote), as the Polish „bez względu na twój Hope i Despair”."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.murderWindowLocked",
+   "group": "window",
+   "surface": "toast",
+   "screen": "murder-window",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Said to a GM who opens the murder window during an Eclipse with no incident running (the GM panel's tile is dimmed then; a trap card's fire button can still reach it); with an incident running the window opens its tracker instead.",
+     "file": "scripts/murder-ui.mjs",
+     "fn": "openMurderDialog",
+     "note": null
+    },
+    {
+     "fact": "A trap's ruling card keeps its button: it is settled only once the window opens, so the GM can use it after the Eclipse.",
+     "file": "scripts/murder-ui.mjs",
+     "fn": "openMurderDialog",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The Eclipse is a placement window - nobody has finished moving yet. Open the incident once the lights come up; a trap's card waits on the thread until you do.",
+    "after": "No incident opens during an Eclipse. Open it once the Eclipse ends; a trap's card keeps its button until then."
+   },
+   "pl": {
+    "before": "Eclipse to okno ustawiania - nikt jeszcze nie skończył się ruszać. Otwórz incydent, gdy zapali się światło; karta pułapki czeka w wątku, dopóki tego nie zrobisz.",
+    "after": "Podczas Eclipse nie otworzysz incydentu. Karta pułapki zachowuje swój przycisk, więc użyjesz go po Eclipse."
+   },
+   "removed": [
+    "The dash aside about nobody having finished moving (X4) and \"waits on the thread\", now the card's button; fixes T4 (29 words).",
+    "pl: X4, and T4: 25 words for a toast of 20; „nikt nie skończył się ruszać” was not a fact"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.murderLocked",
+   "group": "window",
+   "surface": "toast",
+   "screen": "murder-cards",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM's warning: no incident opens while an Eclipse runs.",
+     "file": "scripts/murder-rules.mjs",
+     "fn": "openMurder",
+     "note": null
+    },
+    {
+     "fact": "A Direct Murder declared during the Eclipse is parked and judged when the Eclipse ends, after the flag is cleared: it opens only if the killer is alone with exactly one other person and no other killing opened first.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "endEclipse",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The Eclipse is a placement window - nobody has finished moving yet. A Direct Murder declared now waits for the Eclipse to end on its own.",
+    "after": "No incident opens during an Eclipse. A Direct Murder declared in it is judged when the Eclipse ends."
+   },
+   "pl": {
+    "before": "Eclipse to okno ustawiania - nikt jeszcze nie skończył się ruszać. Direct Murder zgłoszony teraz czeka, aż Eclipse sam się skończy.",
+    "after": "Podczas Eclipse nie otworzysz incydentu. Direct Murder zgłoszony w ciemności zostanie rozpatrzony, gdy Eclipse się skończy."
+   },
+   "removed": [
+    "The dash aside (X4); \"waits for the Eclipse to end on its own\" becomes \"is judged when the Eclipse ends\": it opens only if its conditions hold then. Fixes T4 (25 words).",
+    "pl: X4; and „czeka, aż Eclipse sam się skończy” gave Eclipse the masculine („sam”), it is neuter (PL-b)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.bodyLocked",
+   "group": "window",
+   "surface": "toast",
+   "screen": "body-discovery",
+   "readers": [
+    "both",
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A body's discovery is refused during an Eclipse: the GM's discovery window refuses before it opens, its run refuses as a backstop (both warn the GM), and the Investigation dashboard dims its button with this text as the tooltip.",
+     "file": "scripts/chapter.mjs",
+     "fn": "openBodyDiscoveryDialog",
+     "note": null
+    },
+    {
+     "fact": "The automatic discovery (two students in the room with the body) never happens during an Eclipse either.",
+     "file": "scripts/chapter.mjs",
+     "fn": "runDiscovery",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The Eclipse is running. A body cannot be discovered - by hand or automatically - until everyone has finished placing.",
+    "after": "You cannot announce a body during an Eclipse, and no body is discovered automatically either. Wait until the Eclipse ends."
+   },
+   "pl": {
+    "before": "Trwa Eclipse. Ciała nie da się odkryć - ręcznie ani automatycznie - dopóki wszyscy nie skończą się ustawiać.",
+    "after": "Podczas Eclipse ciała nie da się odkryć, ani ręcznie, ani automatycznie."
+   },
+   "removed": [
+    "The dash aside (X4) and the passive that hid the GM as the one who announces (X11).",
+    "pl: X4: the aside between dashes",
+    "review: en 1 and coldEn: taken - no 'the module finds' (T29); F1 (chapter.mjs runDiscovery) as 'no body is discovered automatically either'.",
+    "review: en 2: taken - 'Wait until the Eclipse ends' kept as the next step (O7); it reads as well on the dashboard's dimmed button."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Eclipse.panelLocked",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "gm-panel",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The dim reason of the GM panel's murder tile while an Eclipse runs and no incident does (with an incident running the tile opens its tracker).",
+     "file": "scripts/gm-panel.mjs",
+     "fn": "PANEL_SECTIONS",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Locked while the Eclipse runs - nobody has finished placing yet.",
+    "after": "Locked until the Eclipse ends."
+   },
+   "pl": {
+    "before": "Zablokowane, dopóki trwa Eclipse - nikt jeszcze nie skończył się ustawiać.",
+    "after": "Zablokowane, dopóki trwa Eclipse."
+   },
+   "removed": [
+    "The dash aside about nobody having finished placing (X4).",
+    "pl: X4: the dash added a reason that is not the rule",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.freeSpent",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The movement briefing names what the next crossing will take, in the order a crossing pays: the Free Move, then a banked free crossing (Sprint, Dash and the like), then a banked Burst, then an action; with nothing left, the no-budget line.",
+     "file": "scripts/action-briefing.mjs",
+     "fn": "moveLine",
+     "note": null
+    },
+    {
+     "fact": "This line: the Free Move is used and nothing banked is left, so the next room costs an action; {left} is the actions left.",
+     "file": "scripts/action-briefing.mjs",
+     "fn": "moveLine",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Free Move used - the next room costs an action. You have {left}.",
+    "after": "Free Move used. The next room costs an action; you have {left}."
+   },
+   "pl": {
+    "before": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
+    "after": "Free Move jest zużyty, więc następny pokój kosztuje akcję; akcji masz {left}."
+   },
+   "removed": [
+    "The dash after \"Free Move used\" (X4, T5's find), now a full stop as in DRPG.Move.nextSprint and DRPG.Move.nextBurst.",
+    "pl: X4: the dash",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.leftRooms",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "After a paid crossing the student's owners (and the GMs) get a card headed with the movement action's name and the room: one line where the token went, then one line what it cost.",
+     "file": "scripts/movement.mjs",
+     "fn": "chargeForCrossing",
+     "note": null
+    },
+    {
+     "fact": "The card's first line when the crossing ends outside every room (a corridor or doorway that is no room): there is no destination room to name.",
+     "file": "scripts/movement.mjs",
+     "fn": "chargeForCrossing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Left the room.",
+    "after": "You are no longer in any room."
+   },
+   "pl": {
+    "before": "Opuszczasz pokój.",
+    "after": "Stoisz teraz poza wszystkimi pokojami."
+   },
+   "removed": [
+    "The subjectless fragment (X6); it now says where the token is, as DRPG.Move.entered does, rather than that a room was left.",
+    "pl: „Opuszczasz pokój” said what was left, not where the token is: outside every room",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - natural English for F1 (movement.mjs chargeForCrossing: no destination room to name)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.costAction",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The card's price line when the crossing cost an action; {left} is the actions left after it. Plural on {left}.",
+     "file": "scripts/movement.mjs",
+     "fn": "chargeForCrossing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": {
+     "one": "That cost an action - {left} action left.",
+     "other": "That cost an action - {left} actions left."
+    },
+    "after": {
+     "one": "That cost an action. You have {left} action left.",
+     "other": "That cost an action. You have {left} actions left."
+    }
+   },
+   "pl": {
+    "before": {
+     "one": "To kosztowało akcję - została {left} akcja.",
+     "few": "To kosztowało akcję - zostały {left} akcje.",
+     "many": "To kosztowało akcję - zostało {left} akcji.",
+     "other": "To kosztowało akcję - zostało {left} akcji."
+    },
+    "after": {
+     "one": "To przejście kosztowało akcję. Została ci {left} akcja.",
+     "few": "To przejście kosztowało akcję. Zostały ci {left} akcje.",
+     "many": "To przejście kosztowało akcję. Zostało ci {left} akcji.",
+     "other": "To przejście kosztowało akcję. Zostało ci {left} akcji."
+    }
+   },
+   "removed": [
+    "The dash before the count (X4, T5's find), now its own sentence.",
+    "pl: X4: the dash",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.noBudget",
+   "group": "window",
+   "surface": "toast",
+   "screen": "action-tiles",
+   "readers": [
+    "both",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Refused before the move when the walker has no Free Move, no banked crossing and no action or Burst to pay with; the token does not move.",
+     "file": "scripts/movement.mjs",
+     "fn": "crossingVerdict",
+     "note": null
+    },
+    {
+     "fact": "Also the warning when the paid check after the crossing finds nothing to pay, and the briefing's line when nothing is left.",
+     "file": "scripts/movement.mjs",
+     "fn": "chargeForCrossing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "No Free Move and no actions left.",
+    "after": "No Free Move and no actions left."
+   },
+   "pl": {
+    "before": "Brak Free Move i brak akcji.",
+    "after": "Nie masz już Free Move ani akcji."
+   },
+   "removed": [
+    "pl: X6: „Brak ... i brak ...” is telegraph style"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.notConnected",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A drag the map does not allow is refused on the walker's browser before the token moves, with the reason as a warning; the same reasons are said when a GM puts a token back.",
+     "file": "scripts/movement.mjs",
+     "fn": "crossingVerdict",
+     "note": null
+    },
+    {
+     "fact": "{to} is the destination, {from} the room the walker stands in, {rooms} the connected rooms this viewer has been in, joined with a comma and a space.",
+     "file": "scripts/movement.mjs",
+     "fn": "notConnectedText",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{to} is not connected to {from}. From here you can reach: {rooms}",
+    "after": "{to} is not connected to {from}. From here you can reach: {rooms}"
+   },
+   "pl": {
+    "before": "Pokój {to} nie łączy się z pokojem {from}. Stąd dojdziesz do: {rooms}",
+    "after": "Pokój {to} nie łączy się z pokojem {from}. Pokoje, do których stąd dojdziesz: {rooms}"
+   },
+   "removed": [
+    "pl: X12: „do: {rooms}”",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [
+    "{rooms} is joined with \", \" in movement.mjs notConnectedText; EN2/DB35 want the code's lists through utils.mjs listOf (\"A, B, and C\" in English, \"A, B i C\" in Polish)."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.noBudgetLong",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "When the paid check after a crossing finds nothing to pay with (no Free Move, no banked crossing, no action or Burst), the token is put back first, a warning is shown, and the owners get this card, marked as an error.",
+     "file": "scripts/movement.mjs",
+     "fn": "chargeForCrossing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "No Free Move and no actions left - this crossing was not paid for, so your token was put back.",
+    "after": "You have no Free Move and no actions left, so your token was put back."
+   },
+   "pl": {
+    "before": "Brak Free Move i brak akcji - to przejście nie zostało opłacone. Token wraca; zapytaj GM-a.",
+    "after": "Nie masz już Free Move ani akcji, więc to przejście nie jest opłacone. Token wraca na miejsce; zapytaj GM-a."
+   },
+   "removed": [
+    "The dash and \"this crossing was not paid for\", which the clause \"so your token was put back\" already says (X4, O2).",
+    "pl: X4: the dash, and X6 („Brak ... i brak”)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.refundedBack",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM can give back a student's last crossing; the token is stood where it was before it, and its price (the Free Move, a banked crossing or an action, or an Eclipse crossing in the same Eclipse) is refunded if it was seen paid in the same time of day. The owners get a card: first whether the token stood back, then whether the price came back.",
+     "file": "scripts/movement.mjs",
+     "fn": "refundLastCrossing",
+     "note": null
+    },
+    {
+     "fact": "This line: the token was moved back.",
+     "file": "scripts/movement.mjs",
+     "fn": "refundLastCrossing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The GM gave back your last crossing: your token stands where it was before it.",
+    "after": "The GM gave back your last crossing, and your token is back where it was."
+   },
+   "pl": {
+    "before": "GM cofnął twoje ostatnie przejście: token stoi tam, gdzie stał przed nim.",
+    "after": "GM cofa twoje ostatnie przejście: token stoi tam, gdzie stał przed nim."
+   },
+   "removed": [
+    "\"stands where it was before it\": the doubled \"it\" read loosely; same fact.",
+    "pl: Present tense, so the GM's gender is not assumed by „cofnął” (PL17)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.refundedStays",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM can give back a student's last crossing; the token is stood where it was before it, and its price (the Free Move, a banked crossing or an action, or an Eclipse crossing in the same Eclipse) is refunded if it was seen paid in the same time of day. The owners get a card: first whether the token stood back, then whether the price came back.",
+     "file": "scripts/movement.mjs",
+     "fn": "refundLastCrossing",
+     "note": null
+    },
+    {
+     "fact": "This line: the token could not be moved back (the write failed or no position was kept).",
+     "file": "scripts/movement.mjs",
+     "fn": "refundLastCrossing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The GM gave back your last crossing, but your token could not be stood where it was before it - ask the GM.",
+    "after": "The GM gave back your last crossing, but your token could not be moved back. Ask the GM."
+   },
+   "pl": {
+    "before": "GM cofnął twoje ostatnie przejście, ale tokenu nie dało się postawić tam, gdzie stał przed nim - zapytaj GM-a.",
+    "after": "GM cofa twoje ostatnie przejście, ale tokenu nie da się postawić tam, gdzie stał. Zapytaj GM-a."
+   },
+   "removed": [
+    "The dash before the advice (X4, T5's find), now its own sentence.",
+    "pl: X4: the dash; present tense as refundedBack"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.refundedNoPrice",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM can give back a student's last crossing; the token is stood where it was before it, and its price (the Free Move, a banked crossing or an action, or an Eclipse crossing in the same Eclipse) is refunded if it was seen paid in the same time of day. The owners get a card: first whether the token stood back, then whether the price came back.",
+     "file": "scripts/movement.mjs",
+     "fn": "refundLastCrossing",
+     "note": null
+    },
+    {
+     "fact": "This line: no price came back - none was seen paid, it was paid in an earlier time of day or Eclipse, or the refund failed.",
+     "file": "scripts/movement.mjs",
+     "fn": "refundLastCrossing",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The GMs saw nothing it cost, so nothing else came back - ask the GM if it cost you something.",
+    "after": "No price came back for that crossing. If you paid for it, ask the GM."
+   },
+   "pl": {
+    "before": "GM-owie nie widzieli, żeby cokolwiek kosztowało, więc nic więcej nie wraca - zapytaj GM-a, jeśli coś cię kosztowało.",
+    "after": "Za to przejście nic do ciebie nie wraca. Jeśli coś cię kosztowało, zapytaj GM-a."
+   },
+   "removed": [
+    "\"The GMs saw nothing it cost\": what the GMs' records saw is the module's working, not the player's (O19, T29); the dash (X4).",
+    "pl: X4; and „GM-owie nie widzieli” gave one reason of three (an earlier time of day, a failed refund)",
+    "review: en 1: taken in substance - no 'it' to work out and no 'nothing' as the cost; 'No price came back' is F1 (movement.mjs refundLastCrossing) with no reason named (O19).",
+    "review: coldEn 1: taken - the two sentences no longer read as contradicting each other.",
+    "review: coldEn 2: rejected - this is the card's second line; its first line (Move.refundedBack or refundedStays) already says the GM gave back the crossing (F0), so repeating it here would print it twice.",
+    "review: pl: taken - „Za to przejście nic do ciebie nie wraca.”"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.rewindDuringEclipse",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/clock.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "GM's warning: the HUD's rewind is refused while an Eclipse runs; the GM ends the Eclipse first.",
+     "file": "scripts/clock.mjs",
+     "fn": "rewindTimeOfDay",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "An Eclipse is running. End it first.",
+    "after": "An Eclipse is running. End it first."
+   },
+   "pl": {
+    "before": "Trwa Eclipse. Najpierw go zakończ.",
+    "after": "Trwa Eclipse. Najpierw je zakończ."
+   },
+   "removed": [
+    "pl: PL-b: Eclipse is neuter, „je”, not „go”"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.takenBack",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/clock.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM's notice when a time of day's start is taken back (for one, an Eclipse ended without advancing within five minutes of its start): the action budgets with the Free Moves and banked grants, the rooms' Search Tokens, and the seals and restrictions bought for it are put back as they were before it began.",
+     "file": "scripts/clock.mjs",
+     "fn": "takeBackBoundary",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Taken back: the actions, the Free Moves, the Search Tokens, and the seals are as they were before this time of day began.",
+    "after": "Actions, Free Moves, what Sprint and Burst bought, Search Tokens, and seals are back as they were before this time of day began."
+   },
+   "pl": {
+    "before": "Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia.",
+    "after": "Początek tej pory dnia jest cofnięty: akcje, Free Move, to, co dały Sprint i Burst, Search Tokeny pokoi i pieczęcie wracają do stanu sprzed niego."
+   },
+   "removed": [
+    "\"Taken back:\" as a label before the sentence (X7); fixes T4 (23 words over the toast target of 20).",
+    "pl: PL-a: „Search Tokens” in a Polish sentence; the banked grants were left out",
+    "review: en 1: taken in substance - the banked grants added (F0); in code (actions.mjs putBackBudgets, called by clock.mjs takeBackBoundary) they are both the banked crossings (freeMoveGrants, Sprint) and the free actions (freeActionGrants, Burst), so 'what Sprint and Burst bought', as Hud.eclipseAsk says it, rather than the proposal's 'banked crossings' alone. 23 words, within the toast limit.",
+    "review: en 2: kept - 'seals' carries the restrictions too.",
+    "review: Also the Polish: „darmowe przejścia” named the Sprint crossings alone and could be read as the Free Move; now „to, co dały Sprint i Burst” (M4, same fact)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.eclipseStillOn",
+   "group": "window",
+   "surface": "toast",
+   "screen": "file:scripts/gm-campaign.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A GM's warning after Edit campaign (or Season setup) moves the time of day, the day or the chapter while an Eclipse is running: the Eclipse stays on.",
+     "file": "scripts/gm-campaign.mjs",
+     "fn": "applyCampaignForm",
+     "note": null
+    },
+    {
+     "fact": "The GM ends it from the clock's chevron (or the GM panel); until then no incident can open, and crossings are counted against the Eclipse's allowance.",
+     "file": "scripts/murder-rules.mjs",
+     "fn": "openMurder",
+     "note": null
+    },
+    {
+     "fact": "Direct Murders can still be declared in the Eclipse; they are judged at its end.",
+     "file": "scripts/eclipse.mjs",
+     "fn": "endEclipse",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",
+    "after": "The clock moved, but the Eclipse is still on. End it from the clock's chevron; until then no incident can open."
+   },
+   "pl": {
+    "before": "Zegar się przesunął, ale Eclipse wciąż trwa. Zakończ go strzałką przy zegarze, gdy przyjdzie pora - do tej pory tokeny ustawiają się swobodnie, a morderstwa są odrzucane.",
+    "after": "Zegar się przesunął, ale Eclipse wciąż trwa. Zakończ je strzałką przy zegarze; do tego czasu nie otworzysz incydentu, a przejścia liczą się do limitu Eclipse."
+   },
+   "removed": [
+    "\"tokens place freely\": crossings stay counted against the allowance; \"murders are refused\": a Direct Murder can still be declared, only no incident opens. The dash aside (X4); fixes T4 (28 words).",
+    "pl: PL-b („zakończ go”, Eclipse is neuter), X4, T4 (26 words); and „morderstwa są odrzucane” was false: a Direct Murder can still be declared"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.endChapterNote",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "season-setup",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "End the chapter (the destructive button at the bottom of Edit campaign and Season setup) reveals, sweeps the students' Truth Bullets (Faint excepted) and names the Blackened; it closes Edit campaign without applying it, asks once more, then opens the chapter's end, which lists what it will do before doing it.",
+     "file": "scripts/gm-campaign.mjs",
+     "fn": "endChapterPart",
+     "note": null
+    },
+    {
+     "fact": "The chapter field above only corrects the number and does none of that.",
+     "file": "scripts/gm-campaign.mjs",
+     "fn": "applyCampaignForm",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "End the chapter reveals, sweeps and names the Blackened - everything the chapter field above does not. It asks first, and nothing typed above is applied.",
+    "after": "The End the chapter button reveals, sweeps the students' Truth Bullets, and names the Blackened; the chapter field above does none of that. The button asks first, and nothing typed above is applied."
+   },
+   "pl": {
+    "before": "Zakończ rozdział ujawnia, sprząta i wskazuje Blackened - wszystko, czego nie robi pole rozdziału wyżej. Najpierw pyta, a nic wpisanego wyżej nie zostaje zapisane.",
+    "after": "Przycisk „Zakończ rozdział” ujawnia, zbiera Truth Bullety uczniów i wskazuje Blackened; pole rozdziału wyżej tego nie robi. Przycisk najpierw pyta, a niczego, co wpisano wyżej, nie zapisuje."
+   },
+   "removed": [
+    "The dash aside (X4, T5's find), now a relative clause; the Oxford comma (EN2/DB35, T17's find).",
+    "pl: X4: the dash",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)",
+    "review: coldEn 1: taken - 'The End the chapter button' as the subject, so it does not read as an imperative.",
+    "review: coldEn 2: taken - 'the chapter field above does none of that' (F1, gm-campaign.mjs applyCampaignForm).",
+    "review: pl 1: taken - „zbiera Truth Bullety uczniów” for „sprząta” (F0, gm-campaign.mjs endChapterPart); the same made concrete in English ('sweeps the students' Truth Bullets'), M4. 'reveals' / „ujawnia” stays without an object, as F0 has it.",
+    "review: pl 2: taken - „Przycisk najpierw pyta” gives the second sentence its subject; English 'The button asks first' likewise.",
+    "review: pl 3: taken - the button's name in „...”; English writes it bare after 'The ... button' (no EN rule quotes a button's name; EN17 is for items)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.endChapterAsk",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "season-setup",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "End the chapter (the destructive button at the bottom of Edit campaign and Season setup) reveals, sweeps the students' Truth Bullets (Faint excepted) and names the Blackened; it closes Edit campaign without applying it, asks once more, then opens the chapter's end, which lists what it will do before doing it.",
+     "file": "scripts/gm-campaign.mjs",
+     "fn": "endChapterPart",
+     "note": null
+    },
+    {
+     "fact": "This is the question between the button and the chapter's end; Cancel, the default, writes nothing.",
+     "file": "scripts/gm-campaign.mjs",
+     "fn": "endTheChapter",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "End the chapter now? Edit campaign closes without applying, and the chapter's end opens: it lists what it will reveal, sweep and name before anything is done.",
+    "after": "End the chapter now? Edit campaign closes without applying, and the chapter's end opens: it lists what it will reveal, sweep, and name before anything is done."
+   },
+   "pl": {
+    "before": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
+    "after": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi."
+   },
+   "removed": [
+    "The Oxford comma in \"reveal, sweep, and name\" (EN2/DB35), as in DRPG.Clock.endChapterNote.",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.chapterCorrect",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/gm-campaign.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The question when Apply would change the chapter number: the change only corrects the number - no reveal, no sweep of the Truth Bullets, no Blackened named. A chapter ends with End the chapter at the bottom of Edit campaign. Cancel, the default, keeps the chapter and applies the rest of the window.",
+     "file": "scripts/gm-campaign.mjs",
+     "fn": "applyCampaignForm",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "This corrects the chapter number only - no reveal, no sweep, no Blackened. A chapter ends with End the chapter, at the bottom of Edit campaign. Cancel keeps the chapter and applies the rest.",
+    "after": "This corrects only the chapter number: nothing is revealed or swept, and no Blackened is named. A chapter ends with End the chapter, at the bottom of Edit campaign. Cancel keeps the chapter and applies the rest."
+   },
+   "pl": {
+    "before": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział, na dole okna Edytuj kampanię. Anuluj zostawia rozdział i zapisuje resztę.",
+    "after": "Ta zmiana poprawia tylko numer rozdziału: niczego nie ujawnia, nie zbiera Truth Bulletów i nie wskazuje Blackened. Rozdział kończy przycisk „Zakończ rozdział” na dole okna „Edytuj kampanię”. „Anuluj” zostawia numer rozdziału bez zmian i zapisuje resztę."
+   },
+   "removed": [
+    "The dash before the list of what it does not do (X4, T5's find), now a colon and a sentence.",
+    "pl: X4: the aside between dashes; PL-a: „Truth Bullets” in the genitive",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: pl 1-2: taken - the PL review's proposal: „Anuluj” in quotes so it does not read as an imperative, „zostawia numer rozdziału bez zmian” (F0), and the button and window names quoted."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.searchTokensRestocked",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/clock.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line in the time of day's announcement, beside the refill's, when the rooms' Search Tokens were reset to full for the new time of day.",
+     "file": "scripts/clock.mjs",
+     "fn": "announceTimeOfDay",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Every room restocked with Search Tokens",
+    "after": "Every room restocked with Search Tokens"
+   },
+   "pl": {
+    "before": "Każdy pokój uzupełniony o Search Tokens",
+    "after": "Każdy pokój ma znowu komplet Search Tokenów"
+   },
+   "removed": [
+    "pl: PL-a: „Search Tokens” in a Polish sentence",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Clock.woundedNote",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/clock.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Whispered to the GMs alone at a new time of day: the students whose Wounded state took an action this time of day; {names} is their names, joined with commas.",
+     "file": "scripts/clock.mjs",
+     "fn": "announceTimeOfDay",
+     "note": null
+    },
+    {
+     "fact": "Wounded is having no Health left; it takes one action in the phases the state names (Daily Life, the Investigation), not in the Class Trial; a Monocub loses none.",
+     "file": "scripts/actions.mjs",
+     "fn": "actionBudget",
+     "note": null
+    },
+    {
+     "fact": "The action lost is a constant in code (one), not a config field; the budget is the starting actions less it, and a darkened hour may take another, with a floor.",
+     "file": "scripts/actions.mjs",
+     "fn": "WOUNDED_ACTIONS_LOST",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Down to one action this time of day, no Health left: {names}.",
+    "after": "With no Health left, these students are down an action this time of day: {names}."
+   },
+   "pl": {
+    "before": "Jedna akcja o tej porze dnia, nie zostało już Health: {names}.",
+    "after": "Wounded zabiera akcję o tej porze dnia: {names}."
+   },
+   "removed": [
+    "\"one action\" as the count left (T7: a rule's number as a word): it is now the loss, \"down an action\", which needs no number; and the count left is not always one under a darkened hour's floor.",
+    "pl: T7: „Jedna akcja”, the code's constant written as a word; and „nie zostało już Health” left the state unnamed",
+    "review: coldEn: taken - a subject and a verb before the colon (X6); F0-F2 (clock.mjs announceTimeOfDay, actions.mjs actionBudget) kept, no number."
+   ],
+   "needsCode": [
+    "If the loss should be a number: a placeholder from actions.mjs WOUNDED_ACTIONS_LOST (a PROSE_NUMBERS row), as E66 STATUS Open 22 lists Wounded's -1."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Movement.unlawfulArrival",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card whispered to the GMs once, when a student's token arrived where the rules refuse (a crossing no rule's put-back covers, such as a jump past connected rooms) and nothing put it back. {name} the student, {room} the room reached, {from} the last room the student stood in lawfully.",
+     "file": "scripts/movement.mjs",
+     "fn": "tellUnlawful",
+     "note": null
+    },
+    {
+     "fact": "Until the student stands somewhere they could have reached from {from}, they count as no witness to a body and no third party to a murder.",
+     "file": "scripts/movement.mjs",
+     "fn": "judgeArrival",
+     "note": null
+    },
+    {
+     "fact": "A GM's own move of the token makes the spot it stands on lawful.",
+     "file": "scripts/movement.mjs",
+     "fn": "judgeArrival",
+     "note": null
+    },
+    {
+     "fact": "The refusal's reason follows in a second paragraph of the same card.",
+     "file": "scripts/movement.mjs",
+     "fn": "tellUnlawful",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
+    "after": "{name} reached {room} by a crossing the rules do not allow, and was not put back. Until they stand in a room they could reach from {from}, they do not count as a witness to a body or a third party to a murder. Moving the token as a GM makes their spot lawful."
+   },
+   "pl": {
+    "before": "Postać {name} weszła do pokoju {room} przejściem, na które zasady nie pozwalają. Dopóki nie stanie tam, dokąd mogła dojść z pokoju {from}, nie jest świadkiem przy ciele ani stroną trzecią morderstwa. Niczego nie cofnięto: ruch GM-a czyni miejsce, w którym stoi, dozwolonym.",
+    "after": "Postać {name} weszła do pokoju {room} przejściem, na które zasady nie pozwalają, i jej token nie wrócił na miejsce. Dopóki nie stanie tam, dokąd mogła dojść z pokoju {from}, nie jest świadkiem przy ciele ani trzecią osobą przy morderstwie. Gdy token przesunie GM, nowe miejsce jest dozwolone."
+   },
+   "removed": [
+    "\"Nothing was put back:\" folded into the first sentence, and the last sentence shortened: T4 (48 words over the gm-card target of 40) down to 46, every fact kept; still over the target, within the limit (gm-card is reported, not failed).",
+    "pl: „Niczego nie cofnięto” i „ruch GM-a czyni miejsce dozwolonym” to kalki; „stroną trzecią” zamiast „trzecią osobą” z tabel; „przejściem” zostaje.",
+    "review: coldEn 1: taken - 'the rules do not allow'.",
+    "review: coldEn 2: taken in substance - 'they do not count as a witness to a body or a third party to a murder' (F1, movement.mjs judgeArrival: they count as no witness); the proposal's 'cannot witness' rejected because it reads as not seeing, while the rule is about what they count as.",
+    "review: coldEn 3: taken - 'Moving the token as a GM makes their spot lawful' (F2). 54 words, within the gm-card limit of 60 (target 40, reported only)."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Movement.wallCrossed",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card whispered to the GMs (once per burst) when the GMs' audit sends a student's token back after a player moved it through a wall; {name} the student, {scene} the scene.",
+     "file": "scripts/movement-audit.mjs",
+     "fn": "sendBack",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
+    "after": "{name}'s token was moved through a wall on {scene} and was sent back where it stood."
+   },
+   "pl": {
+    "before": "Żeton postaci {name} przesunięto przez ścianę na scenie {scene} i cofnięto tam, gdzie stał.",
+    "after": "Gracz przesunął token postaci {name} przez ścianę na scenie {scene}; token wrócił tam, gdzie stał."
+   },
+   "removed": [
+    "pl: „Żeton” zamiast „token” ze słowniczka; bezosobowe „przesunięto” ukrywało, że ruszył gracz.",
+    "surface: whispered to the GMs (whisperToGms, read at its code site)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Movement.floorJumped",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card whispered to the GMs (once per burst) when the audit sends a token back after a player moved it to another floor where no stairs lead; {name} the student, {scene} the scene.",
+     "file": "scripts/movement-audit.mjs",
+     "fn": "sendBack",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name}'s token was moved to another floor on {scene} where no stairs lead, and was sent back where it stood.",
+    "after": "{name}'s token was moved to another floor on {scene} where no stairs lead, and was sent back where it stood."
+   },
+   "pl": {
+    "before": "Żeton postaci {name} przeniesiono na scenie {scene} na inne piętro, dokąd nie prowadzą schody, i cofnięto tam, gdzie stał.",
+    "after": "Gracz przeniósł token postaci {name} na scenie {scene} na inne piętro, na które nie prowadzą schody; token wrócił tam, gdzie stał."
+   },
+   "removed": [
+    "pl: „Żeton” zamiast „token” ze słowniczka; bezosobowe „przeniesiono” ukrywało, że ruszył gracz.",
+    "surface: whispered to the GMs (whisperToGms, read at its code site)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Movement.ruleSentBack",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card whispered to the GMs (once per burst) when a player's move into a room the rules refuse (a lock, a seal, a bedroom, a barricade) is put back to the last spot the student stood lawfully; {name} the student, {room} the refused room, {scene} the scene; the rule's reason follows.",
+     "file": "scripts/movement-audit.mjs",
+     "fn": "ruleRefused",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{name}'s token was moved into {room} on {scene}, where the rules do not let {name} go, and was put back where {name} last stood.",
+    "after": "{name}'s token was moved into {room} on {scene}, where the rules do not let {name} go, and was put back where {name} last stood."
+   },
+   "pl": {
+    "before": "Żeton postaci {name} przesunięto na scenie {scene} do pokoju {room}, dokąd zasady tej postaci nie wpuszczają, i cofnięto tam, gdzie ostatnio stał.",
+    "after": "Gracz przesunął token postaci {name} na scenie {scene} do pokoju {room}, do którego zasady tej postaci nie wpuszczają; token wrócił tam, gdzie postać ostatnio stała zgodnie z zasadami."
+   },
+   "removed": [
+    "pl: „Żeton” zamiast „token”; „tam, gdzie ostatnio stał” nie mówiło, że chodzi o ostatnie dozwolone miejsce.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Movement.dropRemoved",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card whispered to the GMs when a player placed a student's token in a room the rules do not let that student stand in, and the primary GM deleted the token; {name} the student, {room} the room, {scene} the scene; the reason follows.",
+     "file": "scripts/movement.mjs",
+     "fn": "removeDrop",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "A player placed a token of {name} in {room} on {scene}, where the rules do not let {name} stand. The token was removed.",
+    "after": "A player placed a token of {name} in {room} on {scene}, where the rules do not let {name} stand. The token was removed."
+   },
+   "pl": {
+    "before": "Gracz postawił żeton postaci {name} w pokoju {room} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Żeton usunięto.",
+    "after": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Token został usunięty."
+   },
+   "removed": [
+    "pl: „Żeton” zamiast „token” ze słowniczka."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Movement.droppedFromNowhere",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A warning card whispered to the GMs when a player placed a student's token on a scene where that student had no standing before (no token of theirs seen there); {name} the student, {room} the room, {scene} the scene.",
+     "file": "scripts/movement.mjs",
+     "fn": "tellDropped",
+     "note": null
+    },
+    {
+     "fact": "Such a drop is judged as an arrival from outside the rooms: the connected-rooms rule does not apply (locks, seals and bedrooms still do), and the token counts as a witness where it stands.",
+     "file": "scripts/movement.mjs",
+     "fn": "judgeArrival",
+     "note": null
+    },
+    {
+     "fact": "What the GM can do: move the token if it should not be there.",
+     "file": "scripts/movement.mjs",
+     "fn": "tellDropped",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there.",
+    "after": "A player placed a token of {name} in {room} on {scene}, where {name} had not stood before. As an arrival from outside the rooms, it was exempt from the connected-rooms rule and counts as a witness there. Move it if it should not be there."
+   },
+   "pl": {
+    "before": "Gracz postawił żeton postaci {name} w pokoju {room} na scenie {scene}, gdzie ta postać wcześniej nigdzie nie stała. Oceniono to jak wejście spoza pokojów, więc nie obowiązywała żadna zasada o tym, które pokoje się łączą, i liczy się tam jako świadek. Przesuń żeton, jeśli nie powinien tam stać.",
+    "after": "Gracz postawił token postaci {name} w pokoju {room} na scenie {scene}, na której ta postać nie miała wcześniej tokenu. Moduł traktuje to jak wejście spoza pokoi: zasada połączonych pokoi nie działa, ale zasady zamków, pieczęci i sypialni obowiązują dalej, a postać liczy się tam jako świadek. Jeśli token nie powinien tam stać, GM może go przesunąć."
+   },
+   "removed": [
+    "T4 (51 words over the gm-card target of 40, now 45): \"It was judged as\" and \"so no rule about which rooms connect applied\" said shorter; every fact kept, still over the target, within the limit.",
+    "pl: Stary tekst mówił, że nie obowiązuje żadna zasada (zamki, pieczęcie i sypialnie obowiązują); „Przesuń” w drugiej osobie na kartę do kilku GM-ów (P2); „żeton” zamiast „token”.",
+    "review: en: rejected - the card is whispered to the GMs (movement.mjs tellDropped, gm-card); group B's ruling for this revision lets a GM card tell the GM what to do in the imperative ('Move it if it should not be there.'), and P2 forbids there only 'you' as the one something happened to or the owner of a thing. The English stays; the Polish third person („GM może go przesunąć”) reads as well and is kept.",
+    "review: pl: taken - „zasady zamków, pieczęci i sypialni obowiązują dalej” (F1)."
+   ],
+   "needsCode": [],
+   "disagreements": [
+    "en review (P2) against group B's ruling on GM cards: an imperative to the GMs on a whisperToGms card is allowed; the ruling is STATUS-B.md's question for the owner, so the English imperative stands until the owner answers it."
+   ],
+   "reviews": {
+    "en": {
+     "verdict": "change",
+     "points": [
+      "Kept by group B's default ruling (an imperative to the GMs on a GM card); if the owner rules P2 against it, take the proposal's 'A GM can move it if it should not be there.'"
+     ]
+    },
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Ready.status.away",
+   "group": "window",
+   "surface": "gm-diagnostics",
+   "screen": "eclipse-hud",
+   "readers": [
+    "gm"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A cell in the GM's readiness window beside a player who is not connected: such a player is counted as having answered Done.",
+     "file": "scripts/boundary.mjs",
+     "fn": "roundReading",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "Not connected - counts as Done",
+    "after": "Not connected (counts as Done)"
+   },
+   "pl": {
+    "before": "Brak połączenia - liczy się jako „Gotowe”",
+    "after": "Bez połączenia, liczy się jako „Gotowe”"
+   },
+   "removed": [
+    "The dash aside (X4, T5) becomes brackets; the same words.",
+    "pl: Myślnik doklejający dopowiedzenie (X4).",
+    "surface: a GM window's line (no budget rule places it; the GM surface with no limit stands in)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Sequence.daySub",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/sequence.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The line under the start-of-day board's title, shown in capitals by CSS: the chapter's number {chapter}, the time of day {time} (its label), and the count of living students {alive} out of the whole cast {total}, separated by middle dots.",
+     "file": "scripts/sequence.mjs",
+     "fn": "dayStartElement",
+     "note": null
+    },
+    {
+     "fact": "{alive} counts the cast who are not dead by the table's published death flag; a death the GMs know and the table has not found still counts as alive.",
+     "file": "scripts/sequence.mjs",
+     "fn": "dayStartBoard",
+     "note": null
+    },
+    {
+     "fact": "Used when the clock has a chapter; otherwise DRPG.Sequence.daySubNoChapter.",
+     "file": "scripts/sequence.mjs",
+     "fn": "dayStartElement",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Chapter {chapter} · {time} · Alive: {alive}/{total}",
+    "after": "Chapter {chapter} · {time} · Alive: {alive}/{total}"
+   },
+   "pl": {
+    "before": "Rozdział {chapter} · {time} · Ocaleli: {alive}/{total}",
+    "after": "Rozdział {chapter} · {time} · Przy życiu: {alive}/{total}"
+   },
+   "removed": [
+    "pl: „Ocaleli” to czas przeszły w rodzaju męskoosobowym: przy obsadzie z samych dziewcząt brzmiałby źle („ocalały”). „Przy życiu” nie ma rodzaju (PL17).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [
+    "The lint's render fixture has no value for {alive}, so T15 renders the placeholder as written (scripts/tests-text.mjs): a fixture value for {alive} is needed there, not a text change."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Sequence.daySubNoChapter",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/sequence.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The line under the start-of-day board's title when the clock has no chapter: the time of day {time}, and the living students {alive} out of the whole cast {total}.",
+     "file": "scripts/sequence.mjs",
+     "fn": "dayStartElement",
+     "note": null
+    },
+    {
+     "fact": "{alive} counts the cast who are not dead by the table's published death flag; a death the GMs know and the table has not found still counts as alive.",
+     "file": "scripts/sequence.mjs",
+     "fn": "dayStartBoard",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "{time} · Alive: {alive}/{total}",
+    "after": "{time} · Alive: {alive}/{total}"
+   },
+   "pl": {
+    "before": "{time} · Ocaleli: {alive}/{total}",
+    "after": "{time} · Przy życiu: {alive}/{total}"
+   },
+   "removed": [
+    "pl: Jak w daySub: „Ocaleli” zależy od rodzaju obsady; „Przy życiu” go nie ma (PL17).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [
+    "The lint's render fixture has no value for {alive}, so T15 renders the placeholder as written (scripts/tests-text.mjs): a fixture value for {alive} is needed there, not a text change."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Look.uiScaleAuto",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Built for the Stained Glass theme: {w} and {h} are this screen's width and height in pixels, {auto} the percent of the 1440p layout the theme scales to on this screen by itself, {total} that factor times the interface scale slider, in percent.",
+     "file": "scripts/look.mjs",
+     "fn": "scaleNote",
+     "note": null
+    },
+    {
+     "fact": "No code calls the function that builds this line: settings-window.mjs draws its own scale line (DRPG.SettingsWindow.scaleNow) and says the longer note is not drawn, so the text is shown nowhere.",
+     "file": "scripts/settings-window.mjs",
+     "fn": "scaleNow",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "This screen ({w} x {h}) is drawn at {auto}% of 1440p on its own; with the slider, {total}%.",
+    "after": "This screen ({w} x {h}) is drawn at {auto}% of 1440p on its own; with the slider, {total}%."
+   },
+   "pl": {
+    "before": "Ten ekran ({w} x {h}) sam z siebie rysuje w {auto}% skali 1440p; z suwakiem {total}%.",
+    "after": "Ten ekran ma {w} x {h}, więc motyw Stained Glass sam skaluje interfejs do {auto}% układu 1440p; z suwakiem to {total}%."
+   },
+   "removed": [
+    "pl: „sam z siebie rysuje w {auto}% skali 1440p” to kalka bez podmiotu (co rysuje?); nie mówiło, że chodzi o motyw Stained Glass.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: rejected for now - the text is shown nowhere (look.mjs scaleNote is called by no code, settings-window.mjs draws DRPG.SettingsWindow.scaleNow); the batch's needsCode holds it until the keys are removed or the note is drawn, so the English is not rewritten. If it is drawn: 'is scaled automatically to {auto}% of 1440p' is the reviewer's wording."
+   ],
+   "needsCode": [
+    "Dead text: look.mjs scaleNote is exported and called nowhere (only a comment in settings-window.mjs names it). Remove scaleNote and the keys DRPG.Look.uiScaleAuto and DRPG.Look.uiScaleSlider (en and pl together), or call it; until then the text is not rewritten."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": {
+     "verdict": "unclear",
+     "points": [
+      "Dead text (needsCode): remove scaleNote and the two keys, or draw it and take 'This screen ({w} x {h}) is scaled automatically to {auto}% of 1440p; with the slider, {total}%.'"
+     ]
+    },
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Look.uiScaleSlider",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "none (the map reaches no screen)",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Built for the Monokuma Legacy theme: {w} and {h} are this screen's size in pixels, and {slider} the interface scale slider in percent - under Legacy the slider alone sets the size, with no factor of the screen's own.",
+     "file": "scripts/look.mjs",
+     "fn": "scaleNote",
+     "note": null
+    },
+    {
+     "fact": "No code calls the function that builds this line: settings-window.mjs draws its own scale line (DRPG.SettingsWindow.scaleNow) and says the longer note is not drawn, so the text is shown nowhere.",
+     "file": "scripts/settings-window.mjs",
+     "fn": "scaleNow",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "This screen is {w} x {h}. Monokuma Legacy takes the slider on its own: {slider}%.",
+    "after": "This screen is {w} x {h}. Monokuma Legacy takes the slider on its own: {slider}%."
+   },
+   "pl": {
+    "before": "Ten ekran ma {w} x {h}. Monokuma Legacy bierze sam suwak: {slider}%.",
+    "after": "Ten ekran ma {w} x {h}. W motywie Monokuma Legacy rozmiar zależy tylko od suwaka ({slider}%)."
+   },
+   "removed": [
+    "pl: „Monokuma Legacy bierze sam suwak: {slider}%” to kalka i etykieta z dwukropkiem w zdaniu (X12).",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: coldEn: rejected for now - dead text, as DRPG.Look.uiScaleAuto (needsCode); if it is drawn, 'Monokuma Legacy uses only the slider: {slider}%.' is the reviewer's wording."
+   ],
+   "needsCode": [
+    "Dead text: look.mjs scaleNote is exported and called nowhere (only a comment in settings-window.mjs names it). Remove scaleNote and the keys DRPG.Look.uiScaleAuto and DRPG.Look.uiScaleSlider (en and pl together), or call it; until then the text is not rewritten."
+   ],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": {
+     "verdict": "unclear",
+     "points": [
+      "Dead text (needsCode): remove or draw; if drawn, take 'This screen is {w} x {h}. Monokuma Legacy uses only the slider: {slider}%.'"
+     ]
+    },
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Look.contrastAuto",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/settings-window.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A note in the settings window's Effects and accessibility section, shown only when the operating system asks for more contrast (prefers-contrast: more); read by the user of this browser.",
+     "file": "scripts/settings-window.mjs",
+     "fn": "extrasOf",
+     "note": null
+    },
+    {
+     "fact": "High contrast is on when its switch is on or when the system asks for more contrast, so with such a system it stays on even with the switch off.",
+     "file": "scripts/settings.mjs",
+     "fn": "highContrastOn",
+     "note": null
+    },
+    {
+     "fact": "The switch's setting is named High contrast.",
+     "file": "lang/en.json",
+     "fn": "highContrast",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2
+   ],
+   "en": {
+    "before": "Your system already asks for more contrast, so this is on whatever the switch says.",
+    "after": "Your system asks for more contrast, so High contrast stays on even with its switch off."
+   },
+   "pl": {
+    "before": "Twój system już prosi o większy kontrast, więc to jest włączone bez względu na przełącznik.",
+    "after": "Twój system prosi o większy kontrast, więc Wysoki kontrast działa także przy wyłączonym przełączniku."
+   },
+   "removed": [
+    "\"already\" and \"this is on whatever the switch says\": the vague \"this\" now names High contrast, and the sentence says what the switch does not change",
+    "pl: „to jest włączone” nie mówiło, co jest włączone; teraz nazwa ustawienia (Wysoki kontrast, jak DRPG.Settings.highContrast.name) i warunek wprost.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Movement.outsideRooms",
+   "group": "window",
+   "surface": "gm-card",
+   "screen": "gm-panel",
+   "readers": [
+    "gm",
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A place fragment that stands where a room's name would, when a token stands in no room of the scene.",
+     "file": "scripts/movement.mjs",
+     "fn": "tellUnlawful",
+     "note": null
+    },
+    {
+     "fact": "Hosts (GM cards): a token that reached it by a crossing the rules refuse ({room} in DRPG.Movement.unlawfulArrival, after the verb reached; {from} there, after from), a token moved into it and put back ({room} in DRPG.Movement.ruleSentBack, after into), a player's token placed in it ({room} in DRPG.Movement.droppedFromNowhere and DRPG.Movement.dropRemoved, after in).",
+     "file": "scripts/movement.mjs",
+     "fn": "tellDropped",
+     "note": null
+    },
+    {
+     "fact": "Host (a toast to the player whose move was refused): DRPG.Move.cannotReach, after from - the player cannot get there from this place.",
+     "file": "scripts/movement-audit.mjs",
+     "fn": "onSentBack",
+     "note": null
+    },
+    {
+     "fact": "Host (a GM panel button's tooltip): DRPG.Panel.refundCrossingNote, as {from} or {to} of a crossing that can be refunded.",
+     "file": "scripts/gm-students.mjs",
+     "fn": "refundButton",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "en": {
+    "before": "outside the rooms",
+    "after": "a spot outside the rooms"
+   },
+   "pl": {
+    "before": "poza pokojami",
+    "after": "poza pokojami"
+   },
+   "removed": [
+    "the bare place phrase, which read badly after the hosts' prepositions (into, in) and after reached: as a noun phrase it fits every host",
+    "surface: whispered to the GMs (whisperToGms, read at its code site)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Summary.title",
+   "group": "window",
+   "surface": "window-title",
+   "screen": "file:scripts/day-summary.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The title of the summary card shown in the middle of the screen when a time of day ends (at Next time of day, or an Eclipse's start); it stays until closed and is kept in this browser's notice history.",
+     "file": "scripts/day-summary.mjs",
+     "fn": "showDaySummary",
+     "note": null
+    },
+    {
+     "fact": "A player's card lists that player's own actions of the time of day that ended (a student they own, or none); a GM's lists every student's, under who did each. With no action, no card appears.",
+     "file": "scripts/day-summary.mjs",
+     "fn": "showDaySummary",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "The time of day is over",
+    "after": "Time-of-day summary"
+   },
+   "pl": {
+    "before": "Pora dnia dobiegła końca",
+    "after": "Pora dnia dobiegła końca"
+   },
+   "removed": [
+    "the sentence form, over the window-title target (T4: 6 words, target 5): a window title names its subject, the summary",
+    "review: en: taken - the compound modifier hyphenated before the noun. The Polish title „Pora dnia dobiegła końca” (4 words) was not reviewed and stays."
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Summary.lede",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/day-summary.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first line of a player's time-of-day summary: {phase} is the label of the time of day that ended (for example Morning); the rows of what this player's student did follow.",
+     "file": "scripts/day-summary.mjs",
+     "fn": "summaryLede",
+     "note": null
+    },
+    {
+     "fact": "A GM reads the table's line instead (DRPG.Summary.ledeGm).",
+     "file": "scripts/day-summary.mjs",
+     "fn": "summaryLede",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "What you did during the {phase}.",
+    "after": "What you did during the {phase}."
+   },
+   "pl": {
+    "before": "Co się u ciebie działo w porze: {phase}.",
+    "after": "{phase}: co się u ciebie działo."
+   },
+   "removed": [
+    "pl: „w porze: {phase}” to etykieta z dwukropkiem w środku zdania (X12); pory dnia („Rano”, „Południe”, „Noc”) to mianowniki, więc nazwa pory otwiera linię jak nagłówek.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Summary.ledeGm",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/day-summary.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first line of a GM's time-of-day summary: {phase} is the label of the time of day that ended; the rows list every student's actions, under who did them.",
+     "file": "scripts/day-summary.mjs",
+     "fn": "summaryLede",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "What the table did during the {phase}.",
+    "after": "What the table did during the {phase}."
+   },
+   "pl": {
+    "before": "Co działo się przy stole w porze: {phase}.",
+    "after": "{phase}: co działo się przy stole."
+   },
+   "removed": [
+    "pl: Ten sam kształt X12 co w Summary.lede („w porze: {phase}”); najmniejsza poprawka, równoległa do lede gracza.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Summary.found",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/day-summary.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A tail on a row of the time-of-day summary when that action found an item: {item} is the item's name (escaped), {tier} the item's tier (a number, or ? when unknown).",
+     "file": "scripts/day-summary.mjs",
+     "fn": "showDaySummary",
+     "note": null
+    },
+    {
+     "fact": "The module writes an item's name in quotes and its tier after it in brackets, as elsewhere (DRPG.Cleanup.withTool).",
+     "file": "lang/en.json",
+     "fn": "withTool",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "found a Tier “{tier}” {item}",
+    "after": "found “{item}” (Tier {tier})"
+   },
+   "pl": {
+    "before": "znaleziono „{item}” (Tier {tier})",
+    "after": "znaleziono „{item}” (Tier {tier})"
+   },
+   "removed": [
+    "the quotes moved from the tier to the item's name (T23, DB31); the tier stands in brackets after the name, the module's pattern (and Polish's, T22)",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Explain.status.actionsNow",
+   "group": "window",
+   "surface": "player-card",
+   "screen": "file:scripts/api.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "A line of the explainer's last section, about the reader's own character right now, beside the Free Move line and the Hope line (\"You hold ... of ... Hope.\").",
+     "file": "scripts/explain.mjs",
+     "fn": "openStatusExplainer",
+     "note": null
+    },
+    {
+     "fact": "{left} is the actions the character has left, {max} the actions a time of day gives; the count refills at each new time of day.",
+     "file": "scripts/explain.mjs",
+     "fn": "openStatusExplainer",
+     "note": null
+    },
+    {
+     "fact": "The old line did not name what is counted; the sections above it are about actions, Free Move and Hope.",
+     "file": "scripts/explain.mjs",
+     "fn": "openStatusExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "You have {left} of {max} left this time of day.",
+    "after": "You have {left} of {max} actions left this time of day."
+   },
+   "pl": {
+    "before": "Masz {left} z {max} o tej porze dnia.",
+    "after": "Masz {left} z {max} akcji o tej porze dnia."
+   },
+   "removed": [
+    "Nothing cut; \"actions\" added, since the line stands beside a Hope line in a section that counts three things.",
+    "pl: The old line did not name what is counted.",
+    "surface: a paragraph of the explainer window (explain.mjs) no budget rule places; player-card's budget stands in",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.notConnectedShort",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "file:scripts/movement.mjs",
+   "readers": [
+    "unknown"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "Why a crossing was refused when the destination room does not connect to the room the token stands in and the reader knows no other connected room to list; {to} is the destination, {from} the room the token stands in.",
+     "file": "scripts/movement.mjs",
+     "fn": "notConnectedText",
+     "note": null
+    },
+    {
+     "fact": "When some connected rooms are known, the longer line with the list is used (Move.notConnected).",
+     "file": "scripts/movement.mjs",
+     "fn": "notConnectedText",
+     "note": null
+    }
+   ],
+   "kept": [
+    0
+   ],
+   "en": {
+    "before": "{to} is not connected to {from}.",
+    "after": "{to} is not connected to {from}."
+   },
+   "pl": {
+    "before": "{to} nie łączy się z {from}.",
+    "after": "Pokój {to} nie łączy się z pokojem {from}."
+   },
+   "removed": [
+    "pl: A room name after „z” stood in the nominative („z Biblioteka”); now X12's „z pokojem {from}”, as Move.notConnected writes it.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  },
+  {
+   "key": "DRPG.Move.freeAvailable",
+   "group": "window",
+   "surface": "tile-hint",
+   "screen": "action-tiles",
+   "readers": [
+    "both"
+   ],
+   "source": "written",
+   "pilot": null,
+   "facts": [
+    {
+     "fact": "The first fact line of the Move tile's briefing, chosen when the next crossing into another room is paid by the character's Free Move; the other cases name the other payments (a free crossing bought with Sprint, a banked Burst, an action, or nothing left).",
+     "file": "scripts/action-briefing.mjs",
+     "fn": "moveLine",
+     "note": null
+    },
+    {
+     "fact": "The order of payment is Free Move, then Sprint crossings, then a Burst, then actions.",
+     "file": "scripts/actions.mjs",
+     "fn": "nextCrossingPrice",
+     "note": null
+    },
+    {
+     "fact": "The Free Move comes back at the start of each time of day.",
+     "file": "scripts/explain.mjs",
+     "fn": "openStatusExplainer",
+     "note": null
+    }
+   ],
+   "kept": [
+    0,
+    1
+   ],
+   "en": {
+    "before": "Your Free Move for this time of day is still there.",
+    "after": "The next room takes your Free Move, and your actions stay."
+   },
+   "pl": {
+    "before": "Twój Free Move na tę porę dnia wciąż jest.",
+    "after": "Masz jeszcze Free Move na tę porę dnia, więc następny pokój nie kosztuje akcji."
+   },
+   "removed": [
+    "\"for this time of day is still there\": the line now names the price of the next crossing in the words of its siblings Move.nextSprint and Move.nextBurst (\"The next room takes ...\"), so the four cases read alike.",
+    "pl: „wciąż jest” at the end reads unfinished and did not say what the Free Move pays for.",
+    "surface: a window's line no budget rule places; tile-hint's budget stands in (B01a's window lines did the same)",
+    "review: en: taken - the siblings' whole shape (Move.nextSprint, Move.nextBurst), so the line says no action is spent, as the Polish does.",
+    "review: coldEn: rejected - \"The next room takes ...\" is the shape of the three sibling lines on the same tile (O14, one wording per case); the added \"and your actions stay\" answers its point that the line did not say the crossing spends no action.",
+    "mode: frozen in docs/dev/e71/FROZEN.md for a branch now in the base; edited in full once the coordinator released the freeze (14.11.2026)"
+   ],
+   "needsCode": [],
+   "disagreements": [],
+   "reviews": {
+    "en": null,
+    "coldEn": null,
+    "pl": null,
+    "mechanics": null
+   },
+   "owner": null
+  }
+ ]
+}
