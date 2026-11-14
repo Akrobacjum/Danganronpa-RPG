@@ -59548,6 +59548,31 @@ const INVARIANTS = [
             next: ["C", "B", null, null], opens: [], footer: [["done", "pass", "thesis"], ["done", "pass"]], vote: true
         }), "{a Scrum turn's Done, Pass, gone: [next speaker, cards]; a stale step, another's Pass, Done in Sides; next: [B away, all here, only A here, the last turn]; opens: ops not in FLOOR_OP_NAMES; footer: [a Scrum turn, a round]; vote: openRound ends the floor}");
     }],
+    ["R7105 - each Class Trial mode plays its own playlist (D-E110-B, D-E110-C; the owner, 14.11.2026: \"Kazda minigra w class trial niech ma wlasna playliste w muzyce\", \"Scrum trzy playlisty niech ma\"): music-states.mjs `trialMusicState` answers a mode's own state - the Rebuttal's, Testimony's, the Panic Round's, the Closing Argument's, the Straw Poll's, the Logic Dive's, and a Scrum Debate's Sides, Camps confer and turns, each its own - when that state has a playlist, and what it answered before (`TRIAL_MODE_MUSIC`) when it has none; every own state is a row of `MUSIC_STATES` with its words in English and Polish", async () => {
+        /* Pure over the floor and a `mapped` handed in; then the table and the words read. Red at 19991c24: no own states. */
+        const Mu = await import("./music-states.mjs");
+        const floor = (mode, extra = {}) => ({ active: true, mode, holderId: "O", ...extra });
+        const scrum = phase => floor("scrum", { zone: { phase } });
+        const floors = { debate: floor("debate"), objection: floor("objection"), rebuttal: floor("rebuttal"), testimony: floor("testimony"),
+            panic: floor("panic"), closing: floor("closing"), straw: floor("straw"), dive: floor("dive"),
+            sides: scrum("setup"), confer: scrum("confer"), speak: scrum("speak") };
+        const ask = mapped => Object.fromEntries(Object.entries(floors).map(([k, f]) => [k, Mu.trialMusicState(f, "classTrial", { mapped })]));
+        const read = { all: ask(() => true), none: ask(() => false) };
+        const own = Object.values(read.all);
+        const keys = new Set(Mu.MUSIC_STATES.map(s => s.key));
+        read.rows = own.filter(k => !keys.has(k));
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const words = (code, key) => key.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), lang[code]);
+        read.words = Mu.MUSIC_STATES.filter(s => own.includes(s.key)).filter(s => !s.labelKey || !words("en", s.labelKey) || !words("pl", s.labelKey)).map(s => s.key);
+        equal(stableJson(read), stableJson({
+            all: { debate: "trial.debate", objection: "trial.objection", rebuttal: "trial.rebuttal", testimony: "trial.testimony", panic: "trial.panic",
+                closing: "trial.closing", straw: "trial.straw", dive: "trial.dive", sides: "trial.scrumSides", confer: "trial.scrumConfer", speak: "trial.scrumSpeak" },
+            none: { debate: "trial.debate", objection: "trial.objection", rebuttal: "trial.objection", testimony: "trial.discussion", panic: "trial.discussion",
+                closing: "trial.discussion", straw: "trial.debate", dive: "trial.debate", sides: "trial.debate", confer: "trial.debate", speak: "trial.debate" },
+            rows: [], words: []
+        }), "{all: each floor's state with every own state mapped; none: with none mapped (as before); rows: own states with no MUSIC_STATES row; words: rows with no English or Polish label}");
+    }],
 ];
 
 /**

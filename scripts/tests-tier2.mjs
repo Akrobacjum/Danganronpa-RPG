@@ -101482,6 +101482,85 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             turn: ["the round has moved on since that turn", "it is not that character's turn", "moved", true, "b"] }),
             "{the floor after the vote's end of a Panic Round, of a Scrum turn; [the next step with a split, the split after a debate opened and closed, the next step]; [a stale Pass, another's Pass, the speaker's Done, the turn the other camp's, its side]}");
     }],
+    ["E110-T4 - each mode's own playlist follows the floor on this primary (D-E110-B, D-E110-C): unmapped, Testimony plays the Discussion and a Rebuttal the Objection's as before; mapped, the music state is Testimony's, the Rebuttal's, and a Scrum Debate's Sides, Camps confer and turns, one state each, and the floor's end gives the Discussion back; the engine that plays a state runs on the primary alone", async () => {
+        /*
+         * E110, 14.11.2026. In a Class Trial written raw, the game running, three fixture playlists mapped into the music
+         * map (and taken out after): `currentState()` read after each floor write, as music-play.mjs `apply` reads it on
+         * the primary (its `enabled` is `isPrimaryGm()` and the setting; the audio itself is LIVE-E110-04). Red at 19991c24:
+         * no own state - Testimony read "trial.discussion" mapped or not.
+         */
+        needs(env.primaryGm(), "the music follows the state on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three participants with a player here");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        const { SEIZE_KEY } = await import("./trial.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const wasPaused = game.paused;
+        const seen = new Set(game.messages.map(m => m.id));
+        const made = [];
+        const read = {};
+        try {
+            if (wasPaused) await game.togglePause(false);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial", eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            const people = V.trialParticipants({ connected: true }).map(p => p.actor.id);
+            must(people.length >= 3, `three participants, found ${people.length}`);
+            const [O, B, X] = people;
+            await F.floorOnPrimary("testimony", { seconds: 60, order: [O, B].join(",") });
+            read.unmapped = [M.currentState()];
+            await F.floorOnPrimary("end", {});
+            await F.startFloor({});
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O, B, { cardId: null }));
+            await serialWrite(SEIZE_KEY, () => F.openRebuttalInStep());
+            read.unmapped.push(M.currentState());
+            await F.floorOnPrimary("end", {});
+            for (const name of ["Suite E110-T4 A", "Suite E110-T4 B", "Suite E110-T4 C"]) made.push(await Playlist.create({ name }));
+            must(made.every(Boolean), "the fixture playlists were not made");
+            await setSetting(SETTINGS.musicMap, { ...mapBefore, "trial.testimony": made[0].id, "trial.rebuttal": made[1].id,
+                "trial.scrumSides": made[0].id, "trial.scrumConfer": made[1].id, "trial.scrumSpeak": made[2].id });
+            await F.floorOnPrimary("testimony", { seconds: 60, order: [O, B].join(",") });
+            read.mapped = [M.currentState()];
+            await F.floorOnPrimary("end", {});
+            await F.startFloor({});
+            await serialWrite(SEIZE_KEY, () => F.openObjectionInStep(O, B, { cardId: null }));
+            read.mapped.push(M.currentState());
+            await serialWrite(SEIZE_KEY, () => F.openRebuttalInStep());
+            read.mapped.push(M.currentState());
+            await F.floorOnPrimary("end", {});
+            const now = Date.now();
+            const scrum = phase => ({ active: true, mode: "scrum", holderId: phase === "speak" ? O : null, targetId: null, seconds: 45, startedAt: now,
+                pending: false, messageId: null, before: [], gmNote: null,
+                zone: { phase, question: "SUITE E110-T4", answers: { a: "A", b: "B" }, picks: { [O]: "a", [X]: "a", [B]: "b" }, stands: {}, openedAt: now, step: 1 } });
+            for (const phase of ["setup", "confer", "speak"]) {
+                await game.settings.set(MODULE_ID, SETTINGS.trialQueue, scrum(phase));
+                read.mapped.push(M.currentState());
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            read.mapped.push(M.currentState());
+            read.primary = [isPrimaryGm(), M.musicStatus().enabled === (isPrimaryGm() && getSetting(SETTINGS.musicEnabled) === true)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            for (const p of made) { try { await p?.delete(); } catch { /* gone */ } }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* gone */ } }
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (wasPaused && !game.paused) await game.togglePause(true);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            unmapped: ["trial.discussion", "trial.objection"],
+            mapped: ["trial.testimony", "trial.objection", "trial.rebuttal", "trial.scrumSides", "trial.scrumConfer", "trial.scrumSpeak", "trial.discussion"],
+            primary: [true, true]
+        }), "{unmapped: [Testimony, a Rebuttal]; mapped: [Testimony, the Objection's minute, its Rebuttal, Scrum's Sides, Camps confer, turns, no floor]; primary: [this GM the primary, the engine's gate]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
